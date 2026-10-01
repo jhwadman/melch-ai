@@ -548,6 +548,7 @@ export class SyndicateExecutor implements AgentExecutor {
             userId,
             sessionId: contextId,
             extractionRules: config.memory_extraction_rules,
+            extractionModel: config.memory_extraction_model,
           });
         } catch (memErr: unknown) {
           warn(`Memory ingestion failed (reply already delivered): ${memErr instanceof Error ? memErr.message : String(memErr)}`);

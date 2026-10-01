@@ -103,5 +103,10 @@ export function postgresMemoryStore(pool: Pool): MemoryStore {
       const r = await pool.query('SELECT melchizedek_memory_dimensions() AS d');
       return r.rows[0]?.d == null ? null : Number(r.rows[0].d);
     },
+
+    async pruneNamespace(namespace, days) {
+      const r = await pool.query('SELECT melchizedek_prune_memory($1, $2) AS n', [namespace, days]);
+      return Number(r.rows[0]?.n ?? 0);
+    },
   };
 }

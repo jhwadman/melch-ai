@@ -134,6 +134,11 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **Per-syndicate memory settings** (ADR 0020). `memory_extraction_model`
+  picks the model that distils a syndicate's turns (default
+  `MEMORY_EXTRACTION_MODEL`); `memory_retention_days` deletes facts in the
+  syndicate's own `memory_namespace` older than the window, when the server
+  loads it and daily after (migration `0008_memory_retention.sql`).
 - **Memory ingestion commits as one unit** (migration
   `0007_memory_commit.sql`, ADR 0020). New facts, the rows they supersede
   and the session's processed marker are written in one transaction

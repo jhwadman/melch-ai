@@ -126,7 +126,8 @@ BEGIN
                         'melchizedek_registry_hash', 'melchizedek_registry_record',
                         'melchizedek_registry_versions_immutable', 'melchizedek_registry_publish',
                         'melchizedek_registry_activate', 'melchizedek_memory_commit',
-                        'melchizedek_memory_dimensions', 'melchizedek_prune_memory_ingest')
+                        'melchizedek_memory_dimensions', 'melchizedek_prune_memory_ingest',
+                        'melchizedek_prune_memory')
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', fn);
     IF has_service_role THEN

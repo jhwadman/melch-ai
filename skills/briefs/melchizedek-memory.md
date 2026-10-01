@@ -30,6 +30,8 @@ Wire the syndicate:
 - Set `memory_system: "long-term"`.
 - Give the orchestrator the tools by name: `preload_memory` loads what is known about the user at the start of a session; `load_memory` recalls facts mid-conversation as the topic turns. `patient_advocate.yaml` shows both, with an instruction that sets what is said aloud and what is only recorded.
 - `memory_extraction_rules:` (top level, optional): domain rules appended to the shared extraction prompt for this syndicate only, in the form of NEVER store / ALWAYS store lines, such as never storing a value that goes stale on its own and always storing what the user asserted, decided, or committed to.
+- `memory_extraction_model:` (top level, optional): the model that extracts this syndicate's memory records; default MEMORY_EXTRACTION_MODEL.
+- `memory_retention_days:` (top level, optional): days facts in this syndicate's namespace are kept; requires its own `memory_namespace:`; the server prunes at load and daily.
 Prove it:
 - `npx melchizedek-chat --syndicate ares -- "Remember: my project is called athens-prod."` then `npx melchizedek-chat --syndicate ares -- "What do you know about my project?"` (clone: `npm run syndicate:ares -- "..."`). The second run recalls the first.
 Inspect and erase (clone commands; the scripts are not package executables):
@@ -41,5 +43,5 @@ When recall returns nothing:
 - The tables exist but `match_memory_facts` was never created (rerun the SQL), or the query runs under a different `user_key` than the one that stored the facts.
 - Sessions do not persist between runs: `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` is missing and the framework fell back to in-memory sessions.
 
-IDENTIFIERS (verbatim): memory_system:, internal-only, session-only, long-term, adk_sessions, adk_memory_facts, match_memory_facts, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GOOGLE_GENAI_API_KEY, DOCUMENTATION.md, db/memory_v2.sql, db/hardening.sql, preload_memory, load_memory, memory_extraction_rules:, user_key, patient_advocate.yaml, npx melchizedek-chat --syndicate ares, npm run memory -- list, --silo, --dupes, --yes, npm run db:purge, SupabaseVectorMemoryService, melchizedek-agents/memory
+IDENTIFIERS (verbatim): memory_extraction_model:, memory_retention_days:, memory_system:, internal-only, session-only, long-term, adk_sessions, adk_memory_facts, match_memory_facts, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GOOGLE_GENAI_API_KEY, DOCUMENTATION.md, db/memory_v2.sql, db/hardening.sql, preload_memory, load_memory, memory_extraction_rules:, user_key, patient_advocate.yaml, npx melchizedek-chat --syndicate ares, npm run memory -- list, --silo, --dupes, --yes, npm run db:purge, SupabaseVectorMemoryService, melchizedek-agents/memory
 LIMITS: the record format line goes in a fenced block. Body under 160 lines.

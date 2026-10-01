@@ -7,7 +7,8 @@ import type {
 } from '@google/adk';
 import type { Content } from '@google/genai';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { memoryProvidersFromEnv } from './providers.ts';
+import { memoryProvidersFromEnv, modelExtractor } from './providers.ts';
+import { providerForModel } from '../models/providerMap.ts';
 import { isSupabaseClient, supabaseMemoryStore } from './store.ts';
 import type { FactRow, MemoryStore, NewFact } from './store.ts';
 import type { Embedder, MemoryExtractor } from './providers.ts';
@@ -153,6 +154,11 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 	 * re-reads a session once and the semantic dedup absorbs that batch.
 	 */
 	private ingestedEventCount = new Map<string, number>();
+	/** The server's Gemini key, for a per-syndicate Gemini extraction model. */
+	private readonly geminiKey: string;
+	/** Extractors for per-syndicate models (memory_extraction_model), built once. */
+	private readonly extractors = new Map<string, MemoryExtractor>();
+	private readonly buildExtractor?: (model: string) => MemoryExtractor;
 
 	/**
 	 * @param config.apiKey The server's Gemini key, used only when the
@@ -167,13 +173,21 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 	 *   MemoryStore, e.g. the direct-Postgres one (lib/storage/postgres).
 	 */
 	constructor(
-		config: { apiKey: string; extractor?: MemoryExtractor; embedder?: Embedder },
+		config: {
+			apiKey: string;
+			extractor?: MemoryExtractor;
+			embedder?: Embedder;
+			/** Builds the extractor for a syndicate's memory_extraction_model. Default: modelExtractor. */
+			extractorFor?: (model: string) => MemoryExtractor;
+		},
 		backend: SupabaseClient | MemoryStore,
 	) {
 		const fromEnv = config.extractor && config.embedder
 			? undefined
 			: memoryProvidersFromEnv(process.env, config.apiKey);
 		this.extractor = config.extractor ?? fromEnv!.extractor;
+		this.geminiKey = config.apiKey;
+		this.buildExtractor = config.extractorFor;
 		this.embedder = config.embedder ?? fromEnv!.embedder;
 		this.store = isSupabaseClient(backend) ? supabaseMemoryStore(backend) : backend;
 		console.log(
@@ -189,7 +203,11 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 	 *   "never store a market quote" — arrives here rather than being edited
 	 *   into it. Declared as `memory_extraction_rules` on the served syndicate.
 	 */
-	async addSessionToMemory(session: Session, extractionRules?: string): Promise<void> {
+	async addSessionToMemory(
+		session: Session,
+		extractionRules?: string,
+		options: { extractionModel?: string } = {},
+	): Promise<void> {
 		const userKey = `${session.appName}/${session.userId}`;
 		const watermarkKey = `${userKey}::${session.id}`;
 		let alreadyIngested = this.ingestedEventCount.get(watermarkKey) ?? 0;
@@ -229,7 +247,7 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 		const total = (session.events ?? []).length;
 		const marker = { sessionId: session.id, events: total };
 		const advance = () => this.ingestedEventCount.set(watermarkKey, total);
-		const records = await this.extractRecords(transcript, extractionRules);
+		const records = await this.extractRecords(transcript, extractionRules, this.extractorFor(options.extractionModel));
 
 		if (records.length === 0) {
 			// "No facts" is an answer: record that these turns are done.
@@ -290,7 +308,31 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 		return this.searchSupabase(userKey, query);
 	}
 
-	private async extractRecords(transcript: string, extractionRules?: string): Promise<MemoryRecord[]> {
+	/**
+	 * The extractor for a syndicate's `memory_extraction_model` (ADR 0020
+	 * item 4), or the deployment's. The server's Gemini key reaches only a
+	 * Gemini model; another provider reads its own key from the environment.
+	 */
+	private extractorFor(model?: string): MemoryExtractor {
+		if (!model || model === this.extractor.model) return this.extractor;
+		let extractor = this.extractors.get(model);
+		if (!extractor) {
+			extractor = this.buildExtractor
+				? this.buildExtractor(model)
+				: modelExtractor({
+					model,
+					...(this.geminiKey && providerForModel(model) === 'gemini' ? { apiKey: this.geminiKey } : {}),
+				});
+			this.extractors.set(model, extractor);
+		}
+		return extractor;
+	}
+
+	private async extractRecords(
+		transcript: string,
+		extractionRules?: string,
+		extractor: MemoryExtractor = this.extractor,
+	): Promise<MemoryRecord[]> {
 		const sessionDate = new Date().toISOString().slice(0, 10);
 		// Empty by default, so a consumer that declares no rules gets exactly
 		// the prompt it got before this slot existed.
@@ -302,7 +344,7 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 			.replace('{domain_rules}', domainRules)
 			.replace('{transcript}', transcript);
 		try {
-			const text = (await this.extractor.extract(prompt)).trim();
+			const text = (await extractor.extract(prompt)).trim();
 			if (!text || text === 'NO_FACTS_EXTRACTED') return [];
 
 			return text
@@ -550,6 +592,18 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 			}
 		}
 		return out;
+	}
+
+	/**
+	 * Deletes facts in `namespace` older than `days` (a syndicate's
+	 * memory_retention_days, ADR 0020 item 7). Returns how many; null when
+	 * the store cannot prune.
+	 */
+	async pruneExpired(namespace: string, days: number): Promise<number | null> {
+		if (!this.store.pruneNamespace) return null;
+		const n = await this.store.pruneNamespace(namespace, days);
+		if (n) console.log(`[MemoryService] Retention: deleted ${n} fact(s) older than ${days} day(s) in ${namespace}.`);
+		return n;
 	}
 
 	/**

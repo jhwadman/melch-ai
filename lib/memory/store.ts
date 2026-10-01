@@ -66,6 +66,8 @@ export interface MemoryStore {
   ingestedEvents?(userKey: string, sessionId: string): Promise<number>;
   /** The embedding column's vector size; null when it cannot be read. */
   embeddingDimensions?(): Promise<number | null>;
+  /** Deletes facts in `namespace` older than `days`; returns how many (migration 0008). */
+  pruneNamespace?(namespace: string, days: number): Promise<number>;
 }
 
 /** The JSON shape melchizedek_memory_commit takes for its rows. */
@@ -147,6 +149,11 @@ export function supabaseMemoryStore(supabase: SupabaseClient): MemoryStore {
       const { data, error } = await supabase.rpc('melchizedek_memory_dimensions');
       if (error) throw new Error(error.message);
       return data == null ? null : Number(data);
+    },
+    async pruneNamespace(namespace, days) {
+      const { data, error } = await supabase.rpc('melchizedek_prune_memory', { p_namespace: namespace, p_days: days });
+      if (error) throw new Error(error.message);
+      return Number(data ?? 0);
     },
   };
 }

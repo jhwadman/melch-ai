@@ -710,7 +710,7 @@ function emptyRun(error?: { code: string; message: string }): DrainedRun {
 /** A memory service that can take per-syndicate extraction rules (the
  *  Supabase service does; the base interface does not declare them). */
 interface RuledMemoryService extends BaseMemoryService {
-  addSessionToMemory(session: any, extractionRules?: string): Promise<void>;
+  addSessionToMemory(session: any, extractionRules?: string, options?: { extractionModel?: string }): Promise<void>;
 }
 
 /**
@@ -725,6 +725,8 @@ export async function ingestTurnMemory(params: {
   userId: string;
   sessionId: string;
   extractionRules?: string;
+  /** The syndicate's memory_extraction_model, when it declares one. */
+  extractionModel?: string;
 }): Promise<boolean> {
   const session = await params.sessionService.getSession({
     appName: params.appName,
@@ -732,6 +734,8 @@ export async function ingestTurnMemory(params: {
     sessionId: params.sessionId,
   });
   if (!session || session.events.length === 0) return false;
-  await (params.memoryService as RuledMemoryService).addSessionToMemory(session, params.extractionRules);
+  await (params.memoryService as RuledMemoryService).addSessionToMemory(session, params.extractionRules, {
+    extractionModel: params.extractionModel,
+  });
   return true;
 }
