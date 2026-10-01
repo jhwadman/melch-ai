@@ -22,6 +22,8 @@ import type { CompileOptions } from '../compile.ts';
 import { loadSyndicate } from '../loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import { configDigest } from '../observability/lineage.ts';
+import { turnLockKey } from './turnLock.ts';
+import type { ReleaseTurnLock, TurnLock } from './turnLock.ts';
 import { ingestTurnMemory, runSyndicateTurn } from '../runtime/syndicateTurn.ts';
 import type { MessagePart, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
@@ -174,6 +176,10 @@ export interface ExecutorOptions {
    * (see answerStream). Off by default; never for a syndicate with guards.
    */
   streamText?: boolean;
+  /** One turn at a time per conversation (lib/a2a/turnLock.ts). */
+  turnLock?: TurnLock;
+  /** How long a second turn on a busy conversation waits, ms. Default 30 s. */
+  turnLockWaitMs?: number;
   log: (message: string) => void;
   warn: (message: string) => void;
 }
@@ -361,6 +367,7 @@ export class SyndicateExecutor implements AgentExecutor {
     const taskId = requestContext.taskId;
     const short = taskId.slice(0, 8);
     let slot: AbortController | undefined;
+    let releaseTurn: ReleaseTurnLock | null = null;
     const started = Date.now();
     const agentId = this.opts.agentId ?? '';
     // Reports the task once: to the task log and metrics, and its spend to
@@ -457,11 +464,28 @@ export class SyndicateExecutor implements AgentExecutor {
         return;
       }
 
-      log(`─── Task ${short} | ${config.syndicate_name}`);
       const userId = ctx.scopeKey;
       // Stored under the syndicate's memory namespace when it declares one
       // (ADR 0020), else the name every syndicate shared before.
       const appName = config.memory_namespace || A2A_APP_NAME;
+
+      // One turn at a time per conversation: a second one waits for the
+      // first, then is refused rather than interleaving its events.
+      if (this.opts.turnLock) {
+        releaseTurn = await this.opts.turnLock(turnLockKey(appName, ctx.scopeKey, contextId), {
+          waitMs: this.opts.turnLockWaitMs ?? 30_000,
+          signal: slot.signal,
+        });
+        if (!releaseTurn) {
+          const why = 'Another turn on this conversation is still running; send this again when it finishes.';
+          warn(`Task ${short} rejected — conversation busy`);
+          publishFinal(eventBus, taskId, contextId, 'rejected', why);
+          await report(ctx, 'rejected', 'busy');
+          return;
+        }
+      }
+
+      log(`─── Task ${short} | ${config.syndicate_name}`);
 
       const stream = this.opts.streamText ? answerStream(eventBus, taskId, contextId) : undefined;
       const result = await runSyndicateTurn({
@@ -540,6 +564,11 @@ export class SyndicateExecutor implements AgentExecutor {
       );
       await report(ctxForReport, 'failed', 'INTERNAL');
     } finally {
+      if (releaseTurn) {
+        await releaseTurn().catch((err: unknown) =>
+          warn(`Turn lock not released for task ${short}: ${err instanceof Error ? err.message : String(err)}`),
+        );
+      }
       if (slot) this.opts.limiter.release(taskId);
       eventBus.finished();
     }

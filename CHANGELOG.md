@@ -134,6 +134,12 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **One turn at a time per conversation.** A second message on a
+  conversation whose turn is still running waits for it (up to
+  `A2A_TURN_LOCK_WAIT_MS`, default 30 s) and runs after it, seeing its
+  exchange; past the wait it is `rejected` ("still running"). In-process by
+  default; with `DATABASE_URL`, a Postgres advisory lock shared by every
+  instance (`postgresStorage().turnLock`, its own pool, `lockPoolMax`).
 - **Token streaming on `message/stream`** (`A2A_STREAM_TEXT=true`,
   `streamText` in `createA2AApp`). The answer arrives as chunks of an
   `answer` artifact as the model writes it; narration before a tool call is

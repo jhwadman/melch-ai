@@ -469,7 +469,11 @@ tool is withdrawn (an empty replacement), and the artifact is closed
 (`lastChunk`) with the text the user actually receives, which the final
 status message repeats. A syndicate with `guards:` never streams, because a
 guard reads the whole answer before any of it leaves; the dispatch
-classifier never streams either. `tasks/cancel` stops a running task, including the model call
+classifier never streams either. One conversation runs one turn at a time:
+a second message on a busy `contextId` waits for the first turn (up to
+`A2A_TURN_LOCK_WAIT_MS`, default 30 s) and is then `rejected` with "still
+running". The lock is in-process by default and a Postgres advisory lock
+with `DATABASE_URL`, so it holds across instances. `tasks/cancel` stops a running task, including the model call
 in flight, and the task ends `canceled`. Final states: `completed`,
 `failed` (the message names the stage and the provider's reason),
 `canceled`, `rejected` (a file part, an empty message, or the server at

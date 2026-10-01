@@ -87,6 +87,7 @@ before(async () => {
 after(async () => {
   if (skip) return;
   closing = true;
+  await storage?.close(); // its turn-lock pool; the main pool is ended below
   await pool?.end();
   await admin.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`);
   await admin.end();
@@ -334,4 +335,25 @@ test('registry: a direct write is versioned, history is append-only, retire keep
 test('schemaVersion() reads what the migrations recorded: the shipped version', { skip }, async () => {
   const { shippedSchemaVersion } = await import('../lib/storage/schemaVersion.ts');
   assert.equal(await storage.schemaVersion(), shippedSchemaVersion());
+});
+
+test('turnLock: an advisory lock shared by two instances on one database', { skip }, async () => {
+  const other = postgresStorage({ pool: new pg.Pool({ connectionString: urlFor(DB), max: 2 }) });
+  try {
+    const held = await storage.turnLock('conv-1', { waitMs: 0 });
+    assert.ok(held, 'the first instance takes the lock');
+    assert.equal(await other.turnLock('conv-1', { waitMs: 300 }), null, 'the second instance cannot');
+    const elsewhere = await other.turnLock('conv-2', { waitMs: 0 });
+    assert.ok(elsewhere, 'a different conversation is free');
+    await elsewhere!();
+    const waiting = other.turnLock('conv-1', { waitMs: 5000 });
+    await new Promise((r) => setTimeout(r, 100));
+    await held!();
+    const got = await waiting;
+    assert.ok(got, 'released on one instance, taken on the other');
+    await got!();
+  } finally {
+    await other.close();
+    await other.pool.end();
+  }
 });
