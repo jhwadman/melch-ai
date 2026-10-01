@@ -58,6 +58,15 @@ export interface TurnEvents {
   onProgress?(text: string): void;
   /** Every raw event of the answering agent, in order (the REPL prints them). */
   onEvent?(event: Event): void;
+  /**
+   * A chunk of the answering agent's reply as the model writes it. Fires only
+   * with `streaming: true`, never for the dispatch classifier, and never for
+   * a syndicate with guards (a guard reads the whole answer before anything
+   * leaves). Provisional: the result's `text` is what the user receives.
+   */
+  onTextDelta?(delta: string): void;
+  /** The text streamed so far was narration before a tool call: discard it. */
+  onTextReset?(): void;
   /** Diagnostic lines (the server prefixes and prints them). */
   log?(message: string): void;
   warn?(message: string): void;
@@ -207,6 +216,8 @@ export async function drainAgentStream(
     publishToolStatus?: boolean;
     /** Names that count as delegations when called as tools (AgentTools). */
     subagentNames?: Set<string>;
+    /** Forward partial reply text to events.onTextDelta (answering stages only). */
+    streamText?: boolean;
   } = {},
 ): Promise<DrainedRun> {
   const ev = opts.events ?? {};
@@ -225,6 +236,7 @@ export async function drainAgentStream(
   };
   const grounding = newGroundingState();
   let groundingAnnounced = false;
+  let streamed = false;
 
   for await (const event of stream) {
     const e = event as any;
@@ -255,7 +267,13 @@ export async function drainAgentStream(
       d.tokens.thinking += e.usageMetadata.thoughtsTokenCount ?? 0;
     }
 
-    for (const call of getFunctionCalls(event) ?? []) {
+    const calls = getFunctionCalls(event) ?? [];
+    // Text streamed before a tool call was narration, not the answer.
+    if (streamed && calls.length) {
+      ev.onTextReset?.();
+      streamed = false;
+    }
+    for (const call of calls) {
       const name = call.name ?? '';
       const args = (call.args ?? {}) as Record<string, unknown>;
       if (name === 'transfer_to_agent') {
@@ -306,6 +324,10 @@ export async function drainAgentStream(
       }
     }
     if (eventText) d.text = e.partial === true ? d.text + eventText : eventText;
+    if (opts.streamText && e.partial === true && eventText) {
+      ev.onTextDelta?.(eventText);
+      streamed = true;
+    }
   }
 
   const sourcesLine = webSourcesLine(grounding);
@@ -403,6 +425,10 @@ async function runTurnInner(
     await sessionService.createSession({ appName, userId, sessionId });
   }
 
+  // A guard rewrites the answer after it is complete, so a guarded
+  // syndicate never streams: nothing may leave before the guard has read it.
+  const guarded = collectGuards(config).length > 0;
+
   /** Run ONE agent against ONE session, under the turn's controls. */
   const runAgent = async (params: {
     agent: LlmAgent;
@@ -455,6 +481,7 @@ async function runTurnInner(
         events: params.stage === 'classify' ? { ...ev, onEvent: undefined } : ev,
         publishToolStatus: params.publishToolStatus,
         subagentNames,
+        streamText: params.stage !== 'classify' && !guarded,
       });
     } catch (err) {
       // A provider call aborted by cancel / deadline surfaces as a thrown
