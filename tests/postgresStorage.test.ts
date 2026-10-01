@@ -330,3 +330,8 @@ test('registry: a direct write is versioned, history is append-only, retire keep
   assert.equal(c, 2, 'retiring an id keeps its history');
   await assert.rejects(reg(`SELECT melchizedek_registry_publish('bad id!', '{}'::jsonb, 'x')`), /invalid registry id/);
 });
+
+test('schemaVersion() reads what the migrations recorded: the shipped version', { skip }, async () => {
+  const { shippedSchemaVersion } = await import('../lib/storage/schemaVersion.ts');
+  assert.equal(await storage.schemaVersion(), shippedSchemaVersion());
+});

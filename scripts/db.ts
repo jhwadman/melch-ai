@@ -21,22 +21,16 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { loadEnv } from '../lib/loadEnv.ts';
 import { hasSupabaseCredentials } from '../lib/persistence/supabaseProvider.ts';
+import { packageDbDir } from '../lib/storage/schemaVersion.ts';
 
 /** db/ of this package, from the source tree or from dist/. */
-function dbDir(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 5; i++) {
-    if (existsSync(join(dir, 'db', 'migrations'))) return join(dir, 'db');
-    dir = dirname(dir);
-  }
-  throw new Error('db/migrations/ not found next to this package');
-}
+const dbDir = packageDbDir;
 
 /** db/migrations/NNNN_name.sql, in numeric order. */
 export function migrationFiles(dir: string = join(dbDir(), 'migrations')): string[] {
