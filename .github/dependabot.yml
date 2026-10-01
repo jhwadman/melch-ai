@@ -5,9 +5,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-    # This repository is generated from an upstream source by an export
-    # script; a dependency PR here is a signal for the maintainer to apply the
-    # bump upstream (see the README), not merged as-is.
+    # A dependency PR must pass CI (both Node lines) before it is merged.
+    # @google/adk and @google/genai are pinned exact on purpose: bump them
+    # deliberately, after a live run (see the model-routing skill).
     groups:
       opentelemetry:
         patterns: ['@opentelemetry/*']
