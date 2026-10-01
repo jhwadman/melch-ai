@@ -128,6 +128,13 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **Token streaming on `message/stream`** (`A2A_STREAM_TEXT=true`,
+  `streamText` in `createA2AApp`). The answer arrives as chunks of an
+  `answer` artifact as the model writes it; narration before a tool call is
+  withdrawn, and the artifact is closed with the text the user receives
+  (relay fallback and dispatch included). A syndicate with guards never
+  streams. Off by default; the final status message is unchanged. The
+  runtime exposes the same as `TurnEvents.onTextDelta` / `onTextReset`.
 - **A versioned agent registry** (migration `0005_agent_registry.sql`, ADR
   0018). Every definition an id has held is kept in an append-only
   `adk_agent_registry_versions`, with its author, note and config hash, and

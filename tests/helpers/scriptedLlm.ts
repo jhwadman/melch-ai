@@ -13,7 +13,8 @@ import { BaseLlm } from '@google/adk';
 import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
 import { traceLlmGeneration } from '../../lib/observability/tracer.ts';
 
-export type Script = (request: LlmRequest, call: number, signal?: AbortSignal) => LlmResponse | Promise<LlmResponse>;
+/** One response, or several in order (streaming chunks, then the full reply). */
+export type Script = (request: LlmRequest, call: number, signal?: AbortSignal) => LlmResponse | LlmResponse[] | Promise<LlmResponse | LlmResponse[]>;
 
 export class ScriptedLlm extends BaseLlm {
   calls = 0;
@@ -36,7 +37,8 @@ export class ScriptedLlm extends BaseLlm {
   private async *inner(llmRequest: LlmRequest, abortSignal?: AbortSignal): AsyncGenerator<LlmResponse, void> {
     this.calls += 1;
     this.requests.push(llmRequest);
-    yield await this.script(llmRequest, this.calls, abortSignal);
+    const out = await this.script(llmRequest, this.calls, abortSignal);
+    for (const response of Array.isArray(out) ? out : [out]) yield response;
   }
 
   async connect(_req: LlmRequest): Promise<BaseLlmConnection> {
@@ -47,6 +49,14 @@ export class ScriptedLlm extends BaseLlm {
 /** A model reply carrying plain text. */
 export function text(t: string): LlmResponse {
   return { content: { role: 'model', parts: [{ text: t }] }, turnComplete: true } as LlmResponse;
+}
+
+/** A streamed reply: partial chunks as the model writes them, then the whole text. */
+export function streamed(...chunks: string[]): LlmResponse[] {
+  return [
+    ...chunks.map((c) => ({ content: { role: 'model', parts: [{ text: c }] }, partial: true }) as LlmResponse),
+    text(chunks.join('')),
+  ];
 }
 
 /** A model reply that calls one tool. */

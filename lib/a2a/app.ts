@@ -146,6 +146,12 @@ export interface A2AAppOptions {
   requireHardenedDb?: boolean;
   /** Wall-clock budget per task, ms. 0 = none. */
   taskTimeoutMs?: number;
+  /**
+   * Stream each answer as the model writes it, as chunks of an `answer`
+   * artifact on message/stream (the bin: A2A_STREAM_TEXT=true). A syndicate
+   * with guards never streams. The final status message is unchanged.
+   */
+  streamText?: boolean;
   /** Concurrent tasks across all agents. 0 = unlimited. */
   maxConcurrentTasks?: number;
   /** Task submissions (POST) per window per client IP. */
@@ -452,6 +458,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       memoryService: services.memoryService,
       compileFor,
       taskTimeoutMs: options.taskTimeoutMs,
+      streamText: options.streamText,
       limiter,
       agentId,
       policy: options.policy,

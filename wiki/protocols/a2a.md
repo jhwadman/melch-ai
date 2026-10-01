@@ -53,6 +53,8 @@ A bare `/<agentId>/` is `<agentId>.yaml` in the deployment's agents directory. T
 
 ## Limits and lifecycle
 
+With `A2A_STREAM_TEXT=true`, `message/stream` also carries the answer as the model writes it, as chunks of an `answer` artifact that is closed with the text the user receives; narration before a tool call is withdrawn, and a syndicate with guards never streams (a guard reads the whole answer first).
+
 Each task has a deadline (`A2A_TASK_TIMEOUT_MS`, default 15 minutes) and a turn-wide model-call cap (the YAML's `max_steps`); `tasks/cancel` aborts the provider call in flight. The task rate limit counts submissions only, not polling GETs (`A2A_RATE_LIMIT_MAX`, default 60, per `A2A_RATE_LIMIT_WINDOW_MS`, default 15 minutes): per caller or per end-user scope when an authenticator is configured, per IP under the shared secret. The failed-login limit (`A2A_AUTH_FAILURE_MAX`, default 30 per 15 minutes per IP), the concurrency cap (`A2A_MAX_CONCURRENT_TASKS`, default unlimited), trust-proxy (`A2A_TRUST_PROXY`, default 1 hop) and body limit (`A2A_BODY_LIMIT`, default `1mb`) are environment settings too.
 
 The server is not stateless. The config cache, the rate-limiter counters, the concurrency count and the memory-ingestion high-water mark are always per process. A2A tasks are per process too unless `DATABASE_URL` plugs in the Postgres storage, whose task store (`adk_a2a_tasks`) every instance shares; with Supabase alone, sessions and memory are durable but tasks are not, so run one replica or route a conversation's requests to one instance. The server prints no conversation content unless `OTEL_CONSOLE_SPANS=true`.

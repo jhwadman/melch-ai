@@ -461,8 +461,15 @@ transcripts in process memory even when Supabase is configured.
 `message/send` blocks until the turn finishes unless the request sets
 `configuration.blocking: false`; then poll `tasks/get`. `message/stream`
 emits `[STATUS]` progress updates (tool calls, the chosen route, guard
-notes) and the answer as the final status message — progress events, not
-token deltas. `tasks/cancel` stops a running task, including the model call
+notes) and the answer as the final status message. With
+`A2A_STREAM_TEXT=true` (`streamText` in code) it also streams the answer as
+the model writes it, as chunks of an artifact named `answer`: the first
+chunk opens it, later chunks append, text the agent wrote before calling a
+tool is withdrawn (an empty replacement), and the artifact is closed
+(`lastChunk`) with the text the user actually receives, which the final
+status message repeats. A syndicate with `guards:` never streams, because a
+guard reads the whole answer before any of it leaves; the dispatch
+classifier never streams either. `tasks/cancel` stops a running task, including the model call
 in flight, and the task ends `canceled`. Final states: `completed`,
 `failed` (the message names the stage and the provider's reason),
 `canceled`, `rejected` (a file part, an empty message, or the server at

@@ -169,6 +169,11 @@ export interface ExecutorOptions {
   policy?: Policy;
   /** One record per task, however it ended: the task log and metrics. */
   onTaskEnd?: (record: TaskRecord) => void;
+  /**
+   * Stream the answer as the model writes it, as `answer` artifact chunks
+   * (see answerStream). Off by default; never for a syndicate with guards.
+   */
+  streamText?: boolean;
   log: (message: string) => void;
   warn: (message: string) => void;
 }
@@ -289,6 +294,44 @@ function publishFinal(eventBus: ExecutionEventBus, taskId: string, contextId: st
       metadata: undefined,
     }),
   );
+}
+
+/**
+ * The answer as the model writes it, as chunks of one `answer` artifact:
+ * the first chunk opens it, later ones append. A reset (the agent narrated,
+ * then called a tool) replaces it with nothing. `finish` always replaces it
+ * with the text the user actually receives and closes it (`lastChunk`), so
+ * a relay fallback, a dispatch route or a failure never leaves a streamed
+ * draft standing. The final status message carries the same text, so a
+ * client that ignores artifacts sees no change.
+ */
+export function answerStream(eventBus: ExecutionEventBus, taskId: string, contextId: string) {
+  let open = false;
+  const publish = (text: string, append: boolean, lastChunk: boolean) =>
+    eventBus.publish(
+      AgentEvent.artifactUpdate({
+        taskId,
+        contextId,
+        artifact: { artifactId: 'answer', name: 'answer', description: '', parts: [textPart(text)], metadata: undefined, extensions: [] },
+        append,
+        lastChunk,
+        metadata: undefined,
+      }),
+    );
+  return {
+    delta(text: string): void {
+      publish(text, open, false);
+      open = true;
+    },
+    reset(): void {
+      if (open) publish('', false, false);
+    },
+    /** Closes the artifact with the authoritative text; a no-op if nothing streamed. */
+    finish(text: string): void {
+      if (open) publish(text, false, true);
+      open = false;
+    },
+  };
 }
 
 export class SyndicateExecutor implements AgentExecutor {
@@ -420,6 +463,7 @@ export class SyndicateExecutor implements AgentExecutor {
       // (ADR 0020), else the name every syndicate shared before.
       const appName = config.memory_namespace || A2A_APP_NAME;
 
+      const stream = this.opts.streamText ? answerStream(eventBus, taskId, contextId) : undefined;
       const result = await runSyndicateTurn({
         config,
         parts,
@@ -431,6 +475,7 @@ export class SyndicateExecutor implements AgentExecutor {
         compile: this.opts.compileFor(ctx),
         signal: slot.signal,
         deadlineMs: this.opts.taskTimeoutMs,
+        streaming: !!stream,
         trace: {
           taskId,
           configHash: this.configHashFor(),
@@ -438,10 +483,14 @@ export class SyndicateExecutor implements AgentExecutor {
         },
         events: {
           onProgress: (text) => publishWorking(eventBus, taskId, contextId, text),
+          ...(stream ? { onTextDelta: (t: string) => stream.delta(t), onTextReset: () => stream.reset() } : {}),
           log,
           warn,
         },
       });
+      // Close the streamed draft before the final status, with what the user
+      // actually receives (empty on cancel or failure).
+      stream?.finish(result.status === 'completed' ? result.text : '');
       log(`Session: ${result.resumedSession ? 'resumed' : 'new'} — context ${contextId.slice(0, 8)}`);
 
       const u = result.usage;
