@@ -275,6 +275,137 @@ test('OllamaLlm (SSE) streams reasoning and text, then repeats the whole text on
   }
 });
 
+test('splitThinkBlocks treats a <think> block that never closed as scratchpad, not reply', () => {
+  assert.deepEqual(splitThinkBlocks('<think>counting words, P1: 79 words'), {
+    reasoning: 'counting words, P1: 79 words',
+    answer: '',
+  });
+  assert.deepEqual(splitThinkBlocks('<think>a</think>Partial reply <think>b'), {
+    reasoning: 'a\n\nb',
+    answer: 'Partial reply',
+  });
+});
+
+// The wire shape a thinking model returns when its scratchpad fills Ollama's
+// 4,096-token window: reasoning in its own field, no content, "length".
+// Captured from ollama 0.31.1 serving qwen3.5:9b on the model_zoo explainer.
+const thinkingOnlyChoice = {
+  finish_reason: 'length',
+  message: { role: 'assistant', content: '', reasoning: 'P1: 79 words. Total: ~224? Too high. I need' },
+};
+const contextFullUsage = { prompt_tokens: 318, completion_tokens: 3778, total_tokens: 4096 };
+
+/** Every response, in order, plus whether ADK would keep the final one. */
+function assertNamedMaxTokensError(responses: LlmResponse[]): void {
+  const final = responses[responses.length - 1]!;
+  assert.ok(!(final as any).partial, 'the turn must not end on a partial — ADK warns and the reply is lost');
+  assert.equal(final.errorCode, 'OLLAMA_MAX_TOKENS');
+  assert.match(final.errorMessage!, /context window/);
+  assert.match(final.errorMessage!, /num_ctx/);
+  assert.match(final.errorMessage!, /reasoningEffort/);
+  assert.equal(final.usageMetadata?.candidatesTokenCount, 3778, 'tokens spent thinking are still counted');
+  const thought = responses.find((r) => (r.content?.parts?.[0] as any)?.thought);
+  assert.ok(thought, 'the scratchpad is still surfaced as a thought');
+}
+
+test('OllamaLlm: a reply lost to thinking (finish_reason length, no content) is a named error, not empty text', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ choices: [thinkingOnlyChoice], usage: contextFullUsage }), {
+      status: 200,
+    })) as any;
+  try {
+    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
+    assertNamedMaxTokensError(await collect(llm.generateContentAsync(makeRequest())));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OllamaLlm (SSE): a stream that ends inside the scratchpad is a named error, not empty text', async () => {
+  const originalFetch = globalThis.fetch;
+  const body =
+    sseFrame({ choices: [{ index: 0, delta: { reasoning: 'P1: 79 words. ' } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: { reasoning: 'Too high. I need' } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: {}, finish_reason: 'length' }] }) +
+    sseFrame({ choices: [], usage: contextFullUsage }) +
+    'data: [DONE]\n\n';
+  globalThis.fetch = (async () => new Response(body, { status: 200 })) as any;
+  try {
+    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
+    assertNamedMaxTokensError(await collect(llm.generateContentAsync(makeRequest(), true)));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OllamaLlm (SSE): an unclosed <think> in content stays thought; the turn errors instead of replying with it', async () => {
+  const originalFetch = globalThis.fetch;
+  const body =
+    sseFrame({ choices: [{ index: 0, delta: { content: '<think>weighing' } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: { content: ' it all' } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: {}, finish_reason: 'length' }] }) +
+    'data: [DONE]\n\n';
+  globalThis.fetch = (async () => new Response(body, { status: 200 })) as any;
+  try {
+    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
+    const responses = await collect(llm.generateContentAsync(makeRequest(), true));
+    const leaked = responses.some((r) =>
+      r.content?.parts?.some((p: any) => !p.thought && /think|weighing/.test(p.text ?? '')),
+    );
+    assert.ok(!leaked, 'scratchpad text must never reach the reply');
+    assert.equal(responses[responses.length - 1]!.errorCode, 'OLLAMA_MAX_TOKENS');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OllamaLlm: a reply cut short keeps its text and is marked MAX_TOKENS; one that stopped is unmarked', async () => {
+  const originalFetch = globalThis.fetch;
+  let finish = 'length';
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ finish_reason: finish, message: { content: 'Quantum mechanics is', reasoning: 'brief' } }],
+      }),
+      { status: 200 },
+    )) as any;
+  try {
+    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
+    let final = (await collect(llm.generateContentAsync(makeRequest()))).find((r) => r.turnComplete)!;
+    assert.equal(final.errorCode, undefined);
+    assert.equal((final.content!.parts![0] as any).text, 'Quantum mechanics is');
+    assert.equal(final.finishReason, 'MAX_TOKENS');
+
+    finish = 'stop';
+    final = (await collect(llm.generateContentAsync(makeRequest()))).find((r) => r.turnComplete)!;
+    assert.equal(final.finishReason, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('chat-completions adapters: thinking that stops with no reply is EMPTY_RESPONSE; a bare empty turn is untouched', async () => {
+  const originalFetch = globalThis.fetch;
+  let message: any = { content: '<think>nothing to add</think>' };
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message }] }), { status: 200 })) as any;
+  try {
+    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
+    let final = (await collect(llm.generateContentAsync(makeRequest()))).find((r) => r.turnComplete)!;
+    assert.equal(final.errorCode, 'OLLAMA_EMPTY_RESPONSE');
+
+    // No reasoning, no truncation: e.g. a model with nothing to say after a
+    // tool result. ADK already handles that shape; it must not become an error.
+    message = { content: '' };
+    final = (await collect(llm.generateContentAsync(makeRequest()))).find((r) => r.turnComplete)!;
+    assert.equal(final.errorCode, undefined);
+    assert.deepEqual(final.content!.parts, []);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('OllamaLlm (SSE) reassembles tool-call arguments split across frames', async () => {
   const originalFetch = globalThis.fetch;
   const body =

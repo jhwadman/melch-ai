@@ -120,6 +120,14 @@ subagents:
     description: "Qwen 3.5 (9B), an open-weight model running locally via Ollama. Keyless. Pass the question word for word; returns a plain explanation of at most three paragraphs."
     model: "ollama/qwen3.5:9b"
     instruction: "{{explainer}}"
+    # Thinking off. On this explainer qwen3.5:9b thinks for 3,700+ tokens
+    # (it drafts and recounts words) and fills Ollama's default 4,096-token
+    # context window before the answer starts — the turn then fails with
+    # OLLAMA_MAX_TOKENS. A larger window (Modelfile `PARAMETER num_ctx`; /v1
+    # ignores num_ctx) only lets it think past five minutes. "none" is the
+    # one value Ollama's /v1 honours here: answers in ~15 s on a laptop.
+    generateContentConfig:
+      reasoningEffort: "none"
 
   - name: "claude"
     description: "Claude Sonnet, by Anthropic. Pass the question word for word; returns a plain explanation of at most three paragraphs."

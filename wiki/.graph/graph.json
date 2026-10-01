@@ -5,15 +5,15 @@
     "at": "2026-10-01"
   },
   "stats": {
-    "nodes": 514,
-    "edges": 1182,
+    "nodes": 516,
+    "edges": 1190,
     "byKind": {
-      "doc": 72,
+      "doc": 73,
       "provider": 5,
       "env": 78,
       "model": 7,
       "tool": 32,
-      "file": 52,
+      "file": 53,
       "syndicate": 29,
       "agent": 79,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 179,
+      "links_to": 181,
       "requires_env": 128,
       "routes_to": 7,
       "defined_in": 67,
@@ -36,10 +36,10 @@
       "imports": 278,
       "reads_table": 21,
       "runs": 59,
-      "derives_from": 166
+      "derives_from": 172
     },
     "byTier": {
-      "extracted": 1182,
+      "extracted": 1190,
       "inferred": 0
     },
     "isolated": 2
@@ -682,6 +682,18 @@
       }
     },
     {
+      "id": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "kind": "doc",
+      "label": "ADR 0027: A chat-completions turn that thinks but never answers is a named error",
+      "source": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 633
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -762,7 +774,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1077
+        "words": 1147
       }
     },
     {
@@ -786,7 +798,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 800
+        "words": 1043
       }
     },
     {
@@ -2593,6 +2605,12 @@
       "source": "tests/identity.test.ts"
     },
     {
+      "id": "file:tests/models.test.ts",
+      "kind": "file",
+      "label": "models.test.ts",
+      "source": "tests/models.test.ts"
+    },
+    {
       "id": "file:tests/syndicateTurn.test.ts",
       "kind": "file",
       "label": "syndicateTurn.test.ts",
@@ -2912,7 +2930,7 @@
       "label": "lib/models/ollamaLlm.ts",
       "source": "lib/models/ollamaLlm.ts",
       "attrs": {
-        "lines": 159
+        "lines": 191
       }
     },
     {
@@ -2921,7 +2939,7 @@
       "label": "lib/models/openAiCompatibleLlm.ts",
       "source": "lib/models/openAiCompatibleLlm.ts",
       "attrs": {
-        "lines": 707
+        "lines": 779
       }
     },
     {
@@ -6115,6 +6133,34 @@
       "evidence": "/decisions/0026-governance-policy-and-visibility.md:26"
     },
     {
+      "from": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "to": "file:config/agents/examples/model_zoo.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0027-thinking-without-answer-is-an-error.md frontmatter"
+    },
+    {
+      "from": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "to": "file:tests/models.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0027-thinking-without-answer-is-an-error.md frontmatter"
+    },
+    {
+      "from": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "to": "module:lib/models/ollamaLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0027-thinking-without-answer-is-an-error.md frontmatter"
+    },
+    {
+      "from": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0027-thinking-without-answer-is-an-error.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -6518,7 +6564,21 @@
       "to": "/decisions/0012-direct-adapters-canonical.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:39"
+      "evidence": "/models/provider-routing.md:41"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:24"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/operations/failure-modes.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:24"
     },
     {
       "from": "/models/provider-routing.md",
@@ -6532,7 +6592,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:45"
+      "evidence": "/models/provider-routing.md:47"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -6641,6 +6701,20 @@
     },
     {
       "from": "/operations/failure-modes.md",
+      "to": "module:lib/models/ollamaLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md frontmatter"
+    },
+    {
+      "from": "/operations/failure-modes.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md frontmatter"
+    },
+    {
+      "from": "/operations/failure-modes.md",
       "to": "module:lib/models/retry.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -6651,35 +6725,35 @@
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:54"
+      "evidence": "/operations/failure-modes.md:56"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:34"
+      "evidence": "/operations/failure-modes.md:36"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:26"
+      "evidence": "/operations/failure-modes.md:28"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:58"
+      "evidence": "/operations/failure-modes.md:64"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:58"
+      "evidence": "/operations/failure-modes.md:64"
     },
     {
       "from": "/operations/setup.md",

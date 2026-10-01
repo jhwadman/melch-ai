@@ -71,6 +71,14 @@
  *   - generate_image / inspect_image call Gemini image models directly and
  *     still require a Gemini key regardless of the inference model.
  *   - thinkingConfig is Gemini-only; qwen3 thinks on its own schedule.
+ *     generateContentConfig.reasoningEffort travels as reasoning_effort, and
+ *     on Ollama 0.31 only "none" changes anything (it turns thinking off);
+ *     "low" does not bound a qwen3.5 scratchpad, and `think: false` is
+ *     ignored on this path.
+ *   - Context window: 4,096 tokens unless the Modelfile (PARAMETER num_ctx)
+ *     or OLLAMA_CONTEXT_LENGTH on the server says otherwise — /v1 ignores
+ *     num_ctx. A thinking model that fills it gets OLLAMA_MAX_TOKENS, never
+ *     an empty reply (see noAnswerError).
  */
 
 import { LLMRegistry } from '@google/adk';
@@ -134,6 +142,30 @@ export class OllamaLlm extends OpenAiCompatibleLlm {
       errorMessage:
         `Could not reach Ollama at ${this.baseUrl} (${message}). ` +
         'Is it running? Start the Ollama app or run: ollama serve',
+    };
+  }
+
+  /**
+   * Out of tokens on Ollama almost always means the CONTEXT WINDOW, not
+   * max_tokens: Ollama loads a model with a 4,096-token window unless told
+   * otherwise, the prompt and the scratchpad share it, and this /v1 path
+   * ignores num_ctx (and `options` entirely). A qwen3.5 explainer prompt can
+   * think for 3,700+ tokens and hit the ceiling before the answer starts.
+   * The two levers that work are named in the message.
+   */
+  protected override noAnswerError(truncated: boolean): LlmResponse {
+    if (!truncated) return super.noAnswerError(truncated);
+    const name = this.wireModelName();
+    return {
+      errorCode: 'OLLAMA_MAX_TOKENS',
+      errorMessage:
+        `${name} filled its context window while thinking and never wrote a reply ` +
+        '(finish_reason "length"). Ollama defaults to a 4,096-token window and its ' +
+        'OpenAI-compatible endpoint ignores num_ctx, so either set ' +
+        'generateContentConfig.reasoningEffort: "none" on the agent to skip thinking, ' +
+        `or give the model a larger window: a Modelfile with "FROM ${name}" and ` +
+        '"PARAMETER num_ctx 32768" (ollama create), or OLLAMA_CONTEXT_LENGTH=32768 ' +
+        'on the ollama serve process.',
     };
   }
 

@@ -33,6 +33,7 @@
 import { BaseLlm } from '@google/adk';
 import type { LlmRequest, LlmResponse } from '@google/adk';
 import type { BaseLlmConnection } from '@google/adk';
+import { FinishReason } from '@google/genai';
 
 import {
   traceLlmGeneration,
@@ -66,23 +67,33 @@ type OpenAiMessage =
     }
   | { role: 'tool'; tool_call_id: string; content: string };
 
-/** Splits "<think>…</think>" scratchpad from the reply. */
+const OPEN_THINK = '<think>';
+const CLOSE_THINK = '</think>';
+
+/**
+ * Splits "<think>…</think>" scratchpad from the reply.
+ *
+ * A block the model never closed is scratchpad too: it means the model ran
+ * out of budget mid-thought, so everything after the opening tag is
+ * reasoning — never reply text with a raw "<think>" in it.
+ */
 export function splitThinkBlocks(text: string): {
   reasoning: string;
   answer: string;
 } {
   const blocks: string[] = [];
-  const answer = text
-    .replace(/<think>([\s\S]*?)<\/think>/g, (_, inner: string) => {
-      blocks.push(inner.trim());
-      return '';
-    })
-    .trimStart();
-  return { reasoning: blocks.join('\n\n'), answer };
+  let answer = text.replace(/<think>([\s\S]*?)<\/think>/g, (_, inner: string) => {
+    blocks.push(inner.trim());
+    return '';
+  });
+  const unclosed = answer.indexOf(OPEN_THINK);
+  if (unclosed !== -1) {
+    const inner = answer.slice(unclosed + OPEN_THINK.length).trim();
+    if (inner) blocks.push(inner);
+    answer = answer.slice(0, unclosed).trimEnd();
+  }
+  return { reasoning: blocks.join('\n\n'), answer: answer.trimStart() };
 }
-
-const OPEN_THINK = '<think>';
-const CLOSE_THINK = '</think>';
 
 /** Length of the longest suffix of `s` that is a proper prefix of `tag`. */
 function partialTagSuffix(s: string, tag: string): number {
@@ -265,6 +276,28 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
     };
   }
 
+  /**
+   * Error response for a turn that produced reasoning or ran out of tokens
+   * but no reply and no tool call. `truncated` is true when the provider
+   * reported finish_reason "length" (the token budget or context window
+   * filled up); false when it stopped after thinking with nothing to say.
+   */
+  protected noAnswerError(truncated: boolean): LlmResponse {
+    const id = this.providerId();
+    return truncated
+      ? {
+          errorCode: `${id.toUpperCase()}_MAX_TOKENS`,
+          errorMessage:
+            `${this.model} ran out of tokens before it wrote a reply ` +
+            '(finish_reason "length"). Raise max_tokens, or lower ' +
+            'generateContentConfig.reasoningEffort so less goes to thinking.',
+        }
+      : {
+          errorCode: `${id.toUpperCase()}_EMPTY_RESPONSE`,
+          errorMessage: `${this.model} finished thinking but returned no reply.`,
+        };
+  }
+
   /** Error response when the endpoint can't be reached at all. */
   protected unreachable(message: string): LlmResponse {
     return {
@@ -388,7 +421,8 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
       }
 
       const data: any = await res.json();
-      const message = data.choices?.[0]?.message ?? {};
+      const choice = data.choices?.[0] ?? {};
+      const message = choice.message ?? {};
 
       const usageMetadata = mapUsage(data.usage);
 
@@ -422,11 +456,12 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
         });
       }
 
-      yield {
-        content: { role: 'model', parts },
-        turnComplete: true,
-        ...(usageMetadata ? { usageMetadata } : {}),
-      };
+      yield this.finalResponse(
+        parts,
+        choice.finish_reason,
+        Boolean(reasoning),
+        usageMetadata,
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       yield this.unreachable(msg);
@@ -457,15 +492,20 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
     >();
     let answer = '';
     let answerStarted = false;
+    let sawReasoning = false;
+    let finishReason: string | undefined;
     let usage: any;
 
-    const partial = (text: string, thought: boolean): LlmResponse => ({
-      content: {
-        role: 'model',
-        parts: [thought ? ({ text, thought: true } as any) : { text }],
-      },
-      partial: true,
-    });
+    const partial = (text: string, thought: boolean): LlmResponse => {
+      if (thought) sawReasoning = true;
+      return {
+        content: {
+          role: 'model',
+          parts: [thought ? ({ text, thought: true } as any) : { text }],
+        },
+        partial: true,
+      };
+    };
 
     // The scratchpad is usually trailed by blank lines; the reply must not
     // open with them, but only the FIRST answer text may be trimmed.
@@ -474,6 +514,8 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
 
     for await (const chunk of sseChunks(res)) {
       if (chunk.usage) usage = chunk.usage;
+      const finish = chunk.choices?.[0]?.finish_reason;
+      if (finish) finishReason = finish;
       const delta = chunk.choices?.[0]?.delta;
       if (!delta) continue;
 
@@ -529,11 +571,41 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
       parts.push({ functionCall: { name: acc.name, args, id: acc.id } });
     }
 
-    const usageMetadata = mapUsage(usage);
-    yield {
+    yield this.finalResponse(parts, finishReason, sawReasoning, mapUsage(usage));
+  }
+
+  /**
+   * The one non-partial response that closes a turn, on both paths.
+   *
+   * WHY an empty reply becomes an error: ADK drops a final response with no
+   * parts and no errorCode (llm_agent: "empty content → return"), so the
+   * last event left is the thought partial — ADK logs "The last event is
+   * partial, which is not expected." and the turn ends with empty text and
+   * no reason. That is exactly what a thinking model does when its
+   * scratchpad fills the budget (finish_reason "length"): the answer never
+   * starts. Naming it lets the caller see why, and still carries the usage
+   * so the tokens spent thinking are counted.
+   *
+   * A reply that was cut short but did start keeps its text and is marked
+   * finishReason MAX_TOKENS.
+   */
+  private finalResponse(
+    parts: any[],
+    finishReason: string | undefined,
+    sawReasoning: boolean,
+    usageMetadata: ReturnType<typeof mapUsage>,
+  ): LlmResponse {
+    if (finishReason) setLlmSpanAttribute('llm.finish_reason', finishReason);
+    const truncated = finishReason === 'length';
+    const usage = usageMetadata ? { usageMetadata } : {};
+    if (parts.length === 0 && (truncated || sawReasoning)) {
+      return { ...this.noAnswerError(truncated), turnComplete: true, ...usage };
+    }
+    return {
       content: { role: 'model', parts },
       turnComplete: true,
-      ...(usageMetadata ? { usageMetadata } : {}),
+      ...(truncated ? { finishReason: FinishReason.MAX_TOKENS } : {}),
+      ...usage,
     };
   }
 

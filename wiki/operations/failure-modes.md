@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: Failure modes
-description: The named errors newcomers actually hit — model-tier 503s, the gemini-2.5-flash tool-context 400, stale-orchestrator synthesis, and the two A2A auth rejections — with their fixes.
+description: The named errors newcomers actually hit — model-tier 503s, the gemini-2.5-flash tool-context 400, stale-orchestrator synthesis, the two A2A auth rejections, and a thinking model that fills Ollama's context window — with their fixes.
 tags:
   - operations
   - troubleshooting
@@ -13,6 +13,8 @@ sources:
     title: 'Common first-run errors'
   - resource: lib/config.ts
   - resource: lib/models/retry.ts
+  - resource: lib/models/openAiCompatibleLlm.ts
+  - resource: lib/models/ollamaLlm.ts
   - resource: lib/a2a/app.ts
   - resource: lib/a2a/executor.ts
 ---
@@ -52,6 +54,10 @@ A bare id must be a file in the agents directory; examples and templates answer 
 ## `GATEWAY_HTTP_ERROR` / `GATEWAY_KEY_MISSING` / `GATEWAY_NOT_CONFIGURED`
 
 Only seen when `MODEL_GATEWAY` is set ([provider routing](/models/provider-routing.md)). `GATEWAY_KEY_MISSING`: the gateway is named but `MODEL_GATEWAY_API_KEY` is not set — the registry log says so at startup and the doctor marks every uncovered provider blocked. `GATEWAY_NOT_CONFIGURED`: the value is not `vercel` or `openrouter`. `GATEWAY_HTTP_ERROR` with a 400 or 404 is almost always the wire name — the gateway's id for the model differs from the mapper's guess; fix it once with `MODEL_GATEWAY_MODEL_MAP=<yaml id>=<gateway id>`. A gateway path never carries native search: an agent declaring `web_search` on it runs without search, and that is reported (`capability ·` line at compile time, `llm.capability.dropped` on the span), not a fault.
+
+## `OLLAMA_MAX_TOKENS` / `<PROVIDER>_EMPTY_RESPONSE` — thinking, but no answer
+
+A thinking model (the qwen3 and qwen3.5 families) writes its scratchpad first, and the scratchpad shares the context window with the prompt. Ollama loads a model with a 4,096-token window unless the Modelfile says otherwise, and its OpenAI-compatible `/v1` endpoint — the one the adapter uses — ignores `num_ctx` and the `options` object entirely. On a constraint-dense prompt such as the model zoo's explainer, `qwen3.5:9b` can think for 3,700+ tokens, fill the window and stop with `finish_reason: "length"` before the reply starts. The chat-completions adapter (`lib/models/openAiCompatibleLlm.ts`) turns that into `OLLAMA_MAX_TOKENS` (`<PROVIDER>_MAX_TOKENS` on a gateway) carrying the turn's token usage; a model that stops after thinking with nothing to say gets `<PROVIDER>_EMPTY_RESPONSE`. Without the error, ADK would drop the empty final response, warn "The last event is partial, which is not expected", and the turn would end with empty text. Two remedies work on Ollama: `generateContentConfig.reasoningEffort: "none"` on the agent, which turns thinking off (on Ollama 0.31 `"low"` does not bound a qwen3.5 scratchpad, and `think: false` is ignored on `/v1`); or a larger window, set where Ollama reads it — a Modelfile with `PARAMETER num_ctx 32768` built with `ollama create`, or `OLLAMA_CONTEXT_LENGTH=32768` on the `ollama serve` process. `ollama ps` shows the window a loaded model actually has in its CONTEXT column. A reply that started but was cut off keeps its text and is marked `finishReason: MAX_TOKENS`; the `llm.request` span records `llm.finish_reason` either way.
 
 ## Silent degradations worth knowing
 
