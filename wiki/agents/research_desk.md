@@ -27,6 +27,6 @@ The ResearchLead splits the question into at most three angles and sends each to
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Scout | `gemini-3.1-flash-lite` | `web_search` | — |
-| Reader | `gemini-3.1-flash-lite` | `web_extract` | — |
+| Scout | `gemini-3.5-flash-lite` | `web_search` | — |
+| Reader | `gemini-3.5-flash-lite` | `web_extract` | — |
 <!-- /wiki:generated -->

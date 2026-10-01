@@ -100,7 +100,7 @@ test('providerForModel maps every prefix to its provider', () => {
   assert.equal(providerForModel('o4-mini'), 'openai');
   assert.equal(providerForModel('grok-4-1-fast-reasoning'), 'xai');
   assert.equal(providerForModel('ollama/qwen3:8b'), 'ollama');
-  assert.equal(providerForModel('gemini-3.1-flash-lite'), 'gemini');
+  assert.equal(providerForModel('gemini-3.5-flash-lite'), 'gemini');
   assert.equal(providerForModel('something-unknown'), 'gemini'); // ADK-native default
 });
 
@@ -573,7 +573,7 @@ test('buildResponsesTools lowercases schemas and adds native web_search', () => 
 // plans/gpt-agenttool-delegation.md. These use the real classes.
 
 function realToolRequest(model: string): LlmRequest {
-  const sub = new LlmAgent({ name: 'XScout', description: 'Sweeps X for a ticker', model: 'gemini-3.1-flash-lite', instruction: 'x' });
+  const sub = new LlmAgent({ name: 'XScout', description: 'Sweeps X for a ticker', model: 'gemini-3.5-flash-lite', instruction: 'x' });
   const request = makeRequest({ model });
   request.toolsDict['XScout'] = new AgentTool({ agent: sub });
   request.toolsDict['load_memory'] = LOAD_MEMORY as any;
@@ -608,7 +608,7 @@ test('chat-completions adapters (Ollama, gateway) declare AgentTool and load_mem
 });
 
 test('an AgentTool whose subagent has no description is still declared', () => {
-  const sub = new LlmAgent({ name: 'Quiet', model: 'gemini-3.1-flash-lite', instruction: 'x' });
+  const sub = new LlmAgent({ name: 'Quiet', model: 'gemini-3.5-flash-lite', instruction: 'x' });
   const request = makeRequest({ model: 'gpt-5-mini' });
   request.toolsDict['Quiet'] = new AgentTool({ agent: sub });
   assert.ok(buildResponsesTools(request).some((t) => t.name === 'Quiet'));
@@ -619,7 +619,7 @@ test('an AgentTool whose subagent has no description is still declared', () => {
 test('WebSearchTool: Gemini model gets grounding; others get the sentinel', async () => {
   const tool = new WebSearchTool();
 
-  const geminiRequest = makeRequest({ model: 'gemini-3.1-flash-lite' });
+  const geminiRequest = makeRequest({ model: 'gemini-3.5-flash-lite' });
   await tool.processLlmRequest({ llmRequest: geminiRequest } as any);
   assert.deepEqual((geminiRequest.config as any).tools, [{ googleSearch: {} }]);
   assert.equal(wantsWebSearch(geminiRequest), false); // no sentinel on Gemini

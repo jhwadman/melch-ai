@@ -27,5 +27,5 @@ Run: `npm run syndicate:librarian`
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Librarian | `gemini-3.1-flash-lite` | — | `mcp_server_url` |
+| Librarian | `gemini-3.5-flash-lite` | — | `mcp_server_url` |
 <!-- /wiki:generated -->

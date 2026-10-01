@@ -25,7 +25,7 @@ All provider registration must occur before constructing agents. The `LLMRegistr
 <!-- wiki:generated section="providers" source="lib/models/providerMap.ts" -->
 | Provider | Label | Key env | Model prefix | Default |
 |---|---|---|---|---|
-| gemini | Google Gemini | `GOOGLE_GENAI_API_KEY` | `gemini-*` | `gemini-3.1-flash-lite` |
+| gemini | Google Gemini | `GOOGLE_GENAI_API_KEY` | `gemini-*` | `gemini-3.5-flash-lite` |
 | anthropic | Anthropic Claude | `ANTHROPIC_API_KEY` | `claude-*` | `claude-sonnet-4-6` |
 | openai | OpenAI GPT | `OPENAI_API_KEY` | `gpt-*`, `o<digit>*` | `gpt-5-mini` |
 | xai | xAI Grok | `XAI_API_KEY` | `grok-*` | `grok-4.7` |

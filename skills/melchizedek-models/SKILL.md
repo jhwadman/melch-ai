@@ -19,7 +19,7 @@ The engine maintains no allowlist. You can specify any model id that the provide
 
 The deployment verifies these ids:
 - `gemini-3.8-flash` (production)
-- `gemini-3.1-flash-lite` (subagents, cost)
+- `gemini-3.5-flash-lite` (subagents, cost)
 - `claude-sonnet-4-6`
 - `claude-opus-4-6`
 - `claude-haiku-4-5-20251001`

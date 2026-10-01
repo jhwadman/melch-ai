@@ -80,7 +80,7 @@ variables:
     FORM. A yes-or-no question is resolved in the first clause. One study: continuous prose. Several studies: a list, one entry per study, each linking its source. State each fact once. Name the acting entity ("the trial randomised 17,604 participants", not "research indicates"). No headings, tables or code fences. Link identifiers with the URL the tool supplied: [10.1056/NEJMoa2032183](https://doi.org/10.1056/NEJMoa2032183), [NCT03574597](https://clinicaltrials.gov/study/NCT03574597), [PMID 27633186](https://pubmed.ncbi.nlm.nih.gov/27633186/). No closing offer of further help.
 orchestrator:
   name: Triage
-  model: gemini-3.1-flash-lite
+  model: gemini-3.5-flash-lite
   instruction: |
     The current date is {{current_date}}. A "[System Context: Current Date is …]" line at the head of a message supersedes it.
 
@@ -151,7 +151,7 @@ orchestrator:
 subagents:
   - name: define
     description: "What a term, endpoint, phase, design or statistic means, and how to read one. Needs no record."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     instruction: |
       The current date is {{current_date}}. A "[System Context: Current Date is …]" line at the head of a message supersedes it.
 
@@ -174,7 +174,7 @@ subagents:
         includeThoughts: false
   - name: lookup
     description: "ONE object: this trial, this paper, this identifier. Status, phase, arms, enrollment, what it registered, what it reported."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     tools:
       - resolve_identifier
       - search_trials

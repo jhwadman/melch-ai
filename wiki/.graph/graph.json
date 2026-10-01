@@ -2637,9 +2637,9 @@
       "source": "lib/config.ts (DEFAULT_CLAUDE_MODEL)"
     },
     {
-      "id": "model:gemini-3.1-flash-lite",
+      "id": "model:gemini-3.5-flash-lite",
       "kind": "model",
-      "label": "gemini-3.1-flash-lite",
+      "label": "gemini-3.5-flash-lite",
       "source": "lib/config.ts (DEFAULT_GEMINI_MODEL)"
     },
     {
@@ -7460,14 +7460,14 @@
     },
     {
       "from": "agent:account_memory/Writer",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/account_memory.yaml"
     },
     {
       "from": "agent:ares/Ares",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/ares.yaml"
@@ -7488,7 +7488,7 @@
     },
     {
       "from": "agent:ares/WarScribe",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/ares.yaml"
@@ -7628,7 +7628,7 @@
     },
     {
       "from": "agent:cartographers/Registrar",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/cartographers.yaml"
@@ -7705,7 +7705,7 @@
     },
     {
       "from": "agent:case_desk/Reader",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/case_desk.yaml"
@@ -7719,7 +7719,7 @@
     },
     {
       "from": "agent:case_desk/Runbooks",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/case_desk.yaml"
@@ -7831,14 +7831,14 @@
     },
     {
       "from": "agent:draft_review/Editor",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/draft_review.yaml"
     },
     {
       "from": "agent:draft_review/Reviewer",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/draft_review.yaml"
@@ -7901,7 +7901,7 @@
     },
     {
       "from": "agent:intake_extractor/Intake",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/intake_extractor.yaml"
@@ -7922,7 +7922,7 @@
     },
     {
       "from": "agent:librarian/Librarian",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/librarian.yaml"
@@ -7936,7 +7936,7 @@
     },
     {
       "from": "agent:model_zoo/gemini",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/model_zoo.yaml"
@@ -7964,7 +7964,7 @@
     },
     {
       "from": "agent:model_zoo/Zookeeper",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/model_zoo.yaml"
@@ -7992,7 +7992,7 @@
     },
     {
       "from": "agent:patient_advocate/MedScribe",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/patient_advocate.yaml"
@@ -8027,7 +8027,7 @@
     },
     {
       "from": "agent:research_brief/Verifier",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/research_brief.yaml"
@@ -8041,7 +8041,7 @@
     },
     {
       "from": "agent:research_desk/Reader",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/research_desk.yaml"
@@ -8062,7 +8062,7 @@
     },
     {
       "from": "agent:research_desk/Scout",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/research_desk.yaml"
@@ -8076,7 +8076,7 @@
     },
     {
       "from": "agent:research/define",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/research.yaml"
@@ -8139,7 +8139,7 @@
     },
     {
       "from": "agent:research/lookup",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/research.yaml"
@@ -8181,7 +8181,7 @@
     },
     {
       "from": "agent:research/Triage",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/research.yaml"
@@ -8202,7 +8202,7 @@
     },
     {
       "from": "agent:review_panel/Operability",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/review_panel.yaml"
@@ -8279,7 +8279,7 @@
     },
     {
       "from": "agent:scriptorium/Seeker",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/scriptorium.yaml"
@@ -8363,7 +8363,7 @@
     },
     {
       "from": "agent:support_triage/answer",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/support_triage.yaml"
@@ -8391,28 +8391,28 @@
     },
     {
       "from": "agent:support_triage/handoff",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/support_triage.yaml"
     },
     {
       "from": "agent:support_triage/Triage",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/support_triage.yaml"
     },
     {
       "from": "agent:syndicate/Melchizedek",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/syndicate.yaml"
     },
     {
       "from": "agent:syndicate/NewsResearcher",
-      "to": "model:gemini-3.1-flash-lite",
+      "to": "model:gemini-3.5-flash-lite",
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/syndicate.yaml"
@@ -8481,7 +8481,7 @@
       "evidence": "lib/config.ts (DEFAULT_CLAUDE_MODEL)"
     },
     {
-      "from": "model:gemini-3.1-flash-lite",
+      "from": "model:gemini-3.5-flash-lite",
       "to": "provider:gemini",
       "rel": "routes_to",
       "tier": "extracted",

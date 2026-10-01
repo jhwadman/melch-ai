@@ -21,9 +21,9 @@ The Global Synthesis Council is the simplest delegation specimen in the starter 
 Run: `npm run syndicate:synthesis`
 
 - memory: `session-only`
-- orchestrator: **Melchizedek** (`gemini-3.1-flash-lite`)
+- orchestrator: **Melchizedek** (`gemini-3.5-flash-lite`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| NewsResearcher | `gemini-3.1-flash-lite` | `google_search` | — |
+| NewsResearcher | `gemini-3.5-flash-lite` | `google_search` | — |
 <!-- /wiki:generated -->

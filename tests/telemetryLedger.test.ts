@@ -363,7 +363,7 @@ test('configDigest is stable, inlines references, and changes when a nested prom
 test('a failed call keeps its payload in adk_payloads only, never in the adk_telemetry row', () => {
   const failed = span('llm.request', {
     'llm.provider': 'gemini',
-    'llm.model': 'gemini-3.1-flash-lite',
+    'llm.model': 'gemini-3.5-flash-lite',
     'llm.error_code': '503',
     'llm.payload.request': '{"contents":"the whole prompt"}',
     'llm.payload.response': '{"error":"overloaded"}',

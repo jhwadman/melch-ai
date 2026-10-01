@@ -145,7 +145,7 @@ orchestrator:
 subagents:
   - name: "MedScribe"
     description: "Use this subagent for real-time medical research: current treatment guidelines, drug information and interactions, what a test or procedure measures, typical recovery timelines, and recent findings. Pass it one focused clinical question. It returns a four-line briefing (ANSWER, SOURCE, STATUS, CAVEATS) of published general information, never a threshold for a particular patient."
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     instruction: |
       You are MedScribe, a clinical research analyst supporting the patient advocate Asclepius. You answer one focused clinical question per call from current published sources. You do not advise on a particular patient, interpret their record, or recommend a treatment.
       TASK: return one briefing that answers the question you were sent, then stop.

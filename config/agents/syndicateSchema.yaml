@@ -132,7 +132,7 @@ orchestrator:
   #   grok-*    → xAI           (XAI_API_KEY)
   #   ollama/*  → local Ollama  (keyless)
   # Subagents inherit this if not set on their own config.
-  model: "gemini-3.1-flash-lite"
+  model: "gemini-3.5-flash-lite"
 
   # [required] The agent's system prompt / persona.
   # Maps to: instruction
@@ -270,7 +270,7 @@ subagents:
 
     # [optional] Override the model for this subagent.
     # If omitted, inherits the orchestrator's model.
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
 
     # [required unless yaml_reference / a2a_agent_url] System prompt.
     # Maps to: instruction

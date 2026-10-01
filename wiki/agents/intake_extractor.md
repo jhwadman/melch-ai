@@ -23,7 +23,7 @@ Two settings make each request stand alone. `memory_system: internal-only` keeps
 
 <!-- wiki:generated section="composition" source="config/agents/templates/intake_extractor.yaml" -->
 - memory: `internal-only`
-- orchestrator: **Intake** (`gemini-3.1-flash-lite`)
+- orchestrator: **Intake** (`gemini-3.5-flash-lite`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|

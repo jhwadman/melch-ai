@@ -29,5 +29,5 @@ The run is bounded: at most two desk calls, two Writer calls and one Verifier ca
 |---|---|---|---|
 | ResearchDesk | syndicate: [research_desk](/agents/research_desk.md) | — | — |
 | Writer | `gemini-3.8-flash` | — | — |
-| Verifier | `gemini-3.1-flash-lite` | — | — |
+| Verifier | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

@@ -59,7 +59,7 @@ syndicate_name: "The Cartographers"
 memory_system: "internal-only"
 
 variables:
-  registrar_actor: "melchizedek/gemini-3.1-flash-lite"
+  registrar_actor: "melchizedek/gemini-3.5-flash-lite"
 
 orchestrator:
   name: "Cosmographer"
@@ -165,7 +165,7 @@ subagents:
 
   - name: "Registrar"
     description: "Records ONE proposed relation through the wiki_relate gate (tools: wiki_graph, wiki_read, wiki_relate) and reports what the gate said. Call it only for a proposal the visitor has named to record. Pass it the complete proposal: from id, relation, to id, and the evidence quotation."
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     tools: ["wiki_graph", "wiki_read", "wiki_relate"]
     instruction: |
       You are the Registrar. You receive one proposed relation and record it, exactly as proposed. You record nothing else.

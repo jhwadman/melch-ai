@@ -37,7 +37,7 @@ Top-level keys:
 Agent block keys for the orchestrator and each subagent:
 - `name`: required valid JavaScript identifier, unique in the tree. Do not use `user`.
 - `description`: one line. For a subagent, this acts as the routing API: the orchestrator decides whom to call by reading descriptions, so state what to pass and when to call.
-- `model`: model identifier, required on the orchestrator. Subagents inherit this model when unset. The melchizedek-models skill covers provider prefixes. Use `gemini-3.8-flash` or `gemini-3.1-flash-lite` for Gemini. The model `gemini-2.5-flash` fails with a 400 error about tool call context circulation.
+- `model`: model identifier, required on the orchestrator. Subagents inherit this model when unset. The melchizedek-models skill covers provider prefixes. Use `gemini-3.8-flash` or `gemini-3.5-flash-lite` for Gemini. The model `gemini-2.5-flash` fails with a 400 error about tool call context circulation.
 - `instruction`: required system prompt.
 - `tools:`: list of registered tool names: `web_search`, `web_extract`, `google_search`, `x_search`, `x_api_search`, `collections_search`, `generate_image`, `inspect_image`, `load_memory`, `preload_memory`, `wiki_map`, `wiki_search`, `wiki_read`, `wiki_links`, `wiki_dive`, `wiki_save`, `wiki_graph`, `wiki_relate`. The loader warns on an unknown name and skips it. Server-side search tools run natively only on providers that offer them; `npx melchizedek-doctor` reports per agent which tools stay or drop.
 - `mcp_server_url:`: URL on a subagent to discover MCP tools at start. The melchizedek-serve skill covers MCP servers.

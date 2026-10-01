@@ -29,5 +29,5 @@ It needs `GOOGLE_GENAI_API_KEY`, plus `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Writer | `gemini-3.1-flash-lite` | — | — |
+| Writer | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

@@ -8,6 +8,11 @@ the starter pack and the templates), not the repo's full history.
 
 ### Breaking — read before upgrading
 
+- **The default Gemini model is `gemini-3.5-flash-lite`** (was
+  `gemini-3.1-flash-lite`): `DEFAULT_GEMINI_MODEL` in `lib/config.ts`, and every
+  starter-pack, template and schema example that named the old id. An agent
+  that omits `model:` now runs on 3.5 Flash Lite; pin the old id in the YAML
+  to keep it.
 - **`@google/adk` peer is now `^2.2.0`** (was `^1.3.0`), and `@google/genai`
   is `2.25.0`. Install `@google/adk@2.2.0` beside the package. ADK and genai
   now share one genai copy, and ADK's database drivers and GCP exporters are

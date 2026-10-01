@@ -27,6 +27,6 @@ Run: `npm run syndicate:scriptorium`
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Seeker | `gemini-3.1-flash-lite` | `wiki_map`, `wiki_search`, `wiki_read`, `wiki_links`, `wiki_dive` | — |
+| Seeker | `gemini-3.5-flash-lite` | `wiki_map`, `wiki_search`, `wiki_read`, `wiki_links`, `wiki_dive` | — |
 | Illuminator | `gemini-3.8-flash` | `wiki_map`, `wiki_search`, `wiki_read`, `wiki_links`, `wiki_save` | — |
 <!-- /wiki:generated -->

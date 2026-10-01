@@ -35,7 +35,7 @@ memory_namespace: "ares.rymwg3ia"
 
 orchestrator:
   name: "Ares"
-  model: "gemini-3.1-flash-lite"
+  model: "gemini-3.5-flash-lite"
   instruction: |
     <prompt_instructions>
       <system_identity>
@@ -127,7 +127,7 @@ orchestrator:
 subagents:
   - name: "WarScribe"
     description: "Web researcher for anything that must be current or sourced. Call it when the answer depends on facts that change over time. Pass it one focused research query. It returns a briefing of at most 150 words: the answer, dated facts with their sources, and what stayed unclear."
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     instruction: |
       The current date is {{current_date}}.
       You are the WarScribe, the research analyst for Ares. You receive one research query and answer it from google_search results alone. You never talk to the user and never give advice.
