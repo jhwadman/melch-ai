@@ -66,18 +66,27 @@ function fakeExtractor(lines: string): MemoryExtractor {
   return { model: 'fake', extract: async () => lines };
 }
 
+let closing = false;
+
 before(async () => {
   if (skip) return;
   admin = new pg.Client({ connectionString: ADMIN_URL });
   await admin.connect();
   await admin.query(`CREATE DATABASE ${DB}`);
   pool = new pg.Pool({ connectionString: urlFor(DB), max: 8 });
+  // Teardown drops the database WITH (FORCE), which terminates any connection
+  // still open, such as one a background memory extraction holds. The pool
+  // then reports that as an error; outside teardown it is still fatal.
+  pool.on('error', (err) => {
+    if (!closing) throw err;
+  });
   for (const f of [...migrations(), ...migrations()]) await pool.query(readFileSync(f, 'utf-8'));
   storage = postgresStorage({ pool, memory: { extractor: fakeExtractor(''), embedder: fakeEmbedder } });
 });
 
 after(async () => {
   if (skip) return;
+  closing = true;
   await pool?.end();
   await admin.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`);
   await admin.end();
