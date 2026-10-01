@@ -7,6 +7,7 @@
 
 import type { Pool } from 'pg';
 
+import { commitRows } from '../../memory/store.ts';
 import type { FactRow, MemoryStore } from '../../memory/store.ts';
 
 /** pgvector's text form: '[0.1,0.2,…]'. */
@@ -77,6 +78,30 @@ export function postgresMemoryStore(pool: Pool): MemoryStore {
     async deleteUser(userKey) {
       const r = await pool.query('DELETE FROM adk_memory_facts WHERE user_key = $1', [userKey]);
       return r.rowCount ?? 0;
+    },
+
+    async commit(userKey, marker, rows, retire) {
+      const r = await pool.query('SELECT new_id, new_fact FROM melchizedek_memory_commit($1, $2, $3, $4::jsonb, $5::jsonb)', [
+        userKey,
+        marker?.sessionId ?? null,
+        marker?.events ?? null,
+        JSON.stringify(commitRows(rows)),
+        JSON.stringify(retire.map((x) => ({ id: x.id, by_fact: x.byFact }))),
+      ]);
+      return r.rows.map((row) => ({ id: String(row.new_id), fact: row.new_fact as string }));
+    },
+
+    async ingestedEvents(userKey, sessionId) {
+      const r = await pool.query(
+        'SELECT events_ingested FROM melchizedek_memory_ingest WHERE user_key = $1 AND session_id = $2',
+        [userKey, sessionId],
+      );
+      return r.rows[0]?.events_ingested ?? 0;
+    },
+
+    async embeddingDimensions() {
+      const r = await pool.query('SELECT melchizedek_memory_dimensions() AS d');
+      return r.rows[0]?.d == null ? null : Number(r.rows[0].d);
     },
   };
 }

@@ -86,6 +86,11 @@ BEGIN
     EXECUTE 'ALTER TABLE adk_agent_registry ENABLE ROW LEVEL SECURITY';
     EXECUTE 'REVOKE ALL ON adk_agent_registry FROM anon, authenticated';
   END IF;
+  -- The memory processed marker (migration 0007): identifiers only.
+  IF to_regclass('public.melchizedek_memory_ingest') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE melchizedek_memory_ingest ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'REVOKE ALL ON melchizedek_memory_ingest FROM anon, authenticated';
+  END IF;
   -- Its history (migration 0005): every definition an id has held.
   IF to_regclass('public.adk_agent_registry_versions') IS NOT NULL THEN
     EXECUTE 'ALTER TABLE adk_agent_registry_versions ENABLE ROW LEVEL SECURITY';
@@ -120,7 +125,8 @@ BEGIN
                         'melchizedek_erase_scope', 'melchizedek_usage_add', 'melchizedek_prune_usage',
                         'melchizedek_registry_hash', 'melchizedek_registry_record',
                         'melchizedek_registry_versions_immutable', 'melchizedek_registry_publish',
-                        'melchizedek_registry_activate')
+                        'melchizedek_registry_activate', 'melchizedek_memory_commit',
+                        'melchizedek_memory_dimensions', 'melchizedek_prune_memory_ingest')
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', fn);
     IF has_service_role THEN
@@ -146,7 +152,8 @@ AS $$
     AND c.relname IN ('adk_memory_facts', 'adk_sessions', 'adk_telemetry',
                       'adk_turns', 'adk_payloads', 'adk_verdicts', 'adk_labels',
                       'adk_agent_registry', 'adk_agent_registry_versions',
-                      'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage');
+                      'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage',
+                      'melchizedek_memory_ingest');
 $$;
 
 REVOKE ALL ON FUNCTION melchizedek_rls_status() FROM PUBLIC, anon, authenticated;

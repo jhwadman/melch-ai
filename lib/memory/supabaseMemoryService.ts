@@ -147,9 +147,10 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 	 * How many of each session's events have already been distilled.
 	 * Keyed `{userKey}::{sessionId}`.
 	 *
-	 * In-process on purpose: a restart resets it, so the next turn re-reads
-	 * that session once. Semantic dedup absorbs that batch, which is why this
-	 * needs no table of its own — the two fixes cover each other's edges.
+	 * The durable marker lives in the store when it has one
+	 * (`melchizedek_memory_ingest`, migration 0007), committed with the
+	 * facts; this map is the fallback for a store without it, where a restart
+	 * re-reads a session once and the semantic dedup absorbs that batch.
 	 */
 	private ingestedEventCount = new Map<string, number>();
 
@@ -191,7 +192,16 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 	async addSessionToMemory(session: Session, extractionRules?: string): Promise<void> {
 		const userKey = `${session.appName}/${session.userId}`;
 		const watermarkKey = `${userKey}::${session.id}`;
-		const alreadyIngested = this.ingestedEventCount.get(watermarkKey) ?? 0;
+		let alreadyIngested = this.ingestedEventCount.get(watermarkKey) ?? 0;
+		// The durable marker (migration 0007), when the store has one: it
+		// survives a restart, so a turn is never distilled twice.
+		if (this.store.ingestedEvents) {
+			try {
+				alreadyIngested = Math.max(alreadyIngested, await this.store.ingestedEvents(userKey, session.id));
+			} catch (err: unknown) {
+				console.error(`[MemoryService] Processed marker unreadable (using this process's):`, err instanceof Error ? err.message : err);
+			}
+		}
 		const fresh = eventsToIngest(session.events ?? [], alreadyIngested);
 
 		if (fresh.length === 0) {
@@ -216,10 +226,14 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 		// were never distilled — a lost fact costs the user something they
 		// said.) A retried batch that partly landed is absorbed by the
 		// semantic dedup below.
-		const advance = () => this.ingestedEventCount.set(watermarkKey, (session.events ?? []).length);
+		const total = (session.events ?? []).length;
+		const marker = { sessionId: session.id, events: total };
+		const advance = () => this.ingestedEventCount.set(watermarkKey, total);
 		const records = await this.extractRecords(transcript, extractionRules);
 
 		if (records.length === 0) {
+			// "No facts" is an answer: record that these turns are done.
+			if (this.store.commit) await this.commitOrThrow(userKey, marker, [], []);
 			advance();
 			console.log(`[MemoryService] No records extracted from session ${session.id}.`);
 			return;
@@ -227,6 +241,19 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 		console.log(`[MemoryService] Extracted ${records.length} record(s) from session ${session.id}.`);
 
 		const embeddings = await this.embedTexts(records.map(r => r.line));
+
+		if (this.store.commit) {
+			// One transaction: the new facts, the rows they supersede, and the
+			// marker. A failure leaves all three as they were, and the turns
+			// pending for the next task to retry (ADR 0020 item 6).
+			const payload = await this.prepareFacts(userKey, records, embeddings);
+			const kept = new Set(payload.map(p => p.fact));
+			const retire = await this.findRetirements(userKey, records.filter(r => r.supersedes && kept.has(r.line)), new Set());
+			const inserted = await this.commitOrThrow(userKey, marker, payload, retire);
+			advance();
+			console.log(`[MemoryService] Stored ${inserted.length} record(s), superseded ${retire.length}, for user key: ${userKey}`);
+			return;
+		}
 
 		const inserted = await this.upsertToSupabase(userKey, records, embeddings);
 		await this.applySupersessions(userKey, records, inserted);
@@ -375,7 +402,45 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 		embeddings: number[][]
 	): Promise<Map<string, string>> {
 		const insertedIds = new Map<string, string>();
+		const payload = await this.prepareFacts(userKey, records, embeddings);
+		if (payload.length === 0) return insertedIds;
 
+		let data: Array<{ id: string; fact: string }>;
+		try {
+			data = await this.store.insert(payload);
+		} catch (err: unknown) {
+			throw new Error(`Failed to store memory records (turns stay pending for retry): ${err instanceof Error ? err.message : String(err)}`);
+		}
+
+		for (const row of data) {
+			insertedIds.set(row.fact, row.id);
+		}
+		return insertedIds;
+	}
+
+	/** The atomic commit, with a failure worded for the operator. */
+	private async commitOrThrow(
+		userKey: string,
+		marker: { sessionId: string; events: number },
+		rows: NewFact[],
+		retire: Array<{ id: string; byFact: string }>,
+	): Promise<Array<{ id: string; fact: string }>> {
+		try {
+			return await this.store.commit!(userKey, marker, rows, retire);
+		} catch (err: unknown) {
+			throw new Error(`Failed to store memory records (turns stay pending for retry): ${err instanceof Error ? err.message : String(err)}`);
+		}
+	}
+
+	/**
+	 * The rows worth storing: records not already stored byte for byte and
+	 * not a semantic restatement of an active row of the same tag.
+	 */
+	private async prepareFacts(
+		userKey: string,
+		records: MemoryRecord[],
+		embeddings: number[][]
+	): Promise<NewFact[]> {
 		// First pass: byte-identical lines already stored. Cheap, and catches
 		// a genuinely repeated extraction. It is NOT sufficient on its own —
 		// the extraction model rephrases, so the semantic pass below is what
@@ -416,20 +481,7 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 				keys: record.keys,
 			});
 		}
-
-		if (payload.length === 0) return insertedIds;
-
-		let data: Array<{ id: string; fact: string }>;
-		try {
-			data = await this.store.insert(payload);
-		} catch (err: unknown) {
-			throw new Error(`Failed to store memory records (turns stay pending for retry): ${err instanceof Error ? err.message : String(err)}`);
-		}
-
-		for (const row of data) {
-			insertedIds.set(row.fact, row.id);
-		}
-		return insertedIds;
+		return payload;
 	}
 
 	/**
@@ -447,11 +499,33 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 		insertedIds: Map<string, string>
 	): Promise<void> {
 		const corrections = records.filter(r => r.supersedes && insertedIds.has(r.line));
-		if (corrections.length === 0) return;
+		const retire = await this.findRetirements(userKey, corrections, new Set(insertedIds.values()));
+		for (const r of retire) {
+			const correctionId = insertedIds.get(r.byFact) as string;
+			try {
+				await this.store.retire(userKey, r.id, correctionId);
+				console.log(`[MemoryService] Superseded ${r.id} → ${correctionId}`);
+			} catch (err: unknown) {
+				console.error(`[MemoryService] Failed to retire superseded record:`, err instanceof Error ? err.message : err);
+			}
+		}
+	}
 
-		const newIds = new Set(insertedIds.values());
+	/**
+	 * Which active rows each correction retires: rows found by embedding the
+	 * superseded quote, retired when semantically close and sharing an index
+	 * key with the correction (or a near-exact match). `exclude` holds ids
+	 * from this same ingestion, which are never retired.
+	 */
+	private async findRetirements(
+		userKey: string,
+		corrections: MemoryRecord[],
+		exclude: Set<string>,
+	): Promise<Array<{ id: string; byFact: string }>> {
+		if (corrections.length === 0) return [];
 		const targetEmbeddings = await this.embedTexts(corrections.map(r => r.supersedes as string));
-
+		const out: Array<{ id: string; byFact: string }> = [];
+		const taken = new Set<string>();
 		for (let i = 0; i < corrections.length; i++) {
 			const correction = corrections[i];
 			const vec = targetEmbeddings[i];
@@ -464,27 +538,40 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 				console.error(`[MemoryService] Supersession lookup failed:`, err instanceof Error ? err.message : err);
 				continue;
 			}
-
-			const correctionId = insertedIds.get(correction.line) as string;
 			for (const row of data) {
-				if (newIds.has(row.id)) continue; // never retire a record from this same ingestion
+				if (exclude.has(row.id) || taken.has(row.id)) continue;
 				if ((row.status ?? 'active') !== 'active') continue;
 				const sharesKey = (row.keys ?? []).some(k => correction.keys.includes(k));
 				const retire = row.similarity >= 0.85 || (row.similarity >= 0.6 && sharesKey);
 				if (!retire) continue;
-
-				let updateError: string | undefined;
-				try {
-					await this.store.retire(userKey, row.id, correctionId);
-				} catch (err: unknown) {
-					updateError = err instanceof Error ? err.message : String(err);
-				}
-				if (updateError) {
-					console.error(`[MemoryService] Failed to retire superseded record:`, updateError);
-				} else {
-					console.log(`[MemoryService] Superseded: "${row.fact.slice(0, 60)}..." → ${correctionId}`);
-				}
+				taken.add(row.id);
+				out.push({ id: row.id, byFact: correction.line });
+				console.log(`[MemoryService] Supersedes: "${row.fact.slice(0, 60)}..."`);
 			}
+		}
+		return out;
+	}
+
+	/**
+	 * Refuses an embedder whose vectors would not fit the stored column
+	 * (ADR 0020 item 5): every insert would fail, and the fix is a re-embed
+	 * job, not dropping the table. Silent when the store cannot say.
+	 */
+	async verifyEmbeddingDimensions(): Promise<void> {
+		if (!this.store.embeddingDimensions) return;
+		let stored: number | null;
+		try {
+			stored = await this.store.embeddingDimensions();
+		} catch {
+			return; // migration 0007 not applied: the schema check reports that
+		}
+		if (stored != null && stored !== this.embedder.dimensions) {
+			throw new Error(
+				`The memory table stores ${stored}-dimension embeddings, but the embedder `
+				+ `${this.embedder.provider}/${this.embedder.model} produces ${this.embedder.dimensions}. `
+				+ 'Set MEMORY_EMBEDDING_* to a model of that size, or re-embed the stored facts into a column of the new size; '
+				+ 'never drop the table.',
+			);
 		}
 	}
 

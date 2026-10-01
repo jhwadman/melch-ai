@@ -198,10 +198,17 @@ extraction model rephrases on each pass. Two mechanisms in
 `lib/memory/supabaseMemoryService.ts` prevent the store from filling
 with restatements:
 
-- A per-session **high-water mark** (`eventsToIngest`) distils only the
-  turns added since the last ingestion. It is in-process on purpose — a
-  restart re-reads one session once, absorbed by the check below, which
-  is why it needs no table of its own.
+- A per-session **processed marker** (`eventsToIngest`) distils only the
+  turns added since the last ingestion. It is stored in
+  `melchizedek_memory_ingest` (migration 0007) and advances in the same
+  transaction as the facts (`melchizedek_memory_commit`, which also retires
+  superseded rows), so a restart re-extracts nothing and a failure leaves
+  facts, supersessions and marker as they were. A custom store without the
+  commit keeps the marker in process memory.
+- At boot the server compares the embedding column's size
+  (`melchizedek_memory_dimensions()`) with the configured embedder and
+  refuses a mismatch: changing the embedding model is a re-embed, never a
+  dropped table.
 - A **similarity probe** before each insert (`isSemanticDuplicate`,
   `MEMORY_DEDUP_SIMILARITY = 0.93`) drops restatements, reusing the same
   `match_memory_facts` RPC the supersession path calls. It requires the
@@ -495,8 +502,7 @@ JSON); `file` parts are refused.
 #### What is per-process
 
 The per-agent config cache (a config change needs a restart), the
-rate-limit counters, the concurrency count and the memory high-water mark
-always live in the process. Tasks do too unless `DATABASE_URL` is set: then
+rate-limit counters and the concurrency count always live in the process. Tasks do too unless `DATABASE_URL` is set: then
 Postgres holds sessions, memory, A2A tasks and budget counters, and several
 replicas are safe behind one load balancer (rate limits and the concurrency
 cap then apply per replica). With Postgres, a running task is leased to the

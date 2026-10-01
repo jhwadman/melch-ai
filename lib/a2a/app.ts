@@ -442,6 +442,10 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       throw new Error(schemaBehindMessage(check));
     }
   }
+  // ADR 0020 item 5: an embedder whose vectors do not fit the stored column
+  // would fail every insert; refuse to start instead.
+  const verifyDims = (memoryService as { verifyEmbeddingDimensions?: () => Promise<void> } | undefined)?.verifyEmbeddingDimensions;
+  if (verifyDims) await verifyDims.call(memoryService);
   const sessionBackend: A2AApp['sessionBackend'] = durableSessions ? 'durable' : 'in-memory';
   // Shared by every executor, so a conversation is serialised whichever
   // agent route reaches it.

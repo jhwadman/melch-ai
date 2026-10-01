@@ -5,19 +5,19 @@
     "at": "2026-10-01"
   },
   "stats": {
-    "nodes": 527,
-    "edges": 1213,
+    "nodes": 529,
+    "edges": 1217,
     "byKind": {
       "doc": 73,
       "provider": 5,
       "env": 81,
       "model": 7,
       "tool": 32,
-      "file": 55,
+      "file": 56,
       "syndicate": 29,
       "agent": 79,
       "mcp-server": 4,
-      "table": 13,
+      "table": 14,
       "module": 105,
       "script": 42,
       "external": 2
@@ -26,7 +26,7 @@
       "links_to": 181,
       "requires_env": 133,
       "routes_to": 7,
-      "defined_in": 69,
+      "defined_in": 70,
       "documents": 53,
       "contains": 79,
       "uses_model": 79,
@@ -34,12 +34,12 @@
       "connects_mcp": 3,
       "delegates_to": 1,
       "imports": 286,
-      "reads_table": 26,
+      "reads_table": 28,
       "runs": 60,
-      "derives_from": 174
+      "derives_from": 175
     },
     "byTier": {
-      "extracted": 1213,
+      "extracted": 1217,
       "inferred": 0
     },
     "isolated": 2
@@ -606,7 +606,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 822
+        "words": 889
       }
     },
     {
@@ -702,7 +702,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 793
+        "words": 820
       }
     },
     {
@@ -714,7 +714,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7995
+        "words": 8668
       }
     },
     {
@@ -846,7 +846,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1221
+        "words": 1217
       }
     },
     {
@@ -2565,6 +2565,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0007_memory_commit.sql",
+      "kind": "file",
+      "label": "0007_memory_commit.sql",
+      "source": "db/migrations/0007_memory_commit.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -2728,7 +2735,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 947
+        "lines": 951
       }
     },
     {
@@ -2899,7 +2906,7 @@
       "label": "lib/memory/store.ts",
       "source": "lib/memory/store.ts",
       "attrs": {
-        "lines": 100
+        "lines": 158
       }
     },
     {
@@ -2908,7 +2915,7 @@
       "label": "lib/memory/supabaseMemoryService.ts",
       "source": "lib/memory/supabaseMemoryService.ts",
       "attrs": {
-        "lines": 568
+        "lines": 655
       }
     },
     {
@@ -3160,7 +3167,7 @@
       "label": "lib/storage/postgres/memoryStore.ts",
       "source": "lib/storage/postgres/memoryStore.ts",
       "attrs": {
-        "lines": 83
+        "lines": 108
       }
     },
     {
@@ -4476,6 +4483,15 @@
       "kind": "table",
       "label": "adk_verdicts",
       "source": "db/telemetry.sql"
+    },
+    {
+      "id": "table:melchizedek_memory_ingest",
+      "kind": "table",
+      "label": "melchizedek_memory_ingest",
+      "source": "db/migrations/0007_memory_commit.sql",
+      "attrs": {
+        "created_upstream": true
+      }
     },
     {
       "id": "table:melchizedek_schema_version",
@@ -5932,7 +5948,7 @@
       "to": "/decisions/0025-built-in-authenticators.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0020-memory-contract.md:65"
+      "evidence": "/decisions/0020-memory-contract.md:67"
     },
     {
       "from": "/decisions/0021-postgres-first-storage.md",
@@ -6384,6 +6400,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0007_memory_commit.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -6394,14 +6417,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:27"
+      "evidence": "/memory/schema.md:28"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:1476"
+      "evidence": "/memory/schema.md:1625"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -9323,6 +9346,13 @@
       "evidence": "lib/memory/store.ts"
     },
     {
+      "from": "module:lib/memory/store.ts",
+      "to": "table:melchizedek_memory_ingest",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/memory/store.ts"
+    },
+    {
       "from": "module:lib/memory/supabaseMemoryService.ts",
       "to": "module:lib/memory/providers.ts",
       "rel": "imports",
@@ -9346,6 +9376,13 @@
     {
       "from": "module:lib/memory/supabaseMemoryService.ts",
       "to": "table:adk_sessions",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/memory/supabaseMemoryService.ts",
+      "to": "table:melchizedek_memory_ingest",
       "rel": "reads_table",
       "tier": "extracted",
       "evidence": "lib/memory/supabaseMemoryService.ts"
@@ -13066,6 +13103,13 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "db/telemetry.sql"
+    },
+    {
+      "from": "table:melchizedek_memory_ingest",
+      "to": "file:db/migrations/0007_memory_commit.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0007_memory_commit.sql"
     },
     {
       "from": "table:melchizedek_schema_version",
