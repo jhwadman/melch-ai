@@ -13,7 +13,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 
 import pg from 'pg';
@@ -43,8 +43,12 @@ function urlFor(db: string): string {
   return u.toString();
 }
 
+// Every numbered migration, in order, then the ledger: the same set
+// `melchizedek-db apply --telemetry` installs, read from the directory so a
+// new migration is covered without editing this file.
+const MIGRATIONS = readdirSync('db/migrations').filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort();
 function migrations(): string[] {
-  return ['db/migrations/0001_base.sql', 'db/migrations/0002_erase_scope.sql', 'db/migrations/0003_postgres_storage.sql', 'db/migrations/0004_usage.sql', 'db/telemetry.sql'];
+  return [...MIGRATIONS.map((f) => `db/migrations/${f}`), 'db/telemetry.sql'];
 }
 
 // A 768-d embedding: identical for the same statement (a record's header is
@@ -79,11 +83,11 @@ after(async () => {
   await admin.end();
 });
 
-test('migrations apply twice and record three versions', { skip }, async () => {
+test('migrations apply twice and record one version each', { skip }, async () => {
   const r = await pool.query('SELECT version, name FROM melchizedek_schema_version ORDER BY version');
   assert.deepEqual(
     r.rows.map((x) => `${x.version} ${x.name}`),
-    ['1 0001_base', '2 0002_erase_scope', '3 0003_postgres_storage'],
+    MIGRATIONS.map((f) => `${Number(f.slice(0, 4))} ${f.replace(/\.sql$/, '')}`),
   );
 });
 
