@@ -1,0 +1,194 @@
+# melchizedek-agents
+
+**A multi-model, multi-agent orchestration framework built on the Google
+Agent Development Kit — where the entire shape of an agent system is one
+readable file.**
+
+Melchizedek runs hierarchical agent graphs called *Syndicates*: an
+orchestrator, its subagents, their tools, models, and communication styles,
+all declared in a single YAML document you can read, diff, and teach
+from. The engine (`lib/`) knows no syndicate by name — `config/agents/`
+is where YOUR syndicates go, and the ones shipped in
+`config/agents/examples/` are a starter pack to copy from, not the
+product. Gemini is supported natively, Claude via a bundled adapter, and
+**open-weight models run locally through Ollama with no key at all**
+(`lib/models/ollamaLlm.ts`) — switching any agent's model is a one-line
+change. Agents can also extend their own reach at runtime: point a
+subagent at an **MCP server** (`mcp_server_url:`) and its tools are
+discovered, wrapped, and handed to the agent live.
+
+This is the public companion repository to the interactive curriculum at
+**[lyceumagents.com/curriculum](https://lyceumagents.com/curriculum/)** —
+a course taught through the syndicates in this repo. Part 1 (LLM
+fundamentals: what a model computes, running one on open weights, and
+the mechanism underneath) starts entirely on your own machine. Part 2
+(agent design: single-agent anatomy, testing, orchestration, then the
+Melchizedek protocol — memory systems, MCP, multi-modal review,
+fact-checking, agentic coding) opens on the open-weight specimens and
+grows into the full framework. A third part, agent observability, is in
+preparation. You can use the framework without the course, or the
+course without running the framework; together they're better.
+
+## Quick start
+
+Zero keys, fully local — install [Ollama](https://ollama.com), then:
+
+```bash
+npm install
+ollama pull qwen3:8b
+npm run syndicate:assistant  # converse, summarize, keep a task list, queue jobs
+npm run assistant:worker     # (second terminal) runs the jobs the Assistant queues
+npm run syndicate:tutor      # a single open-weight agent that teaches
+npm run syndicate:council    # a three-agent council, still no keys
+```
+
+The Assistant (`config/agents/examples/assistant.yaml`) is the one to copy
+when you start your own agent: a conversational orchestrator, a Summarizer
+that reads pasted text or URLs, a task list that outlives the conversation,
+and background jobs a separate worker process runs and reports back on.
+
+Or consume the engine from **your own repo** — your syndicates live with
+your code, the framework is a dependency:
+
+```bash
+npm install melchizedek-agents
+```
+
+```typescript
+import { InMemorySessionService } from '@google/adk';
+import { loadSyndicate, registerAvailableProviders, runSyndicateTurn } from 'melchizedek-agents';
+
+registerAvailableProviders();
+const config = loadSyndicate('mine.yaml'); // reads <your-repo>/config/agents/, validated
+
+const result = await runSyndicateTurn({
+  config,
+  parts: [{ text: 'What changed in the A2A 1.0 spec?' }],
+  appName: 'my-app',
+  userId: 'user-42',
+  sessionId: 'conversation-7',          // same id → same conversation
+  sessionService: new InMemorySessionService(),
+  events: { onProgress: (line) => console.log('…', line) },
+});
+console.log(result.status, result.text);
+```
+
+`runSyndicateTurn` is the same runtime the server, the CLI and the eval
+harness use: plan-dispatch, delegation, guards and the `max_steps` cap behave
+identically everywhere. To serve over HTTP inside your own Express app, mount
+`(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`.
+To add your own tools or guards, call `registerTool(name, defineTool({...}))`
+or `registerGuard(guard)` before loading — YAML can only name what your code
+registered.
+
+The starter pack ships inside the package (`node_modules/melchizedek-agents/config/agents/examples/`)
+— copy any example out as your starting point. `npx melchizedek-serve`
+runs the A2A server over your `config/agents/`; `npx melchizedek-chat --syndicate <name>`
+opens the interactive CLI. A different syndicate location is one option
+away: `loadSyndicate(file, { agentsDir })` or the `MELCHIZEDEK_AGENTS_DIR`
+env var — the loader's path-jail follows whichever root you configure.
+
+With a free Gemini API key, the full syndicate library opens:
+
+```bash
+cp .env.example .env    # add your Gemini API key
+npm run chat:syndicate  # interactive REPL with the default syndicate
+```
+
+Model optionality is one YAML line per agent: `gemini-*`, `claude-*`,
+`gpt-*`, `grok-*`, and `ollama/*` ids each route to their provider
+(whichever keys you have; local needs none). Prove the whole surface:
+
+```bash
+npm run demo:models     # one prompt → every available provider,
+                        # with thinking + token/latency traces
+npm run demo:direct     # one agent, no syndicate — conventional ADK
+                        # calling (scripts/direct_call.ts is the block
+                        # to copy into your own code)
+```
+
+Full setup — including the optional Supabase database for persistent
+sessions and long-term memory — lives in [`QUICKSTART.md`](./QUICKSTART.md).
+The complete reference is [`DOCUMENTATION.md`](./DOCUMENTATION.md).
+Working with a coding agent? [`AGENT_SETUP.md`](./AGENT_SETUP.md) is a
+paste-ready prompt that splits the setup between your agent's steps and
+yours, then walks first tests and app integration.
+
+## The syndicates
+
+Every example demonstrates a named orchestration pattern, and each is the
+worked specimen for a curriculum module:
+
+| Syndicate | Pattern | Course module |
+|---|---|---|
+| `assistant.yaml` — Assistant | the launching pad: converse, summarize, a task list, background jobs a worker drains; keyless | — |
+| `tutor.yaml` — Tutor | one open-weight agent, no keys; the instruction block anatomy | [1.02 · running your own model](https://lyceumagents.com/curriculum/your-own-model/) |
+| `council.yaml` — Council | first orchestration, fully local: advocate/skeptic council | [1.05 · workflows & voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
+| `critic.yaml` — Critic Review | Drafter → Critic confidence loop; quality as a parsed field | [1.04 · testing & refinement](https://lyceumagents.com/curriculum/testing-and-refinement/) |
+| `delegation.yaml` — Router | triage to specialists; descriptions as the routing API | [1.05 · workflows & voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
+| `hierarchical.yaml` — Decomposer | split one goal, delegate parts, merge | [1.05 · workflows & voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
+| `style_council.yaml` — Style Council | identical knowledge, three engineered voices | [1.05 · workflows & voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
+| `syndicate.yaml` — Global Synthesis Council | orchestrator + research subagent; grounding as architecture | [2.01 · the protocol](https://lyceumagents.com/curriculum/melchizedek-protocol/) |
+| `ares.yaml` — Knowledge Keeper | long-term memory pipeline, exercised | [2.02 · memory systems](https://lyceumagents.com/curriculum/memory-systems/) |
+| `patient_advocate.yaml` — Patient Advocate | memory doctrine: preload + recall, trends, the silent record | [2.02 · memory systems](https://lyceumagents.com/curriculum/memory-systems/) |
+| `librarian.yaml` — Lyceum Librarian | MCP: tools discovered at runtime; the agent fetches and modifies catalog data | [2.03 · MCP](https://lyceumagents.com/curriculum/mcp-extending-reach/) |
+| `image_production.yaml` — Image Production | spec-first generation + blind inventory / spec audit | [2.04 · multi-modal agents](https://lyceumagents.com/curriculum/multimodal-agents/) |
+| `augustin.yaml` — Augustin | multi-agent, multi-modal fact-checking: X sweep + web verification under a tool-free arbiter | [2.05 · the fact-checking arbiter](https://lyceumagents.com/curriculum/fact-checking-agent/) |
+| `claude.yaml` — Claude Chat | minimal single-agent config; the multi-model adapter in one file | — |
+| `model_zoo.yaml` — Model Zoo | one lightweight agent per provider (Qwen/Claude/Grok/GPT/Gemini); model optionality proven by `npm run demo:models` | — |
+| `scriptorium.yaml` — The Scriptorium | agents over the shipped knowledge bundle: query with citations, author through a validated save gate | — |
+| `scribe.yaml` — The Scribe | a technical brief in, a finished document out: draft, audit against the brief through a JSON-schema leaf, revise; wrote the `skills/` suite | — |
+| `research.yaml` — Research | plan-dispatch: triage names one of three routes, each holding its own tools; seven keyless science tools (Europe PMC, ClinicalTrials.gov, Crossref, OpenAlex) under an identifier and retraction guard | — |
+
+`syndicateSchema.yaml` is the annotated schema reference for authoring
+your own.
+
+## What the framework gives you
+
+- **YAML-defined orchestration** — hierarchy, prompts, tools, delegation
+  rules, model choices, and output schemas in one declarative file.
+- **Multi-model** — Gemini natively; Claude through `lib/models/claudeLlm.ts`;
+  open-weight local models through `lib/models/ollamaLlm.ts` (Ollama's
+  OpenAI-compatible API — no key, no cloud, `ollama/qwen3:8b` and friends).
+  Any agent in a graph can run on a different provider.
+- **MCP integration** — a subagent with `mcp_server_url:` discovers a remote
+  MCP server's tools at runtime (`lib/tools/mcpToolFactory.ts`), SSRF-guarded.
+  A demo catalog server ships in `scripts/demo_mcp_server.ts` (`npm run mcp:demo`),
+  and the seven science tools `research.yaml` uses are served to any MCP client
+  by `npm run mcp:science` (read-only, keyless sources).
+- **Persistent sessions & semantic memory** — Supabase-backed sessions and
+  pgvector long-term memory: session transcripts are distilled into
+  structured records (date, source, units, status, index keys), embedded,
+  and recalled by similarity plus keys and dates in future sessions;
+  corrections supersede old records, which are kept as linked history.
+- **Native tools** — web search, image generation, and a blind
+  image-inventory tool whose file-path-only signature makes expectation
+  bias structurally impossible (see module 2.04).
+- **A2A service mode** — serve any syndicate as a JSON-RPC
+  agent-to-agent endpoint with bearer auth and rate limiting
+  (`npm run start:a2a`).
+- **A knowledge bundle, with tools** — `wiki/` is this framework's own
+  documentation as an [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog)
+  bundle: markdown concepts + YAML frontmatter whose links form a knowledge
+  graph. `lib/wiki/` builds, lints, searches, graphs, and gardens any such
+  bundle (`npm run wiki:init` scaffolds a fresh one); the tools are served
+  to agents by name and to MCP clients via `npm run mcp:wiki` (see
+  DOCUMENTATION §9 and `wiki/meta/wiki-system.md`).
+- **Skills for your coding agent** — `skills/` is a six-skill suite in the
+  open SKILL.md standard that teaches Claude Code, Codex, Cursor, OpenCode
+  or Gemini CLI where the syndicates are and how to run, author, serve,
+  remember and write with them. `npx melchizedek-skills install` copies it
+  into `.claude/skills/` and `.agents/skills/` (`--for`, `--global`,
+  `--dir`, `--dry-run`); `npx skills add jhwadman/melch-ai` works
+  too. The prose was written by `scribe.yaml` from one brief per skill —
+  see [`skills/README.md`](./skills/README.md).
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE). Use it, adapt it, learn from it.
+
+---
+
+*This repository is generated from a private working repo by a sanitizing
+export script; issues and PRs are welcome here and are folded back
+upstream.*

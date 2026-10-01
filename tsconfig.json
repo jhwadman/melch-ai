@@ -1,0 +1,19 @@
+{
+  "//": "Type-check the TypeScript sources as Node runs them (type stripping, .ts import specifiers). `npx tsc --noEmit` must be clean. The package build is tsconfig.build.json.",
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["node"]
+  },
+  "include": ["lib/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

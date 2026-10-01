@@ -1,0 +1,92 @@
+---
+type: meta
+title: The knowledge graph
+description: "The second layer of this bundle: entities and typed relations derived from repo truth, plus the judgments asserted over them with evidence."
+tags:
+  - meta
+  - graph
+generated:
+  by: process:wiki-build
+  at: 2026-10-01
+sources:
+  - resource: lib/wiki/entities.ts
+  - resource: lib/wiki/extract.ts
+  - resource: scripts/wiki/build.ts
+---
+
+# The knowledge graph
+
+Documents linked to documents answer *what should I read next*. They cannot answer *which syndicates call `web_search`*, *what stops working without `XAI_API_KEY`*, or *which decision constrains the memory schema* — because agents, tools, keys and tables are not documents. So the bundle carries a second layer over the same files: **entities**, joined by **typed relations**.
+
+Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
+
+- **extracted** — a parser read it out of a YAML, a tool contract, DDL, an import statement, a markdown link. Rebuilt from scratch by `npm run wiki:build` on every run and thrown away; it cannot drift, because nothing preserves it.
+- **inferred** — a person or an agent read prose and asserted it, with the sentence that justifies it and an actor id. The build never touches these; they live beside the snapshot and are read live.
+
+<!-- wiki:generated section="node-kinds" source="lib/wiki/entities.ts" -->
+## What the graph knows about
+
+| Kind | Id form | Now | What it is |
+|---|---|---|---|
+| `module` | `module:<name>` | 101 | one source module |
+| `agent` | `agent:<name>` | 79 | one orchestrator or subagent inside a syndicate |
+| `env` | `env:<name>` | 78 | an environment variable the code reads |
+| `doc` | `/dir/doc.md` | 72 | a concept document in the bundle — identity is its bundle path |
+| `file` | `file:<name>` | 52 | a repo file that is not a source module (DDL, config, prose) |
+| `script` | `script:<name>` | 41 | an npm script entrypoint |
+| `tool` | `tool:<name>` | 32 | a tool an agent may declare by name |
+| `syndicate` | `syndicate:<name>` | 29 | one agent-team definition (a YAML) |
+| `table` | `table:<name>` | 12 | a database table |
+| `model` | `model:<name>` | 7 | a model id exactly as written in configuration |
+| `provider` | `provider:<name>` | 5 | a provider adapter the model registry routes to |
+| `mcp-server` | `mcp-server:<name>` | 4 | a remote MCP endpoint an agent dials at runtime |
+| `external` | `external:<name>` | 2 | a resource outside the repo, named by URL |
+
+A document keeps its OKF identity — the bundle path — so the two namespaces cannot collide.
+<!-- /wiki:generated -->
+
+<!-- wiki:generated section="relations" source="lib/wiki/entities.ts" -->
+## The relation vocabulary
+
+| Relation | Tier | Reads as | Now | Meaning |
+|---|---|---|---|---|
+| `imports` | extracted | A imports B | 278 | a static import edge between source files |
+| `links_to` | extracted | A links to B | 179 | a resolved markdown link between documents |
+| `derives_from` | extracted | A derives from B | 166 | declared in the document’s `sources:` frontmatter |
+| `requires_env` | extracted | A requires B | 128 | this environment variable must be set for the node to work |
+| `contains` | extracted | A contains B | 79 | the first is composed of the second |
+| `uses_model` | extracted | A runs on B | 79 | the agent is configured with this model id |
+| `defined_in` | extracted | A is defined in B | 67 | where the thing is declared in source |
+| `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
+| `runs` | extracted | A runs B | 59 | an entrypoint — a script, a process, a worker — executes this |
+| `documents` | extracted | A documents B | 53 | the document derives from, and describes, this entity |
+| `reads_table` | extracted | A reads or writes B | 21 | the module names this table |
+| `routes_to` | extracted | A routes to B | 7 | the model id resolves to this provider adapter |
+| `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
+| `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
+| `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
+| `depends_on` | inferred | A depends on B | 0 | the first cannot do its job unless the second holds |
+| `constrains` | inferred | A constrains B | 0 | a decision or doctrine limits what the target may do |
+| `supersedes` | inferred | A supersedes B | 0 | replaces an earlier decision or document |
+| `explains` | inferred | A explains B | 0 | the document is where the target’s rationale is written down |
+| `alternative_to` | inferred | A is an alternative to B | 0 | two ways of reaching the same capability |
+| `mitigates` | inferred | A mitigates B | 0 | the mechanism exists to contain the named failure |
+| `contradicts` | inferred | A contradicts B | 0 | two sources state incompatible things — a rot signal |
+<!-- /wiki:generated -->
+
+## Where it lives
+
+Both stores sit in `.graph/` inside the bundle — a dot-directory, so the vault walker ignores them and no document operation can see them:
+
+- `.graph/graph.json` — the derived snapshot: every node, every extracted relation, stamped with the build that produced it. Regenerate with `npm run wiki:build`; never edit it.
+- `.graph/relations.json` — the asserted relations: `from`, `to`, `rel`, `evidence`, `by`, `at`. Written only through the gate.
+
+A published copy of the bundle carries a snapshot rebuilt from what that copy actually holds, never one derived over `/private/`, so a map of private structure never rides along ([ADR 0003](/decisions/0003-path-based-visibility.md)).
+
+## Working it
+
+[`wiki_graph`](/tools/wiki-tools.md) is the read path: no arguments for the census, `find` to locate a node, `node` to see everything attached to one, `path_to` for the chain joining two, `kind` to list a population. It reports its own staleness — documents added since the last build are named, not hidden.
+
+`wiki_relate` is the only write path, and it refuses more than it accepts: an extracted relation (the build owns those), a missing endpoint, a public document pointing into the private annex, a duplicate, or an assertion without evidence. Accepted edges append to `log.md` under the `relate` op with the actor who made them (to `/private/log.md` when an endpoint is private).
+
+The [Cartographers](/agents/cartographers.md) do this conversationally — the Surveyor reads and proposes with quotations, the Registrar records through the gate. [Gardening](/meta/gardening.md) covers the prose side of the same discipline, and [how this bundle works](/meta/wiki-system.md) the format underneath both.

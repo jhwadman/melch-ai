@@ -1,0 +1,268 @@
+# Quickstart
+
+From zero to a running syndicate in five minutes; to persistent memory in
+fifteen. The full reference is [`DOCUMENTATION.md`](./DOCUMENTATION.md).
+
+## 1. Prerequisites
+
+- **Node.js 22+** (the CLI uses `--experimental-strip-types` to run
+  TypeScript directly — no build step).
+- **A Google AI Studio API key** — free at
+  [aistudio.google.com](https://aistudio.google.com). This powers all
+  Gemini inference and the embedding model behind long-term memory.
+  *Not needed for the all-local syndicates — see step 0.*
+- Optional: **Ollama** ([ollama.com](https://ollama.com)) for the
+  open-weight local syndicates; provider keys only for the models you
+  actually declare — **Anthropic** (`claude-*`), **OpenAI** (`gpt-*`),
+  **xAI** (`grok-*`) — or one `MODEL_GATEWAY` key as the fallback for
+  whatever direct key is missing (native search is lost on that path);
+  and a free **Supabase project** (only for persistent sessions / memory).
+  Not sure which you need? `npm run doctor` tells you, read-only.
+
+## 0. The keyless path (open weights, fully local)
+
+Three syndicates run with no API key, no account, and no data leaving your
+machine — every agent in them is an open-weight model served by Ollama:
+
+```bash
+npm install
+ollama pull qwen3:8b          # after installing Ollama
+npm run syndicate:assistant   # the Assistant: converse, summarize, tasks, background jobs
+npm run syndicate:tutor       # one agent: the Tutor
+npm run syndicate:council     # three agents: the Council
+```
+
+The Assistant queues longer work with `task_queue`; a second process runs it:
+
+```bash
+npm run assistant:worker              # polls the queue every 30 s
+npm run assistant:worker -- --once    # drains it and exits (cron-friendly)
+```
+
+Tasks and jobs live in `outputs/tasks.json` (`MELCHIZEDEK_TASKS_FILE` moves
+it). Ollama serves models at a 4,096-token context by default, which a web
+page read by the Summarizer overflows: start it with
+`OLLAMA_CONTEXT_LENGTH=16384 ollama serve` before summarizing URLs.
+
+Model ids namespaced `ollama/…` (e.g. `ollama/qwen3:8b`) route through
+`lib/models/ollamaLlm.ts` to Ollama's OpenAI-compatible endpoint at
+`http://localhost:11434/v1`. Everything else below opens with a key.
+
+## 2. Install and configure
+
+```bash
+npm install
+cp .env.example .env
+# edit .env → set GOOGLE_GENAI_API_KEY
+npm run doctor   # which syndicates are ready, which key unlocks what — read-only
+```
+
+## 3. First run
+
+```bash
+npm run chat:syndicate
+```
+
+That starts an interactive REPL with the default syndicate (the Global
+Synthesis Council: one orchestrator, one research subagent). Type a
+question; type `exit` to end. Every syndicate has a shortcut:
+
+```bash
+npm run syndicate:delegation    # router → specialists
+npm run syndicate:critic        # drafter → critic confidence loop
+npm run syndicate:image         # spec-first image production + blind audit
+npm run syndicate:advocate      # long-term-memory patient advocate*
+npm run syndicate:augustin      # fact-checking arbiter (needs X_BEARER_TOKEN too)
+```
+
+One-shot mode — pass the question as an argument and the process exits
+after answering:
+
+```bash
+npm run syndicate:critic -- "In two sentences, why did the Library of Alexandria decline?"
+```
+
+The syndicate layer itself is optional. `scripts/direct_call.ts` launches
+a single ADK agent with no YAML at all — conventional, code-first agent
+calling, and the block to copy when embedding an agent in your own code:
+
+```bash
+npm run demo:direct -- "In one sentence: what is an agent?"
+npm run demo:direct -- --model ollama/qwen3:8b hello   # keyless, local
+```
+
+## 4. Optional: persistent sessions & long-term memory
+
+Syndicates with `memory_system: "session-only"` or `"long-term"` want a
+Supabase backend (without one, sessions fall back to in-memory). Setup:
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Copy the Project URL and `service_role` key into `.env`
+   (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`).
+3. Install the schema **and** its hardening in one step. Either print the
+   SQL and paste it into the Supabase SQL Editor:
+
+   ```bash
+   npm run db -- print            # package users: npx melchizedek-db print
+   ```
+
+   or, with `DATABASE_URL` set to the project's Postgres connection string
+   and `psql` installed, apply it directly:
+
+   ```bash
+   npm run db -- apply
+   ```
+
+   That runs the migrations in [`db/migrations/`](./db/migrations/) (tables,
+   indexes, the recall function, nightly session expiry) and then
+   [`db/hardening.sql`](./db/hardening.sql) (deny-by-default RLS, so the
+   anon key can read nothing over the REST API). Both are idempotent.
+4. Check it: `npm run db -- status` reports the schema version, whether
+   hardening is on, and how many sessions are stored.
+
+Then run a memory syndicate, tell it something, exit, and start a new
+session — it remembers:
+
+```bash
+npm run syndicate:ares -- "Remember: my project is called athens-prod."
+npm run syndicate:ares -- "What do you know about my project?"
+```
+
+`npm run db:purge` wipes your sessions and memory facts when you want a
+clean slate. For anything finer than everything, `npm run memory -- list`
+inspects the store per record and `delete` removes chosen records (dry
+run unless `--yes`) — see `lib/memory/README.md`.
+
+## 5. Optional: give an agent MCP tools
+
+The Lyceum Librarian's subagent owns no tools of its own — it discovers
+them at runtime from an MCP server named by `mcp_server_url:` in its
+YAML. A demo catalog server ships in this repo. Two terminals:
+
+```bash
+# terminal 1 — the MCP server (a small library catalog on :8931)
+npm run mcp:demo
+
+# terminal 2 — the agent (needs GOOGLE_GENAI_API_KEY, plus
+# ALLOW_PRIVATE_MCP=true in .env so the SSRF guard permits localhost)
+npm run syndicate:librarian
+```
+
+Ask it to find a scroll and borrow it — the agent searches, writes to
+the catalog through the protocol, reads the new state back, and reports
+it. Delete `demo/library.json` to reset the catalog.
+
+## 6. Serve a syndicate over HTTP (A2A mode)
+
+```bash
+npm run start:a2a
+```
+
+Exposes the syndicate as a JSON-RPC agent-to-agent endpoint with an
+agent card. The boot log prints the URLs, the auth mode and whether
+sessions are durable. Without `A2A_SERVER_SECRET` it answers on
+`127.0.0.1` only; set one (`openssl rand -hex 32`) before exposing it.
+Rate limits, a per-task deadline, a concurrency cap and the served-agent
+allowlist are environment settings (`.env.example`); `/healthz` and
+`/readyz` serve load-balancer probes; SIGTERM drains running tasks.
+
+```bash
+node demo/a2a_demo.mjs        # a two-turn client: same contextId, same conversation
+```
+
+`DOCUMENTATION.md` §6 is the HTTP reference: routes, headers, sessions,
+limits and errors. To deploy, `docker build -t melchizedek .` or
+`docker compose up` (see `Dockerfile` and `compose.yaml`).
+
+## 7. Use the engine from your own repo (the npm package)
+
+Everything above runs inside a clone. When your syndicates deserve their
+own repo, the same engine is a typed dependency:
+
+```bash
+npm install melchizedek-agents @google/adk@2.2.0
+npx melchizedek-init                         # config/agents/conversational.yaml + .env; --list for others
+npx melchizedek-doctor                       # which keys it needs, and whether it is ready
+```
+
+```typescript
+import { InMemorySessionService } from '@google/adk';
+import { loadSyndicate, registerAvailableProviders, runSyndicateTurn } from 'melchizedek-agents';
+
+registerAvailableProviders();                 // registers every model whose key is present
+const config = loadSyndicate('mine.yaml');    // reads <your-repo>/config/agents/mine.yaml
+
+const result = await runSyndicateTurn({
+  config,
+  parts: [{ text: 'Hello' }],
+  appName: 'my-app', userId: 'u1', sessionId: 'c1',
+  sessionService: new InMemorySessionService(),
+});
+console.log(result.text);
+```
+
+- **One runtime.** `runSyndicateTurn` is what the server, the CLI, the
+  worker and the eval harness all call, so a syndicate behaves the same
+  wherever it runs. `createA2AApp(options)` gives you the A2A server as an
+  Express app to mount in your own; `registerTool` / `registerGuard`
+  extend what YAML can name.
+- **Your keys come from your `.env`.** The bins read `.env` from the
+  directory you run them in.
+
+- **Your syndicates live with your code.** The loader reads
+  `<cwd>/config/agents/` by default; point it anywhere with
+  `loadSyndicate(file, { agentsDir })` or the `MELCHIZEDEK_AGENTS_DIR`
+  env var — the path-jail follows whichever root you configure.
+- **The starter pack ships in the package.** Copy any example out of
+  `node_modules/melchizedek-agents/config/agents/examples/` (and
+  `syndicateSchema.yaml` beside it) as your starting point.
+- **The CLIs come with it.** `npx melchizedek-chat --syndicate <name>`
+  is the interactive runner (replaces `npm run chat:syndicate`);
+  `npx melchizedek-serve` is the A2A server from §6, serving *your*
+  `config/agents/`.
+- Deeper imports are available as subpaths — `melchizedek-agents/models/registry`,
+  `melchizedek-agents/tools/webExtractTool`, `melchizedek-agents/memory`,
+  and friends — all typed. `@google/adk` installs alongside as a peer:
+  your app owns the ADK version.
+- **Your coding agent can learn all of this.** The package ships a
+  six-skill suite (`skills/`, the open SKILL.md standard) covering the
+  catalog, authoring, serving, memory, models, and the Scribe:
+
+  ```bash
+  npx melchizedek-skills install          # → .claude/skills + .agents/skills here
+  npx melchizedek-skills install --for all --global
+  ```
+
+  Claude Code, Codex, Cursor, OpenCode and Gemini CLI read those
+  locations; `npx melchizedek-skills paths` lists them. Details in
+  `skills/README.md`.
+
+## Common first-run errors
+
+| Symptom | Cause / fix |
+|---|---|
+| `Gemini API Key is not configured` | `.env` missing or key not set — step 2. |
+| `[400] Tool call context circulation is not enabled` | The agent's `model:` is too old for agent transfer. Use `gemini-3.8-flash` or newer (all shipped configs already do). |
+| `Model not found` for `claude-*` / `gpt-*` / `grok-*` | The matching provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY`) is not set in `.env`, so the provider wasn't registered — `npm run doctor` names the variable. Or set `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` once for every cloud provider (native search is lost on that path). |
+| `GATEWAY_HTTP_ERROR … 404/400` | The gateway rejected the mapped model id. Fix the name once in `.env`: `MODEL_GATEWAY_MODEL_MAP=<your id>=<the gateway's id>`. `GATEWAY_KEY_MISSING` means `MODEL_GATEWAY` is set without `MODEL_GATEWAY_API_KEY`. |
+| `OLLAMA_UNREACHABLE` for `ollama/*` | Ollama isn't running — start the app or `ollama serve`; then check the model is pulled (`ollama list`). |
+| `Refusing to connect to private/loopback MCP host` | The SSRF guard is on (correctly). For the local demo set `ALLOW_PRIVATE_MCP=true` in `.env`. |
+| Sessions don't persist between runs | Supabase env vars missing (step 4) — the framework fell back to in-memory sessions and said so at boot. |
+| Memory tables exist but recall returns nothing | The SQL function `match_memory_facts` wasn't created, or you're querying a different `user_key`. |
+
+## Where to go next
+
+- Read a syndicate the way the course does: start with
+  `config/agents/examples/tutor.yaml` and map its instruction blocks —
+  identity, communication style, task, examples — then see the
+  anatomy grown to full size, with doctrines and boundaries, in
+  `patient_advocate.yaml`.
+- The interactive curriculum walks every pattern in this repo:
+  [lyceumagents.com/curriculum](https://lyceumagents.com/curriculum/).
+- Author your own syndicate: everything in `config/agents/examples/` is
+  a starter pack — copy the closest one into `config/agents/` (or start
+  from `syndicateSchema.yaml`), keep one orchestrator and one subagent,
+  and grow only when the work divides. The root of `config/agents/` is
+  yours; the examples are teaching material you can gut or delete.
+- Outgrow the clone: §7 above — the engine as an npm dependency in your
+  own repo, starter pack included.

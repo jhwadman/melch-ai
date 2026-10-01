@@ -1,0 +1,210 @@
+# Set up melchizedek with your coding agent
+
+A copy-paste path from zero to a running agent syndicate, written for
+the way people actually work now: your coding agent (Claude Code,
+Cursor, Codex — any of them) does the machine steps, you do the human
+steps, and the seams between the two are explicit.
+
+Repo: https://github.com/jhwadman/melch-ai
+Course: https://lyceumagents.com/curriculum/
+This file lives in both places and is identical in both.
+
+---
+
+## 1. The prompt — paste this to your coding agent
+
+```text
+Set up the melchizedek-agents framework on this machine.
+
+1. Check prerequisites: `node --version` must be 22 or newer. If it
+   isn't, stop and tell me before doing anything else.
+2. Clone and install:
+     git clone https://github.com/jhwadman/melch-ai.git
+     cd melch-ai
+     npm install
+3. Create my env file: `cp .env.example .env`. Do NOT put any values in
+   it. Never ask me to paste API keys into this chat, never read keys
+   from elsewhere on my machine, and never commit .env.
+4. Run the offline test suite (`npm test`) and confirm every shipped
+   syndicate compiles.
+5. Read README.md and QUICKSTART.md. Then report back with:
+   - what you did and the test results,
+   - the list of available syndicates (one line each, from the README
+     table),
+   - exactly which values I must fill into .env myself, what each one
+     unlocks, and which are optional (the comments in .env.example
+     say),
+   - the exact command I should run for my first conversation.
+Stop there. Do not start servers, do not configure Supabase, and do not
+touch anything outside the cloned directory.
+```
+
+Why the guardrails in the prompt matter: keys belong in `.env`, entered
+by your hands, never in a chat transcript — a pasted key lives in that
+conversation's history forever. The stop-conditions keep the agent from
+"helpfully" provisioning services you haven't decided to use yet.
+
+## 2. Your steps — the parts that are yours on purpose
+
+After the agent reports back:
+
+1. **Optional — zero keys, fully local**: install Ollama
+   (https://ollama.com) and run `ollama pull qwen3:8b`. The three
+   open-weight syndicates (`npm run syndicate:assistant`, `npm run
+   syndicate:tutor`, `npm run syndicate:council`) then run with an empty
+   `.env` — every agent is a local model, nothing leaves your machine. This is the open-weight course
+   path; the cloud syndicates below still want a key.
+2. **Get a Gemini API key** (free): https://aistudio.google.com →
+   create key → open `.env` in your editor and set
+   `GOOGLE_GENAI_API_KEY`. This one key runs every cloud text syndicate.
+3. **Optional — persistent memory** (free, needed for the two memory
+   syndicates): create a project at https://supabase.com, copy the
+   Project URL and `service_role` key into `SUPABASE_URL` and
+   `SUPABASE_SERVICE_ROLE_KEY`, then paste the schema SQL from
+   `DOCUMENTATION.md` §Sessions & long-term memory into the Supabase
+   SQL Editor and run it — followed by `db/hardening.sql`, which locks
+   the tables away from Supabase's public API. Do the SQL steps
+   yourself, in the dashboard, so you know what your database holds.
+4. **Optional — other cloud providers** (paid, usage-billed): each
+   provider key unlocks its model-id family, and nothing requires any
+   of them — set only what you'll declare in YAML:
+   `ANTHROPIC_API_KEY` for `claude-*` (https://console.anthropic.com),
+   `OPENAI_API_KEY` for `gpt-*` (https://platform.openai.com/api-keys),
+   `XAI_API_KEY` for `grok-*` (https://console.x.ai). Not sure which
+   you need? `npm run doctor` reads every syndicate and prints what is
+   ready, what is blocked, and which variable unlocks what — read-only,
+   no key value shown. Verify the whole multi-provider surface live with
+   `npm run demo:models` — it sends one prompt to every provider you've
+   configured (plus the local model) and prints per-request token/latency
+   traces; unconfigured providers are skipped.
+5. **Optional — one key instead of several**: `MODEL_GATEWAY=vercel` (or
+   `openrouter`) plus `MODEL_GATEWAY_API_KEY` serves any cloud model id
+   whose direct key is absent through that gateway. It is a fallback: a
+   direct key set beside it always wins for its own provider, and adding
+   one later restores that provider's native search. Through the gateway,
+   Gemini grounding, Anthropic/OpenAI `web_search` and xAI `x_search` are
+   lost — the doctor says so per agent.
+
+## 3. First tests — meet the agents
+
+Keyless, if you installed Ollama:
+
+```bash
+npm run syndicate:assistant   # converse, summarize, keep a task list, queue background jobs
+npm run assistant:worker      # (second terminal) runs the jobs the Assistant queues
+npm run syndicate:tutor       # one open-weight agent: name a topic or paste material, be taught
+npm run syndicate:council     # advocate/skeptic council, all local
+```
+
+With your Gemini key:
+
+```bash
+npm run chat:syndicate        # default: Global Synthesis Council REPL
+```
+
+Ask it something that needs current information; watch the orchestrator
+delegate to its research subagent. Type `exit` to end. Then try the
+personalities:
+
+```bash
+npm run syndicate:critic      # drafter → critic confidence loop
+npm run syndicate:delegation  # router → specialists
+npm run syndicate:image       # spec-first image generation + blind audit
+```
+
+One-shot mode (answers and exits — this is also how you'll script it):
+
+```bash
+npm run syndicate:critic -- "In two sentences, why did the Library of Alexandria decline?"
+```
+
+And the floor of the whole framework — one agent, no syndicate, plain
+ADK. `scripts/direct_call.ts` is the ~30-line block you'll copy when an
+agent belongs inside your own code rather than behind a YAML:
+
+```bash
+npm run demo:direct -- "In one sentence: what is an agent?"
+```
+
+If you configured Supabase, test the thing that makes this framework
+worth keeping:
+
+```bash
+npm run syndicate:advocate    # long-term-memory patient advocate
+# tell it a few facts, type exit — the session distills into records
+npm run syndicate:advocate    # new session: it remembers
+```
+
+Correct a fact you told it in the second session, exit, and start a
+third — the old record is superseded, not duplicated. That's the
+structured memory pipeline working end to end.
+
+And the newest capability — an agent whose tools live on the far side
+of a protocol (set `ALLOW_PRIVATE_MCP=true` in `.env` first, since the
+demo server runs on localhost):
+
+```bash
+npm run mcp:demo              # terminal 1: a small MCP library catalog
+npm run syndicate:librarian   # terminal 2: ask it to find and borrow a scroll
+```
+
+Watch the agent discover the catalog's tools at runtime, search it, and
+write a borrow record back through MCP — fetching and modifying data it
+was never compiled to know about.
+
+## 4. Integration — putting a syndicate inside your app
+
+The A2A server turns any syndicate into a JSON-RPC HTTP endpoint your
+application calls like any other API:
+
+1. Generate a server secret yourself: `openssl rand -hex 32` → set
+   `A2A_SERVER_SECRET` in `.env`.
+2. `npm run start:a2a` — the endpoint speaks the open A2A protocol,
+   publishes an agent card, and enforces bearer auth + rate limiting.
+3. Every request carries `Authorization: Bearer <A2A_SERVER_SECRET>`
+   and `X-User-Id: <your app's opaque user id>` — the id your backend
+   assigns after authenticating its own user, never one the user
+   chooses. That header is what keeps one user's sessions and memory out
+   of another's. The server's own provider keys pay for inference. (To
+   make callers fund their own, set `A2A_KEY_MODE=byok`; each request
+   then also carries `X-API-Key`.) To give each calling backend its own
+   token instead of the shared secret, set `A2A_AUTH=callers` and mint
+   one per caller with `npx melchizedek-serve --new-caller <name>`; for
+   your identity provider's JWTs, `A2A_AUTH=jwt` (DOCUMENTATION.md §6).
+4. `demo/a2a_demo.mjs` is a complete working client; `DOCUMENTATION.md`
+   §6 is the HTTP reference, and `DELETE /memory` erases everything
+   stored for a user — facts, transcripts and ledger rows — before you
+   serve real people.
+
+When you're ready, hand your coding agent a prompt shaped like this:
+
+```text
+My melchizedek-agents A2A server runs at <URL>. Read demo/a2a_demo.mjs
+and DOCUMENTATION.md §A2A in the melch-ai repo, then wire my
+app's <feature> to it: send each authenticated user's message via
+message/send with the three required headers, stream or poll the reply,
+and render it in <where>. The bearer secret and Gemini key come from my
+app's server-side environment — never expose either to the browser, and
+never send a request without X-User-Id set to our internal account id.
+Write the integration, then show me a test I can run against a scratch
+user id.
+```
+
+Deploying the server itself (Heroku, Fly, a VPS) needs `PUBLIC_URL` set
+— at which point the server refuses to start without the bearer secret,
+by design. Run `db/hardening.sql` before real user data arrives, and
+read the deployment notes in `lib/memory/README.md` end to end. The
+patient in module 2.02's specimen would expect no less of you.
+
+## 5. When your agents outgrow the clone
+
+Everything above runs inside the cloned course repo, and that stays the
+right place to learn. When a syndicate of yours deserves its own
+repository, the same engine installs as a typed npm dependency —
+`npm install melchizedek-agents` — with the starter pack inside the
+package to copy from, `loadSyndicate` reading your repo's own
+`config/agents/`, and its CLIs (`npx melchizedek-chat`,
+`npx melchizedek-serve`, `npx melchizedek-worker`) replacing the npm
+scripts. QUICKSTART §7 in the
+repo is the complete recipe; hand it to your coding agent when the time
+comes.

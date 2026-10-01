@@ -1,0 +1,705 @@
+/**
+ * tests/models.test.ts — offline tests for model optionality.
+ *
+ * Everything here runs with NO network and NO API keys:
+ *   - schema normalization (the Gemini-uppercase → lowercase bridge)
+ *   - model-name → provider routing (the prefix table)
+ *   - provider availability gating (env-based, registration is pure)
+ *   - adapter usage/thinking extraction against a stubbed fetch
+ *   - the web_search tool's per-provider request shaping
+ */
+
+import { test } from 'node:test';
+import assert from 'node:assert';
+import { setLogLevel, LogLevel, LlmAgent, AgentTool, LOAD_MEMORY } from '@google/adk';
+import type { LlmRequest, LlmResponse } from '@google/adk';
+
+import { toLowercaseJsonSchema } from '../lib/models/schemaNormalize.ts';
+import {
+  providerForModel,
+  providerKeyPresent,
+  providerStatuses,
+  resolveModel,
+} from '../lib/models/registry.ts';
+import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
+import { GrokLlm } from '../lib/models/grokLlm.ts';
+import { ClaudeLlm, buildAnthropicTools } from '../lib/models/claudeLlm.ts';
+import {
+  GptLlm,
+  buildResponsesInput,
+  buildResponsesTools,
+  extractServerToolCalls,
+  serverToolUsage,
+  streamEventDelta,
+} from '../lib/models/gptLlm.ts';
+import { splitThinkBlocks, mapUsage, ThinkStreamSplitter } from '../lib/models/openAiCompatibleLlm.ts';
+import { WebSearchTool, WEB_SEARCH, wantsWebSearch } from '../lib/tools/webSearchTool.ts';
+import { COLLECTIONS_SEARCH } from '../lib/tools/collectionsSearchTool.ts';
+import { X_SEARCH } from '../lib/tools/xSearchTool.ts';
+
+setLogLevel(LogLevel.WARN);
+
+/** Minimal LlmRequest for adapter tests. */
+function makeRequest(overrides: Partial<LlmRequest> = {}): LlmRequest {
+  return {
+    model: 'ollama/qwen3:8b',
+    contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
+    liveConnectConfig: {} as any,
+    toolsDict: {},
+    ...overrides,
+  } as LlmRequest;
+}
+
+async function collect(gen: AsyncGenerator<LlmResponse, void>): Promise<LlmResponse[]> {
+  const out: LlmResponse[] = [];
+  for await (const r of gen) out.push(r);
+  return out;
+}
+
+// ── Schema normalization ─────────────────────────────────────────────────────
+
+test('toLowercaseJsonSchema lowercases types deeply, preserving enum/description', () => {
+  const gemini = {
+    type: 'OBJECT',
+    properties: {
+      topic: { type: 'STRING', description: 'The topic', enum: ['A', 'B'] },
+      depth: { type: 'INTEGER' },
+      tags: { type: 'ARRAY', items: { type: 'STRING' } },
+      nested: {
+        type: 'OBJECT',
+        properties: { flag: { type: 'BOOLEAN' } },
+        required: ['flag'],
+      },
+    },
+    required: ['topic'],
+  };
+  const normalized = toLowercaseJsonSchema(gemini) as any;
+  assert.equal(normalized.type, 'object');
+  assert.equal(normalized.properties.topic.type, 'string');
+  assert.deepEqual(normalized.properties.topic.enum, ['A', 'B']); // enum values keep casing
+  assert.equal(normalized.properties.topic.description, 'The topic');
+  assert.equal(normalized.properties.tags.items.type, 'string');
+  assert.equal(normalized.properties.nested.properties.flag.type, 'boolean');
+  assert.deepEqual(normalized.required, ['topic']);
+  // Never mutates the input — a Gemini agent may share the object.
+  assert.equal(gemini.type, 'OBJECT');
+  assert.equal(gemini.properties.nested.properties.flag.type, 'BOOLEAN');
+});
+
+test('toLowercaseJsonSchema handles type arrays and non-object input', () => {
+  const schema = { type: ['STRING', 'NULL'] };
+  assert.deepEqual((toLowercaseJsonSchema(schema) as any).type, ['string', 'null']);
+  assert.deepEqual(toLowercaseJsonSchema(undefined), { type: 'object', properties: {} });
+});
+
+// ── Provider routing ─────────────────────────────────────────────────────────
+
+test('providerForModel maps every prefix to its provider', () => {
+  assert.equal(providerForModel('claude-sonnet-4-6'), 'anthropic');
+  assert.equal(providerForModel('gpt-5-mini'), 'openai');
+  assert.equal(providerForModel('o4-mini'), 'openai');
+  assert.equal(providerForModel('grok-4-1-fast-reasoning'), 'xai');
+  assert.equal(providerForModel('ollama/qwen3:8b'), 'ollama');
+  assert.equal(providerForModel('gemini-3.1-flash-lite'), 'gemini');
+  assert.equal(providerForModel('something-unknown'), 'gemini'); // ADK-native default
+});
+
+test('resolveModel returns the right adapter instance; model id wins over header', () => {
+  assert.ok(resolveModel('ollama/qwen3:8b', { defaultProvider: 'anthropic' }) instanceof OllamaLlm);
+  assert.ok(resolveModel('claude-sonnet-4-6') instanceof ClaudeLlm);
+  assert.ok(resolveModel('grok-4-1-fast-reasoning') instanceof GrokLlm);
+  assert.ok(resolveModel('gpt-5-mini') instanceof GptLlm);
+});
+
+test('resolveModel uses the deprecated provider header only when model is absent', () => {
+  assert.ok(resolveModel(undefined, { defaultProvider: 'ollama' }) instanceof OllamaLlm);
+  assert.ok(resolveModel(undefined, { defaultProvider: 'anthropic' }) instanceof ClaudeLlm);
+});
+
+test('providerStatuses reflects env keys; ollama is always available', () => {
+  const saved = { ...process.env };
+  try {
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.XAI_API_KEY;
+    delete process.env.GOOGLE_GENAI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    const off = Object.fromEntries(providerStatuses().map((s) => [s.provider, s.available]));
+    assert.deepEqual(off, { gemini: false, anthropic: false, openai: false, xai: false, ollama: true });
+
+    process.env.XAI_API_KEY = 'test-key';
+    assert.equal(providerKeyPresent('xai'), true);
+    process.env.GEMINI_API_KEY = 'test-key'; // either Gemini env name counts
+    assert.equal(providerKeyPresent('gemini'), true);
+  } finally {
+    process.env = saved;
+  }
+});
+
+// ── OpenAI-compatible base: reasoning + usage extraction ────────────────────
+
+test('splitThinkBlocks separates the scratchpad from the answer', () => {
+  const { reasoning, answer } = splitThinkBlocks('<think>step 1\nstep 2</think>The answer.');
+  assert.equal(reasoning, 'step 1\nstep 2');
+  assert.equal(answer, 'The answer.');
+  assert.deepEqual(splitThinkBlocks('plain'), { reasoning: '', answer: 'plain' });
+});
+
+test('ThinkStreamSplitter routes deltas and survives a tag split mid-chunk', () => {
+  const s = new ThinkStreamSplitter();
+  // The opening tag arrives in three pieces, so nothing may be emitted as
+  // answer text until it is resolved — this is the case the regex cannot see.
+  assert.deepEqual(s.push('<th'), { reasoning: '', answer: '' });
+  assert.deepEqual(s.push('in'), { reasoning: '', answer: '' });
+  assert.deepEqual(s.push('k>weigh'), { reasoning: 'weigh', answer: '' });
+  assert.deepEqual(s.push('ing it'), { reasoning: 'ing it', answer: '' });
+  // Closing tag split too; the text before it is still scratchpad.
+  assert.deepEqual(s.push(' done</thi'), { reasoning: ' done', answer: '' });
+  assert.deepEqual(s.push('nk>Hello'), { reasoning: '', answer: 'Hello' });
+  assert.deepEqual(s.push(' world'), { reasoning: '', answer: ' world' });
+  assert.deepEqual(s.flush(), { reasoning: '', answer: '' });
+});
+
+test('ThinkStreamSplitter passes untagged text straight through', () => {
+  const s = new ThinkStreamSplitter();
+  assert.deepEqual(s.push('just an answer'), { reasoning: '', answer: 'just an answer' });
+  assert.deepEqual(s.flush(), { reasoning: '', answer: '' });
+});
+
+test('ThinkStreamSplitter flushes a held partial tag that never completed', () => {
+  const s = new ThinkStreamSplitter();
+  // "<thi" looks like the start of a tag, so it is withheld...
+  assert.deepEqual(s.push('answer<thi'), { reasoning: '', answer: 'answer' });
+  // ...and released as ordinary text once the stream ends without the tag.
+  assert.deepEqual(s.flush(), { reasoning: '', answer: '<thi' });
+});
+
+test('mapUsage maps OpenAI-style usage to GenAI usageMetadata', () => {
+  assert.deepEqual(
+    mapUsage({
+      prompt_tokens: 10,
+      completion_tokens: 20,
+      total_tokens: 30,
+      completion_tokens_details: { reasoning_tokens: 5 },
+    }),
+    { promptTokenCount: 10, candidatesTokenCount: 20, thoughtsTokenCount: 5, totalTokenCount: 30 },
+  );
+  assert.equal(mapUsage(undefined), undefined);
+});
+
+test('OllamaLlm yields thought part, answer, and usageMetadata from a stubbed response', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = '';
+  let requestBody: any;
+  globalThis.fetch = (async (url: any, init: any) => {
+    requestedUrl = String(url);
+    requestBody = JSON.parse(init.body);
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: '<think>pondering</think>An answer.' } }],
+        usage: { prompt_tokens: 12, completion_tokens: 34, total_tokens: 46 },
+      }),
+      { status: 200 },
+    );
+  }) as any;
+  try {
+    const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
+    const responses = await collect(llm.generateContentAsync(makeRequest()));
+
+    const thought = responses.find((r) => (r.content?.parts?.[0] as any)?.thought);
+    assert.ok(thought, 'expected a thought part');
+    assert.equal((thought!.content!.parts![0] as any).text, 'pondering');
+
+    const final = responses.find((r) => r.turnComplete);
+    assert.ok(final, 'expected a final response');
+    assert.equal((final!.content!.parts![0] as any).text, 'An answer.');
+    assert.equal(final!.usageMetadata?.promptTokenCount, 12);
+    assert.equal(final!.usageMetadata?.candidatesTokenCount, 34);
+
+    assert.match(requestedUrl, /\/chat\/completions$/);
+    assert.equal(requestBody.model, 'qwen3:8b'); // ollama/ namespace stripped
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+/** One SSE frame, in the wire shape Ollama actually emits. */
+const sseFrame = (o: any) => `data: ${JSON.stringify(o)}\n\n`;
+
+test('OllamaLlm (SSE) streams reasoning and text, then repeats the whole text on the final event', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: any;
+  const body =
+    sseFrame({ choices: [{ index: 0, delta: { reasoning: 'weigh' } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: { reasoning: 'ing it' } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: { content: 'Hello' } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: { content: ' world' } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }) +
+    sseFrame({ choices: [], usage: { prompt_tokens: 20, completion_tokens: 136, total_tokens: 156 } }) +
+    'data: [DONE]\n\n';
+  globalThis.fetch = (async (_url: any, init: any) => {
+    requestBody = JSON.parse(init.body);
+    return new Response(body, { status: 200 });
+  }) as any;
+  try {
+    const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
+    const responses = await collect(llm.generateContentAsync(makeRequest(), true));
+
+    assert.equal(requestBody.stream, true);
+    assert.deepEqual(requestBody.stream_options, { include_usage: true });
+
+    const part = (r: LlmResponse) => (r.content?.parts?.[0] as any) ?? {};
+    const thoughts = responses.filter((r) => part(r).thought);
+    assert.deepEqual(thoughts.map((r) => part(r).text), ['weigh', 'ing it']);
+    assert.ok(
+      thoughts.every((r) => (r as any).partial),
+      'thinking must stay partial — partials are what keep it out of history',
+    );
+
+    const streamedText = responses.filter(
+      (r) => (r as any).partial && part(r).text && !part(r).thought,
+    );
+    assert.deepEqual(streamedText.map((r) => part(r).text), ['Hello', ' world']);
+
+    // The final event is the ONLY one ADK persists (runner: `if
+    // (!event.partial) appendEvent(...)`), so it must carry the whole
+    // reply — otherwise the turn renders on screen and vanishes from history.
+    const final = responses.find((r) => r.turnComplete);
+    assert.ok(final, 'expected a final response');
+    assert.ok(!(final as any).partial, 'final must not be partial');
+    assert.equal(part(final!).text, 'Hello world');
+    assert.equal(final!.usageMetadata?.promptTokenCount, 20);
+    assert.equal(final!.usageMetadata?.candidatesTokenCount, 136);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('OllamaLlm (SSE) reassembles tool-call arguments split across frames', async () => {
+  const originalFetch = globalThis.fetch;
+  const body =
+    sseFrame({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'lookup', arguments: '{"q":' } }] } }] }) +
+    sseFrame({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: '"zeno"}' } }] } }] }) +
+    'data: [DONE]\n\n';
+  globalThis.fetch = (async () => new Response(body, { status: 200 })) as any;
+  try {
+    const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
+    const responses = await collect(llm.generateContentAsync(makeRequest(), true));
+    const final = responses.find((r) => r.turnComplete);
+    const call = (final!.content!.parts![0] as any).functionCall;
+    assert.equal(call.name, 'lookup');
+    assert.equal(call.id, 'c1');
+    assert.deepEqual(call.args, { q: 'zeno' });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('GrokLlm speaks the Responses API dialect (subclass of GptLlm, xAI overrides)', async () => {
+  // xAI retired chat-completions Live Search (410); Grok now rides the
+  // Responses-shaped Agent Tools API through the GptLlm translator.
+  assert.ok(new GrokLlm({ model: 'grok-4.5' }) instanceof GptLlm);
+  assert.deepEqual(
+    GrokLlm.supportedModels.map((p) => String(p)),
+    [String(/^grok-.+/)],
+  );
+
+  // Without a key, the adapter yields the xAI-specific MISSING_API_KEY error
+  // (proves the env/key overrides are wired, no network involved).
+  const saved = process.env.XAI_API_KEY;
+  delete process.env.XAI_API_KEY;
+  try {
+    const llm = new GrokLlm({ model: 'grok-4.5' });
+    const responses = await collect(
+      llm.generateContentAsync(makeRequest({ model: 'grok-4.5' })),
+    );
+    assert.equal(responses[0].errorCode, 'MISSING_API_KEY');
+    assert.match(responses[0].errorMessage!, /XAI_API_KEY/);
+  } finally {
+    if (saved !== undefined) process.env.XAI_API_KEY = saved;
+  }
+
+  // Grok's web_search request shaping is the shared Responses builder:
+  const request = makeRequest({ model: 'grok-4.5' });
+  request.toolsDict['web_search'] = WEB_SEARCH;
+  const tools = buildResponsesTools(request);
+  assert.ok(tools.some((t) => t.type === 'web_search')); // Agent Tools web_search
+  assert.ok(!tools.some((t) => t.type === 'function')); // sentinel never a function tool
+});
+
+test('web_search forwards xAI domain filters from env; OpenAI stays bare', () => {
+  const saved: Record<string, string | undefined> = {
+    XAI_WEB_SEARCH_ALLOWED_DOMAINS: process.env.XAI_WEB_SEARCH_ALLOWED_DOMAINS,
+    XAI_WEB_SEARCH_EXCLUDED_DOMAINS: process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS,
+  };
+  try {
+    // Configured on a grok model: filters ride the tool object, nested under
+    // `filters` on the OpenAI-compatible wire (docs.x.ai › Tools › Web Search).
+    process.env.XAI_WEB_SEARCH_ALLOWED_DOMAINS = ' reuters.com , apnews.com ,';
+    delete process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS;
+    const grokRequest = makeRequest({ model: 'grok-4.5' });
+    grokRequest.toolsDict['web_search'] = WEB_SEARCH;
+    assert.deepEqual(
+      buildResponsesTools(grokRequest).find((t) => t.type === 'web_search'),
+      {
+        type: 'web_search',
+        filters: { allowed_domains: ['reuters.com', 'apnews.com'] },
+      },
+    );
+
+    // Same env, OpenAI model: web_search takes no params and MUST stay bare.
+    const gptRequest = makeRequest({ model: 'gpt-5-mini' });
+    gptRequest.toolsDict['web_search'] = WEB_SEARCH;
+    assert.deepEqual(
+      buildResponsesTools(gptRequest).find((t) => t.type === 'web_search'),
+      { type: 'web_search' },
+    );
+
+    // Mutually exclusive lists: the allowlist wins, exclusions drop (never a 400).
+    process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS = 'pinterest.com';
+    assert.deepEqual(
+      buildResponsesTools(grokRequest).find((t) => t.type === 'web_search')!.filters,
+      { allowed_domains: ['reuters.com', 'apnews.com'] },
+    );
+
+    // Oversize list: truncates to xAI's cap of 5, never fatal.
+    delete process.env.XAI_WEB_SEARCH_ALLOWED_DOMAINS;
+    process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS =
+      'a.com,b.com,c.com,d.com,e.com,f.com';
+    assert.deepEqual(
+      buildResponsesTools(grokRequest).find((t) => t.type === 'web_search')!.filters,
+      { excluded_domains: ['a.com', 'b.com', 'c.com', 'd.com', 'e.com'] },
+    );
+
+    // Unconfigured: the bare tool it always was, on every provider.
+    for (const name of Object.keys(saved)) delete process.env[name];
+    assert.deepEqual(
+      buildResponsesTools(grokRequest).find((t) => t.type === 'web_search'),
+      { type: 'web_search' },
+    );
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value !== undefined) process.env[name] = value;
+      else delete process.env[name];
+    }
+  }
+});
+
+test('streamEventDelta maps Responses SSE events to text/thought deltas', () => {
+  assert.deepEqual(
+    streamEventDelta({ type: 'response.output_text.delta', delta: 'Hel' }),
+    { thought: false, text: 'Hel' },
+  );
+  assert.deepEqual(
+    streamEventDelta({ type: 'response.reasoning_summary_text.delta', delta: 'hmm' }),
+    { thought: true, text: 'hmm' },
+  );
+  // Non-delta events (item boundaries, completion, malformed) map to null.
+  assert.equal(streamEventDelta({ type: 'response.completed', response: {} }), null);
+  assert.equal(streamEventDelta({ type: 'response.output_item.added' }), null);
+  assert.equal(streamEventDelta({ type: 'response.output_text.delta' }), null);
+  assert.equal(streamEventDelta(undefined), null);
+});
+
+test('collections_search shapes an xAI file_search tool from env ids', () => {
+  const savedIds = process.env.XAI_COLLECTION_IDS;
+  const savedMax = process.env.XAI_COLLECTIONS_MAX_RESULTS;
+  try {
+    // Configured: file_search with the parsed ids and the optional cap.
+    process.env.XAI_COLLECTION_IDS = ' col_a , col_b ,';
+    process.env.XAI_COLLECTIONS_MAX_RESULTS = '7';
+    const request = makeRequest({ model: 'grok-4.5' });
+    request.toolsDict['collections_search'] = COLLECTIONS_SEARCH;
+    const tools = buildResponsesTools(request);
+    const fileSearch = tools.find((t) => t.type === 'file_search');
+    assert.deepEqual(fileSearch, {
+      type: 'file_search',
+      vector_store_ids: ['col_a', 'col_b'],
+      max_num_results: 7,
+    });
+    // The sentinel is never emitted as a client-side function tool.
+    assert.ok(!tools.some((t) => t.type === 'function'));
+
+    // Declared but unconfigured: omitted entirely, never fatal.
+    delete process.env.XAI_COLLECTION_IDS;
+    delete process.env.XAI_COLLECTIONS_MAX_RESULTS;
+    const bare = buildResponsesTools(request);
+    assert.ok(!bare.some((t) => t.type === 'file_search'));
+  } finally {
+    if (savedIds !== undefined) process.env.XAI_COLLECTION_IDS = savedIds;
+    else delete process.env.XAI_COLLECTION_IDS;
+    if (savedMax !== undefined) process.env.XAI_COLLECTIONS_MAX_RESULTS = savedMax;
+    else delete process.env.XAI_COLLECTIONS_MAX_RESULTS;
+  }
+});
+
+test('x_search forwards env constraints; bare with none set', () => {
+  const saved: Record<string, string | undefined> = {
+    XAI_X_SEARCH_FROM_DATE: process.env.XAI_X_SEARCH_FROM_DATE,
+    XAI_X_SEARCH_TO_DATE: process.env.XAI_X_SEARCH_TO_DATE,
+    XAI_X_SEARCH_ALLOWED_HANDLES: process.env.XAI_X_SEARCH_ALLOWED_HANDLES,
+    XAI_X_SEARCH_EXCLUDED_HANDLES: process.env.XAI_X_SEARCH_EXCLUDED_HANDLES,
+  };
+  try {
+    // Configured: constraints ride the tool object (docs.x.ai › Tools › X Search).
+    process.env.XAI_X_SEARCH_FROM_DATE = '2026-08-01';
+    process.env.XAI_X_SEARCH_TO_DATE = '2026-08-02';
+    process.env.XAI_X_SEARCH_ALLOWED_HANDLES = ' @Reuters , AP ,';
+    delete process.env.XAI_X_SEARCH_EXCLUDED_HANDLES;
+    const request = makeRequest({ model: 'grok-4.5' });
+    request.toolsDict['x_search'] = X_SEARCH;
+    const tools = buildResponsesTools(request);
+    assert.deepEqual(tools.find((t) => t.type === 'x_search'), {
+      type: 'x_search',
+      from_date: '2026-08-01',
+      to_date: '2026-08-02',
+      allowed_x_handles: ['Reuters', 'AP'], // trimmed, @-stripped
+    });
+    // The sentinel is never emitted as a client-side function tool.
+    assert.ok(!tools.some((t) => t.type === 'function'));
+
+    // Mutually exclusive lists: the allowlist wins, exclusions drop (never a 400).
+    process.env.XAI_X_SEARCH_EXCLUDED_HANDLES = 'spam_account';
+    const both = buildResponsesTools(request).find((t) => t.type === 'x_search');
+    assert.deepEqual(both.allowed_x_handles, ['Reuters', 'AP']);
+    assert.equal(both.excluded_x_handles, undefined);
+
+    // Malformed date: dropped with a warning, the rest survive.
+    process.env.XAI_X_SEARCH_FROM_DATE = 'yesterday';
+    const partial = buildResponsesTools(request).find((t) => t.type === 'x_search');
+    assert.equal(partial.from_date, undefined);
+    assert.equal(partial.to_date, '2026-08-02');
+
+    // Unconfigured: the bare tool it always was.
+    for (const name of Object.keys(saved)) delete process.env[name];
+    const bare = buildResponsesTools(request).find((t) => t.type === 'x_search');
+    assert.deepEqual(bare, { type: 'x_search' });
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value !== undefined) process.env[name] = value;
+      else delete process.env[name];
+    }
+  }
+});
+
+test('reasoningParam: grok-4.5/4.7 pin effort medium; other ids keep their shapes', () => {
+  // grok-4.5 and grok-4.7 send the xAI effort control (docs.x.ai ›
+  // Reasoning › Effort levels; xAI's own default is high) — pinned to
+  // medium in lib/config.ts.
+  assert.deepEqual(
+    (new GrokLlm({ model: 'grok-4.5' }) as any).reasoningParam(),
+    { effort: 'medium' },
+  );
+  assert.deepEqual(
+    (new GrokLlm({ model: 'grok-4.7' }) as any).reasoningParam(),
+    { effort: 'medium' },
+  );
+  // Older grok ids don't accept the param and must not send one.
+  assert.equal(
+    (new GrokLlm({ model: 'grok-4-1-fast-reasoning' }) as any).reasoningParam(),
+    undefined,
+  );
+  // OpenAI reasoning ids keep requesting summaries; non-reasoning ids none.
+  assert.deepEqual(
+    (new GptLlm({ model: 'gpt-5-mini' }) as any).reasoningParam(),
+    { summary: 'auto' },
+  );
+  assert.equal(
+    (new GptLlm({ model: 'gpt-4o' }) as any).reasoningParam(),
+    undefined,
+  );
+});
+
+// ── Claude request building ──────────────────────────────────────────────────
+
+test('buildAnthropicTools lowercases schemas and maps web_search to the server tool', () => {
+  const request = makeRequest({ model: 'claude-sonnet-4-6' });
+  request.toolsDict['search_catalog'] = {
+    name: 'search_catalog',
+    description: 'Search the catalog',
+    parameters: { type: 'OBJECT', properties: { query: { type: 'STRING' } }, required: ['query'] },
+  } as any;
+  request.toolsDict['web_search'] = WEB_SEARCH;
+
+  const tools = buildAnthropicTools(request);
+  const fn = tools.find((t) => t.name === 'search_catalog');
+  assert.equal(fn.input_schema.type, 'object'); // the uppercase-schema bug, fixed
+  assert.equal(fn.input_schema.properties.query.type, 'string');
+
+  const server = tools.find((t) => t.name === 'web_search');
+  assert.equal(server.type, 'web_search_20250305'); // Anthropic-native server tool
+  assert.equal(typeof server.input_schema, 'undefined');
+});
+
+// ── GPT (Responses API) request building ─────────────────────────────────────
+
+test('buildResponsesInput maps contents, round-trips call_id, extracts instructions', () => {
+  const request = makeRequest({
+    model: 'gpt-5-mini',
+    contents: [
+      { role: 'system', parts: [{ text: 'Be concise.' }] } as any,
+      { role: 'user', parts: [{ text: 'What is 2+2?' }] },
+      { role: 'model', parts: [{ functionCall: { id: 'call_abc', name: 'calc', args: { a: 2 } } }] } as any,
+      { role: 'user', parts: [{ functionResponse: { id: 'call_abc', name: 'calc', response: { result: 4 } } }] } as any,
+    ],
+  });
+  const { instructions, input } = buildResponsesInput(request);
+  assert.equal(instructions, 'Be concise.');
+  const call = input.find((i) => i.type === 'function_call');
+  const output = input.find((i) => i.type === 'function_call_output');
+  assert.equal(call.call_id, 'call_abc');
+  assert.equal(output.call_id, 'call_abc'); // Responses API requires the match
+  const userMsg = input.find((i) => i.role === 'user');
+  assert.equal(userMsg.content[0].type, 'input_text');
+});
+
+test('buildResponsesTools lowercases schemas and adds native web_search', () => {
+  const request = makeRequest({ model: 'gpt-5-mini' });
+  request.toolsDict['calc'] = {
+    name: 'calc',
+    description: 'Calculate',
+    parameters: { type: 'OBJECT', properties: { a: { type: 'NUMBER' } } },
+  } as any;
+  request.toolsDict['web_search'] = WEB_SEARCH;
+  const tools = buildResponsesTools(request);
+  assert.equal(tools.find((t) => t.type === 'function').parameters.properties.a.type, 'number');
+  assert.ok(tools.some((t) => t.type === 'web_search')); // OpenAI-native tool
+});
+
+// ── Real ADK tool objects reach every non-Gemini adapter with their schema ───
+// The tests above use plain objects carrying a `parameters` key. Real ADK
+// AgentTool and load_memory keep their schema only in _getDeclaration(), and
+// reading `.parameters` sent `{}` — the root cause of
+// plans/gpt-agenttool-delegation.md. These use the real classes.
+
+function realToolRequest(model: string): LlmRequest {
+  const sub = new LlmAgent({ name: 'XScout', description: 'Sweeps X for a ticker', model: 'gemini-3.1-flash-lite', instruction: 'x' });
+  const request = makeRequest({ model });
+  request.toolsDict['XScout'] = new AgentTool({ agent: sub });
+  request.toolsDict['load_memory'] = LOAD_MEMORY as any;
+  return request;
+}
+
+function assertDelegationSchemas(byName: (n: string) => any) {
+  const delegate = byName('XScout');
+  assert.ok(delegate, 'AgentTool must be declared');
+  assert.equal(delegate.type, 'object');
+  assert.equal(delegate.properties.request.type, 'string');
+  assert.deepEqual(delegate.required, ['request']);
+  const memory = byName('load_memory');
+  assert.ok(memory, 'load_memory must be declared');
+  assert.ok(memory.properties.query, 'load_memory keeps its query argument');
+}
+
+test('GPT adapter declares AgentTool and load_memory arguments', () => {
+  const tools = buildResponsesTools(realToolRequest('gpt-5-mini'));
+  assertDelegationSchemas((n) => tools.find((t) => t.name === n)?.parameters);
+});
+
+test('Claude adapter declares AgentTool and load_memory arguments', () => {
+  const tools = buildAnthropicTools(realToolRequest('claude-sonnet-4-6'));
+  assertDelegationSchemas((n) => tools.find((t) => t.name === n)?.input_schema);
+});
+
+test('chat-completions adapters (Ollama, gateway) declare AgentTool and load_memory arguments', () => {
+  const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
+  const tools = (llm as any).buildTools(realToolRequest('ollama/qwen3:8b')) as any[];
+  assertDelegationSchemas((n) => tools.find((t) => t.function.name === n)?.function.parameters);
+});
+
+test('an AgentTool whose subagent has no description is still declared', () => {
+  const sub = new LlmAgent({ name: 'Quiet', model: 'gemini-3.1-flash-lite', instruction: 'x' });
+  const request = makeRequest({ model: 'gpt-5-mini' });
+  request.toolsDict['Quiet'] = new AgentTool({ agent: sub });
+  assert.ok(buildResponsesTools(request).some((t) => t.name === 'Quiet'));
+});
+
+// ── web_search tool routing ──────────────────────────────────────────────────
+
+test('WebSearchTool: Gemini model gets grounding; others get the sentinel', async () => {
+  const tool = new WebSearchTool();
+
+  const geminiRequest = makeRequest({ model: 'gemini-3.1-flash-lite' });
+  await tool.processLlmRequest({ llmRequest: geminiRequest } as any);
+  assert.deepEqual((geminiRequest.config as any).tools, [{ googleSearch: {} }]);
+  assert.equal(wantsWebSearch(geminiRequest), false); // no sentinel on Gemini
+
+  const claudeRequest = makeRequest({ model: 'claude-sonnet-4-6' });
+  await tool.processLlmRequest({ llmRequest: claudeRequest } as any);
+  assert.equal((claudeRequest.config as any)?.tools, undefined); // no Gemini grounding
+  assert.equal(wantsWebSearch(claudeRequest), true); // adapters read this
+  assert.equal(tool._getDeclaration(), undefined); // never a client-side function tool
+});
+
+// Shapes copied from a live xAI grok-4.7 Responses call (2026-09-25),
+// sources trimmed.
+const XAI_OUTPUT = [
+  { type: 'reasoning', id: 'r1', status: 'completed', summary: [], encrypted_content: 'x' },
+  {
+    id: 'ws_1', type: 'web_search_call', status: 'completed',
+    action: { type: 'search', query: 'NVDA stock yesterday performance', sources: [{ type: 'url', url: 'https://www.stocktitan.net/sec-filings/NVDA/' }] },
+  },
+  { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: "I'll pull the tape.", annotations: [] }] },
+  {
+    call_id: 'xs_call-3', input: '{"query":"NVDA since:2026-09-24 until:2026-09-26","limit":"5","mode":"Latest"}',
+    name: 'x_keyword_search', type: 'custom_tool_call', id: 'ctc_3', status: 'completed',
+  },
+  { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: '- NVDA closed down 0.4%.', annotations: [] }] },
+];
+const XAI_USAGE = {
+  input_tokens: 56765, output_tokens: 1247, output_tokens_details: { reasoning_tokens: 943 }, total_tokens: 58012,
+  num_server_side_tools_used: 2, cost_in_usd_ticks: 1697320000,
+  server_side_tool_usage_details: { web_search_calls: 1, x_search_calls: 1, x_posts_fetched: 14, x_users_fetched: 0, code_interpreter_calls: 0 },
+};
+
+test('extractServerToolCalls reads xAI web_search_call and custom_tool_call items', () => {
+  assert.deepEqual(extractServerToolCalls(XAI_OUTPUT), [
+    {
+      name: 'web_search',
+      args: { type: 'search', query: 'NVDA stock yesterday performance' },
+      status: 'completed',
+      sources: ['https://www.stocktitan.net/sec-filings/NVDA/'],
+    },
+    {
+      name: 'x_keyword_search',
+      args: { query: 'NVDA since:2026-09-24 until:2026-09-26', limit: '5', mode: 'Latest' },
+      status: 'completed',
+    },
+  ]);
+  // Client function calls are ADK's to run, not server-side records.
+  assert.deepEqual(extractServerToolCalls([{ type: 'function_call', name: 'f', arguments: '{}', call_id: 'c' }]), []);
+  assert.deepEqual(extractServerToolCalls(undefined), []);
+  // Malformed custom input is kept raw, never thrown.
+  assert.deepEqual(
+    extractServerToolCalls([{ type: 'custom_tool_call', name: 'x_semantic_search', input: 'not json' }])[0].args,
+    { raw: 'not json' },
+  );
+});
+
+test('serverToolUsage keeps the total and the non-zero xAI counters; {} for OpenAI usage', () => {
+  assert.deepEqual(serverToolUsage(XAI_USAGE), { total: 2, web_search_calls: 1, x_search_calls: 1, x_posts_fetched: 14 });
+  assert.deepEqual(serverToolUsage({ input_tokens: 10, output_tokens: 2 }), {});
+  assert.deepEqual(serverToolUsage(undefined), {});
+});
+
+test('a searched Grok response: message items split by a paragraph, search calls on customMetadata', () => {
+  const llm = new GrokLlm({ model: 'grok-4.7' });
+  const out = [...(llm as any).mapFinalResponse({ output: XAI_OUTPUT, usage: XAI_USAGE })] as LlmResponse[];
+  const final = out[out.length - 1] as any;
+  const text = final.content.parts.map((p: any) => p.text ?? '').join('');
+  // Narration no longer runs into the answer's first line.
+  assert.equal(text, "I'll pull the tape.\n\n- NVDA closed down 0.4%.");
+  assert.ok(!final.content.parts.some((p: any) => p.functionCall)); // ADK must never run these
+  assert.equal(final.customMetadata['responses.server_tool_calls'].length, 2);
+  assert.deepEqual(final.customMetadata['responses.server_tool_usage'], {
+    total: 2, web_search_calls: 1, x_search_calls: 1, x_posts_fetched: 14,
+  });
+
+  // A plain answer carries no customMetadata at all.
+  const plain = [...(llm as any).mapFinalResponse({
+    output: [{ type: 'message', content: [{ type: 'output_text', text: 'hi' }] }],
+    usage: { input_tokens: 1, output_tokens: 1 },
+  })] as any[];
+  assert.equal(plain[plain.length - 1].customMetadata, undefined);
+  assert.equal(plain[plain.length - 1].content.parts[0].text, 'hi');
+});

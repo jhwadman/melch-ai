@@ -1,0 +1,17 @@
+# dependencies and builds
+/node_modules
+/dist
+/coverage
+*.tgz
+
+# credentials: never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# local output
+/outputs/
+*.log
+.DS_Store
