@@ -23,31 +23,49 @@ function service(client: unknown, extract: () => Promise<string>, embed: () => P
 }
 const VECTOR = () => new Array(768).fill(0.01);
 
-function fakeSupabase() {
-  const inserted: Array<Record<string, unknown>> = [];
-  const chain = (result: unknown) => {
+/**
+ * A fake Supabase client that models migration 0007: melchizedek_memory_commit
+ * stores the rows and advances the session's marker together (or, when told
+ * to fail, neither), and the marker table can be read back.
+ */
+function fakeSupabase(shared?: { markers: Map<string, number>; inserted: Array<Record<string, unknown>> }) {
+  const inserted = shared?.inserted ?? [];
+  const markers = shared?.markers ?? new Map<string, number>();
+  const state = { failCommit: false, dims: 768 as number | null };
+  const filters: Record<string, unknown> = {};
+  const chain = (result: () => unknown) => {
     const c: any = {
       select: () => c,
-      eq: () => c,
+      eq: (col: string, v: unknown) => ((filters[col] = v), c),
       in: () => c,
-      then: (resolve: (v: unknown) => void) => resolve(result),
+      maybeSingle: async () => result(),
+      then: (resolve: (v: unknown) => void) => resolve(result()),
     };
     return c;
   };
   const client: any = {
-    from: () => ({
-      select: () => chain({ data: [], error: null }),
-      insert: (rows: Array<Record<string, unknown>>) => ({
-        select: async () => {
-          inserted.push(...rows);
-          return { data: rows.map((r, i) => ({ id: `id-${inserted.length + i}`, fact: r.fact })), error: null };
-        },
-      }),
-      update: () => chain({ data: [], error: null }),
+    from: (table: string) => ({
+      select: () =>
+        table === 'melchizedek_memory_ingest'
+          ? chain(() => {
+              const n = markers.get(`${filters.user_key}::${filters.session_id}`);
+              return { data: n === undefined ? null : { events_ingested: n }, error: null };
+            })
+          : chain(() => ({ data: [], error: null })),
+      update: () => chain(() => ({ data: [], error: null })),
     }),
-    rpc: async () => ({ data: [], error: null }),
+    rpc: async (fn: string, args: any) => {
+      if (fn === 'melchizedek_memory_dimensions') return { data: state.dims, error: null };
+      if (fn !== 'melchizedek_memory_commit') return { data: [], error: null };
+      if (state.failCommit) return { data: null, error: { message: 'commit refused' } };
+      const rows = args.p_rows as Array<Record<string, unknown>>;
+      inserted.push(...rows);
+      const key = `${args.p_user_key}::${args.p_session_id}`;
+      markers.set(key, Math.max(markers.get(key) ?? 0, args.p_events));
+      return { data: rows.map((r, i) => ({ new_id: `id-${inserted.length + i}`, new_fact: r.fact })), error: null };
+    },
   };
-  return { client, inserted };
+  return { client, inserted, markers, state };
 }
 
 const RECORD = '[PREFERENCE | date: 2026-10-01 | source: user | keys: tea] The user prefers green tea.';
@@ -106,4 +124,42 @@ test('a failed embedding also leaves the turns pending', async () => {
   embedFails = false;
   await svc.addSessionToMemory(session(2));
   assert.strictEqual(inserted.length, 1);
+});
+
+test('the processed marker survives a restart: a new process does not re-extract', async () => {
+  const shared = { markers: new Map<string, number>(), inserted: [] as Array<Record<string, unknown>> };
+  let calls = 0;
+  const first = service(fakeSupabase(shared).client, async () => ((calls += 1), RECORD), async () => VECTOR());
+  await first.addSessionToMemory(session(2));
+  assert.strictEqual(shared.inserted.length, 1);
+
+  // A fresh service over the same database: the durable marker says done.
+  const restarted = service(fakeSupabase(shared).client, async () => ((calls += 1), RECORD), async () => VECTOR());
+  calls = 0;
+  await restarted.addSessionToMemory(session(2));
+  assert.strictEqual(calls, 0, 'nothing re-extracted after the restart');
+  await restarted.addSessionToMemory(session(4));
+  assert.strictEqual(calls, 1, 'only the new turns are extracted');
+});
+
+test('a failed commit leaves facts and marker untouched, and the turns pending', async () => {
+  const fake = fakeSupabase();
+  const svc = service(fake.client, async () => RECORD, async () => VECTOR());
+  fake.state.failCommit = true;
+  await assert.rejects(svc.addSessionToMemory(session(2)), /turns stay pending/);
+  assert.strictEqual(fake.inserted.length, 0);
+  assert.strictEqual(fake.markers.size, 0);
+  fake.state.failCommit = false;
+  await svc.addSessionToMemory(session(2));
+  assert.strictEqual(fake.inserted.length, 1);
+});
+
+test('an embedder that does not fit the stored column is refused at boot', async () => {
+  const fake = fakeSupabase();
+  const svc = service(fake.client, async () => RECORD, async () => VECTOR());
+  await svc.verifyEmbeddingDimensions();
+  fake.state.dims = 1536;
+  await assert.rejects(svc.verifyEmbeddingDimensions(), /stores 1536-dimension embeddings.*produces 768.*never drop the table/);
+  fake.state.dims = null;
+  await svc.verifyEmbeddingDimensions();
 });

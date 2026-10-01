@@ -65,11 +65,11 @@ Eight tags (`FACT`, `PREFERENCE`, `DECISION`, `ACTION`, `CONTEXT`, `INSIGHT`, `C
 
 The A2A server ingests after every completed task, so each session would otherwise be re-read every turn. Three guards keep a fact from being stored twice:
 
-- **A high-water mark per session** means each turn is distilled once. It lives in process memory, so a restart re-reads a session once.
+- **A processed marker per session** means each turn is distilled once. It is stored (`melchizedek_memory_ingest`, migration 0007) and advances in the same transaction as the facts and their supersessions (`melchizedek_memory_commit`), so a restart re-reads nothing.
 - **Exact duplicates** under the same user key are skipped.
 - **Semantic duplicates** are skipped too: an active record with the same tag at cosine ≥ 0.93.
 
-Each step throws on failure and the mark advances only after the records are stored, so a failed extraction or embedding leaves the turns pending for the next task.
+Each step throws on failure and the commit is one transaction, so a failed extraction, embedding or insert leaves the turns pending for the next task, with nothing half-stored. At boot the server refuses an embedder whose vector size differs from the stored column.
 
 ## Supersession
 

@@ -134,6 +134,12 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **Memory ingestion commits as one unit** (migration
+  `0007_memory_commit.sql`, ADR 0020). New facts, the rows they supersede
+  and the session's processed marker are written in one transaction
+  (`melchizedek_memory_commit`); the marker is stored, so a restart never
+  re-extracts a turn. The server refuses to start when the embedder's
+  dimension differs from the stored column. **`npx melchizedek-db apply`.**
 - **A task whose server died is failed, not stuck** (migration
   `0006_task_leases.sql`, Postgres storage). A running task is leased to the
   instance running it and renewed on a heartbeat; when the lease expires

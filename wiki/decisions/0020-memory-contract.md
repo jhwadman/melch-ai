@@ -52,6 +52,8 @@ The memory record model is sound: dated, source-attributed facts, corrections th
 
 > **Note (2026-10-01):** Built: namespaces and `--fix-namespaces`, the root-namespace wrapper, configurable extraction and embeddings (`MEMORY_EXTRACTION_MODEL`, `MEMORY_EMBEDDING_*`), save-before-advance ingestion, `eraseScope`, and the session prune (`melchizedek_prune_sessions()`, nightly under pg_cron or `npm run sessions:prune`). Not yet: the processed marker still lives in process memory, insert and supersession are separate statements, the embedding dimension is checked per vector rather than against the stored column at boot, extraction is not overridable per syndicate, and facts have no per-namespace retention window, see [ADR 0021](/decisions/0021-postgres-first-storage.md).
 
+> **Note (2026-10-02):** Items 5 and 6 are now built (migration `0007_memory_commit.sql`): the processed marker is the `melchizedek_memory_ingest` table; `melchizedek_memory_commit` inserts facts, retires what they supersede and advances the marker in one transaction, through either storage backend; and the server refuses at boot an embedder whose dimension differs from the stored column (`melchizedek_memory_dimensions()`). The marker holds identifiers only and is pruned after 30 days, see [ADR 0021](/decisions/0021-postgres-first-storage.md).
+
 ## Alternatives considered
 
 - **The syndicate name alone as the namespace.** Rejected: a rename orphans memory, and two different syndicates with the same name in one database collide.
