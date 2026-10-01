@@ -52,6 +52,8 @@ There was no plain-Postgres path and no migrations; the base schema existed only
 
 > **Note (2026-10-02):** The turn lock is built: `postgresStorage().turnLock` takes a session-level advisory lock (`pg_try_advisory_lock(hashtextextended(key, 0))`) on a connection from its own small pool, held for the turn and released by a dropped connection; without Postgres the server uses an in-process lock. A second turn on a busy conversation waits up to `A2A_TURN_LOCK_WAIT_MS`, then is rejected. The agent registry is versioned (migration 0005), see [ADR 0018](/decisions/0018-files-are-the-source-of-truth.md).
 
+> **Note (2026-10-02):** Task leases are built (migration `0006_task_leases.sql`): saving a submitted or working task leases it to the saving instance until `taskLeaseMs` (default 60 s), the server renews its leases every third of that, and any instance marks running tasks with an expired lease `failed` (claimed `FOR UPDATE SKIP LOCKED`), at boot and every lease period. A finished or input-required task holds no lease, see [ADR 0026](/decisions/0026-governance-policy-and-visibility.md).
+
 2. **It works on any Postgres:** Supabase through its connection string, RDS, Cloud SQL, AlloyDB, or on-premises. Tables live in a configurable private schema (default `melchizedek`), so no anon REST path exists.
 3. **Schema changes are numbered, idempotent migrations** in `db/migrations/`, shipped in the package and applied by `melchizedek db migrate`. A version table lets the server refuse a schema it does not match. The Markdown copies of the schema are generated from these files.
 

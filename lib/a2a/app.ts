@@ -105,6 +105,11 @@ export interface A2AAppOptions {
      * supplies an advisory lock). Default: a lock in this process.
      */
     turnLock?: TurnLock;
+    /**
+     * Task leases (postgresStorage): renewed on a heartbeat while this
+     * instance runs, and expired ones from dead instances marked failed.
+     */
+    leases?: { ttlMs: number; renew: () => Promise<number>; reap: () => Promise<number> };
   };
   /** How long a second turn on a busy conversation waits before it is refused, ms. Default 30 000. */
   turnLockWaitMs?: number;
@@ -441,6 +446,31 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   // Shared by every executor, so a conversation is serialised whichever
   // agent route reaches it.
   const turnLock: TurnLock = options.storage?.turnLock ?? inProcessTurnLock();
+
+  // Task leases: a task left running by an instance that died is failed
+  // rather than polled forever (ADR 0021). Reap once now, then on a timer.
+  const leaseTimers: NodeJS.Timeout[] = [];
+  const leases = options.storage?.leases;
+  if (leases) {
+    const reap = async () => {
+      try {
+        const n = await leases.reap();
+        if (n) warn(`Failed ${n} task(s) left running by a stopped instance.`);
+      } catch (err: unknown) {
+        warn(`Task lease reaping failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    await reap();
+    const renew = async () => {
+      try {
+        await leases.renew();
+      } catch (err: unknown) {
+        warn(`Task lease renewal failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    leaseTimers.push(setInterval(renew, Math.max(1000, Math.floor(leases.ttlMs / 3))).unref());
+    leaseTimers.push(setInterval(reap, Math.max(1000, leases.ttlMs)).unref());
+  }
 
   /**
    * Session and memory services for one syndicate, honouring its
@@ -907,6 +937,10 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     app,
     config,
     sessionBackend,
-    shutdown: (graceMs: number) => limiter.drain(graceMs),
+    shutdown: async (graceMs: number) => {
+      const left = await limiter.drain(graceMs);
+      for (const t of leaseTimers) clearInterval(t);
+      return left;
+    },
   };
 }

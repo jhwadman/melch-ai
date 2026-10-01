@@ -357,3 +357,36 @@ test('turnLock: an advisory lock shared by two instances on one database', { ski
     await other.pool.end();
   }
 });
+
+test('task leases: running tasks are leased, finished ones are not, and expired ones are failed', { skip }, async () => {
+  const { PostgresTaskStore, renewTaskLeases, reapExpiredTasks } = await import('../lib/storage/postgres/taskStore.ts');
+  const lease = { instanceId: 'it-instance', ttlMs: 400 };
+  const store = new PostgresTaskStore(pool, 'lease-desk', { lease });
+  const as = new ServerCallContext({ user: { isAuthenticated: true, userName: 'lessee' } } as any);
+  const t = (id: string, state: number) => ({ id, contextId: `ctx-${id}`, status: { state, timestamp: new Date().toISOString() }, artifacts: [], history: [] }) as any;
+  const row = async (id: string) =>
+    (await pool.query(`SELECT state, lease_owner, lease_until FROM adk_a2a_tasks WHERE agent_id = 'lease-desk' AND id = $1`, [id])).rows[0];
+
+  await store.save(t('run', 2), as);
+  assert.equal((await row('run')).lease_owner, 'it-instance', 'a working task is leased');
+  await store.save(t('done', 2), as);
+  await store.save(t('done', 3), as);
+  assert.equal((await row('done')).lease_owner, null, 'a completed task holds no lease');
+  await store.save(t('waiting', 6), as);
+  assert.equal((await row('waiting')).lease_owner, null, 'input-required holds no lease');
+
+  // Renewal keeps a live instance's task alive past its first deadline.
+  await new Promise((r) => setTimeout(r, 250));
+  assert.ok((await renewTaskLeases(pool, lease)) >= 1);
+  await new Promise((r) => setTimeout(r, 250));
+  assert.equal(await reapExpiredTasks(pool), 0, 'a renewed lease is not reaped');
+
+  // A dead instance renews nothing: the task is failed with a reason.
+  await new Promise((r) => setTimeout(r, 500));
+  assert.equal(await reapExpiredTasks(pool), 1);
+  const reaped = await store.load('run', as);
+  assert.equal((reaped as any).status.state, 4);
+  assert.match((reaped as any).status.message.parts[0].content.value, /stopped before it finished/);
+  assert.equal((await row('run')).lease_owner, null);
+  assert.equal((await row('done')).state, 3, 'finished tasks are untouched');
+});

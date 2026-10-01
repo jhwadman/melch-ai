@@ -134,6 +134,12 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **A task whose server died is failed, not stuck** (migration
+  `0006_task_leases.sql`, Postgres storage). A running task is leased to the
+  instance running it and renewed on a heartbeat; when the lease expires
+  another instance marks it `failed` with a message saying the server
+  stopped. Apply the migration (`npx melchizedek-db apply`); the boot check
+  requires it.
 - **One turn at a time per conversation.** A second message on a
   conversation whose turn is still running waits for it (up to
   `A2A_TURN_LOCK_WAIT_MS`, default 30 s) and runs after it, seeing its
