@@ -87,6 +87,7 @@ before(async () => {
 after(async () => {
   if (skip) return;
   closing = true;
+  await storage?.close(); // its turn-lock pool; the main pool is ended below
   await pool?.end();
   await admin.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`);
   await admin.end();

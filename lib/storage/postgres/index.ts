@@ -71,14 +71,28 @@ export interface PostgresStorage {
   close: () => Promise<void>;
 }
 
+/**
+ * A pool emits 'error' when an idle connection dies (a database restart, a
+ * failover, an administrator's terminate); unhandled, that event crashes the
+ * process. The pool drops the dead client and opens a fresh one on the next
+ * query, so the right response is to log it and carry on.
+ */
+function survivesIdleErrors(p: pg.Pool, label: string): pg.Pool {
+  p.on('error', (err) => console.warn(`[storage] ${label}: an idle Postgres connection failed (${err.message}); it will be replaced.`));
+  return p;
+}
+
 export function postgresStorage(options: PostgresStorageOptions): PostgresStorage {
   const owned = !options.pool;
   const pool =
     options.pool ??
-    new pg.Pool({
-      connectionString: options.connectionString,
-      ...options.poolConfig,
-    });
+    survivesIdleErrors(
+      new pg.Pool({
+        connectionString: options.connectionString,
+        ...options.poolConfig,
+      }),
+      'pool',
+    );
   if (!options.pool && !options.connectionString && !options.poolConfig?.host) {
     throw new Error('postgresStorage needs a connectionString (e.g. DATABASE_URL) or a pool');
   }
@@ -94,10 +108,13 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
   // Turn locks hold a connection for a whole turn: their own small pool.
   let lockPool: pg.Pool | undefined;
   const locks = () =>
-    (lockPool ??= new pg.Pool({
-      ...(options.pool ? (options.pool as unknown as { options: PoolConfig }).options : { connectionString: options.connectionString, ...options.poolConfig }),
-      max: options.lockPoolMax ?? 20,
-    }));
+    (lockPool ??= survivesIdleErrors(
+      new pg.Pool({
+        ...(options.pool ? (options.pool as unknown as { options: PoolConfig }).options : { connectionString: options.connectionString, ...options.poolConfig }),
+        max: options.lockPoolMax ?? 20,
+      }),
+      'turn-lock pool',
+    ));
   const turnLock: TurnLock = async (key, { waitMs, signal }) => {
     const client = await locks().connect();
     const deadline = Date.now() + Math.max(0, waitMs);
