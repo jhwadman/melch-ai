@@ -5,41 +5,41 @@
     "at": "2026-10-01"
   },
   "stats": {
-    "nodes": 516,
-    "edges": 1190,
+    "nodes": 522,
+    "edges": 1203,
     "byKind": {
       "doc": 73,
       "provider": 5,
-      "env": 78,
+      "env": 79,
       "model": 7,
       "tool": 32,
-      "file": 53,
+      "file": 54,
       "syndicate": 29,
       "agent": 79,
       "mcp-server": 4,
-      "table": 12,
-      "module": 101,
-      "script": 41,
+      "table": 13,
+      "module": 103,
+      "script": 42,
       "external": 2
     },
     "byRelation": {
       "links_to": 181,
-      "requires_env": 128,
+      "requires_env": 131,
       "routes_to": 7,
-      "defined_in": 67,
+      "defined_in": 69,
       "documents": 53,
       "contains": 79,
       "uses_model": 79,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 278,
-      "reads_table": 21,
-      "runs": 59,
-      "derives_from": 172
+      "imports": 281,
+      "reads_table": 24,
+      "runs": 60,
+      "derives_from": 173
     },
     "byTier": {
-      "extracted": 1190,
+      "extracted": 1203,
       "inferred": 0
     },
     "isolated": 2
@@ -582,7 +582,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 625
+        "words": 734
       }
     },
     {
@@ -714,7 +714,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 6774
+        "words": 7794
       }
     },
     {
@@ -834,7 +834,7 @@
         "type": "overview",
         "status": "stable",
         "trust": "unverified",
-        "words": 262
+        "words": 263
       }
     },
     {
@@ -1981,6 +1981,12 @@
       "attrs": {}
     },
     {
+      "id": "env:MELCHIZEDEK_REGISTRY_AUTHOR",
+      "kind": "env",
+      "label": "MELCHIZEDEK_REGISTRY_AUTHOR",
+      "source": "scripts/registry.ts"
+    },
+    {
       "id": "env:MELCHIZEDEK_TASKS_FILE",
       "kind": "env",
       "label": "MELCHIZEDEK_TASKS_FILE",
@@ -2533,6 +2539,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0005_agent_registry.sql",
+      "kind": "file",
+      "label": "0005_agent_registry.sql",
+      "source": "db/migrations/0005_agent_registry.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -2822,7 +2835,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 539
+        "lines": 545
       }
     },
     {
@@ -3048,6 +3061,15 @@
       "source": "lib/persistence/supabaseProvider.ts",
       "attrs": {
         "lines": 154
+      }
+    },
+    {
+      "id": "module:lib/registry.ts",
+      "kind": "module",
+      "label": "lib/registry.ts",
+      "source": "lib/registry.ts",
+      "attrs": {
+        "lines": 187
       }
     },
     {
@@ -3528,6 +3550,15 @@
       }
     },
     {
+      "id": "module:scripts/registry.ts",
+      "kind": "module",
+      "label": "scripts/registry.ts",
+      "source": "scripts/registry.ts",
+      "attrs": {
+        "lines": 192
+      }
+    },
+    {
       "id": "module:scripts/science_mcp_server.ts",
       "kind": "module",
       "label": "scripts/science_mcp_server.ts",
@@ -3735,6 +3766,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/memory_admin.ts"
+      }
+    },
+    {
+      "id": "script:registry",
+      "kind": "script",
+      "label": "npm run registry",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/registry.ts"
       }
     },
     {
@@ -4329,7 +4369,16 @@
       "id": "table:adk_agent_registry",
       "kind": "table",
       "label": "adk_agent_registry",
-      "source": "db/hardening.sql",
+      "source": "db/migrations/0005_agent_registry.sql",
+      "attrs": {
+        "created_upstream": true
+      }
+    },
+    {
+      "id": "table:adk_agent_registry_versions",
+      "kind": "table",
+      "label": "adk_agent_registry_versions",
+      "source": "db/migrations/0005_agent_registry.sql",
       "attrs": {
         "created_upstream": true
       }
@@ -6281,6 +6330,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0005_agent_registry.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -6291,14 +6347,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:25"
+      "evidence": "/memory/schema.md:26"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:1227"
+      "evidence": "/memory/schema.md:1443"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -9074,6 +9130,13 @@
     },
     {
       "from": "module:lib/loadSyndicate.ts",
+      "to": "table:adk_agent_registry_versions",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
       "to": "env:MELCHIZEDEK_AGENTS_DIR",
       "rel": "requires_env",
       "tier": "extracted",
@@ -9806,6 +9869,27 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/persistence/supabaseProvider.ts"
+    },
+    {
+      "from": "module:lib/registry.ts",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/registry.ts"
+    },
+    {
+      "from": "module:lib/registry.ts",
+      "to": "table:adk_agent_registry",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/registry.ts"
+    },
+    {
+      "from": "module:lib/registry.ts",
+      "to": "table:adk_agent_registry_versions",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/registry.ts"
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
@@ -11124,6 +11208,41 @@
       "evidence": "scripts/purge_supabase.ts"
     },
     {
+      "from": "module:scripts/registry.ts",
+      "to": "module:lib/loadEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/registry.ts"
+    },
+    {
+      "from": "module:scripts/registry.ts",
+      "to": "module:lib/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/registry.ts"
+    },
+    {
+      "from": "module:scripts/registry.ts",
+      "to": "env:MELCHIZEDEK_REGISTRY_AUTHOR",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/registry.ts"
+    },
+    {
+      "from": "module:scripts/registry.ts",
+      "to": "env:SUPABASE_SERVICE_ROLE_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/registry.ts"
+    },
+    {
+      "from": "module:scripts/registry.ts",
+      "to": "env:SUPABASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/registry.ts"
+    },
+    {
       "from": "module:scripts/science_mcp_server.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
@@ -11665,6 +11784,13 @@
     {
       "from": "script:memory",
       "to": "module:scripts/memory_admin.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:registry",
+      "to": "module:scripts/registry.ts",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"
@@ -12760,6 +12886,20 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "db/migrations/0003_postgres_storage.sql"
+    },
+    {
+      "from": "table:adk_agent_registry_versions",
+      "to": "file:db/migrations/0005_agent_registry.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0005_agent_registry.sql"
+    },
+    {
+      "from": "table:adk_agent_registry",
+      "to": "file:db/migrations/0005_agent_registry.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0005_agent_registry.sql"
     },
     {
       "from": "table:adk_labels",

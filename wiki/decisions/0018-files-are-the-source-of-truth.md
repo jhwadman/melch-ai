@@ -44,6 +44,8 @@ The public package shipped the registry preference but neither the table definit
 
 > **Note (2026-10-01):** Items 1 to 3 and the load-time validation are implemented. Items 4, 6 and 7 are not yet: `loadSyndicateFromRegistry` reads one `yaml_content` row per id through supabase-js, with no versions, author or active pointer; nested references still load from files; the table is not in `db/migrations/` (only `db/hardening.sql` locks it down), and no publishing tool ships in this repository, see [ADR 0021](/decisions/0021-postgres-first-storage.md).
 
+> **Note (2026-10-02):** Items 4 and 7 are now built. Migration `0005_agent_registry.sql` ships the registry table and an append-only `adk_agent_registry_versions` history (version, config hash, author, note, publish time); a trigger records a version on every write to the active row, so no publishing path can skip history, and re-activating a stored version is the rollback. `lib/registry.ts` and the `melchizedek-registry` bin publish (validating first), list, diff, roll back and retire; `registry:<id>@<version>` loads one stored version. The active row stays the pointer the server reads, so older tools keep working. Item 6 (nested references resolved from the registry version that named them) is still not built: a `yaml_reference` loads from files.
+
 ## Alternatives considered
 
 - **The registry as the single source of truth.** Rejected for the default: it removes git review from the most security-sensitive configuration, and needs a full control plane before it is safe.

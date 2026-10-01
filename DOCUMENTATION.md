@@ -520,6 +520,41 @@ Set `PUBLIC_URL`, `A2A_SERVER_SECRET` and the provider keys from your
 secret manager; give the orchestrator's stop timeout at least
 `A2A_SHUTDOWN_GRACE_MS`.
 
+#### The agent registry
+
+A file is the default home of a syndicate. The registry is for a definition
+an operator changes without a redeploy: `registry:<id>` loads it, and so does
+a bare id listed in `A2A_REGISTRY_AGENTS`. It lives in two tables (migration
+`0005_agent_registry.sql`):
+
+- `adk_agent_registry` — one row per id, the active definition. The server
+  reads only this table.
+- `adk_agent_registry_versions` — every definition an id has held, numbered
+  per id, with its config hash, author, note and publish time. It is
+  append-only: updates and deletes are refused.
+
+The database records a version on every write to the active table, whoever
+makes it, so history does not depend on the tool. Writing a definition an id
+already held re-activates that version rather than duplicating it, which is
+how a rollback works.
+
+```bash
+npx melchizedek-registry publish config/agents/desk.yaml desk --note "tighter triage"
+npx melchizedek-registry versions desk        # * marks the active version
+npx melchizedek-registry diff desk 3          # v3 against the active version
+npx melchizedek-registry rollback desk 3 --note "v4 misroutes refunds"
+npx melchizedek-registry retire desk --yes    # stop serving; history stays
+```
+
+`publish` and `rollback` validate against the same schema the loader uses
+before anything is written. The author recorded is
+`MELCHIZEDEK_REGISTRY_AUTHOR`, else the local user name; a direct write
+records the database role. `registry:<id>@<version>` loads one stored
+version (as the boot syndicate or from code), so a version can be tried
+before it is activated; the HTTP routes accept only active ids. A running
+server caches each agent for its lifetime: **restart it after a publish or
+a rollback.** The library is `melchizedek-agents/registry`.
+
 ### Plan-dispatch routing (`dispatch:`) — the second orchestration method
 
 A syndicate that declares a `dispatch:` block stops delegating and
@@ -691,8 +726,8 @@ by a person; `skills/README.md` records the procedure.
   by the anon key over REST. `db/hardening.sql` enables deny-by-default
   RLS and revokes anon/authenticated privileges on every table it finds:
   `adk_sessions`, `adk_memory_facts`, and — where they exist — the
-  optional `adk_telemetry` sink and `adk_agent_registry` (an unprotected
-  registry is worst of all: agent definitions writable with the anon key
+  optional `adk_telemetry` sink and `adk_agent_registry` with its version
+  history (an unprotected registry is worst of all: agent definitions writable with the anon key
   means anyone can rewrite the instructions your server boots). The A2A
   server verifies hardening at boot and is fatal on public deployments
   without it. Note `service_role` bypasses RLS by design — the hardening
