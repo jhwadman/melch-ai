@@ -86,6 +86,11 @@ BEGIN
     EXECUTE 'ALTER TABLE adk_agent_registry ENABLE ROW LEVEL SECURITY';
     EXECUTE 'REVOKE ALL ON adk_agent_registry FROM anon, authenticated';
   END IF;
+  -- Its history (migration 0005): every definition an id has held.
+  IF to_regclass('public.adk_agent_registry_versions') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE adk_agent_registry_versions ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'REVOKE ALL ON adk_agent_registry_versions FROM anon, authenticated';
+  END IF;
 END $$;
 
 -- ── FUNCTIONS: no API role may execute them ──────────────────────────────
@@ -112,7 +117,10 @@ BEGIN
     WHERE n.nspname = 'public'
       AND p.proname IN ('match_memory_facts', 'match_turns', 'melchizedek_prune_telemetry',
                         'melchizedek_prune_sessions', 'melchizedek_rls_status',
-                        'melchizedek_erase_scope', 'melchizedek_usage_add', 'melchizedek_prune_usage')
+                        'melchizedek_erase_scope', 'melchizedek_usage_add', 'melchizedek_prune_usage',
+                        'melchizedek_registry_hash', 'melchizedek_registry_record',
+                        'melchizedek_registry_versions_immutable', 'melchizedek_registry_publish',
+                        'melchizedek_registry_activate')
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', fn);
     IF has_service_role THEN
@@ -137,8 +145,8 @@ AS $$
   WHERE n.nspname = 'public'
     AND c.relname IN ('adk_memory_facts', 'adk_sessions', 'adk_telemetry',
                       'adk_turns', 'adk_payloads', 'adk_verdicts', 'adk_labels',
-                      'adk_agent_registry', 'adk_session_events', 'adk_a2a_tasks',
-                      'melchizedek_usage');
+                      'adk_agent_registry', 'adk_agent_registry_versions',
+                      'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage');
 $$;
 
 REVOKE ALL ON FUNCTION melchizedek_rls_status() FROM PUBLIC, anon, authenticated;

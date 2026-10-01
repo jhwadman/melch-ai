@@ -66,7 +66,7 @@ One server serves every syndicate the loader can see under `config/agents/` (roo
 - `/<agentId>/a2a/jsonrpc`
 - `/<agentId>/a2a/rest`
 
-The identifier `registry:<id>` boots a definition from the Supabase `adk_agent_registry` table instead of a file.
+The identifier `registry:<id>` boots a definition from the Supabase `adk_agent_registry` table instead of a file. The registry keeps every version: `npx melchizedek-registry publish <file> <id>` validates and publishes, `versions <id>` lists the history, and `rollback <id> <version>` re-activates an earlier one. Restart the server after either.
 
 The runtime compiles each per-agent configuration on the first request and caches it for the life of the process. Restart the server after editing a file. Each per-agent card advertises that agent's own `/<agentId>/a2a/...` URLs.
 

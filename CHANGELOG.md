@@ -128,6 +128,15 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **A versioned agent registry** (migration `0005_agent_registry.sql`, ADR
+  0018). Every definition an id has held is kept in an append-only
+  `adk_agent_registry_versions`, with its author, note and config hash, and
+  the database records a version on every write to the active row, whoever
+  writes it. `npx melchizedek-registry publish|versions|show|diff|rollback|retire`
+  (library: `melchizedek-agents/registry`) validates before it writes;
+  rollback re-activates a stored version. `registry:<id>@<version>` loads one
+  version. Existing rows become version 1 when the migration runs:
+  **`npx melchizedek-db apply`** to install it.
 - **The source moved to [github.com/jhwadman/melch-ai](https://github.com/jhwadman/melch-ai).**
   The package name stays `melchizedek-agents`; `repository`, `homepage` and
   `bugs` point at the new repository, which now holds the engine, its tests

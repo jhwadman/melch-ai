@@ -520,11 +520,17 @@ export async function loadSyndicateFromRegistry(
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const { data, error } = await supabase
-    .from('adk_agent_registry')
-    .select('yaml_content')
-    .eq('id', registryId)
-    .single();
+  // `<id>@<version>` loads one stored version (migration 0005), for trying a
+  // version before activating it; a bare id loads the active definition.
+  const pinned = /^(.+)@(\d+)$/.exec(registryId);
+  const { data, error } = pinned
+    ? await supabase
+        .from('adk_agent_registry_versions')
+        .select('yaml_content')
+        .eq('id', pinned[1]!)
+        .eq('version', Number(pinned[2]))
+        .maybeSingle()
+    : await supabase.from('adk_agent_registry').select('yaml_content').eq('id', registryId).single();
 
   if (error || !data) {
     throw new Error(`Registry document ${registryId} not found`);

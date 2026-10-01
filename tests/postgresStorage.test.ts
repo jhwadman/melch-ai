@@ -291,3 +291,42 @@ test('the usage store adds atomically under concurrency and reads back per day a
   assert.equal((await store.get('2026-10-02', 'caller:alpha')).tasks, 0);
   assert.equal((await store.get('2026-10-01', 'caller:beta')).tasks, 0);
 });
+
+// ── The versioned agent registry (migration 0005, ADR 0018) ───────────────
+const reg = (sql: string, params: unknown[] = []) => pool.query(sql, params).then((r) => r.rows);
+
+test('registry: publishing records versions, and identical content reuses one', { skip }, async () => {
+  const [{ v: v1 }] = await reg(`SELECT melchizedek_registry_publish('it_alpha', $1, 'alice', 'first') AS v`, [{ syndicate_name: 'A', n: 1 }]);
+  const [{ v: v2 }] = await reg(`SELECT melchizedek_registry_publish('it_alpha', $1, 'alice', 'second') AS v`, [{ syndicate_name: 'A', n: 2 }]);
+  const [{ v: same }] = await reg(`SELECT melchizedek_registry_publish('it_alpha', $1, 'alice') AS v`, [{ n: 2, syndicate_name: 'A' }]);
+  assert.deepEqual([v1, v2, same], [1, 2, 2]);
+  const versions = await reg(`SELECT version, published_by, note FROM adk_agent_registry_versions WHERE id = 'it_alpha' ORDER BY version`);
+  assert.deepEqual(versions, [
+    { version: 1, published_by: 'alice', note: 'first' },
+    { version: 2, published_by: 'alice', note: 'second' },
+  ]);
+});
+
+test('registry: rollback re-activates a stored version without adding one', { skip }, async () => {
+  const [{ v }] = await reg(`SELECT melchizedek_registry_activate('it_alpha', 1, 'bob') AS v`);
+  assert.equal(v, 1);
+  const [active] = await reg(`SELECT version, yaml_content->>'n' AS n, published_by FROM adk_agent_registry WHERE id = 'it_alpha'`);
+  assert.deepEqual(active, { version: 1, n: '1', published_by: 'bob' });
+  const [{ c }] = await reg(`SELECT count(*)::int AS c FROM adk_agent_registry_versions WHERE id = 'it_alpha'`);
+  assert.equal(c, 2);
+  await assert.rejects(reg(`SELECT melchizedek_registry_activate('it_alpha', 99, 'bob')`), /no version 99/);
+});
+
+test('registry: a direct write is versioned, history is append-only, retire keeps it', { skip }, async () => {
+  await reg(`INSERT INTO adk_agent_registry (id, yaml_content) VALUES ('it_beta', $1)
+             ON CONFLICT (id) DO UPDATE SET yaml_content = EXCLUDED.yaml_content`, [{ syndicate_name: 'B' }]);
+  await reg(`UPDATE adk_agent_registry SET yaml_content = $1 WHERE id = 'it_beta'`, [{ syndicate_name: 'B', x: true }]);
+  const [{ version }] = await reg(`SELECT version FROM adk_agent_registry WHERE id = 'it_beta'`);
+  assert.equal(version, 2);
+  await assert.rejects(reg(`UPDATE adk_agent_registry_versions SET note = 'x' WHERE id = 'it_beta'`), /append-only/);
+  await assert.rejects(reg(`DELETE FROM adk_agent_registry_versions WHERE id = 'it_beta'`), /append-only/);
+  await reg(`DELETE FROM adk_agent_registry WHERE id = 'it_beta'`);
+  const [{ c }] = await reg(`SELECT count(*)::int AS c FROM adk_agent_registry_versions WHERE id = 'it_beta'`);
+  assert.equal(c, 2, 'retiring an id keeps its history');
+  await assert.rejects(reg(`SELECT melchizedek_registry_publish('bad id!', '{}'::jsonb, 'x')`), /invalid registry id/);
+});
