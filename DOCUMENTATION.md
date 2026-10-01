@@ -499,8 +499,12 @@ rate-limit counters, the concurrency count and the memory high-water mark
 always live in the process. Tasks do too unless `DATABASE_URL` is set: then
 Postgres holds sessions, memory, A2A tasks and budget counters, and several
 replicas are safe behind one load balancer (rate limits and the concurrency
-cap then apply per replica). With Supabase only, or no store, run one
-replica.
+cap then apply per replica). With Postgres, a running task is leased to the
+instance running it (renewed every 20 s; `taskLeaseMs`, default 60 s): if
+that instance dies, another marks the task `failed` ("the server running
+this task stopped") instead of a client polling it forever, and one turn
+runs at a time per conversation across replicas. With Supabase only, or no
+store, run one replica.
 
 #### Posture at boot
 

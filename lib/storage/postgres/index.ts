@@ -21,7 +21,9 @@ import { ERASE_STORES } from '../../memory/erase.ts';
 import type { EraseCounts, EraseOptions } from '../../memory/erase.ts';
 import { postgresMemoryStore } from './memoryStore.ts';
 import { PostgresSessionService } from './sessionService.ts';
-import { PostgresTaskStore } from './taskStore.ts';
+import { PostgresTaskStore, reapExpiredTasks, renewTaskLeases } from './taskStore.ts';
+import { randomUUID } from 'node:crypto';
+import { hostname } from 'node:os';
 import type { ReleaseTurnLock, TurnLock } from '../../a2a/turnLock.ts';
 import type { PostgresTaskStoreOptions } from './taskStore.ts';
 
@@ -51,6 +53,12 @@ export interface PostgresStorageOptions {
    * Default 20; the A2A concurrency cap bounds what is used.
    */
   lockPoolMax?: number;
+  /**
+   * How long a running A2A task stays leased to this instance without a
+   * renewal before another instance may mark it failed (migration 0006).
+   * Default 60 s; renewed every third of it.
+   */
+  taskLeaseMs?: number;
 }
 
 export interface PostgresStorage {
@@ -67,6 +75,8 @@ export interface PostgresStorage {
    * crashed instance releases it when its connection drops (ADR 0021).
    */
   turnLock: TurnLock;
+  /** Task leases: renew this instance's, fail other instances' expired ones. */
+  leases: { instanceId: string; ttlMs: number; renew: () => Promise<number>; reap: () => Promise<number> };
   /** Closes the pool when this module created it, and the lock pool. */
   close: () => Promise<void>;
 }
@@ -98,6 +108,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
   }
 
   const sessionService = new PostgresSessionService(pool, { ttlDays: options.ttlDays });
+  const lease = { instanceId: `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`, ttlMs: options.taskLeaseMs ?? 60_000 };
   const memoryService = options.memory
     ? new SupabaseVectorMemoryService(
         { apiKey: options.memory.apiKey ?? '', extractor: options.memory.extractor, embedder: options.memory.embedder },
@@ -152,7 +163,8 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
     sessionService,
     turnLock,
     ...(memoryService ? { memoryService } : {}),
-    taskStore: (agentId) => new PostgresTaskStore(pool, agentId, { ttlDays: options.ttlDays, ownerResolver: options.taskOwner }),
+    taskStore: (agentId) => new PostgresTaskStore(pool, agentId, { ttlDays: options.ttlDays, ownerResolver: options.taskOwner, lease }),
+    leases: { ...lease, renew: () => renewTaskLeases(pool, lease), reap: () => reapExpiredTasks(pool) },
     async schemaVersion() {
       try {
         const r = await pool.query('SELECT max(version) AS v FROM melchizedek_schema_version');

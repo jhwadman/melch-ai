@@ -5,15 +5,15 @@
     "at": "2026-10-01"
   },
   "stats": {
-    "nodes": 526,
-    "edges": 1212,
+    "nodes": 527,
+    "edges": 1213,
     "byKind": {
       "doc": 73,
       "provider": 5,
       "env": 81,
       "model": 7,
       "tool": 32,
-      "file": 54,
+      "file": 55,
       "syndicate": 29,
       "agent": 79,
       "mcp-server": 4,
@@ -36,10 +36,10 @@
       "imports": 286,
       "reads_table": 26,
       "runs": 60,
-      "derives_from": 173
+      "derives_from": 174
     },
     "byTier": {
-      "extracted": 1212,
+      "extracted": 1213,
       "inferred": 0
     },
     "isolated": 2
@@ -618,7 +618,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 833
+        "words": 901
       }
     },
     {
@@ -714,7 +714,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7794
+        "words": 7995
       }
     },
     {
@@ -2558,6 +2558,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0006_task_leases.sql",
+      "kind": "file",
+      "label": "0006_task_leases.sql",
+      "source": "db/migrations/0006_task_leases.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -2721,7 +2728,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 913
+        "lines": 947
       }
     },
     {
@@ -3144,7 +3151,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 168
+        "lines": 197
       }
     },
     {
@@ -3171,7 +3178,7 @@
       "label": "lib/storage/postgres/taskStore.ts",
       "source": "lib/storage/postgres/taskStore.ts",
       "attrs": {
-        "lines": 144
+        "lines": 230
       }
     },
     {
@@ -4393,7 +4400,10 @@
       "id": "table:adk_a2a_tasks",
       "kind": "table",
       "label": "adk_a2a_tasks",
-      "source": "db/migrations/0003_postgres_storage.sql"
+      "source": "db/migrations/0006_task_leases.sql",
+      "attrs": {
+        "created_upstream": true
+      }
     },
     {
       "id": "table:adk_agent_registry",
@@ -5957,7 +5967,7 @@
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0021-postgres-first-storage.md:60"
+      "evidence": "/decisions/0021-postgres-first-storage.md:62"
     },
     {
       "from": "/decisions/0021-postgres-first-storage.md",
@@ -5978,7 +5988,7 @@
       "to": "/decisions/0026-governance-policy-and-visibility.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0021-postgres-first-storage.md:58"
+      "evidence": "/decisions/0021-postgres-first-storage.md:55"
     },
     {
       "from": "/decisions/0022-public-source-of-truth.md",
@@ -6367,6 +6377,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0006_task_leases.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -6377,14 +6394,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:26"
+      "evidence": "/memory/schema.md:27"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:1443"
+      "evidence": "/memory/schema.md:1476"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
