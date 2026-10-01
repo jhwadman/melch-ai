@@ -20,6 +20,8 @@ sources:
 Model string routing relies on a single prefix table in `lib/models/providerMap.ts` across two distinct resolution paths. Standard entrypoints passing model names as strings rely on `registerAvailableProviders()`, which registers adapter classes into the ADK `LLMRegistry` to match string patterns such as `claude-*`, `gpt-*`, or `ollama/<model>`. In contrast, per-request paths like the [A2A server](/protocols/a2a.md) use `resolveModel()`, an instance factory that injects custom header credentials directly into new adapter instances. `runSyndicateTurn` calls `registerAvailableProviders()` itself whenever its caller passes no `compile.resolveModel`, so a string id never reaches ADK's own Gemini class, which would bypass the turn's step cap and cancellation.
 
 All provider registration must occur before constructing agents. The `LLMRegistry` maintains an internal cache for model-to-class resolutions, meaning late registration can lead to stale cache hits that fail to resolve newly available providers.
+
+The chat-completions adapters (Ollama and the gateways, both over `lib/models/openAiCompatibleLlm.ts`) read `finish_reason`. A turn that ends with reasoning but neither reply text nor a tool call is an error, never an empty reply: `<PROVIDER>_MAX_TOKENS` when the provider reports `length`, `<PROVIDER>_EMPTY_RESPONSE` when the model stopped after thinking ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)). On Ollama, `length` almost always means the 4,096-token default context window, which the `/v1` path cannot raise; [failure modes](/operations/failure-modes.md) lists the remedies.
 <!-- /wiki:fill -->
 
 <!-- wiki:generated section="providers" source="lib/models/providerMap.ts" -->

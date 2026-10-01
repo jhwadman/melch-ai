@@ -106,6 +106,20 @@ the starter pack and the templates), not the repo's full history.
   minutes (`XAI_TIMEOUT_MS`).
 - **`db/hardening.sql` revokes function execution from `PUBLIC`**, so the
   anon key cannot call `SECURITY DEFINER` functions. **Re-run it.**
+- **A thinking model that runs out of room says so instead of answering
+  empty.** On the chat-completions path (Ollama, gateways) a turn that ends
+  with reasoning but no reply now yields `<PROVIDER>_MAX_TOKENS` when
+  `finish_reason` is `length` (the reply never started), or
+  `<PROVIDER>_EMPTY_RESPONSE` when the model stopped after thinking. Before,
+  ADK dropped the empty final, logged "The last event is partial", and the
+  turn returned empty text while still billing the thinking tokens. On Ollama
+  the cause is usually its 4,096-token context window, which `/v1` cannot
+  raise (`num_ctx` is ignored); the error names the remedies. A `<think>`
+  block that never closed is scratchpad, never reply text, and a reply cut
+  short keeps its text with `finishReason: MAX_TOKENS`.
+  The `model_zoo` example's `qwen_local` agent sets
+  `generateContentConfig.reasoningEffort: "none"`, so `npm run demo:models`
+  gets an answer from the local model (ADR 0027).
 
 ### New
 
