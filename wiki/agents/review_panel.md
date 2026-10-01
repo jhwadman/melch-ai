@@ -29,5 +29,5 @@ Memory is `internal-only`: each review stands alone. Serve it with `npm run star
 |---|---|---|---|
 | Correctness | `gemini-3.8-flash` | — | — |
 | Risk | `gemini-3.8-flash` | — | — |
-| Operability | `gemini-3.1-flash-lite` | — | — |
+| Operability | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

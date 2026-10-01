@@ -88,7 +88,7 @@ orchestrator:
 subagents:
   - name: Scout
     description: "Finds candidate pages for one search brief and returns up to five, each as URL, publisher, date and one line on why it is worth reading. Reads nothing in full. Pass one search brief."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     tools:
       - web_search
     instruction: |
@@ -120,7 +120,7 @@ subagents:
         includeThoughts: false
   - name: Reader
     description: "Opens up to six URLs and returns quoted notes on the question: each claim with the exact sentence it rests on, the publisher, the page's own URL and its date. Pass the URLs and the question."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     tools:
       - web_extract
     instruction: |

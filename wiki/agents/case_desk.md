@@ -27,6 +27,6 @@ Memory is `session-only`: the thread persists in the session store, so the same 
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| Runbooks | `gemini-3.1-flash-lite` | `wiki_search`, `wiki_read`, `wiki_links` | — |
-| Reader | `gemini-3.1-flash-lite` | `web_extract` | — |
+| Runbooks | `gemini-3.5-flash-lite` | `wiki_search`, `wiki_read`, `wiki_links` | — |
+| Reader | `gemini-3.5-flash-lite` | `web_extract` | — |
 <!-- /wiki:generated -->

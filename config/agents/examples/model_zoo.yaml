@@ -51,7 +51,7 @@ variables:
 
 orchestrator:
   name: "Zookeeper"
-  model: "gemini-3.1-flash-lite"
+  model: "gemini-3.5-flash-lite"
   instruction: |
     You are the Zookeeper. You route each question to one or more of five
     explainer agents, one per model provider: qwen_local, claude, grok, gpt
@@ -145,5 +145,5 @@ subagents:
 
   - name: "gemini"
     description: "Gemini Flash Lite, by Google. Pass the question word for word; returns a plain explanation of at most three paragraphs."
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     instruction: "{{explainer}}"

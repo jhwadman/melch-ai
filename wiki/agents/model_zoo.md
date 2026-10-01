@@ -19,7 +19,7 @@ The Model Zoo syndicate serves as a proof of model optionality, demonstrating ho
 
 <!-- wiki:generated section="composition" source="config/agents/examples/model_zoo.yaml" -->
 - memory: `session-only`
-- orchestrator: **Zookeeper** (`gemini-3.1-flash-lite`)
+- orchestrator: **Zookeeper** (`gemini-3.5-flash-lite`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
@@ -27,5 +27,5 @@ The Model Zoo syndicate serves as a proof of model optionality, demonstrating ho
 | claude | `claude-sonnet-4-6` | — | — |
 | grok | `grok-4.7` | — | — |
 | gpt | `gpt-5-mini` | — | — |
-| gemini | `gemini-3.1-flash-lite` | — | — |
+| gemini | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

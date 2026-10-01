@@ -134,7 +134,7 @@ orchestrator:
 subagents:
   - name: Runbooks
     description: "Finds the relevant procedure, known issue or past postmortem in the team's runbook bundle. Pass the symptom in plain words. Returns MATCH / STEPS / CAUTIONS, or \"no matching runbook\"."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     tools:
       - wiki_search
       - wiki_read
@@ -163,7 +163,7 @@ subagents:
         includeThoughts: false
   - name: Reader
     description: "Opens a status page, vendor documentation page or log link and reports what it says about the question. Pass the URL and the question. Returns quoted lines per URL, \"not addressed\", or \"could not read\" with the reason."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     tools:
       - web_extract
     instruction: |

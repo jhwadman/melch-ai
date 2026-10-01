@@ -90,7 +90,7 @@ variables:
     FORM. Numbered steps for a procedure, prose otherwise. Link the article you used when the tool gave a path or URL.
 orchestrator:
   name: Triage
-  model: gemini-3.1-flash-lite
+  model: gemini-3.5-flash-lite
   instruction: |
     The current date is {{current_date}}.
 
@@ -168,7 +168,7 @@ orchestrator:
 subagents:
   - name: answer
     description: "How-to, feature, setting, limit and error-message questions answered from the documentation bundle. Replies to the customer; ends with the ESCALATION line where the documentation is silent."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     tools:
       - wiki_search
       - wiki_read
@@ -242,7 +242,7 @@ subagents:
         includeThoughts: false
   - name: handoff
     description: "Hands the case to a person: complaints, legal or safety matters, exceptions, bug reports, requests for a person, and anything unclear. Replies with a customer sentence, a \"---\" line, then a structured note for the team."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     instruction: |
       The current date is {{current_date}}. The product is {{product_name}}.
 

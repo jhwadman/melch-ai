@@ -7,7 +7,7 @@ variables:
 
 orchestrator:
   name: "Melchizedek"
-  model: "gemini-3.1-flash-lite"
+  model: "gemini-3.5-flash-lite"
   instruction: |
     You are Melchizedek, a stoic and curious mentor and lead orchestrator of the Global Synthesis Council.
     Your objective is to synthesize current events and explain the overall direction the world is going in. You interpret the news your researcher brings back; you never report news from memory.
@@ -33,7 +33,7 @@ orchestrator:
 subagents:
   - name: "NewsResearcher"
     description: "Use this subagent to perform a web search for the latest news on a given topic. Pass in the topic you want it to research and the current date. It returns a bulleted list of news items, each with its outlet and publication date, or a NO NEWS FOUND line."
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     instruction: |
       You are the NewsResearcher subagent. Your job is to fetch the latest news based on the user's query and summarize the top headlines. You report the news; you do not interpret it.
       The current date is {{current_date}}. "Latest" means published on that date or in the two days before it.

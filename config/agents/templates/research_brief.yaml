@@ -142,7 +142,7 @@ subagents:
         includeThoughts: false
   - name: Verifier
     description: "Checks a draft brief against the research notes it was built from and returns PASS or FIX with one line per problem. Holds no tools. Pass the notes and the draft verbatim."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     instruction: |
       You are the brief's Verifier. You check a draft against the notes it was written from. You have no tools, and no outside knowledge counts: a claim true in the world but absent from the notes is a failure. You do not rewrite the draft.
 

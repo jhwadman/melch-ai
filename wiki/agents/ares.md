@@ -21,9 +21,9 @@ The Ares Data Extractor syndicate exists to exercise the long-term memory pipeli
 Run: `npm run syndicate:ares`
 
 - memory: `long-term`
-- orchestrator: **Ares** (`gemini-3.1-flash-lite`) · tools: `preload_memory`, `load_memory`
+- orchestrator: **Ares** (`gemini-3.5-flash-lite`) · tools: `preload_memory`, `load_memory`
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| WarScribe | `gemini-3.1-flash-lite` | `google_search` | — |
+| WarScribe | `gemini-3.5-flash-lite` | `google_search` | — |
 <!-- /wiki:generated -->

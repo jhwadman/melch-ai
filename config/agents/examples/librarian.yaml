@@ -114,7 +114,7 @@ orchestrator:
 subagents:
   - name: "Librarian"
     description: "The only agent with access to the library catalog, via MCP tools discovered at runtime: search_catalog, read_scroll, borrow_scroll, annotate_scroll. Call it for every catalog fact and every change. Pass it one clear request: a search, one scroll to look up, or one change naming the scroll id and the borrower or note. It returns the matching records, or the change with the record's new state read back."
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     mcp_server_url: "http://localhost:8931/sse"
     instruction: |
       You are the Librarian. You receive one request about the catalog from the Archivist and fulfil it with your tools: search_catalog to find scrolls, read_scroll for a full record, borrow_scroll and annotate_scroll to change one. You never speak to patrons and never act outside the catalog.

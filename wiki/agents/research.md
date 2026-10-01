@@ -23,11 +23,11 @@ Research reports evidence and does not give advice. It declines to direct treatm
 
 <!-- wiki:generated section="composition" source="config/agents/examples/research.yaml" -->
 - memory: `session-only`
-- orchestrator: **Triage** (`gemini-3.1-flash-lite`)
+- orchestrator: **Triage** (`gemini-3.5-flash-lite`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| define | `gemini-3.1-flash-lite` | — | — |
-| lookup | `gemini-3.1-flash-lite` | `resolve_identifier`, `search_trials`, `search_literature`, `check_retraction`, `cited_by` | — |
+| define | `gemini-3.5-flash-lite` | — | — |
+| lookup | `gemini-3.5-flash-lite` | `resolve_identifier`, `search_trials`, `search_literature`, `check_retraction`, `cited_by` | — |
 | landscape | `gemini-3.8-flash` | `search_trials`, `search_literature`, `search_preprints`, `resolve_identifier`, `cited_by`, `survey_field`, `check_retraction` | — |
 <!-- /wiki:generated -->

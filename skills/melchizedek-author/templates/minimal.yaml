@@ -42,7 +42,7 @@ subagents:
     # The description is the routing API: the orchestrator picks a subagent by
     # reading it. Say what to pass and when to call.
     description: "<Does one job. Pass it <what>.>"
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     tools: []                       # registered names, e.g. web_search, web_extract
     instruction: |
       You are Worker. <The one job, its inputs, and the exact shape of the

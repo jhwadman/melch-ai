@@ -28,5 +28,5 @@ Run: `npm run syndicate:cartographers`
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
 | Surveyor | `gemini-3.8-flash` | `wiki_map`, `wiki_search`, `wiki_read`, `wiki_links`, `wiki_graph` | — |
-| Registrar | `gemini-3.1-flash-lite` | `wiki_graph`, `wiki_read`, `wiki_relate` | — |
+| Registrar | `gemini-3.5-flash-lite` | `wiki_graph`, `wiki_read`, `wiki_relate` | — |
 <!-- /wiki:generated -->

@@ -37,9 +37,9 @@ function base(): Record<string, any> {
   return {
     syndicate_name: 'Test',
     memory_system: 'internal-only',
-    orchestrator: { name: 'Lead', model: 'gemini-3.1-flash-lite', instruction: 'Lead.' },
+    orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'Lead.' },
     subagents: [
-      { name: 'Helper', description: 'Helps.', model: 'gemini-3.1-flash-lite', instruction: 'Help.' },
+      { name: 'Helper', description: 'Helps.', model: 'gemini-3.5-flash-lite', instruction: 'Help.' },
     ],
   };
 }

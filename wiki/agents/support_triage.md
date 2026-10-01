@@ -23,11 +23,11 @@ Memory is `session-only`. The classifier sees a digest of recent turns (`lib/ses
 
 <!-- wiki:generated section="composition" source="config/agents/templates/support_triage.yaml" -->
 - memory: `session-only` · max_steps: 12
-- orchestrator: **Triage** (`gemini-3.1-flash-lite`)
+- orchestrator: **Triage** (`gemini-3.5-flash-lite`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| answer | `gemini-3.1-flash-lite` | `wiki_search`, `wiki_read`, `wiki_links` | — |
+| answer | `gemini-3.5-flash-lite` | `wiki_search`, `wiki_read`, `wiki_links` | — |
 | account | `gemini-3.8-flash` | — | `mcp_server_url` |
-| handoff | `gemini-3.1-flash-lite` | — | — |
+| handoff | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

@@ -25,5 +25,5 @@ Run: `npm run syndicate:advocate`
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
-| MedScribe | `gemini-3.1-flash-lite` | `google_search` | — |
+| MedScribe | `gemini-3.5-flash-lite` | `google_search` | — |
 <!-- /wiki:generated -->

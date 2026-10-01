@@ -123,13 +123,13 @@ test('documented LlmAgent fields reach the compiled agent', async () => {
     syndicate_name: 'Passthrough',
     orchestrator: {
       name: 'Root',
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       instruction: 'x',
       globalInstruction: 'Be kind.',
       includeContents: 'none',
       outputKey: 'root_out',
     },
-    subagents: [{ name: 'Sub', model: 'gemini-3.1-flash-lite', instruction: 'y', includeContents: 'none', disallowTransferToPeers: true }],
+    subagents: [{ name: 'Sub', model: 'gemini-3.5-flash-lite', instruction: 'y', includeContents: 'none', disallowTransferToPeers: true }],
   } as any;
   const root = (await compileGraph(config)) as any;
   assert.strictEqual(root.includeContents, 'none');

@@ -23,10 +23,10 @@ Memory is `internal-only`: each piece of writing is one sitting. Copy it, put yo
 
 <!-- wiki:generated section="composition" source="config/agents/templates/draft_review.yaml" -->
 - memory: `internal-only` · max_steps: 14
-- orchestrator: **Editor** (`gemini-3.1-flash-lite`)
+- orchestrator: **Editor** (`gemini-3.5-flash-lite`)
 
 | Subagent | Model | Tools | MCP |
 |---|---|---|---|
 | Drafter | `gemini-3.8-flash` | — | — |
-| Reviewer | `gemini-3.1-flash-lite` | — | — |
+| Reviewer | `gemini-3.5-flash-lite` | — | — |
 <!-- /wiki:generated -->

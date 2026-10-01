@@ -124,7 +124,7 @@ orchestrator:
 subagents:
   - name: "Seeker"
     description: "Answers one question from the knowledge bundle using navigation tools (wiki_map, wiki_search, wiki_read, wiki_links, wiki_dive), returning the substance plus the bundle paths it came from. Call it for anything about what the bundle contains or says. Pass it a single, specific question. It writes nothing."
-    model: "gemini-3.1-flash-lite"
+    model: "gemini-3.5-flash-lite"
     tools: ["wiki_map", "wiki_search", "wiki_read", "wiki_links", "wiki_dive"]
     instruction: |
       You are the Seeker. You receive one question and answer it from the knowledge bundle alone. You read; you never write, and you never answer beyond what the bundle holds.

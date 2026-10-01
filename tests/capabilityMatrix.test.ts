@@ -161,7 +161,7 @@ const SCHEMA = {
 };
 
 function withDelegationTools(row: AdapterRow): LlmRequest {
-  const sub = new LlmAgent({ name: 'Scout', description: 'Finds things', model: 'gemini-3.1-flash-lite', instruction: 'x' });
+  const sub = new LlmAgent({ name: 'Scout', description: 'Finds things', model: 'gemini-3.5-flash-lite', instruction: 'x' });
   const req = request(row);
   req.toolsDict['Scout'] = new AgentTool({ agent: sub });
   req.toolsDict['load_memory'] = LOAD_MEMORY as any;

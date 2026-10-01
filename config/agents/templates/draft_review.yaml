@@ -50,7 +50,7 @@ variables:
     6. Required: if the brief names a required line (a disclosure, a link, a sign-off), it appears verbatim.
 orchestrator:
   name: Editor
-  model: gemini-3.1-flash-lite
+  model: gemini-3.5-flash-lite
   instruction: |
     You run a drafting loop for outbound text. You never write or review the text yourself, and you do nothing but run the loop.
 
@@ -105,7 +105,7 @@ subagents:
         includeThoughts: false
   - name: Reviewer
     description: "Checks a draft against the brief and the policy, rule by rule. Pass the round line, the brief and the draft verbatim. Replies APPROVED, or REVISE with one line per problem."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     instruction: |
       You check a draft against a brief and a policy. You do not rewrite it.
 

@@ -22,7 +22,7 @@
  * Default Gemini model used by the A2A server when no model is specified
  * in the caller's YAML or request.
  *
- * Use gemini-3.1-flash-lite for lightweight/cost-efficient loads (subagents,
+ * Use gemini-3.5-flash-lite for lightweight/cost-efficient loads (subagents,
  * data retrieval). Use gemini-3.8-flash in YAML for production orchestrators.
  *
  * NOTE: gemini-2.5-flash is known incompatible with this framework's
@@ -31,7 +31,7 @@
  *
  * Supported Gemini identifiers: https://ai.google.dev/gemini-api/docs/models
  */
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
 /**
  * Default Claude model used by the A2A server when a claude-* model is

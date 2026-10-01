@@ -14,7 +14,7 @@ FACTS:
 How a model id routes:
 - The `model:` string's prefix names the provider: `claude-*` to Anthropic, `gpt-*` and `o<digit>*` to OpenAI, `grok-*` to xAI, `ollama/<model>` to a local Ollama, and everything else to Gemini (the ADK-native default).
 - There is no allowlist in the engine: any id a provider currently serves works as written. A new model is a one-line YAML change.
-- Ids verified in this deployment: `gemini-3.8-flash` (production), `gemini-3.1-flash-lite` (subagents, cost), `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5-20251001`, `gpt-5-mini`, `gpt-5`, `grok-4.7`, `ollama/qwen3:8b`.
+- Ids verified in this deployment: `gemini-3.8-flash` (production), `gemini-3.5-flash-lite` (subagents, cost), `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5-20251001`, `gpt-5-mini`, `gpt-5`, `grok-4.7`, `ollama/qwen3:8b`.
 - `gemini-2.5-flash` returns a 400 about tool call context circulation with the server-side tool flag the framework sets; use `gemini-3.8-flash` or newer.
 - Subagents inherit the orchestrator's `model` when they set none.
 Which key unlocks what:
@@ -43,5 +43,5 @@ Reading the errors:
 - `GATEWAY_KEY_MISSING`: `MODEL_GATEWAY` is set without `MODEL_GATEWAY_API_KEY`.
 - `OLLAMA_UNREACHABLE`: Ollama is not running (`ollama serve`) or the model is not pulled (`ollama list`).
 
-IDENTIFIERS (verbatim): model:, claude-*, gpt-*, grok-*, ollama/, gemini-3.8-flash, gemini-3.1-flash-lite, gemini-2.5-flash, ollama/qwen3:8b, GOOGLE_GENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, XAI_API_KEY, npx melchizedek-doctor, --json, --check, # tier:, ollama pull qwen3:8b, http://localhost:11434/v1, MODEL_GATEWAY, MODEL_GATEWAY_API_KEY, MODEL_GATEWAY_MODEL_MAP, MODEL_GATEWAY_BASE_URL, X-API-Key, generateContentConfig:, maxOutputTokens, thinkingConfig, model_zoo.yaml, npm run demo:models, registerAvailableProviders, GATEWAY_HTTP_ERROR, GATEWAY_KEY_MISSING, OLLAMA_UNREACHABLE, Model not found
+IDENTIFIERS (verbatim): model:, claude-*, gpt-*, grok-*, ollama/, gemini-3.8-flash, gemini-3.5-flash-lite, gemini-2.5-flash, ollama/qwen3:8b, GOOGLE_GENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, XAI_API_KEY, npx melchizedek-doctor, --json, --check, # tier:, ollama pull qwen3:8b, http://localhost:11434/v1, MODEL_GATEWAY, MODEL_GATEWAY_API_KEY, MODEL_GATEWAY_MODEL_MAP, MODEL_GATEWAY_BASE_URL, X-API-Key, generateContentConfig:, maxOutputTokens, thinkingConfig, model_zoo.yaml, npm run demo:models, registerAvailableProviders, GATEWAY_HTTP_ERROR, GATEWAY_KEY_MISSING, OLLAMA_UNREACHABLE, Model not found
 LIMITS: the routing prefixes may be a short table. Body under 160 lines.

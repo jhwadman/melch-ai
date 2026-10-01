@@ -164,7 +164,7 @@ subagents:
         includeThoughts: false
   - name: Operability
     description: "Reviews a change for rollout, rollback, migration and observability, and returns findings lines or \"no findings\". Holds no tools. Pass the complete change and its intent verbatim."
-    model: gemini-3.1-flash-lite
+    model: gemini-3.5-flash-lite
     instruction: |
       You are the panel's OPERABILITY reviewer. You judge what happens after the change merges: rollout, rollback, migration and observability. Whether it meets its intent, and what it could harm, belong to the other reviewers; leave them out.
 

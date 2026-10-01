@@ -226,7 +226,7 @@ test('a caller with no model resolver still gets the framework adapters (step ca
     config: {
       syndicate_name: 'Plain',
       memory_system: 'internal-only',
-      orchestrator: { name: 'Lead', model: 'gemini-3.1-flash-lite', instruction: 'Lead.' },
+      orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'Lead.' },
       subagents: [],
     } as SyndicateYamlConfig,
     parts: [{ text: 'hi' }],
@@ -237,7 +237,7 @@ test('a caller with no model resolver still gets the framework adapters (step ca
     signal: aborted.signal,
     trace: false,
   });
-  assert.equal(LLMRegistry.resolve('gemini-3.1-flash-lite'), TracedGemini);
+  assert.equal(LLMRegistry.resolve('gemini-3.5-flash-lite'), TracedGemini);
   assert.notEqual(r.status, 'completed');
   assert.equal(r.llmCalls, 0);
 });
