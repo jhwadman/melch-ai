@@ -144,5 +144,10 @@
     "@types/express": "^5.0.6",
     "@types/node": "^22",
     "typescript": "^7.0.2"
+  },
+  "overrides": {
+    "gaxios": {
+      "uuid": "^11.1.1"
+    }
   }
 }
