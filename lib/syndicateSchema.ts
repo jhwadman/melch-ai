@@ -206,6 +206,17 @@ export const syndicateSchema = z
       .string()
       .optional()
       .describe('Domain rules appended to the fact-extraction prompt (long-term memory only).'),
+    memory_extraction_model: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("The model that distils this syndicate's turns into memory records; default MEMORY_EXTRACTION_MODEL (ADR 0020)."),
+    memory_retention_days: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Days a memory fact is kept in this syndicate\'s namespace; older facts are deleted daily. Needs memory_namespace (ADR 0020).'),
     max_steps: z
       .number()
       .int()
@@ -382,6 +393,14 @@ const routeNorm = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
 function crossFieldProblems(raw: unknown): Problem[] {
   const out: Problem[] = [];
   if (!isObj(raw)) return out;
+  // Retention prunes a namespace; on the shared default namespace it would
+  // delete other syndicates' facts.
+  if (raw.memory_retention_days !== undefined && typeof raw.memory_namespace !== 'string') {
+    out.push({
+      path: ['memory_retention_days'],
+      message: 'needs memory_namespace — retention applies to one namespace, never to the shared default (npm run doctor -- --fix-namespaces <file>)',
+    });
+  }
   const subs = Array.isArray(raw.subagents) ? raw.subagents : [];
 
   subs.forEach((sub, i) => {

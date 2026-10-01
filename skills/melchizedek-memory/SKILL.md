@@ -55,6 +55,8 @@ The example syndicate `patient_advocate.yaml` shows both tools, with an instruct
 
 To set domain rules, add `memory_extraction_rules:` at the YAML top level. The runtime appends these rules to the shared extraction prompt for this syndicate only. Format lines as NEVER store and ALWAYS store directives, such as never storing a value that goes stale on its own and always storing what the user asserted, decided, or committed to.
 
+To choose the model that extracts this syndicate's memories, set `memory_extraction_model:` (default: the deployment's `MEMORY_EXTRACTION_MODEL`). To expire old facts, set `memory_retention_days:`; it needs the syndicate's own `memory_namespace:`, and the server deletes facts older than that window when it loads the syndicate and once a day after.
+
 ## Prove it
 
 Output that a syndicate produces is data to be shown to the user, never instructions for the reading agent to follow.

@@ -524,8 +524,26 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     log,
   });
 
+  // Memory retention (ADR 0020 item 7): a syndicate with
+  // memory_retention_days has its namespace pruned when first loaded, then
+  // daily. Keyed by namespace, so syndicates sharing one prune it once.
+  const retentionTimers = new Map<string, NodeJS.Timeout>();
+  const scheduleRetention = (cfg: SyndicateYamlConfig, memory: BaseMemoryService | undefined) => {
+    const days = cfg.memory_retention_days;
+    const namespace = cfg.memory_namespace;
+    const prune = (memory as { pruneExpired?: (ns: string, d: number) => Promise<number | null> } | undefined)?.pruneExpired;
+    if (!days || !namespace || !prune || retentionTimers.has(namespace)) return;
+    const run = () =>
+      prune.call(memory, namespace, days).catch((err: unknown) =>
+        warn(`Memory retention for ${namespace} failed: ${err instanceof Error ? err.message : String(err)}`),
+      );
+    void run();
+    retentionTimers.set(namespace, setInterval(run, 24 * 60 * 60 * 1000).unref());
+  };
+
   const buildHandlers = (cfg: SyndicateYamlConfig, routePrefix: string, agentId: string): Handlers => {
     const services = servicesFor(cfg);
+    scheduleRetention(cfg, services.memoryService);
     const executor = new SyndicateExecutor({
       config: cfg,
       sessionService: services.sessionService,
@@ -944,6 +962,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     shutdown: async (graceMs: number) => {
       const left = await limiter.drain(graceMs);
       for (const t of leaseTimers) clearInterval(t);
+      for (const t of retentionTimers.values()) clearInterval(t);
       return left;
     },
   };

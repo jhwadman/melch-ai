@@ -338,6 +338,7 @@ async function main(): Promise<void> {
 				userId: SESSION_USER_ID,
 				sessionId: SESSION_ID,
 				extractionRules: config.memory_extraction_rules,
+				extractionModel: config.memory_extraction_model,
 			});
 			console.log(ingested
 				? `${c.green}  ✓ Session ingested into long-term memory.${c.reset}`

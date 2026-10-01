@@ -61,6 +61,16 @@ memory_extraction_rules: |
   NEVER store: <values that go stale on their own>
   ALWAYS store: <what the user asserted, decided, or committed to>
 
+# [optional] The model that distils this syndicate's turns into memory
+# records. Default: the deployment's MEMORY_EXTRACTION_MODEL. A cheaper model
+# for a chatty desk, a stronger one where a missed fact costs more.
+memory_extraction_model: "gemini-3.8-flash"
+
+# [optional] Days a fact in this syndicate's namespace is kept; older facts
+# are deleted once a day by the server. Needs memory_namespace: retention
+# never applies to the shared default namespace.
+# memory_retention_days: 365
+
 # [optional] Switches this syndicate from DELEGATE to PLAN-DISPATCH.
 #
 #   DELEGATE (omit this block, the default): subagents become AgentTools on

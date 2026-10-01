@@ -167,6 +167,10 @@ export interface SyndicateYamlConfig {
    * Read by the A2A server at ingestion time; ignored without `long-term`.
    */
   memory_extraction_rules?: string;
+  /** Extraction model for this syndicate's memory; default MEMORY_EXTRACTION_MODEL. */
+  memory_extraction_model?: string;
+  /** Days facts in this syndicate's namespace are kept (needs memory_namespace). */
+  memory_retention_days?: number;
   /** Optional hard technical limit for maximum ADK runner loops (LLM -> Tool cycles). */
   max_steps?: number;
 }

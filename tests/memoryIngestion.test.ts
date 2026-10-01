@@ -163,3 +163,21 @@ test('an embedder that does not fit the stored column is refused at boot', async
   fake.state.dims = null;
   await svc.verifyEmbeddingDimensions();
 });
+
+test("a syndicate's memory_extraction_model distils its turns; others use the deployment's", async () => {
+  const fake = fakeSupabase();
+  const used: string[] = [];
+  const svc = new SupabaseVectorMemoryService(
+    {
+      apiKey: 'test',
+      extractor: { model: 'deployment-model', extract: async () => (used.push('deployment-model'), RECORD) },
+      embedder: { provider: 'fake', model: 'fake-embedder', dimensions: 768, embed: async (t) => t.map(() => VECTOR()) },
+      extractorFor: (model) => ({ model, extract: async () => (used.push(model), RECORD) }),
+    },
+    fake.client,
+  );
+  await svc.addSessionToMemory({ ...session(2), id: 'a' }, undefined, { extractionModel: 'cheap-model' });
+  await svc.addSessionToMemory({ ...session(2), id: 'b' });
+  await svc.addSessionToMemory({ ...session(2), id: 'c' }, undefined, { extractionModel: 'deployment-model' });
+  assert.deepStrictEqual(used, ['cheap-model', 'deployment-model', 'deployment-model']);
+});
