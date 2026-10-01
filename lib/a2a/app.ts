@@ -42,6 +42,8 @@ import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import { providerForModel, resolveModel } from '../models/registry.ts';
 import type { ProviderId } from '../models/registry.ts';
 import { createSupabaseServices, hasSupabaseCredentials } from '../persistence/supabaseProvider.ts';
+import { inProcessTurnLock } from './turnLock.ts';
+import type { TurnLock } from './turnLock.ts';
 import { compareSchema, schemaBehindMessage, shippedSchemaVersion } from '../storage/schemaVersion.ts';
 import { eraseScope } from '../memory/erase.ts';
 import type { EraseCounts } from '../memory/erase.ts';
@@ -98,7 +100,14 @@ export interface A2AAppOptions {
      * migrations this package ships (ADR 0021).
      */
     schemaVersion?: () => Promise<number | null>;
+    /**
+     * One turn at a time per conversation across instances (postgresStorage
+     * supplies an advisory lock). Default: a lock in this process.
+     */
+    turnLock?: TurnLock;
   };
+  /** How long a second turn on a busy conversation waits before it is refused, ms. Default 30 000. */
+  turnLockWaitMs?: number;
   /** Start even when the database is behind the shipped migrations (the bin: ALLOW_SCHEMA_MISMATCH=true). */
   allowSchemaMismatch?: boolean;
   /**
@@ -429,6 +438,9 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     }
   }
   const sessionBackend: A2AApp['sessionBackend'] = durableSessions ? 'durable' : 'in-memory';
+  // Shared by every executor, so a conversation is serialised whichever
+  // agent route reaches it.
+  const turnLock: TurnLock = options.storage?.turnLock ?? inProcessTurnLock();
 
   /**
    * Session and memory services for one syndicate, honouring its
@@ -487,6 +499,8 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       compileFor,
       taskTimeoutMs: options.taskTimeoutMs,
       streamText: options.streamText,
+      turnLock,
+      turnLockWaitMs: options.turnLockWaitMs,
       limiter,
       agentId,
       policy: options.policy,

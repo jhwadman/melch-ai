@@ -5,8 +5,8 @@
     "at": "2026-10-01"
   },
   "stats": {
-    "nodes": 525,
-    "edges": 1209,
+    "nodes": 526,
+    "edges": 1212,
     "byKind": {
       "doc": 73,
       "provider": 5,
@@ -18,7 +18,7 @@
       "agent": 79,
       "mcp-server": 4,
       "table": 13,
-      "module": 104,
+      "module": 105,
       "script": 42,
       "external": 2
     },
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 283,
+      "imports": 286,
       "reads_table": 26,
       "runs": 60,
       "derives_from": 173
     },
     "byTier": {
-      "extracted": 1209,
+      "extracted": 1212,
       "inferred": 0
     },
     "isolated": 2
@@ -618,7 +618,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 767
+        "words": 833
       }
     },
     {
@@ -2721,7 +2721,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 899
+        "lines": 913
       }
     },
     {
@@ -2730,7 +2730,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 553
+        "lines": 582
       }
     },
     {
@@ -2758,6 +2758,15 @@
       "source": "lib/a2a/remoteAgent.ts",
       "attrs": {
         "lines": 272
+      }
+    },
+    {
+      "id": "module:lib/a2a/turnLock.ts",
+      "kind": "module",
+      "label": "lib/a2a/turnLock.ts",
+      "source": "lib/a2a/turnLock.ts",
+      "attrs": {
+        "lines": 81
       }
     },
     {
@@ -3135,7 +3144,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 114
+        "lines": 168
       }
     },
     {
@@ -3477,7 +3486,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 419
+        "lines": 420
       }
     },
     {
@@ -5948,7 +5957,7 @@
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0021-postgres-first-storage.md:58"
+      "evidence": "/decisions/0021-postgres-first-storage.md:60"
     },
     {
       "from": "/decisions/0021-postgres-first-storage.md",
@@ -5969,7 +5978,7 @@
       "to": "/decisions/0026-governance-policy-and-visibility.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0021-postgres-first-storage.md:56"
+      "evidence": "/decisions/0021-postgres-first-storage.md:58"
     },
     {
       "from": "/decisions/0022-public-source-of-truth.md",
@@ -8696,6 +8705,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/a2a/turnLock.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/loadSyndicate.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -8767,6 +8783,13 @@
     {
       "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/a2a/policy.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/a2a/turnLock.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/executor.ts"
@@ -10009,6 +10032,13 @@
       "rel": "reads_table",
       "tier": "extracted",
       "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/a2a/turnLock.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
     },
     {
       "from": "module:lib/storage/postgres/index.ts",

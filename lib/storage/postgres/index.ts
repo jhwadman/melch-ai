@@ -22,6 +22,7 @@ import type { EraseCounts, EraseOptions } from '../../memory/erase.ts';
 import { postgresMemoryStore } from './memoryStore.ts';
 import { PostgresSessionService } from './sessionService.ts';
 import { PostgresTaskStore } from './taskStore.ts';
+import type { ReleaseTurnLock, TurnLock } from '../../a2a/turnLock.ts';
 import type { PostgresTaskStoreOptions } from './taskStore.ts';
 
 export { PostgresSessionService } from './sessionService.ts';
@@ -44,6 +45,12 @@ export interface PostgresStorageOptions {
   memory?: { apiKey?: string; extractor?: MemoryExtractor; embedder?: Embedder };
   /** Owner of an A2A call, for the task store. Default: the SDK's user scope. */
   taskOwner?: PostgresTaskStoreOptions['ownerResolver'];
+  /**
+   * Connections reserved for turn locks: each running turn holds one for its
+   * length, apart from the main pool so a long turn never starves queries.
+   * Default 20; the A2A concurrency cap bounds what is used.
+   */
+  lockPoolMax?: number;
 }
 
 export interface PostgresStorage {
@@ -54,7 +61,13 @@ export interface PostgresStorage {
   erase: (scopeKey: string, options?: EraseOptions) => Promise<EraseCounts>;
   /** The highest migration recorded in melchizedek_schema_version; null if none. */
   schemaVersion: () => Promise<number | null>;
-  /** Closes the pool when this module created it. */
+  /**
+   * One turn at a time per conversation, across every instance on this
+   * database: a session-level advisory lock on a dedicated connection, so a
+   * crashed instance releases it when its connection drops (ADR 0021).
+   */
+  turnLock: TurnLock;
+  /** Closes the pool when this module created it, and the lock pool. */
   close: () => Promise<void>;
 }
 
@@ -78,9 +91,49 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       )
     : undefined;
 
+  // Turn locks hold a connection for a whole turn: their own small pool.
+  let lockPool: pg.Pool | undefined;
+  const locks = () =>
+    (lockPool ??= new pg.Pool({
+      ...(options.pool ? (options.pool as unknown as { options: PoolConfig }).options : { connectionString: options.connectionString, ...options.poolConfig }),
+      max: options.lockPoolMax ?? 20,
+    }));
+  const turnLock: TurnLock = async (key, { waitMs, signal }) => {
+    const client = await locks().connect();
+    const deadline = Date.now() + Math.max(0, waitMs);
+    try {
+      for (;;) {
+        const r = await client.query('SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS ok', [key]);
+        if (r.rows[0]?.ok) break;
+        if (Date.now() >= deadline || signal?.aborted) {
+          client.release();
+          return null;
+        }
+        await new Promise((res) => setTimeout(res, Math.min(200, Math.max(10, deadline - Date.now()))));
+      }
+    } catch (err) {
+      client.release(err as Error);
+      throw err;
+    }
+    let released = false;
+    const release: ReleaseTurnLock = async () => {
+      if (released) return;
+      released = true;
+      try {
+        await client.query('SELECT pg_advisory_unlock(hashtextextended($1, 0))', [key]);
+        client.release();
+      } catch (err) {
+        // Dropping the connection releases a session-level lock too.
+        client.release(err as Error);
+      }
+    };
+    return release;
+  };
+
   return {
     pool,
     sessionService,
+    turnLock,
     ...(memoryService ? { memoryService } : {}),
     taskStore: (agentId) => new PostgresTaskStore(pool, agentId, { ttlDays: options.ttlDays, ownerResolver: options.taskOwner }),
     async schemaVersion() {
@@ -107,6 +160,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       return counts;
     },
     async close() {
+      if (lockPool) await lockPool.end();
       if (owned) await pool.end();
     },
   };
