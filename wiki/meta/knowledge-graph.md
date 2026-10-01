@@ -28,8 +28,8 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `module` | `module:<name>` | 103 | one source module |
-| `env` | `env:<name>` | 80 | an environment variable the code reads |
+| `module` | `module:<name>` | 104 | one source module |
+| `env` | `env:<name>` | 81 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 79 | one orchestrator or subagent inside a syndicate |
 | `doc` | `/dir/doc.md` | 73 | a concept document in the bundle — identity is its bundle path |
 | `file` | `file:<name>` | 54 | a repo file that is not a source module (DDL, config, prose) |
@@ -50,17 +50,17 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `imports` | extracted | A imports B | 281 | a static import edge between source files |
+| `imports` | extracted | A imports B | 283 | a static import edge between source files |
 | `links_to` | extracted | A links to B | 181 | a resolved markdown link between documents |
 | `derives_from` | extracted | A derives from B | 173 | declared in the document’s `sources:` frontmatter |
-| `requires_env` | extracted | A requires B | 132 | this environment variable must be set for the node to work |
+| `requires_env` | extracted | A requires B | 133 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 79 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 79 | the agent is configured with this model id |
 | `defined_in` | extracted | A is defined in B | 69 | where the thing is declared in source |
 | `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
 | `runs` | extracted | A runs B | 60 | an entrypoint — a script, a process, a worker — executes this |
 | `documents` | extracted | A documents B | 53 | the document derives from, and describes, this entity |
-| `reads_table` | extracted | A reads or writes B | 24 | the module names this table |
+| `reads_table` | extracted | A reads or writes B | 26 | the module names this table |
 | `routes_to` | extracted | A routes to B | 7 | the model id resolves to this provider adapter |
 | `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |

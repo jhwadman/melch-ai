@@ -52,6 +52,8 @@ export interface PostgresStorage {
   memoryService?: SupabaseVectorMemoryService;
   taskStore: (agentId: string) => PostgresTaskStore;
   erase: (scopeKey: string, options?: EraseOptions) => Promise<EraseCounts>;
+  /** The highest migration recorded in melchizedek_schema_version; null if none. */
+  schemaVersion: () => Promise<number | null>;
   /** Closes the pool when this module created it. */
   close: () => Promise<void>;
 }
@@ -81,6 +83,16 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
     sessionService,
     ...(memoryService ? { memoryService } : {}),
     taskStore: (agentId) => new PostgresTaskStore(pool, agentId, { ttlDays: options.ttlDays, ownerResolver: options.taskOwner }),
+    async schemaVersion() {
+      try {
+        const r = await pool.query('SELECT max(version) AS v FROM melchizedek_schema_version');
+        return r.rows[0]?.v == null ? null : Number(r.rows[0].v);
+      } catch (err) {
+        // No version table at all: the migrations were never applied.
+        if ((err as { code?: string }).code === '42P01') return null;
+        throw err;
+      }
+    },
     async erase(scopeKey, eraseOptions = {}) {
       if (!scopeKey?.trim()) throw new Error('erase: a scope key is required');
       const r = await pool.query('SELECT store, deleted FROM melchizedek_erase_scope($1, $2, $3)', [

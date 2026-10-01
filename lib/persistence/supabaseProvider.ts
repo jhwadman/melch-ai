@@ -31,6 +31,8 @@ export interface PersistenceServices {
   checkRlsHardening: () => Promise<RlsHardeningStatus>;
   /** RPC access for operations that span stores (lib/memory/erase.ts). */
   rpcClient: { rpc: (fn: string, args?: Record<string, unknown>) => any };
+  /** The highest migration recorded in melchizedek_schema_version; null if none. */
+  schemaVersion: () => Promise<number | null>;
 }
 
 export interface SupabaseProviderOptions {
@@ -149,5 +151,19 @@ export async function createSupabaseServices(
     }
   };
 
-  return { sessionService, memoryService, checkRlsHardening, rpcClient: supabase };
+  const schemaVersion = async (): Promise<number | null> => {
+    const { data, error } = await supabase
+      .from('melchizedek_schema_version')
+      .select('version')
+      .order('version', { ascending: false })
+      .limit(1);
+    if (error) {
+      // No version table: the migrations were never applied.
+      if (/does not exist|PGRST205|42P01/i.test(`${error.message} ${(error as { code?: string }).code ?? ''}`)) return null;
+      throw new Error(`Reading melchizedek_schema_version: ${error.message}`);
+    }
+    return data?.[0]?.version == null ? null : Number(data[0].version);
+  };
+
+  return { sessionService, memoryService, checkRlsHardening, rpcClient: supabase, schemaVersion };
 }

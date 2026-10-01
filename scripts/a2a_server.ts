@@ -269,6 +269,7 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
       requireHardenedDb: !!publicUrl && process.env.ALLOW_UNHARDENED_DB !== 'true',
       taskTimeoutMs: envInt('A2A_TASK_TIMEOUT_MS', 15 * 60 * 1000),
       streamText: process.env.A2A_STREAM_TEXT?.trim().toLowerCase() === 'true',
+      allowSchemaMismatch: process.env.ALLOW_SCHEMA_MISMATCH?.trim().toLowerCase() === 'true',
       maxConcurrentTasks: envInt('A2A_MAX_CONCURRENT_TASKS', 0),
       rateLimit: { windowMs: envInt('A2A_RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000), max: envInt('A2A_RATE_LIMIT_MAX', 60) },
       authFailureLimit: { windowMs: 15 * 60 * 1000, max: envInt('A2A_AUTH_FAILURE_MAX', 30) },

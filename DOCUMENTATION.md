@@ -504,8 +504,15 @@ Without `A2A_SERVER_SECRET` the server binds `127.0.0.1` only; binding
 another `HOST` requires the secret or `ALLOW_UNAUTHENTICATED=true`. With
 `PUBLIC_URL` set it refuses to start without the secret, with the
 `.env.example` placeholder as the secret, or against an unhardened
-database (unless `ALLOW_UNHARDENED_DB=true`). Conversation content is not
-printed to stdout unless `OTEL_CONSOLE_SPANS=true`.
+database (unless `ALLOW_UNHARDENED_DB=true`). With durable storage it reads
+`melchizedek_schema_version` and refuses to start on a database behind the
+migrations it ships, naming `melchizedek-db apply` (or
+`ALLOW_SCHEMA_MISMATCH=true` to start anyway); a database ahead of it only
+warns, so a rolling deploy can migrate first. Storage through supabase-js
+(Supabase credentials without `DATABASE_URL`) logs a deprecation notice:
+set `DATABASE_URL` to the database's Postgres connection string.
+Conversation content is not printed to stdout unless
+`OTEL_CONSOLE_SPANS=true`.
 
 #### Calling remote agents
 

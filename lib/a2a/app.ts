@@ -42,6 +42,7 @@ import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import { providerForModel, resolveModel } from '../models/registry.ts';
 import type { ProviderId } from '../models/registry.ts';
 import { createSupabaseServices, hasSupabaseCredentials } from '../persistence/supabaseProvider.ts';
+import { compareSchema, schemaBehindMessage, shippedSchemaVersion } from '../storage/schemaVersion.ts';
 import { eraseScope } from '../memory/erase.ts';
 import type { EraseCounts } from '../memory/erase.ts';
 import { namespacedMemoryService } from '../memory/namespace.ts';
@@ -91,7 +92,15 @@ export interface A2AAppOptions {
     taskStore?: (agentId: string) => TaskStore;
     /** Erase everything stored for a scope (DELETE /memory). Without it the route answers 501. */
     erase?: (scopeKey: string, options: { namespace?: string; includeNested?: boolean }) => Promise<EraseCounts>;
+    /**
+     * The database's recorded schema version (melchizedek_schema_version).
+     * When given, the server refuses to start on a database behind the
+     * migrations this package ships (ADR 0021).
+     */
+    schemaVersion?: () => Promise<number | null>;
   };
+  /** Start even when the database is behind the shipped migrations (the bin: ALLOW_SCHEMA_MISMATCH=true). */
+  allowSchemaMismatch?: boolean;
   /**
    * Who pays for models, and how a caller's data is scoped (ADR 0017).
    *  - 'server' (default): models run on the server's credentials (env, or
@@ -372,11 +381,16 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   let durableSessions: BaseSessionService | undefined;
   let memoryService: BaseMemoryService | undefined;
   let erase: NonNullable<A2AAppOptions['storage']>['erase'];
+  let readSchemaVersion: (() => Promise<number | null>) | undefined;
   if (options.storage) {
     durableSessions = options.storage.sessionService;
     memoryService = options.storage.memoryService;
     erase = options.storage.erase;
+    readSchemaVersion = options.storage.schemaVersion;
   } else if (hasSupabaseCredentials()) {
+    // ADR 0021 item 6: the supabase-js path stays for a transition period.
+    warn('Storage: supabase-js over the Supabase REST API is deprecated (ADR 0021). Set DATABASE_URL to the '
+      + "database's Postgres connection string to use postgresStorage instead.");
     // Embeddings and fact extraction use the SERVER's Gemini key: memory is
     // operator infrastructure, like tools.
     const services = await createSupabaseServices({
@@ -388,6 +402,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     durableSessions = services.sessionService;
     memoryService = services.memoryService;
     erase = (scopeKey, eraseOpts) => eraseScope(services.rpcClient, scopeKey, eraseOpts);
+    readSchemaVersion = services.schemaVersion;
     const rls = await services.checkRlsHardening();
     if (rls.applied) {
       log(`✓ DB hardening verified — ${rls.detail}.`);
@@ -398,6 +413,19 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       );
     } else {
       warn(`Supabase hardening not applied — ${rls.detail}. Run db/hardening.sql before serving real user data.`);
+    }
+  }
+  // ADR 0021 item 3: refuse a database behind the migrations this code needs.
+  if (readSchemaVersion) {
+    const check = compareSchema(await readSchemaVersion(), shippedSchemaVersion());
+    if (check.state === 'match') {
+      log(`✓ DB schema version ${check.shipped}.`);
+    } else if (check.state === 'ahead') {
+      warn(`DB schema version ${check.db} is newer than this server's ${check.shipped} (a later migration was applied first); continuing.`);
+    } else if (options.allowSchemaMismatch) {
+      warn(`${schemaBehindMessage(check)} Continuing because the mismatch is allowed.`);
+    } else {
+      throw new Error(schemaBehindMessage(check));
     }
   }
   const sessionBackend: A2AApp['sessionBackend'] = durableSessions ? 'durable' : 'in-memory';

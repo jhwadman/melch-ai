@@ -8,6 +8,12 @@ the starter pack and the templates), not the repo's full history.
 
 ### Breaking — read before upgrading
 
+- **The server refuses to start on a database behind its migrations.** With
+  durable storage it reads `melchizedek_schema_version` at boot; below the
+  highest migration this release ships (0005), it stops and names
+  `npx melchizedek-db apply`. `ALLOW_SCHEMA_MISMATCH=true` starts anyway. A
+  newer database only warns. supabase-js storage now logs its deprecation
+  (ADR 0021); set `DATABASE_URL` to move to `postgresStorage`.
 - **The default Gemini model is `gemini-3.5-flash-lite`** (was
   `gemini-3.1-flash-lite`): `DEFAULT_GEMINI_MODEL` in `lib/config.ts`, and every
   starter-pack, template and schema example that named the old id. An agent

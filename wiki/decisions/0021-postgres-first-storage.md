@@ -54,6 +54,8 @@ There was no plain-Postgres path and no migrations; the base schema existed only
 3. **Schema changes are numbered, idempotent migrations** in `db/migrations/`, shipped in the package and applied by `melchizedek db migrate`. A version table lets the server refuse a schema it does not match. The Markdown copies of the schema are generated from these files.
 
 > **Note (2026-10-01):** The migrations create their tables in the `public` schema, so the configurable private schema is not built yet and `db/hardening.sql` still applies. They are applied with `melchizedek-db apply` (`npm run db -- apply`), and the server does not yet check `melchizedek_schema_version`, see [ADR 0026](/decisions/0026-governance-policy-and-visibility.md).
+
+> **Note (2026-10-02):** The server now checks it: at boot it compares `melchizedek_schema_version` with the highest migration it ships and refuses to start on a database behind it (`ALLOW_SCHEMA_MISMATCH=true` overrides); a database ahead only warns. Choosing supabase-js storage now logs the deprecation of item 6, see [ADR 0017](/decisions/0017-plug-points.md).
 4. **Topology follows configuration.** With in-memory defaults the supported deployment is one instance. With Postgres storage plugged in, multiple instances are supported. Health and readiness routes and a draining shutdown exist in both.
 5. **Redis is an optional adapter for the limits plug point only,** for request rates Postgres counters do not suit. An adopter may also set limits off and let an API gateway enforce them.
 6. **`supabase-js` storage is deprecated.** It stays for one transition period, then is removed.
