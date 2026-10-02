@@ -84,6 +84,11 @@ the starter pack and the templates), not the repo's full history.
 
 ### Fixed — behaviour the docs promised
 
+- **The Postgres turn lock works with the server's keys.** It hashed the
+  key with Postgres' `hashtextextended`, and the server's keys are joined
+  with NUL separators, which Postgres text rejects: with `DATABASE_URL` set,
+  every A2A turn failed taking its lock. Keys are now hashed in Node to a
+  64-bit advisory-lock id.
 - **Moving to `DATABASE_URL` keeps conversation history.** The Supabase
   session service stores events as a JSON array on `adk_sessions`; the
   Postgres adapter stores rows, and read none of the array, so following the

@@ -25,7 +25,7 @@ import { PostgresTaskStore, reapExpiredTasks, renewTaskLeases } from './taskStor
 import { postgresTaskBackend } from './taskQueue.ts';
 import { searchPathOption } from '../schema.ts';
 import type { TaskBackend } from '../../tools/taskTools.ts';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
 import type { ReleaseTurnLock, TurnLock } from '../../a2a/turnLock.ts';
 import type { PostgresTaskStoreOptions } from './taskStore.ts';
@@ -103,6 +103,16 @@ function survivesIdleErrors(p: pg.Pool, label: string): pg.Pool {
   return p;
 }
 
+/**
+ * The advisory-lock id for a turn-lock key: the first 64 bits of its SHA-256,
+ * signed. Hashed here rather than with Postgres' hashtext, because a key is
+ * joined with NUL separators (lib/a2a/turnLock.ts) and Postgres text cannot
+ * hold a NUL byte. The same key gives the same id on every instance.
+ */
+export function advisoryLockId(key: string): string {
+  return BigInt.asIntN(64, BigInt(`0x${createHash('sha256').update(key).digest('hex').slice(0, 16)}`)).toString();
+}
+
 export function postgresStorage(options: PostgresStorageOptions): PostgresStorage {
   const owned = !options.pool;
   const pool =
@@ -139,11 +149,12 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       'turn-lock pool',
     ));
   const turnLock: TurnLock = async (key, { waitMs, signal }) => {
+    const lockId = advisoryLockId(key);
     const client = await locks().connect();
     const deadline = Date.now() + Math.max(0, waitMs);
     try {
       for (;;) {
-        const r = await client.query('SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS ok', [key]);
+        const r = await client.query('SELECT pg_try_advisory_lock($1::bigint) AS ok', [lockId]);
         if (r.rows[0]?.ok) break;
         if (Date.now() >= deadline || signal?.aborted) {
           client.release();
@@ -160,7 +171,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       if (released) return;
       released = true;
       try {
-        await client.query('SELECT pg_advisory_unlock(hashtextextended($1, 0))', [key]);
+        await client.query('SELECT pg_advisory_unlock($1::bigint)', [lockId]);
         client.release();
       } catch (err) {
         // Dropping the connection releases a session-level lock too.
