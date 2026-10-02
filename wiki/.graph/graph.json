@@ -822,7 +822,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 766
+        "words": 796
       }
     },
     {
@@ -3314,7 +3314,7 @@
       "label": "lib/storage/postgres/sessionService.ts",
       "source": "lib/storage/postgres/sessionService.ts",
       "attrs": {
-        "lines": 235
+        "lines": 277
       }
     },
     {

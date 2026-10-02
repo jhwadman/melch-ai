@@ -52,6 +52,26 @@ export function persistedDelta(delta: Record<string, unknown> | undefined): Reco
   return out;
 }
 
+/**
+ * A conversation written by the Supabase session service keeps its events as
+ * a JSON array on adk_sessions.events; this adapter keeps one row per event.
+ * Moving a deployment from one to the other (setting DATABASE_URL) must not
+ * cut every conversation off from its history, nor shift the event counts
+ * memory ingestion has recorded, so the first read or append of such a
+ * conversation copies its array into rows, in order. It runs only while the
+ * conversation has no rows, and leaves the array in place, so moving back is
+ * still possible.
+ */
+const IMPORT_LEGACY_EVENTS = `
+  INSERT INTO adk_session_events (session_id, seq, ts, event)
+  SELECT s.id, e.ord,
+         CASE WHEN jsonb_typeof(e.elem->'timestamp') = 'number' THEN (e.elem->>'timestamp')::double precision END,
+         e.elem
+    FROM adk_sessions s,
+         jsonb_array_elements(coalesce(s.events, '[]'::jsonb)) WITH ORDINALITY AS e(elem, ord)
+   WHERE s.id = $1
+     AND NOT EXISTS (SELECT 1 FROM adk_session_events WHERE session_id = $1)`;
+
 export class PostgresSessionService extends BaseSessionService {
   private readonly ttlMs: number;
   private readonly pool: Pool;
@@ -92,13 +112,33 @@ export class PostgresSessionService extends BaseSessionService {
     });
   }
 
+  /** Copy a legacy JSON history into rows, once, under the conversation's row lock. */
+  private async importLegacyEvents(id: string): Promise<void> {
+    const client: PoolClient = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT 1 FROM adk_sessions WHERE id = $1 FOR UPDATE', [id]);
+      await client.query(IMPORT_LEGACY_EVENTS, [id]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   async getSession(request: GetSessionRequest): Promise<Session | undefined> {
     const id = dbId(request.appName, request.userId, request.sessionId);
     const row = await this.pool.query(
-      'SELECT app_name, user_id, state, last_update_time FROM adk_sessions WHERE id = $1',
+      `SELECT app_name, user_id, state, last_update_time,
+              (jsonb_array_length(coalesce(events, '[]'::jsonb)) > 0
+               AND NOT EXISTS (SELECT 1 FROM adk_session_events WHERE session_id = $1)) AS legacy
+         FROM adk_sessions WHERE id = $1`,
       [id],
     );
     if (row.rowCount === 0) return undefined;
+    if (row.rows[0].legacy) await this.importLegacyEvents(id);
 
     const cfg = request.config ?? {};
     const params: unknown[] = [id];
@@ -208,6 +248,8 @@ export class PostgresSessionService extends BaseSessionService {
         );
         await client.query('SELECT 1 FROM adk_sessions WHERE id = $1 FOR UPDATE', [id]);
       }
+      // A conversation the Supabase service wrote: its history first.
+      await client.query(IMPORT_LEGACY_EVENTS, [id]);
       await client.query(
         `INSERT INTO adk_session_events (session_id, seq, ts, event)
          VALUES ($1, (SELECT coalesce(max(seq), 0) + 1 FROM adk_session_events WHERE session_id = $1), $2, $3::jsonb)`,

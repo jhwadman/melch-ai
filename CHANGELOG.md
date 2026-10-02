@@ -84,6 +84,13 @@ the starter pack and the templates), not the repo's full history.
 
 ### Fixed — behaviour the docs promised
 
+- **Moving to `DATABASE_URL` keeps conversation history.** The Supabase
+  session service stores events as a JSON array on `adk_sessions`; the
+  Postgres adapter stores rows, and read none of the array, so following the
+  deprecation notice cut every conversation off from its history (and shifted
+  memory ingestion's event counts). The first read or append of such a
+  conversation now copies its array into rows, once, in order; the array
+  stays, so moving back still works.
 - **Erase reaches every store** (migration `0010_erase_complete.sql`).
   `DELETE /memory` and `erase()` left the memory ingestion markers (scope key
   and conversation ids) and the task tools' list and jobs behind; they are now
