@@ -28,6 +28,7 @@ import { pathToFileURL } from 'node:url';
 import { loadEnv } from '../lib/loadEnv.ts';
 import { hasSupabaseCredentials } from '../lib/persistence/supabaseProvider.ts';
 import { packageDbDir } from '../lib/storage/schemaVersion.ts';
+import { dbSchema, sqlForSchema } from '../lib/storage/schema.ts';
 
 /** db/ of this package, from the source tree or from dist/. */
 const dbDir = packageDbDir;
@@ -82,12 +83,16 @@ async function main(): Promise<void> {
   loadEnv(import.meta.url);
   const [command, ...rest] = process.argv.slice(2).filter((a) => a !== '--');
   const withTelemetry = rest.includes('--telemetry');
+  // --schema <name> (or MELCHIZEDEK_DB_SCHEMA): install into a private schema.
+  const schemaFlag = rest.indexOf('--schema');
+  const schema = schemaFlag !== -1 ? dbSchema({ MELCHIZEDEK_DB_SCHEMA: rest[schemaFlag + 1] }) : dbSchema();
+  const sqlOf = (file: string) => sqlForSchema(readFileSync(join(dbDir(), file), 'utf-8'), schema);
 
   switch (command) {
     case 'print': {
       for (const file of installOrder(withTelemetry)) {
-        process.stdout.write(`\n-- ═════ db/${file} ═════\n`);
-        process.stdout.write(readFileSync(join(dbDir(), file), 'utf-8'));
+        process.stdout.write(`\n-- ═════ db/${file}${schema === 'public' ? '' : ` (schema ${schema})`} ═════\n`);
+        process.stdout.write(sqlOf(file));
       }
       return;
     }
@@ -99,9 +104,10 @@ async function main(): Promise<void> {
         process.exit(1);
       }
       for (const file of installOrder(withTelemetry)) {
-        console.log(`→ applying db/${file}`);
-        const r = spawnSync('psql', ['-v', 'ON_ERROR_STOP=1', '-q', '-f', join(dbDir(), file)], {
-          stdio: 'inherit',
+        console.log(`→ applying db/${file}${schema === 'public' ? '' : ` into schema ${schema}`}`);
+        const r = spawnSync('psql', ['-v', 'ON_ERROR_STOP=1', '-q', '-f', '-'], {
+          input: sqlOf(file),
+          stdio: ['pipe', 'inherit', 'inherit'],
           // The connection goes to psql as PG* variables, never as an
           // argument, so the password stays out of the process list.
           env: { ...process.env, ...pgEnv(url) },

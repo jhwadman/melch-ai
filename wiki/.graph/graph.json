@@ -5,12 +5,12 @@
     "at": "2026-10-02"
   },
   "stats": {
-    "nodes": 536,
-    "edges": 1232,
+    "nodes": 538,
+    "edges": 1237,
     "byKind": {
       "doc": 73,
       "provider": 5,
-      "env": 82,
+      "env": 83,
       "model": 7,
       "tool": 32,
       "file": 58,
@@ -18,13 +18,13 @@
       "agent": 79,
       "mcp-server": 4,
       "table": 16,
-      "module": 107,
+      "module": 108,
       "script": 42,
       "external": 2
     },
     "byRelation": {
       "links_to": 183,
-      "requires_env": 135,
+      "requires_env": 136,
       "routes_to": 7,
       "defined_in": 72,
       "documents": 53,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 293,
+      "imports": 297,
       "reads_table": 28,
       "runs": 60,
       "derives_from": 177
     },
     "byTier": {
-      "extracted": 1232,
+      "extracted": 1237,
       "inferred": 0
     },
     "isolated": 2
@@ -618,7 +618,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 992
+        "words": 1031
       }
     },
     {
@@ -810,7 +810,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 680
+        "words": 728
       }
     },
     {
@@ -1997,6 +1997,12 @@
       "label": "MELCHIZEDEK_AGENTS_DIR",
       "source": "scripts/doctor.ts",
       "attrs": {}
+    },
+    {
+      "id": "env:MELCHIZEDEK_DB_SCHEMA",
+      "kind": "env",
+      "label": "MELCHIZEDEK_DB_SCHEMA",
+      "source": "lib/storage/schema.ts"
     },
     {
       "id": "env:MELCHIZEDEK_REGISTRY_AUTHOR",
@@ -3187,7 +3193,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 202
+        "lines": 210
       }
     },
     {
@@ -3224,6 +3230,15 @@
       "source": "lib/storage/postgres/taskStore.ts",
       "attrs": {
         "lines": 230
+      }
+    },
+    {
+      "id": "module:lib/storage/schema.ts",
+      "kind": "module",
+      "label": "lib/storage/schema.ts",
+      "source": "lib/storage/schema.ts",
+      "attrs": {
+        "lines": 51
       }
     },
     {
@@ -3538,7 +3553,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 446
+        "lines": 452
       }
     },
     {
@@ -3547,7 +3562,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 207
+        "lines": 208
       }
     },
     {
@@ -3556,7 +3571,7 @@
       "label": "scripts/db.ts",
       "source": "scripts/db.ts",
       "attrs": {
-        "lines": 173
+        "lines": 179
       }
     },
     {
@@ -10236,6 +10251,13 @@
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/storage/schema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/tools/taskTools.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -10261,6 +10283,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/taskQueue.ts"
+    },
+    {
+      "from": "module:lib/storage/schema.ts",
+      "to": "env:MELCHIZEDEK_DB_SCHEMA",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/storage/schema.ts"
     },
     {
       "from": "module:lib/storage/schemaVersion.ts",
@@ -10964,6 +10993,13 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/storage/schema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/tools/taskTools.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -11195,6 +11231,13 @@
     },
     {
       "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/storage/schema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
       "to": "module:lib/tools/taskTools.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -11217,6 +11260,13 @@
     {
       "from": "module:scripts/db.ts",
       "to": "module:lib/persistence/supabaseProvider.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/db.ts"
+    },
+    {
+      "from": "module:scripts/db.ts",
+      "to": "module:lib/storage/schema.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/db.ts"

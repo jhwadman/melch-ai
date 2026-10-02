@@ -47,6 +47,7 @@ import {
 import { getTaskBackend, setTaskBackend, taskStorePath } from '../lib/tools/taskTools.ts';
 import type { OwnedTask, TaskRecord, WorkerLease } from '../lib/tools/taskTools.ts';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
+import { dbSchema } from '../lib/storage/schema.ts';
 import { hostname } from 'node:os';
 
 loadEnv(import.meta.url);
@@ -92,7 +93,7 @@ const log = (message: string) => console.log(`[worker] ${message}`);
 // The queue: the JSON file, or Postgres when DATABASE_URL is set, where any
 // number of workers may run (each claim is FOR UPDATE SKIP LOCKED).
 const databaseUrl = process.env.DATABASE_URL?.trim();
-const pg = databaseUrl ? postgresStorage({ connectionString: databaseUrl }) : undefined;
+const pg = databaseUrl ? postgresStorage({ connectionString: databaseUrl, schema: dbSchema() }) : undefined;
 if (pg) setTaskBackend(pg.taskQueue);
 const backend = getTaskBackend();
 /** A claimed job stays this worker's while it renews; the job timeout bounds a turn. */

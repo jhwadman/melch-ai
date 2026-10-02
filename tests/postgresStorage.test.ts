@@ -415,3 +415,25 @@ test('task queue: concurrent workers never claim the same job; a dead worker\'s 
   const row = (await pool.query(`SELECT status, lease_owner FROM melchizedek_tasks WHERE owner = 'queue-owner' AND id = 't1'`)).rows[0];
   assert.deepEqual(row, { status: 'done', lease_owner: null });
 });
+
+test('a private schema: the whole chain installs into it and the stores work there', { skip }, async () => {
+  const { sqlForSchema } = await import('../lib/storage/schema.ts');
+  const { shippedSchemaVersion } = await import('../lib/storage/schemaVersion.ts');
+  for (const f of [...migrations().filter((x) => x.includes('/migrations/')), 'db/hardening.sql']) {
+    await pool.query(sqlForSchema(readFileSync(f, 'utf-8'), 'it_private'));
+  }
+  const privatePool = new pg.Pool({ connectionString: urlFor(DB), max: 2, options: '-c search_path=it_private,public' });
+  const priv = postgresStorage({ pool: privatePool });
+  try {
+    assert.equal(await priv.schemaVersion(), shippedSchemaVersion());
+    const s = await priv.sessionService.createSession({ appName: 'pns', userId: 'pu', sessionId: 'pc' });
+    assert.ok(await priv.sessionService.getSession({ appName: 'pns', userId: 'pu', sessionId: s.id }));
+    const inPrivate = await pool.query(`SELECT count(*)::int AS c FROM it_private.adk_sessions WHERE user_id = 'pu'`);
+    assert.equal(inPrivate.rows[0].c, 1, 'the session row is in the private schema');
+    const counts = await priv.erase('pu');
+    assert.equal(counts.sessions, 1);
+  } finally {
+    await priv.close();
+    await privatePool.end();
+  }
+});
