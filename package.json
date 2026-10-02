@@ -120,6 +120,9 @@
     "telemetry:embed": "node --disable-warning=DEP0040 --experimental-strip-types scripts/telemetry_admin.ts embed"
   },
   "peerDependencies": {
+    "@anthropic-ai/bedrock-sdk": ">=0.20.0",
+    "@anthropic-ai/vertex-sdk": ">=0.11.0",
+    "@azure/identity": ">=4.0.0",
     "@google/adk": "^2.2.0",
     "redis": ">=4.6.0"
   },
@@ -156,6 +159,15 @@
     }
   },
   "peerDependenciesMeta": {
+    "@anthropic-ai/bedrock-sdk": {
+      "optional": true
+    },
+    "@anthropic-ai/vertex-sdk": {
+      "optional": true
+    },
+    "@azure/identity": {
+      "optional": true
+    },
     "redis": {
       "optional": true
     }

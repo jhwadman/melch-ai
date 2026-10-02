@@ -29,6 +29,8 @@
  * dimension needs a re-embed, not just a new variable.
  */
 
+import { endpointFromEnv } from '../models/endpoints.ts';
+import type { ProviderEndpoint } from '../models/endpoints.ts';
 import { GoogleGenAI } from '@google/genai';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import type { LlmRequest, LlmResponse } from '@google/adk';
@@ -146,10 +148,16 @@ function checkLength(vector: number[], dimensions: number, model: string): numbe
   return vector;
 }
 
-export function geminiEmbedder(opts: { apiKey: string; model?: string; dimensions?: number }): Embedder {
+export function geminiEmbedder(opts: { apiKey?: string; model?: string; dimensions?: number; endpoint?: ProviderEndpoint }): Embedder {
   const model = opts.model ?? EMBEDDING_MODEL;
   const dimensions = opts.dimensions ?? EMBEDDING_DIMENSIONS;
-  const genai = new GoogleGenAI({ apiKey: opts.apiKey });
+  // On Vertex AI (ADR 0023) embeddings authenticate the way the agents do,
+  // so a deployment never needs an AI Studio key it did not choose.
+  const e = opts.endpoint ?? endpointFromEnv('gemini');
+  const genai =
+    e.platform === 'vertex'
+      ? new GoogleGenAI({ vertexai: true, project: e.project, location: e.location })
+      : new GoogleGenAI({ apiKey: opts.apiKey });
   return {
     provider: 'gemini',
     model,

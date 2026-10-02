@@ -5,12 +5,12 @@
     "at": "2026-10-02"
   },
   "stats": {
-    "nodes": 538,
-    "edges": 1238,
+    "nodes": 550,
+    "edges": 1258,
     "byKind": {
       "doc": 73,
       "provider": 5,
-      "env": 83,
+      "env": 94,
       "model": 7,
       "tool": 32,
       "file": 58,
@@ -18,13 +18,13 @@
       "agent": 79,
       "mcp-server": 4,
       "table": 16,
-      "module": 108,
+      "module": 109,
       "script": 42,
       "external": 2
     },
     "byRelation": {
-      "links_to": 183,
-      "requires_env": 136,
+      "links_to": 184,
+      "requires_env": 147,
       "routes_to": 7,
       "defined_in": 72,
       "documents": 53,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 298,
+      "imports": 306,
       "reads_table": 28,
       "runs": 60,
       "derives_from": 177
     },
     "byTier": {
-      "extracted": 1238,
+      "extracted": 1258,
       "inferred": 0
     },
     "isolated": 2
@@ -642,7 +642,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 431
+        "words": 580
       }
     },
     {
@@ -774,7 +774,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1147
+        "words": 1447
       }
     },
     {
@@ -1905,16 +1905,58 @@
       "attrs": {}
     },
     {
+      "id": "env:ANTHROPIC_BASE_URL",
+      "kind": "env",
+      "label": "ANTHROPIC_BASE_URL",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
+      "id": "env:ANTHROPIC_VERTEX_PROJECT_ID",
+      "kind": "env",
+      "label": "ANTHROPIC_VERTEX_PROJECT_ID",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
       "id": "env:ASSAY_CONTACT",
       "kind": "env",
       "label": "ASSAY_CONTACT",
       "source": "lib/tools/science/http.ts"
     },
     {
+      "id": "env:AWS_DEFAULT_REGION",
+      "kind": "env",
+      "label": "AWS_DEFAULT_REGION",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
+      "id": "env:AWS_REGION",
+      "kind": "env",
+      "label": "AWS_REGION",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
+      "id": "env:AZURE_OPENAI_API_KEY",
+      "kind": "env",
+      "label": "AZURE_OPENAI_API_KEY",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
+      "id": "env:AZURE_OPENAI_ENDPOINT",
+      "kind": "env",
+      "label": "AZURE_OPENAI_ENDPOINT",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
       "id": "env:CHAT_STREAMING",
       "kind": "env",
       "label": "CHAT_STREAMING",
       "source": "scripts/syndicate_chat.ts"
+    },
+    {
+      "id": "env:CLOUD_ML_REGION",
+      "kind": "env",
+      "label": "CLOUD_ML_REGION",
+      "source": "lib/models/endpoints.ts"
     },
     {
       "id": "env:CONFIRM_PURGE",
@@ -1949,11 +1991,29 @@
       "source": "lib/observability/lineage.ts"
     },
     {
+      "id": "env:GOOGLE_CLOUD_LOCATION",
+      "kind": "env",
+      "label": "GOOGLE_CLOUD_LOCATION",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
+      "id": "env:GOOGLE_CLOUD_PROJECT",
+      "kind": "env",
+      "label": "GOOGLE_CLOUD_PROJECT",
+      "source": "lib/models/endpoints.ts"
+    },
+    {
       "id": "env:GOOGLE_GENAI_API_KEY",
       "kind": "env",
       "label": "GOOGLE_GENAI_API_KEY",
       "source": "scripts/syndicate_chat.ts",
       "attrs": {}
+    },
+    {
+      "id": "env:GOOGLE_GENAI_USE_VERTEXAI",
+      "kind": "env",
+      "label": "GOOGLE_GENAI_USE_VERTEXAI",
+      "source": "lib/models/endpoints.ts"
     },
     {
       "id": "env:HEROKU_SLUG_COMMIT",
@@ -2084,6 +2144,12 @@
       "label": "OPENAI_API_KEY",
       "source": "lib/models/gptLlm.ts",
       "attrs": {}
+    },
+    {
+      "id": "env:OPENAI_BASE_URL",
+      "kind": "env",
+      "label": "OPENAI_BASE_URL",
+      "source": "lib/models/endpoints.ts"
     },
     {
       "id": "env:OTEL_CONSOLE_ALL_SPANS",
@@ -2761,7 +2827,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 979
+        "lines": 988
       }
     },
     {
@@ -2851,7 +2917,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 598
+        "lines": 670
       }
     },
     {
@@ -2932,7 +2998,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 298
+        "lines": 306
       }
     },
     {
@@ -2959,7 +3025,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 314
+        "lines": 370
       }
     },
     {
@@ -2968,7 +3034,16 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 422
+        "lines": 448
+      }
+    },
+    {
+      "id": "module:lib/models/endpoints.ts",
+      "kind": "module",
+      "label": "lib/models/endpoints.ts",
+      "source": "lib/models/endpoints.ts",
+      "attrs": {
+        "lines": 319
       }
     },
     {
@@ -2977,7 +3052,7 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 198
+        "lines": 199
       }
     },
     {
@@ -2995,7 +3070,7 @@
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 683
+        "lines": 734
       }
     },
     {
@@ -3040,7 +3115,7 @@
       "label": "lib/models/registry.ts",
       "source": "lib/models/registry.ts",
       "attrs": {
-        "lines": 330
+        "lines": 377
       }
     },
     {
@@ -6793,6 +6868,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:45"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -6817,7 +6899,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:47"
+      "evidence": "/models/provider-routing.md:51"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -9103,6 +9185,13 @@
     },
     {
       "from": "module:lib/doctor.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
       "to": "module:lib/models/gateway.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -9355,6 +9444,13 @@
     },
     {
       "from": "module:lib/memory/providers.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/providers.ts"
+    },
+    {
+      "from": "module:lib/memory/providers.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -9495,6 +9591,13 @@
     },
     {
       "from": "module:lib/models/capabilities.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/capabilities.ts",
       "to": "module:lib/models/gateway.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -9506,6 +9609,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
@@ -9543,6 +9653,97 @@
       "evidence": "lib/models/claudeLlm.ts"
     },
     {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:ANTHROPIC_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:ANTHROPIC_VERTEX_PROJECT_ID",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:AWS_DEFAULT_REGION",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:AWS_REGION",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:AZURE_OPENAI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:AZURE_OPENAI_ENDPOINT",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:CLOUD_ML_REGION",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:GOOGLE_CLOUD_LOCATION",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:GOOGLE_CLOUD_PROJECT",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:GOOGLE_GENAI_USE_VERTEXAI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "env:OPENAI_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/gateway.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gateway.ts"
+    },
+    {
       "from": "module:lib/models/gateway.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
@@ -9569,6 +9770,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gatewayLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
     },
     {
       "from": "module:lib/models/gptLlm.ts",
@@ -9734,6 +9942,13 @@
     {
       "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/claudeLlm.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/registry.ts"
+    },
+    {
+      "from": "module:lib/models/registry.ts",
+      "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"

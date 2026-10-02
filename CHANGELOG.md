@@ -134,6 +134,17 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **Cloud platforms and proxies** (ADR 0023). `GEMINI_PLATFORM=vertex`,
+  `ANTHROPIC_PLATFORM=bedrock|vertex` and `OPENAI_PLATFORM=azure` reach the
+  provider through Vertex AI, Bedrock or Azure OpenAI with the cloud's own
+  credentials (Google ADC, the AWS chain, an Azure key or Entra ID);
+  `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL` put a proxy in front of the vendor
+  API; `<PROVIDER>_MODEL_MAP` maps ids to platform ids or deployments. The A2A
+  `credentials` plug point may return a partial endpoint as well as a key.
+  `@anthropic-ai/bedrock-sdk`, `@anthropic-ai/vertex-sdk` and `@azure/identity`
+  are optional peers. The doctor lists each configured endpoint. Native web
+  search is not sent on Bedrock, Claude-on-Vertex or Azure. Tested against
+  mocks only; not live-verified.
 - **A private schema** (ADR 0021). `MELCHIZEDEK_DB_SCHEMA=melchizedek` (or
   `melchizedek-db apply --schema melchizedek`) installs every table and
   function into that schema instead of `public`, so a Supabase REST layer

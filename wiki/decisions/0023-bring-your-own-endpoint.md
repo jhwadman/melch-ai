@@ -49,6 +49,8 @@ Every path assumed an API key against the vendor's public endpoint: key presence
 
 > **Note (2026-10-01):** Only part of this is built. The `credentials` option returns an API key per provider (no base URL or credential chain), and endpoints are configurable only for the gateway (`MODEL_GATEWAY_BASE_URL`), Ollama (`OLLAMA_BASE_URL`) and memory embeddings (`MEMORY_EMBEDDING_BASE_URL`); the Vertex AI, Bedrock and Azure OpenAI clients and per-endpoint doctor rows are not implemented yet, see [ADR 0017](/decisions/0017-plug-points.md).
 
+> **Note (2026-10-02):** Built in `lib/models/endpoints.ts`. Each provider has a platform (`GEMINI_PLATFORM`, `ANTHROPIC_PLATFORM`, `OPENAI_PLATFORM`), a base URL for a proxy, a model-id map, and a credential source: the environment key, the cloud's own chain (Google ADC, the AWS chain, Entra ID), or the `credentials` plug point, which now returns a key or a partial endpoint per request. Gemini on Vertex AI uses ADK's own Vertex mode; Claude on Bedrock and Vertex AI use `@anthropic-ai/bedrock-sdk` and `@anthropic-ai/vertex-sdk` (optional peers); GPT on Azure uses the OpenAI client against Azure's v1 API. Memory embeddings follow the Gemini platform. The doctor prints one row per configured endpoint, and the capability report and matrix state per platform what is not sent: native web search on Bedrock, Claude-on-Vertex and Azure, where availability varies and was not verified. The cloud paths are tested against mocked clients only and have not been run against the live clouds.
+
 ## Alternatives considered
 
 - **Document SDK environment overrides only.** Rejected: unchecked by the doctor, untested, and silent about which server-side tools are lost.

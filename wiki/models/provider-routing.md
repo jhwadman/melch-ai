@@ -7,7 +7,7 @@ tags:
   - routing
 generated:
   by: process:wiki-build
-  at: 2026-10-01
+  at: 2026-10-02
 sources:
   - resource: lib/models/providerMap.ts
   - resource: lib/models/registry.ts
@@ -39,6 +39,10 @@ The chat-completions adapters (Ollama and the gateways, both over `lib/models/op
 The table above is the whole routing decision; the *transport* is a second, separate decision made in `lib/models/gateway.ts` and applied by the registry. A model id is served by its provider's own adapter whenever that provider's key is present. When the key is absent and `MODEL_GATEWAY` (`vercel` or `openrouter`) plus `MODEL_GATEWAY_API_KEY` are set, the id is served instead by `lib/models/gatewayLlm.ts` through the gateway's OpenAI-compatible chat-completions endpoint — a subclass of the same base the Ollama adapter uses. Ollama needs no key, is reached at `OLLAMA_BASE_URL` (default `http://localhost:11434/v1`) and never routes through a gateway, and an [A2A](/protocols/a2a.md) caller's `X-API-Key` funds its own provider directly and never selects the gateway. The gateway is not a provider: `llm.provider` on the telemetry ledger (`db/telemetry.sql`) stays `anthropic`, `openai`, `gemini` or `xai`, and the path is recorded separately as `llm.transport = gateway:<id>`.
 
 What a gateway cannot do is enable any upstream native search, so every server-side tool sentinel — `web_search`, `google_search`, `x_search`, `collections_search` — is dropped on that path. `lib/models/capabilities.ts` states this per agent on the resolved path; the compiler logs one `capability ·` line per affected agent at startup, the span carries `llm.capability.dropped`, and the doctor below shows it. Wire names follow a rule (`claude-sonnet-4-6` → `anthropic/claude-sonnet-4.6`; `grok-4.7` → `xai/…` on Vercel, `x-ai/…` on OpenRouter) with `MODEL_GATEWAY_MODEL_MAP` for exceptions and `MODEL_GATEWAY_BASE_URL` for a self-hosted proxy. Rationale: [ADR 0012](/decisions/0012-direct-adapters-canonical.md).
+
+## Platforms: Vertex AI, Bedrock, Azure OpenAI and proxies
+
+The provider is the id's; the *platform* is configuration (`lib/models/endpoints.ts`, [ADR 0023](/decisions/0023-bring-your-own-endpoint.md)). `GEMINI_PLATFORM=vertex` (or genai's own `GOOGLE_GENAI_USE_VERTEXAI`) sends Gemini through Vertex AI with Application Default Credentials for `GOOGLE_CLOUD_PROJECT`/`GOOGLE_CLOUD_LOCATION`; `ANTHROPIC_PLATFORM=bedrock` (with `AWS_REGION`) or `=vertex` (with `ANTHROPIC_VERTEX_PROJECT_ID`/`CLOUD_ML_REGION`) sends Claude through Anthropic's Bedrock or Vertex SDK client, optional peers loaded on first use; `OPENAI_PLATFORM=azure` with `AZURE_OPENAI_ENDPOINT` sends GPT to Azure OpenAI's v1 API with `AZURE_OPENAI_API_KEY` or an Entra ID token (`@azure/identity`). `ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL` put a proxy in front of the vendor API. `<PROVIDER>_MODEL_MAP` translates ids a platform names differently (a Bedrock inference profile, an Azure deployment). A configured cloud platform funds its provider without a vendor key and is not covered by the gateway. The A2A `credentials` plug point may return a key or a partial endpoint per request, and memory embeddings follow the Gemini platform. Native search is kept on Gemini-on-Vertex and not sent on the other three platforms; the capability report says so per agent, and the doctor prints one `endpoint` line per configured platform. These paths are tested against mocked clients, not the live clouds.
 
 ## Which keys do I need? The doctor
 
@@ -74,4 +78,13 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 13. Gateway (any id) · image input: upstream model must accept images.
 14. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
 15. Gateway (any id) · native web search: a gateway cannot enable upstream native search; the web_search sentinel is dropped.
+
+**Cloud platforms** (ADR 0023): the same adapter and request as the provider's own API, except as listed. These paths are tested against mocks, not against the live clouds.
+
+| Path | Differs from the provider row |
+|---|---|
+| Google Gemini on Vertex AI | nothing |
+| Anthropic Claude on Bedrock | native web search: ✗ not sent on Bedrock; the web_search sentinel is dropped (use web_extract) |
+| Anthropic Claude on Vertex AI | native web search: ✗ not sent on Vertex AI; the web_search sentinel is dropped (use web_extract) |
+| OpenAI GPT on Azure OpenAI | native web search: ✗ not sent on Azure OpenAI; the web_search sentinel is dropped (use web_extract) |
 <!-- /wiki:generated -->
