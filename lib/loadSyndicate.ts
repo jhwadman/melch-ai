@@ -173,6 +173,13 @@ export interface SyndicateYamlConfig {
   memory_retention_days?: number;
   /** Optional hard technical limit for maximum ADK runner loops (LLM -> Tool cycles). */
   max_steps?: number;
+  /**
+   * The nested `yaml_reference:` syndicates this one reaches, raw, keyed by
+   * reference: written by the registry publisher (`bundleReferences`) so a
+   * registry version is versioned as a unit (ADR 0018 item 6). When present,
+   * nested references load from here (`nestedLoader`), never from files.
+   */
+  bundled_references?: Record<string, Record<string, unknown>>;
 }
 
 /**
@@ -280,6 +287,14 @@ function resolveAndValidate(
   options: LoadSyndicateOptions,
 ): SyndicateYamlConfig {
   const { bindings = {}, overrides } = options;
+  // A bundle holds other syndicates, raw: each is interpolated with its OWN
+  // variables when it is loaded, so the parent's bindings must not touch it.
+  let bundle: unknown;
+  if (isPlainObject(raw) && 'bundled_references' in raw) {
+    const { bundled_references, ...rest } = raw;
+    bundle = bundled_references;
+    raw = rest;
+  }
   const yamlVars = isPlainObject(raw) && isPlainObject(raw.variables)
     ? (raw.variables as VariableMap)
     : {};
@@ -299,7 +314,10 @@ function resolveAndValidate(
     );
   }
 
-  const valid = validateSyndicateConfig(interpolated, label);
+  const valid = validateSyndicateConfig(
+    bundle !== undefined && isPlainObject(interpolated) ? { ...interpolated, bundled_references: bundle } : interpolated,
+    label,
+  );
   const { variables: _stripped, ...clean } = valid;
   let config = clean as SyndicateYamlConfig;
 
@@ -425,7 +443,7 @@ const SHIPPED_DIRS = ['examples', 'templates'] as const;
  */
 export function collectGuards(
   config: SyndicateYamlConfig,
-  loadNested: (file: string) => SyndicateYamlConfig = loadSyndicate,
+  loadNested: (file: string) => SyndicateYamlConfig = nestedLoader(config),
   seen = new Set<string>(),
 ): string[] {
   const names = new Set<string>(config.guards ?? []);
@@ -451,7 +469,19 @@ export function loadSyndicate(
   options: LoadSyndicateOptions = {},
 ): SyndicateYamlConfig {
   const { bindings = {}, overrides } = options;
+  const { raw, label } = readSyndicateFile(filename, options);
+  return resolveAndValidate(raw, label, { bindings, overrides });
+}
 
+/**
+ * Read one syndicate file, unparsed values and all, from the agents root (the
+ * same jail and shipped-file fallback as `loadSyndicate`). `label` names the
+ * file as the author knows it.
+ */
+export function readSyndicateFile(
+  filename: string,
+  options: Pick<LoadSyndicateOptions, 'agentsDir' | 'shippedFallback'> = {},
+): { raw: unknown; label: string } {
   // Security: confine reads to the agents root. `filename` can originate from
   // a network-controlled path segment (see a2a_server dynamic routes), so we
   // must reject any value that resolves outside that root (e.g. "../../.env").
@@ -483,7 +513,58 @@ export function loadSyndicate(
   // is under it), so a multi-file nested load says WHICH file is wrong.
   const rel = path.relative(process.cwd(), filePath);
   const label = rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : filePath;
-  return resolveAndValidate(parse(fileContent), label, { bindings, overrides });
+  return { raw: parse(fileContent), label };
+}
+
+/**
+ * Every nested `yaml_reference:` a syndicate reaches, read raw from the agents
+ * root and keyed by reference, for the registry publisher to store with it
+ * (ADR 0018 item 6). Nested references of nested syndicates are included, in
+ * the same flat map, once each. Each one is validated, so a bad nested file
+ * fails the publish rather than the first request. Returns undefined when the
+ * syndicate references nothing.
+ */
+export function bundleReferences(
+  config: unknown,
+  options: Pick<LoadSyndicateOptions, 'agentsDir'> = {},
+): Record<string, Record<string, unknown>> | undefined {
+  const bundle: Record<string, Record<string, unknown>> = {};
+  const visit = (cfg: unknown) => {
+    const subs = isPlainObject(cfg) && Array.isArray(cfg.subagents) ? cfg.subagents : [];
+    for (const sub of subs) {
+      const ref = isPlainObject(sub) && typeof sub.yaml_reference === 'string' ? sub.yaml_reference : undefined;
+      if (!ref || Object.hasOwn(bundle, ref)) continue;
+      const { raw, label } = readSyndicateFile(ref, options);
+      if (!isPlainObject(raw)) throw new Error(`${label}: not a syndicate definition`);
+      const { bundled_references: _ignored, ...nested } = raw;
+      resolveAndValidate(nested, label, {}); // fail the publish, not the request
+      bundle[ref] = nested;
+      visit(nested);
+    }
+  };
+  visit(config);
+  return Object.keys(bundle).length ? bundle : undefined;
+}
+
+/**
+ * How a syndicate's nested references load. A registry definition that
+ * carries `bundled_references` resolves them from that bundle only, so the
+ * version that named them is the version that runs (ADR 0018 item 6); a
+ * reference missing from it is an error, not a fallback to a file that may
+ * have changed since. Anything else loads from files, as `loadSyndicate`.
+ */
+export function nestedLoader(
+  config: SyndicateYamlConfig,
+  fromFiles: (ref: string) => SyndicateYamlConfig = (ref) => loadSyndicate(ref),
+): (ref: string) => SyndicateYamlConfig {
+  const bundle = config.bundled_references;
+  if (!bundle) return fromFiles;
+  return (ref) => {
+    if (!Object.hasOwn(bundle, ref)) {
+      throw new Error(`Nested syndicate '${ref}' is not in this definition's bundle; republish it so the bundle is complete.`);
+    }
+    return resolveAndValidate(structuredClone(bundle[ref]), `bundled:${ref}`, {});
+  };
 }
 
 // ── Registry Validation (Step 7) ──────────────────────────

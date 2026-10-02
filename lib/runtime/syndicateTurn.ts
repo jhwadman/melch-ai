@@ -36,7 +36,7 @@ import { isDispatchSyndicate, matchRouteOverride, resolveRoute } from '../dispat
 import type { RouteResolution } from '../dispatch.ts';
 import { collectGrounding, describeGrounding, newGroundingState, webSourcesLine } from '../grounding.ts';
 import { resolveGuards } from '../guards/index.ts';
-import { collectGuards } from '../loadSyndicate.ts';
+import { collectGuards, nestedLoader } from '../loadSyndicate.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from '../loadSyndicate.ts';
 import { registerAvailableProviders } from '../models/registry.ts';
 import { traceAgentRun } from '../observability/tracer.ts';
@@ -385,7 +385,9 @@ async function runTurnInner(
 ): Promise<SyndicateTurnResult> {
   const { config, appName, userId, sessionId, sessionService } = opts;
   const ev = opts.events ?? {};
-  const compileOpts: CompileOptions = opts.compile ?? {};
+  // Nested references load from the definition's bundle when it has one
+  // (a registry version, ADR 0018 item 6), else from files.
+  const compileOpts: CompileOptions = { ...opts.compile, loadNested: opts.compile?.loadNested ?? nestedLoader(config) };
   const transform = opts.transformAgent ?? ((a: LlmAgent) => a);
   const subagentNames = new Set((config.subagents ?? []).map((s) => s.name));
   const trace = opts.trace === false ? undefined : opts.trace ?? {};
@@ -427,7 +429,7 @@ async function runTurnInner(
 
   // A guard rewrites the answer after it is complete, so a guarded
   // syndicate never streams: nothing may leave before the guard has read it.
-  const guarded = collectGuards(config).length > 0;
+  const guarded = collectGuards(config, compileOpts.loadNested).length > 0;
 
   /** Run ONE agent against ONE session, under the turn's controls. */
   const runAgent = async (params: {
@@ -631,7 +633,7 @@ async function runTurnInner(
   // Named in the syndicate's `guards:` list (and any nested syndicate's). They
   // REWRITE rather than retry, on the answering turn's text with every tool
   // result it produced. The classifier never reaches here.
-  const guardNames = collectGuards(config);
+  const guardNames = collectGuards(config, compileOpts.loadNested);
   if (result.text && guardNames.length) {
     const inputs = answer.toolResultTexts;
     for (const guard of resolveGuards(guardNames, (n) => ev.warn?.(`Unknown guard '${n}' — ignored`))) {

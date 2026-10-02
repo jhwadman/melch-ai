@@ -19,7 +19,7 @@ import type { AgentExecutor, ExecutionEventBus, RequestContext } from '@a2a-js/s
 import type { BaseMemoryService, BaseSessionService } from '@google/adk';
 
 import type { CompileOptions } from '../compile.ts';
-import { loadSyndicate } from '../loadSyndicate.ts';
+import { nestedLoader } from '../loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import { configDigest } from '../observability/lineage.ts';
 import { turnLockKey } from './turnLock.ts';
@@ -352,7 +352,7 @@ export class SyndicateExecutor implements AgentExecutor {
   configHashFor(): string {
     if (!this.configHash) {
       try {
-        this.configHash = configDigest(this.opts.config, (ref) => loadSyndicate(ref));
+        this.configHash = configDigest(this.opts.config, nestedLoader(this.opts.config));
       } catch {
         this.configHash = 'unhashable';
       }

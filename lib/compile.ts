@@ -32,7 +32,7 @@ import { AgentTool, LlmAgent } from '@google/adk';
 import type { BaseLlm } from '@google/adk';
 
 import { isDispatchSyndicate } from './dispatch.ts';
-import { loadSyndicate } from './loadSyndicate.ts';
+import { loadSyndicate, nestedLoader } from './loadSyndicate.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
@@ -184,6 +184,8 @@ export async function compileGraph(
   overrideName?: string,
   overrideDescription?: string,
 ): Promise<LlmAgent> {
+  // A registry definition carries its nested syndicates (ADR 0018 item 6).
+  if (config.bundled_references && !opts.loadNested) opts = { ...opts, loadNested: nestedLoader(config) };
   const compiledTools: unknown[] = isDispatchSyndicate(config)
     ? []
     : await Promise.all(

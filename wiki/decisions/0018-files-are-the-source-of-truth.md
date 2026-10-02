@@ -46,6 +46,8 @@ The public package shipped the registry preference but neither the table definit
 
 > **Note (2026-10-02):** Items 4 and 7 are now built. Migration `0005_agent_registry.sql` ships the registry table and an append-only `adk_agent_registry_versions` history (version, config hash, author, note, publish time); a trigger records a version on every write to the active row, so no publishing path can skip history, and re-activating a stored version is the rollback. `lib/registry.ts` and the `melchizedek-registry` bin publish (validating first), list, diff, roll back and retire; `registry:<id>@<version>` loads one stored version. The active row stays the pointer the server reads, so older tools keep working. Item 6 (nested references resolved from the registry version that named them) is still not built: a `yaml_reference` loads from files.
 
+> **Note (2026-10-02):** Item 6 is built, as a bundle rather than as references to other registry ids: publishing reads every nested `yaml_reference` the definition reaches and stores them, raw, under `bundled_references` in the same version, and the loader (`nestedLoader`) resolves nested references of a bundled definition from that bundle only; a reference missing from it is an error, not a fallback to the file. The config hash therefore covers the whole graph, and a nested change reaches a parent only when the parent is republished. A definition stored without a bundle (`--no-bundle`, or published earlier) still loads nested references from files.
+
 ## Alternatives considered
 
 - **The registry as the single source of truth.** Rejected for the default: it removes git review from the most security-sensitive configuration, and needs a full control plane before it is safe.
