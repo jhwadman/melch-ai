@@ -3209,7 +3209,7 @@
       "label": "lib/observability/otlpFilter.ts",
       "source": "lib/observability/otlpFilter.ts",
       "attrs": {
-        "lines": 106
+        "lines": 122
       }
     },
     {

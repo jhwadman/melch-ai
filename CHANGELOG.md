@@ -12,7 +12,11 @@ the starter pack and the templates), not the repo's full history.
   now applies the same redactor by default; `OTEL_EXPORT_CONTENT=off` drops
   every conversation attribute (input, output, thinking, tool arguments and
   results, payloads) and hashes `user.id`, keeping timings, models, token
-  counts, routes and errors; `raw` restores the old behaviour.
+  counts, routes and errors; `raw` restores the old behaviour. `off` also
+  drops library attributes that carry content (ADK puts the full model
+  request and response on its `call_llm` span as
+  `gcp.vertex.agent.llm_request` / `_response`), matched by name.
+  Verified end to end against Jaeger.
 
 ## 0.16.0 — 2026-10-02
 
