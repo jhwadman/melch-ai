@@ -95,6 +95,12 @@ const agentFields = {
     .array(z.string().min(1))
     .optional()
     .describe('Named tools from lib/toolRegistry.ts (e.g. web_search, web_extract, wiki_search).'),
+  require_approval: z
+    .array(z.string().min(1))
+    .optional()
+    .describe(
+      'Tools from this agent\'s `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on the orchestrator and on plan-dispatch routes.',
+    ),
   includeContents: z
     .enum(['default', 'none'])
     .optional()
@@ -409,8 +415,31 @@ function crossFieldProblems(raw: unknown): Problem[] {
   }
   const subs = Array.isArray(raw.subagents) ? raw.subagents : [];
 
+  // Approval gates (ADR 0028): only tools the agent has, and only on agents
+  // the turn runs directly — a delegated subagent runs inside a tool call,
+  // where ADK swallows the pause and the gated tool silently never runs.
+  const gateProblems = (agent: Record<string, unknown>, path: (string | number)[], allowed: boolean) => {
+    if (agent.require_approval === undefined) return;
+    if (!allowed) {
+      out.push({
+        path: [...path, 'require_approval'],
+        message: 'approval gates run only on the orchestrator or a plan-dispatch route; a delegated subagent cannot pause the turn (ADR 0028)',
+      });
+      return;
+    }
+    const tools = Array.isArray(agent.tools) ? agent.tools : [];
+    (Array.isArray(agent.require_approval) ? agent.require_approval : []).forEach((name, j) => {
+      if (typeof name === 'string' && !tools.includes(name)) {
+        out.push({ path: [...path, 'require_approval', j], message: `'${name}' is not in this agent's tools` });
+      }
+    });
+  };
+  if (isObj(raw.orchestrator)) gateProblems(raw.orchestrator, ['orchestrator'], true);
+  const dispatching = isObj(raw.dispatch);
+
   subs.forEach((sub, i) => {
     if (!isObj(sub)) return;
+    gateProblems(sub, ['subagents', i], dispatching);
     const hasRef = typeof sub.yaml_reference === 'string';
     const hasRemote = typeof sub.a2a_agent_url === 'string';
     if (hasRef && hasRemote) {

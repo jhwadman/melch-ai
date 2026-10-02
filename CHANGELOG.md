@@ -134,6 +134,15 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **Approval gates** (ADR 0028). `require_approval: [tool]` on an agent makes
+  that tool run only after a person approves the exact call: the A2A task
+  ends `input-required` with the pending call (text and an
+  `approval_request` data part), and `approve` / `reject` (or
+  `{ approval: { id, approved } }`) on the conversation resumes it. Allowed on
+  the orchestrator and plan-dispatch routes. `runSyndicateTurn` returns
+  `status: 'input-required'` with `approval`; `approvalResponsePart` answers
+  it. Stored function-call parts now keep Gemini's
+  `skip_thought_signature_validator` signature instead of none.
 - **Cloud platforms and proxies** (ADR 0023). `GEMINI_PLATFORM=vertex`,
   `ANTHROPIC_PLATFORM=bedrock|vertex` and `OPENAI_PLATFORM=azure` reach the
   provider through Vertex AI, Bedrock or Azure OpenAI with the cloud's own

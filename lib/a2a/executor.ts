@@ -25,6 +25,9 @@ import { configDigest } from '../observability/lineage.ts';
 import { turnLockKey } from './turnLock.ts';
 import type { ReleaseTurnLock, TurnLock } from './turnLock.ts';
 import { ingestTurnMemory, runSyndicateTurn } from '../runtime/syndicateTurn.ts';
+import { approvalResponsePart, describeApproval, pendingApproval } from '../runtime/approvals.ts';
+import type { PendingApproval } from '../runtime/approvals.ts';
+import { declaresApprovals } from '../compile.ts';
 import type { MessagePart, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
 import type { Policy } from './policy.ts';
@@ -287,6 +290,55 @@ function publishWorking(eventBus: ExecutionEventBus, taskId: string, contextId: 
   );
 }
 
+/**
+ * The turn paused on a gated tool call (ADR 0028): the task ends
+ * input-required, saying what is to be approved, with a data part a client
+ * can act on. The answer is the next message on the conversation.
+ */
+function publishApprovalRequest(eventBus: ExecutionEventBus, taskId: string, contextId: string, pending: PendingApproval): void {
+  const message = statusMessage(
+    taskId,
+    contextId,
+    `Approval needed: ${describeApproval(pending)}. Reply "approve" or "reject", or send the data part {"approval":{"id":"${pending.id}","approved":true|false}}.`,
+  );
+  message.parts.push({
+    content: {
+      $case: 'data',
+      value: { type: 'approval_request', approval_id: pending.id, agent: pending.agent, tool: pending.tool, args: pending.args },
+    },
+    metadata: undefined,
+    filename: '',
+    mediaType: 'application/json',
+  });
+  eventBus.publish(
+    AgentEvent.statusUpdate({
+      taskId,
+      contextId,
+      status: { state: TaskState.TASK_STATE_INPUT_REQUIRED, message, timestamp: new Date().toISOString() },
+      metadata: undefined,
+    }),
+  );
+}
+
+/**
+ * The caller's answer to the open approval, from the raw A2A parts: a data
+ * part `{ approval: { id, approved } }` naming that request, or the text
+ * `approve` / `reject`. Anything else is not an answer.
+ */
+export function approvalAnswer(rawParts: unknown[], pending: PendingApproval): { approved: boolean } | undefined {
+  for (const raw of rawParts) {
+    const p = (raw ?? {}) as Record<string, any>;
+    const data = p.content?.$case === 'data' ? p.content.value : p.kind === 'data' || (p.data !== undefined && p.kind === undefined) ? p.data : undefined;
+    const a = data?.approval;
+    if (a && a.id === pending.id && typeof a.approved === 'boolean') return { approved: a.approved };
+    const text = p.content?.$case === 'text' ? p.content.value : typeof p.text === 'string' ? p.text : typeof raw === 'string' ? raw : undefined;
+    const word = typeof text === 'string' ? text.trim().toLowerCase() : '';
+    if (word === 'approve') return { approved: true };
+    if (word === 'reject') return { approved: false };
+  }
+  return undefined;
+}
+
 function publishFinal(eventBus: ExecutionEventBus, taskId: string, contextId: string, state: FinalState, text?: string): void {
   eventBus.publish(
     AgentEvent.statusUpdate({
@@ -423,7 +475,10 @@ export class SyndicateExecutor implements AgentExecutor {
       if (!ctx) throw new Error('No authentication context available.');
       ctxForReport = ctx;
 
-      const { parts, refused } = a2aPartsToMessage(message?.parts ?? message?.content ?? []);
+      const rawParts: unknown[] = message?.parts ?? message?.content ?? [];
+      const mapped = a2aPartsToMessage(rawParts);
+      const refused = mapped.refused;
+      let parts: MessagePart[] = mapped.parts;
       if (refused) {
         publishFinal(eventBus, taskId, contextId, 'rejected', refused);
         await report(ctx, 'rejected', 'input');
@@ -487,6 +542,23 @@ export class SyndicateExecutor implements AgentExecutor {
 
       log(`─── Task ${short} | ${config.syndicate_name}`);
 
+      // Approvals (ADR 0028): while a gated call waits, a message is its
+      // answer, or the request is repeated without spending a model call.
+      if (declaresApprovals(config)) {
+        const session = await this.opts.sessionService.getSession({ appName, userId, sessionId: contextId });
+        const pending = pendingApproval(session?.events ?? []);
+        if (pending) {
+          const answer = approvalAnswer(rawParts, pending);
+          if (!answer) {
+            log(`⏸ Task ${short}: approval ${pending.id.slice(0, 12)} still waiting — request repeated`);
+            publishApprovalRequest(eventBus, taskId, contextId, pending);
+            await report(ctx, 'input-required', 'approval');
+            return;
+          }
+          parts = [approvalResponsePart(pending.id, answer.approved) as MessagePart];
+        }
+      }
+
       const stream = this.opts.streamText ? answerStream(eventBus, taskId, contextId) : undefined;
       const result = await runSyndicateTurn({
         config,
@@ -523,6 +595,12 @@ export class SyndicateExecutor implements AgentExecutor {
         log(`✗ Task ${short} canceled after ${spent}`);
         publishFinal(eventBus, taskId, contextId, 'canceled', 'The task was canceled.');
         await report(ctx, 'canceled', result.stopReason, u);
+        return;
+      }
+      if (result.status === 'input-required' && result.approval) {
+        log(`⏸ Task ${short} waiting for approval of ${result.approval.tool} after ${spent}`);
+        publishApprovalRequest(eventBus, taskId, contextId, result.approval);
+        await report(ctx, 'input-required', 'approval', u);
         return;
       }
       if (result.status === 'failed') {

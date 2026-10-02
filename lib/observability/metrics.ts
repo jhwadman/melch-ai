@@ -17,7 +17,8 @@ export interface TaskRecord {
   caller?: string;
   /** SHA-256 prefix of the scope key: joins log lines without naming a user. */
   scopeHash: string;
-  status: 'completed' | 'failed' | 'canceled' | 'rejected';
+  /** input-required: the turn paused for an approval (ADR 0028); the answer is a new task. */
+  status: 'completed' | 'failed' | 'canceled' | 'rejected' | 'input-required';
   /** Why a task was rejected or failed: 'policy', 'capacity', 'input', or the turn's error code. */
   reason?: string;
   durationMs: number;

@@ -27,6 +27,8 @@ The server speaks A2A 1.0 with the SDK's 0.3 compatibility on every handler: the
 
 A syndicate can also CALL an A2A agent: a subagent with `a2a_agent_url:` is a remote agent (1.0 or 0.3, the card decides), reached as a delegation tool or a plan-dispatch route through `lib/a2a/remoteAgent.ts`. Its card and endpoints pass the SSRF guard; credentials come from `A2A_AGENT_TOKENS` (host → bearer or headers).
 
+A tool an agent lists in `require_approval` runs only after a person approves the exact call ([ADR 0028](/decisions/0028-approval-gates.md)): the task ends `input-required` with the pending call (text, plus a data part `{ type: 'approval_request', approval_id, agent, tool, args }`), and the caller's next message on the conversation answers it — `approve` / `reject`, or `{ approval: { id, approved } }`. ADK's confirmation gate pins the call, so an approval cannot run a different one. Gates run on the orchestrator and plan-dispatch routes only; the resume skips the classifier and runs the route that asked, with the interrupted turn replayed raw. Stored function-call parts keep Gemini's `skip_thought_signature_validator` value so the replay is valid.
+
 ## Identity and keys
 
 Two separate questions, each a plug point ([ADR 0017](/decisions/0017-plug-points.md)): who the caller is, which decides whose data a request touches, and who pays for the models. `A2A_AUTH` answers the first ([ADR 0025](/decisions/0025-built-in-authenticators.md)); the built-in authenticators live in `lib/a2a/identity.ts` and are what `createA2AApp`'s `resolveRequest` takes.
