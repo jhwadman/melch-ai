@@ -5,12 +5,12 @@
     "at": "2026-10-02"
   },
   "stats": {
-    "nodes": 554,
-    "edges": 1273,
+    "nodes": 556,
+    "edges": 1277,
     "byKind": {
       "doc": 74,
       "provider": 5,
-      "env": 95,
+      "env": 96,
       "model": 7,
       "tool": 32,
       "file": 59,
@@ -18,13 +18,13 @@
       "agent": 79,
       "mcp-server": 4,
       "table": 16,
-      "module": 110,
+      "module": 111,
       "script": 42,
       "external": 2
     },
     "byRelation": {
       "links_to": 189,
-      "requires_env": 148,
+      "requires_env": 149,
       "routes_to": 7,
       "defined_in": 72,
       "documents": 53,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 309,
+      "imports": 312,
       "reads_table": 28,
       "runs": 60,
       "derives_from": 183
     },
     "byTier": {
-      "extracted": 1273,
+      "extracted": 1277,
       "inferred": 0
     },
     "isolated": 2
@@ -678,7 +678,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 842
+        "words": 906
       }
     },
     {
@@ -2183,6 +2183,12 @@
       "attrs": {}
     },
     {
+      "id": "env:OTEL_EXPORT_CONTENT",
+      "kind": "env",
+      "label": "OTEL_EXPORT_CONTENT",
+      "source": "lib/observability/otlpFilter.ts"
+    },
+    {
       "id": "env:OTEL_EXPORTER_OTLP_ENDPOINT",
       "kind": "env",
       "label": "OTEL_EXPORTER_OTLP_ENDPOINT",
@@ -3198,6 +3204,15 @@
       }
     },
     {
+      "id": "module:lib/observability/otlpFilter.ts",
+      "kind": "module",
+      "label": "lib/observability/otlpFilter.ts",
+      "source": "lib/observability/otlpFilter.ts",
+      "attrs": {
+        "lines": 106
+      }
+    },
+    {
       "id": "module:lib/observability/redact.ts",
       "kind": "module",
       "label": "lib/observability/redact.ts",
@@ -3221,7 +3236,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 765
+        "lines": 772
       }
     },
     {
@@ -6422,7 +6437,7 @@
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0026-governance-policy-and-visibility.md:66"
+      "evidence": "/decisions/0026-governance-policy-and-visibility.md:68"
     },
     {
       "from": "/decisions/0026-governance-policy-and-visibility.md",
@@ -6436,7 +6451,7 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0026-governance-policy-and-visibility.md:73"
+      "evidence": "/decisions/0026-governance-policy-and-visibility.md:75"
     },
     {
       "from": "/decisions/0027-thinking-without-answer-is-an-error.md",
@@ -10212,6 +10227,20 @@
       "evidence": "lib/observability/lineage.ts"
     },
     {
+      "from": "module:lib/observability/otlpFilter.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/otlpFilter.ts"
+    },
+    {
+      "from": "module:lib/observability/otlpFilter.ts",
+      "to": "env:OTEL_EXPORT_CONTENT",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/observability/otlpFilter.ts"
+    },
+    {
       "from": "module:lib/observability/redact.ts",
       "to": "env:TELEMETRY_REDACT",
       "rel": "requires_env",
@@ -10312,6 +10341,20 @@
     {
       "from": "module:lib/observability/tracer.ts",
       "to": "module:lib/observability/lineage.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/tracer.ts"
+    },
+    {
+      "from": "module:lib/observability/tracer.ts",
+      "to": "module:lib/observability/otlpFilter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/tracer.ts"
+    },
+    {
+      "from": "module:lib/observability/tracer.ts",
+      "to": "module:lib/observability/redact.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/observability/tracer.ts"

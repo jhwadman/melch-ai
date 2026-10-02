@@ -57,6 +57,8 @@ sources:
    - `setTelemetryRedactor(fn)` plugs in a DLP service.
    - Sessions and memory are not redacted: they must hold the conversation for the agent to work, and erasure covers them.
 
+> **Note (2026-10-02):** The ledger's redaction now also governs what leaves for an external trace backend. Spans exported to `OTEL_EXPORTER_OTLP_ENDPOINT` carried the conversation unredacted; `lib/observability/otlpFilter.ts` runs the `TELEMETRY_REDACT` redactor on them by default, and `OTEL_EXPORT_CONTENT=off` sends no conversation text at all (input, output, thinking, tool arguments and results, payloads; `user.id` hashed), keeping timings, models, token counts, routes and errors. `raw` sends spans as recorded.
+
 ## Alternatives considered
 
 - **Reserve the budget at admission** (charge an estimate, then settle). Rejected for now: a turn's cost is not knowable in advance, and an estimate either refuses legitimate work or underestimates. Charging at the end, with the concurrency cap bounding the overshoot, is predictable.
