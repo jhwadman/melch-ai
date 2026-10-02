@@ -296,27 +296,32 @@ const thinkingOnlyChoice = {
 const contextFullUsage = { prompt_tokens: 318, completion_tokens: 3778, total_tokens: 4096 };
 
 /** Every response, in order, plus whether ADK would keep the final one. */
-function assertNamedMaxTokensError(responses: LlmResponse[]): void {
+function assertNamedMaxTokensError(responses: LlmResponse[], thinkingTokens = 3778): void {
   const final = responses[responses.length - 1]!;
   assert.ok(!(final as any).partial, 'the turn must not end on a partial — ADK warns and the reply is lost');
   assert.equal(final.errorCode, 'OLLAMA_MAX_TOKENS');
   assert.match(final.errorMessage!, /context window/);
   assert.match(final.errorMessage!, /num_ctx/);
   assert.match(final.errorMessage!, /reasoningEffort/);
-  assert.equal(final.usageMetadata?.candidatesTokenCount, 3778, 'tokens spent thinking are still counted');
+  assert.equal(final.usageMetadata?.candidatesTokenCount, thinkingTokens, 'tokens spent thinking are still counted');
   const thought = responses.find((r) => (r.content?.parts?.[0] as any)?.thought);
   assert.ok(thought, 'the scratchpad is still surfaced as a thought');
 }
 
-test('OllamaLlm: a reply lost to thinking (finish_reason length, no content) is a named error, not empty text', async () => {
+test('OllamaLlm: a reply lost to thinking, and lost again without thinking, is a named error, not empty text', async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ choices: [thinkingOnlyChoice], usage: contextFullUsage }), {
+  const efforts: unknown[] = [];
+  globalThis.fetch = (async (_url: string, init: any) => {
+    efforts.push(JSON.parse(init.body).reasoning_effort);
+    return new Response(JSON.stringify({ choices: [thinkingOnlyChoice], usage: contextFullUsage }), {
       status: 200,
-    })) as any;
+    });
+  }) as any;
   try {
     const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
-    assertNamedMaxTokensError(await collect(llm.generateContentAsync(makeRequest())));
+    // Retried once with thinking off; both attempts' tokens are counted.
+    assertNamedMaxTokensError(await collect(llm.generateContentAsync(makeRequest())), 2 * 3778);
+    assert.deepEqual(efforts, [undefined, 'none']);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -333,7 +338,7 @@ test('OllamaLlm (SSE): a stream that ends inside the scratchpad is a named error
   globalThis.fetch = (async () => new Response(body, { status: 200 })) as any;
   try {
     const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
-    assertNamedMaxTokensError(await collect(llm.generateContentAsync(makeRequest(), true)));
+    assertNamedMaxTokensError(await collect(llm.generateContentAsync(makeRequest(), true)), 2 * 3778);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -833,4 +838,100 @@ test('a searched Grok response: message items split by a paragraph, search calls
   })] as any[];
   assert.equal(plain[plain.length - 1].customMetadata, undefined);
   assert.equal(plain[plain.length - 1].content.parts[0].text, 'hi');
+});
+
+// ── Retry without thinking (ADR 0027 follow-up) ──────────────────────────────
+
+/** A fetch that answers each request from the next scripted body, recording what was asked. */
+function scriptedFetch(bodies: Array<(stream: boolean) => string>, seen: any[]) {
+  let i = 0;
+  return (async (_url: string, init: any) => {
+    const req = JSON.parse(init.body);
+    seen.push(req);
+    return new Response(bodies[Math.min(i++, bodies.length - 1)]!(!!req.stream), { status: 200 });
+  }) as any;
+}
+const thinkingOnly = (stream: boolean) =>
+  stream
+    ? sseFrame({ choices: [{ index: 0, delta: { reasoning: 'P1: 79 words.' } }] }) +
+      sseFrame({ choices: [{ index: 0, delta: {}, finish_reason: 'length' }] }) +
+      sseFrame({ choices: [], usage: contextFullUsage }) +
+      'data: [DONE]\n\n'
+    : JSON.stringify({ choices: [thinkingOnlyChoice], usage: contextFullUsage });
+const answered = (stream: boolean) =>
+  stream
+    ? sseFrame({ choices: [{ index: 0, delta: { content: 'Quantum ' } }] }) +
+      sseFrame({ choices: [{ index: 0, delta: { content: 'answer.' }, finish_reason: 'stop' }] }) +
+      sseFrame({ choices: [], usage: { prompt_tokens: 318, completion_tokens: 40, total_tokens: 358 } }) +
+      'data: [DONE]\n\n'
+    : JSON.stringify({
+        choices: [{ finish_reason: 'stop', message: { content: 'Quantum answer.' } }],
+        usage: { prompt_tokens: 318, completion_tokens: 40, total_tokens: 358 },
+      });
+
+for (const stream of [false, true]) {
+  test(`OllamaLlm${stream ? ' (SSE)' : ''}: thinking with no answer is retried once with thinking off, and answers`, async () => {
+    const originalFetch = globalThis.fetch;
+    const seen: any[] = [];
+    globalThis.fetch = scriptedFetch([thinkingOnly, answered], seen);
+    try {
+      const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
+      const responses = await collect(llm.generateContentAsync(makeRequest(), stream));
+      assert.equal(seen.length, 2);
+      assert.equal(seen[0].reasoning_effort, undefined);
+      assert.equal(seen[1].reasoning_effort, 'none');
+      assert.ok(!responses.some((r) => r.errorCode), 'the first attempt\'s error is never yielded');
+      const final = responses.find((r) => r.turnComplete)!;
+      const text = responses.filter((r) => !(r as any).partial || stream).flatMap((r) => r.content?.parts ?? []).filter((p: any) => !p.thought).map((p: any) => p.text ?? '').join('');
+      assert.match(text, /Quantum answer\./);
+      assert.equal(final.usageMetadata?.promptTokenCount, 2 * 318, 'both attempts are counted');
+      assert.equal(final.usageMetadata?.candidatesTokenCount, 3778 + 40);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+}
+
+test('OllamaLlm: no retry for an agent already running without thinking, or with OLLAMA_RETRY_WITHOUT_THINKING=false', async () => {
+  const originalFetch = globalThis.fetch;
+  const before = process.env.OLLAMA_RETRY_WITHOUT_THINKING;
+  try {
+    let seen: any[] = [];
+    globalThis.fetch = scriptedFetch([thinkingOnly, answered], seen);
+    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
+    let final = (await collect(llm.generateContentAsync(makeRequest({ config: { reasoningEffort: 'none' } as any })))).at(-1)!;
+    assert.equal(seen.length, 1);
+    assert.equal(final.errorCode, 'OLLAMA_MAX_TOKENS');
+
+    process.env.OLLAMA_RETRY_WITHOUT_THINKING = 'false';
+    seen = [];
+    globalThis.fetch = scriptedFetch([thinkingOnly, answered], seen);
+    final = (await collect(llm.generateContentAsync(makeRequest()))).at(-1)!;
+    assert.equal(seen.length, 1);
+    assert.equal(final.errorCode, 'OLLAMA_MAX_TOKENS');
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (before === undefined) delete process.env.OLLAMA_RETRY_WITHOUT_THINKING;
+    else process.env.OLLAMA_RETRY_WITHOUT_THINKING = before;
+  }
+});
+
+test('a gateway or other chat-completions adapter never retries without thinking', async () => {
+  const { GatewayLlm } = await import('../lib/models/gatewayLlm.ts');
+  const originalFetch = globalThis.fetch;
+  const before = { g: process.env.MODEL_GATEWAY, k: process.env.MODEL_GATEWAY_API_KEY };
+  process.env.MODEL_GATEWAY = 'openrouter';
+  process.env.MODEL_GATEWAY_API_KEY = 'fixture-gateway-0123456789abcdef'; // gitleaks:allow (test fixture)
+  const seen: any[] = [];
+  globalThis.fetch = scriptedFetch([thinkingOnly, answered], seen);
+  try {
+    await collect(new GatewayLlm({ model: 'claude-sonnet-4-6' }).generateContentAsync(makeRequest()));
+    assert.equal(seen.length, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [k, v] of [['MODEL_GATEWAY', before.g], ['MODEL_GATEWAY_API_KEY', before.k]] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
 });

@@ -403,7 +403,7 @@ ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS adk_session_events (
   session_id TEXT    NOT NULL REFERENCES adk_sessions(id) ON DELETE CASCADE,
   seq        INTEGER NOT NULL,
-  ts         DOUBLE PRECISION,           -- the event's own timestamp (seconds)
+  ts         DOUBLE PRECISION,           -- the event's own timestamp (milliseconds: ADK's Date.now())
   event      JSONB   NOT NULL,
   PRIMARY KEY (session_id, seq)
 );

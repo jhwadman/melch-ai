@@ -77,8 +77,10 @@
  *     ignored on this path.
  *   - Context window: 4,096 tokens unless the Modelfile (PARAMETER num_ctx)
  *     or OLLAMA_CONTEXT_LENGTH on the server says otherwise — /v1 ignores
- *     num_ctx. A thinking model that fills it gets OLLAMA_MAX_TOKENS, never
- *     an empty reply (see noAnswerError).
+ *     num_ctx. A thinking model that fills it, or stops after thinking, is
+ *     retried once with thinking off (retriesWithoutThinking); only if that
+ *     fails too does the turn end with OLLAMA_MAX_TOKENS or
+ *     OLLAMA_EMPTY_RESPONSE, never an empty reply (see noAnswerError).
  */
 
 import { LLMRegistry } from '@google/adk';
@@ -171,6 +173,16 @@ export class OllamaLlm extends OpenAiCompatibleLlm {
 
   protected extraBodyFields(_llmRequest: LlmRequest): Record<string, unknown> {
     return {};
+  }
+
+  /**
+   * A local reasoning model that thinks its way to no answer is asked once
+   * more with thinking off ("none" is the one reasoning_effort Ollama 0.31
+   * honors), so the turn answers instead of failing. Off with
+   * OLLAMA_RETRY_WITHOUT_THINKING=false.
+   */
+  protected override retriesWithoutThinking(): boolean {
+    return process.env.OLLAMA_RETRY_WITHOUT_THINKING?.trim().toLowerCase() !== 'false';
   }
 }
 

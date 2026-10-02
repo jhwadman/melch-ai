@@ -189,6 +189,7 @@ async function* sseChunks(res: Response): AsyncGenerator<any> {
 
 export abstract class OpenAiCompatibleLlm extends BaseLlm {
   private webSearchWarned = false;
+  private retryWarned = false;
 
   // ── Subclass surface ───────────────────────────────────────────────────────
 
@@ -277,6 +278,15 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
   }
 
   /**
+   * Whether a turn that ended with no answer after thinking (noAnswerError)
+   * is sent once more with reasoning_effort "none". Default: never. An
+   * adapter for local reasoning models turns it on (OllamaLlm).
+   */
+  protected retriesWithoutThinking(): boolean {
+    return false;
+  }
+
+  /**
    * Error response for a turn that produced reasoning or ran out of tokens
    * but no reply and no tool call. `truncated` is true when the provider
    * reported finish_reason "length" (the token budget or context window
@@ -318,9 +328,50 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
     );
   }
 
+  /**
+   * One request, retried once without thinking when the adapter opts in and
+   * the model thought its way to no answer (ADR 0027): a local reasoning
+   * model can spend its whole context window on the scratchpad. The first
+   * attempt's error is held back, never yielded; what it spent is added to
+   * the retry's usage, so budgets and the ledger still count it. An agent
+   * that already runs with reasoningEffort "none" is not retried.
+   */
   private async *generateInner(
     llmRequest: LlmRequest,
     stream: boolean,
+  ): AsyncGenerator<LlmResponse, void> {
+    const cfg = (llmRequest.config as any) ?? {};
+    const mayRetry = this.retriesWithoutThinking() && cfg.reasoningEffort !== 'none';
+    let held: LlmResponse | undefined;
+    for await (const r of this.attempt(llmRequest, stream)) {
+      if (mayRetry && NO_ANSWER.has(r)) {
+        held = r;
+        continue;
+      }
+      yield r;
+    }
+    if (!held) return;
+
+    setLlmSpanAttribute('llm.retry_without_thinking', held.errorCode ?? true);
+    if (!this.retryWarned) {
+      this.retryWarned = true;
+      console.warn(`⚠ ${this.model} thought without answering (${held.errorCode}); retrying once with thinking off.`);
+    }
+    let carried = held.usageMetadata;
+    for await (const r of this.attempt(llmRequest, stream, 'none')) {
+      if (carried && !r.partial && (r.turnComplete || r.errorCode)) {
+        yield { ...r, usageMetadata: addUsage(carried, r.usageMetadata) };
+        carried = undefined;
+        continue;
+      }
+      yield r;
+    }
+  }
+
+  private async *attempt(
+    llmRequest: LlmRequest,
+    stream: boolean,
+    reasoningEffort?: string,
   ): AsyncGenerator<LlmResponse, void> {
     const missing = this.missingRequirement();
     if (missing) {
@@ -352,8 +403,8 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
       // and return an empty turn. Ollama's OpenAI-compatible endpoint honors
       // `reasoning_effort` and IGNORES the native `think` field, so this is
       // the only lever on this path. Opt-in per agent; omitted = unchanged.
-      ...(cfg.reasoningEffort !== undefined
-        ? { reasoning_effort: cfg.reasoningEffort }
+      ...((reasoningEffort ?? cfg.reasoningEffort) !== undefined
+        ? { reasoning_effort: reasoningEffort ?? cfg.reasoningEffort }
         : {}),
       ...(openAiTools.length > 0 ? { tools: openAiTools } : {}),
       // Structured output: an ADK outputSchema becomes a strict json_schema
@@ -599,7 +650,9 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
     const truncated = finishReason === 'length';
     const usage = usageMetadata ? { usageMetadata } : {};
     if (parts.length === 0 && (truncated || sawReasoning)) {
-      return { ...this.noAnswerError(truncated), turnComplete: true, ...usage };
+      const noAnswer: LlmResponse = { ...this.noAnswerError(truncated), turnComplete: true, ...usage };
+      NO_ANSWER.add(noAnswer);
+      return noAnswer;
     }
     return {
       content: { role: 'model', parts },
@@ -753,6 +806,22 @@ export function withHttpStatus(resp: LlmResponse, status: number): LlmResponse {
 }
 
 /** OpenAI-style usage → GenAI usageMetadata (undefined when absent). */
+/** Responses built by noAnswerError: the ones a retry without thinking may replace. */
+const NO_ANSWER = new WeakSet<LlmResponse>();
+
+type Usage = NonNullable<ReturnType<typeof mapUsage>>;
+
+/** Two usage records summed, field by field. */
+export function addUsage(a: Usage | undefined, b: Usage | undefined): Usage | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const out: Usage = {};
+  for (const k of ['promptTokenCount', 'candidatesTokenCount', 'thoughtsTokenCount', 'totalTokenCount'] as const) {
+    if (a[k] !== undefined || b[k] !== undefined) out[k] = (a[k] ?? 0) + (b[k] ?? 0);
+  }
+  return out;
+}
+
 export function mapUsage(usage: any):
   | {
       promptTokenCount?: number;
