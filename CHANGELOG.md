@@ -4,6 +4,19 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 0.16.2 — 2026-10-02
+
+- **`OTEL_EXPORT_CONTENT=off` also drops library content attributes.** In
+  0.16.1, `off` removed the engine's own conversation attributes but let
+  through ADK's: its `call_llm` span carries the full model request and
+  response as `gcp.vertex.agent.llm_request` / `_response`. `off` now drops
+  any text attribute whose name marks content (request, response, input,
+  output, args, prompt, messages, thinking, payload, …) unless the name
+  marks metadata (model, name, id, finish reasons); numbers always stay.
+  Verified end to end against Jaeger. **If you export OTLP with
+  `OTEL_EXPORT_CONTENT=off`, upgrade.** The default `redacted` mode
+  already ran the redactor on those attributes.
+
 ## 0.16.1 — 2026-10-02
 
 - **OTLP export is filtered before it leaves** (`OTEL_EXPORT_CONTENT`).
@@ -12,11 +25,7 @@ the starter pack and the templates), not the repo's full history.
   now applies the same redactor by default; `OTEL_EXPORT_CONTENT=off` drops
   every conversation attribute (input, output, thinking, tool arguments and
   results, payloads) and hashes `user.id`, keeping timings, models, token
-  counts, routes and errors; `raw` restores the old behaviour. `off` also
-  drops library attributes that carry content (ADK puts the full model
-  request and response on its `call_llm` span as
-  `gcp.vertex.agent.llm_request` / `_response`), matched by name.
-  Verified end to end against Jaeger.
+  counts, routes and errors; `raw` restores the old behaviour.
 
 ## 0.16.0 — 2026-10-02
 
