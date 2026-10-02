@@ -444,3 +444,32 @@ test('a private schema: the whole chain installs into it and the stores work the
     await privatePool.end();
   }
 });
+
+test('a conversation the Supabase service wrote keeps its history after the move to DATABASE_URL', { skip }, async () => {
+  const legacy = [
+    { id: 'e1', author: 'user', timestamp: 1, content: { role: 'user', parts: [{ text: 'first' }] }, actions: {} },
+    { id: 'e2', author: 'Lead', timestamp: 2, content: { role: 'model', parts: [{ text: 'second' }] }, actions: {} },
+  ];
+  await pool.query(
+    `INSERT INTO adk_sessions (id, app_name, user_id, state, events, last_update_time) VALUES ('legacy:lu:lc', 'legacy', 'lu', '{}', $1::jsonb, 2)`,
+    [JSON.stringify(legacy)],
+  );
+  const svc = storage.sessionService;
+  const s = await svc.getSession({ appName: 'legacy', userId: 'lu', sessionId: 'lc' });
+  assert.deepEqual(s!.events.map((e) => e.id), ['e1', 'e2'], 'the JSON history, in order');
+  // Reading again does not import twice; an append lands after the history.
+  await svc.getSession({ appName: 'legacy', userId: 'lu', sessionId: 'lc' });
+  await svc.appendEvent({ session: s!, event: { id: 'e3', author: 'user', timestamp: 3, invocationId: 'i', content: { role: 'user', parts: [{ text: 'third' }] }, actions: {} } as any });
+  const again = await svc.getSession({ appName: 'legacy', userId: 'lu', sessionId: 'lc' });
+  assert.deepEqual(again!.events.map((e) => e.id), ['e1', 'e2', 'e3']);
+  const rows = await pool.query(`SELECT seq FROM adk_session_events WHERE session_id = 'legacy:lu:lc' ORDER BY seq`);
+  assert.deepEqual(rows.rows.map((r) => r.seq), [1, 2, 3]);
+  // An append before any read imports first, too.
+  await pool.query(
+    `INSERT INTO adk_sessions (id, app_name, user_id, state, events, last_update_time) VALUES ('legacy:lu:ld', 'legacy', 'lu', '{}', $1::jsonb, 2)`,
+    [JSON.stringify(legacy)],
+  );
+  await svc.appendEvent({ session: { id: 'ld', appName: 'legacy', userId: 'lu', state: {}, events: [], lastUpdateTime: 0 } as any, event: { id: 'e3', author: 'user', timestamp: 3, invocationId: 'i', content: { role: 'user', parts: [{ text: 'x' }] }, actions: {} } as any });
+  const d = await svc.getSession({ appName: 'legacy', userId: 'lu', sessionId: 'ld' });
+  assert.deepEqual(d!.events.map((e) => e.id), ['e1', 'e2', 'e3']);
+});
