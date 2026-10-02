@@ -140,6 +140,9 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **Pool sizes for the server** (ADR 0021). `DATABASE_POOL_MAX` (default 10)
+  and `A2A_TURN_LOCK_POOL_MAX` (default 20) bound the connections one
+  instance opens, so it fits a session-mode pooler's client limit.
 - **Approval gates** (ADR 0028). `require_approval: [tool]` on an agent makes
   that tool run only after a person approves the exact call: the A2A task
   ends `input-required` with the pending call (text and an

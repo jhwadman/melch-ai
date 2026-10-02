@@ -57,6 +57,11 @@
  *                             A2A tasks, erase) — multi-instance safe (ADR 0021).
  *                             Without it: Supabase when its credentials are set,
  *                             else process memory.
+ *   DATABASE_POOL_MAX         connections in the storage pool (default 10)
+ *   A2A_TURN_LOCK_POOL_MAX    connections for per-conversation turn locks, one per
+ *                             running turn (default 20). Behind a session-mode
+ *                             pooler (Supabase :5432) keep the two sums under its
+ *                             client limit, per instance.
  */
 import { randomBytes } from 'node:crypto';
 import { realpathSync, writeFileSync } from 'node:fs';
@@ -219,6 +224,17 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
     emit('warn', `[A2A] ⚠ A2A_SERVER_SECRET is not set: authentication is off and the server binds ${host} only.`);
   }
 
+  /** A positive integer from the environment, or undefined; anything else stops the server. */
+  const positiveInt = (name: string): number | undefined => {
+    const raw = process.env[name]?.trim();
+    if (!raw) return undefined;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1) {
+      console.error(`[A2A] ✗ ${name} must be a positive integer (got "${raw}").`);
+      process.exit(1);
+    }
+    return n;
+  };
   const servedAgents = list('A2A_SERVED_AGENTS');
   const registryAgents = list('A2A_REGISTRY_AGENTS');
 
@@ -229,6 +245,8 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
     ? postgresStorage({
         connectionString: databaseUrl,
         schema: dbSchema(),
+        ...(positiveInt('DATABASE_POOL_MAX') ? { poolConfig: { max: positiveInt('DATABASE_POOL_MAX') } } : {}),
+        ...(positiveInt('A2A_TURN_LOCK_POOL_MAX') ? { lockPoolMax: positiveInt('A2A_TURN_LOCK_POOL_MAX') } : {}),
         memory: { apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || '' },
       })
     : undefined;
