@@ -501,13 +501,22 @@ JSON); `file` parts are refused.
 | `A2A_BODY_LIMIT` | 1 MB |
 | `A2A_SHUTDOWN_GRACE_MS`: SIGTERM waits for running tasks | 25 s |
 
+The rate limit and the failed-login limit count in the process by default,
+so each replica keeps its own window. With `A2A_REDIS_URL` set (and the
+optional `redis` package installed) both count in Redis, one window across
+every replica; in code, pass `limitStore` with
+`redisRateLimitStore({ command })` from `melchizedek-agents/a2a/limits`, which
+takes any client's raw-command function (node-redis `sendCommand`, ioredis
+`call`). Budgets need no Redis: they are Postgres counters.
+
 #### What is per-process
 
 The per-agent config cache (a config change needs a restart), the
 rate-limit counters and the concurrency count always live in the process. Tasks do too unless `DATABASE_URL` is set: then
 Postgres holds sessions, memory, A2A tasks and budget counters, and several
 replicas are safe behind one load balancer (rate limits and the concurrency
-cap then apply per replica). With Postgres, a running task is leased to the
+cap then apply per replica, unless `A2A_REDIS_URL` shares the rate limits).
+With Postgres, a running task is leased to the
 instance running it (renewed every 20 s; `taskLeaseMs`, default 60 s): if
 that instance dies, another marks the task `failed` ("the server running
 this task stopped") instead of a client polling it forever, and one turn

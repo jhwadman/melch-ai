@@ -5,12 +5,12 @@
     "at": "2026-10-02"
   },
   "stats": {
-    "nodes": 534,
-    "edges": 1230,
+    "nodes": 536,
+    "edges": 1232,
     "byKind": {
       "doc": 73,
       "provider": 5,
-      "env": 81,
+      "env": 82,
       "model": 7,
       "tool": 32,
       "file": 58,
@@ -18,13 +18,13 @@
       "agent": 79,
       "mcp-server": 4,
       "table": 16,
-      "module": 106,
+      "module": 107,
       "script": 42,
       "external": 2
     },
     "byRelation": {
       "links_to": 183,
-      "requires_env": 134,
+      "requires_env": 135,
       "routes_to": 7,
       "defined_in": 72,
       "documents": 53,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 292,
+      "imports": 293,
       "reads_table": 28,
       "runs": 60,
       "derives_from": 177
     },
     "byTier": {
-      "extracted": 1230,
+      "extracted": 1232,
       "inferred": 0
     },
     "isolated": 2
@@ -618,7 +618,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 938
+        "words": 992
       }
     },
     {
@@ -1838,6 +1838,12 @@
       "source": "scripts/a2a_server.ts"
     },
     {
+      "id": "env:A2A_REDIS_URL",
+      "kind": "env",
+      "label": "A2A_REDIS_URL",
+      "source": "scripts/a2a_server.ts"
+    },
+    {
       "id": "env:A2A_SERVER_SECRET",
       "kind": "env",
       "label": "A2A_SERVER_SECRET",
@@ -2749,7 +2755,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 970
+        "lines": 979
       }
     },
     {
@@ -2777,6 +2783,15 @@
       "source": "lib/a2a/policy.ts",
       "attrs": {
         "lines": 229
+      }
+    },
+    {
+      "id": "module:lib/a2a/redisLimits.ts",
+      "kind": "module",
+      "label": "lib/a2a/redisLimits.ts",
+      "source": "lib/a2a/redisLimits.ts",
+      "attrs": {
+        "lines": 57
       }
     },
     {
@@ -3523,7 +3538,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 423
+        "lines": 446
       }
     },
     {
@@ -6038,7 +6053,7 @@
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0021-postgres-first-storage.md:64"
+      "evidence": "/decisions/0021-postgres-first-storage.md:66"
     },
     {
       "from": "/decisions/0021-postgres-first-storage.md",
@@ -10914,6 +10929,13 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/a2a/redisLimits.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -11020,6 +11042,13 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "env:A2A_METRICS_TOKEN",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "env:A2A_REDIS_URL",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"

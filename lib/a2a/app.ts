@@ -27,6 +27,7 @@
 import express from 'express';
 import type { Express, Request, Response, NextFunction, RequestHandler } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import type { Store } from 'express-rate-limit';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { AGENT_CARD_PATH } from '@a2a-js/sdk';
 import type { AgentCard } from '@a2a-js/sdk';
@@ -179,6 +180,12 @@ export interface A2AAppOptions {
   maxConcurrentTasks?: number;
   /** Task submissions (POST) per window per client IP. */
   rateLimit?: { windowMs: number; max: number };
+  /**
+   * Where the limiters count (ADR 0021 item 5). Default: in this process, so
+   * each replica has its own window. A shared store (redisRateLimitStore)
+   * makes the limits hold across replicas. Called once per limiter.
+   */
+  limitStore?: (limiter: 'task' | 'auth-failure') => Store;
   /** Failed authentications per window per client IP before the IP is blocked. */
   authFailureLimit?: { windowMs: number; max: number };
   /** Express `trust proxy` setting (hop count, boolean, or subnet list). */
@@ -631,6 +638,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       // Only failed authentications count; a valid caller never spends this.
       skipSuccessfulRequests: true,
       requestWasSuccessful: (_req: Request, res: Response) => res.statusCode !== 401,
+      ...(options.limitStore ? { store: options.limitStore('auth-failure') } : {}),
       message: { error: 'Too many failed authentication attempts; try again later.' },
     }),
   );
@@ -810,6 +818,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       standardHeaders: true,
       legacyHeaders: false,
       skip: (req) => req.method === 'GET',
+      ...(options.limitStore ? { store: options.limitStore('task') } : {}),
       // With an authenticator, the limit is per identity: an operator's
       // backend by its caller name, an end user by their scope, so callers
       // behind one NAT or proxy do not share a bucket. The shared secret

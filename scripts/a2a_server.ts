@@ -79,6 +79,8 @@ import { budgets, memoryUsageStore, parseBudgets, postgresUsageStore, supabaseUs
 import type { Policy } from '../lib/a2a/policy.ts';
 import { hasSupabaseCredentials } from '../lib/persistence/supabaseProvider.ts';
 import { setTaskBackend } from '../lib/tools/taskTools.ts';
+import { redisRateLimitStore } from '../lib/a2a/redisLimits.ts';
+import type { Store } from 'express-rate-limit';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import { isPlaceholderValue, loadEnv } from '../lib/loadEnv.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
@@ -231,6 +233,26 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   // The task tools keep each caller's list in Postgres, not the shared file.
   if (pgStorage) setTaskBackend(pgStorage.taskQueue);
 
+  // ── Limits in Redis (ADR 0021 item 5): one window across replicas ────────
+  // `redis` is an optional peer dependency: installed only by deployments
+  // that set A2A_REDIS_URL.
+  let limitStore: ((limiter: 'task' | 'auth-failure') => Store) | undefined;
+  const redisUrl = process.env.A2A_REDIS_URL?.trim();
+  if (redisUrl) {
+    let createClient: (o: { url: string }) => any;
+    try {
+      ({ createClient } = (await import('redis' as string)) as { createClient: typeof createClient });
+    } catch {
+      console.error('[A2A] ✗ A2A_REDIS_URL is set but the `redis` package is not installed: npm install redis');
+      process.exit(1);
+    }
+    const client = createClient({ url: redisUrl });
+    client.on?.('error', (err: Error) => console.warn(`[A2A] ⚠ Redis: ${err.message}`));
+    await client.connect();
+    limitStore = (limiter) =>
+      redisRateLimitStore({ command: (args) => client.sendCommand(args), prefix: `melchizedek:rl:${limiter}:` });
+  }
+
   // ── Policy: daily budgets (ADR 0026) ──────────────────────────────────────
   let policy: Policy | undefined;
   let budgetLabel = '';
@@ -278,6 +300,7 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
       rateLimit: { windowMs: envInt('A2A_RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000), max: envInt('A2A_RATE_LIMIT_MAX', 60) },
       authFailureLimit: { windowMs: 15 * 60 * 1000, max: envInt('A2A_AUTH_FAILURE_MAX', 30) },
       trustProxy: envTrustProxy(),
+      ...(limitStore ? { limitStore } : {}),
       bodyLimit: process.env.A2A_BODY_LIMIT?.trim() || '1mb',
       servedAgents,
       registryAgents,

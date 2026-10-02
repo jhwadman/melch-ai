@@ -56,6 +56,8 @@ There was no plain-Postgres path and no migrations; the base schema existed only
 
 > **Note (2026-10-02):** The job queue is built (migration `0009_task_queue.sql`): `postgresStorage().taskQueue` is the task tools' backend when `DATABASE_URL` is set, with per-caller lists and `FOR UPDATE SKIP LOCKED` claims under a renewed worker lease, see [ADR 0015](/decisions/0015-task-queue-and-worker.md).
 
+> **Note (2026-10-02):** Item 5 is built: `redisRateLimitStore({ command })` (`melchizedek-agents/a2a/limits`) puts both request limiters in Redis through any client's raw-command function, and the bin wires it from `A2A_REDIS_URL` with `redis` as an optional peer dependency. The configurable private schema (item 2) is the one part of this decision still open, see [ADR 0026](/decisions/0026-governance-policy-and-visibility.md).
+
 2. **It works on any Postgres:** Supabase through its connection string, RDS, Cloud SQL, AlloyDB, or on-premises. Tables live in a configurable private schema (default `melchizedek`), so no anon REST path exists.
 3. **Schema changes are numbered, idempotent migrations** in `db/migrations/`, shipped in the package and applied by `melchizedek db migrate`. A version table lets the server refuse a schema it does not match. The Markdown copies of the schema are generated from these files.
 
