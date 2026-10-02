@@ -4,7 +4,7 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## 0.16.0 — 2026-10-01
+## 0.16.0 — 2026-10-02
 
 ### Breaking — read before upgrading
 
@@ -152,6 +152,15 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **A local model that thinks without answering is retried once with
+  thinking off** (ADR 0027). An Ollama turn that ends in `OLLAMA_MAX_TOKENS`
+  (the context window filled while thinking) or `OLLAMA_EMPTY_RESPONSE` is
+  sent again with `reasoning_effort: "none"`; the named error reaches the
+  caller only if that fails too. Both attempts' tokens are counted. Skipped
+  for an agent already running with `reasoningEffort: "none"`; off with
+  `OLLAMA_RETRY_WITHOUT_THINKING=false`.
+- The comment on `adk_session_events.ts` now says milliseconds (ADK's
+  `Date.now()`), which is what it has always held.
 - **Pool sizes for the server** (ADR 0021). `DATABASE_POOL_MAX` (default 10)
   and `A2A_TURN_LOCK_POOL_MAX` (default 20) bound the connections one
   instance opens, so it fits a session-mode pooler's client limit.

@@ -35,6 +35,8 @@ sources:
 5. **An unclosed `<think>` is scratchpad.** `splitThinkBlocks` treats everything after an opening tag that never closed as reasoning, as the streaming `ThinkStreamSplitter` already did.
 6. **The model zoo's `qwen_local` runs with `reasoningEffort: "none"`.** With a 32,768-token window, the same prompt still had no answer after five minutes. Turning thinking off gives an answer in about 15 seconds.
 
+> **Note (2026-10-02):** The Ollama adapter now retries a turn that ends in `OLLAMA_MAX_TOKENS` or `OLLAMA_EMPTY_RESPONSE` once, with `reasoning_effort: "none"`. The first attempt's error is held back, and the tokens it spent are added to the retry's usage, so budgets and the ledger still count them. The named error reaches the caller only when the retry fails too. An agent already running with `reasoningEffort: "none"` is not retried, and `OLLAMA_RETRY_WITHOUT_THINKING=false` turns the retry off. Other chat-completions adapters (gateways) never retry: whether `"none"` is honored depends on the upstream model.
+
 ## Alternatives considered
 
 - **Return the reasoning as the answer.** This puts a half-finished scratchpad into session history as if it were the reply, and it is the text the scratchpad split exists to keep out.
