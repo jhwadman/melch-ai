@@ -6,15 +6,14 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isPlaceholderValue, loadEnv, parseEnvFile } from '../lib/loadEnv.ts';
 import { providerKeyPresent } from '../lib/models/providerMap.ts';
 import { hasSupabaseCredentials } from '../lib/persistence/supabaseProvider.ts';
 
-// Every env template the checkout has (a source checkout may carry a second).
-const TEMPLATES = ['.env.example', 'scripts/export-public/overlay/.env.example'].filter((p) => existsSync(p));
+const TEMPLATES = ['.env.example'];
 
 const SENSITIVE = [
   'GOOGLE_GENAI_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY',

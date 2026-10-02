@@ -977,7 +977,6 @@ function entityLayer(
   const moduleFiles = MODULE_ROOTS.flatMap((root) =>
     walkFiles(repoRoot, join(repoRoot, root), {
       extensions: ['.ts'],
-      skipDirs: ['export-public'],
     }),
   );
   const moduleText = new Map<string, string>();
