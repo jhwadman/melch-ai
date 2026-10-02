@@ -181,6 +181,20 @@ That runs the migrations in [`db/migrations/`](./db/migrations/) and then
 [`db/hardening.sql`](./db/hardening.sql). Both are idempotent, so re-running
 them is also the upgrade path from any earlier layout.
 
+The tables go in the `public` schema by default. To keep them out of reach of
+a REST layer (Supabase exposes `public`), install into a private schema and
+run the server with the same setting:
+
+```bash
+MELCHIZEDEK_DB_SCHEMA=melchizedek npx melchizedek-db apply   # or: apply --schema melchizedek
+MELCHIZEDEK_DB_SCHEMA=melchizedek DATABASE_URL=... npx melchizedek-a2a
+```
+
+A private schema needs `DATABASE_URL` (the pg driver); supabase-js storage
+reaches only exposed schemas, so the server refuses that combination. Moving an
+existing `public` install is a data migration, not a setting: keep `public`
+there.
+
 Then run [`db/hardening.sql`](./db/hardening.sql) (RLS deny-by-default;
 see §8). Upgrading an existing project to the structured columns:
 [`db/memory_v2.sql`](./db/memory_v2.sql). `npm run db:purge` clears both

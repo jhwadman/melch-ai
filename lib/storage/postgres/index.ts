@@ -23,6 +23,7 @@ import { postgresMemoryStore } from './memoryStore.ts';
 import { PostgresSessionService } from './sessionService.ts';
 import { PostgresTaskStore, reapExpiredTasks, renewTaskLeases } from './taskStore.ts';
 import { postgresTaskBackend } from './taskQueue.ts';
+import { searchPathOption } from '../schema.ts';
 import type { TaskBackend } from '../../tools/taskTools.ts';
 import { randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
@@ -40,6 +41,12 @@ export interface PostgresStorageOptions {
   pool?: Pool;
   /** Extra pool settings (ssl, max, …). */
   poolConfig?: PoolConfig;
+  /**
+   * The schema the tables live in (lib/storage/schema.ts): put first on
+   * every connection's search_path. Default `public`. Ignored when `pool`
+   * is given (configure that pool's search_path yourself).
+   */
+  schema?: string;
   /** Days conversations and tasks are kept after their last update. Default 7. */
   ttlDays?: number;
   /**
@@ -104,6 +111,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       new pg.Pool({
         connectionString: options.connectionString,
         ...options.poolConfig,
+        ...(searchPathOption(options.schema ?? 'public') ? { options: searchPathOption(options.schema ?? 'public') } : {}),
       }),
       'pool',
     );

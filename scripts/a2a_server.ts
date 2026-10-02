@@ -81,6 +81,7 @@ import { hasSupabaseCredentials } from '../lib/persistence/supabaseProvider.ts';
 import { setTaskBackend } from '../lib/tools/taskTools.ts';
 import { redisRateLimitStore } from '../lib/a2a/redisLimits.ts';
 import type { Store } from 'express-rate-limit';
+import { dbSchema } from '../lib/storage/schema.ts';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import { isPlaceholderValue, loadEnv } from '../lib/loadEnv.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
@@ -227,9 +228,14 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   const pgStorage = databaseUrl
     ? postgresStorage({
         connectionString: databaseUrl,
+        schema: dbSchema(),
         memory: { apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || '' },
       })
     : undefined;
+  if (!pgStorage && dbSchema() !== 'public') {
+    console.error(`[A2A] ✗ MELCHIZEDEK_DB_SCHEMA=${dbSchema()} needs DATABASE_URL: a private schema is not reachable over the Supabase REST API.`);
+    process.exit(1);
+  }
   // The task tools keep each caller's list in Postgres, not the shared file.
   if (pgStorage) setTaskBackend(pgStorage.taskQueue);
 

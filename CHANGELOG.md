@@ -134,6 +134,13 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **A private schema** (ADR 0021). `MELCHIZEDEK_DB_SCHEMA=melchizedek` (or
+  `melchizedek-db apply --schema melchizedek`) installs every table and
+  function into that schema instead of `public`, so a Supabase REST layer
+  never sees them; `postgresStorage({ schema })` (the bin reads the same
+  variable) points its connections there. The default stays `public`, so an
+  existing database needs nothing. A private schema requires `DATABASE_URL`
+  (supabase-js reaches only exposed schemas).
 - **Rate limits across replicas** (ADR 0021). `A2A_REDIS_URL` (with the
   optional `redis` package) counts the request limit and the failed-login
   limit in Redis, one window for every replica; in code, `limitStore` with
