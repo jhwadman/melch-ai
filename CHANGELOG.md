@@ -4,6 +4,16 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 0.16.1 — 2026-10-02
+
+- **OTLP export is filtered before it leaves** (`OTEL_EXPORT_CONTENT`).
+  Spans sent to `OTEL_EXPORTER_OTLP_ENDPOINT` carried the conversation
+  unredacted, while the ledger scrubs it (`TELEMETRY_REDACT`). The exporter
+  now applies the same redactor by default; `OTEL_EXPORT_CONTENT=off` drops
+  every conversation attribute (input, output, thinking, tool arguments and
+  results, payloads) and hashes `user.id`, keeping timings, models, token
+  counts, routes and errors; `raw` restores the old behaviour.
+
 ## 0.16.0 — 2026-10-02
 
 ### Breaking — read before upgrading

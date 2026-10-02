@@ -1,6 +1,8 @@
 import { trace, context } from '@opentelemetry/api';
 import { createRequire } from 'node:module';
 import { TELEMETRY_SCHEMA_VERSION, engineVersion } from './lineage.ts';
+import { FilteringSpanExporter, otlpContentMode } from './otlpFilter.ts';
+import { telemetryRedactor } from './redact.ts';
 import { chargeLlmCall, chargeTokens } from '../runtime/turnControl.ts';
 
 import sdkNode from '@opentelemetry/sdk-trace-node';
@@ -28,6 +30,8 @@ import {
  * every span — ADK's included, so the viewer gets the waterfall — is also
  * sent there. OTEL_EXPORTER_OTLP_HEADERS is honoured by the exporter itself
  * (api keys); OTEL_SERVICE_NAME names the service (default "melchizedek").
+ * OTEL_EXPORT_CONTENT decides how much conversation leaves with the spans:
+ * redacted (default, the ledger's TELEMETRY_REDACT rules), off, or raw.
  * Supabase stays the system of record; this is a viewer.
  */
 export function otlpEndpoint(): string | undefined {
@@ -44,8 +48,11 @@ function otlpProcessor(): any | undefined {
     const mod: any = createRequire(import.meta.url)('@opentelemetry/exporter-trace-otlp-http');
     const OTLPTraceExporter = mod.OTLPTraceExporter ?? mod.default?.OTLPTraceExporter;
     const { BatchSpanProcessor } = sdkBase;
-    console.log(`[TELEMETRY] OTLP export enabled → ${url}`);
-    return new BatchSpanProcessor(new OTLPTraceExporter({ url }));
+    // What leaves for a third-party backend is filtered first (otlpFilter.ts).
+    const mode = otlpContentMode();
+    console.log(`[TELEMETRY] OTLP export enabled → ${url} (content: ${mode})`);
+    const exporter = new OTLPTraceExporter({ url });
+    return new BatchSpanProcessor(mode === 'raw' ? exporter : new FilteringSpanExporter(exporter, mode, telemetryRedactor()));
   } catch (err: unknown) {
     console.warn(`[TELEMETRY] OTLP exporter unavailable (${err instanceof Error ? err.message : err}); spans not sent to ${url}`);
     return undefined;
