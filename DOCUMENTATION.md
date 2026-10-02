@@ -634,6 +634,46 @@ Set `PUBLIC_URL`, `A2A_SERVER_SECRET` and the provider keys from your
 secret manager; give the orchestrator's stop timeout at least
 `A2A_SHUTDOWN_GRACE_MS`.
 
+#### Backups
+
+Everything durable is in the one Postgres you point the server at:
+conversations (`adk_sessions`, `adk_session_events`), long-term memory
+(`adk_memory_facts`), the telemetry ledger, the agent registry and its
+versions, A2A tasks, the task tools' lists and the budget counters. The
+engine takes no backups of it; back it up as you would any production
+database, with your provider's scheduled backups or point-in-time recovery
+(RDS and Cloud SQL automated backups; on Supabase, a paid plan, since the
+Free plan has none).
+
+What a backup protects is the history. The rest can be rebuilt: the schema
+with `npx melchizedek-db apply`, and registry agents by republishing their
+YAML files. Without a backup, lost conversations, memory and ledger rows
+stay lost.
+
+A logical backup works on any provider and is worth having beside its
+snapshots. Use a `pg_dump` at least as new as the server, and the
+schema the tables live in (`public`, or `MELCHIZEDEK_DB_SCHEMA`):
+
+```bash
+pg_dump --schema=public --no-owner --no-privileges -Fc -f melch.dump "$DATABASE_URL"
+# restore into a new database that has pgvector:
+psql "$TARGET_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector'
+pg_restore --no-owner --no-privileges -d "$TARGET_URL" melch.dump
+npx melchizedek-db status    # with DATABASE_URL=$TARGET_URL: schema version and counts
+```
+
+Test the restore, not just the dump: restore into a scratch database and
+compare row counts per table with the source. Two things a backup changes:
+
+- **Erasure.** `DELETE /memory` removes a scope from the live database, not
+  from backups taken before it. Keep backup retention as short as your
+  recovery needs allow. After a restore, re-run any erasures made since the
+  backup was taken. The server logs each one with its scope (`Erasure for
+  scope …`); keep those lines for as long as you keep backups, since a
+  platform's log retention is usually shorter.
+- **Secrets.** A dump holds every conversation in clear text. Encrypt it at
+  rest and give it the same access rules as the database.
+
 #### The agent registry
 
 A file is the default home of a syndicate. The registry is for a definition
