@@ -28,6 +28,7 @@
     "./a2a/remote": "./dist/lib/a2a/remoteAgent.js",
     "./a2a/identity": "./dist/lib/a2a/identity.js",
     "./a2a/policy": "./dist/lib/a2a/policy.js",
+    "./a2a/limits": "./dist/lib/a2a/redisLimits.js",
     "./registry": "./dist/lib/registry.js",
     "./server": "./dist/scripts/a2a_server.js",
     "./guards": "./dist/lib/guards/index.js",
@@ -119,7 +120,8 @@
     "telemetry:embed": "node --disable-warning=DEP0040 --experimental-strip-types scripts/telemetry_admin.ts embed"
   },
   "peerDependencies": {
-    "@google/adk": "^2.2.0"
+    "@google/adk": "^2.2.0",
+    "redis": ">=4.6.0"
   },
   "dependencies": {
     "@a2a-js/sdk": "^1.3.0",
@@ -151,6 +153,11 @@
   "overrides": {
     "gaxios": {
       "uuid": "^11.1.1"
+    }
+  },
+  "peerDependenciesMeta": {
+    "redis": {
+      "optional": true
     }
   }
 }

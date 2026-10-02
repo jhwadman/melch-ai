@@ -134,6 +134,10 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **Rate limits across replicas** (ADR 0021). `A2A_REDIS_URL` (with the
+  optional `redis` package) counts the request limit and the failed-login
+  limit in Redis, one window for every replica; in code, `limitStore` with
+  `redisRateLimitStore({ command })` from `melchizedek-agents/a2a/limits`.
 - **The task tools on Postgres** (migration `0009_task_queue.sql`). With
   `DATABASE_URL`, the to-do list and job queue live in Postgres: each caller
   has their own list (tool calls now carry their caller, `ToolCallContext`,
