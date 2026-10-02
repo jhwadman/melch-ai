@@ -10,7 +10,7 @@ the starter pack and the templates), not the repo's full history.
 
 - **The server refuses to start on a database behind its migrations.** With
   durable storage it reads `melchizedek_schema_version` at boot; below the
-  highest migration this release ships (0005), it stops and names
+  highest migration this release ships (0010), it stops and names
   `npx melchizedek-db apply`. `ALLOW_SCHEMA_MISMATCH=true` starts anyway. A
   newer database only warns. supabase-js storage now logs its deprecation
   (ADR 0021); set `DATABASE_URL` to move to `postgresStorage`.
@@ -84,6 +84,12 @@ the starter pack and the templates), not the repo's full history.
 
 ### Fixed — behaviour the docs promised
 
+- **Erase reaches every store** (migration `0010_erase_complete.sql`).
+  `DELETE /memory` and `erase()` left the memory ingestion markers (scope key
+  and conversation ids) and the task tools' list and jobs behind; they are now
+  deleted too and reported as `memory_markers` and `task_tools`. A namespace
+  erase keeps the task list, which belongs to the caller.
+  **`npx melchizedek-db apply`** before upgrading.
 - **Non-Gemini orchestrators delegate.** Claude, GPT, Grok, Ollama and
   gateway adapters sent every subagent (and `load_memory`) an empty
   parameter schema; they now send the tool's real declaration.

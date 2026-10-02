@@ -241,7 +241,7 @@ test('tasks: durable, owner-scoped, listed newest first with working page tokens
 
 test('erase: one namespace, everywhere, and nested — exactly the scope, sub-agent rows included', { skip }, async () => {
   const seed = async () => {
-    await pool.query('TRUNCATE adk_sessions, adk_session_events, adk_memory_facts, adk_turns, adk_telemetry, adk_payloads, adk_a2a_tasks');
+    await pool.query('TRUNCATE adk_sessions, adk_session_events, adk_memory_facts, adk_turns, adk_telemetry, adk_payloads, adk_a2a_tasks, melchizedek_memory_ingest, melchizedek_tasks, melchizedek_task_owners');
     await pool.query(`
       INSERT INTO adk_memory_facts (user_key, fact) VALUES
         ('ns1/u1','a'),('ns1/u1','b'),('ns1/u2','c'),('ns2/u1','d'),('ns1/u1/end','e'),('melchizedek-a2a/u1','f'),('ns1/u1_x','g');
@@ -254,6 +254,9 @@ test('erase: one namespace, everywhere, and nested — exactly the scope, sub-ag
       INSERT INTO adk_telemetry (trace_id, span_id, span_name, span) VALUES ('t1','a','llm.request','{}'),('t9','c','llm.request','{}');
       INSERT INTO adk_payloads (ts, trace_id, span_id, reason) VALUES (now(),'t1','a','error');
       INSERT INTO adk_a2a_tasks (owner, agent_id, id, context_id, task) VALUES ('u1','desk','k1','c1','{}'),('u1','desk','k9','c9','{}');
+      INSERT INTO melchizedek_memory_ingest (user_key, session_id, events_ingested) VALUES ('ns1/u1','c1',2),('ns2/u1','c9',1),('ns1/u2','c1',1),('ns1/u1/end','c3',1);
+      INSERT INTO melchizedek_task_owners (owner) VALUES ('u1'),('u2');
+      INSERT INTO melchizedek_tasks (owner, id, seq, kind, status, record) VALUES ('u1','t1',1,'todo','open','{}'),('u2','t1',1,'todo','open','{}');
     `);
   };
   const ids = async (sql: string) => (await pool.query(sql)).rows.map((r) => Object.values(r)[0]).sort();
@@ -262,7 +265,7 @@ test('erase: one namespace, everywhere, and nested — exactly the scope, sub-ag
   const a = await storage.erase('u1', { namespace: 'ns1' });
   assert.deepEqual(
     { ...a },
-    { memory_facts: 2, sessions: 3, turns: 2, spans: 1, payloads: 1, verdicts: 0, labels: 0, tasks: 1 },
+    { memory_facts: 2, sessions: 3, turns: 2, spans: 1, payloads: 1, verdicts: 0, labels: 0, tasks: 1, memory_markers: 1, task_tools: 0 },
   );
   assert.deepEqual(await ids('SELECT user_key||\':\'||fact AS k FROM adk_memory_facts'), [
     'melchizedek-a2a/u1:f', 'ns1/u1/end:e', 'ns1/u1_x:g', 'ns1/u2:c', 'ns2/u1:d',
@@ -273,11 +276,15 @@ test('erase: one namespace, everywhere, and nested — exactly the scope, sub-ag
   const b = await storage.erase('u1');
   assert.equal(b.memory_facts, 4);
   assert.equal(b.tasks, 2);
+  assert.equal(b.memory_markers, 2, 'every namespace');
+  assert.equal(b.task_tools, 1, 'the scope\'s own list, not u2\'s');
+  assert.deepEqual(await ids('SELECT owner FROM melchizedek_task_owners'), ['u2']);
   assert.deepEqual(await ids('SELECT id FROM adk_sessions'), ['ns1:u1/end:c3', 'ns1:u2:c1']);
 
   await seed();
   const c = await storage.erase('u1', { namespace: 'ns1', includeNested: true });
   assert.equal(c.memory_facts, 3);
+  assert.equal(c.memory_markers, 2, 'ns1/u1 and the nested ns1/u1/end');
   assert.deepEqual(await ids('SELECT id FROM adk_sessions'), ['ns1:u2:c1', 'ns2:u1:c9']);
 
   await assert.rejects(storage.erase('  '), /scope key is required/);

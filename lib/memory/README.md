@@ -159,13 +159,15 @@ curl -X DELETE https://your-server/memory \
   -H "Authorization: Bearer $CALLER_TOKEN" \
   -H "X-User-Id: user-8f3a2c"
 # → { "deleted": { "memory_facts": 12, "sessions": 3, "turns": 9, "spans": 40,
-#                  "payloads": 0, "verdicts": 0, "labels": 0, "tasks": 3 } }
+#                  "payloads": 0, "verdicts": 0, "labels": 0, "tasks": 3,
+#                  "memory_markers": 3, "task_tools": 0 } }
 ```
 
 Erases the calling scope (the scope the authenticator resolved, with
 `X-User-Id` nested beneath it) from every store in one transaction: memory
 facts, sessions, the telemetry ledger's turns, spans, payloads, verdicts and
-labels, and durable A2A tasks. It covers the server's memory namespace;
+labels, durable A2A tasks, the memory ingestion markers, and (on a
+whole-scope erase) the caller's task-tool list and jobs. It covers the server's memory namespace;
 `?all=1` covers every namespace. A server with no durable storage answers
 501. A caller whose scope owns nested end-user scopes and sends no
 `X-User-Id` erases its scope and every one beneath it. Budget counters hold

@@ -3,9 +3,10 @@
  *
  * One call to `melchizedek_erase_scope` (db/migrations/0002_erase_scope.sql),
  * which deletes memory facts, sessions (with the per-subagent rows ADK writes
- * beside them), the ledger's turns, spans, payloads, verdicts and labels, and the
- * scope's durable A2A tasks
- * for those conversations, in one transaction. Returns what each store lost.
+ * beside them), the ledger's turns, spans, payloads, verdicts and labels, the
+ * scope's durable A2A tasks for those conversations, its memory ingestion
+ * markers, and (without a namespace) its task tools' list and jobs
+ * (migration 0010), in one transaction. Returns what each store lost.
  *
  * Throws on any failure: a deletion request that silently did nothing is
  * worse than an error the caller can surface and retry.
@@ -22,6 +23,8 @@ export const ERASE_STORES = [
   'verdicts',
   'labels',
   'tasks',
+  'memory_markers',
+  'task_tools',
 ] as const;
 export type EraseStore = (typeof ERASE_STORES)[number];
 export type EraseCounts = Record<EraseStore, number>;
