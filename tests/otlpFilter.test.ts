@@ -29,6 +29,14 @@ async function exported(mode: 'redacted' | 'off' | 'raw'): Promise<ReadableSpan>
     'llm.model': 'gemini-x',
     'syndicate.tokens.input': 42,
     'syndicate.route': 'Research',
+    // ADK's own instrumentation (call_llm spans)
+    'gcp.vertex.agent.llm_request': `{"contents":[{"text":"my key is ${KEY}"}]}`,
+    'gcp.vertex.agent.llm_response': '{"text":"answer"}',
+    'gcp.vertex.agent.tool_call_args': '{"q":"x"}',
+    'gcp.vertex.agent.invocation_id': 'e-123',
+    'gen_ai.request.model': 'gemini-x',
+    'gen_ai.response.finish_reasons': 'STOP',
+    'gen_ai.usage.input_tokens': 722,
   });
   span.addEvent('tool.call', { 'tool.args': '{"q":"private"}', 'tool.name': 'web_extract' });
   span.end();
@@ -39,6 +47,7 @@ async function exported(mode: 'redacted' | 'off' | 'raw'): Promise<ReadableSpan>
 test('redacted (the default) scrubs credentials and the chosen kinds, keeps the conversation', async () => {
   assert.equal(otlpContentMode({}), 'redacted');
   const s = await exported('redacted');
+  assert.ok(!JSON.stringify(s.attributes).includes(KEY), 'redacted everywhere, ADK attributes included');
   const input = String(s.attributes['syndicate.input']);
   assert.ok(!input.includes(KEY), 'the key never leaves');
   assert.match(input, /\[redacted:secret\]/);
@@ -50,7 +59,11 @@ test('redacted (the default) scrubs credentials and the chosen kinds, keeps the 
 test('off drops every conversation attribute and hashes the user id; metrics and ids stay', async () => {
   assert.equal(otlpContentMode({ OTEL_EXPORT_CONTENT: 'off' } as any), 'off');
   const s = await exported('off');
-  for (const k of ['syndicate.input', 'syndicate.output', 'llm.payload.request', 'tool.args']) assert.ok(!(k in s.attributes), k);
+  for (const k of ['syndicate.input', 'syndicate.output', 'llm.payload.request', 'tool.args', 'gcp.vertex.agent.llm_request', 'gcp.vertex.agent.llm_response', 'gcp.vertex.agent.tool_call_args']) {
+    assert.ok(!(k in s.attributes), k);
+  }
+  assert.ok(!JSON.stringify(s.attributes).includes(KEY), 'the key is nowhere in the exported attributes');
+  for (const k of ['gcp.vertex.agent.invocation_id', 'gen_ai.request.model', 'gen_ai.response.finish_reasons', 'gen_ai.usage.input_tokens']) assert.ok(k in s.attributes, `${k} is metadata and stays`);
   assert.match(String(s.attributes['user.id']), /^sha256:[0-9a-f]{16}$/);
   assert.equal(s.attributes['llm.model'], 'gemini-x');
   assert.equal(s.attributes['syndicate.route'], 'Research');

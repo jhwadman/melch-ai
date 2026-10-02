@@ -9,9 +9,11 @@
  *
  *   OTEL_EXPORT_CONTENT=redacted   (default) the ledger's redactor runs on
  *                                  every text attribute and event
- *   OTEL_EXPORT_CONTENT=off        conversation attributes are dropped and the
- *                                  user id is hashed; timings, models, token
- *                                  counts, routes, errors and ids remain
+ *   OTEL_EXPORT_CONTENT=off        conversation attributes are dropped (the
+ *                                  engine's and any library's, by name) and
+ *                                  the user id is hashed; timings, models,
+ *                                  token counts, routes, error codes and ids
+ *                                  remain
  *   OTEL_EXPORT_CONTENT=raw        spans are sent as recorded
  */
 import { createHash } from 'node:crypto';
@@ -35,6 +37,16 @@ export const CONTENT_ATTRIBUTES = new Set([
 const CONTENT_PREFIXES = ['llm.payload.'];
 const PERSON_ATTRIBUTES = new Set(['user.id']);
 
+/**
+ * Libraries add their own content attributes (ADK puts the whole model request
+ * on its call_llm span as `gcp.vertex.agent.llm_request`, and the response and
+ * tool calls beside it), and a later version can add more. So `off` also drops
+ * any text attribute whose name says it carries content, unless the name says
+ * it is metadata (a model, a name, an id, a finish reason).
+ */
+const CONTENT_KEY = /(^|[._])(request|response|input|output|args|arguments|prompt|completion|messages?|content|thinking|payload|data_gathered|bindings|reason|error_message)([._]|$)/i;
+const METADATA_KEY = /([._])(model|name|id|system|description|finish_reasons|type|kind|version|stage)$/i;
+
 export function otlpContentMode(env: NodeJS.ProcessEnv = process.env): OtlpContentMode {
   const raw = (env.OTEL_EXPORT_CONTENT ?? 'redacted').trim().toLowerCase();
   if (raw === 'off' || raw === 'none' || raw === 'false') return 'off';
@@ -42,7 +54,11 @@ export function otlpContentMode(env: NodeJS.ProcessEnv = process.env): OtlpConte
   return 'redacted';
 }
 
-const isContent = (key: string) => CONTENT_ATTRIBUTES.has(key) || CONTENT_PREFIXES.some((p) => key.startsWith(p));
+const isText = (v: unknown) => typeof v === 'string' || (Array.isArray(v) && v.some((x) => typeof x === 'string'));
+const isContent = (key: string, value: unknown) =>
+  CONTENT_ATTRIBUTES.has(key) ||
+  CONTENT_PREFIXES.some((p) => key.startsWith(p)) ||
+  (isText(value) && CONTENT_KEY.test(key) && !METADATA_KEY.test(key));
 const hashed = (v: unknown) => `sha256:${createHash('sha256').update(String(v)).digest('hex').slice(0, 16)}`;
 
 /** One span's attributes as they may leave under `mode`. */
@@ -55,7 +71,7 @@ export function filterAttributes(
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(attributes)) {
     if (mode === 'off') {
-      if (isContent(key)) continue;
+      if (isContent(key, value)) continue;
       out[key] = PERSON_ATTRIBUTES.has(key) ? hashed(value) : value;
       continue;
     }
