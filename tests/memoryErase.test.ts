@@ -41,6 +41,8 @@ test('eraseScope calls the SQL function and returns a count per store', async ()
     verdicts: 0,
     labels: 0,
     tasks: 0,
+    memory_markers: 0,
+    task_tools: 0,
   });
 });
 
@@ -56,8 +58,9 @@ test('eraseScope refuses an empty scope and throws on a database error', async (
 });
 
 test('the erase migration covers every store, revokes PUBLIC, and requires a scope', () => {
-  const sql = readFileSync('db/migrations/0002_erase_scope.sql', 'utf-8');
-  for (const store of ['memory_facts', 'sessions', 'turns', 'spans', 'payloads', 'verdicts', 'labels', 'tasks']) {
+  // The latest definition: 0010 replaced 0002's and added the later stores.
+  const sql = readFileSync('db/migrations/0010_erase_complete.sql', 'utf-8');
+  for (const store of ['memory_facts', 'sessions', 'turns', 'spans', 'payloads', 'verdicts', 'labels', 'tasks', 'memory_markers', 'task_tools']) {
     assert.match(sql, new RegExp(`store := '${store}'`), store);
   }
   assert.match(sql, /REVOKE ALL ON FUNCTION melchizedek_erase_scope\(text, text, boolean\) FROM PUBLIC/);

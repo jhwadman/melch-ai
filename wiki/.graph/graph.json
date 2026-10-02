@@ -5,15 +5,15 @@
     "at": "2026-10-02"
   },
   "stats": {
-    "nodes": 552,
-    "edges": 1271,
+    "nodes": 553,
+    "edges": 1272,
     "byKind": {
       "doc": 74,
       "provider": 5,
       "env": 94,
       "model": 7,
       "tool": 32,
-      "file": 58,
+      "file": 59,
       "syndicate": 29,
       "agent": 79,
       "mcp-server": 4,
@@ -36,10 +36,10 @@
       "imports": 309,
       "reads_table": 28,
       "runs": 60,
-      "derives_from": 182
+      "derives_from": 183
     },
     "byTier": {
-      "extracted": 1271,
+      "extracted": 1272,
       "inferred": 0
     },
     "isolated": 2
@@ -714,7 +714,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 820
+        "words": 831
       }
     },
     {
@@ -726,7 +726,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 9237
+        "words": 10246
       }
     },
     {
@@ -858,7 +858,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1330
+        "words": 1343
       }
     },
     {
@@ -2676,6 +2676,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0010_erase_complete.sql",
+      "kind": "file",
+      "label": "0010_erase_complete.sql",
+      "source": "db/migrations/0010_erase_complete.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -2992,7 +2999,7 @@
       "label": "lib/memory/erase.ts",
       "source": "lib/memory/erase.ts",
       "attrs": {
-        "lines": 65
+        "lines": 68
       }
     },
     {
@@ -3244,7 +3251,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 801
+        "lines": 802
       }
     },
     {
@@ -6665,6 +6672,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0010_erase_complete.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -6675,14 +6689,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:30"
+      "evidence": "/memory/schema.md:31"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:1736"
+      "evidence": "/memory/schema.md:1924"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",

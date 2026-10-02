@@ -32,7 +32,7 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 | `env` | `env:<name>` | 94 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 79 | one orchestrator or subagent inside a syndicate |
 | `doc` | `/dir/doc.md` | 74 | a concept document in the bundle — identity is its bundle path |
-| `file` | `file:<name>` | 58 | a repo file that is not a source module (DDL, config, prose) |
+| `file` | `file:<name>` | 59 | a repo file that is not a source module (DDL, config, prose) |
 | `script` | `script:<name>` | 42 | an npm script entrypoint |
 | `tool` | `tool:<name>` | 32 | a tool an agent may declare by name |
 | `syndicate` | `syndicate:<name>` | 29 | one agent-team definition (a YAML) |

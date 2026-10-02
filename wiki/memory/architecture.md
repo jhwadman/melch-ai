@@ -47,7 +47,7 @@ The memory logic runs on a `MemoryStore` (`lib/memory/store.ts`), the five datab
 
 - **Sessions** are stored one row per event in `adk_session_events`, so two turns on one conversation both land.
 - **A2A tasks** in `adk_a2a_tasks` are scoped to their owner and shared by every instance.
-- **`erase(scopeKey)`** removes a scope's facts, conversations (sub-agent rows included), ledger rows and tasks in one transaction (`melchizedek_erase_scope`).
+- **`erase(scopeKey)`** removes a scope's facts and ingestion markers, conversations (sub-agent rows included), ledger rows, A2A tasks and, on a whole-scope erase, its task-tool list in one transaction (`melchizedek_erase_scope`).
 
 The Supabase path erases through the same database function (`lib/memory/erase.ts`). Conversations are kept seven days after their last update (`expire_at`); `melchizedek_prune_sessions()` deletes expired ones, nightly under pg_cron or by `npm run sessions:prune`.
 
