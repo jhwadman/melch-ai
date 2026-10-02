@@ -41,7 +41,7 @@ import type { BaseLlm, BaseMemoryService, BaseSessionService } from '@google/adk
 import { loadSyndicate, loadSyndicateFromRegistry } from '../loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import { providerForModel, resolveModel } from '../models/registry.ts';
-import type { ProviderId } from '../models/registry.ts';
+import type { ProviderEndpoint, ProviderId } from '../models/registry.ts';
 import { createSupabaseServices, hasSupabaseCredentials } from '../persistence/supabaseProvider.ts';
 import { inProcessTurnLock } from './turnLock.ts';
 import type { TurnLock } from './turnLock.ts';
@@ -151,11 +151,14 @@ export interface A2AAppOptions {
   /** One record per task, however it ended (structured logs, your own metrics). */
   onTaskEnd?: (record: TaskRecord) => void;
   /**
-   * Credentials plug point (ADR 0017/0023): the API key for a provider, for
-   * this request — from a secret manager, per tenant, anywhere. Undefined
-   * falls back to the server environment. Ignored when `resolveModel` is set.
+   * Credentials plug point (ADR 0017/0023): how a provider is reached for
+   * this request — from a secret manager, per tenant, anywhere. Return an
+   * API key, or a partial endpoint (`baseURL`, `apiKey`, a `token` source,
+   * Vertex `project`/`location`, Bedrock `region`, a `models` map) merged
+   * over the environment's (lib/models/endpoints.ts). Undefined falls back to
+   * the server environment. Ignored when `resolveModel` is set.
    */
-  credentials?: (provider: ProviderId, ctx: A2AContext) => string | undefined;
+  credentials?: (provider: ProviderId, ctx: A2AContext) => string | Partial<ProviderEndpoint> | undefined;
   /** Bare agent ids that resolve from the registry (ADR 0018). Others are files only. */
   registryAgents?: string[];
   /**
@@ -519,8 +522,14 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     if (options.resolveModel) return options.resolveModel(modelName, ctx);
     if (options.credentials) {
       const provider = providerForModel(modelName ?? '');
-      const apiKey = options.credentials(provider, ctx);
-      return apiKey ? resolveModel(modelName, { apiKey, defaultProvider: provider }) : resolveModel(modelName);
+      const given = options.credentials(provider, ctx);
+      if (typeof given === 'string') {
+        return given ? resolveModel(modelName, { apiKey: given, defaultProvider: provider }) : resolveModel(modelName);
+      }
+      if (given) {
+        return resolveModel(modelName, { endpoint: given, ...(given.apiKey ? { apiKey: given.apiKey, defaultProvider: provider } : {}) });
+      }
+      return resolveModel(modelName);
     }
     if (ctx.apiKey) return resolveModel(modelName, { apiKey: ctx.apiKey, defaultProvider: ctx.provider });
     return resolveModel(modelName);

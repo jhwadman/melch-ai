@@ -48,6 +48,8 @@
  *   delta-streamed (both OpenAI and xAI deliver them whole).
  */
 
+import { endpointFromEnv, entraTokenSource, nativeSearchOn, platformModel } from './endpoints.ts';
+import type { ProviderEndpoint } from './endpoints.ts';
 import { BaseLlm, LLMRegistry } from '@google/adk';
 import type { LlmRequest, LlmResponse } from '@google/adk';
 import type { BaseLlmConnection } from '@google/adk';
@@ -311,10 +313,40 @@ export class GptLlm extends BaseLlm {
   ];
 
   protected apiKey?: string;
+  private endpointOverride?: ProviderEndpoint;
+  private searchDropWarned = false;
 
-  constructor({ model, apiKey }: { model: string; apiKey?: string }) {
+  /**
+   * `endpoint` (ADR 0023): OpenAI's API (or a proxy at its base URL) or Azure
+   * OpenAI. Default: the environment's (`OPENAI_PLATFORM`).
+   */
+  constructor({ model, apiKey, endpoint }: { model: string; apiKey?: string; endpoint?: ProviderEndpoint }) {
     super({ model });
     this.apiKey = apiKey;
+    this.endpointOverride = endpoint;
+  }
+
+  /** Where requests go. Only OpenAI's own ids have platforms; a subclass vendor is direct. */
+  protected endpoint(): ProviderEndpoint {
+    if (this.providerId() !== 'openai') return { platform: 'direct' };
+    return this.endpointOverride ?? endpointFromEnv('openai');
+  }
+
+  /**
+   * The key (or token source) and base URL for the client, or why there is
+   * none. Azure takes AZURE_OPENAI_API_KEY (or the credentials plug point's
+   * key or token), else an Entra ID token from @azure/identity.
+   */
+  protected clientAuth(e: ProviderEndpoint): { apiKey: string | (() => Promise<string>); baseURL?: string } | { error: string } {
+    if (e.platform === 'azure') {
+      if (!e.baseURL) return { error: 'Azure OpenAI: AZURE_OPENAI_ENDPOINT is not set.' };
+      const key = this.apiKey || e.apiKey;
+      return { apiKey: key || e.token || entraTokenSource(), baseURL: e.baseURL };
+    }
+    const key = this.apiKey || e.apiKey || this.apiKeyFromEnv();
+    if (!key) return { error: this.missingKeyMessage() };
+    const baseURL = this.baseURL() ?? e.baseURL;
+    return { apiKey: key, ...(baseURL ? { baseURL } : {}) };
   }
 
   // ── Provider hooks ─────────────────────────────────────────────────────────
@@ -372,11 +404,18 @@ export class GptLlm extends BaseLlm {
     llmRequest: LlmRequest,
     stream: boolean,
   ): AsyncGenerator<LlmResponse, void> {
-    const apiKey = this.apiKey || this.apiKeyFromEnv();
-    if (!apiKey) {
+    let endpoint: ProviderEndpoint;
+    try {
+      endpoint = this.endpoint();
+    } catch (err) {
+      yield { errorCode: 'ENDPOINT_MISCONFIGURED', errorMessage: (err as Error).message };
+      return;
+    }
+    const auth = this.clientAuth(endpoint);
+    if ('error' in auth) {
       yield {
-        errorCode: 'MISSING_API_KEY',
-        errorMessage: this.missingKeyMessage(),
+        errorCode: endpoint.platform === 'direct' ? 'MISSING_API_KEY' : 'ENDPOINT_MISCONFIGURED',
+        errorMessage: auth.error,
       };
       return;
     }
@@ -397,15 +436,27 @@ export class GptLlm extends BaseLlm {
     }
 
     const client = new OpenAI({
-      apiKey,
-      ...(this.baseURL() ? { baseURL: this.baseURL() } : {}),
+      apiKey: auth.apiKey,
+      ...(auth.baseURL ? { baseURL: auth.baseURL } : {}),
       ...this.clientOptions(),
     });
 
     const { instructions, input } = buildResponsesInput(llmRequest);
-    const tools = buildResponsesTools(llmRequest);
+    let tools = buildResponsesTools(llmRequest);
     if (wantsWebSearch(llmRequest)) {
-      setLlmSpanAttribute('llm.web_search.native', true);
+      if (nativeSearchOn('openai', endpoint.platform)) {
+        setLlmSpanAttribute('llm.web_search.native', true);
+      } else {
+        // Not sent to Azure OpenAI (lib/models/endpoints.ts); the doctor and
+        // the capability matrix state this before any request.
+        tools = tools.filter((t) => t.type !== 'web_search');
+        setLlmSpanAttribute('llm.web_search.omitted', true);
+        setLlmSpanAttribute('llm.capability.dropped', 'web_search');
+        if (!this.searchDropWarned) {
+          this.searchDropWarned = true;
+          console.warn(`⚠ web_search is not sent to ${this.model} on Azure OpenAI; the agent answers without it (use web_extract).`);
+        }
+      }
     }
     if (wantsCollectionsSearch(llmRequest)) {
       setLlmSpanAttribute(
@@ -419,7 +470,7 @@ export class GptLlm extends BaseLlm {
     const cfg = (llmRequest.config as any) ?? {};
     const reasoning = this.reasoningParam();
     const request: Record<string, unknown> = {
-      model: this.model,
+      model: platformModel(endpoint, this.model),
       input,
       ...(instructions ? { instructions } : {}),
       ...(tools.length > 0 ? { tools } : {}),

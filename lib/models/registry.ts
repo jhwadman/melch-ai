@@ -24,7 +24,9 @@
  */
 
 import { Gemini, LLMRegistry } from '@google/adk';
-import type { BaseLlm, LlmRequest, LlmResponse } from '@google/adk';
+import type { BaseLlm, GeminiParams, LlmRequest, LlmResponse } from '@google/adk';
+import { endpointFromEnv, endpointProblems, mergeEndpoint, platformModel, providerReady } from './endpoints.ts';
+import type { ProviderEndpoint } from './endpoints.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 import { errorStatus, retryUntilFirstYield } from './retry.ts';
 
@@ -58,6 +60,15 @@ import {
 import type { ProviderId } from './providerMap.ts';
 
 export { providerForModel, providerKeyPresent, PROVIDERS };
+export {
+  endpointFromEnv,
+  endpointLabel,
+  endpointProblems,
+  PLATFORMS_FOR,
+  platformFromEnv,
+  providerReady,
+} from './endpoints.ts';
+export type { Platform, ProviderEndpoint } from './endpoints.ts';
 export type { ProviderId };
 export { gatewayConfig, gatewayProblem, gatewayUsable, planTransport, GATEWAYS } from './gateway.ts';
 export type { GatewayId, GatewayInfo, TransportPlan } from './gateway.ts';
@@ -76,6 +87,24 @@ export class TracedGemini extends Gemini {
   // built-in Gemini entries instead of adding shadowed duplicates.
   static readonly supportedModels: Array<string | RegExp> =
     Gemini.supportedModels;
+
+  /**
+   * The Gemini platform (ADR 0023) applies to every construction, the
+   * LLMRegistry's included: on Vertex AI the client authenticates with
+   * Google Application Default Credentials for the configured project and
+   * location, and an AI Studio key (the environment's or a caller's) is not
+   * sent. `endpoint` overrides the environment's (the credentials plug point).
+   */
+  constructor(params: GeminiParams & { endpoint?: ProviderEndpoint } = {}) {
+    const { endpoint: given, ...rest } = params;
+    const e = given ?? endpointFromEnv('gemini');
+    const model = rest.model ? platformModel(e, rest.model) : rest.model;
+    super(
+      e.platform === 'vertex'
+        ? { ...rest, model, apiKey: e.apiKey, vertexai: true, project: e.project, location: e.location }
+        : { ...rest, model, ...(e.apiKey && !rest.apiKey ? { apiKey: e.apiKey } : {}) },
+    );
+  }
 
   async *generateContentAsync(
     llmRequest: LlmRequest,
@@ -152,9 +181,19 @@ export function providerStatuses(): ProviderStatus[] {
   const gw = gatewayUsable() ? gatewayConfig() : null;
   return (Object.keys(PROVIDERS) as ProviderId[]).map((provider) => {
     const label = PROVIDERS[provider].label;
-    if (providerKeyPresent(provider)) {
+    if (providerReady(provider)) {
       return { provider, label, available: true, transport: 'direct' as const };
     }
+    // A cloud platform that is not fully configured is not covered by the
+    // gateway: the deployment chose that platform on purpose.
+    let cloudProblem: string | undefined;
+    try {
+      const e = endpointFromEnv(provider);
+      if (e.platform !== 'direct') cloudProblem = endpointProblems(provider, e).join('; ');
+    } catch (err) {
+      cloudProblem = err instanceof Error ? err.message : String(err);
+    }
+    if (cloudProblem) return { provider, label, available: false, reason: cloudProblem };
     if (gw && provider !== 'ollama') {
       return {
         provider,
@@ -263,6 +302,12 @@ export interface ResolveModelOptions {
    * YAML always wins.
    */
   defaultProvider?: string;
+  /**
+   * Where this request goes and how it authenticates (ADR 0023), merged over
+   * the environment's endpoint for the model's provider: the credentials plug
+   * point's per-request answer.
+   */
+  endpoint?: Partial<ProviderEndpoint>;
 }
 
 const DEFAULT_MODEL_FOR: Record<ProviderId, string> = {
@@ -302,21 +347,23 @@ export function resolveModel(
   // the provider's key — from env, or the caller's own BYOK key — is
   // present; the gateway stand-in only when it is absent and a gateway is
   // configured. The gateway key is server env only, never a request header.
-  if (planTransport(resolved, { callerKey: !!apiKey }).transport === 'gateway') {
+  const provider = providerForModel(resolved);
+  const endpoint = options.endpoint ? mergeEndpoint(provider, options.endpoint) : undefined;
+  if (planTransport(resolved, { callerKey: !!apiKey || !!endpoint }).transport === 'gateway') {
     return new GatewayLlm({ model: resolved });
   }
 
-  switch (providerForModel(resolved)) {
+  switch (provider) {
     case 'ollama':
       return new OllamaLlm({ model: resolved });
     case 'anthropic':
-      return new ClaudeLlm({ model: resolved, apiKey });
+      return new ClaudeLlm({ model: resolved, apiKey, endpoint });
     case 'openai':
-      return new GptLlm({ model: resolved, apiKey });
+      return new GptLlm({ model: resolved, apiKey, endpoint });
     case 'xai':
       return new GrokLlm({ model: resolved, apiKey });
     case 'gemini':
-      return new TracedGemini({ model: resolved, apiKey });
+      return new TracedGemini({ model: resolved, apiKey, endpoint });
   }
 }
 

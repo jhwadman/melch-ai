@@ -301,6 +301,34 @@ already turns `claude-sonnet-4-6` into `anthropic/claude-sonnet-4.6`). The
 A2A `X-API-Key` never selects the gateway — the gateway key is server
 environment only.
 
+**Cloud platforms and proxies (ADR 0023).** The model id picks the provider;
+`<PROVIDER>_PLATFORM` picks how it is reached. Keys in the environment against
+the vendor's public API stay the default.
+
+| Path | Set | Credential |
+|---|---|---|
+| Gemini on Vertex AI | `GEMINI_PLATFORM=vertex` (or genai's `GOOGLE_GENAI_USE_VERTEXAI=true`), `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` | Google Application Default Credentials |
+| Claude on Bedrock | `ANTHROPIC_PLATFORM=bedrock`, `AWS_REGION` | the AWS credential chain; needs `@anthropic-ai/bedrock-sdk` |
+| Claude on Vertex AI | `ANTHROPIC_PLATFORM=vertex`, `ANTHROPIC_VERTEX_PROJECT_ID` (or `GOOGLE_CLOUD_PROJECT`), `CLOUD_ML_REGION` | Google ADC; needs `@anthropic-ai/vertex-sdk` |
+| GPT on Azure OpenAI | `OPENAI_PLATFORM=azure`, `AZURE_OPENAI_ENDPOINT` | `AZURE_OPENAI_API_KEY`, else Entra ID through `@azure/identity` |
+| A proxy in front of Anthropic or OpenAI | `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL` | the provider's key |
+
+`ANTHROPIC_MODEL_MAP`, `OPENAI_MODEL_MAP` and `GEMINI_MODEL_MAP` (JSON, YAML id
+→ platform id) translate ids a platform names differently: a Bedrock inference
+profile, a Vertex AI version suffix, an Azure deployment name. Unlisted ids pass
+through. The A2A `credentials` plug point may return, per request, an API key
+or a partial endpoint (`baseURL`, `apiKey`, a `token` source, `project`,
+`location`, `region`, `models`) merged over the environment's. Memory
+extraction and embeddings follow the Gemini platform, so a Vertex AI
+deployment needs no AI Studio key.
+
+Native web search is not sent on Bedrock, Claude-on-Vertex or Azure (Gemini
+grounding is kept on Vertex AI); the capability report, the startup log and
+the doctor say so per agent. `npm run doctor` prints one `endpoint` line per
+configured platform with its credential source and anything missing. These
+paths are tested against mocked SDK clients and have **not** been run against
+the live clouds from this repository.
+
 `lib/models/registry.ts` is the single routing seam:
 `registerAvailableProviders()` registers every adapter whose key is
 present (Ollama needs none) into the ADK's LLM registry, so the YAML

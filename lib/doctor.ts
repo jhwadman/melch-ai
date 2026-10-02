@@ -28,7 +28,10 @@ import { loadSyndicate } from './loadSyndicate.ts';
 import type { SyndicateYamlConfig } from './loadSyndicate.ts';
 import { SyndicateValidationError } from './syndicateSchema.ts';
 import { LEGACY_MEMORY_APP_NAME } from './memory/namespace.ts';
+import { createRequire } from 'node:module';
 import { CAPABILITY_LABELS, capabilityGaps, describeCapabilities } from './models/capabilities.ts';
+import { credentialSource, endpointFromEnv, endpointLabel, endpointProblems, PLATFORM_SDK, PLATFORMS_FOR } from './models/endpoints.ts';
+import type { Platform, ProviderEndpoint } from './models/endpoints.ts';
 import type { AgentNeedsInput, CapabilityGap, CapabilityReport } from './models/capabilities.ts';
 import {
   GATEWAY_ENV,
@@ -104,7 +107,69 @@ export interface DoctorResult {
   syndicates: DoctorSyndicate[];
   unlocks: Unlock[];
   gateway: { id: string; label: string; usable: boolean; problem?: string } | null;
+  /** Every provider not on its default endpoint: a cloud platform or a proxy (ADR 0023). */
+  endpoints: DoctorEndpoint[];
   counts: Record<VerdictState, number>;
+}
+
+export interface DoctorEndpoint {
+  provider: ProviderId;
+  platform: Platform | 'invalid';
+  label: string;
+  /** How it authenticates; a cloud credential chain is not exercised by the doctor. */
+  credential: string;
+  /** The platform SDK it needs beyond the provider's own, and whether it resolves. */
+  sdk?: { module: string; installed: boolean };
+  problems: string[];
+  /** Cloud platforms are tested against mocks only (ADR 0023). */
+  liveVerified: boolean;
+}
+
+function resolvable(module: string): boolean {
+  try {
+    createRequire(import.meta.url).resolve(module);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** One row per provider that is not on its vendor's public API with an env key. */
+export function endpointRows(): DoctorEndpoint[] {
+  const rows: DoctorEndpoint[] = [];
+  for (const provider of Object.keys(PLATFORMS_FOR) as ProviderId[]) {
+    let e: ProviderEndpoint;
+    try {
+      e = endpointFromEnv(provider);
+    } catch (err) {
+      rows.push({
+        provider,
+        platform: 'invalid',
+        label: PROVIDERS[provider].label,
+        credential: '—',
+        problems: [err instanceof Error ? err.message : String(err)],
+        liveVerified: false,
+      });
+      continue;
+    }
+    if (e.platform === 'direct' && !e.baseURL && !e.models) continue;
+    const sdkModule =
+      PLATFORM_SDK[`${provider}/${e.platform}`] ??
+      (provider === 'openai' && e.platform === 'azure' && !e.apiKey ? '@azure/identity' : undefined);
+    const sdk = sdkModule ? { module: sdkModule, installed: resolvable(sdkModule) } : undefined;
+    const problems = endpointProblems(provider, e);
+    if (sdk && !sdk.installed) problems.push(`${sdk.module} is not installed (npm install ${sdk.module})`);
+    rows.push({
+      provider,
+      platform: e.platform,
+      label: endpointLabel(provider, e),
+      credential: e.platform === 'direct' ? (PROVIDERS[provider].keyEnv ?? 'none') : credentialSource(provider, e),
+      ...(sdk ? { sdk } : {}),
+      problems,
+      liveVerified: e.platform === 'direct',
+    });
+  }
+  return rows;
 }
 
 // ── Where to get a key ───────────────────────────────────────────────────────
@@ -436,7 +501,7 @@ export function runDoctor(options: {
 
   flagMemoryNamespaces(syndicates);
 
-  return { agentsDir, syndicates, unlocks, gateway, counts };
+  return { agentsDir, syndicates, unlocks, gateway, endpoints: endpointRows(), counts };
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
@@ -474,10 +539,17 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
   const providerBits = (Object.keys(PROVIDERS) as ProviderId[]).map((p) => {
     const r = describeCapabilities(p === 'ollama' ? 'ollama/x' : p === 'gemini' ? 'gemini-x' : p === 'anthropic' ? 'claude-x' : p === 'openai' ? 'gpt-x' : 'grok-x');
     const mark = !r.funded ? `${c.red}✗${c.reset}` : r.transport === 'gateway' ? `${c.yellow}◇${c.reset}` : `${c.green}✓${c.reset}`;
-    const how = !r.funded ? `${c.dim}${r.keyEnv} not set${c.reset}` : r.transport === 'gateway' ? `${c.dim}via gateway:${r.gateway}${c.reset}` : p === 'ollama' ? `${c.dim}local${c.reset}` : `${c.dim}direct${c.reset}`;
+    const how = !r.funded ? `${c.dim}${r.keyEnv} not set${c.reset}` : r.transport === 'gateway' ? `${c.dim}via gateway:${r.gateway}${c.reset}` : p === 'ollama' ? `${c.dim}local${c.reset}` : `${c.dim}${r.platform ?? 'direct'}${c.reset}`;
     return `${mark} ${PROVIDERS[p].label} ${how}`;
   });
   lines.push('providers   ' + providerBits.join('   '));
+  for (const e of result.endpoints ?? []) {
+    const mark = e.problems.length ? `${c.red}✗${c.reset}` : `${c.green}✓${c.reset}`;
+    const detail = e.problems.length
+      ? `${c.red}${e.problems.join('; ')}${c.reset}`
+      : `${c.dim}${e.credential}${e.platform === 'direct' ? '' : ' (not checked)'}${e.liveVerified ? '' : ' · tested against mocks, not live-verified'}${c.reset}`;
+    lines.push(`endpoint    ${mark} ${e.label} ${detail}`);
+  }
   if (result.gateway) {
     lines.push(
       result.gateway.problem

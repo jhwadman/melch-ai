@@ -60,6 +60,8 @@ import {
 } from '../tools/webSearchTool.ts';
 import { providerRequestOptions } from '../runtime/turnControl.ts';
 import { toLowercaseJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
+import { claudeClientSpec, endpointFromEnv, instantiateClient, nativeSearchOn, platformModel, SdkMissingError } from './endpoints.ts';
+import type { ProviderEndpoint } from './endpoints.ts';
 
 // ── Type aliases to avoid @anthropic-ai/sdk import errors when not installed ─
 // We use dynamic import inside the methods so the rest of the framework still
@@ -120,10 +122,18 @@ export class ClaudeLlm extends BaseLlm {
   static readonly supportedModels: Array<string | RegExp> = [/^claude-.+/];
 
   private apiKey?: string;
+  private endpoint?: ProviderEndpoint;
+  private searchDropWarned = false;
 
-  constructor({ model, apiKey }: { model: string; apiKey?: string }) {
+  /**
+   * `endpoint` (ADR 0023): where the request goes — Anthropic's API (or a
+   * proxy at its base URL), Bedrock, or Vertex AI. Default: the environment's
+   * (`ANTHROPIC_PLATFORM`).
+   */
+  constructor({ model, apiKey, endpoint }: { model: string; apiKey?: string; endpoint?: ProviderEndpoint }) {
     super({ model });
     this.apiKey = apiKey;
+    this.endpoint = endpoint;
   }
 
   /**
@@ -148,31 +158,35 @@ export class ClaudeLlm extends BaseLlm {
     llmRequest: LlmRequest,
     stream: boolean,
   ): AsyncGenerator<LlmResponse, void> {
-    const apiKey = this.apiKey || process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      yield {
-        errorCode: 'MISSING_API_KEY',
-        errorMessage: 'ANTHROPIC_API_KEY is not set in environment.',
-      };
-      return;
-    }
-
-    // Dynamic import — only loads @anthropic-ai/sdk when actually called,
-    // so the framework boots without the SDK installed for Gemini-only users.
-    let Anthropic: any;
+    let endpoint: ProviderEndpoint;
     try {
-      const mod = await import('@anthropic-ai/sdk');
-      Anthropic = mod.default ?? mod.Anthropic;
-    } catch {
+      endpoint = this.endpoint ?? endpointFromEnv('anthropic');
+    } catch (err) {
+      yield { errorCode: 'ENDPOINT_MISCONFIGURED', errorMessage: (err as Error).message };
+      return;
+    }
+    const spec = claudeClientSpec(endpoint, this.apiKey || endpoint.apiKey || process.env.ANTHROPIC_API_KEY);
+    if ('error' in spec) {
       yield {
-        errorCode: 'SDK_NOT_INSTALLED',
-        errorMessage:
-          'The @anthropic-ai/sdk package is not installed. Run: npm install @anthropic-ai/sdk',
+        errorCode: endpoint.platform === 'direct' ? 'MISSING_API_KEY' : 'ENDPOINT_MISCONFIGURED',
+        errorMessage: spec.error,
       };
       return;
     }
 
-    const client = new Anthropic({ apiKey });
+    // Dynamic import — only loads the SDK (Anthropic's, or its Bedrock or
+    // Vertex AI client) when actually called, so the framework boots without
+    // it for users of other providers. All three share the Messages API.
+    let client: any;
+    try {
+      client = await instantiateClient(spec);
+    } catch (err) {
+      yield {
+        errorCode: err instanceof SdkMissingError ? 'SDK_NOT_INSTALLED' : 'ENDPOINT_MISCONFIGURED',
+        errorMessage: (err as Error).message,
+      };
+      return;
+    }
 
     // ── Translate ADK Contents → Anthropic messages ──────────────────────────
     const systemParts: string[] = [];
@@ -236,9 +250,21 @@ export class ClaudeLlm extends BaseLlm {
     }
 
     // ── Build Anthropic tool definitions from ADK toolsDict ──────────────────
-    const anthropicTools = buildAnthropicTools(llmRequest);
+    let anthropicTools = buildAnthropicTools(llmRequest);
     if (wantsWebSearch(llmRequest)) {
-      setLlmSpanAttribute('llm.web_search.native', true);
+      if (nativeSearchOn('anthropic', endpoint.platform)) {
+        setLlmSpanAttribute('llm.web_search.native', true);
+      } else {
+        // Not sent off Anthropic's own API (lib/models/endpoints.ts); the
+        // doctor and the capability matrix state this before any request.
+        anthropicTools = anthropicTools.filter((t) => t.type !== 'web_search_20250305');
+        setLlmSpanAttribute('llm.web_search.omitted', true);
+        setLlmSpanAttribute('llm.capability.dropped', 'web_search');
+        if (!this.searchDropWarned) {
+          this.searchDropWarned = true;
+          console.warn(`⚠ web_search is not sent to Claude on ${endpoint.platform}; the agent answers without it (use web_extract).`);
+        }
+      }
     }
 
     // ── Extended thinking (Gemini thinkingConfig → Anthropic thinking) ───────
@@ -272,7 +298,7 @@ export class ClaudeLlm extends BaseLlm {
     const allTools = structuredTool ? [...anthropicTools, structuredTool] : anthropicTools;
 
     const requestBase = {
-      model: this.model,
+      model: platformModel(endpoint, this.model),
       max_tokens: maxTokens,
       system: systemParts.join('\n\n') || undefined,
       messages,

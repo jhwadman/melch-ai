@@ -22,6 +22,17 @@ import { PROVIDERS } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
 import { planTransport } from './gateway.ts';
 import type { TransportPlan } from './gateway.ts';
+import { nativeSearchOn, PLATFORMS_FOR, platformFromEnv } from './endpoints.ts';
+import type { Platform } from './endpoints.ts';
+
+/** The platform a direct path uses (ADR 0023); a misconfigured one reads as direct here, the doctor reports it. */
+function directPlatform(provider: ProviderId): Platform {
+  try {
+    return platformFromEnv(provider);
+  } catch {
+    return 'direct';
+  }
+}
 
 /**
  * Server-side tool sentinels and the providers whose DIRECT adapter
@@ -42,6 +53,8 @@ export interface CapabilityReport {
   transport: TransportPlan['transport'];
   /** Gateway id when transport is 'gateway'. */
   gateway?: string;
+  /** The cloud platform of a direct path (ADR 0023); absent on Ollama and the gateway. */
+  platform?: Platform;
   /** False when neither a direct key nor a gateway can serve this id. */
   funded: boolean;
   /** The env var that would fund the direct path. */
@@ -60,6 +73,7 @@ export function describeCapabilities(
   opts: { callerKey?: boolean } = {},
 ): CapabilityReport {
   const plan = planTransport(model, opts);
+  const platform = plan.transport === 'direct' && plan.provider !== 'ollama' ? directPlatform(plan.provider) : undefined;
   const native: string[] = [];
   const dropped: string[] = [];
   const portable: string[] = [];
@@ -67,7 +81,7 @@ export function describeCapabilities(
     const providers = SERVER_SIDE_TOOLS[name];
     if (!providers) {
       portable.push(name);
-    } else if (plan.transport === 'direct' && providers.includes(plan.provider)) {
+    } else if (plan.transport === 'direct' && providers.includes(plan.provider) && nativeSearchOn(plan.provider, platform ?? 'direct')) {
       native.push(name);
     } else {
       dropped.push(name);
@@ -79,6 +93,7 @@ export function describeCapabilities(
     providerLabel: PROVIDERS[plan.provider].label,
     transport: plan.transport,
     ...(plan.gateway ? { gateway: plan.gateway.id } : {}),
+    ...(platform && platform !== 'direct' ? { platform } : {}),
     funded: plan.funded,
     keyEnv: plan.keyEnv,
     native,
@@ -104,7 +119,9 @@ export function capabilitySummary(agentName: string, r: CapabilityReport): strin
       ? 'a gateway cannot enable upstream native search'
       : r.provider === 'ollama'
         ? 'a local model has no native search'
-        : `${r.providerLabel} has no native ${r.dropped.join('/')}`;
+        : r.platform
+          ? `native search is not sent to ${r.providerLabel} on ${r.platform}`
+          : `${r.providerLabel} has no native ${r.dropped.join('/')}`;
   return `${agentName}: ${r.model}${via} — dropped ${r.dropped.join(', ')} (${why}).`;
 }
 
@@ -239,6 +256,10 @@ export function capabilityOf(
 ): CapabilityCell & { row: MatrixRow } {
   const plan = planTransport(model, opts);
   const row: MatrixRow = plan.transport === 'gateway' ? 'gateway' : plan.provider;
+  if (row !== 'gateway' && row !== 'ollama') {
+    const cell = platformCell(row, directPlatform(row), capability);
+    if (cell) return { row, ...cell };
+  }
   return { row, ...CAPABILITY_MATRIX[row][capability] };
 }
 
@@ -286,6 +307,27 @@ export function capabilityGaps(
   return gaps;
 }
 
+// ── Cloud platforms (ADR 0023) ───────────────────────────────────────────────
+//
+// On Vertex AI, Bedrock and Azure OpenAI the adapter sends the same request
+// as on the provider's own API (the vendor SDK's platform client speaks the
+// same dialect), so every cell is the provider's row, except where the
+// adapter deliberately sends less. Native search is the one such cell today.
+
+/** The cell that differs from the provider's row on a platform, or undefined. */
+export function platformCell(provider: ProviderId, platform: Platform, capability: Capability): CapabilityCell | undefined {
+  if (platform === 'direct' || capability !== 'native_search') return undefined;
+  if (nativeSearchOn(provider, platform)) return undefined;
+  return unsupported(`not sent on ${PLATFORM_LABEL[platform]}; the web_search sentinel is dropped (use web_extract)`);
+}
+
+const PLATFORM_LABEL: Record<Platform, string> = {
+  direct: 'the provider API',
+  vertex: 'Vertex AI',
+  bedrock: 'Bedrock',
+  azure: 'Azure OpenAI',
+};
+
 const SUPPORT_MARK: Record<Support, string> = { supported: '✓', degraded: '◐', unsupported: '✗' };
 
 /** The matrix as a Markdown table plus notes, for documentation and the doctor. */
@@ -309,5 +351,19 @@ export function renderCapabilityMatrix(): string {
   lines.push('✓ supported · ◐ degraded · ✗ unsupported. Gemini cells are ADK\'s own adapter; every other cell is asserted against the request the adapter sends.');
   lines.push('');
   notes.forEach((n, i) => lines.push(`${i + 1}. ${n}`));
+  lines.push('');
+  lines.push('**Cloud platforms** (ADR 0023): the same adapter and request as the provider\'s own API, except as listed. These paths are tested against mocks, not against the live clouds.');
+  lines.push('');
+  lines.push('| Path | Differs from the provider row |');
+  lines.push('|---|---|');
+  for (const provider of Object.keys(PLATFORMS_FOR) as ProviderId[]) {
+    for (const platform of PLATFORMS_FOR[provider]) {
+      if (platform === 'direct') continue;
+      const diffs = CAPABILITIES.map((cap) => [cap, platformCell(provider, platform, cap)] as const)
+        .filter(([, cell]) => cell)
+        .map(([cap, cell]) => `${CAPABILITY_LABELS[cap]}: ${SUPPORT_MARK[cell!.support]} ${cell!.note ?? ''}`.trim());
+      lines.push(`| ${PROVIDERS[provider].label} on ${PLATFORM_LABEL[platform]} | ${diffs.join('; ') || 'nothing'} |`);
+    }
+  }
   return lines.join('\n');
 }
