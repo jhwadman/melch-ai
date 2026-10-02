@@ -165,3 +165,49 @@ test('an unreadable store is an Error string, never a throw', async () => {
   writeFileSync(taskStorePath(), JSON.stringify({ something: 'else' }));
   assert.match(await call(taskAddContract, { title: 'x' }), /^Error: the task store could not be read/);
 });
+
+// ── Backends and callers ────────────────────────────────────────────────────
+test('a tool call carries its caller from the ADK invocation', async () => {
+  const { toolCallContextFrom, toFunctionTool } = await import('../lib/tools/toolContract.ts');
+  assert.deepEqual(toolCallContextFrom({ invocationContext: { userId: 'scope-a', appName: 'desk', session: { id: 's1' } } }), {
+    userId: 'scope-a',
+    appName: 'desk',
+    sessionId: 's1',
+  });
+  assert.equal(toolCallContextFrom(undefined), undefined);
+  const seen: unknown[] = [];
+  const tool = toFunctionTool({
+    name: 'probe',
+    description: 'probe',
+    schema: (await import('zod')).z.object({}),
+    execute: async (_input, context) => (seen.push(context), 'ok'),
+  });
+  await (tool as any).execute({}, { invocationContext: { userId: 'scope-b', appName: 'x', session: { id: 'y' } } });
+  assert.deepEqual(seen, [{ userId: 'scope-b', appName: 'x', sessionId: 'y' }]);
+});
+
+test('with a plugged-in backend each caller has their own list', async () => {
+  const { setTaskBackend, getTaskBackend, fileTaskBackend, applyFinish } = await import('../lib/tools/taskTools.ts');
+  const stores = new Map<string, any>();
+  const storeOf = (owner: string) => {
+    if (!stores.has(owner)) stores.set(owner, { version: 1, next_id: 1, tasks: [] });
+    return stores.get(owner);
+  };
+  setTaskBackend({
+    read: async (owner) => structuredClone(storeOf(owner)),
+    mutate: async (owner, change) => change(storeOf(owner)),
+    claimNext: async () => null,
+    renew: async () => {},
+    finish: async (job, outcome) => applyFinish(storeOf(job.owner), job.id, outcome),
+    recover: async () => ({ requeued: [], failed: [] }),
+  });
+  try {
+    assert.equal(await taskAddContract.execute({ title: 'alpha task' } as any, { userId: 'alice' }), 'Added t1 [open] alpha task');
+    assert.equal(await taskAddContract.execute({ title: 'beta task' } as any, { userId: 'bob' }), 'Added t1 [open] beta task');
+    assert.match(await taskListContract.execute({ status: 'all', kind: 'any' } as any, { userId: 'alice' }), /alpha task/);
+    assert.doesNotMatch(await taskListContract.execute({ status: 'all', kind: 'any' } as any, { userId: 'alice' }), /beta task/);
+  } finally {
+    setTaskBackend(fileTaskBackend);
+  }
+  assert.equal(getTaskBackend(), fileTaskBackend);
+});

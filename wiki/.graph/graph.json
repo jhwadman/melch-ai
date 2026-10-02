@@ -2,44 +2,44 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-01"
+    "at": "2026-10-02"
   },
   "stats": {
-    "nodes": 530,
-    "edges": 1219,
+    "nodes": 534,
+    "edges": 1230,
     "byKind": {
       "doc": 73,
       "provider": 5,
       "env": 81,
       "model": 7,
       "tool": 32,
-      "file": 57,
+      "file": 58,
       "syndicate": 29,
       "agent": 79,
       "mcp-server": 4,
-      "table": 14,
-      "module": 105,
+      "table": 16,
+      "module": 106,
       "script": 42,
       "external": 2
     },
     "byRelation": {
-      "links_to": 181,
-      "requires_env": 133,
+      "links_to": 183,
+      "requires_env": 134,
       "routes_to": 7,
-      "defined_in": 70,
+      "defined_in": 72,
       "documents": 53,
       "contains": 79,
       "uses_model": 79,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 287,
+      "imports": 292,
       "reads_table": 28,
       "runs": 60,
-      "derives_from": 176
+      "derives_from": 177
     },
     "byTier": {
-      "extracted": 1219,
+      "extracted": 1230,
       "inferred": 0
     },
     "isolated": 2
@@ -546,7 +546,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 443
+        "words": 502
       }
     },
     {
@@ -618,7 +618,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 901
+        "words": 938
       }
     },
     {
@@ -714,7 +714,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8874
+        "words": 9237
       }
     },
     {
@@ -882,7 +882,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 386
+        "words": 448
       }
     },
     {
@@ -2579,6 +2579,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0009_task_queue.sql",
+      "kind": "file",
+      "label": "0009_task_queue.sql",
+      "source": "db/migrations/0009_task_queue.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -3165,7 +3172,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 197
+        "lines": 202
       }
     },
     {
@@ -3184,6 +3191,15 @@
       "source": "lib/storage/postgres/sessionService.ts",
       "attrs": {
         "lines": 235
+      }
+    },
+    {
+      "id": "module:lib/storage/postgres/taskQueue.ts",
+      "kind": "module",
+      "label": "lib/storage/postgres/taskQueue.ts",
+      "source": "lib/storage/postgres/taskQueue.ts",
+      "attrs": {
+        "lines": 146
       }
     },
     {
@@ -3219,7 +3235,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 138
+        "lines": 139
       }
     },
     {
@@ -3336,7 +3352,7 @@
       "label": "lib/tools/taskTools.ts",
       "source": "lib/tools/taskTools.ts",
       "attrs": {
-        "lines": 410
+        "lines": 481
       }
     },
     {
@@ -3345,7 +3361,7 @@
       "label": "lib/tools/toolContract.ts",
       "source": "lib/tools/toolContract.ts",
       "attrs": {
-        "lines": 153
+        "lines": 174
       }
     },
     {
@@ -3507,7 +3523,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 420
+        "lines": 423
       }
     },
     {
@@ -3516,7 +3532,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 192
+        "lines": 207
       }
     },
     {
@@ -4505,6 +4521,24 @@
       "kind": "table",
       "label": "melchizedek_schema_version",
       "source": "db/migrations/0001_base.sql",
+      "attrs": {
+        "created_upstream": true
+      }
+    },
+    {
+      "id": "table:melchizedek_task_owners",
+      "kind": "table",
+      "label": "melchizedek_task_owners",
+      "source": "db/migrations/0009_task_queue.sql",
+      "attrs": {
+        "created_upstream": true
+      }
+    },
+    {
+      "id": "table:melchizedek_tasks",
+      "kind": "table",
+      "label": "melchizedek_tasks",
+      "source": "db/migrations/0009_task_queue.sql",
       "attrs": {
         "created_upstream": true
       }
@@ -5759,6 +5793,13 @@
       "to": "/decisions/0007-engine-as-package.md",
       "rel": "links_to",
       "tier": "extracted",
+      "evidence": "/decisions/0015-task-queue-and-worker.md:38"
+    },
+    {
+      "from": "/decisions/0015-task-queue-and-worker.md",
+      "to": "/decisions/0021-postgres-first-storage.md",
+      "rel": "links_to",
+      "tier": "extracted",
       "evidence": "/decisions/0015-task-queue-and-worker.md:36"
     },
     {
@@ -5987,10 +6028,17 @@
     },
     {
       "from": "/decisions/0021-postgres-first-storage.md",
+      "to": "/decisions/0015-task-queue-and-worker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0021-postgres-first-storage.md:57"
+    },
+    {
+      "from": "/decisions/0021-postgres-first-storage.md",
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0021-postgres-first-storage.md:62"
+      "evidence": "/decisions/0021-postgres-first-storage.md:64"
     },
     {
       "from": "/decisions/0021-postgres-first-storage.md",
@@ -6421,6 +6469,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0009_task_queue.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -6431,14 +6486,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:29"
+      "evidence": "/memory/schema.md:30"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:1671"
+      "evidence": "/memory/schema.md:1736"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -10152,7 +10207,21 @@
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/storage/postgres/taskQueue.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/storage/postgres/taskStore.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/tools/taskTools.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/index.ts"
@@ -10170,6 +10239,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/memoryStore.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/taskQueue.ts",
+      "to": "module:lib/tools/taskTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/taskQueue.ts"
     },
     {
       "from": "module:lib/storage/schemaVersion.ts",
@@ -10866,6 +10942,13 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/tools/taskTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "env:A2A_AUTH",
       "rel": "requires_env",
       "tier": "extracted",
@@ -11076,8 +11159,22 @@
     },
     {
       "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
       "to": "module:lib/tools/taskTools.ts",
       "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
+      "to": "env:DATABASE_URL",
+      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/assistant_worker.ts"
     },
@@ -13138,6 +13235,20 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "db/migrations/0001_base.sql"
+    },
+    {
+      "from": "table:melchizedek_task_owners",
+      "to": "file:db/migrations/0009_task_queue.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0009_task_queue.sql"
+    },
+    {
+      "from": "table:melchizedek_tasks",
+      "to": "file:db/migrations/0009_task_queue.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0009_task_queue.sql"
     },
     {
       "from": "table:melchizedek_usage",

@@ -30,13 +30,25 @@ import { FunctionTool } from '@google/adk';
 import type { Schema } from '@google/genai';
 import { z } from 'zod';
 
+/**
+ * Who a tool call is for, when the surface knows. The ADK surface fills it
+ * from the invocation (the A2A server's scope key is the user id); the MCP
+ * surface has no caller and passes nothing. A tool that keeps per-user state
+ * scopes it by `userId`; most tools ignore it.
+ */
+export interface ToolCallContext {
+  userId?: string;
+  appName?: string;
+  sessionId?: string;
+}
+
 export interface ToolContract<S extends z.ZodType = z.ZodType> {
   name: string;
   /** LLM-facing prompt text, not developer docs — it steers when agents call the tool. */
   description: string;
   /** Single source of truth for the input shape; both wire dialects derive from it. */
   schema: S;
-  execute: (input: z.infer<S>) => Promise<string>;
+  execute: (input: z.infer<S>, context?: ToolCallContext) => Promise<string>;
 }
 
 /** Identity helper whose only job is inferring the execute() input type from the schema. */
@@ -54,6 +66,7 @@ export function defineTool<S extends z.ZodType>(contract: ToolContract<S>): Tool
 export async function executeContract(
   contract: ToolContract<any>,
   args: unknown,
+  context?: ToolCallContext,
 ): Promise<string> {
   const parsed = contract.schema.safeParse(args ?? {});
   if (!parsed.success) {
@@ -63,7 +76,15 @@ export async function executeContract(
       .join('; ');
     return `Error: invalid arguments for ${contract.name}: ${issues}`;
   }
-  return contract.execute(parsed.data);
+  return contract.execute(parsed.data, context);
+}
+
+/** The call context from an ADK ToolContext (undefined outside a run). */
+export function toolCallContextFrom(toolContext: unknown): ToolCallContext | undefined {
+  const inv = (toolContext as { invocationContext?: { userId?: string; appName?: string; session?: { id?: string } } } | undefined)
+    ?.invocationContext;
+  if (!inv) return undefined;
+  return { userId: inv.userId, appName: inv.appName, sessionId: inv.session?.id };
 }
 
 /**
@@ -131,7 +152,7 @@ export function toFunctionTool(contract: ToolContract<any>): FunctionTool {
     name: contract.name,
     description: contract.description,
     parameters: toGeminiSchema(toStandardJsonSchema(contract)) as unknown as Schema,
-    execute: (input: unknown) => executeContract(contract, input),
+    execute: (input: unknown, toolContext?: unknown) => executeContract(contract, input, toolCallContextFrom(toolContext)),
   });
 }
 

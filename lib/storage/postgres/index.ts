@@ -22,6 +22,8 @@ import type { EraseCounts, EraseOptions } from '../../memory/erase.ts';
 import { postgresMemoryStore } from './memoryStore.ts';
 import { PostgresSessionService } from './sessionService.ts';
 import { PostgresTaskStore, reapExpiredTasks, renewTaskLeases } from './taskStore.ts';
+import { postgresTaskBackend } from './taskQueue.ts';
+import type { TaskBackend } from '../../tools/taskTools.ts';
 import { randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
 import type { ReleaseTurnLock, TurnLock } from '../../a2a/turnLock.ts';
@@ -75,6 +77,8 @@ export interface PostgresStorage {
    * crashed instance releases it when its connection drops (ADR 0021).
    */
   turnLock: TurnLock;
+  /** The task tools' lists and job queue (lib/tools/taskTools.ts setTaskBackend). */
+  taskQueue: TaskBackend;
   /** Task leases: renew this instance's, fail other instances' expired ones. */
   leases: { instanceId: string; ttlMs: number; renew: () => Promise<number>; reap: () => Promise<number> };
   /** Closes the pool when this module created it, and the lock pool. */
@@ -165,6 +169,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
     ...(memoryService ? { memoryService } : {}),
     taskStore: (agentId) => new PostgresTaskStore(pool, agentId, { ttlDays: options.ttlDays, ownerResolver: options.taskOwner, lease }),
     leases: { ...lease, renew: () => renewTaskLeases(pool, lease), reap: () => reapExpiredTasks(pool) },
+    taskQueue: postgresTaskBackend(pool),
     async schemaVersion() {
       try {
         const r = await pool.query('SELECT max(version) AS v FROM melchizedek_schema_version');

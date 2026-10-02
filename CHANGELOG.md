@@ -134,6 +134,13 @@ the starter pack and the templates), not the repo's full history.
 
 ### New
 
+- **The task tools on Postgres** (migration `0009_task_queue.sql`). With
+  `DATABASE_URL`, the to-do list and job queue live in Postgres: each caller
+  has their own list (tool calls now carry their caller, `ToolCallContext`,
+  and the task tools file records under the scope key), and any number of
+  `melchizedek-worker`s claim jobs with `FOR UPDATE SKIP LOCKED` under a
+  renewed lease. The JSON file stays the default. `setTaskBackend()` plugs
+  in any other store.
 - **Per-syndicate memory settings** (ADR 0020). `memory_extraction_model`
   picks the model that distils a syndicate's turns (default
   `MEMORY_EXTRACTION_MODEL`); `memory_retention_days` deletes facts in the

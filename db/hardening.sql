@@ -86,6 +86,12 @@ BEGIN
     EXECUTE 'ALTER TABLE adk_agent_registry ENABLE ROW LEVEL SECURITY';
     EXECUTE 'REVOKE ALL ON adk_agent_registry FROM anon, authenticated';
   END IF;
+  -- The task tools' lists and job queue (migration 0009).
+  IF to_regclass('public.melchizedek_tasks') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE melchizedek_tasks ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'ALTER TABLE melchizedek_task_owners ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'REVOKE ALL ON melchizedek_tasks, melchizedek_task_owners FROM anon, authenticated';
+  END IF;
   -- The memory processed marker (migration 0007): identifiers only.
   IF to_regclass('public.melchizedek_memory_ingest') IS NOT NULL THEN
     EXECUTE 'ALTER TABLE melchizedek_memory_ingest ENABLE ROW LEVEL SECURITY';
@@ -154,7 +160,7 @@ AS $$
                       'adk_turns', 'adk_payloads', 'adk_verdicts', 'adk_labels',
                       'adk_agent_registry', 'adk_agent_registry_versions',
                       'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage',
-                      'melchizedek_memory_ingest');
+                      'melchizedek_memory_ingest', 'melchizedek_tasks', 'melchizedek_task_owners');
 $$;
 
 REVOKE ALL ON FUNCTION melchizedek_rls_status() FROM PUBLIC, anon, authenticated;

@@ -131,7 +131,7 @@ instance:
 | `load_memory` | ADK built-in | Explicit tool call to search the fact store (deliberate recall). |
 | `generate_image` | FunctionTool | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A FunctionTool because binary `inlineData` cannot survive the AgentTool text boundary. |
 | `inspect_image` | FunctionTool | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
-| `task_add` / `task_list` / `task_get` / `task_update` | FunctionTool | A to-do list in a local JSON store (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`). Single-user: the store has no caller identity, so never serve these tools on a shared A2A endpoint. |
+| `task_add` / `task_list` / `task_get` / `task_update` | FunctionTool | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
 | `task_queue` | FunctionTool | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. |
 
 **MCP tools** are the exception to the registry: a subagent with
