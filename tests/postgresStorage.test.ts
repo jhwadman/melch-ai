@@ -344,6 +344,18 @@ test('schemaVersion() reads what the migrations recorded: the shipped version', 
   assert.equal(await storage.schemaVersion(), shippedSchemaVersion());
 });
 
+test('turnLock: the real keys the server builds (NUL-separated) lock only their own conversation', { skip }, async () => {
+  const { turnLockKey } = await import('../lib/a2a/turnLock.ts');
+  const a = turnLockKey('ns', 'caller/user', 'ctx-1');
+  const held = await storage.turnLock(a, { waitMs: 0 });
+  assert.ok(held, 'a NUL-separated key takes a lock');
+  assert.equal(await storage.turnLock(a, { waitMs: 100 }), null);
+  const b = await storage.turnLock(turnLockKey('ns', 'caller/user', 'ctx-2'), { waitMs: 0 });
+  assert.ok(b);
+  await b!();
+  await held!();
+});
+
 test('turnLock: an advisory lock shared by two instances on one database', { skip }, async () => {
   const other = postgresStorage({ pool: new pg.Pool({ connectionString: urlFor(DB), max: 2 }) });
   try {
