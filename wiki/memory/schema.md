@@ -9,7 +9,7 @@ tags:
   - memory
 generated:
   by: process:wiki-build
-  at: 2026-10-01
+  at: 2026-10-02
 sources:
   - resource: db/migrations/0001_base.sql
   - resource: db/migrations/0002_erase_scope.sql
@@ -19,6 +19,7 @@ sources:
   - resource: db/migrations/0006_task_leases.sql
   - resource: db/migrations/0007_memory_commit.sql
   - resource: db/migrations/0008_memory_retention.sql
+  - resource: db/migrations/0009_task_queue.sql
   - resource: db/telemetry.sql
   - resource: db/hardening.sql
   - resource: db/memory_v2.sql
@@ -973,6 +974,64 @@ ON CONFLICT (version) DO NOTHING;
 ```
 <!-- /wiki:generated -->
 
+<!-- wiki:generated section="migration-0009_task_queue" source="db/migrations/0009_task_queue.sql" -->
+## Migration 0009_task_queue
+
+```sql
+-- ============================================================================
+-- 0009_task_queue — the task tools' list and job queue on Postgres (ADR 0021)
+-- ============================================================================
+-- The task tools (lib/tools/taskTools.ts) keep a user's small tasks and a
+-- queue of background jobs. On Postgres each caller has its own list (owner
+-- = the caller the tool call carries, the A2A server's scope key), and any
+-- number of workers take jobs with FOR UPDATE SKIP LOCKED: a job is claimed
+-- once, leased to its worker and renewed while it runs; a job whose worker
+-- died is queued again, or failed after its attempts run out.
+--
+-- `record` is the whole task as the tools see it; kind and status are
+-- repeated as columns for the queue's index. Ids are per owner (t1, t2…),
+-- numbered from melchizedek_task_owners, whose row a change locks first.
+-- Idempotent; safe to re-run.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS melchizedek_task_owners (
+  owner   TEXT    PRIMARY KEY,
+  next_id INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS melchizedek_tasks (
+  owner       TEXT        NOT NULL,
+  id          TEXT        NOT NULL,
+  seq         INTEGER     NOT NULL,
+  kind        TEXT        NOT NULL,
+  status      TEXT        NOT NULL,
+  record      JSONB       NOT NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  lease_owner TEXT,
+  lease_until TIMESTAMPTZ,
+  PRIMARY KEY (owner, id)
+);
+-- The queue: oldest queued background job first.
+CREATE INDEX IF NOT EXISTS idx_melchizedek_tasks_queued
+  ON melchizedek_tasks (seq) WHERE kind = 'background' AND status = 'queued';
+CREATE INDEX IF NOT EXISTS idx_melchizedek_tasks_lease
+  ON melchizedek_tasks (lease_until) WHERE lease_until IS NOT NULL;
+
+ALTER TABLE melchizedek_task_owners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE melchizedek_tasks ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    EXECUTE 'REVOKE ALL ON melchizedek_task_owners, melchizedek_tasks FROM anon, authenticated';
+  END IF;
+END $$;
+
+INSERT INTO melchizedek_schema_version (version, name)
+VALUES (9, '0009_task_queue')
+ON CONFLICT (version) DO NOTHING;
+```
+<!-- /wiki:generated -->
+
 <!-- wiki:generated section="telemetry-ddl" source="db/telemetry.sql" -->
 ## Telemetry ledger (optional)
 
@@ -1473,6 +1532,12 @@ BEGIN
     EXECUTE 'ALTER TABLE adk_agent_registry ENABLE ROW LEVEL SECURITY';
     EXECUTE 'REVOKE ALL ON adk_agent_registry FROM anon, authenticated';
   END IF;
+  -- The task tools' lists and job queue (migration 0009).
+  IF to_regclass('public.melchizedek_tasks') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE melchizedek_tasks ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'ALTER TABLE melchizedek_task_owners ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'REVOKE ALL ON melchizedek_tasks, melchizedek_task_owners FROM anon, authenticated';
+  END IF;
   -- The memory processed marker (migration 0007): identifiers only.
   IF to_regclass('public.melchizedek_memory_ingest') IS NOT NULL THEN
     EXECUTE 'ALTER TABLE melchizedek_memory_ingest ENABLE ROW LEVEL SECURITY';
@@ -1541,7 +1606,7 @@ AS $$
                       'adk_turns', 'adk_payloads', 'adk_verdicts', 'adk_labels',
                       'adk_agent_registry', 'adk_agent_registry_versions',
                       'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage',
-                      'melchizedek_memory_ingest');
+                      'melchizedek_memory_ingest', 'melchizedek_tasks', 'melchizedek_task_owners');
 $$;
 
 REVOKE ALL ON FUNCTION melchizedek_rls_status() FROM PUBLIC, anon, authenticated;

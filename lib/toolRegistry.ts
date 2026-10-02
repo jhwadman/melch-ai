@@ -44,8 +44,9 @@ const SCIENCE_TOOLS = Object.fromEntries(
 );
 
 // Task list + background-job queue (lib/tools/taskTools.ts): a single-user
-// local store. The tools only write the queue; scripts/assistant_worker.ts
-// runs the jobs. assistant.yaml declares them.
+// JSON file by default, per-caller lists on Postgres (setTaskBackend). The
+// tools only write the queue; scripts/assistant_worker.ts runs the jobs.
+// assistant.yaml declares them.
 const TASK_TOOLS = Object.fromEntries(
   TASK_TOOL_CONTRACTS.map((contract) => [contract.name, toFunctionTool(contract)]),
 );

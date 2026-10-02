@@ -390,3 +390,28 @@ test('task leases: running tasks are leased, finished ones are not, and expired 
   assert.equal((await row('run')).lease_owner, null);
   assert.equal((await row('done')).state, 3, 'finished tasks are untouched');
 });
+
+test('task queue: concurrent workers never claim the same job; a dead worker\'s job comes back', { skip }, async () => {
+  const q = storage.taskQueue;
+  for (let i = 0; i < 3; i++) {
+    await q.mutate('queue-owner', (s: any) => {
+      s.tasks.push({ id: `t${s.next_id}`, kind: 'background', status: 'queued', title: `job ${i}`, instruction: 'x', created_at: '', updated_at: '' });
+      s.next_id += 1;
+    });
+  }
+  const claims = await Promise.all(Array.from({ length: 6 }, (_, i) => q.claimNext({ workerId: `w${i}`, leaseMs: 60_000 })));
+  const got = claims.filter(Boolean).map((j: any) => j.id).sort();
+  assert.deepEqual(got, ['t1', 't2', 't3'], 'each job claimed exactly once');
+
+  const crashed = claims.find((j: any) => j?.id === 't1')!;
+  await pool.query(`UPDATE melchizedek_tasks SET lease_until = now() - interval '1 second' WHERE owner = 'queue-owner' AND id = 't1'`);
+  const rec = await q.recover();
+  assert.deepEqual(rec.requeued, ['queue-owner:t1']);
+  const again = await q.claimNext({ workerId: 'w-new', leaseMs: 60_000 });
+  assert.equal(again?.id, 't1');
+  assert.equal(again?.attempts, 2);
+  await q.finish(again!, { result: 'done' });
+  assert.equal(crashed.owner, 'queue-owner');
+  const row = (await pool.query(`SELECT status, lease_owner FROM melchizedek_tasks WHERE owner = 'queue-owner' AND id = 't1'`)).rows[0];
+  assert.deepEqual(row, { status: 'done', lease_owner: null });
+});

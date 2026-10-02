@@ -42,8 +42,9 @@
 # MAKE IT YOURS: change `model:` to any provider id (one line per
 # agent), give the Worker more tools to widen what a background job
 # can do, and set MELCHIZEDEK_TASKS_FILE to move the task store
-# (default: outputs/tasks.json). The store is single-user: do not
-# serve this syndicate on a shared A2A endpoint.
+# (default: outputs/tasks.json). That file is single-user: serve this
+# syndicate on a shared A2A endpoint only with DATABASE_URL set, where
+# each caller gets their own list (migration 0009).
 # ============================================================
 
 syndicate_name: "Assistant"

@@ -32,5 +32,7 @@ A tool that runs a subagent is the composite the [tool contract](/tools/tool-con
 
 - The store is single-user. Neither it nor the A2A server knows who is asking, so a syndicate carrying the task tools must not be served on a shared endpoint. This is stated in the tool file, the YAML header, and the documentation; it is not enforced in code.
 - One worker per store: the claim is a read-modify-write, not a lock. A second worker could claim the same job in a narrow race.
+
+> **Note (2026-10-02):** Both limits hold only for the default JSON file. On Postgres (migration `0009_task_queue.sql`, `postgresStorage().taskQueue`) each tool call is filed under its caller's scope key, which tool calls now carry (`ToolCallContext`), and workers claim jobs with `FOR UPDATE SKIP LOCKED` under a renewed lease, so a shared endpoint and several workers are both supported, see [ADR 0021](/decisions/0021-postgres-first-storage.md).
 - The worker never sees the conversation. `task_queue`'s description and the Assistant's instruction both demand a self-contained instruction, and a job that needed context the Assistant left out produces a weaker result rather than an error.
 - The package gains a fifth bin and five registered tools, a versioned surface ([ADR 0007](/decisions/0007-engine-as-package.md)).

@@ -78,6 +78,7 @@ import type { Authenticator } from '../lib/a2a/identity.ts';
 import { budgets, memoryUsageStore, parseBudgets, postgresUsageStore, supabaseUsageStore } from '../lib/a2a/policy.ts';
 import type { Policy } from '../lib/a2a/policy.ts';
 import { hasSupabaseCredentials } from '../lib/persistence/supabaseProvider.ts';
+import { setTaskBackend } from '../lib/tools/taskTools.ts';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import { isPlaceholderValue, loadEnv } from '../lib/loadEnv.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
@@ -227,6 +228,8 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
         memory: { apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || '' },
       })
     : undefined;
+  // The task tools keep each caller's list in Postgres, not the shared file.
+  if (pgStorage) setTaskBackend(pgStorage.taskQueue);
 
   // ── Policy: daily budgets (ADR 0026) ──────────────────────────────────────
   let policy: Policy | undefined;

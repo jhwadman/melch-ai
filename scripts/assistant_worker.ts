@@ -44,13 +44,10 @@ import {
   providerKeyPresent,
   registerAvailableProviders,
 } from '../lib/models/registry.ts';
-import {
-  claimNextJob,
-  finishJob,
-  recoverInterruptedJobs,
-  taskStorePath,
-} from '../lib/tools/taskTools.ts';
-import type { TaskRecord } from '../lib/tools/taskTools.ts';
+import { getTaskBackend, setTaskBackend, taskStorePath } from '../lib/tools/taskTools.ts';
+import type { OwnedTask, TaskRecord, WorkerLease } from '../lib/tools/taskTools.ts';
+import { postgresStorage } from '../lib/storage/postgres/index.ts';
+import { hostname } from 'node:os';
 
 loadEnv(import.meta.url);
 setLogLevel(LogLevel.WARN);
@@ -91,6 +88,15 @@ if (!providerKeyPresent(provider)) {
 }
 
 const log = (message: string) => console.log(`[worker] ${message}`);
+
+// The queue: the JSON file, or Postgres when DATABASE_URL is set, where any
+// number of workers may run (each claim is FOR UPDATE SKIP LOCKED).
+const databaseUrl = process.env.DATABASE_URL?.trim();
+const pg = databaseUrl ? postgresStorage({ connectionString: databaseUrl }) : undefined;
+if (pg) setTaskBackend(pg.taskQueue);
+const backend = getTaskBackend();
+/** A claimed job stays this worker's while it renews; the job timeout bounds a turn. */
+const lease: WorkerLease = { workerId: `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`, leaseMs: 60_000 };
 
 /**
  * The worker as a syndicate the runtime can run. A subagent becomes the
@@ -140,17 +146,25 @@ async function runJob(job: TaskRecord): Promise<string> {
 /** Runs queued jobs until none is left. Returns how many it ran. */
 async function drain(): Promise<number> {
   let ran = 0;
-  for (let job = claimNextJob(); job; job = stopping ? null : claimNextJob()) {
+  for (let job = await backend.claimNext(lease); job; job = stopping ? null : await backend.claimNext(lease)) {
     ran += 1;
     const started = Date.now();
-    log(`${job.id} started: ${job.title}`);
+    const label = job.owner ? `${job.id} (${job.owner})` : job.id;
+    log(`${label} started: ${job.title}`);
+    // Renew the lease while the job runs, so no other worker takes it back.
+    const held: OwnedTask = job;
+    const heartbeat = setInterval(() => {
+      backend.renew(lease, held).catch((e: unknown) => log(`lease renewal failed: ${e instanceof Error ? e.message : e}`));
+    }, Math.floor(lease.leaseMs / 3));
     try {
       const result = await runJob(job);
-      finishJob(job.id, { result });
-      log(`${job.id} done in ${Math.round((Date.now() - started) / 1000)} s`);
+      await backend.finish(job, { result });
+      log(`${label} done in ${Math.round((Date.now() - started) / 1000)} s`);
     } catch (error: any) {
-      finishJob(job.id, { error: String(error?.message ?? error) });
-      log(`${job.id} failed: ${error?.message ?? error}`);
+      await backend.finish(job, { error: String(error?.message ?? error) });
+      log(`${label} failed: ${error?.message ?? error}`);
+    } finally {
+      clearInterval(heartbeat);
     }
   }
   return ran;
@@ -158,14 +172,15 @@ async function drain(): Promise<number> {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 log(`agent ${agentName} (${model ?? 'ADK default'}) from ${syndicateFile}`);
-log(`store ${taskStorePath()}`);
-const { requeued, failed } = recoverInterruptedJobs();
+log(pg ? 'store Postgres (DATABASE_URL)' : `store ${taskStorePath()}`);
+const { requeued, failed } = await backend.recover();
 if (requeued.length) log(`re-queued interrupted jobs: ${requeued.join(', ')}`);
 if (failed.length) log(`gave up on repeatedly interrupted jobs: ${failed.join(', ')}`);
 
 if (once) {
   const ran = await drain();
   log(ran ? `queue empty after ${ran} job(s)` : 'queue empty');
+  await pg?.close();
   process.exit(0);
 }
 
