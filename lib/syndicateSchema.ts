@@ -223,6 +223,12 @@ export const syndicateSchema = z
       .positive()
       .optional()
       .describe('Hard cap on runner loops (LLM → tool cycles).'),
+    bundled_references: z
+      .record(z.string(), z.record(z.string(), z.unknown()))
+      .optional()
+      .describe(
+        'Written by the registry publisher, not by hand: every nested yaml_reference this syndicate reaches, as it was when published, so a registry version is one unit (ADR 0018). Nested references load from here instead of from files.',
+      ),
   })
   .describe('A Melchizedek syndicate definition (lib/loadSyndicate.ts).');
 

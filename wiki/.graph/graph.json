@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 538,
-    "edges": 1237,
+    "edges": 1238,
     "byKind": {
       "doc": 73,
       "provider": 5,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 297,
+      "imports": 298,
       "reads_table": 28,
       "runs": 60,
       "derives_from": 177
     },
     "byTier": {
-      "extracted": 1237,
+      "extracted": 1238,
       "inferred": 0
     },
     "isolated": 2
@@ -582,7 +582,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 734
+        "words": 836
       }
     },
     {
@@ -2824,7 +2824,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 224
+        "lines": 226
       }
     },
     {
@@ -2905,7 +2905,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 549
+        "lines": 630
       }
     },
     {
@@ -3139,7 +3139,7 @@
       "label": "lib/registry.ts",
       "source": "lib/registry.ts",
       "attrs": {
-        "lines": 187
+        "lines": 206
       }
     },
     {
@@ -3148,7 +3148,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 742
+        "lines": 744
       }
     },
     {
@@ -3256,7 +3256,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 550
+        "lines": 556
       }
     },
     {
@@ -3652,7 +3652,7 @@
       "label": "scripts/registry.ts",
       "source": "scripts/registry.ts",
       "attrs": {
-        "lines": 192
+        "lines": 193
       }
     },
     {
@@ -10087,6 +10087,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/persistence/supabaseProvider.ts"
+    },
+    {
+      "from": "module:lib/registry.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/registry.ts"
     },
     {
       "from": "module:lib/registry.ts",

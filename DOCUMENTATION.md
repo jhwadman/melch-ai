@@ -608,6 +608,15 @@ before it is activated; the HTTP routes accept only active ids. A running
 server caches each agent for its lifetime: **restart it after a publish or
 a rollback.** The library is `melchizedek-agents/registry`.
 
+A syndicate is versioned as a unit. `publish` reads every nested
+`yaml_reference` the definition reaches (nested ones of nested ones too) from
+the agents root, validates each, and stores them with it under
+`bundled_references`; the server loads nested syndicates of that version from
+the bundle, never from files that may have changed since. Change a nested file
+and the parent changes only when it is published again. `--no-bundle` stores
+the references bare, to resolve from files at run time; a version published
+before bundling existed behaves that way too.
+
 ### Plan-dispatch routing (`dispatch:`) — the second orchestration method
 
 A syndicate that declares a `dispatch:` block stops delegating and

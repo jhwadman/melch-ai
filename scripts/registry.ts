@@ -8,7 +8,8 @@
  *   versions <id>                     the history of one id, newest first
  *   show <id>[@<version>]             a definition as YAML (default: the active one)
  *   diff <id> <a> [<b>]               line diff between two versions (b: the active one)
- *   publish <file> <id> [--note ""]   validate a YAML file and make it the active version
+ *   publish <file> <id> [--note ""]   validate a YAML file (with the nested syndicates it
+ *                                     references, bundled) and make it the active version
  *   rollback <id> <version> [--note ""]  make a stored version active again
  *   retire <id> --yes                 stop serving an id; its history stays
  *
@@ -43,7 +44,7 @@ const USAGE = `usage: melchizedek-registry <command>
   versions <id>
   show <id>[@<version>]
   diff <id> <a> [<b>]
-  publish <file> <id> [--note "why"]
+  publish <file> <id> [--note "why"] [--no-bundle]
   rollback <id> <version> [--note "why"]
   retire <id> --yes`;
 
@@ -153,7 +154,7 @@ export async function main(argv: string[], client?: RegistryClient): Promise<num
       const [file, id] = positional;
       if (!file || !id) break;
       const config = parse(readFileSync(file, 'utf-8'));
-      const v = await publishAgent(client, id, config, { author, note });
+      const v = await publishAgent(client, id, config, { author, note, bundle: !rest.includes('--no-bundle') });
       console.log(`${id} is at v${v}. Restart the server to serve it.`);
       return 0;
     }

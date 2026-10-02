@@ -190,7 +190,12 @@ the starter pack and the templates), not the repo's full history.
   (library: `melchizedek-agents/registry`) validates before it writes;
   rollback re-activates a stored version. `registry:<id>@<version>` loads one
   version. Existing rows become version 1 when the migration runs:
-  **`npx melchizedek-db apply`** to install it.
+  **`npx melchizedek-db apply`** to install it. A syndicate is versioned as a
+  unit: `publish` (and `publishAgent`) stores every nested `yaml_reference` it
+  reaches under `bundled_references`, and the server loads that version's
+  nested syndicates from the bundle, not from files (`--no-bundle` /
+  `bundle: false` opts out). Republish a nesting syndicate after changing a
+  nested file.
 - **The source moved to [github.com/jhwadman/melch-ai](https://github.com/jhwadman/melch-ai).**
   The package name stays `melchizedek-agents`; `repository`, `homepage` and
   `bugs` point at the new repository, which now holds the engine, its tests

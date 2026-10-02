@@ -1,6 +1,6 @@
 /**
  * lib/registry.ts — publish, roll back and inspect agents in the registry
- * (ADR 0018 items 4 and 7, migration 0005_agent_registry.sql).
+ * (ADR 0018 items 4, 6 and 7, migration 0005_agent_registry.sql).
  *
  * `adk_agent_registry` holds one ACTIVE definition per id and is what the
  * server reads (`registry:<id>`, or a bare id listed in A2A_REGISTRY_AGENTS).
@@ -15,7 +15,10 @@
  * prints a credential.
  */
 
+import { bundleReferences } from './loadSyndicate.ts';
 import { validateSyndicateConfig } from './syndicateSchema.ts';
+
+const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 /** The part of a supabase-js client this module uses. */
 export interface RegistryClient {
@@ -47,6 +50,18 @@ export interface PublishOptions {
   author?: string;
   /** why; recorded on the version */
   note?: string;
+}
+
+export interface PublishAgentOptions extends PublishOptions {
+  /**
+   * Store every nested `yaml_reference` the definition reaches with it, read
+   * from the agents root, so the version is one unit (ADR 0018 item 6).
+   * Default true; a definition that already carries `bundled_references` is
+   * stored as given. false stores the references bare, to load from files.
+   */
+  bundle?: boolean;
+  /** Where nested references are read from (default: as `loadSyndicate`). */
+  agentsDir?: string;
 }
 
 /** Registry ids the database accepts (the same rule as melchizedek_registry_publish). */
@@ -83,9 +98,13 @@ export async function publishAgent(
   client: RegistryClient,
   id: string,
   config: unknown,
-  options: PublishOptions = {},
+  options: PublishAgentOptions = {},
 ): Promise<number> {
   assertId(id);
+  if (options.bundle !== false && isObject(config) && !('bundled_references' in config)) {
+    const bundled = bundleReferences(config, { agentsDir: options.agentsDir });
+    if (bundled) config = { ...config, bundled_references: bundled };
+  }
   // The server validates every registry row at load (ADR 0018): an invalid
   // definition would publish fine and fail on its first request.
   validateSyndicateConfig(structuredClone(config), `registry:${id}`);
