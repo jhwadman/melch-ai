@@ -822,7 +822,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 728
+        "words": 766
       }
     },
     {
@@ -3656,7 +3656,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 452
+        "lines": 470
       }
     },
     {
