@@ -74,6 +74,8 @@ export interface AgentYamlConfig {
    * Maps to LlmAgentConfig.tools[].
    */
   tools?: string[];
+  /** Tools from `tools` that run only after a person approves the call (ADR 0028). */
+  require_approval?: string[];
   /**
    * Whether conversation history is included in model requests.
    * "default" = stateful, "none" = stateless.

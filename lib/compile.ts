@@ -28,7 +28,7 @@
  * Contract and rationale: lib/dispatch.ts.
  */
 
-import { AgentTool, LlmAgent } from '@google/adk';
+import { AgentTool, FunctionTool, LlmAgent } from '@google/adk';
 import type { BaseLlm } from '@google/adk';
 
 import { isDispatchSyndicate } from './dispatch.ts';
@@ -117,6 +117,44 @@ function logCapabilities(
   if (line) opts.log(`capability · ${line}`);
 }
 
+/**
+ * A copy of a FunctionTool that runs only after a person approves the call
+ * (ADR 0028). ADK's own gate does the work: the call raises an
+ * `adk_request_confirmation` interrupt pinning the call and its arguments,
+ * and only an approval bound to that exact call runs it. The original stays
+ * ungated for every other agent that lists the same tool.
+ */
+export function requireApprovalOn(tool: FunctionTool): FunctionTool {
+  const gated = Object.create(tool) as FunctionTool;
+  Object.defineProperty(gated, 'requireConfirmation', { value: true, enumerable: false });
+  return gated;
+}
+
+function gateTools(tools: unknown[], names: string[] | undefined, agentName: string): unknown[] {
+  if (!names?.length) return tools;
+  const wanted = new Set(names);
+  const out = tools.map((t) => {
+    const name = (t as { name?: string })?.name;
+    if (!name || !wanted.has(name)) return t;
+    wanted.delete(name);
+    if (!(t instanceof FunctionTool)) {
+      throw new Error(`${agentName}: '${name}' cannot require approval — only function tools from the registry can be gated (ADR 0028).`);
+    }
+    return requireApprovalOn(t);
+  });
+  if (wanted.size) {
+    // Fail closed: a gate on a tool that did not resolve must not leave an
+    // ungated tool of the same name reachable later.
+    throw new Error(`${agentName}: require_approval names ${[...wanted].map((n) => `'${n}'`).join(', ')}, which did not resolve to a tool.`);
+  }
+  return out;
+}
+
+/** True when any agent of a syndicate declares an approval gate. */
+export function declaresApprovals(config: SyndicateYamlConfig): boolean {
+  return !!config.orchestrator?.require_approval?.length || (config.subagents ?? []).some((s) => !!s.require_approval?.length);
+}
+
 async function resolveAgentTools(
   toolNames: string[] | undefined,
   mcpServerUrl: string | undefined,
@@ -151,10 +189,15 @@ export async function compileSubagent(
   if (subCfg.yaml_reference) {
     opts.log?.(`Loading nested syndicate: ${subCfg.yaml_reference}`);
     const nested = (opts.loadNested ?? loadSyndicate)(subCfg.yaml_reference);
+    if (declaresApprovals(nested)) {
+      // A nested syndicate runs inside a tool call (or as a route whose
+      // own subagents do): a pause there cannot reach the caller (ADR 0028).
+      throw new Error(`${subCfg.yaml_reference}: approval gates (require_approval) are not supported inside a nested syndicate.`);
+    }
     return compileGraph(nested, opts, subCfg.name, subCfg.description);
   }
 
-  const tools = await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts);
+  const tools = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts), subCfg.require_approval, subCfg.name);
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
 
@@ -201,7 +244,13 @@ export async function compileGraph(
   // Orchestrator tools are registry names only — no entrypoint has ever
   // attached an MCP server to an orchestrator, and this compiler preserves
   // that exactly rather than widening the contract in passing.
-  compiledTools.push(...(await resolveAgentTools(config.orchestrator.tools, undefined, opts)));
+  compiledTools.push(
+    ...gateTools(
+      await resolveAgentTools(config.orchestrator.tools, undefined, opts),
+      config.orchestrator.require_approval,
+      overrideName || config.orchestrator.name,
+    ),
+  );
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(
     opts,

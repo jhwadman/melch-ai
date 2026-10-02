@@ -5,10 +5,10 @@
     "at": "2026-10-02"
   },
   "stats": {
-    "nodes": 550,
-    "edges": 1258,
+    "nodes": 552,
+    "edges": 1271,
     "byKind": {
-      "doc": 73,
+      "doc": 74,
       "provider": 5,
       "env": 94,
       "model": 7,
@@ -18,12 +18,12 @@
       "agent": 79,
       "mcp-server": 4,
       "table": 16,
-      "module": 109,
+      "module": 110,
       "script": 42,
       "external": 2
     },
     "byRelation": {
-      "links_to": 184,
+      "links_to": 189,
       "requires_env": 147,
       "routes_to": 7,
       "defined_in": 72,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 306,
+      "imports": 309,
       "reads_table": 28,
       "runs": 60,
-      "derives_from": 177
+      "derives_from": 182
     },
     "byTier": {
-      "extracted": 1258,
+      "extracted": 1271,
       "inferred": 0
     },
     "isolated": 2
@@ -678,7 +678,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 828
+        "words": 842
       }
     },
     {
@@ -691,6 +691,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 633
+      }
+    },
+    {
+      "id": "/decisions/0028-approval-gates.md",
+      "kind": "doc",
+      "label": "ADR 0028: A tool can require a human approval, per agent, through A2A input-required",
+      "source": "/decisions/0028-approval-gates.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 703
       }
     },
     {
@@ -846,7 +858,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1217
+        "words": 1330
       }
     },
     {
@@ -2836,7 +2848,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 583
+        "lines": 661
       }
     },
     {
@@ -2890,7 +2902,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 226
+        "lines": 275
       }
     },
     {
@@ -2953,7 +2965,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 117
+        "lines": 119
       }
     },
     {
@@ -2971,7 +2983,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 630
+        "lines": 632
       }
     },
     {
@@ -3169,7 +3181,7 @@
       "label": "lib/observability/metrics.ts",
       "source": "lib/observability/metrics.ts",
       "attrs": {
-        "lines": 109
+        "lines": 110
       }
     },
     {
@@ -3218,12 +3230,21 @@
       }
     },
     {
+      "id": "module:lib/runtime/approvals.ts",
+      "kind": "module",
+      "label": "lib/runtime/approvals.ts",
+      "source": "lib/runtime/approvals.ts",
+      "attrs": {
+        "lines": 95
+      }
+    },
+    {
       "id": "module:lib/runtime/syndicateTurn.ts",
       "kind": "module",
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 744
+        "lines": 801
       }
     },
     {
@@ -3250,7 +3271,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 377
+        "lines": 392
       }
     },
     {
@@ -3331,7 +3352,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 556
+        "lines": 585
       }
     },
     {
@@ -6398,6 +6419,13 @@
       "evidence": "/decisions/0026-governance-policy-and-visibility.md:26"
     },
     {
+      "from": "/decisions/0026-governance-policy-and-visibility.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0026-governance-policy-and-visibility.md:73"
+    },
+    {
       "from": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "to": "file:config/agents/examples/model_zoo.yaml",
       "rel": "derives_from",
@@ -6424,6 +6452,62 @@
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/decisions/0027-thinking-without-answer-is-an-error.md frontmatter"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "/decisions/0026-governance-policy-and-visibility.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md:25"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "/memory/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md:34"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md:39"
     },
     {
       "from": "/memory/architecture.md",
@@ -7382,21 +7466,21 @@
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:32"
+      "evidence": "/protocols/a2a.md:34"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0018-files-are-the-source-of-truth.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:52"
+      "evidence": "/protocols/a2a.md:54"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:48"
+      "evidence": "/protocols/a2a.md:50"
     },
     {
       "from": "/protocols/a2a.md",
@@ -7410,21 +7494,28 @@
       "to": "/decisions/0025-built-in-authenticators.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:32"
+      "evidence": "/protocols/a2a.md:34"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0026-governance-policy-and-visibility.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:62"
+      "evidence": "/protocols/a2a.md:64"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:30"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:72"
+      "evidence": "/protocols/a2a.md:74"
     },
     {
       "from": "/protocols/mcp.md",
@@ -9045,6 +9136,13 @@
     },
     {
       "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/runtime/syndicateTurn.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -9340,6 +9438,13 @@
     {
       "from": "module:lib/index.ts",
       "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/runtime/approvals.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/index.ts"
@@ -10383,6 +10488,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/approvals.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"

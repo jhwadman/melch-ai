@@ -29,6 +29,8 @@ export type {
 
 // ── Run it ──────────────────────────────────────────────────────────────────
 export { runSyndicateTurn, ingestTurnMemory } from './runtime/syndicateTurn.ts';
+export { approvalResponsePart, pendingApproval, APPROVAL_REQUEST } from './runtime/approvals.ts';
+export type { PendingApproval } from './runtime/approvals.ts';
 export type {
   DrainedRun,
   MessagePart,

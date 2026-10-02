@@ -41,6 +41,10 @@ import type { SubagentYamlConfig, SyndicateYamlConfig } from '../loadSyndicate.t
 import { registerAvailableProviders } from '../models/registry.ts';
 import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
+import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
+import type { PendingApproval } from './approvals.ts';
+export { approvalResponsePart, pendingApproval } from './approvals.ts';
+export type { PendingApproval } from './approvals.ts';
 import { RemoteA2AAgent, remoteContextId, remoteToolOutput } from '../a2a/remoteAgent.ts';
 import { createTurnControl, runWithTurnControl, stopCode, stopMessage } from './turnControl.ts';
 import type { TurnStopReason } from './turnControl.ts';
@@ -143,13 +147,18 @@ export interface DrainedRun {
 export type TurnStage = 'classify' | 'dispatch' | 'delegate';
 
 export interface RouteDecision extends RouteResolution {
-  decidedBy: 'override' | 'forced' | 'classifier';
+  /** `approval`: the turn resumed the route that asked for an approval (ADR 0028). */
+  decidedBy: 'override' | 'forced' | 'classifier' | 'approval';
 }
 
 export interface SyndicateTurnResult {
   /** completed: an answer was produced. failed: an error, a deadline or the
-   *  step limit stopped it. canceled: the caller canceled it. */
-  status: 'completed' | 'failed' | 'canceled';
+   *  step limit stopped it. canceled: the caller canceled it. input-required:
+   *  a gated tool call waits for a person's approval (`approval`, ADR 0028). */
+  status: 'completed' | 'failed' | 'canceled' | 'input-required';
+  /** The call waiting for approval, when status is input-required. Answer it
+   *  with `approvalResponsePart(approval.id, approved)` as the next turn's part. */
+  approval?: PendingApproval;
   /** The text the user receives (relay fallback and guards applied). */
   text: string;
   error?: { code: string; message: string };
@@ -431,6 +440,35 @@ async function runTurnInner(
   // syndicate never streams: nothing may leave before the guard has read it.
   const guarded = collectGuards(config, compileOpts.loadNested).length > 0;
 
+  // ── Approvals (ADR 0028) ───────────────────────────────────────────────────
+  // A message answering an approval resumes the agent that asked; the answer
+  // must name the request still open in this conversation.
+  const decision = approvalDecisionIn(parts);
+  let resuming: PendingApproval | undefined;
+  if (decision) {
+    resuming = pendingApproval(existing?.events ?? []);
+    if (!resuming || resuming.id !== decision.id) {
+      result.status = 'failed';
+      result.error = { code: 'NO_PENDING_APPROVAL', message: `No approval ${decision.id} is waiting in this conversation.` };
+      return finish();
+    }
+    // The log names the call, not its arguments: they are user content.
+    ev.log?.(`✓ Approval ${decision.approved ? 'granted' : 'refused'}: ${resuming.agent} → ${resuming.tool}`);
+  }
+  /** After the answering run: is a gated call now waiting? */
+  const awaitingApproval = async (agentName: string): Promise<PendingApproval | undefined> => {
+    const after = await sessionService.getSession({ appName, userId, sessionId });
+    const pending = pendingApproval(after?.events ?? []);
+    return pending && pending.agent === agentName ? pending : undefined;
+  };
+  const pause = (pending: PendingApproval): SyndicateTurnResult => {
+    result.status = 'input-required';
+    result.approval = pending;
+    result.text = `Approval needed: ${describeApproval(pending)}.`;
+    ev.log?.(`⏸ Approval needed: ${pending.agent} → ${pending.tool}`);
+    return finish();
+  };
+
   /** Run ONE agent against ONE session, under the turn's controls. */
   const runAgent = async (params: {
     agent: LlmAgent;
@@ -502,11 +540,17 @@ async function runTurnInner(
     // Deterministic overrides first: when the message itself decides the
     // route there is nothing to classify, and the classifier call is skipped.
     const warnings: string[] = [];
-    let resolution: RouteResolution | null = matchRouteOverride(messageText, config, warnings);
+    let resolution: RouteResolution | null = resuming ? null : matchRouteOverride(messageText, config, warnings);
     let decidedBy: RouteDecision['decidedBy'] = 'override';
     for (const w of warnings) ev.warn?.(w);
 
-    if (resolution) {
+    if (resuming) {
+      if (!subagentNames.has(resuming.agent)) {
+        throw new Error(`Approval ${resuming.id} was raised by '${resuming.agent}', which is not a route of this syndicate.`);
+      }
+      resolution = { route: resuming.agent, reason: 'resuming an approval', fellBack: false, fallbackReason: '', viaOverride: false };
+      decidedBy = 'approval';
+    } else if (resolution) {
       ev.log?.(`⇄ Route pinned by override: ${resolution.route}`);
     } else if (opts.forceRoute) {
       if (!subagentNames.has(opts.forceRoute)) {
@@ -569,7 +613,13 @@ async function runTurnInner(
         agent: routeAgent,
         sid: sessionId,
         userParts: parts,
-        sessions: new ProjectedSessionService(sessionService, routeCfg.name),
+        // Resuming an approval: the interrupted turn is replayed raw, so ADK
+        // finds the call the approval answers (ADR 0028).
+        sessions: new ProjectedSessionService(
+          sessionService,
+          routeCfg.name,
+          resuming ? { rawFrom: (events) => interruptedTurnStart(events, resuming!.id) } : {},
+        ),
         stage: 'dispatch',
         route: resolution,
         publishToolStatus: true,
@@ -581,6 +631,10 @@ async function runTurnInner(
       result.failedStage = 'dispatch';
       result.error = answer.error;
       return finish();
+    }
+    if (!routeCfg.a2a_agent_url && routeCfg.require_approval?.length) {
+      const pending = await awaitingApproval(routeCfg.name);
+      if (pending) return pause(pending);
     }
     result.text = answer.text;
     if (!result.text) {
@@ -612,6 +666,10 @@ async function runTurnInner(
       result.failedStage = 'delegate';
       result.error = answer.error;
       return finish();
+    }
+    if (config.orchestrator.require_approval?.length) {
+      const pending = await awaitingApproval(config.orchestrator.name);
+      if (pending) return pause(pending);
     }
     result.text = answer.text;
     // Failed-relay fallback: an orchestrator can botch the hop that relays a

@@ -531,6 +531,39 @@ in flight, and the task ends `canceled`. Final states: `completed`,
 capacity). Message parts may be `text` or `data` (sent to the model as
 JSON); `file` parts are refused.
 
+#### Approval gates (`require_approval`)
+
+A tool can run only after a person approves the exact call
+([ADR 0028](./wiki/decisions/0028-approval-gates.md)). The agent lists it:
+
+```yaml
+orchestrator:
+  name: Desk
+  tools: [send_email]
+  require_approval: [send_email]   # names from this agent's own tools
+```
+
+When the model calls it, nothing runs: the task ends `input-required`, final.
+Its status message says what is waiting ("Desk wants to run
+send_email({...})") and carries a data part
+`{ type: 'approval_request', approval_id, agent, tool, args }`. Answer on the
+same conversation (same `contextId`; the same `taskId` works too) with the text
+`approve` or `reject`, or a data part
+`{ "approval": { "id": "<approval_id>", "approved": true } }`. Approved, the
+call runs with the arguments shown; rejected, the model is told and answers
+without it. A message that is not an answer gets the same request back,
+without a model call. ADK pins the call and its arguments, so an approval
+cannot run a different call.
+
+Gates are allowed on the orchestrator and on the subagents of a
+plan-dispatch syndicate, which run as the turn's own agent. A delegated
+subagent runs inside a tool call, where a pause cannot reach the caller, so a
+gate there is a load error, as is any gate inside a nested `yaml_reference`
+syndicate. Only function tools from the registry can be gated, not MCP tools
+or native-search sentinels. In code, `runSyndicateTurn` returns
+`status: 'input-required'` with `approval`, and the next turn's part
+`approvalResponsePart(approval.id, approved)` answers it.
+
 #### Limits
 
 | Setting | Default |

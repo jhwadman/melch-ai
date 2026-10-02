@@ -41,6 +41,14 @@
             "minLength": 1
           }
         },
+        "require_approval": {
+          "description": "Tools from this agent's `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on the orchestrator and on plan-dispatch routes.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "includeContents": {
           "description": "\"default\" = include conversation history, \"none\" = stateless.",
           "type": "string",
@@ -213,6 +221,14 @@
           },
           "tools": {
             "description": "Named tools from lib/toolRegistry.ts (e.g. web_search, web_extract, wiki_search).",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "require_approval": {
+            "description": "Tools from this agent's `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on the orchestrator and on plan-dispatch routes.",
             "type": "array",
             "items": {
               "type": "string",

@@ -51,6 +51,12 @@ import type {
 /** Tuning for {@link projectTranscript}. Defaults are the production values. */
 export interface ProjectionOptions {
   /**
+   * Where the interrupted turn starts, when this read resumes one (ADR 0028):
+   * events from that index on are returned verbatim, tool calls included, so
+   * ADK finds the call an approval answers. Called with the real events.
+   */
+  rawFrom?: (events: Event[]) => number | undefined;
+  /**
    * Character budget for the projected HISTORY, walked backwards from the
    * newest event. Older events are dropped whole once it is exhausted.
    *
@@ -219,6 +225,9 @@ export function projectTranscript(
  * to the SERIALIZED COPY only — the live in-memory session must keep both
  * signature and payloads, or the agent's own tool loop breaks mid-turn.
  */
+/** Gemini's documented value for a thought signature that is not available. */
+export const SKIP_SIGNATURE = 'skip_thought_signature_validator';
+
 export function trimEventForStorage(
   event: Event,
   maxPayloadChars: number = DEFAULT_MAX_STORED_PAYLOAD_CHARS,
@@ -233,8 +242,12 @@ export function trimEventForStorage(
     // The dominant cost, and never read back from storage.
     if (out.thoughtSignature !== undefined) {
       const { thoughtSignature, ...rest } = out;
-      out = rest;
-      trimmedAny = true;
+      // A stored function call can be replayed in its own turn: resuming an
+      // approval does exactly that (ADR 0028), and Gemini 3 rejects a
+      // current-turn call without a signature. Its documented skip value
+      // keeps the call valid at a few bytes, where the real one is kilobytes.
+      out = rest.functionCall && thoughtSignature !== SKIP_SIGNATURE ? { ...rest, thoughtSignature: SKIP_SIGNATURE } : rest.functionCall ? out : rest;
+      if (out !== part) trimmedAny = true;
     }
 
     // Both spellings occur: `functionResponse` is ADK's, `toolResponse` comes
@@ -354,10 +367,12 @@ export class ProjectedSessionService extends BaseSessionService {
     const real = await this.inner.getSession(request);
     if (!real) return undefined;
     this.stored.set(this.key(request.appName, request.userId, request.sessionId), real);
-    return {
-      ...real,
-      events: projectTranscript(real.events, this.forAgent, this.options),
-    };
+    const rawFrom = this.options.rawFrom?.(real.events);
+    const events =
+      rawFrom === undefined
+        ? projectTranscript(real.events, this.forAgent, this.options)
+        : [...projectTranscript(real.events.slice(0, rawFrom), this.forAgent, this.options), ...real.events.slice(rawFrom)];
+    return { ...real, events };
   }
 
   async appendEvent(request: { session: Session; event: Event }): Promise<Event> {
