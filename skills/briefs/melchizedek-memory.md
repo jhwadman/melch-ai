@@ -6,7 +6,7 @@ STRUCTURE (exact):
 Frontmatter, verbatim:
 ---
 name: melchizedek-memory
-description: Give a Melchizedek syndicate persistent sessions and long-term memory on Supabase: the memory_system modes, the two tables and the match function, the memory tools, extraction rules, inspection and erasure. Use when the user wants an agent to remember across runs, sets up Supabase for melchizedek, or asks why recall returns nothing.
+description: "Give a Melchizedek syndicate persistent sessions and long-term memory on Supabase: the memory_system modes, the two tables and the match function, the memory tools, extraction rules, inspection and erasure. Use when the user wants an agent to remember across runs, sets up Supabase for melchizedek, or asks why recall returns nothing."
 ---
 Then `##` sections in this order: "The three memory modes", "Provision Supabase", "What gets stored", "Wire the syndicate", "Prove it", "Inspect and erase", "When recall returns nothing".
 

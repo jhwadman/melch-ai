@@ -8,6 +8,7 @@ import assert from 'node:assert';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { validateSkillDir } from '@google/adk';
 import { SKILL_TARGETS, destinationsFor, installSkills, listSkills, resolveSkillsSource } from '../lib/skills.ts';
 
 function fakeSuite(): string {
@@ -97,5 +98,11 @@ test('the shipped suite resolves and every skill has frontmatter that matches it
     assert.match(s.name, /^[a-z0-9]+(-[a-z0-9]+)*$/, `${s.name}: name must be lowercase with single hyphens`);
     assert.strictEqual(s.dir.endsWith(`/${s.name}`), true, `${s.name}: frontmatter name must equal its directory`);
     assert.ok(s.description.length > 20 && s.description.length <= 1024, `${s.name}: description length`);
+  }
+});
+
+test('every shipped skill passes the strict loader a harness uses (valid frontmatter YAML, name = directory)', async () => {
+  for (const s of listSkills(resolveSkillsSource())) {
+    assert.deepStrictEqual(await validateSkillDir(s.dir), [], `${s.name}: ADK's validator reports problems`);
   }
 });

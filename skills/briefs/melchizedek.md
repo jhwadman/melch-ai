@@ -6,7 +6,7 @@ STRUCTURE (exact):
 Frontmatter, verbatim:
 ---
 name: melchizedek
-description: Find and run a Melchizedek syndicate (an agent team defined in one YAML file) from the terminal or from inside a coding agent. Use when the user mentions melchizedek, melchizedek-agents, a syndicate, the starter pack, or asks to run, list, or delegate a task to one of these agents; this is also the entry point to the other melchizedek-* skills.
+description: "Find and run a Melchizedek syndicate (an agent team defined in one YAML file) from the terminal or from inside a coding agent. Use when the user mentions melchizedek, melchizedek-agents, a syndicate, the starter pack, or asks to run, list, or delegate a task to one of these agents; this is also the entry point to the other melchizedek-* skills."
 ---
 Then sections with these `##` headings, in this order: "Where the syndicates are", "What each starter-pack syndicate does", "Check the keys before running", "Run one", "Delegate a task from this agent", "When something fails", "The other skills in this suite".
 
@@ -19,6 +19,7 @@ Where the syndicates are:
 
 The starter pack (file → name → what it does → tier / extra requirement):
 - assistant.yaml → Assistant → the generic starting point: converses, summarizes pasted text or URLs, keeps a task list, and queues background jobs that `npx melchizedek-worker` runs (clone: `npm run assistant:worker`) → keyless (Ollama with qwen3:8b pulled)
+- harness.yaml → Harness → works from a directory of Agent Skills the way a coding harness does: every skill's frontmatter is in its prompt, it reads the matching SKILL.md and the files it names, `/name` forces a skill, a Checker holds the result to the skill's own rules; `--bind skills_dir=<dir>` points it at a project's shelf (default: this package's own skills) → gemini
 - tutor.yaml → Tutor → one agent that teaches a topic or pasted material by questioning → keyless (Ollama with qwen3:8b pulled)
 - council.yaml → Council → an advocate and a skeptic argue a question and a chair rules → keyless
 - critic.yaml → Critic Review Workflow → a Drafter answers, a Critic scores it as JSON with a confidence field, and the loop repeats until confidence is 85 or higher (three rounds at most) → gemini

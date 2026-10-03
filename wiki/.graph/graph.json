@@ -2,44 +2,44 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-02"
+    "at": "2026-10-03"
   },
   "stats": {
-    "nodes": 556,
-    "edges": 1277,
+    "nodes": 566,
+    "edges": 1307,
     "byKind": {
-      "doc": 74,
+      "doc": 77,
       "provider": 5,
       "env": 96,
       "model": 7,
       "tool": 32,
-      "file": 59,
-      "syndicate": 29,
-      "agent": 79,
+      "file": 61,
+      "syndicate": 30,
+      "agent": 81,
       "mcp-server": 4,
       "table": 16,
-      "module": 111,
-      "script": 42,
+      "module": 112,
+      "script": 43,
       "external": 2
     },
     "byRelation": {
-      "links_to": 189,
+      "links_to": 198,
       "requires_env": 149,
       "routes_to": 7,
-      "defined_in": 72,
-      "documents": 53,
-      "contains": 79,
-      "uses_model": 79,
+      "defined_in": 73,
+      "documents": 54,
+      "contains": 81,
+      "uses_model": 81,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 312,
+      "imports": 314,
       "reads_table": 28,
-      "runs": 60,
-      "derives_from": 183
+      "runs": 62,
+      "derives_from": 194
     },
     "byTier": {
-      "extracted": 1277,
+      "extracted": 1307,
       "inferred": 0
     },
     "isolated": 2
@@ -187,6 +187,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 285
+      }
+    },
+    {
+      "id": "/agents/harness.md",
+      "kind": "doc",
+      "label": "Harness",
+      "source": "/agents/harness.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 309
       }
     },
     {
@@ -706,6 +718,18 @@
       }
     },
     {
+      "id": "/decisions/0029-skills-read-like-a-harness.md",
+      "kind": "doc",
+      "label": "ADR 0029: An agent holds Agent Skills the way a coding harness does: the index injected, one skill read on demand, scripts run only after approval",
+      "source": "/decisions/0029-skills-read-like-a-harness.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 891
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -798,7 +822,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 499
+        "words": 502
       }
     },
     {
@@ -883,6 +907,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 246
+      }
+    },
+    {
+      "id": "/tools/skill-harness.md",
+      "kind": "doc",
+      "label": "Skill harness",
+      "source": "/tools/skill-harness.md",
+      "attrs": {
+        "type": "tool",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 651
       }
     },
     {
@@ -1250,6 +1286,27 @@
         "role": "subagent",
         "syndicate": "draft_review",
         "description": "Checks a draft against the brief and the policy, rule by rule."
+      }
+    },
+    {
+      "id": "agent:harness/Checker",
+      "kind": "agent",
+      "label": "Checker",
+      "source": "config/agents/examples/harness.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "harness",
+        "description": "Holds a deliverable (a file, a configuration, a command sequence) against the rules the skill it was made from states for it."
+      }
+    },
+    {
+      "id": "agent:harness/Harness",
+      "kind": "agent",
+      "label": "Harness",
+      "source": "config/agents/examples/harness.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "harness"
       }
     },
     {
@@ -2452,6 +2509,13 @@
       "attrs": {}
     },
     {
+      "id": "file:config/agents/examples/harness.yaml",
+      "kind": "file",
+      "label": "harness.yaml",
+      "source": "config/agents/examples/harness.yaml",
+      "attrs": {}
+    },
+    {
       "id": "file:config/agents/examples/hierarchical.yaml",
       "kind": "file",
       "label": "hierarchical.yaml",
@@ -2773,6 +2837,13 @@
       "source": "tests/models.test.ts"
     },
     {
+      "id": "file:tests/skillHarness.test.ts",
+      "kind": "file",
+      "label": "skillHarness.test.ts",
+      "source": "tests/skillHarness.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/syndicateTurn.test.ts",
       "kind": "file",
       "label": "syndicateTurn.test.ts",
@@ -2921,7 +2992,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 275
+        "lines": 313
       }
     },
     {
@@ -3002,7 +3073,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 632
+        "lines": 640
       }
     },
     {
@@ -3380,7 +3451,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 585
+        "lines": 635
       }
     },
     {
@@ -3498,6 +3569,15 @@
       "source": "lib/tools/scienceTools.ts",
       "attrs": {
         "lines": 315
+      }
+    },
+    {
+      "id": "module:lib/tools/skillToolset.ts",
+      "kind": "module",
+      "label": "lib/tools/skillToolset.ts",
+      "source": "lib/tools/skillToolset.ts",
+      "attrs": {
+        "lines": 296
       }
     },
     {
@@ -3803,7 +3883,7 @@
       "label": "scripts/syndicate_chat.ts",
       "source": "scripts/syndicate_chat.ts",
       "attrs": {
-        "lines": 463
+        "lines": 489
       }
     },
     {
@@ -3821,7 +3901,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1307
+        "lines": 1314
       }
     },
     {
@@ -4125,6 +4205,15 @@
       }
     },
     {
+      "id": "script:syndicate:harness",
+      "kind": "script",
+      "label": "npm run syndicate:harness",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate harness"
+      }
+    },
+    {
       "id": "script:syndicate:hierarchical",
       "kind": "script",
       "label": "npm run syndicate:hierarchical",
@@ -4388,6 +4477,17 @@
       "attrs": {
         "memory": "internal-only",
         "agents": 3,
+        "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:harness",
+      "kind": "syndicate",
+      "label": "Harness",
+      "source": "config/agents/examples/harness.yaml",
+      "attrs": {
+        "memory": "internal-only",
+        "agents": 2,
         "mode": "delegate"
       }
     },
@@ -5192,6 +5292,41 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/agents/draft_review.md:21"
+    },
+    {
+      "from": "/agents/harness.md",
+      "to": "file:config/agents/examples/harness.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/harness.md frontmatter"
+    },
+    {
+      "from": "/agents/harness.md",
+      "to": "syndicate:harness",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/harness.md"
+    },
+    {
+      "from": "/agents/harness.md",
+      "to": "/decisions/0029-skills-read-like-a-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/harness.md:17"
+    },
+    {
+      "from": "/agents/harness.md",
+      "to": "/operations/agent-skills.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/harness.md:17"
+    },
+    {
+      "from": "/agents/harness.md",
+      "to": "/tools/skill-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/harness.md:17"
     },
     {
       "from": "/agents/hierarchical.md",
@@ -6538,6 +6673,55 @@
       "evidence": "/decisions/0028-approval-gates.md:39"
     },
     {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "file:config/agents/examples/harness.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md frontmatter"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "file:tests/skillHarness.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md frontmatter"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md frontmatter"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md frontmatter"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "module:lib/tools/skillToolset.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md frontmatter"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "/decisions/0014-agent-skills-suite.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md:25"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md:44"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -7672,6 +7856,69 @@
       "evidence": "/tools/evidence-tools.md"
     },
     {
+      "from": "/tools/skill-harness.md",
+      "to": "file:config/agents/examples/harness.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "file:tests/skillHarness.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skillToolset.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "/agents/harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md:50"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md:46"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "/decisions/0029-skills-read-like-a-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md:22"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "/operations/agent-skills.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md:50"
+    },
+    {
       "from": "/tools/task-tools.md",
       "to": "module:lib/tools/taskTools.ts",
       "rel": "derives_from",
@@ -8349,6 +8596,20 @@
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/templates/draft_review.yaml"
+    },
+    {
+      "from": "agent:harness/Checker",
+      "to": "model:gemini-3.5-flash-lite",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/harness.yaml"
+    },
+    {
+      "from": "agent:harness/Harness",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/harness.yaml"
     },
     {
       "from": "agent:hierarchical/ProjectManager",
@@ -9282,6 +9543,13 @@
       "evidence": "lib/compile.ts"
     },
     {
+      "from": "module:lib/compile.ts",
+      "to": "module:lib/tools/skillToolset.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
       "from": "module:lib/config.ts",
       "to": "env:GEMINI_MODEL",
       "rel": "requires_env",
@@ -9536,6 +9804,13 @@
     {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/tools/skillToolset.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -12712,6 +12987,20 @@
       "evidence": "package.json"
     },
     {
+      "from": "script:syndicate:harness",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:harness",
+      "to": "syndicate:harness",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
       "from": "script:syndicate:hierarchical",
       "to": "module:scripts/syndicate_chat.ts",
       "rel": "runs",
@@ -13165,6 +13454,27 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/templates/draft_review.yaml"
+    },
+    {
+      "from": "syndicate:harness",
+      "to": "agent:harness/Checker",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/harness.yaml"
+    },
+    {
+      "from": "syndicate:harness",
+      "to": "agent:harness/Harness",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/harness.yaml"
+    },
+    {
+      "from": "syndicate:harness",
+      "to": "file:config/agents/examples/harness.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/harness.yaml"
     },
     {
       "from": "syndicate:hierarchical",

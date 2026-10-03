@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { loadSyndicate, parseCliBindings } from '../lib/loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { isDispatchSyndicate } from '../lib/dispatch.ts';
-import { ingestTurnMemory, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { approvalResponsePart, describeApproval, ingestTurnMemory, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import type { PendingApproval } from '../lib/runtime/syndicateTurn.ts';
 
 import {
 	InMemorySessionService,
@@ -283,13 +284,16 @@ async function main(): Promise<void> {
 	// Ctrl+C during a turn cancels the turn; Ctrl+C at the prompt exits.
 	let activeTurn: AbortController | undefined;
 
-	async function runChat(trimmed: string) {
+	/** A gated call waiting for this person's yes (ADR 0028); answered by the next prompt. */
+	let pendingApproval: PendingApproval | undefined;
+
+	async function runChat(trimmed: string, parts: Array<Record<string, unknown>> = [{ text: trimmed }]) {
 		const printer = makePrinter();
 		activeTurn = new AbortController();
 		try {
 			const result = await runSyndicateTurn({
 				config,
-				parts: [{ text: trimmed }],
+				parts,
 				appName,
 				userId: SESSION_USER_ID,
 				sessionId: SESSION_ID,
@@ -316,7 +320,12 @@ async function main(): Promise<void> {
 				// The orchestrator's relay came back empty; show what shipped.
 				console.log(`\n${c.dim}[relay fallback — the specialist's answer]${c.reset}\n${result.text}`);
 			}
-			if (result.status !== 'completed') {
+			if (result.status === 'input-required' && result.approval) {
+				// The turn stopped on a tool a person must approve: a gated tool,
+				// or a skill script. The next prompt asks for the decision.
+				pendingApproval = result.approval;
+				console.log(`\n${c.yellow}⏸ Approval needed: ${describeApproval(result.approval)}${c.reset}`);
+			} else if (result.status !== 'completed') {
 				console.error(`\n${c.yellow}⚠ [${result.error?.code ?? 'ERROR'}] ${result.error?.message ?? ''}${c.reset}`);
 			}
 			console.log('\n');
@@ -351,6 +360,12 @@ async function main(): Promise<void> {
 	if (cliInput) {
 		console.log(`${c.green}${c.bold}You${c.reset} › ${cliInput}`);
 		await runChat(cliInput);
+		if (pendingApproval) {
+			// A one-shot run has nobody to ask: the call stays unapproved and
+			// never runs. Interactive mode, or an A2A client, can answer it.
+			console.error(`${c.yellow}⚠ The run stopped on a call that needs your approval; it did not run. Start the chat without a query to approve or refuse such calls.${c.reset}`);
+			process.exitCode = 2;
+		}
 		// A one-shot query still contributes to long-term memory.
 		await ingest();
 		return;
@@ -358,6 +373,17 @@ async function main(): Promise<void> {
 
 	const rl = createInterface({ input: process.stdin, output: process.stdout });
 	const ask = (): void => {
+		if (pendingApproval) {
+			const approval = pendingApproval;
+			rl.question(`${c.yellow}${c.bold}Approve${c.reset} ${describeApproval(approval)}? [y/N] › `, async (answer: string) => {
+				pendingApproval = undefined;
+				const approved = /^y(es)?$/i.test(answer.trim());
+				console.log(`${c.dim}  ${approved ? 'Approved' : 'Refused'}: ${approval.agent} → ${approval.tool}${c.reset}`);
+				await runChat(approved ? 'approve' : 'reject', [approvalResponsePart(approval.id, approved)]);
+				ask();
+			});
+			return;
+		}
 		rl.question(`${c.green}${c.bold}You${c.reset} › `, async (userInput: string) => {
 			const trimmed = userInput.trim();
 			if (!trimmed) { ask(); return; }

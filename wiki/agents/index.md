@@ -13,6 +13,7 @@
 - [Critic Review Workflow](/agents/critic.md) — The Critic Review Workflow syndicate.
 - [Delegation Router Workflow](/agents/delegation.md) — The Delegation Router Workflow syndicate.
 - [Draft Review](/agents/draft_review.md) — The Draft Review syndicate.
+- [Harness](/agents/harness.md) — The Harness syndicate.
 - [Hierarchical Task Decomposition](/agents/hierarchical.md) — The Hierarchical Task Decomposition syndicate.
 - [Multi-Modal Image Production Workflow](/agents/image_production.md) — The Multi-Modal Image Production Workflow syndicate.
 - [Intake Extractor](/agents/intake_extractor.md) — The Intake Extractor syndicate.

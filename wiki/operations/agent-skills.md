@@ -18,16 +18,16 @@ sources:
 
 # The agent-skills suite
 
-`skills/` is how a coding agent — Claude Code, Codex, Cursor, OpenCode, Gemini CLI — learns this framework. It holds six Agent Skills in the open SKILL.md standard (one directory per skill, `name` + `description` frontmatter, optional `templates/`), shipped in the npm package (`files` in `package.json`). They are the consumer-facing counterpart of the contributor skills in `.claude/skills/`, which govern changes to this repository.
+`skills/` is how a coding agent — Claude Code, Codex, Cursor, OpenCode, Gemini CLI — learns this framework. It holds six Agent Skills in the open SKILL.md standard (one directory per skill, `name` + `description` frontmatter, optional `references/`, `assets/` and `scripts/`), shipped in the npm package (`files` in `package.json`). They are the consumer-facing counterpart of the contributor skills in `.claude/skills/`, which govern changes to this repository.
 
 | Skill | Teaches |
 |---|---|
 | `melchizedek` | the entry point: where syndicate files are found (project root, `examples/`, the package), what each starter-pack file does and costs, `melchizedek-doctor`, running one interactively or one shot, and delegating a user's task to a syndicate from inside a coding agent |
-| `melchizedek-author` | the syndicate YAML: layout, keys, instruction anatomy, tools by name, the two constraints that break a file, offline validation; ships `templates/minimal.yaml` |
+| `melchizedek-author` | the syndicate YAML: layout, keys, instruction anatomy, tools by name, the two constraints that break a file, offline validation; ships `assets/minimal.yaml` |
 | `melchizedek-serve` | the [A2A server](/protocols/a2a.md), securing and calling it, [MCP](/protocols/mcp.md) tools for a subagent, serving your own tools over MCP |
 | `melchizedek-memory` | [long-term memory](/memory/architecture.md): modes, the [schema](/memory/schema.md), tools, extraction rules, inspection, erasure |
 | `melchizedek-models` | [provider routing](/models/provider-routing.md), keys, keyless Ollama, the gateway fallback, per-agent settings, the errors |
-| `melchizedek-scribe` | writing documents from a brief with [the Scribe](/agents/scribe.md); ships `templates/brief.md` |
+| `melchizedek-scribe` | writing documents from a brief with [the Scribe](/agents/scribe.md); ships `assets/brief.md` |
 
 ## Installing
 

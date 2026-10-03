@@ -38,6 +38,8 @@ import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
 import { capabilitySummary, describeCapabilities } from './models/capabilities.ts';
 import { remoteAgentTool } from './a2a/remoteAgent.ts';
+import { buildSkillHarness } from './tools/skillToolset.ts';
+import type { SkillsConfig } from './tools/skillToolset.ts';
 
 export interface CompileOptions {
   /**
@@ -150,9 +152,9 @@ function gateTools(tools: unknown[], names: string[] | undefined, agentName: str
   return out;
 }
 
-/** True when any agent of a syndicate declares an approval gate. */
+/** True when any agent of a syndicate may pause for approval: a gated tool, or skill scripts. */
 export function declaresApprovals(config: SyndicateYamlConfig): boolean {
-  return !!config.orchestrator?.require_approval?.length || (config.subagents ?? []).some((s) => !!s.require_approval?.length);
+  return agentGates(config.orchestrator) || (config.subagents ?? []).some((s) => agentGates(s));
 }
 
 async function resolveAgentTools(
@@ -169,6 +171,34 @@ async function resolveAgentTools(
     }
   }
   return tools;
+}
+
+/**
+ * An agent's `skills:` block becomes one toolset among its tools and one
+ * block appended to its instruction (the frontmatter index, always in view).
+ * The registry tools a skill may unlock (`skills.tools`) are resolved here,
+ * by name, and handed to the toolset; they reach the model only after a
+ * skill naming them is loaded (lib/tools/skillToolset.ts).
+ */
+async function withSkills(
+  instruction: string,
+  tools: unknown[],
+  skills: SkillsConfig | undefined,
+  agentName: string,
+  opts: CompileOptions,
+): Promise<{ instruction: string; tools: unknown[] }> {
+  if (!skills) return { instruction, tools };
+  const unlockable = resolveNamedTools(skills.tools, opts.onUnknownTool);
+  const harness = await buildSkillHarness(skills, unlockable);
+  const count = Object.keys(harness.skills).length;
+  opts.log?.(`skills · ${agentName}: ${count} skill${count === 1 ? '' : 's'} from ${skills.dir}${skills.scripts === 'local' ? ' · scripts run after approval' : ''}`);
+  for (const problem of harness.problems) opts.log?.(`⚠ skills · ${skills.dir}: not loaded — ${problem}`);
+  return { instruction: `${instruction.trimEnd()}\n\n${harness.instruction}`, tools: [...tools, harness.toolset] };
+}
+
+/** True when a turn running this agent directly may pause for a person (ADR 0028). */
+export function agentGates(agent: { require_approval?: string[]; skills?: SkillsConfig } | undefined): boolean {
+  return !!agent?.require_approval?.length || agent?.skills?.scripts === 'local';
 }
 
 /**
@@ -197,7 +227,8 @@ export async function compileSubagent(
     return compileGraph(nested, opts, subCfg.name, subCfg.description);
   }
 
-  const tools = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts), subCfg.require_approval, subCfg.name);
+  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts), subCfg.require_approval, subCfg.name);
+  const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
 
@@ -205,7 +236,7 @@ export async function compileSubagent(
     name: subCfg.name,
     description: subCfg.description,
     model: resolveModel(subCfg.model) as any,
-    instruction: subCfg.instruction,
+    instruction,
     tools: tools.length > 0 ? (tools as any[]) : undefined,
     outputSchema: subCfg.outputSchema as any,
     generateContentConfig: withServerSideToolInvocations(
@@ -251,6 +282,13 @@ export async function compileGraph(
       overrideName || config.orchestrator.name,
     ),
   );
+  const { instruction, tools: orchestratorTools } = await withSkills(
+    config.orchestrator.instruction,
+    compiledTools,
+    config.orchestrator.skills,
+    overrideName || config.orchestrator.name,
+    opts,
+  );
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(
     opts,
@@ -263,8 +301,8 @@ export async function compileGraph(
     name: overrideName || config.orchestrator.name,
     description: overrideDescription || config.orchestrator.description,
     model: resolveModel(config.orchestrator.model) as any,
-    instruction: config.orchestrator.instruction,
-    tools: compiledTools.length > 0 ? (compiledTools as any[]) : undefined,
+    instruction,
+    tools: orchestratorTools.length > 0 ? (orchestratorTools as any[]) : undefined,
     outputSchema: config.orchestrator.outputSchema as any,
     generateContentConfig: withServerSideToolInvocations(
       config.orchestrator.generateContentConfig as Record<string, unknown> | undefined,

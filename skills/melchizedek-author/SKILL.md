@@ -1,6 +1,6 @@
 ---
 name: melchizedek-author
-description: Design or edit a Melchizedek syndicate YAML: the file layout, required keys, orchestrator and subagent blocks, tools by name, output schemas, memory mode, the tier header, and offline validation. Use when the user wants a new agent team, wants to change a syndicate's prompt, model, or tools, or asks what a field in a syndicate file means.
+description: "Design or edit a Melchizedek syndicate YAML: the file layout, required keys, orchestrator and subagent blocks, tools by name, output schemas, memory mode, the tier header, and offline validation. Use when the user wants a new agent team, wants to change a syndicate's prompt, model, or tools, or asks what a field in a syndicate file means."
 ---
 
 ## Where the file goes
@@ -9,7 +9,7 @@ Your syndicates live at the root of `config/agents/` in your project. The file n
 
 The environment variable `MELCHIZEDEK_AGENTS_DIR` points the loader at another directory. The schema file `syndicateSchema.yaml` sits beside the examples and documents every field with its ADK counterpart.
 
-A minimal template ships with this skill at `templates/minimal.yaml` relative to this skill's directory. Copy it, rename it, and fill in the fields.
+A minimal template ships with this skill at `assets/minimal.yaml` relative to this skill's directory. Copy it, rename it, and fill in the fields.
 
 ## Start from the closest example
 

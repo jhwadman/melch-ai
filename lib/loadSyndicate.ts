@@ -7,6 +7,8 @@ import { validateSyndicateConfig } from './syndicateSchema.ts';
 import type { DispatchConfig } from './dispatch.ts';
 
 export type { DispatchConfig } from './dispatch.ts';
+import type { SkillsConfig } from './tools/skillToolset.ts';
+export type { SkillsConfig } from './tools/skillToolset.ts';
 
 // ── Types ─────────────────────────────────────────────────
 // Property names mirror their ADK counterparts 1:1.
@@ -104,6 +106,12 @@ export interface AgentYamlConfig {
 
   // ── Melchizedek-internal ──
   mcp_server_url?: string;
+  /**
+   * Agent Skills (SKILL.md directories) this agent holds the way a coding
+   * harness does: the index in its instruction, a skill read on demand, its
+   * scripts run only after approval. lib/tools/skillToolset.ts.
+   */
+  skills?: SkillsConfig;
   orchestration?: {
     role?: 'primary' | 'sub-agent';
     delegates?: string[];
