@@ -123,6 +123,8 @@ worked specimen for a curriculum module:
 |---|---|---|
 | `assistant.yaml` — Assistant | the launching pad: converse, summarize, a task list, background jobs a worker drains; keyless | — |
 | `harness.yaml` — Harness | works from installed Agent Skills the way a coding harness does: the frontmatter index in its prompt, a skill read on demand, `/name` to force one, scripts run after approval | — |
+| `weather.yaml` — Weather | an HTTP API as tools from its OpenAPI spec (`openapi:`), no tool code: find a place, forecast its weather, on Open-Meteo's keyless APIs | — |
+| `pipeline.yaml` — Editorial Pipeline | a syndicate as a graph (`workflow:`): route on a JSON field, fan out to two agents, join, edit with a retry, ask the person, publish | — |
 | `tutor.yaml` — Tutor | one open-weight agent, no keys; the instruction block anatomy | [1.02 · running your own model](https://lyceumagents.com/curriculum/your-own-model/) |
 | `council.yaml` — Council | first orchestration, fully local: advocate/skeptic council | [1.05 · workflows & voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
 | `critic.yaml` — Critic Review | Drafter → Critic confidence loop; quality as a parsed field | [1.04 · testing & refinement](https://lyceumagents.com/curriculum/testing-and-refinement/) |

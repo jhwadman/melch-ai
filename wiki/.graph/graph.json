@@ -5,44 +5,44 @@
     "at": "2026-10-03"
   },
   "stats": {
-    "nodes": 573,
-    "edges": 1321,
+    "nodes": 609,
+    "edges": 1408,
     "byKind": {
-      "doc": 78,
+      "doc": 87,
       "provider": 6,
-      "env": 98,
+      "env": 99,
       "model": 8,
-      "tool": 32,
-      "file": 61,
-      "syndicate": 30,
-      "agent": 82,
+      "tool": 34,
+      "file": 69,
+      "syndicate": 32,
+      "agent": 89,
       "mcp-server": 4,
       "table": 16,
-      "module": 113,
-      "script": 43,
+      "module": 118,
+      "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 199,
-      "requires_env": 153,
+      "links_to": 213,
+      "requires_env": 154,
       "routes_to": 8,
-      "defined_in": 73,
-      "documents": 54,
-      "contains": 82,
-      "uses_model": 82,
+      "defined_in": 75,
+      "documents": 56,
+      "contains": 89,
+      "uses_model": 89,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 317,
+      "imports": 334,
       "reads_table": 28,
-      "runs": 62,
-      "derives_from": 197
+      "runs": 66,
+      "derives_from": 230
     },
     "byTier": {
-      "extracted": 1321,
+      "extracted": 1408,
       "inferred": 0
     },
-    "isolated": 2
+    "isolated": 4
   },
   "nodes": [
     {
@@ -274,6 +274,18 @@
       }
     },
     {
+      "id": "/agents/pipeline.md",
+      "kind": "doc",
+      "label": "Editorial Pipeline",
+      "source": "/agents/pipeline.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 376
+      }
+    },
+    {
       "id": "/agents/research_brief.md",
       "kind": "doc",
       "label": "Research Brief",
@@ -403,6 +415,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 146
+      }
+    },
+    {
+      "id": "/agents/weather.md",
+      "kind": "doc",
+      "label": "Weather",
+      "source": "/agents/weather.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 206
       }
     },
     {
@@ -730,10 +754,70 @@
       }
     },
     {
-      "id": "/decisions/0030-moonshot-kimi-provider.md",
+      "id": "/decisions/0030-workflow-graphs.md",
       "kind": "doc",
-      "label": "ADR 0030: Moonshot AI (Kimi) is a direct provider; its search stays off the model",
-      "source": "/decisions/0030-moonshot-kimi-provider.md",
+      "label": "ADR 0030: A syndicate can be a graph: the `workflow:` block, on ADK's Workflow, is the third orchestration method",
+      "source": "/decisions/0030-workflow-graphs.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 948
+      }
+    },
+    {
+      "id": "/decisions/0031-ask-user.md",
+      "kind": "doc",
+      "label": "ADR 0031: An agent asks the person through `ask_user`, a long-running tool on the input-required path",
+      "source": "/decisions/0031-ask-user.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 530
+      }
+    },
+    {
+      "id": "/decisions/0032-openapi-tools.md",
+      "kind": "doc",
+      "label": "ADR 0032: Any HTTP API with an OpenAPI spec becomes an agent's tools through `openapi:`, read-only by default",
+      "source": "/decisions/0032-openapi-tools.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 589
+      }
+    },
+    {
+      "id": "/decisions/0033-context-task-code.md",
+      "kind": "doc",
+      "label": "ADR 0033: Three ADK agent features as YAML keys, each placed where it means something: code_execution, context, mode",
+      "source": "/decisions/0033-context-task-code.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 527
+      }
+    },
+    {
+      "id": "/decisions/0034-self-correction.md",
+      "kind": "doc",
+      "label": "ADR 0034: Self-correction is on by default (ADK's reflect-and-retry plugins); url_context and examples join the agent surface",
+      "source": "/decisions/0034-self-correction.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 483
+      }
+    },
+    {
+      "id": "/decisions/0035-moonshot-kimi-provider.md",
+      "kind": "doc",
+      "label": "ADR 0035: Moonshot AI (Kimi) is a direct provider; its search stays off the model",
+      "source": "/decisions/0035-moonshot-kimi-provider.md",
       "attrs": {
         "type": "decision",
         "status": "stable",
@@ -870,7 +954,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 424
+        "words": 436
       }
     },
     {
@@ -910,6 +994,18 @@
       }
     },
     {
+      "id": "/tools/ask-user.md",
+      "kind": "doc",
+      "label": "Ask the user",
+      "source": "/tools/ask-user.md",
+      "attrs": {
+        "type": "tool",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 265
+      }
+    },
+    {
       "id": "/tools/evidence-tools.md",
       "kind": "doc",
       "label": "Clinical-evidence tools",
@@ -919,6 +1015,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 246
+      }
+    },
+    {
+      "id": "/tools/openapi-tools.md",
+      "kind": "doc",
+      "label": "OpenAPI tools",
+      "source": "/tools/openapi-tools.md",
+      "attrs": {
+        "type": "tool",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 207
       }
     },
     {
@@ -1503,6 +1611,71 @@
       }
     },
     {
+      "id": "agent:pipeline/Answerer",
+      "kind": "agent",
+      "label": "Answerer",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Answers a request that is not an article."
+      }
+    },
+    {
+      "id": "agent:pipeline/Checker",
+      "kind": "agent",
+      "label": "Checker",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Lists the claims a piece on this brief would have to get right."
+      }
+    },
+    {
+      "id": "agent:pipeline/Editor",
+      "kind": "agent",
+      "label": "Editor",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Merges the Writer's draft and the Checker's list into the final draft."
+      }
+    },
+    {
+      "id": "agent:pipeline/Planner",
+      "kind": "agent",
+      "label": "Planner",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "pipeline"
+      }
+    },
+    {
+      "id": "agent:pipeline/Publisher",
+      "kind": "agent",
+      "label": "Publisher",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Applies the person's decision to the draft and returns the published text."
+      }
+    },
+    {
+      "id": "agent:pipeline/Writer",
+      "kind": "agent",
+      "label": "Writer",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Writes the draft from the Planner's brief."
+      }
+    },
+    {
       "id": "agent:research_brief/Editor",
       "kind": "agent",
       "label": "Editor",
@@ -1858,6 +2031,16 @@
       }
     },
     {
+      "id": "agent:weather/Forecaster",
+      "kind": "agent",
+      "label": "Forecaster",
+      "source": "config/agents/examples/weather.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "weather"
+      }
+    },
+    {
       "id": "env:A2A_AGENT_TOKENS",
       "kind": "env",
       "label": "A2A_AGENT_TOKENS",
@@ -1970,6 +2153,12 @@
       "kind": "env",
       "label": "ALLOW_PRIVATE_MCP",
       "source": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "id": "env:ALLOW_PRIVATE_OPENAPI",
+      "kind": "env",
+      "label": "ALLOW_PRIVATE_OPENAPI",
+      "source": "lib/tools/openapiTools.ts"
     },
     {
       "id": "env:ALLOW_SCHEMA_MISMATCH",
@@ -2588,6 +2777,13 @@
       "attrs": {}
     },
     {
+      "id": "file:config/agents/examples/pipeline.yaml",
+      "kind": "file",
+      "label": "pipeline.yaml",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {}
+    },
+    {
       "id": "file:config/agents/examples/research.yaml",
       "kind": "file",
       "label": "research.yaml",
@@ -2627,6 +2823,13 @@
       "kind": "file",
       "label": "tutor.yaml",
       "source": "config/agents/examples/tutor.yaml",
+      "attrs": {}
+    },
+    {
+      "id": "file:config/agents/examples/weather.yaml",
+      "kind": "file",
+      "label": "weather.yaml",
+      "source": "config/agents/examples/weather.yaml",
       "attrs": {}
     },
     {
@@ -2856,6 +3059,12 @@
       "source": "tests/agents.test.ts"
     },
     {
+      "id": "file:tests/execution.test.ts",
+      "kind": "file",
+      "label": "execution.test.ts",
+      "source": "tests/execution.test.ts"
+    },
+    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -2874,6 +3083,32 @@
       "source": "tests/models.test.ts"
     },
     {
+      "id": "file:tests/openapiTools.test.ts",
+      "kind": "file",
+      "label": "openapiTools.test.ts",
+      "source": "tests/openapiTools.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/questions.test.ts",
+      "kind": "file",
+      "label": "questions.test.ts",
+      "source": "tests/questions.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/questionsA2a.test.ts",
+      "kind": "file",
+      "label": "questionsA2a.test.ts",
+      "source": "tests/questionsA2a.test.ts"
+    },
+    {
+      "id": "file:tests/selfCorrection.test.ts",
+      "kind": "file",
+      "label": "selfCorrection.test.ts",
+      "source": "tests/selfCorrection.test.ts"
+    },
+    {
       "id": "file:tests/skillHarness.test.ts",
       "kind": "file",
       "label": "skillHarness.test.ts",
@@ -2885,6 +3120,12 @@
       "kind": "file",
       "label": "syndicateTurn.test.ts",
       "source": "tests/syndicateTurn.test.ts"
+    },
+    {
+      "id": "file:tests/workflow.test.ts",
+      "kind": "file",
+      "label": "workflow.test.ts",
+      "source": "tests/workflow.test.ts"
     },
     {
       "id": "file:tsconfig.build.json",
@@ -2981,7 +3222,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 661
+        "lines": 705
       }
     },
     {
@@ -3035,7 +3276,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 313
+        "lines": 433
       }
     },
     {
@@ -3062,7 +3303,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 671
+        "lines": 672
       }
     },
     {
@@ -3098,7 +3339,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 119
+        "lines": 121
       }
     },
     {
@@ -3116,7 +3357,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 640
+        "lines": 688
       }
     },
     {
@@ -3170,7 +3411,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 383
+        "lines": 384
       }
     },
     {
@@ -3390,12 +3631,21 @@
       }
     },
     {
+      "id": "module:lib/runtime/questions.ts",
+      "kind": "module",
+      "label": "lib/runtime/questions.ts",
+      "source": "lib/runtime/questions.ts",
+      "attrs": {
+        "lines": 112
+      }
+    },
+    {
       "id": "module:lib/runtime/syndicateTurn.ts",
       "kind": "module",
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 802
+        "lines": 964
       }
     },
     {
@@ -3503,7 +3753,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 635
+        "lines": 903
       }
     },
     {
@@ -3512,7 +3762,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 139
+        "lines": 148
       }
     },
     {
@@ -3558,6 +3808,15 @@
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
         "lines": 143
+      }
+    },
+    {
+      "id": "module:lib/tools/openapiTools.ts",
+      "kind": "module",
+      "label": "lib/tools/openapiTools.ts",
+      "source": "lib/tools/openapiTools.ts",
+      "attrs": {
+        "lines": 192
       }
     },
     {
@@ -3648,6 +3907,15 @@
       "source": "lib/tools/toolContract.ts",
       "attrs": {
         "lines": 174
+      }
+    },
+    {
+      "id": "module:lib/tools/urlContextTool.ts",
+      "kind": "module",
+      "label": "lib/tools/urlContextTool.ts",
+      "source": "lib/tools/urlContextTool.ts",
+      "attrs": {
+        "lines": 47
       }
     },
     {
@@ -3804,6 +4072,24 @@
       }
     },
     {
+      "id": "module:lib/workflow.ts",
+      "kind": "module",
+      "label": "lib/workflow.ts",
+      "source": "lib/workflow.ts",
+      "attrs": {
+        "lines": 208
+      }
+    },
+    {
+      "id": "module:lib/workflowConfig.ts",
+      "kind": "module",
+      "label": "lib/workflowConfig.ts",
+      "source": "lib/workflowConfig.ts",
+      "attrs": {
+        "lines": 148
+      }
+    },
+    {
       "id": "module:scripts/a2a_server.ts",
       "kind": "module",
       "label": "scripts/a2a_server.ts",
@@ -3935,7 +4221,7 @@
       "label": "scripts/syndicate_chat.ts",
       "source": "scripts/syndicate_chat.ts",
       "attrs": {
-        "lines": 489
+        "lines": 497
       }
     },
     {
@@ -3953,7 +4239,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1317
+        "lines": 1339
       }
     },
     {
@@ -4299,6 +4585,15 @@
       }
     },
     {
+      "id": "script:syndicate:pipeline",
+      "kind": "script",
+      "label": "npm run syndicate:pipeline",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate pipeline"
+      }
+    },
+    {
       "id": "script:syndicate:scribe",
       "kind": "script",
       "label": "npm run syndicate:scribe",
@@ -4341,6 +4636,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate tutor"
+      }
+    },
+    {
+      "id": "script:syndicate:weather",
+      "kind": "script",
+      "label": "npm run syndicate:weather",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate weather"
       }
     },
     {
@@ -4616,6 +4920,17 @@
       }
     },
     {
+      "id": "syndicate:pipeline",
+      "kind": "syndicate",
+      "label": "Editorial Pipeline",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "memory": "internal-only",
+        "agents": 6,
+        "mode": "workflow"
+      }
+    },
+    {
       "id": "syndicate:research",
       "kind": "syndicate",
       "label": "Research",
@@ -4732,6 +5047,17 @@
       "kind": "syndicate",
       "label": "Tutor",
       "source": "config/agents/examples/tutor.yaml",
+      "attrs": {
+        "memory": "internal-only",
+        "agents": 1,
+        "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:weather",
+      "kind": "syndicate",
+      "label": "Weather",
+      "source": "config/agents/examples/weather.yaml",
       "attrs": {
         "memory": "internal-only",
         "agents": 1,
@@ -4860,6 +5186,12 @@
       "kind": "table",
       "label": "melchizedek_usage",
       "source": "db/migrations/0004_usage.sql"
+    },
+    {
+      "id": "tool:ask_user",
+      "kind": "tool",
+      "label": "ask_user",
+      "source": "lib/toolRegistry.ts"
     },
     {
       "id": "tool:check_retraction",
@@ -5004,6 +5336,12 @@
       "attrs": {
         "description": "Change a task: mark it done, cancel it, reopen it, or edit its title, notes, or due date."
       }
+    },
+    {
+      "id": "tool:url_context",
+      "kind": "tool",
+      "label": "url_context",
+      "source": "lib/toolRegistry.ts"
     },
     {
       "id": "tool:web_extract",
@@ -5485,6 +5823,34 @@
       "evidence": "/agents/patient_advocate.md"
     },
     {
+      "from": "/agents/pipeline.md",
+      "to": "file:config/agents/examples/pipeline.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/pipeline.md frontmatter"
+    },
+    {
+      "from": "/agents/pipeline.md",
+      "to": "syndicate:pipeline",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/pipeline.md"
+    },
+    {
+      "from": "/agents/pipeline.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/pipeline.md:17"
+    },
+    {
+      "from": "/agents/pipeline.md",
+      "to": "/overview/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/pipeline.md:17"
+    },
+    {
       "from": "/agents/research_brief.md",
       "to": "file:config/agents/templates/research_brief.yaml",
       "rel": "derives_from",
@@ -5679,6 +6045,34 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/agents/tutor.md"
+    },
+    {
+      "from": "/agents/weather.md",
+      "to": "file:config/agents/examples/weather.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/weather.md frontmatter"
+    },
+    {
+      "from": "/agents/weather.md",
+      "to": "syndicate:weather",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/weather.md"
+    },
+    {
+      "from": "/agents/weather.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/weather.md:17"
+    },
+    {
+      "from": "/agents/weather.md",
+      "to": "/tools/openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/weather.md:17"
     },
     {
       "from": "/decisions/0001-okf-profile.md",
@@ -6780,32 +7174,221 @@
       "evidence": "/decisions/0029-skills-read-like-a-harness.md:44"
     },
     {
-      "from": "/decisions/0030-moonshot-kimi-provider.md",
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "file:config/agents/examples/pipeline.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "file:tests/workflow.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md:42"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "/overview/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md:37"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "file:tests/questions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "file:tests/questionsA2a.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "file:config/agents/examples/weather.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "file:tests/execution.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "/decisions/0029-skills-read-like-a-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md:27"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "file:tests/selfCorrection.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "module:lib/tools/urlContextTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0035-moonshot-kimi-provider.md",
       "to": "module:lib/models/capabilities.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0030-moonshot-kimi-provider.md frontmatter"
+      "evidence": "/decisions/0035-moonshot-kimi-provider.md frontmatter"
     },
     {
-      "from": "/decisions/0030-moonshot-kimi-provider.md",
+      "from": "/decisions/0035-moonshot-kimi-provider.md",
       "to": "module:lib/models/kimiLlm.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0030-moonshot-kimi-provider.md frontmatter"
+      "evidence": "/decisions/0035-moonshot-kimi-provider.md frontmatter"
     },
     {
-      "from": "/decisions/0030-moonshot-kimi-provider.md",
+      "from": "/decisions/0035-moonshot-kimi-provider.md",
       "to": "module:lib/models/providerMap.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0030-moonshot-kimi-provider.md frontmatter"
+      "evidence": "/decisions/0035-moonshot-kimi-provider.md frontmatter"
     },
     {
-      "from": "/decisions/0030-moonshot-kimi-provider.md",
+      "from": "/decisions/0035-moonshot-kimi-provider.md",
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0030-moonshot-kimi-provider.md:67"
+      "evidence": "/decisions/0035-moonshot-kimi-provider.md:67"
     },
     {
       "from": "/memory/architecture.md",
@@ -7593,6 +8176,13 @@
     },
     {
       "from": "/overview/architecture.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
+      "from": "/overview/architecture.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -7886,6 +8476,55 @@
       "evidence": "/protocols/mcp.md:38"
     },
     {
+      "from": "/tools/ask-user.md",
+      "to": "file:tests/questions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:25"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:25"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0031-ask-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:27"
+    },
+    {
       "from": "/tools/evidence-tools.md",
       "to": "module:lib/tools/scienceTools.ts",
       "rel": "derives_from",
@@ -7940,6 +8579,48 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/tools/evidence-tools.md"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "file:config/agents/examples/weather.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/agents/weather.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:19"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:21"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:21"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -8866,6 +9547,48 @@
       "evidence": "config/agents/examples/patient_advocate.yaml"
     },
     {
+      "from": "agent:pipeline/Answerer",
+      "to": "model:gemini-3.5-flash-lite",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Checker",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Editor",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Planner",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Publisher",
+      "to": "model:gemini-3.5-flash-lite",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Writer",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
       "from": "agent:research_brief/Editor",
       "to": "model:gemini-3.8-flash",
       "rel": "uses_model",
@@ -9314,6 +10037,13 @@
       "evidence": "config/agents/examples/tutor.yaml"
     },
     {
+      "from": "agent:weather/Forecaster",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/weather.yaml"
+    },
+    {
       "from": "mcp-server:http://localhost:8931/sse",
       "to": "module:scripts/demo_mcp_server.ts",
       "rel": "defined_in",
@@ -9644,6 +10374,13 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/tools/skillToolset.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -9888,6 +10625,20 @@
       "evidence": "lib/index.ts"
     },
     {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/workflow.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/dispatch.ts",
       "rel": "imports",
@@ -9910,7 +10661,21 @@
     },
     {
       "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/tools/skillToolset.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/workflowConfig.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -10924,6 +11689,13 @@
       "evidence": "lib/registry.ts"
     },
     {
+      "from": "module:lib/runtime/questions.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/questions.ts"
+    },
+    {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/a2a/remoteAgent.ts",
       "rel": "imports",
@@ -10988,6 +11760,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/turnControl.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -10996,6 +11775,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/session/transcript.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/workflow.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -11127,6 +11913,20 @@
       "evidence": "lib/syndicateSchema.ts"
     },
     {
+      "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
       "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/tools/collectionsSearchTool.ts",
       "rel": "imports",
@@ -11164,6 +11964,13 @@
     {
       "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/tools/urlContextTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/toolRegistry.ts"
@@ -11293,6 +12100,20 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
     },
     {
       "from": "module:lib/tools/science/corrections.ts",
@@ -11426,6 +12247,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/taskTools.ts"
+    },
+    {
+      "from": "module:lib/tools/urlContextTool.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/urlContextTool.ts"
     },
     {
       "from": "module:lib/tools/webExtractTool.ts",
@@ -11748,6 +12576,34 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/wiki/vault.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
     },
     {
       "from": "module:scripts/a2a_server.ts",
@@ -13192,6 +14048,20 @@
       "evidence": "package.json"
     },
     {
+      "from": "script:syndicate:pipeline",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:pipeline",
+      "to": "syndicate:pipeline",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
       "from": "script:syndicate:scribe",
       "to": "module:scripts/syndicate_chat.ts",
       "rel": "runs",
@@ -13257,6 +14127,20 @@
     {
       "from": "script:syndicate:tutor",
       "to": "syndicate:tutor",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:weather",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:weather",
+      "to": "syndicate:weather",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"
@@ -13787,6 +14671,55 @@
       "evidence": "config/agents/examples/patient_advocate.yaml"
     },
     {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Answerer",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Checker",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Editor",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Planner",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Publisher",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Writer",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "file:config/agents/examples/pipeline.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
       "from": "syndicate:research_brief",
       "to": "agent:research_brief/Editor",
       "rel": "contains",
@@ -14093,6 +15026,20 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/examples/tutor.yaml"
+    },
+    {
+      "from": "syndicate:weather",
+      "to": "agent:weather/Forecaster",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/weather.yaml"
+    },
+    {
+      "from": "syndicate:weather",
+      "to": "file:config/agents/examples/weather.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/weather.yaml"
     },
     {
       "from": "table:adk_a2a_tasks",

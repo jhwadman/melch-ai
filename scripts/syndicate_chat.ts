@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { loadSyndicate, parseCliBindings } from '../lib/loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { isDispatchSyndicate } from '../lib/dispatch.ts';
-import { approvalResponsePart, describeApproval, ingestTurnMemory, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { approvalResponsePart, describeApproval, describeInput, ingestTurnMemory, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { PendingApproval } from '../lib/runtime/syndicateTurn.ts';
 
 import {
@@ -325,6 +325,10 @@ async function main(): Promise<void> {
 				// or a skill script. The next prompt asks for the decision.
 				pendingApproval = result.approval;
 				console.log(`\n${c.yellow}⏸ Approval needed: ${describeApproval(result.approval)}${c.reset}`);
+			} else if (result.status === 'input-required' && result.input) {
+				// A workflow's ask_user node: whatever is typed next is the answer,
+				// and the graph resumes from that node.
+				console.log(`\n${c.yellow}❓ ${describeInput(result.input)}${c.reset}\n${c.dim}  (your next message is the answer)${c.reset}`);
 			} else if (result.status !== 'completed') {
 				console.error(`\n${c.yellow}⚠ [${result.error?.code ?? 'ERROR'}] ${result.error?.message ?? ''}${c.reset}`);
 			}
@@ -428,6 +432,9 @@ async function main(): Promise<void> {
 function makePrinter() {
 	let currentMode: 'thinking' | 'text' | 'none' = 'none';
 	let streamedText = false;
+	// Which agent the current text label names: a workflow's nodes speak in
+	// turn, each under its own label.
+	let labelled = '';
 	return {
 		onEvent(event: Event) {
 			const e = event as any;
@@ -454,9 +461,10 @@ function makePrinter() {
 					process.stdout.write(c.dim + p.text + c.reset);
 				} else if (p.text) {
 					if (!isPartial && streamedText) continue;
-					if (currentMode !== 'text') {
+					if (currentMode !== 'text' || labelled !== e.author) {
 						process.stdout.write(`\n${c.magenta}${c.bold}${e.author}${c.reset} › `);
 						currentMode = 'text';
+						labelled = e.author;
 					}
 					process.stdout.write(p.text);
 					if (isPartial) streamedText = true;

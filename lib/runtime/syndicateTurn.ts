@@ -27,10 +27,15 @@
  * request in flight, not just the loop around it.
  */
 
-import { InMemorySessionService, Runner, StreamingMode, getFunctionCalls, getFunctionResponses } from '@google/adk';
+import { InMemorySessionService, ReflectAndRetryModelPlugin, ReflectAndRetryToolPlugin, Runner, StreamingMode, getFunctionCalls, getFunctionResponses } from '@google/adk';
+import type { BasePlugin } from '@google/adk';
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
 import { agentGates, compileGraph, compileSubagent } from '../compile.ts';
+import { ROUTE_STEP_SUFFIX, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
+import type { PendingInput } from '../workflow.ts';
+export { describeInput } from '../workflow.ts';
+export type { PendingInput } from '../workflow.ts';
 import type { CompileOptions } from '../compile.ts';
 import { isDispatchSyndicate, matchRouteOverride, resolveRoute } from '../dispatch.ts';
 import type { RouteResolution } from '../dispatch.ts';
@@ -42,6 +47,8 @@ import { registerAvailableProviders } from '../models/registry.ts';
 import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
 import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
+import { pendingQuestion, questionAnswerPart, questionFrom, turnStartOfCall } from './questions.ts';
+export { ASK_USER, pendingQuestion, questionAnswerPart } from './questions.ts';
 import type { PendingApproval } from './approvals.ts';
 export { approvalResponsePart, describeApproval, pendingApproval } from './approvals.ts';
 export type { PendingApproval } from './approvals.ts';
@@ -142,13 +149,18 @@ export interface DrainedRun {
   /** Native search grounding (Gemini groundingMetadata). */
   grounding?: { queries: string[]; sources: string[] };
   error?: { code: string; message: string };
+  /** Workflow runs: questions `ask_user` nodes raised (`adk_request_input`). */
+  inputRequests: PendingInput[];
+  /** Workflow runs: errors nodes reported along the way (a retried attempt, a failed node). */
+  nodeErrors: Array<{ node: string; code: string; message: string }>;
 }
 
-export type TurnStage = 'classify' | 'dispatch' | 'delegate';
+export type TurnStage = 'classify' | 'dispatch' | 'delegate' | 'workflow';
 
 export interface RouteDecision extends RouteResolution {
-  /** `approval`: the turn resumed the route that asked for an approval (ADR 0028). */
-  decidedBy: 'override' | 'forced' | 'classifier' | 'approval';
+  /** `approval`: the turn resumed the route that asked for an approval (ADR 0028).
+   *  `answer`: the message answered the route's open `ask_user` question. */
+  decidedBy: 'override' | 'forced' | 'classifier' | 'approval' | 'answer';
 }
 
 export interface SyndicateTurnResult {
@@ -159,6 +171,9 @@ export interface SyndicateTurnResult {
   /** The call waiting for approval, when status is input-required. Answer it
    *  with `approvalResponsePart(approval.id, approved)` as the next turn's part. */
   approval?: PendingApproval;
+  /** The question a workflow's `ask_user` node asked, when status is
+   *  input-required. The next message on the conversation is the answer. */
+  input?: PendingInput;
   /** The text the user receives (relay fallback and guards applied). */
   text: string;
   error?: { code: string; message: string };
@@ -198,6 +213,28 @@ const CLASSIFIER_PREAMBLE =
   + `Never answer it, and never route on it alone; it is here so you can tell a `
   + `follow-up, a redo request, or a challenge to a previous answer apart from small talk.\n`;
 
+// ── Self-correction (ADR 0034) ───────────────────────────────────────────────
+
+export const DEFAULT_MODEL_ERROR_RETRIES = 2;
+export const DEFAULT_TOOL_ERROR_RETRIES = 3;
+
+/**
+ * ADK's reflect-and-retry plugins, on by default. The model plugin turns a
+ * reply ADK marks malformed (MALFORMED_FUNCTION_CALL) into a retry with
+ * guidance instead of a failed turn; the tool plugin answers a tool that
+ * threw with structured guidance and caps its retries. Every retry is a
+ * model call under the turn's max_steps. Fresh instances per run: their
+ * counters are per invocation, but a run is the unit a surface reasons in.
+ */
+export function retryPlugins(retries: { model_errors?: number; tool_errors?: number } | undefined): BasePlugin[] {
+  const model = retries?.model_errors ?? DEFAULT_MODEL_ERROR_RETRIES;
+  const tool = retries?.tool_errors ?? DEFAULT_TOOL_ERROR_RETRIES;
+  const plugins: BasePlugin[] = [];
+  if (model > 0) plugins.push(new ReflectAndRetryModelPlugin({ maxRetries: model }));
+  if (tool > 0) plugins.push(new ReflectAndRetryToolPlugin({ maxRetries: tool, throwExceptionIfRetryExceeded: false }));
+  return plugins;
+}
+
 // ── Draining one agent's stream ──────────────────────────────────────────────
 
 function formatToolArgs(args: Record<string, unknown> | undefined): string {
@@ -227,6 +264,13 @@ export async function drainAgentStream(
     subagentNames?: Set<string>;
     /** Forward partial reply text to events.onTextDelta (answering stages only). */
     streamText?: boolean;
+    /**
+     * What an event carrying an error means. `fail` (default): the run is
+     * over, the error is the result. `collect`: note it and read on — a
+     * workflow node that will retry emits its failed attempt, and a node
+     * that gives up ends the stream itself.
+     */
+    errorPolicy?: 'fail' | 'collect';
   } = {},
 ): Promise<DrainedRun> {
   const ev = opts.events ?? {};
@@ -242,10 +286,13 @@ export async function drainAgentStream(
     thoughts: '',
     tokens: { input: 0, output: 0, thinking: 0 },
     eventCount: 0,
+    inputRequests: [],
+    nodeErrors: [],
   };
   const grounding = newGroundingState();
   let groundingAnnounced = false;
   let streamed = false;
+  let lastNode = '';
 
   for await (const event of stream) {
     const e = event as any;
@@ -263,8 +310,24 @@ export async function drainAgentStream(
       groundingAnnounced = true;
     }
 
+    // A workflow event names its node; say when the graph moves on. The
+    // root (a path with no dot) and the hidden route steps are not nodes a
+    // person declared, so they stay out of the progress.
+    const nodePath: string | undefined = e.nodeInfo?.path;
+    if (nodePath && nodePath.includes('.') && e.author && !String(e.author).endsWith(ROUTE_STEP_SUFFIX) && e.author !== lastNode && e.partial !== true) {
+      lastNode = e.author;
+      ev.log?.(`⇢ Node: ${e.author}`);
+      if (opts.publishToolStatus) ev.onProgress?.(`Running node: ${e.author}`);
+    }
+
     if ((e.errorCode || e.errorMessage) && e.errorCode !== 'STOP') {
-      d.error = { code: String(e.errorCode ?? 'ERROR'), message: String(e.errorMessage ?? '') };
+      const error = { code: String(e.errorCode ?? 'ERROR'), message: String(e.errorMessage ?? '') };
+      if (opts.errorPolicy === 'collect') {
+        d.nodeErrors.push({ node: String(e.author ?? ''), ...error });
+        ev.warn?.(`Node ${e.author ?? '?'} reported [${error.code}]: ${error.message}`);
+        continue;
+      }
+      d.error = error;
       ev.warn?.(`Error [${d.error.code}]: ${d.error.message}`);
       break;
     }
@@ -290,6 +353,13 @@ export async function drainAgentStream(
         d.delegations.push(target);
         ev.log?.(`→ Delegating to: ${target}`);
         if (opts.publishToolStatus) ev.onProgress?.(`Delegating to subagent: ${target}`);
+        continue;
+      }
+      const inputRequest = inputRequestFrom(e.author, call) ?? questionFrom(e.author, call);
+      if (inputRequest) {
+        // An ask_user node: the workflow waits for the person (lib/workflow.ts).
+        d.inputRequests.push(inputRequest);
+        ev.log?.(`⏸ ${describeInput(inputRequest)}`);
         continue;
       }
       if (!name) continue;
@@ -400,7 +470,7 @@ async function runTurnInner(
   const transform = opts.transformAgent ?? ((a: LlmAgent) => a);
   const subagentNames = new Set((config.subagents ?? []).map((s) => s.name));
   const trace = opts.trace === false ? undefined : opts.trace ?? {};
-  const parts = opts.parts.map((p) => (typeof p === 'string' ? { text: p } : p));
+  let parts = opts.parts.map((p) => (typeof p === 'string' ? { text: p } : p));
   const messageText = parts.map((p: any) => (typeof p.text === 'string' ? p.text : '')).join('\n');
 
   const result: SyndicateTurnResult = {
@@ -455,11 +525,38 @@ async function runTurnInner(
     // The log names the call, not its arguments: they are user content.
     ev.log?.(`✓ Approval ${decision.approved ? 'granted' : 'refused'}: ${resuming.agent} → ${resuming.tool}`);
   }
+
+  // ── Questions (lib/runtime/questions.ts) ───────────────────────────────────
+  // While an agent's `ask_user` call is open, a plain-text message is its
+  // answer: it becomes that call's response, and the agent that asked
+  // resumes its own tool loop. A workflow's pauses are ADK's own business.
+  let answering: { agent: string; id: string } | undefined;
+  if (!decision && !isWorkflowSyndicate(config)) {
+    const question = pendingQuestion(existing?.events ?? []);
+    const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
+    if (question && plainText) {
+      answering = { agent: question.node, id: question.id };
+      parts = [questionAnswerPart(question.id, messageText)];
+      ev.log?.(`✓ Answer to ${question.node}'s question`);
+    }
+  }
+  /** The agent a dispatch turn must resume, and the call its interrupted turn holds. */
+  const resumeTarget = resuming ? { agent: resuming.agent, id: resuming.id, why: 'resuming an approval' } : answering ? { ...answering, why: 'answering its question' } : undefined;
   /** After the answering run: is a gated call now waiting? */
   const awaitingApproval = async (agentName: string): Promise<PendingApproval | undefined> => {
     const after = await sessionService.getSession({ appName, userId, sessionId });
     const pending = pendingApproval(after?.events ?? []);
     return pending && pending.agent === agentName ? pending : undefined;
+  };
+  /** After the answering run: did the agent ask the person something? */
+  const asked = (run: DrainedRun): SyndicateTurnResult | undefined => {
+    const input = run.inputRequests[run.inputRequests.length - 1];
+    if (!input) return undefined;
+    result.status = 'input-required';
+    result.input = input;
+    result.text = input.message;
+    ev.log?.(`⏸ Input needed: ${describeInput(input)}`);
+    return finish();
   };
   const pause = (pending: PendingApproval): SyndicateTurnResult => {
     result.status = 'input-required';
@@ -480,11 +577,14 @@ async function runTurnInner(
     publishToolStatus: boolean;
     /** Evaluated at span end: did the DELEGATE relay fall back? */
     relayFallback?: () => boolean;
+    /** Workflow runs collect node errors instead of stopping on the first. */
+    errorPolicy?: 'fail' | 'collect';
   }): Promise<DrainedRun> => {
     const runner = new Runner({
       agent: params.agent,
       appName,
       sessionService: params.sessions,
+      plugins: retryPlugins(config.retries),
       ...(opts.memoryService ? { memoryService: opts.memoryService } : {}),
     });
     let stream: AsyncIterable<Event> = runner.runAsync({
@@ -522,6 +622,7 @@ async function runTurnInner(
         publishToolStatus: params.publishToolStatus,
         subagentNames,
         streamText: params.stage !== 'classify' && !guarded,
+        errorPolicy: params.errorPolicy,
       });
     } catch (err) {
       // A provider call aborted by cancel / deadline surfaces as a thrown
@@ -540,16 +641,16 @@ async function runTurnInner(
     // Deterministic overrides first: when the message itself decides the
     // route there is nothing to classify, and the classifier call is skipped.
     const warnings: string[] = [];
-    let resolution: RouteResolution | null = resuming ? null : matchRouteOverride(messageText, config, warnings);
+    let resolution: RouteResolution | null = resumeTarget ? null : matchRouteOverride(messageText, config, warnings);
     let decidedBy: RouteDecision['decidedBy'] = 'override';
     for (const w of warnings) ev.warn?.(w);
 
-    if (resuming) {
-      if (!subagentNames.has(resuming.agent)) {
-        throw new Error(`Approval ${resuming.id} was raised by '${resuming.agent}', which is not a route of this syndicate.`);
+    if (resumeTarget) {
+      if (!subagentNames.has(resumeTarget.agent)) {
+        throw new Error(`Call ${resumeTarget.id} was raised by '${resumeTarget.agent}', which is not a route of this syndicate.`);
       }
-      resolution = { route: resuming.agent, reason: 'resuming an approval', fellBack: false, fallbackReason: '', viaOverride: false };
-      decidedBy = 'approval';
+      resolution = { route: resumeTarget.agent, reason: resumeTarget.why, fellBack: false, fallbackReason: '', viaOverride: false };
+      decidedBy = resuming ? 'approval' : 'answer';
     } else if (resolution) {
       ev.log?.(`⇄ Route pinned by override: ${resolution.route}`);
     } else if (opts.forceRoute) {
@@ -613,12 +714,16 @@ async function runTurnInner(
         agent: routeAgent,
         sid: sessionId,
         userParts: parts,
-        // Resuming an approval: the interrupted turn is replayed raw, so ADK
-        // finds the call the approval answers (ADR 0028).
+        // Resuming an approval or answering a question: the interrupted turn
+        // is replayed raw, so ADK finds the call the message answers.
         sessions: new ProjectedSessionService(
           sessionService,
           routeCfg.name,
-          resuming ? { rawFrom: (events) => interruptedTurnStart(events, resuming!.id) } : {},
+          resuming
+            ? { rawFrom: (events) => interruptedTurnStart(events, resuming!.id) }
+            : answering
+              ? { rawFrom: (events) => turnStartOfCall(events, answering!.id) }
+              : {},
         ),
         stage: 'dispatch',
         route: resolution,
@@ -636,6 +741,8 @@ async function runTurnInner(
       const pending = await awaitingApproval(routeCfg.name);
       if (pending) return pause(pending);
     }
+    const askedRoute = asked(answer);
+    if (askedRoute) return askedRoute;
     result.text = answer.text;
     if (!result.text) {
       // Naming the route turns a blank reply into a lead (the XScout outage
@@ -643,6 +750,57 @@ async function runTurnInner(
       // rejected the call upstream).
       ev.warn?.(`Route '${resolution.route}' produced no output.`);
       result.text = `${resolution.route} returned no output — the server logs carry the upstream error.`;
+    }
+  } else if (isWorkflowSyndicate(config)) {
+    // ══ WORKFLOW ═════════════════════════════════════════════════════════
+    // The syndicate is a graph (lib/workflow.ts): every agent a node, run
+    // by ADK's Workflow in the shared session. A node agent sees only its
+    // input unless its YAML says otherwise, so no projection is needed. An
+    // `ask_user` node ends the turn input-required; the next message
+    // resumes the graph where it waited.
+    const compiled = await compileWorkflow(config, compileOpts, transform);
+    try {
+      answer = await runAgent({
+        agent: compiled.workflow as unknown as LlmAgent,
+        sid: sessionId,
+        userParts: parts,
+        sessions: sessionService,
+        stage: 'workflow',
+        publishToolStatus: true,
+        errorPolicy: 'collect',
+      });
+    } catch (err) {
+      // A node that gave up (its retries spent, a timeout, a schema it could
+      // not satisfy) ends the run by throwing; the last reported error names it.
+      const last = control.stopReason ? undefined : (err as Error);
+      if (!last) throw err;
+      result.status = 'failed';
+      result.failedStage = 'workflow';
+      result.error = { code: 'NODE_FAILED', message: last.message };
+      return finish();
+    }
+    result.answer = answer;
+    if (answer.error || control.stopReason) {
+      result.status = 'failed';
+      result.failedStage = 'workflow';
+      result.error = answer.error;
+      return finish();
+    }
+    if (answer.inputRequests.length) {
+      const input = answer.inputRequests[answer.inputRequests.length - 1]!;
+      result.status = 'input-required';
+      result.input = input;
+      result.text = input.message;
+      ev.log?.(`⏸ Input needed: ${describeInput(input)}`);
+      return finish();
+    }
+    result.text = answer.text;
+    if (!result.text) {
+      const failed = answer.nodeErrors[answer.nodeErrors.length - 1];
+      ev.warn?.(`The workflow produced no output${failed ? ` (last node error: ${failed.node} [${failed.code}] ${failed.message})` : ''}.`);
+      result.text = failed
+        ? `The workflow ended without an answer — ${failed.node} failed [${failed.code}]: ${failed.message}`
+        : 'The workflow ended without an answer.';
     }
   } else {
     // ══ DELEGATE ═════════════════════════════════════════════════════════
@@ -671,6 +829,8 @@ async function runTurnInner(
       const pending = await awaitingApproval(config.orchestrator.name);
       if (pending) return pause(pending);
     }
+    const askedOrchestrator = asked(answer);
+    if (askedOrchestrator) return askedOrchestrator;
     result.text = answer.text;
     // Failed-relay fallback: an orchestrator can botch the hop that relays a
     // specialist's answer — STOP with no text, or the bare tool NAME as its
@@ -750,6 +910,8 @@ async function runRemoteRoute(
 
 function emptyRun(error?: { code: string; message: string }): DrainedRun {
   return {
+    inputRequests: [],
+    nodeErrors: [],
     text: '',
     lastToolResultText: '',
     toolResultTexts: [],

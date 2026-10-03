@@ -8,7 +8,12 @@ import type { DispatchConfig } from './dispatch.ts';
 
 export type { DispatchConfig } from './dispatch.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
+import type { OpenApiConfig } from './tools/openapiTools.ts';
+import type { ContextConfig, ExampleConfig } from './compile.ts';
+export type { OpenApiConfig } from './tools/openapiTools.ts';
 export type { SkillsConfig } from './tools/skillToolset.ts';
+import type { WorkflowConfig } from './workflowConfig.ts';
+export type { WorkflowConfig } from './workflowConfig.ts';
 
 // ── Types ─────────────────────────────────────────────────
 // Property names mirror their ADK counterparts 1:1.
@@ -112,6 +117,20 @@ export interface AgentYamlConfig {
    * scripts run only after approval. lib/tools/skillToolset.ts.
    */
   skills?: SkillsConfig;
+  /**
+   * HTTP APIs this agent may call, each from an OpenAPI 3 spec file: one tool
+   * per operation, the GET operations unless `operations` names others, auth
+   * from environment variables. lib/tools/openapiTools.ts.
+   */
+  openapi?: OpenApiConfig[];
+  /** `gemini`: the model's Python runs in Gemini's server-side sandbox (ADR 0033). Gemini models only. */
+  code_execution?: 'gemini';
+  /** Compact a long conversation into a summary past a token threshold (ADR 0033). Delegate orchestrator only. */
+  context?: ContextConfig;
+  /** `task`: the agent works until it calls finish_task; its arguments are the node's output. Workflow nodes only. */
+  mode?: 'task';
+  /** Few-shot exchanges added to every request's instruction (ADK's ExampleTool). */
+  examples?: ExampleConfig[];
   orchestration?: {
     role?: 'primary' | 'sub-agent';
     delegates?: string[];
@@ -155,6 +174,21 @@ export interface SyndicateYamlConfig {
    * See lib/dispatch.ts for the full contract.
    */
   dispatch?: DispatchConfig;
+  /**
+   * Self-correction (ADK's reflect-and-retry plugins), on by default:
+   * `model_errors` retries a model reply ADK marks malformed (default 2),
+   * `tool_errors` caps a tool's retries after it throws, with structured
+   * guidance to the model (default 3). 0 turns either off. ADR 0034.
+   */
+  retries?: { model_errors?: number; tool_errors?: number };
+  /**
+   * Opts this syndicate into a WORKFLOW: a graph whose nodes are its agents
+   * (plus join, map, tool and ask_user nodes) and whose edges say what runs
+   * after what and on which route. The orchestrator is a node like any
+   * other; nothing delegates. Cannot be combined with `dispatch`.
+   * Contract: lib/workflow.ts.
+   */
+  workflow?: WorkflowConfig;
   /** Optional default variable definitions for {{token}} interpolation. */
   variables?: VariableMap;
   /** Defines the persistence and semantic memory layer for the syndicate. */
@@ -479,8 +513,22 @@ export function loadSyndicate(
   options: LoadSyndicateOptions = {},
 ): SyndicateYamlConfig {
   const { bindings = {}, overrides } = options;
-  const { raw, label } = readSyndicateFile(filename, options);
-  return resolveAndValidate(raw, label, { bindings, overrides });
+  const { raw, label, filePath } = readSyndicateFile(filename, options);
+  return anchorSpecPaths(resolveAndValidate(raw, label, { bindings, overrides }), path.dirname(filePath));
+}
+
+/**
+ * An `openapi:` spec path is written relative to the syndicate file, so a
+ * file copied with its specs keeps working from any working directory. A
+ * definition from the registry has no file and resolves against the cwd.
+ */
+function anchorSpecPaths(config: SyndicateYamlConfig, dir: string): SyndicateYamlConfig {
+  const anchor = (agent: { openapi?: OpenApiConfig[] } | undefined) => {
+    for (const entry of agent?.openapi ?? []) if (!path.isAbsolute(entry.spec)) entry.spec = path.resolve(dir, entry.spec);
+  };
+  anchor(config.orchestrator);
+  for (const sub of config.subagents ?? []) anchor(sub);
+  return config;
 }
 
 /**
@@ -491,7 +539,7 @@ export function loadSyndicate(
 export function readSyndicateFile(
   filename: string,
   options: Pick<LoadSyndicateOptions, 'agentsDir' | 'shippedFallback'> = {},
-): { raw: unknown; label: string } {
+): { raw: unknown; label: string; filePath: string } {
   // Security: confine reads to the agents root. `filename` can originate from
   // a network-controlled path segment (see a2a_server dynamic routes), so we
   // must reject any value that resolves outside that root (e.g. "../../.env").
@@ -523,7 +571,7 @@ export function readSyndicateFile(
   // is under it), so a multi-file nested load says WHICH file is wrong.
   const rel = path.relative(process.cwd(), filePath);
   const label = rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : filePath;
-  return { raw: parse(fileContent), label };
+  return { raw: parse(fileContent), label, filePath };
 }
 
 /**

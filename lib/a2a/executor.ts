@@ -28,7 +28,8 @@ import { ingestTurnMemory, runSyndicateTurn } from '../runtime/syndicateTurn.ts'
 import { approvalResponsePart, describeApproval, pendingApproval } from '../runtime/approvals.ts';
 import type { PendingApproval } from '../runtime/approvals.ts';
 import { declaresApprovals } from '../compile.ts';
-import type { MessagePart, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
+import type { MessagePart, PendingInput, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
+import { describeInput } from '../runtime/syndicateTurn.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
 import type { Policy } from './policy.ts';
 
@@ -116,6 +117,9 @@ export function describeFailedTurn(result: SyndicateTurnResult): string {
   if (result.stopReason) return `Error: [${error.code}] ${error.message}`;
   if (result.failedStage === 'dispatch' && result.route) {
     return `Error: [${error.code}] ${result.route.route} failed to answer — ${describeTurnError(error)}`;
+  }
+  if (result.failedStage === 'workflow') {
+    return `Error: [${error.code}] The workflow failed — ${describeTurnError(error)}`;
   }
   return `Error: [${error.code}] The agent run failed — ${describeTurnError(error)}`;
 }
@@ -285,6 +289,40 @@ function publishWorking(eventBus: ExecutionEventBus, taskId: string, contextId: 
         message: statusMessage(taskId, contextId, `[STATUS] ${text}`),
         timestamp: new Date().toISOString(),
       },
+      metadata: undefined,
+    }),
+  );
+}
+
+/**
+ * A workflow paused on an `ask_user` node (lib/workflow.ts): the task ends
+ * input-required with the question, and a data part carrying it. The
+ * answer is simply the next message on the conversation; its text becomes
+ * the node's output and the graph resumes where it waited.
+ */
+function publishInputRequest(eventBus: ExecutionEventBus, taskId: string, contextId: string, input: PendingInput): void {
+  const message = statusMessage(taskId, contextId, `Input needed: ${describeInput(input)}`);
+  message.parts.push({
+    content: {
+      $case: 'data',
+      value: {
+        type: 'input_request',
+        interrupt_id: input.id,
+        node: input.node,
+        message: input.message,
+        ...(input.payload !== undefined ? { payload: input.payload } : {}),
+        ...(input.schema !== undefined ? { schema: input.schema } : {}),
+      },
+    },
+    metadata: undefined,
+    filename: '',
+    mediaType: 'application/json',
+  });
+  eventBus.publish(
+    AgentEvent.statusUpdate({
+      taskId,
+      contextId,
+      status: { state: TaskState.TASK_STATE_INPUT_REQUIRED, message, timestamp: new Date().toISOString() },
       metadata: undefined,
     }),
   );
@@ -601,6 +639,12 @@ export class SyndicateExecutor implements AgentExecutor {
         log(`⏸ Task ${short} waiting for approval of ${result.approval.tool} after ${spent}`);
         publishApprovalRequest(eventBus, taskId, contextId, result.approval);
         await report(ctx, 'input-required', 'approval', u);
+        return;
+      }
+      if (result.status === 'input-required' && result.input) {
+        log(`⏸ Task ${short} waiting for input from ${result.input.node} after ${spent}`);
+        publishInputRequest(eventBus, taskId, contextId, result.input);
+        await report(ctx, 'input-required', 'input', u);
         return;
       }
       if (result.status === 'failed') {

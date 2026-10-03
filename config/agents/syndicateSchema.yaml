@@ -46,6 +46,15 @@ syndicate_name: "My Syndicate"
 variables:
   my_variable: "default_value"
 
+# [optional] Self-correction, ON by default (ADK's reflect-and-retry
+# plugins, ADR 0034). model_errors: retries of a model reply ADK marks
+# malformed (default 2). tool_errors: retries of a tool that threw, with
+# reflection guidance to the model (default 3). 0 turns either off. Every
+# retry is a model call under max_steps.
+# retries:
+#   model_errors: 2
+#   tool_errors: 3
+
 # [optional] Domain rules appended to the shared fact-extraction prompt for
 # THIS syndicate only (requires memory_system: "long-term").
 #
@@ -117,6 +126,37 @@ dispatch:
   # waiting user as progress. Default "reason".
   reason_key: "reason"
 
+# [optional] Switches this syndicate to a WORKFLOW: the agents below are
+# the nodes of a graph, and `edges` says what runs after what. Nothing
+# delegates, nothing classifies; the orchestrator is a node like any
+# other. Cannot be combined with `dispatch`. Contract: lib/workflow.ts;
+# worked example: examples/pipeline.yaml (ADR 0030).
+#
+#   - A chain is a list. `START` opens at least one chain. A name is an
+#     agent or a declared node; a list of names fans out (after one
+#     node) or fans in (before one node); a map
+#     `{ <route>: <node or nodes>, default: <node> }` ends a chain and
+#     routes on the output of the node before it (`route_key` of a JSON
+#     output, else the trimmed text).
+#   - Every node receives the previous node's output as its message and,
+#     unless its YAML sets includeContents, sees nothing else.
+#   - `ask_user` pauses the turn (input-required); the next message is
+#     the answer, and the node outputs { reply, input }.
+#   - require_approval, skills.scripts: local and a2a_agent_url are not
+#     supported inside a workflow yet.
+# workflow:
+#   edges:
+#     - [START, OrchestratorName, { article: [MySubagent, Other], default: Other }]
+#     - [[MySubagent, Other], Both, Review, Confirm]
+#   nodes:
+#     OrchestratorName: { route_key: "kind" }      # an agent: modifiers only
+#     Both:    { join: true }                      # waits for every predecessor
+#     Each:    { map: "MySubagent", max_parallel: 4 }   # one run per list item
+#     Lookup:  { tool: "web_extract" }             # a registry tool as a node
+#     Review:  { retry: { max_attempts: 2, initial_delay: 1 }, timeout: 120 }
+#     Confirm: { ask_user: "Publish? Reply yes, or say what to change." }
+#   max_concurrency: 4
+
 # ── Orchestrator ────────────────────────────────────────────
 # Maps to: new LlmAgent({ ... }) — the root agent passed to InMemoryRunner.
 
@@ -185,6 +225,46 @@ orchestrator:
   # frontmatter once it is loaded; a name already in `tools:` above is an
   # error (it is always on). Omitted, a skill unlocks nothing.
   # Maps to: tools[] (a toolset) and instruction (the appended index)
+
+  # [optional] Few-shot exchanges added to every request's instruction
+  # (ADK's ExampleTool; the model never calls it). Up to 20.
+  # examples:
+  #   - input: "Is it going to rain in Lyon tomorrow?"
+  #     output: "Yes: 4 mm expected between 14:00 and 18:00."
+
+  # [optional] "gemini": the model writes Python and Gemini runs it in
+  # Google's server-side sandbox; nothing runs on this host. Gemini only.
+  # code_execution: "gemini"
+
+  # [optional] Summarize a long conversation instead of overflowing the
+  # window: past `compact_after_tokens` (the last request's prompt), earlier
+  # turns become one summary and the last `keep_recent_events` stay
+  # verbatim. The full history stays stored. Orchestrator of a delegate
+  # syndicate only (ADR 0033).
+  # context:
+  #   compact_after_tokens: 60000
+  #   keep_recent_events: 6
+  #   summary_model: "gemini-3.5-flash-lite"   # default: this agent's model
+
+  # [optional] "task" on a WORKFLOW NODE: the agent works with its tools
+  # until it calls finish_task; its arguments (matching outputSchema) are
+  # the node's output.
+  # mode: "task"
+
+  # [optional] HTTP APIs as tools, each from an OpenAPI 3 spec FILE
+  # (.yaml/.yml/.json, relative to this syndicate file; never a URL).
+  # One tool per operation, named from its operationId in snake_case.
+  # Without `operations`, only GET operations become tools; a named
+  # operation can be listed under require_approval. `auth` names an
+  # environment variable, never a value. Every server passes the SSRF
+  # guard (ALLOW_PRIVATE_OPENAPI=true for local development).
+  # lib/tools/openapiTools.ts; worked example: examples/weather.yaml.
+  # openapi:
+  #   - spec: "specs/my-api.json"
+  #     operations: [listOrders, createOrder]   # default: the GET operations
+  #     auth: { bearer_env: "MY_API_TOKEN" }    # or api_key: { env, in, name }
+  #     base_url: "https://api.example.com/v2"  # overrides servers[0].url
+  #     prefix: "shop"                          # shop_list_orders, ...
   # skills:
   #   dir: ".claude/skills"
   #   scripts: "none"

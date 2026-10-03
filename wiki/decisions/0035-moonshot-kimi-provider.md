@@ -1,6 +1,6 @@
 ---
 type: decision
-title: 'ADR 0030: Moonshot AI (Kimi) is a direct provider; its search stays off the model'
+title: 'ADR 0035: Moonshot AI (Kimi) is a direct provider; its search stays off the model'
 description: kimi-* ids get their own chat-completions adapter funded by MOONSHOT_API_KEY, with a tested capability row, rather than only the gateway path; Moonshot's web search is not wired as native search because the model-side tool is retiring and its successor is a REST API.
 tags:
   - decision
@@ -15,7 +15,7 @@ sources:
   - resource: lib/models/capabilities.ts
 ---
 
-# ADR 0030: Moonshot AI (Kimi) is a direct provider; its search stays off the model
+# ADR 0035: Moonshot AI (Kimi) is a direct provider; its search stays off the model
 
 ## Context
 

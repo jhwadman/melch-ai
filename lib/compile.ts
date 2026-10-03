@@ -28,8 +28,10 @@
  * Contract and rationale: lib/dispatch.ts.
  */
 
-import { AgentTool, FunctionTool, LlmAgent } from '@google/adk';
+import { AgentTool, BuiltInCodeExecutor, ExampleTool, FunctionTool, LLMRegistry, LlmAgent, LlmSummarizer, TokenBasedContextCompactor } from '@google/adk';
+import type { BaseTool, Context, RunAsyncToolRequest } from '@google/adk';
 import type { BaseLlm } from '@google/adk';
+import { relative } from 'node:path';
 
 import { isDispatchSyndicate } from './dispatch.ts';
 import { loadSyndicate, nestedLoader } from './loadSyndicate.ts';
@@ -40,6 +42,8 @@ import { capabilitySummary, describeCapabilities } from './models/capabilities.t
 import { remoteAgentTool } from './a2a/remoteAgent.ts';
 import { buildSkillHarness } from './tools/skillToolset.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
+import { buildOpenApiTools, isOpenApiTool, namesTool } from './tools/openapiTools.ts';
+import type { OpenApiConfig } from './tools/openapiTools.ts';
 
 export interface CompileOptions {
   /**
@@ -59,6 +63,12 @@ export interface CompileOptions {
   onUnknownTool?: (name: string) => void;
   /** Progress/diagnostic line sink (nested loads, MCP discovery). */
   log?: (message: string) => void;
+  /**
+   * Node settings for an agent compiled as a workflow node (lib/workflow.ts):
+   * ADK's `retryConfig` and `timeout`, which an LlmAgent takes only at
+   * construction. Called with the agent's name; undefined means none.
+   */
+  nodeConfig?: (agentName: string) => Record<string, unknown> | undefined;
 }
 
 /** generateContentConfig as every entrypoint has always sent it to ADK. */
@@ -100,6 +110,49 @@ function passthroughFields(cfg: {
   return out;
 }
 
+/** An agent's `context:` block: compact a long conversation into a summary (ADR 0033). */
+export interface ContextConfig {
+  /** Compact when the last request's prompt passed this many tokens. */
+  compact_after_tokens: number;
+  /** Events kept verbatim after the summary. Default 6. */
+  keep_recent_events?: number;
+  /** The model that writes the summary. Default: the agent's own. */
+  summary_model?: string;
+}
+
+export const DEFAULT_KEEP_RECENT_EVENTS = 6;
+
+/**
+ * The LlmAgent fields the engine builds from YAML rather than passing
+ * through (ADR 0033): `code_execution: gemini` (Gemini's server-side
+ * sandbox runs the model's Python; nothing runs on this host), `context:`
+ * (ADK's token-based compactor with an LLM summarizer, so a long
+ * conversation is summarized instead of overflowing the window), and
+ * `mode: task` (the agent works until it calls finish_task; on a workflow
+ * node, its arguments become the node's output).
+ */
+function executionFields(
+  cfg: { model?: string; code_execution?: 'gemini'; context?: ContextConfig; mode?: 'task' },
+  opts: CompileOptions,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (cfg.code_execution === 'gemini') out.codeExecutor = new BuiltInCodeExecutor();
+  if (cfg.mode) out.mode = cfg.mode;
+  if (cfg.context) {
+    const resolve = opts.resolveModel ?? ((m) => m);
+    const summaryModel = resolve(cfg.context.summary_model ?? cfg.model);
+    const llm = typeof summaryModel === 'string' || !summaryModel ? LLMRegistry.newLlm(String(summaryModel ?? cfg.model)) : summaryModel;
+    out.contextCompactors = [
+      new TokenBasedContextCompactor({
+        tokenThreshold: cfg.context.compact_after_tokens,
+        eventRetentionSize: cfg.context.keep_recent_events ?? DEFAULT_KEEP_RECENT_EVENTS,
+        summarizer: new LlmSummarizer({ llm }),
+      }),
+    ];
+  }
+  return out;
+}
+
 /**
  * Says, once per compiled agent, what its resolved path cannot honour — a
  * dropped server-side tool, a gateway stand-in, or no route at all. Quiet
@@ -132,15 +185,42 @@ export function requireApprovalOn(tool: FunctionTool): FunctionTool {
   return gated;
 }
 
+/**
+ * A copy of an OpenAPI tool (lib/tools/openapiTools.ts) that runs only after
+ * a person approves the call: the same confirmation interrupt FunctionTool's
+ * own gate raises, so the turn pauses and resumes exactly as ADR 0028 says.
+ */
+export function requireApprovalOnBaseTool<T extends BaseTool>(tool: T): T {
+  const gated = Object.create(tool) as T;
+  Object.defineProperty(gated, 'runAsync', {
+    value: async (request: RunAsyncToolRequest) => {
+      const ctx = request.toolContext as Context & { actions: { skipSummarization?: boolean } };
+      if (!ctx.toolConfirmation) {
+        ctx.requestConfirmation({ hint: `Approval is required before ${tool.name} runs.`, payload: request.args });
+        ctx.actions.skipSummarization = true;
+        return { error: 'This call requires approval, please approve or reject.' };
+      }
+      if (!ctx.toolConfirmation.confirmed) return { error: 'This call was rejected.' };
+      return tool.runAsync(request);
+    },
+  });
+  return gated;
+}
+
 function gateTools(tools: unknown[], names: string[] | undefined, agentName: string): unknown[] {
   if (!names?.length) return tools;
   const wanted = new Set(names);
   const out = tools.map((t) => {
-    const name = (t as { name?: string })?.name;
-    if (!name || !wanted.has(name)) return t;
-    wanted.delete(name);
+    const tool = t as { name?: string; operation?: { operationId?: string } };
+    const name = tool?.name;
+    if (!name) return t;
+    // An OpenAPI operation may be named as the YAML named it (its operationId).
+    const match = [...wanted].find((w) => w === name || (isOpenApiTool(t) && namesTool(w, { name, operation: tool.operation })));
+    if (!match) return t;
+    wanted.delete(match);
+    if (isOpenApiTool(t)) return requireApprovalOnBaseTool(t as BaseTool);
     if (!(t instanceof FunctionTool)) {
-      throw new Error(`${agentName}: '${name}' cannot require approval — only function tools from the registry can be gated (ADR 0028).`);
+      throw new Error(`${agentName}: '${name}' cannot require approval — only function tools from the registry and OpenAPI operations can be gated (ADR 0028).`);
     }
     return requireApprovalOn(t);
   });
@@ -157,12 +237,42 @@ export function declaresApprovals(config: SyndicateYamlConfig): boolean {
   return agentGates(config.orchestrator) || (config.subagents ?? []).some((s) => agentGates(s));
 }
 
+/** An agent's `examples:` entry: one exchange the model should imitate. */
+export interface ExampleConfig {
+  input: string;
+  output: string;
+}
+
+/**
+ * ADK's ExampleTool from YAML pairs: never called by the model, it adds the
+ * exchanges to every request's instruction as few-shot examples.
+ */
+export function examplesTool(examples: ExampleConfig[] | undefined): unknown[] {
+  if (!examples?.length) return [];
+  return [
+    new ExampleTool(
+      examples.map((e) => ({ input: { role: 'user', parts: [{ text: e.input }] }, output: [{ role: 'model', parts: [{ text: e.output }] }] })),
+    ),
+  ];
+}
+
 async function resolveAgentTools(
   toolNames: string[] | undefined,
   mcpServerUrl: string | undefined,
   opts: CompileOptions,
+  openapi?: OpenApiConfig[],
+  examples?: ExampleConfig[],
 ): Promise<unknown[]> {
-  const tools = resolveNamedTools(toolNames, opts.onUnknownTool);
+  const tools = [...resolveNamedTools(toolNames, opts.onUnknownTool), ...examplesTool(examples)];
+  // OpenAPI operations become tools here, so require_approval can name them.
+  for (const entry of openapi ?? []) {
+    const built = await buildOpenApiTools(entry);
+    opts.log?.(`openapi · ${relative(process.cwd(), entry.spec) || entry.spec}: ${built.map((t) => t.name).join(', ') || '(no operations)'}`);
+    for (const t of built) {
+      if (tools.some((existing: any) => existing?.name === t.name)) throw new Error(`openapi ${entry.spec}: tool '${t.name}' collides with another tool; set a prefix`);
+      tools.push(t);
+    }
+  }
   if (mcpServerUrl) {
     opts.log?.(`Loading MCP tools: ${mcpServerUrl}`);
     const mcpTools = await createMcpTools(mcpServerUrl);
@@ -227,7 +337,7 @@ export async function compileSubagent(
     return compileGraph(nested, opts, subCfg.name, subCfg.description);
   }
 
-  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts), subCfg.require_approval, subCfg.name);
+  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples), subCfg.require_approval, subCfg.name);
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
@@ -243,6 +353,8 @@ export async function compileSubagent(
       subCfg.generateContentConfig as Record<string, unknown> | undefined,
     ) as any,
     ...passthroughFields(subCfg),
+    ...executionFields(subCfg, opts),
+    ...(opts.nodeConfig?.(subCfg.name) ?? {}),
   });
 }
 
@@ -260,6 +372,13 @@ export async function compileGraph(
 ): Promise<LlmAgent> {
   // A registry definition carries its nested syndicates (ADR 0018 item 6).
   if (config.bundled_references && !opts.loadNested) opts = { ...opts, loadNested: nestedLoader(config) };
+  // A graph has no orchestrator-with-tools shape to build: its agents are
+  // nodes (lib/workflow.ts). Nested as a yaml_reference, only its
+  // orchestrator runs, since ADK cannot yet make a Workflow a subagent.
+  if (config.workflow && !overrideName) {
+    throw new Error(`${config.syndicate_name}: a workflow syndicate is compiled with compileWorkflow (lib/workflow.ts), not compileGraph`);
+  }
+  if (config.workflow) opts.log?.(`${config.syndicate_name}: nested as a subagent, so only its orchestrator runs (a Workflow cannot be a subagent yet)`);
   const compiledTools: unknown[] = isDispatchSyndicate(config)
     ? []
     : await Promise.all(
@@ -277,7 +396,7 @@ export async function compileGraph(
   // that exactly rather than widening the contract in passing.
   compiledTools.push(
     ...gateTools(
-      await resolveAgentTools(config.orchestrator.tools, undefined, opts),
+      await resolveAgentTools(config.orchestrator.tools, undefined, opts, config.orchestrator.openapi, config.orchestrator.examples),
       config.orchestrator.require_approval,
       overrideName || config.orchestrator.name,
     ),
@@ -308,5 +427,6 @@ export async function compileGraph(
       config.orchestrator.generateContentConfig as Record<string, unknown> | undefined,
     ) as any,
     ...passthroughFields(config.orchestrator),
+    ...executionFields(config.orchestrator, opts),
   });
 }

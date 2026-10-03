@@ -192,6 +192,144 @@
           "additionalProperties": false,
           "description": "Agent Skills (SKILL.md directories) this agent reads the way a coding harness does."
         },
+        "openapi": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "spec": {
+                "type": "string",
+                "minLength": 1,
+                "description": "An OpenAPI 3 spec file (.yaml, .yml, .json), relative to this syndicate file. Files only, never URLs."
+              },
+              "operations": {
+                "description": "Operations to expose, by operationId or tool name. Omitted: every GET operation, and nothing that writes.",
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "base_url": {
+                "description": "Overrides the spec's servers[0].url. Checked by the SSRF guard.",
+                "type": "string",
+                "format": "uri"
+              },
+              "prefix": {
+                "description": "Prepended to each tool name, to keep two APIs apart.",
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "auth": {
+                "description": "Credentials, always from the environment, never written in YAML.",
+                "type": "object",
+                "properties": {
+                  "bearer_env": {
+                    "description": "Environment variable holding a bearer token.",
+                    "type": "string",
+                    "pattern": "^[A-Z_][A-Z0-9_]*$"
+                  },
+                  "api_key": {
+                    "description": "An API key read from `env`, sent in a header or the query under `name`.",
+                    "type": "object",
+                    "properties": {
+                      "env": {
+                        "type": "string",
+                        "pattern": "^[A-Z_][A-Z0-9_]*$"
+                      },
+                      "in": {
+                        "type": "string",
+                        "enum": [
+                          "header",
+                          "query"
+                        ]
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "env",
+                      "in",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "spec"
+            ],
+            "additionalProperties": false,
+            "description": "An HTTP API as tools, from its OpenAPI spec (lib/tools/openapiTools.ts)."
+          }
+        },
+        "code_execution": {
+          "description": "\"gemini\": the model writes and runs Python in Gemini's server-side sandbox; nothing runs on this host. Gemini models only.",
+          "type": "string",
+          "const": "gemini"
+        },
+        "context": {
+          "description": "Summarize a long conversation instead of overflowing the window. The orchestrator of a delegate syndicate only.",
+          "type": "object",
+          "properties": {
+            "compact_after_tokens": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 9007199254740991,
+              "description": "Compact when the last request's prompt passed this many tokens."
+            },
+            "keep_recent_events": {
+              "description": "Events kept verbatim after the summary. Default 6.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "summary_model": {
+              "description": "The model that writes the summary. Default: the agent's own.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "compact_after_tokens"
+          ],
+          "additionalProperties": false
+        },
+        "examples": {
+          "description": "Few-shot exchanges (input, output) added to every request's instruction.",
+          "minItems": 1,
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "minLength": 1
+              },
+              "output": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "input",
+              "output"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "mode": {
+          "description": "\"task\": the agent works until it calls finish_task; its arguments (matching outputSchema) are the node's output. Workflow nodes only.",
+          "type": "string",
+          "const": "task"
+        },
         "orchestration": {
           "type": "object",
           "properties": {
@@ -409,6 +547,144 @@
             "additionalProperties": false,
             "description": "Agent Skills (SKILL.md directories) this agent reads the way a coding harness does."
           },
+          "openapi": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "spec": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "An OpenAPI 3 spec file (.yaml, .yml, .json), relative to this syndicate file. Files only, never URLs."
+                },
+                "operations": {
+                  "description": "Operations to expose, by operationId or tool name. Omitted: every GET operation, and nothing that writes.",
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "base_url": {
+                  "description": "Overrides the spec's servers[0].url. Checked by the SSRF guard.",
+                  "type": "string",
+                  "format": "uri"
+                },
+                "prefix": {
+                  "description": "Prepended to each tool name, to keep two APIs apart.",
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                },
+                "auth": {
+                  "description": "Credentials, always from the environment, never written in YAML.",
+                  "type": "object",
+                  "properties": {
+                    "bearer_env": {
+                      "description": "Environment variable holding a bearer token.",
+                      "type": "string",
+                      "pattern": "^[A-Z_][A-Z0-9_]*$"
+                    },
+                    "api_key": {
+                      "description": "An API key read from `env`, sent in a header or the query under `name`.",
+                      "type": "object",
+                      "properties": {
+                        "env": {
+                          "type": "string",
+                          "pattern": "^[A-Z_][A-Z0-9_]*$"
+                        },
+                        "in": {
+                          "type": "string",
+                          "enum": [
+                            "header",
+                            "query"
+                          ]
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "env",
+                        "in",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "spec"
+              ],
+              "additionalProperties": false,
+              "description": "An HTTP API as tools, from its OpenAPI spec (lib/tools/openapiTools.ts)."
+            }
+          },
+          "code_execution": {
+            "description": "\"gemini\": the model writes and runs Python in Gemini's server-side sandbox; nothing runs on this host. Gemini models only.",
+            "type": "string",
+            "const": "gemini"
+          },
+          "context": {
+            "description": "Summarize a long conversation instead of overflowing the window. The orchestrator of a delegate syndicate only.",
+            "type": "object",
+            "properties": {
+              "compact_after_tokens": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 9007199254740991,
+                "description": "Compact when the last request's prompt passed this many tokens."
+              },
+              "keep_recent_events": {
+                "description": "Events kept verbatim after the summary. Default 6.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "summary_model": {
+                "description": "The model that writes the summary. Default: the agent's own.",
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "compact_after_tokens"
+            ],
+            "additionalProperties": false
+          },
+          "examples": {
+            "description": "Few-shot exchanges (input, output) added to every request's instruction.",
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "input": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "output": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "input",
+                "output"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "mode": {
+            "description": "\"task\": the agent works until it calls finish_task; its arguments (matching outputSchema) are the node's output. Workflow nodes only.",
+            "type": "string",
+            "const": "task"
+          },
           "orchestration": {
             "type": "object",
             "properties": {
@@ -523,6 +799,175 @@
       ],
       "additionalProperties": false,
       "description": "Opts into PLAN-DISPATCH orchestration (lib/dispatch.ts)."
+    },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "edges": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "minItems": 2,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Several nodes: fan-out when they follow one node, fan-in when one node follows them."
+                },
+                {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ]
+                  },
+                  "description": "A routing map after a node: `{ <route>: <node or nodes>, default: <node> }`, matched against that node's output."
+                }
+              ]
+            }
+          },
+          "description": "Chains of nodes, each a list; `START` begins at least one. A routing map follows the node whose output it routes."
+        },
+        "nodes": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "ask_user": {
+                "description": "Pause and ask the person this; the reply becomes the node's output.",
+                "type": "string",
+                "minLength": 1
+              },
+              "schema": {
+                "description": "JSON Schema a structured reply to ask_user must satisfy; plain text passes as is.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "join": {
+                "description": "Wait for every predecessor; output `{ <predecessor>: <output> }`.",
+                "type": "boolean",
+                "const": true
+              },
+              "map": {
+                "description": "Run this agent once per item of a list input, concurrently; output the list of results.",
+                "type": "string",
+                "minLength": 1
+              },
+              "max_parallel": {
+                "description": "Concurrency of map. Default 8.",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tool": {
+                "description": "Run this registry tool with the node input as its arguments.",
+                "type": "string",
+                "minLength": 1
+              },
+              "route_key": {
+                "description": "Property of a JSON output holding the route. Default \"route\".",
+                "type": "string",
+                "minLength": 1
+              },
+              "retry": {
+                "type": "object",
+                "properties": {
+                  "max_attempts": {
+                    "description": "Attempts including the first; 1 = no retry. ADK default 5.",
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "initial_delay": {
+                    "description": "Seconds before the first retry.",
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "max_delay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "backoff_factor": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Retry a node on failure (lib/workflow.ts)."
+              },
+              "timeout": {
+                "description": "Seconds this node may run before it fails.",
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "description": "A declared node (exactly one of ask_user, join, map, tool) or modifiers for an agent node (retry, timeout, route_key)."
+          }
+        },
+        "max_concurrency": {
+          "description": "Nodes that may run at once. Default: unbounded.",
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "edges"
+      ],
+      "additionalProperties": false,
+      "description": "Opts into a WORKFLOW: the syndicate as a graph (lib/workflow.ts). Cannot be combined with dispatch."
+    },
+    "retries": {
+      "description": "Self-correction on model and tool errors (ADK reflect-and-retry plugins). On by default.",
+      "type": "object",
+      "properties": {
+        "model_errors": {
+          "description": "Retries of a malformed model reply. Default 2; 0 off.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "tool_errors": {
+          "description": "Retries of a tool that threw, with reflection guidance. Default 3; 0 off.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        }
+      },
+      "additionalProperties": false
     },
     "variables": {
       "description": "Defaults for {{token}} interpolation. {{current_date}} is built in.",

@@ -98,6 +98,8 @@ Field reference:
 | `memory_extraction_model` | root | The model that distils this syndicate's turns into memory records (long-term only); any model id. Default: the deployment's `MEMORY_EXTRACTION_MODEL`. |
 | `memory_retention_days` | root | Days a fact in this syndicate's namespace is kept; the server deletes older facts when it loads the syndicate and daily after. Requires `memory_namespace` (never applied to the shared default namespace). |
 | `dispatch` | root | Switches the syndicate from DELEGATE to PLAN-DISPATCH routing (§6). `default_route` (required) names the fail-static subagent; `route_key` / `reason_key` name the router's JSON properties (defaults `route` / `reason`). Honoured by every surface (the CLI, the server, the worker, evals). |
+| `workflow` | root | Switches the syndicate to a WORKFLOW (§6): a graph whose nodes are its agents plus declared `join`, `map`, `tool` and `ask_user` nodes, and whose `edges` say what runs after what and on which route. The orchestrator is a node like any other; nothing delegates. Cannot be combined with `dispatch`. Contract: `lib/workflow.ts`; worked example: `examples/pipeline.yaml`. |
+| `retries` | root | Self-correction, on by default ([ADR 0034](./wiki/decisions/0034-self-correction.md)): `model_errors` (default 2) retries a model reply ADK marks malformed (`MALFORMED_FUNCTION_CALL`) instead of failing the turn; `tool_errors` (default 3) answers a tool that threw with structured reflection guidance and caps its retries. `0` turns either off. Every retry is a model call under `max_steps`. |
 | `guards` | root | Optional list of post-answer guard NAMES (`lib/guards/index.ts`). Each runs after the answering turn and before the reply publishes, receiving the final text plus every tool-result text of that turn, and rewrites in place rather than re-asking the model; its notes land in the `[STATUS]` stream. Guards declared by a syndicate reached through `yaml_reference:` count too — the server resolves the union via `collectGuards()`. Resolved by name, never by module path, so adding one is a deliberate act in code; **the published registry ships one, `science`** (citation checks for `research.yaml`); `registerGuard()` adds your own from code, and an unregistered name is warned about and skipped. |
 | `name` / `model` / `instruction` | agent | The agent triple. Any Gemini id, `claude-*`, or `ollama/*` for open-weight local models (see §5). |
 | `description` | subagent | **The delegation API.** The orchestrator reads this when deciding to hand off — write it like a function signature ("Use this subagent to…, pass it…"). |
@@ -109,6 +111,11 @@ Field reference:
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
 | `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to ADK's LlmAgent. `includeContents: none` makes an agent see only the current message. |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
+| `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
+| `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
+| `context` | orchestrator | Compacts a long conversation: when the last request's prompt passed `compact_after_tokens`, earlier turns become one summary (written by `summary_model`, default the agent's own) and the last `keep_recent_events` stay verbatim. The full history stays stored; only what the model reads shrinks. The orchestrator of a delegate syndicate only: a dispatch route already reads a bounded projection, a workflow node sees only its input. |
+| `mode` | workflow node | `"task"`: the agent works with its tools until it calls `finish_task`, whose arguments (matching its `outputSchema`) become the node's output. Workflow nodes only. |
+| `examples` | any agent | Few-shot exchanges, `[{ input, output }]` (up to 20), added to every request's instruction by ADK's `ExampleTool`; the model never calls it. Keeps worked examples out of the prose of `instruction`. |
 | `skills` | any agent | Agent Skills (a directory of SKILL.md folders) the agent holds the way a coding harness does: every skill's name and description is appended to its instruction at compile time; `load_skill` reads one in full with the names of its files, `load_skill_resource` reads one file. `scripts: local` adds `run_skill_script`, which runs a skill's own scripts on this machine, each after a person approves (the `require_approval` pause); `tools:` names registry tools a skill's `allowed-tools` may unlock once loaded. Worked example: `examples/harness.yaml`; engine: `lib/tools/skillToolset.ts`. |
 
 Validation happens at load: missing names, legacy option blocks, and
@@ -127,12 +134,14 @@ instance:
 | `web_extract` | FunctionTool | Deterministic page reading: fetches 1–5 agent-chosen URLs and returns clean page text (no LLM summarization). Keyless — works on every provider including local `ollama/*`. Per-page char budget (default 15k, `WEB_EXTRACT_CHAR_LIMIT`); long pages return a head+tail window with an `offset` continuation call served from a 15-minute cache. SSRF-guarded (http(s) only, private/link-local hosts refused, redirects re-checked). Block pages (bot checks, paywall stubs, JS shells) are detected code-side and returned as labeled `Error:` blocks, never as content. Pair with `web_search`: search to find, extract to read past the headline. |
 | `x_search` | xAI-only | Live search over X (Twitter) posts via xAI Agent Tools. Self-gates to `grok-*` agents; a silent no-op on every other provider, so mixed-provider YAMLs stay safe. Optional server-side constraints in `.env`: `XAI_X_SEARCH_FROM_DATE`/`_TO_DATE` (inclusive `YYYY-MM-DD`) and `_ALLOWED_HANDLES`/`_EXCLUDED_HANDLES` (max 20, mutually exclusive — allowlist wins). |
 | `collections_search` | xAI-only | Semantic search over xAI **Collections** — hosted document stores (PDFs/text/CSVs) uploaded at console.x.ai — server-side RAG with `collections://…` citations. Which collections: `XAI_COLLECTION_IDS` in `.env` (optional `XAI_COLLECTIONS_MAX_RESULTS`). Declared with no ids → omitted with a warning; non-xAI providers → silent no-op. |
+| `url_context` | Gemini built-in | Gemini reads the pages at URLs in the conversation, server-side (Google fetches them, not this host). On any other provider it is a no-op the doctor reports as dropped; use `web_extract` there. |
 | `google_search` | ADK built-in | Live web search — Gemini agents only (legacy alias; use `web_search`). |
 | `preload_memory` | ADK built-in | Silently injects similarity-matched facts into every request (ambient recall). |
 | `load_memory` | ADK built-in | Explicit tool call to search the fact store (deliberate recall). |
 | `generate_image` | FunctionTool | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A FunctionTool because binary `inlineData` cannot survive the AgentTool text boundary. |
 | `inspect_image` | FunctionTool | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | FunctionTool | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
+| `ask_user` | LongRunningFunctionTool | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Orchestrator or plan-dispatch route only (§6, Questions). |
 | `task_queue` | FunctionTool | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. |
 
 **MCP tools** are the exception to the registry: a subagent with
@@ -147,6 +156,40 @@ modifies data on the far side of the protocol. The factory refuses
 loopback/private hosts unless `ALLOW_PRIVATE_MCP=true` (SSRF guard);
 treat any remote MCP server as an untrusted tool vendor whose results
 are data, never instructions.
+
+**OpenAPI tools** turn any HTTP API with an OpenAPI 3 spec into an
+agent's tools, with no tool code (`lib/tools/openapiTools.ts`, on ADK's
+`OpenAPIToolset`; [ADR 0032](./wiki/decisions/0032-openapi-tools.md)):
+
+```yaml
+orchestrator:
+  name: Forecaster
+  openapi:
+    - spec: "specs/open-meteo-forecast.json"     # relative to this YAML file
+      operations: [getForecast]                  # omitted: every GET operation
+      auth: { api_key: { env: "WEATHER_KEY", in: "header", name: "X-Api-Key" } }
+      # base_url: overrides servers[0].url · prefix: keeps two APIs apart
+```
+
+One tool per operation, named from its `operationId` in snake_case
+(`getForecast` → `get_forecast`; no `operationId`: path and method), with
+the parameters and request body as its arguments and the operation's
+`summary` as the description the model reads. Exposure is deliberate:
+without `operations`, only GET operations become tools, so anything that
+writes is exposed only by naming it, and a named operation can be listed
+under `require_approval` (as written under `operations`) so a person
+approves each call. `auth` names an environment variable, never a value
+(`bearer_env`, or `api_key` with `in: header | query` and `name`); an unset
+variable fails the compile, and a static token is applied to the request,
+never stored in session state. Every server must be http(s) and pass the
+SSRF guard: its literal rules when the agent compiles, the full check with
+DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for
+local development. A response over 20,000 characters is cut and says so; a
+network failure comes back to the model as an error. Specs are files, never
+URLs: save the spec beside the YAML and review it like code (trim it to the
+operations the agent needs, and write each `summary` for the model). Worked
+example: `config/agents/examples/weather.yaml`, two keyless Open-Meteo specs
+in `examples/specs/`.
 
 > **Schema dialects, handled for you.** The factory emits Gemini-style
 > UPPERCASE schema types (`'OBJECT'`, `'STRING'`, …) because the ADK is
@@ -605,6 +648,35 @@ or native-search sentinels. In code, `runSyndicateTurn` returns
 `status: 'input-required'` with `approval`, and the next turn's part
 `approvalResponsePart(approval.id, approved)` answers it.
 
+#### Questions (`ask_user`)
+
+An agent can ask the person something mid-turn and wait for the answer
+(`lib/runtime/questions.ts`, [ADR 0031](./wiki/decisions/0031-ask-user.md)).
+It lists the tool:
+
+```yaml
+orchestrator:
+  name: Desk
+  tools: [ask_user]   # ask_user(question, options?)
+```
+
+When the model calls `ask_user`, the turn ends `input-required`, final. The
+status message is the question ("Desk asks: Which account? (personal /
+work)") with a data part
+`{ type: 'input_request', interrupt_id, node, message, payload }`, where
+`payload.options` lists the choices when the agent gave some. The caller's
+next message on the same conversation is the answer: its text becomes the
+call's result, and the agent resumes its own tool loop where it asked. A
+workflow's `ask_user` node (§6, Workflows) publishes the same data part and
+is answered the same way, so a client handles both alike.
+
+`ask_user` is allowed where an approval gate is: the orchestrator and the
+subagents of a plan-dispatch syndicate (a dispatch turn that answers goes
+straight back to the route that asked, without the classifier). A delegated
+subagent or a workflow node listing it is a load error. In code,
+`runSyndicateTurn` returns `status: 'input-required'` with `input`
+(`node`, `message`, `payload`), and the next message's text answers it.
+
 #### Limits
 
 | Setting | Default |
@@ -873,6 +945,74 @@ happening. The `reason` field is written for that reader, not for logs.
 Implemented in `scripts/a2a_server.ts`; like `yaml_reference`, it is
 A2A-only — the CLI runner (`scripts/syndicate_chat.ts`) still compiles
 every syndicate in DELEGATE mode.
+
+### Workflows (`workflow:`) — the third orchestration method
+
+A syndicate that declares a `workflow:` block is a **graph**. Its agents
+are the nodes; `edges` says what runs after what, and on which route;
+nothing delegates and nothing classifies. It is for the shape the other
+two methods cannot express: run these two at once, join what they
+produce, edit it, ask the person, then publish.
+
+```yaml
+workflow:
+  edges:
+    - [START, Planner, { article: [Writer, Checker], default: Answerer }]
+    - [[Writer, Checker], Both, Editor, Confirm, Publisher]
+  nodes:
+    Planner: { route_key: "kind" }                 # an agent: modifiers only
+    Both:    { join: true }                        # waits for every predecessor
+    Editor:  { retry: { max_attempts: 2 } }
+    Confirm: { ask_user: "Publish this draft? Reply yes, or say what to change." }
+```
+
+**Edges.** Each entry is a chain. `START` opens at least one chain. A
+name is an agent or a declared node; a list of names fans out (after one
+node) or fans in (before one node); a map `{ <route>: <node or nodes>,
+default: <node> }` ends a chain and routes on the output of the node
+before it — the `route_key` property of a JSON output (an agent with an
+`outputSchema`), else the trimmed text — with `default` catching what no
+key matched. Every node receives the previous node's output as its
+message; a join hands on `{ <predecessor>: <output>, … }`.
+
+**Nodes.** `workflow.nodes` declares the nodes that are not agents, each
+exactly one kind: `join: true`; `map: <Agent>` (runs the agent once per
+item of a list input, concurrently, `max_parallel` at a time, and outputs
+the list of results); `tool: <registry name>` (runs the tool with the
+node input as its arguments); `ask_user: "<question>"` (below). An entry
+named after an agent carries modifiers only: `route_key`, `retry`
+(`max_attempts`, `initial_delay`, `max_delay`, `backoff_factor`, in
+seconds) and `timeout` (seconds), which any node may carry.
+
+**The pause.** An `ask_user` node ends the turn `input-required`
+(`result.input`: the node, the question, and what it was asked about).
+The next message on the conversation is the answer: the node's output
+becomes `{ "reply": <the answer>, "input": <what it received> }` and the
+graph resumes where it waited. `melchizedek-chat` prints the question
+and takes the next line; the A2A server ends the task `input-required`
+with a data part `{ type: 'input_request', interrupt_id, node, message,
+payload, schema }`, and the client's next message on the same
+conversation resumes it. A later message after the graph has finished
+starts it again from `START`.
+
+**What a node sees.** Unless its YAML sets `includeContents`, a node
+agent sees only its input — not the conversation, not the other nodes —
+which is what makes a graph legible: each agent's input is one value a
+person can read in the trace. Every node runs in the shared session, so
+`memory_system: long-term` would ingest node inputs as user turns;
+`internal-only` is the sensible default for a workflow.
+
+**Failure.** A node's error is not the turn's: a node with `retry` tries
+again (the attempt is recorded in `answer.nodeErrors`), and a node that
+gives up fails the turn with `NODE_FAILED` naming it. `max_steps` and
+the deadline cap the whole graph as they cap any turn.
+
+**Not yet.** Approval gates (`require_approval`, `skills.scripts: local`)
+and remote `a2a_agent_url` subagents are refused inside a workflow by
+the schema, and a workflow cannot be another syndicate's `yaml_reference`
+(ADK cannot yet make a `Workflow` a subagent; nested, only its
+orchestrator runs). The record is [ADR 0030](./wiki/decisions/0030-workflow-graphs.md);
+the contract is `lib/workflow.ts`, on ADK's `Workflow`.
 
 ## 7. Extending the framework
 

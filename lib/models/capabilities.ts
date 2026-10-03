@@ -42,6 +42,7 @@ function directPlatform(provider: ProviderId): Platform {
 export const SERVER_SIDE_TOOLS: Record<string, ProviderId[]> = {
   web_search: ['gemini', 'anthropic', 'openai', 'xai'],
   google_search: ['gemini'],
+  url_context: ['gemini'],
   x_search: ['xai'],
   collections_search: ['xai'],
 };
