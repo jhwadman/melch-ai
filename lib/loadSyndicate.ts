@@ -9,6 +9,7 @@ import type { DispatchConfig } from './dispatch.ts';
 export type { DispatchConfig } from './dispatch.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
 import type { OpenApiConfig } from './tools/openapiTools.ts';
+import type { ContextConfig } from './compile.ts';
 export type { OpenApiConfig } from './tools/openapiTools.ts';
 export type { SkillsConfig } from './tools/skillToolset.ts';
 import type { WorkflowConfig } from './workflowConfig.ts';
@@ -122,6 +123,12 @@ export interface AgentYamlConfig {
    * from environment variables. lib/tools/openapiTools.ts.
    */
   openapi?: OpenApiConfig[];
+  /** `gemini`: the model's Python runs in Gemini's server-side sandbox (ADR 0033). Gemini models only. */
+  code_execution?: 'gemini';
+  /** Compact a long conversation into a summary past a token threshold (ADR 0033). Delegate orchestrator only. */
+  context?: ContextConfig;
+  /** `task`: the agent works until it calls finish_task; its arguments are the node's output. Workflow nodes only. */
+  mode?: 'task';
   orchestration?: {
     role?: 'primary' | 'sub-agent';
     delegates?: string[];

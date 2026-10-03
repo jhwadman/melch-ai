@@ -6,6 +6,14 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Three agent keys from ADK: `code_execution`, `context`, `mode`.**
+  `code_execution: gemini` lets a Gemini agent write and run Python in
+  Gemini's server-side sandbox (nothing runs on the host). `context:
+  { compact_after_tokens, keep_recent_events?, summary_model? }` on a delegate
+  orchestrator summarizes earlier turns once a prompt passes the threshold,
+  keeping the recent ones verbatim and the full history stored. `mode: task`
+  on a workflow node makes its output the arguments of its `finish_task`
+  call. The schema places each where it means something. ADR 0033.
 - **`openapi:`: any HTTP API as an agent's tools, from its spec.** An agent
   lists OpenAPI 3 spec files (relative to the syndicate file); every operation
   becomes a tool named from its `operationId`, its parameters the arguments,

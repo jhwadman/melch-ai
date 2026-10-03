@@ -269,6 +269,43 @@
             "description": "An HTTP API as tools, from its OpenAPI spec (lib/tools/openapiTools.ts)."
           }
         },
+        "code_execution": {
+          "description": "\"gemini\": the model writes and runs Python in Gemini's server-side sandbox; nothing runs on this host. Gemini models only.",
+          "type": "string",
+          "const": "gemini"
+        },
+        "context": {
+          "description": "Summarize a long conversation instead of overflowing the window. The orchestrator of a delegate syndicate only.",
+          "type": "object",
+          "properties": {
+            "compact_after_tokens": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 9007199254740991,
+              "description": "Compact when the last request's prompt passed this many tokens."
+            },
+            "keep_recent_events": {
+              "description": "Events kept verbatim after the summary. Default 6.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "summary_model": {
+              "description": "The model that writes the summary. Default: the agent's own.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "compact_after_tokens"
+          ],
+          "additionalProperties": false
+        },
+        "mode": {
+          "description": "\"task\": the agent works until it calls finish_task; its arguments (matching outputSchema) are the node's output. Workflow nodes only.",
+          "type": "string",
+          "const": "task"
+        },
         "orchestration": {
           "type": "object",
           "properties": {
@@ -562,6 +599,43 @@
               "additionalProperties": false,
               "description": "An HTTP API as tools, from its OpenAPI spec (lib/tools/openapiTools.ts)."
             }
+          },
+          "code_execution": {
+            "description": "\"gemini\": the model writes and runs Python in Gemini's server-side sandbox; nothing runs on this host. Gemini models only.",
+            "type": "string",
+            "const": "gemini"
+          },
+          "context": {
+            "description": "Summarize a long conversation instead of overflowing the window. The orchestrator of a delegate syndicate only.",
+            "type": "object",
+            "properties": {
+              "compact_after_tokens": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 9007199254740991,
+                "description": "Compact when the last request's prompt passed this many tokens."
+              },
+              "keep_recent_events": {
+                "description": "Events kept verbatim after the summary. Default 6.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "summary_model": {
+                "description": "The model that writes the summary. Default: the agent's own.",
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "compact_after_tokens"
+            ],
+            "additionalProperties": false
+          },
+          "mode": {
+            "description": "\"task\": the agent works until it calls finish_task; its arguments (matching outputSchema) are the node's output. Workflow nodes only.",
+            "type": "string",
+            "const": "task"
           },
           "orchestration": {
             "type": "object",

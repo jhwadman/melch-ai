@@ -216,6 +216,25 @@ orchestrator:
   # error (it is always on). Omitted, a skill unlocks nothing.
   # Maps to: tools[] (a toolset) and instruction (the appended index)
 
+  # [optional] "gemini": the model writes Python and Gemini runs it in
+  # Google's server-side sandbox; nothing runs on this host. Gemini only.
+  # code_execution: "gemini"
+
+  # [optional] Summarize a long conversation instead of overflowing the
+  # window: past `compact_after_tokens` (the last request's prompt), earlier
+  # turns become one summary and the last `keep_recent_events` stay
+  # verbatim. The full history stays stored. Orchestrator of a delegate
+  # syndicate only (ADR 0033).
+  # context:
+  #   compact_after_tokens: 60000
+  #   keep_recent_events: 6
+  #   summary_model: "gemini-3.5-flash-lite"   # default: this agent's model
+
+  # [optional] "task" on a WORKFLOW NODE: the agent works with its tools
+  # until it calls finish_task; its arguments (matching outputSchema) are
+  # the node's output.
+  # mode: "task"
+
   # [optional] HTTP APIs as tools, each from an OpenAPI 3 spec FILE
   # (.yaml/.yml/.json, relative to this syndicate file; never a URL).
   # One tool per operation, named from its operationId in snake_case.
