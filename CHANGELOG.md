@@ -22,6 +22,27 @@ the starter pack and the templates), not the repo's full history.
   like Claude Sonnet 4.6 ($3 / $15, thinking billed as output), so
   `kimi-k2.6` is the budget tier and the gateway the cheap route to K3.
   Not run live from this repository.
+- **Agent Skills in a syndicate: the `skills:` agent key and the Harness.**
+  An agent may declare `skills: { dir, scripts?, tools? }`. Every skill's
+  frontmatter (name, description) is appended to the agent's instruction at
+  compile time, so no turn is spent discovering skills; `load_skill` reads one
+  SKILL.md in full with the names of the files it ships, and
+  `load_skill_resource` reads one file (`references/`, `assets/`, `scripts/`,
+  the open standard's layout). A skill's `allowed-tools` frontmatter unlocks
+  the registry tools the YAML lists under `skills.tools`, once that skill is
+  loaded. With `scripts: local`, `run_skill_script` runs a skill's own scripts
+  on the host, each run only after a person approves it through the same
+  pause as `require_approval` (A2A `input-required`; `melchizedek-chat` now
+  asks `[y/N]`); the model's own code never executes. Built on ADK's
+  `SkillToolset` (`lib/tools/skillToolset.ts`). `config/agents/examples/harness.yaml`
+  is the specimen: a generic agent that works from whatever shelf of skills
+  `--bind skills_dir=…` points it at (default: this package's own suite).
+- **The suite's files move to the standard `assets/` directory.**
+  `melchizedek-author` ships `assets/minimal.yaml` (was `templates/minimal.yaml`)
+  and `melchizedek-scribe` ships `assets/brief.md` (was `templates/brief.md`),
+  so a harness, this one or any other, can read them as skill resources. A
+  skill installed by an earlier release keeps its old path until it is
+  reinstalled with `--force`.
 
 ## 0.16.2 — 2026-10-02
 

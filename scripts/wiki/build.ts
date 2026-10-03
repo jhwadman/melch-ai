@@ -114,12 +114,19 @@ const PRIVATE_SYNDICATES = new Map<string, string>(priv.privateSyndicates ?? [])
 
 // ── Source: config/agents/*.yaml → syndicate docs ────────────────────────────
 
+/** ` · skills: <dir>` (and whether their scripts may run), for a composition line. */
+function skillsNote(skills: RawSubagent['skills']): string {
+  if (!skills?.dir) return '';
+  return ` · skills: \`${skills.dir}\`${skills.scripts === 'local' ? ' (scripts run after approval)' : ''}`;
+}
+
 interface RawSubagent {
   name?: string;
   description?: string;
   model?: string;
   tools?: string[];
   mcp_server_url?: string;
+  skills?: { dir?: string; scripts?: string; tools?: string[] };
   /** A subagent that IS another syndicate, resolved from its file at load time. */
   yaml_reference?: string;
 }
@@ -238,14 +245,14 @@ function syndicateSpecs(): DocSpec[] {
       }`,
       `- orchestrator: **${orch.name ?? '?'}** (\`${orch.model ?? 'default'}\`)${
         orch.tools?.length ? ` · tools: ${orch.tools.map((t) => `\`${t}\``).join(', ')}` : ''
-      }`,
+      }${skillsNote(orch.skills)}`,
       '',
       table(
         ['Subagent', 'Model', 'Tools', 'MCP'],
         subs.map((s) => [
           s.name ?? '?',
           s.yaml_reference ? nestedSyndicate(s.yaml_reference, pageOf) : `\`${s.model ?? 'default'}\``,
-          (s.tools ?? []).map((t) => `\`${t}\``).join(', ') || '—',
+          ((s.tools ?? []).map((t) => `\`${t}\``).join(', ') + skillsNote(s.skills)) || '—',
           s.mcp_server_url ? '`mcp_server_url`' : '—',
         ]),
       ),

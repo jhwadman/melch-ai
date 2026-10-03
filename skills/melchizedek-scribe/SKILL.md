@@ -1,6 +1,6 @@
 ---
 name: melchizedek-scribe
-description: Write a document from a technical brief with the Scribe syndicate: a README section, a skill file, product copy, a runbook. Use when the user wants prose generated from facts they supply, wants to write a SKILL.md, or mentions the scribe; covers the brief format, the one-shot run, capture, and review.
+description: "Write a document from a technical brief with the Scribe syndicate: a README section, a skill file, product copy, a runbook. Use when the user wants prose generated from facts they supply, wants to write a SKILL.md, or mentions the scribe; covers the brief format, the one-shot run, capture, and review."
 ---
 
 ## What the Scribe is
@@ -20,7 +20,7 @@ A brief is plain text. The brief contains these parts, in any order, under any h
 - LIMITS: word or line caps, required headings, and forbidden constructions.
 - SOURCE MATERIAL: optional pasted text that the Scribe may quote.
 
-You gather facts from the code, the manifest, and the documentation at hand before running. Place the exact command with its flags under FACTS, and list the exact command again under IDENTIFIERS. A brief template ships with this skill at `templates/brief.md`.
+You gather facts from the code, the manifest, and the documentation at hand before running. Place the exact command with its flags under FACTS, and list the exact command again under IDENTIFIERS. A brief template ships with this skill at `assets/brief.md`.
 
 ## Run it and capture the document
 
@@ -64,7 +64,7 @@ The Auditor catches most discrepancies. A person still reads the final result. I
 ## Writing a SKILL.md with it
 
 When you write a SKILL.md file with the Scribe, place these constraints under LIMITS:
-- The exact frontmatter block, with `name` equal to the directory name in lowercase with hyphens, and `description` under 1024 characters stating when to use the skill.
+- The exact frontmatter block, with `name` equal to the directory name in lowercase with hyphens, and `description` in double quotes, under 1024 characters, stating when to use the skill.
 - The `##` headings in order.
 - A line cap.
 - The instruction: "every command in a fenced bash block".

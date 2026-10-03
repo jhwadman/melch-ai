@@ -166,6 +166,30 @@ orchestrator:
   # Full registry: lib/toolRegistry.ts.
   tools: []
 
+  # [optional] Agent Skills this agent holds the way a coding harness does
+  # (lib/tools/skillToolset.ts; worked example: examples/harness.yaml).
+  # `dir` is a directory of skills in the open SKILL.md standard: one
+  # subdirectory per skill, named as its frontmatter names it, holding
+  # SKILL.md and optionally references/, assets/ and scripts/. Relative to
+  # the working directory; a `{{variable}}` works here.
+  # Every skill's name and description is appended to the instruction at
+  # compile time (no turn is spent listing them); the agent gains
+  # `load_skill` (one SKILL.md in full, with the names of its files) and
+  # `load_skill_resource` (one of those files).
+  # `scripts`: "none" (default) or "local". With "local" the agent also
+  # gains `run_skill_script`, which runs a script from a skill's scripts/
+  # on THIS machine, each run only after a person approves it (the same
+  # pause as require_approval, ADR 0028), so it is allowed only on the
+  # orchestrator or a plan-dispatch route. The model's own code never runs.
+  # `tools`: registry names a skill may unlock through its `allowed-tools`
+  # frontmatter once it is loaded; a name already in `tools:` above is an
+  # error (it is always on). Omitted, a skill unlocks nothing.
+  # Maps to: tools[] (a toolset) and instruction (the appended index)
+  # skills:
+  #   dir: ".claude/skills"
+  #   scripts: "none"
+  #   tools: ["web_extract"]
+
   # [optional] Whether to include conversation history in model requests.
   # "default" → include history (stateful)
   # "none"    → no history (stateless / pure function)
@@ -309,6 +333,12 @@ subagents:
     # refused unless ALLOW_PRIVATE_MCP=true (local development).
     # See config/agents/librarian.yaml for the worked example.
     # mcp_server_url: "http://localhost:8931/sse"
+
+    # [optional] Agent Skills for this subagent; same block as on the
+    # orchestrator. `scripts: "local"` is allowed here only under
+    # `dispatch:` (a delegated subagent cannot pause the turn, ADR 0028).
+    # skills:
+    #   dir: ".claude/skills"
 
     # [optional] Stateless operation — subagent sees no history.
     # Maps to: includeContents

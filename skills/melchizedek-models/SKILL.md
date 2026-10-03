@@ -1,6 +1,6 @@
 ---
 name: melchizedek-models
-description: Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent generation settings. Use when the user changes a model line, adds a provider key, sees Model not found or a gateway error, or asks which keys a syndicate needs.
+description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent generation settings. Use when the user changes a model line, adds a provider key, sees Model not found or a gateway error, or asks which keys a syndicate needs."
 ---
 
 ## How a model id routes

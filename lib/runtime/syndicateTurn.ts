@@ -30,7 +30,7 @@
 import { InMemorySessionService, Runner, StreamingMode, getFunctionCalls, getFunctionResponses } from '@google/adk';
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
-import { compileGraph, compileSubagent } from '../compile.ts';
+import { agentGates, compileGraph, compileSubagent } from '../compile.ts';
 import type { CompileOptions } from '../compile.ts';
 import { isDispatchSyndicate, matchRouteOverride, resolveRoute } from '../dispatch.ts';
 import type { RouteResolution } from '../dispatch.ts';
@@ -43,7 +43,7 @@ import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
 import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
 import type { PendingApproval } from './approvals.ts';
-export { approvalResponsePart, pendingApproval } from './approvals.ts';
+export { approvalResponsePart, describeApproval, pendingApproval } from './approvals.ts';
 export type { PendingApproval } from './approvals.ts';
 import { RemoteA2AAgent, remoteContextId, remoteToolOutput } from '../a2a/remoteAgent.ts';
 import { createTurnControl, runWithTurnControl, stopCode, stopMessage } from './turnControl.ts';
@@ -632,7 +632,7 @@ async function runTurnInner(
       result.error = answer.error;
       return finish();
     }
-    if (!routeCfg.a2a_agent_url && routeCfg.require_approval?.length) {
+    if (!routeCfg.a2a_agent_url && agentGates(routeCfg)) {
       const pending = await awaitingApproval(routeCfg.name);
       if (pending) return pause(pending);
     }
@@ -667,7 +667,7 @@ async function runTurnInner(
       result.error = answer.error;
       return finish();
     }
-    if (config.orchestrator.require_approval?.length) {
+    if (agentGates(config.orchestrator)) {
       const pending = await awaitingApproval(config.orchestrator.name);
       if (pending) return pause(pending);
     }

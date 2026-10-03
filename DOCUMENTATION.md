@@ -109,6 +109,7 @@ Field reference:
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
 | `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to ADK's LlmAgent. `includeContents: none` makes an agent see only the current message. |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
+| `skills` | any agent | Agent Skills (a directory of SKILL.md folders) the agent holds the way a coding harness does: every skill's name and description is appended to its instruction at compile time; `load_skill` reads one in full with the names of its files, `load_skill_resource` reads one file. `scripts: local` adds `run_skill_script`, which runs a skill's own scripts on this machine, each after a person approves (the `require_approval` pause); `tools:` names registry tools a skill's `allowed-tools` may unlock once loaded. Worked example: `examples/harness.yaml`; engine: `lib/tools/skillToolset.ts`. |
 
 Validation happens at load: missing names, legacy option blocks, and
 malformed agents fail with pointed errors before any model is called.
@@ -570,6 +571,8 @@ capacity). Message parts may be `text` or `data` (sent to the model as
 JSON); `file` parts are refused.
 
 #### Approval gates (`require_approval`)
+
+A skill script run (`skills.scripts: local`) pauses the same way, without being listed: every `run_skill_script` call waits for the person's answer.
 
 A tool can run only after a person approves the exact call
 ([ADR 0028](./wiki/decisions/0028-approval-gates.md)). The agent lists it:

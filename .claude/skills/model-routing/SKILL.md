@@ -58,6 +58,6 @@ scheduled agent, say what it does to the run's cost and where that shows up
 (the ledger, the task records, budgets — ADR 0026). Read the list price
 against the closed tiers before calling an open model cheap: `kimi-k3` costs
 what Claude Sonnet 4.6 costs and thinks on every turn, billed as output
-(ADR 0029); `kimi-k2.6` is its budget tier. A reasoning model's default
+(ADR 0030); `kimi-k2.6` is its budget tier. A reasoning model's default
 effort is part of its price — pin it in the adapter, as the Grok and Kimi
 adapters do.

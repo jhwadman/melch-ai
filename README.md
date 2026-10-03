@@ -122,6 +122,7 @@ worked specimen for a curriculum module:
 | Syndicate | Pattern | Course module |
 |---|---|---|
 | `assistant.yaml` — Assistant | the launching pad: converse, summarize, a task list, background jobs a worker drains; keyless | — |
+| `harness.yaml` — Harness | works from installed Agent Skills the way a coding harness does: the frontmatter index in its prompt, a skill read on demand, `/name` to force one, scripts run after approval | — |
 | `tutor.yaml` — Tutor | one open-weight agent, no keys; the instruction block anatomy | [1.02 · running your own model](https://lyceumagents.com/curriculum/your-own-model/) |
 | `council.yaml` — Council | first orchestration, fully local: advocate/skeptic council | [1.05 · workflows & voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
 | `critic.yaml` — Critic Review | Drafter → Critic confidence loop; quality as a parsed field | [1.04 · testing & refinement](https://lyceumagents.com/curriculum/testing-and-refinement/) |

@@ -6,7 +6,7 @@ STRUCTURE (exact):
 Frontmatter, verbatim:
 ---
 name: melchizedek-models
-description: Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent generation settings. Use when the user changes a model line, adds a provider key, sees Model not found or a gateway error, or asks which keys a syndicate needs.
+description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent generation settings. Use when the user changes a model line, adds a provider key, sees Model not found or a gateway error, or asks which keys a syndicate needs."
 ---
 Then `##` sections in this order: "How a model id routes", "Which key unlocks what", "Run with no key at all", "One key for every cloud provider", "Settings per agent", "Mixing providers in one syndicate", "Reading the errors".
 
