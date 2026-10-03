@@ -161,6 +161,37 @@
           "description": "MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.",
           "type": "string"
         },
+        "skills": {
+          "type": "object",
+          "properties": {
+            "dir": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A directory of skills: one subdirectory per skill, named as its SKILL.md frontmatter names it. Relative to the working directory."
+            },
+            "scripts": {
+              "description": "Whether a skill's scripts/ may run. \"local\" runs them on this machine, each after a person approves (ADR 0028); default \"none\".",
+              "type": "string",
+              "enum": [
+                "none",
+                "local"
+              ]
+            },
+            "tools": {
+              "description": "Registry tool names a skill may unlock through its `allowed-tools` frontmatter once it is loaded. Omitted, no skill unlocks anything.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": [
+            "dir"
+          ],
+          "additionalProperties": false,
+          "description": "Agent Skills (SKILL.md directories) this agent reads the way a coding harness does."
+        },
         "orchestration": {
           "type": "object",
           "properties": {
@@ -346,6 +377,37 @@
           "mcp_server_url": {
             "description": "MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.",
             "type": "string"
+          },
+          "skills": {
+            "type": "object",
+            "properties": {
+              "dir": {
+                "type": "string",
+                "minLength": 1,
+                "description": "A directory of skills: one subdirectory per skill, named as its SKILL.md frontmatter names it. Relative to the working directory."
+              },
+              "scripts": {
+                "description": "Whether a skill's scripts/ may run. \"local\" runs them on this machine, each after a person approves (ADR 0028); default \"none\".",
+                "type": "string",
+                "enum": [
+                  "none",
+                  "local"
+                ]
+              },
+              "tools": {
+                "description": "Registry tool names a skill may unlock through its `allowed-tools` frontmatter once it is loaded. Omitted, no skill unlocks anything.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "dir"
+            ],
+            "additionalProperties": false,
+            "description": "Agent Skills (SKILL.md directories) this agent reads the way a coding harness does."
           },
           "orchestration": {
             "type": "object",

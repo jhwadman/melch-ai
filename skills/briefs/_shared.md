@@ -9,7 +9,7 @@ SHARED FACTS (true for every document in this series; use those the section need
 - The reader of a skill file is a coding agent (Claude Code, Codex, Cursor, OpenCode, Gemini CLI) acting for a software engineer. It reads the file when the task matches the description, then acts. Every command it might run goes in a fenced bash block, with the exact flags. Prose between commands says when to run which and what the output means. Nothing decorative.
 
 GLOBAL LIMITS FOR SKILL FILES:
-- The document is a complete SKILL.md: it begins with the frontmatter block given under STRUCTURE, exactly, then the body.
+- The document is a complete SKILL.md: it begins with the frontmatter block given under STRUCTURE, exactly (its `description` stays in double quotes: a colon inside an unquoted value is invalid YAML and a strict loader drops the skill), then the body.
 - Body under 170 lines. Headings are `##`. No H1. No table of contents. No closing summary section.
 - Every command in a fenced block tagged bash. Every file path, flag, environment variable and identifier in backticks in prose.
 - Commands, flags, paths and environment variable names come only from this brief; never invent one.

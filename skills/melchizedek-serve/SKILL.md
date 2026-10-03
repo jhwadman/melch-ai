@@ -1,6 +1,6 @@
 ---
 name: melchizedek-serve
-description: Expose a Melchizedek syndicate over HTTP with the A2A server, call it from code, give a subagent tools from an MCP server, or serve your own tools as an MCP server. Use when the user mentions melchizedek-serve, A2A, an agent card, mcp_server_url, or wants a syndicate reachable from another application or agent.
+description: "Expose a Melchizedek syndicate over HTTP with the A2A server, call it from code, give a subagent tools from an MCP server, or serve your own tools as an MCP server. Use when the user mentions melchizedek-serve, A2A, an agent card, mcp_server_url, or wants a syndicate reachable from another application or agent."
 ---
 
 ## Serve a syndicate over A2A

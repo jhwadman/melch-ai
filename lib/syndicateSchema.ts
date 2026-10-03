@@ -74,6 +74,33 @@ const generateContentConfig = z
   })
   .describe('Model generation config (@google/genai GenerateContentConfig). Do not set tools here.');
 
+// ── Skills ───────────────────────────────────────────────────────────────────
+
+export const SKILL_SCRIPT_MODES = ['none', 'local'] as const;
+
+/**
+ * Agent Skills for one agent (lib/tools/skillToolset.ts): the frontmatter
+ * index is injected into the instruction at compile time, a skill is read in
+ * full on demand, and its scripts run only when `scripts` allows and a person
+ * approves each run.
+ */
+const skillsSchema = z
+  .strictObject({
+    dir: z
+      .string()
+      .min(1)
+      .describe('A directory of skills: one subdirectory per skill, named as its SKILL.md frontmatter names it. Relative to the working directory.'),
+    scripts: z
+      .enum(SKILL_SCRIPT_MODES)
+      .optional()
+      .describe('Whether a skill\'s scripts/ may run. "local" runs them on this machine, each after a person approves (ADR 0028); default "none".'),
+    tools: z
+      .array(z.string().min(1))
+      .optional()
+      .describe('Registry tool names a skill may unlock through its `allowed-tools` frontmatter once it is loaded. Omitted, no skill unlocks anything.'),
+  })
+  .describe('Agent Skills (SKILL.md directories) this agent reads the way a coding harness does.');
+
 // ── Agents ───────────────────────────────────────────────────────────────────
 
 const agentFields = {
@@ -117,6 +144,7 @@ const agentFields = {
     .string()
     .optional()
     .describe('MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.'),
+  skills: skillsSchema.optional(),
   orchestration: z
     .strictObject({
       role: z.enum(['primary', 'sub-agent']).optional(),
@@ -434,12 +462,34 @@ function crossFieldProblems(raw: unknown): Problem[] {
       }
     });
   };
-  if (isObj(raw.orchestrator)) gateProblems(raw.orchestrator, ['orchestrator'], true);
+  // A skill script run pauses for approval the same way, so it is allowed in
+  // the same places; `skills.tools` may only unlock tools the agent does not
+  // already carry outright.
+  const skillProblems = (agent: Record<string, unknown>, path: (string | number)[], allowed: boolean) => {
+    if (!isObj(agent.skills)) return;
+    if (agent.skills.scripts === 'local' && !allowed) {
+      out.push({
+        path: [...path, 'skills', 'scripts'],
+        message: 'skill scripts pause for approval, which only the orchestrator or a plan-dispatch route can do; a delegated subagent cannot pause the turn (ADR 0028)',
+      });
+    }
+    const tools = Array.isArray(agent.tools) ? agent.tools : [];
+    (Array.isArray(agent.skills.tools) ? agent.skills.tools : []).forEach((name, j) => {
+      if (typeof name === 'string' && tools.includes(name)) {
+        out.push({ path: [...path, 'skills', 'tools', j], message: `'${name}' is already in this agent's tools; a skill cannot unlock what is always on` });
+      }
+    });
+  };
+  if (isObj(raw.orchestrator)) {
+    gateProblems(raw.orchestrator, ['orchestrator'], true);
+    skillProblems(raw.orchestrator, ['orchestrator'], true);
+  }
   const dispatching = isObj(raw.dispatch);
 
   subs.forEach((sub, i) => {
     if (!isObj(sub)) return;
     gateProblems(sub, ['subagents', i], dispatching);
+    skillProblems(sub, ['subagents', i], dispatching);
     const hasRef = typeof sub.yaml_reference === 'string';
     const hasRemote = typeof sub.a2a_agent_url === 'string';
     if (hasRef && hasRemote) {

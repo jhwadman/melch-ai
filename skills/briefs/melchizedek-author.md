@@ -6,7 +6,7 @@ STRUCTURE (exact):
 Frontmatter, verbatim:
 ---
 name: melchizedek-author
-description: Design or edit a Melchizedek syndicate YAML: the file layout, required keys, orchestrator and subagent blocks, tools by name, output schemas, memory mode, the tier header, and offline validation. Use when the user wants a new agent team, wants to change a syndicate's prompt, model, or tools, or asks what a field in a syndicate file means.
+description: "Design or edit a Melchizedek syndicate YAML: the file layout, required keys, orchestrator and subagent blocks, tools by name, output schemas, memory mode, the tier header, and offline validation. Use when the user wants a new agent team, wants to change a syndicate's prompt, model, or tools, or asks what a field in a syndicate file means."
 ---
 Then `##` sections in this order: "Where the file goes", "Start from the closest example", "The keys", "Write the instruction", "Two constraints that break a file", "Validate and run", "Editing a syndicate that is already serving".
 
@@ -14,7 +14,7 @@ FACTS:
 Where the file goes:
 - Your syndicates live at the root of `config/agents/` in your project; the file name without `.yaml` is the id used everywhere (`--syndicate <id>`, A2A routes). Use lowercase with underscores.
 - `MELCHIZEDEK_AGENTS_DIR` relocates the directory; `syndicateSchema.yaml` beside the examples documents every field with its ADK counterpart.
-- A minimal template ships with this skill at `templates/minimal.yaml` (relative to this skill's directory): copy it, rename it, fill it in.
+- A minimal template ships with this skill at `assets/minimal.yaml` (relative to this skill's directory): copy it, rename it, fill it in.
 
 Start from the closest example:
 - Copy the example nearest the job out of the starter pack into `config/agents/` and edit it. One orchestrator and one subagent is the right size to start; grow only when the work divides.
@@ -56,5 +56,5 @@ Validate and run:
 Editing a syndicate that is already serving:
 - `melchizedek-serve` compiles a syndicate when it is first requested and caches it for the life of the process; an edited file changes nothing until the server restarts. A deployment that boots agents from the Supabase agent registry (`registry:<id>`) serves the registry row, not the file, until the row is republished.
 
-IDENTIFIERS (verbatim): config/agents/, syndicateSchema.yaml, templates/minimal.yaml, syndicate_name, memory_system, internal-only, session-only, long-term, variables:, {{current_date}}, memory_extraction_rules:, dispatch:, default_route, route_overrides, orchestrator:, subagents:, description, model, instruction, tools:, mcp_server_url:, generateContentConfig:, outputSchema:, responseMimeType, thinkingConfig, maxOutputTokens, # tier:, npm test, npx melchizedek-doctor, npx melchizedek-chat --syndicate, loadSyndicate, gemini-3.8-flash, gemini-3.5-flash-lite, critic.yaml, scribe.yaml, tutor.yaml, patient_advocate.yaml
+IDENTIFIERS (verbatim): config/agents/, syndicateSchema.yaml, assets/minimal.yaml, syndicate_name, memory_system, internal-only, session-only, long-term, variables:, {{current_date}}, memory_extraction_rules:, dispatch:, default_route, route_overrides, orchestrator:, subagents:, description, model, instruction, tools:, mcp_server_url:, generateContentConfig:, outputSchema:, responseMimeType, thinkingConfig, maxOutputTokens, # tier:, npm test, npx melchizedek-doctor, npx melchizedek-chat --syndicate, loadSyndicate, gemini-3.8-flash, gemini-3.5-flash-lite, critic.yaml, scribe.yaml, tutor.yaml, patient_advocate.yaml
 LIMITS: the Node one-liner goes in a fenced bash block exactly as given. Body under 170 lines.
