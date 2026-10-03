@@ -350,8 +350,10 @@ for K3's `reasoning_content` back on the assistant message; this adapter
 keeps scratchpads out of history, so K3 re-reasons each step). K3's open
 weights mean the same id is served by OpenRouter, Together, Fireworks and
 Vercel AI Gateway; with no direct key, `MODEL_GATEWAY` maps it to
-`moonshotai/kimi-k3`. Not run live from this repository: the row in the
-capability matrix is asserted against the request body the adapter sends.
+`moonshotai/kimi-k3`. The row in the capability matrix is asserted against
+the request body the adapter sends; one plain turn was verified live on
+2026-10-03 (`npm run demo:models`, kimi-k3 at low effort, 17.9 s), tool
+loops and search were not.
 
 **Which keys do I need?** `npm run doctor` (the `melchizedek-doctor` bin)
 reads every syndicate YAML, resolves each agent's model under your `.env`,

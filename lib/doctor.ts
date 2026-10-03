@@ -518,6 +518,16 @@ const ANSI = {
   cyan: '\x1b[36m',
 };
 
+/** One id per provider, in that provider's own prefix, for the providers line. */
+const PROBE_ID: Record<ProviderId, string> = {
+  gemini: 'gemini-x',
+  anthropic: 'claude-x',
+  openai: 'gpt-x',
+  xai: 'grok-x',
+  moonshot: 'kimi-x',
+  ollama: 'ollama/x',
+};
+
 function pad(s: string, n: number): string {
   return s.length >= n ? s.slice(0, n - 1) + '…' : s.padEnd(n);
 }
@@ -537,9 +547,11 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
   lines.push(`${c.bold}melchizedek doctor${c.reset} ${c.dim}· ${result.agentsDir}${c.reset}`);
   lines.push('');
 
-  // Provider line: what is funded, and how.
+  // Provider line: what is funded, and how. Each provider is probed with an
+  // id of its own prefix, so the line names ITS key (a fallthrough once put
+  // xAI's key beside Moonshot).
   const providerBits = (Object.keys(PROVIDERS) as ProviderId[]).map((p) => {
-    const r = describeCapabilities(p === 'ollama' ? 'ollama/x' : p === 'gemini' ? 'gemini-x' : p === 'anthropic' ? 'claude-x' : p === 'openai' ? 'gpt-x' : 'grok-x');
+    const r = describeCapabilities(PROBE_ID[p]);
     const mark = !r.funded ? `${c.red}✗${c.reset}` : r.transport === 'gateway' ? `${c.yellow}◇${c.reset}` : `${c.green}✓${c.reset}`;
     const how = !r.funded ? `${c.dim}${r.keyEnv} not set${c.reset}` : r.transport === 'gateway' ? `${c.dim}via gateway:${r.gateway}${c.reset}` : p === 'ollama' ? `${c.dim}local${c.reset}` : `${c.dim}${r.platform ?? 'direct'}${c.reset}`;
     return `${mark} ${PROVIDERS[p].label} ${how}`;

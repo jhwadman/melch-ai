@@ -21,7 +21,10 @@ the starter pack and the templates), not the repo's full history.
   and the Zookeeper names six providers. Cost note: `kimi-k3` is priced
   like Claude Sonnet 4.6 ($3 / $15, thinking billed as output), so
   `kimi-k2.6` is the budget tier and the gateway the cheap route to K3.
-  Not run live from this repository.
+  One plain turn verified live on 2026-10-03; tool loops were not.
+- **The doctor's providers line names each provider's own key.** It probed
+  every provider past the fourth with a `grok-` id, so Moonshot was reported
+  as missing `XAI_API_KEY`.
 - **Behaviour change: self-correction is on by default.** Every turn now runs
   ADK's reflect-and-retry plugins. A model reply ADK marks malformed
   (`MALFORMED_FUNCTION_CALL`) is retried up to twice with guidance instead of
