@@ -23,6 +23,7 @@ import { WIKI_AGENT_TOOL_CONTRACTS } from './tools/wikiTools.ts';
 import { SCIENCE_TOOL_CONTRACTS } from './tools/scienceTools.ts';
 import { TASK_TOOL_CONTRACTS } from './tools/taskTools.ts';
 import { X_SEARCH } from './tools/xSearchTool.ts';
+import { askUserTool } from './runtime/questions.ts';
 import { xApiSearchTool } from './tools/xApiSearchTool.ts';
 
 // Knowledge-bundle tools, derived from their contracts so the YAML names
@@ -77,6 +78,10 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   google_search: GOOGLE_SEARCH,
   generate_image: generateImageTool,
   inspect_image: inspectImageTool,
+  // Ask the person mid-turn (lib/runtime/questions.ts): a long-running call
+  // that ends the turn input-required; the next message is its answer. Only
+  // on an agent the turn runs directly (the schema enforces it).
+  ask_user: askUserTool,
   load_memory: LOAD_MEMORY,
   preload_memory: PRELOAD_MEMORY,
 };
