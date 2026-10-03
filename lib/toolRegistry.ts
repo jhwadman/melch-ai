@@ -24,6 +24,7 @@ import { SCIENCE_TOOL_CONTRACTS } from './tools/scienceTools.ts';
 import { TASK_TOOL_CONTRACTS } from './tools/taskTools.ts';
 import { X_SEARCH } from './tools/xSearchTool.ts';
 import { askUserTool } from './runtime/questions.ts';
+import { URL_CONTEXT } from './tools/urlContextTool.ts';
 import { xApiSearchTool } from './tools/xApiSearchTool.ts';
 
 // Knowledge-bundle tools, derived from their contracts so the YAML names
@@ -68,6 +69,9 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   // reading (keyless — works on every provider, including local Ollama).
   // augustin.yaml and librarian-style research agents declare it.
   web_extract: webExtractTool,
+  // Gemini reads URLs in the conversation server-side; a no-op (reported as
+  // dropped by the doctor) on other providers. lib/tools/urlContextTool.ts.
+  url_context: URL_CONTEXT,
   x_search: X_SEARCH,
   // X API v2 recent search as a client-side contract, photos transcribed
   // inline — runs on every provider; needs X_BEARER_TOKEN in the server env.

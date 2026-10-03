@@ -9,7 +9,7 @@ import type { DispatchConfig } from './dispatch.ts';
 export type { DispatchConfig } from './dispatch.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
 import type { OpenApiConfig } from './tools/openapiTools.ts';
-import type { ContextConfig } from './compile.ts';
+import type { ContextConfig, ExampleConfig } from './compile.ts';
 export type { OpenApiConfig } from './tools/openapiTools.ts';
 export type { SkillsConfig } from './tools/skillToolset.ts';
 import type { WorkflowConfig } from './workflowConfig.ts';
@@ -129,6 +129,8 @@ export interface AgentYamlConfig {
   context?: ContextConfig;
   /** `task`: the agent works until it calls finish_task; its arguments are the node's output. Workflow nodes only. */
   mode?: 'task';
+  /** Few-shot exchanges added to every request's instruction (ADK's ExampleTool). */
+  examples?: ExampleConfig[];
   orchestration?: {
     role?: 'primary' | 'sub-agent';
     delegates?: string[];
@@ -172,6 +174,13 @@ export interface SyndicateYamlConfig {
    * See lib/dispatch.ts for the full contract.
    */
   dispatch?: DispatchConfig;
+  /**
+   * Self-correction (ADK's reflect-and-retry plugins), on by default:
+   * `model_errors` retries a model reply ADK marks malformed (default 2),
+   * `tool_errors` caps a tool's retries after it throws, with structured
+   * guidance to the model (default 3). 0 turns either off. ADR 0034.
+   */
+  retries?: { model_errors?: number; tool_errors?: number };
   /**
    * Opts this syndicate into a WORKFLOW: a graph whose nodes are its agents
    * (plus join, map, tool and ask_user nodes) and whose edges say what runs
