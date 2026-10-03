@@ -29,7 +29,9 @@
  */
 
 import { AgentTool, FunctionTool, LlmAgent } from '@google/adk';
+import type { BaseTool, Context, RunAsyncToolRequest } from '@google/adk';
 import type { BaseLlm } from '@google/adk';
+import { relative } from 'node:path';
 
 import { isDispatchSyndicate } from './dispatch.ts';
 import { loadSyndicate, nestedLoader } from './loadSyndicate.ts';
@@ -40,6 +42,8 @@ import { capabilitySummary, describeCapabilities } from './models/capabilities.t
 import { remoteAgentTool } from './a2a/remoteAgent.ts';
 import { buildSkillHarness } from './tools/skillToolset.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
+import { buildOpenApiTools, isOpenApiTool, namesTool } from './tools/openapiTools.ts';
+import type { OpenApiConfig } from './tools/openapiTools.ts';
 
 export interface CompileOptions {
   /**
@@ -138,15 +142,42 @@ export function requireApprovalOn(tool: FunctionTool): FunctionTool {
   return gated;
 }
 
+/**
+ * A copy of an OpenAPI tool (lib/tools/openapiTools.ts) that runs only after
+ * a person approves the call: the same confirmation interrupt FunctionTool's
+ * own gate raises, so the turn pauses and resumes exactly as ADR 0028 says.
+ */
+export function requireApprovalOnBaseTool<T extends BaseTool>(tool: T): T {
+  const gated = Object.create(tool) as T;
+  Object.defineProperty(gated, 'runAsync', {
+    value: async (request: RunAsyncToolRequest) => {
+      const ctx = request.toolContext as Context & { actions: { skipSummarization?: boolean } };
+      if (!ctx.toolConfirmation) {
+        ctx.requestConfirmation({ hint: `Approval is required before ${tool.name} runs.`, payload: request.args });
+        ctx.actions.skipSummarization = true;
+        return { error: 'This call requires approval, please approve or reject.' };
+      }
+      if (!ctx.toolConfirmation.confirmed) return { error: 'This call was rejected.' };
+      return tool.runAsync(request);
+    },
+  });
+  return gated;
+}
+
 function gateTools(tools: unknown[], names: string[] | undefined, agentName: string): unknown[] {
   if (!names?.length) return tools;
   const wanted = new Set(names);
   const out = tools.map((t) => {
-    const name = (t as { name?: string })?.name;
-    if (!name || !wanted.has(name)) return t;
-    wanted.delete(name);
+    const tool = t as { name?: string; operation?: { operationId?: string } };
+    const name = tool?.name;
+    if (!name) return t;
+    // An OpenAPI operation may be named as the YAML named it (its operationId).
+    const match = [...wanted].find((w) => w === name || (isOpenApiTool(t) && namesTool(w, { name, operation: tool.operation })));
+    if (!match) return t;
+    wanted.delete(match);
+    if (isOpenApiTool(t)) return requireApprovalOnBaseTool(t as BaseTool);
     if (!(t instanceof FunctionTool)) {
-      throw new Error(`${agentName}: '${name}' cannot require approval — only function tools from the registry can be gated (ADR 0028).`);
+      throw new Error(`${agentName}: '${name}' cannot require approval — only function tools from the registry and OpenAPI operations can be gated (ADR 0028).`);
     }
     return requireApprovalOn(t);
   });
@@ -167,8 +198,18 @@ async function resolveAgentTools(
   toolNames: string[] | undefined,
   mcpServerUrl: string | undefined,
   opts: CompileOptions,
+  openapi?: OpenApiConfig[],
 ): Promise<unknown[]> {
   const tools = resolveNamedTools(toolNames, opts.onUnknownTool);
+  // OpenAPI operations become tools here, so require_approval can name them.
+  for (const entry of openapi ?? []) {
+    const built = await buildOpenApiTools(entry);
+    opts.log?.(`openapi · ${relative(process.cwd(), entry.spec) || entry.spec}: ${built.map((t) => t.name).join(', ') || '(no operations)'}`);
+    for (const t of built) {
+      if (tools.some((existing: any) => existing?.name === t.name)) throw new Error(`openapi ${entry.spec}: tool '${t.name}' collides with another tool; set a prefix`);
+      tools.push(t);
+    }
+  }
   if (mcpServerUrl) {
     opts.log?.(`Loading MCP tools: ${mcpServerUrl}`);
     const mcpTools = await createMcpTools(mcpServerUrl);
@@ -233,7 +274,7 @@ export async function compileSubagent(
     return compileGraph(nested, opts, subCfg.name, subCfg.description);
   }
 
-  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts), subCfg.require_approval, subCfg.name);
+  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi), subCfg.require_approval, subCfg.name);
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
@@ -291,7 +332,7 @@ export async function compileGraph(
   // that exactly rather than widening the contract in passing.
   compiledTools.push(
     ...gateTools(
-      await resolveAgentTools(config.orchestrator.tools, undefined, opts),
+      await resolveAgentTools(config.orchestrator.tools, undefined, opts, config.orchestrator.openapi),
       config.orchestrator.require_approval,
       overrideName || config.orchestrator.name,
     ),

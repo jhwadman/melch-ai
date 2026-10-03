@@ -1,0 +1,53 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Open-Meteo Geocoding",
+    "version": "1",
+    "description": "A hand-written subset of Open-Meteo's geocoding API (keyless, read-only), for config/agents/examples/weather.yaml. Docs: https://open-meteo.com/en/docs/geocoding-api"
+  },
+  "servers": [
+    {
+      "url": "https://geocoding-api.open-meteo.com/v1"
+    }
+  ],
+  "paths": {
+    "/search": {
+      "get": {
+        "operationId": "findPlace",
+        "summary": "Find a place by name. Returns matching places with their latitude, longitude, country and timezone; the first result is the most likely.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "description": "The place name, e.g. Lyon or Lyon, France.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "How many matches to return (1-10). Use 3.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "description": "Language of the names returned, e.g. en.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The matching places."
+          }
+        }
+      }
+    }
+  }
+}

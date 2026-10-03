@@ -110,6 +110,7 @@ Field reference:
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
 | `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to ADK's LlmAgent. `includeContents: none` makes an agent see only the current message. |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
+| `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
 | `skills` | any agent | Agent Skills (a directory of SKILL.md folders) the agent holds the way a coding harness does: every skill's name and description is appended to its instruction at compile time; `load_skill` reads one in full with the names of its files, `load_skill_resource` reads one file. `scripts: local` adds `run_skill_script`, which runs a skill's own scripts on this machine, each after a person approves (the `require_approval` pause); `tools:` names registry tools a skill's `allowed-tools` may unlock once loaded. Worked example: `examples/harness.yaml`; engine: `lib/tools/skillToolset.ts`. |
 
 Validation happens at load: missing names, legacy option blocks, and
@@ -149,6 +150,40 @@ modifies data on the far side of the protocol. The factory refuses
 loopback/private hosts unless `ALLOW_PRIVATE_MCP=true` (SSRF guard);
 treat any remote MCP server as an untrusted tool vendor whose results
 are data, never instructions.
+
+**OpenAPI tools** turn any HTTP API with an OpenAPI 3 spec into an
+agent's tools, with no tool code (`lib/tools/openapiTools.ts`, on ADK's
+`OpenAPIToolset`; [ADR 0032](./wiki/decisions/0032-openapi-tools.md)):
+
+```yaml
+orchestrator:
+  name: Forecaster
+  openapi:
+    - spec: "specs/open-meteo-forecast.json"     # relative to this YAML file
+      operations: [getForecast]                  # omitted: every GET operation
+      auth: { api_key: { env: "WEATHER_KEY", in: "header", name: "X-Api-Key" } }
+      # base_url: overrides servers[0].url · prefix: keeps two APIs apart
+```
+
+One tool per operation, named from its `operationId` in snake_case
+(`getForecast` → `get_forecast`; no `operationId`: path and method), with
+the parameters and request body as its arguments and the operation's
+`summary` as the description the model reads. Exposure is deliberate:
+without `operations`, only GET operations become tools, so anything that
+writes is exposed only by naming it, and a named operation can be listed
+under `require_approval` (as written under `operations`) so a person
+approves each call. `auth` names an environment variable, never a value
+(`bearer_env`, or `api_key` with `in: header | query` and `name`); an unset
+variable fails the compile, and a static token is applied to the request,
+never stored in session state. Every server must be http(s) and pass the
+SSRF guard: its literal rules when the agent compiles, the full check with
+DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for
+local development. A response over 20,000 characters is cut and says so; a
+network failure comes back to the model as an error. Specs are files, never
+URLs: save the spec beside the YAML and review it like code (trim it to the
+operations the agent needs, and write each `summary` for the model). Worked
+example: `config/agents/examples/weather.yaml`, two keyless Open-Meteo specs
+in `examples/specs/`.
 
 > **Schema dialects, handled for you.** The factory emits Gemini-style
 > UPPERCASE schema types (`'OBJECT'`, `'STRING'`, …) because the ADK is

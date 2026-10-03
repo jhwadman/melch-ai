@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **`openapi:`: any HTTP API as an agent's tools, from its spec.** An agent
+  lists OpenAPI 3 spec files (relative to the syndicate file); every operation
+  becomes a tool named from its `operationId`, its parameters the arguments,
+  its summary the description. Read-only by default (GET operations only,
+  unless `operations` names others); a named operation can be listed under
+  `require_approval`. Credentials come from environment variables
+  (`auth.bearer_env`, `auth.api_key`), never YAML, and are never stored in
+  session state. Every server passes the SSRF guard (literal rules at
+  compile, DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` for local
+  development); results are capped at 20,000 characters. On ADK's
+  `OpenAPIToolset`. Worked example: `config/agents/examples/weather.yaml`
+  (`npm run syndicate:weather`), with two keyless Open-Meteo specs. ADR 0032.
 - **`ask_user`: an agent asks the person and waits.** A registry tool,
   `ask_user(question, options?)`, on the orchestrator or a plan-dispatch
   route. Called, it ends the turn `input-required` with `result.input`

@@ -192,6 +192,83 @@
           "additionalProperties": false,
           "description": "Agent Skills (SKILL.md directories) this agent reads the way a coding harness does."
         },
+        "openapi": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "spec": {
+                "type": "string",
+                "minLength": 1,
+                "description": "An OpenAPI 3 spec file (.yaml, .yml, .json), relative to this syndicate file. Files only, never URLs."
+              },
+              "operations": {
+                "description": "Operations to expose, by operationId or tool name. Omitted: every GET operation, and nothing that writes.",
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "base_url": {
+                "description": "Overrides the spec's servers[0].url. Checked by the SSRF guard.",
+                "type": "string",
+                "format": "uri"
+              },
+              "prefix": {
+                "description": "Prepended to each tool name, to keep two APIs apart.",
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "auth": {
+                "description": "Credentials, always from the environment, never written in YAML.",
+                "type": "object",
+                "properties": {
+                  "bearer_env": {
+                    "description": "Environment variable holding a bearer token.",
+                    "type": "string",
+                    "pattern": "^[A-Z_][A-Z0-9_]*$"
+                  },
+                  "api_key": {
+                    "description": "An API key read from `env`, sent in a header or the query under `name`.",
+                    "type": "object",
+                    "properties": {
+                      "env": {
+                        "type": "string",
+                        "pattern": "^[A-Z_][A-Z0-9_]*$"
+                      },
+                      "in": {
+                        "type": "string",
+                        "enum": [
+                          "header",
+                          "query"
+                        ]
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "env",
+                      "in",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "spec"
+            ],
+            "additionalProperties": false,
+            "description": "An HTTP API as tools, from its OpenAPI spec (lib/tools/openapiTools.ts)."
+          }
+        },
         "orchestration": {
           "type": "object",
           "properties": {
@@ -408,6 +485,83 @@
             ],
             "additionalProperties": false,
             "description": "Agent Skills (SKILL.md directories) this agent reads the way a coding harness does."
+          },
+          "openapi": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "spec": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "An OpenAPI 3 spec file (.yaml, .yml, .json), relative to this syndicate file. Files only, never URLs."
+                },
+                "operations": {
+                  "description": "Operations to expose, by operationId or tool name. Omitted: every GET operation, and nothing that writes.",
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "base_url": {
+                  "description": "Overrides the spec's servers[0].url. Checked by the SSRF guard.",
+                  "type": "string",
+                  "format": "uri"
+                },
+                "prefix": {
+                  "description": "Prepended to each tool name, to keep two APIs apart.",
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                },
+                "auth": {
+                  "description": "Credentials, always from the environment, never written in YAML.",
+                  "type": "object",
+                  "properties": {
+                    "bearer_env": {
+                      "description": "Environment variable holding a bearer token.",
+                      "type": "string",
+                      "pattern": "^[A-Z_][A-Z0-9_]*$"
+                    },
+                    "api_key": {
+                      "description": "An API key read from `env`, sent in a header or the query under `name`.",
+                      "type": "object",
+                      "properties": {
+                        "env": {
+                          "type": "string",
+                          "pattern": "^[A-Z_][A-Z0-9_]*$"
+                        },
+                        "in": {
+                          "type": "string",
+                          "enum": [
+                            "header",
+                            "query"
+                          ]
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "env",
+                        "in",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "spec"
+              ],
+              "additionalProperties": false,
+              "description": "An HTTP API as tools, from its OpenAPI spec (lib/tools/openapiTools.ts)."
+            }
           },
           "orchestration": {
             "type": "object",

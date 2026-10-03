@@ -8,6 +8,8 @@ import type { DispatchConfig } from './dispatch.ts';
 
 export type { DispatchConfig } from './dispatch.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
+import type { OpenApiConfig } from './tools/openapiTools.ts';
+export type { OpenApiConfig } from './tools/openapiTools.ts';
 export type { SkillsConfig } from './tools/skillToolset.ts';
 import type { WorkflowConfig } from './workflowConfig.ts';
 export type { WorkflowConfig } from './workflowConfig.ts';
@@ -114,6 +116,12 @@ export interface AgentYamlConfig {
    * scripts run only after approval. lib/tools/skillToolset.ts.
    */
   skills?: SkillsConfig;
+  /**
+   * HTTP APIs this agent may call, each from an OpenAPI 3 spec file: one tool
+   * per operation, the GET operations unless `operations` names others, auth
+   * from environment variables. lib/tools/openapiTools.ts.
+   */
+  openapi?: OpenApiConfig[];
   orchestration?: {
     role?: 'primary' | 'sub-agent';
     delegates?: string[];
@@ -489,8 +497,22 @@ export function loadSyndicate(
   options: LoadSyndicateOptions = {},
 ): SyndicateYamlConfig {
   const { bindings = {}, overrides } = options;
-  const { raw, label } = readSyndicateFile(filename, options);
-  return resolveAndValidate(raw, label, { bindings, overrides });
+  const { raw, label, filePath } = readSyndicateFile(filename, options);
+  return anchorSpecPaths(resolveAndValidate(raw, label, { bindings, overrides }), path.dirname(filePath));
+}
+
+/**
+ * An `openapi:` spec path is written relative to the syndicate file, so a
+ * file copied with its specs keeps working from any working directory. A
+ * definition from the registry has no file and resolves against the cwd.
+ */
+function anchorSpecPaths(config: SyndicateYamlConfig, dir: string): SyndicateYamlConfig {
+  const anchor = (agent: { openapi?: OpenApiConfig[] } | undefined) => {
+    for (const entry of agent?.openapi ?? []) if (!path.isAbsolute(entry.spec)) entry.spec = path.resolve(dir, entry.spec);
+  };
+  anchor(config.orchestrator);
+  for (const sub of config.subagents ?? []) anchor(sub);
+  return config;
 }
 
 /**
@@ -501,7 +523,7 @@ export function loadSyndicate(
 export function readSyndicateFile(
   filename: string,
   options: Pick<LoadSyndicateOptions, 'agentsDir' | 'shippedFallback'> = {},
-): { raw: unknown; label: string } {
+): { raw: unknown; label: string; filePath: string } {
   // Security: confine reads to the agents root. `filename` can originate from
   // a network-controlled path segment (see a2a_server dynamic routes), so we
   // must reject any value that resolves outside that root (e.g. "../../.env").
@@ -533,7 +555,7 @@ export function readSyndicateFile(
   // is under it), so a multi-file nested load says WHICH file is wrong.
   const rel = path.relative(process.cwd(), filePath);
   const label = rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : filePath;
-  return { raw: parse(fileContent), label };
+  return { raw: parse(fileContent), label, filePath };
 }
 
 /**
