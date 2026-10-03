@@ -1,13 +1,13 @@
 ---
 type: model-provider
 title: Provider routing
-description: "How a model string in YAML reaches the right provider adapter: one prefix table, five providers, availability by API key."
+description: "How a model string in YAML reaches the right provider adapter: one prefix table, six providers, availability by API key."
 tags:
   - models
   - routing
 generated:
   by: process:wiki-build
-  at: 2026-10-02
+  at: 2026-10-03
 sources:
   - resource: lib/models/providerMap.ts
   - resource: lib/models/registry.ts
@@ -31,6 +31,7 @@ The chat-completions adapters (Ollama and the gateways, both over `lib/models/op
 | anthropic | Anthropic Claude | `ANTHROPIC_API_KEY` | `claude-*` | `claude-sonnet-4-6` |
 | openai | OpenAI GPT | `OPENAI_API_KEY` | `gpt-*`, `o<digit>*` | `gpt-5-mini` |
 | xai | xAI Grok | `XAI_API_KEY` | `grok-*` | `grok-4.7` |
+| moonshot | Moonshot Kimi | `MOONSHOT_API_KEY` | `kimi-*` | `kimi-k3` |
 | ollama | Ollama (local) | (keyless, local) | `ollama/<model>` | `ollama/qwen3:8b` |
 <!-- /wiki:generated -->
 
@@ -51,33 +52,37 @@ The provider is the id's; the *platform* is configuration (`lib/models/endpoints
 Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/config.ts). Schema-dialect bridging between Gemini-uppercase and standard JSON Schema is covered in [tool contracts](/tools/tool-contracts.md).
 
 <!-- wiki:generated section="capabilities" source="lib/models/capabilities.ts" -->
-| Capability | Google Gemini | Anthropic Claude | OpenAI GPT | xAI Grok | Ollama (local) | Gateway (any id) |
-|---|---|---|---|---|---|---|
-| delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ◐2 | ✓3 |
-| thinking with tool use | ✓ | ✗4 | ◐5 | ◐6 | ◐7 | ◐8 |
-| token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| image input | ✓ | ✗9 | ✓10 | ✓11 | ✓12 | ✓13 |
-| native web search | ✓ | ✓ | ✓ | ✓ | ✗14 | ✗15 |
+| Capability | Google Gemini | Anthropic Claude | OpenAI GPT | xAI Grok | Moonshot Kimi | Ollama (local) | Gateway (any id) |
+|---|---|---|---|---|---|---|---|
+| delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ◐3 | ✓4 |
+| thinking with tool use | ✓ | ✗5 | ◐6 | ◐7 | ◐8 | ◐9 | ◐10 |
+| token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| image input | ✓ | ✗11 | ✓12 | ✓13 | ✓14 | ✓15 | ✓16 |
+| native web search | ✓ | ✓ | ✓ | ✓ | ✗17 | ✗18 | ✗19 |
 
 ✓ supported · ◐ degraded · ✗ unsupported. Gemini cells are ADK's own adapter; every other cell is asserted against the request the adapter sends.
 
 1. Anthropic Claude · structured output (outputSchema): sent as a forced tool call; with a thinking budget the tool is offered under tool_choice auto.
-2. Ollama (local) · structured output (outputSchema): JSON mode only (json_object): the output is JSON but the schema is not enforced.
-3. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
-4. Anthropic Claude · thinking with tool use: signed thinking blocks are not replayed on tool loops, which Anthropic requires; give a thinking Claude agent no tools.
-5. OpenAI GPT · thinking with tool use: reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step.
-6. xAI Grok · thinking with tool use: reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step.
-7. Ollama (local) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever.
-8. Gateway (any id) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever.
-9. Anthropic Claude · image input: image parts are dropped from the request; route image work to a Gemini, GPT or vision Ollama agent.
-10. OpenAI GPT · image input: user-turn images only.
-11. xAI Grok · image input: user-turn images only.
-12. Ollama (local) · image input: needs a vision model, e.g. ollama/qwen3-vl:8b.
-13. Gateway (any id) · image input: upstream model must accept images.
-14. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
-15. Gateway (any id) · native web search: a gateway cannot enable upstream native search; the web_search sentinel is dropped.
+2. Moonshot Kimi · structured output (outputSchema): strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf).
+3. Ollama (local) · structured output (outputSchema): JSON mode only (json_object): the output is JSON but the schema is not enforced.
+4. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
+5. Anthropic Claude · thinking with tool use: signed thinking blocks are not replayed on tool loops, which Anthropic requires; give a thinking Claude agent no tools.
+6. OpenAI GPT · thinking with tool use: reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step.
+7. xAI Grok · thinking with tool use: reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step.
+8. Moonshot Kimi · thinking with tool use: reasoning_content is not replayed across tool calls, which Moonshot asks for on kimi-k3, so the model re-reasons each step; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
+9. Ollama (local) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever.
+10. Gateway (any id) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever.
+11. Anthropic Claude · image input: image parts are dropped from the request; route image work to a Gemini, GPT or vision Ollama agent.
+12. OpenAI GPT · image input: user-turn images only.
+13. xAI Grok · image input: user-turn images only.
+14. Moonshot Kimi · image input: user-turn images only, sent as base64 (Moonshot takes no public image URLs).
+15. Ollama (local) · image input: needs a vision model, e.g. ollama/qwen3-vl:8b.
+16. Gateway (any id) · image input: upstream model must accept images.
+17. Moonshot Kimi · native web search: Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract).
+18. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
+19. Gateway (any id) · native web search: a gateway cannot enable upstream native search; the web_search sentinel is dropped.
 
 **Cloud platforms** (ADR 0023): the same adapter and request as the provider's own API, except as listed. These paths are tested against mocks, not against the live clouds.
 

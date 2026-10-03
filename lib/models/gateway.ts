@@ -4,7 +4,7 @@
  * WHY this file exists:
  *   A newcomer should be able to run every starter-pack syndicate with ONE
  *   credential when they choose to. A hosted gateway (Vercel AI Gateway,
- *   OpenRouter) fronts OpenAI, Anthropic, Google and xAI behind a single
+ *   OpenRouter) fronts OpenAI, Anthropic, Google, xAI and Moonshot behind a single
  *   OpenAI-compatible endpoint, so a model id whose direct key is absent can
  *   still be served. This module owns that decision and nothing else.
  *
@@ -69,14 +69,14 @@ export const GATEWAYS: Record<GatewayId, GatewayInfo> = {
     label: 'Vercel AI Gateway',
     baseUrl: 'https://ai-gateway.vercel.sh/v1',
     consoleUrl: 'https://vercel.com/ai-gateway',
-    slugs: { gemini: 'google', anthropic: 'anthropic', openai: 'openai', xai: 'xai' },
+    slugs: { gemini: 'google', anthropic: 'anthropic', openai: 'openai', xai: 'xai', moonshot: 'moonshotai' },
   },
   openrouter: {
     id: 'openrouter',
     label: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1',
     consoleUrl: 'https://openrouter.ai/keys',
-    slugs: { gemini: 'google', anthropic: 'anthropic', openai: 'openai', xai: 'x-ai' },
+    slugs: { gemini: 'google', anthropic: 'anthropic', openai: 'openai', xai: 'x-ai', moonshot: 'moonshotai' },
   },
 };
 
@@ -145,7 +145,7 @@ function modelMapFromEnv(): Record<string, string> {
  * Gateways prefix every id with the upstream provider's slug and spell
  * Anthropic's version segment with a dot ("claude-sonnet-4-6" is
  * "anthropic/claude-sonnet-4.6" on both Vercel and OpenRouter). Gemini,
- * GPT and Grok ids already carry dots, so only the prefix is added. An id
+ * GPT, Grok and Kimi ids already carry dots, so only the prefix is added. An id
  * the mapper gets wrong is fixed in MODEL_GATEWAY_MODEL_MAP, not in code.
  */
 export function gatewayWireModel(model: string, gateway: GatewayInfo): string {

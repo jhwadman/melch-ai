@@ -229,6 +229,19 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     vision: ok('test', 'user-turn images only'),
     native_search: nativeSearch('xai'),
   },
+  moonshot: {
+    delegation: ok(),
+    memory_tools: ok(),
+    structured_output: ok('test', 'strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf)'),
+    thinking_with_tools: degraded(
+      'reasoning_content is not replayed across tool calls, which Moonshot asks for on kimi-k3, so the model re-reasons each step; effort travels as reasoning_effort (K3) or a thinking switch (K2.x)',
+    ),
+    streaming: ok(),
+    vision: ok('test', 'user-turn images only, sent as base64 (Moonshot takes no public image URLs)'),
+    native_search: unsupported(
+      "Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract)",
+    ),
+  },
   ollama: {
     delegation: ok(),
     memory_tools: ok(),

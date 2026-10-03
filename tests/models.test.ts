@@ -23,6 +23,7 @@ import {
 } from '../lib/models/registry.ts';
 import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
 import { GrokLlm } from '../lib/models/grokLlm.ts';
+import { KimiLlm } from '../lib/models/kimiLlm.ts';
 import { ClaudeLlm, buildAnthropicTools } from '../lib/models/claudeLlm.ts';
 import {
   GptLlm,
@@ -99,6 +100,8 @@ test('providerForModel maps every prefix to its provider', () => {
   assert.equal(providerForModel('gpt-5-mini'), 'openai');
   assert.equal(providerForModel('o4-mini'), 'openai');
   assert.equal(providerForModel('grok-4-1-fast-reasoning'), 'xai');
+  assert.equal(providerForModel('kimi-k3'), 'moonshot');
+  assert.equal(providerForModel('kimi-k2.7-code-highspeed'), 'moonshot');
   assert.equal(providerForModel('ollama/qwen3:8b'), 'ollama');
   assert.equal(providerForModel('gemini-3.5-flash-lite'), 'gemini');
   assert.equal(providerForModel('something-unknown'), 'gemini'); // ADK-native default
@@ -109,6 +112,7 @@ test('resolveModel returns the right adapter instance; model id wins over header
   assert.ok(resolveModel('claude-sonnet-4-6') instanceof ClaudeLlm);
   assert.ok(resolveModel('grok-4-1-fast-reasoning') instanceof GrokLlm);
   assert.ok(resolveModel('gpt-5-mini') instanceof GptLlm);
+  assert.ok(resolveModel('kimi-k3') instanceof KimiLlm);
 });
 
 test('resolveModel uses the deprecated provider header only when model is absent', () => {
@@ -122,10 +126,11 @@ test('providerStatuses reflects env keys; ollama is always available', () => {
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
     delete process.env.XAI_API_KEY;
+    delete process.env.MOONSHOT_API_KEY;
     delete process.env.GOOGLE_GENAI_API_KEY;
     delete process.env.GEMINI_API_KEY;
     const off = Object.fromEntries(providerStatuses().map((s) => [s.provider, s.available]));
-    assert.deepEqual(off, { gemini: false, anthropic: false, openai: false, xai: false, ollama: true });
+    assert.deepEqual(off, { gemini: false, anthropic: false, openai: false, xai: false, moonshot: false, ollama: true });
 
     process.env.XAI_API_KEY = 'test-key';
     assert.equal(providerKeyPresent('xai'), true);
@@ -220,6 +225,73 @@ test('OllamaLlm yields thought part, answer, and usageMetadata from a stubbed re
     assert.equal(requestBody.model, 'qwen3:8b'); // ollama/ namespace stripped
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+// ── Moonshot Kimi: the reasoning controls per generation ────────────────────
+
+/** The body KimiLlm posts for one request, captured from a stubbed fetch. */
+async function kimiBody(model: string, config: Record<string, unknown>): Promise<any> {
+  const originalFetch = globalThis.fetch;
+  const savedKey = process.env.MOONSHOT_API_KEY;
+  process.env.MOONSHOT_API_KEY = 'fixture-moonshot-0123456789abcdef'; // gitleaks:allow (test fixture)
+  let url = '';
+  let body: any;
+  globalThis.fetch = (async (u: any, init: any) => {
+    url = String(u);
+    body = JSON.parse(init.body);
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: 'An answer.', reasoning_content: 'pondering' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 5, completion_tokens: 7, total_tokens: 12, completion_tokens_details: { reasoning_tokens: 3 } },
+      }),
+      { status: 200 },
+    );
+  }) as any;
+  try {
+    const llm = new KimiLlm({ model });
+    const responses = await collect(llm.generateContentAsync(makeRequest({ model, config: config as any })));
+    const final = responses.find((r) => r.turnComplete);
+    assert.ok(final, 'expected a final response');
+    assert.equal((final!.content!.parts![0] as any).text, 'An answer.');
+    assert.equal(final!.usageMetadata?.thoughtsTokenCount, 3);
+    assert.ok(responses.some((r) => (r.content?.parts?.[0] as any)?.thought), 'reasoning_content surfaces as a thought');
+    assert.equal(url, 'https://api.moonshot.ai/v1/chat/completions');
+    return body;
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (savedKey === undefined) delete process.env.MOONSHOT_API_KEY;
+    else process.env.MOONSHOT_API_KEY = savedKey;
+  }
+}
+
+test('KimiLlm: kimi-k3 pins reasoning_effort below max, keeps an explicit effort, and never sends a thinking switch', async () => {
+  const pinned = await kimiBody('kimi-k3', {});
+  assert.equal(pinned.model, 'kimi-k3');
+  assert.equal(pinned.reasoning_effort, 'high');
+  assert.ok(!('thinking' in pinned));
+  assert.equal((await kimiBody('kimi-k3', { reasoningEffort: 'max' })).reasoning_effort, 'max');
+  // K3 cannot switch thinking off: "none" becomes the lightest effort.
+  assert.equal((await kimiBody('kimi-k3', { reasoningEffort: 'none' })).reasoning_effort, 'low');
+});
+
+test('KimiLlm: the K2 generation takes a thinking switch and no reasoning_effort', async () => {
+  const on = await kimiBody('kimi-k2.6', { reasoningEffort: 'low' });
+  assert.ok(!('reasoning_effort' in on), 'reasoning_effort is K3-only');
+  assert.ok(!('thinking' in on), 'thinking stays on by default');
+  const off = await kimiBody('kimi-k2.6', { reasoningEffort: 'none' });
+  assert.deepEqual(off.thinking, { type: 'disabled' });
+  assert.deepEqual((await kimiBody('kimi-k2.6', { thinkingConfig: { thinkingBudget: 0 } })).thinking, { type: 'disabled' });
+});
+
+test('KimiLlm: without a key the turn ends before any request', async () => {
+  const saved = process.env.MOONSHOT_API_KEY;
+  delete process.env.MOONSHOT_API_KEY;
+  try {
+    const responses = await collect(new KimiLlm({ model: 'kimi-k3' }).generateContentAsync(makeRequest({ model: 'kimi-k3' })));
+    assert.equal(responses[0]?.errorCode, 'MOONSHOT_MISSING_KEY');
+  } finally {
+    if (saved !== undefined) process.env.MOONSHOT_API_KEY = saved;
   }
 });
 

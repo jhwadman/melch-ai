@@ -14,6 +14,7 @@ description: How a model id in a YAML becomes a provider call — the prefix tab
 | `claude-*` | Anthropic | `ANTHROPIC_API_KEY` |
 | `gpt-*`, `o<digit>*` | OpenAI | `OPENAI_API_KEY` |
 | `grok-*` | xAI | `XAI_API_KEY` |
+| `kimi-*` | Moonshot AI (Kimi) | `MOONSHOT_API_KEY` |
 | anything else | Gemini (the ADK-native default) | `GOOGLE_GENAI_API_KEY` (or `GEMINI_API_KEY`) |
 
 The fallback is silent and deliberate: a typo in a `claude-` id does not error,
@@ -27,8 +28,8 @@ only when it is absent.
 
 ## The adapters
 
-One per provider (`claudeLlm.ts`, `gptLlm.ts`, `grokLlm.ts`, `ollamaLlm.ts`,
-`openAiCompatibleLlm.ts`, `gatewayLlm.ts`), all reaching the tracer through
+One per provider (`claudeLlm.ts`, `gptLlm.ts`, `grokLlm.ts`, `kimiLlm.ts`,
+`ollamaLlm.ts`, `openAiCompatibleLlm.ts`, `gatewayLlm.ts`), all reaching the tracer through
 `traceLlmGeneration`, which is where `max_steps`, cancellation and token
 accounting apply. Tool declarations come from `toolDeclarationFor()`
 (`schemaNormalize.ts`), never from a tool's private fields. A provider quirk
@@ -54,4 +55,9 @@ capability that cannot reach parity is stated there before it is promised.
 
 Every routing choice is a spend choice. Before changing a model on a
 scheduled agent, say what it does to the run's cost and where that shows up
-(the ledger, the task records, budgets — ADR 0026).
+(the ledger, the task records, budgets — ADR 0026). Read the list price
+against the closed tiers before calling an open model cheap: `kimi-k3` costs
+what Claude Sonnet 4.6 costs and thinks on every turn, billed as output
+(ADR 0035); `kimi-k2.6` is its budget tier. A reasoning model's default
+effort is part of its price — pin it in the adapter, as the Grok and Kimi
+adapters do.

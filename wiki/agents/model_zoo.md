@@ -6,7 +6,7 @@ tags:
   - syndicate
 generated:
   by: process:wiki-build
-  at: 2026-10-01
+  at: 2026-10-03
 sources:
   - resource: config/agents/examples/model_zoo.yaml
 ---
@@ -28,4 +28,5 @@ The Model Zoo syndicate serves as a proof of model optionality, demonstrating ho
 | grok | `grok-4.7` | — | — |
 | gpt | `gpt-5-mini` | — | — |
 | gemini | `gemini-3.5-flash-lite` | — | — |
+| kimi | `kimi-k3` | — | — |
 <!-- /wiki:generated -->

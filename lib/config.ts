@@ -68,6 +68,25 @@ export const DEFAULT_GROK_MODEL = 'grok-4.7';
 export const DEFAULT_GROK_REASONING_EFFORT = 'medium';
 
 /**
+ * Default Moonshot model used when a kimi-* model is requested but no
+ * specific identifier is provided. Requires MOONSHOT_API_KEY
+ * (lib/models/kimiLlm.ts). kimi-k3 is the flagship, priced like a mid-tier
+ * closed model ($3 / $15, Claude Sonnet 4.6's price; Sonnet 5.5 is cheaper);
+ * kimi-k2.6 is the general tier at a quarter of that (the family table and
+ * the cost note are in the adapter's header).
+ */
+export const DEFAULT_KIMI_MODEL = 'kimi-k3';
+
+/**
+ * Reasoning effort sent with kimi-k3 requests: 'low' | 'high' | 'max'
+ * (Moonshot's own default is 'max'; K3 always thinks and has no off switch).
+ * Pinned to HIGH — one step below max, which is the benchmark setting and
+ * the slowest; an agent sets generateContentConfig.reasoningEffort to
+ * override. Source: platform.moonshot.ai › Guides › Reasoning effort.
+ */
+export const DEFAULT_KIMI_REASONING_EFFORT = 'high';
+
+/**
  * Default open-weight model, served locally by Ollama (lib/models/ollamaLlm.ts).
  * qwen3:8b is the smallest pulled model that supports tool calling — the
  * floor capability for syndicate delegation. Vision work uses ollama/qwen3-vl:8b.

@@ -6,6 +6,22 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Moonshot AI (Kimi) is a provider.** `kimi-*` model ids route to a new
+  direct adapter (`lib/models/kimiLlm.ts`, chat completions against
+  `api.moonshot.ai`), funded by `MOONSHOT_API_KEY` (`MOONSHOT_BASE_URL` for a
+  proxy). Tool calling, delegation, strict structured output, streaming,
+  images and `reasoning_content` work; native `web_search` is dropped with a
+  warning (Moonshot's model-side search retires 2026-10-20), and thinking is
+  not carried across a tool loop (K3 re-reasons each step; both stated in
+  the capability matrix). `kimi-k3` takes `reasoning_effort` (pinned `high`,
+  `DEFAULT_KIMI_REASONING_EFFORT`); K2.x ids take a thinking switch. With no
+  direct key the gateway serves the ids as `moonshotai/…`. The doctor,
+  `.env.example`, the schema comments and the docs know the provider;
+  `model_zoo.yaml` gains a sixth agent, `kimi` on `kimi-k3` at low effort,
+  and the Zookeeper names six providers. Cost note: `kimi-k3` is priced
+  like Claude Sonnet 4.6 ($3 / $15, thinking billed as output), so
+  `kimi-k2.6` is the budget tier and the gateway the cheap route to K3.
+  Not run live from this repository.
 - **Behaviour change: self-correction is on by default.** Every turn now runs
   ADK's reflect-and-retry plugins. A model reply ADK marks malformed
   (`MALFORMED_FUNCTION_CALL`) is retried up to twice with guidance instead of

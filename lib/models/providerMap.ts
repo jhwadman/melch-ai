@@ -10,10 +10,10 @@
  * Model-name conventions (see DOCUMENTATION.md §7):
  *   claude-*   → anthropic     gpt-* / o<digit>* → openai
  *   grok-*     → xai           ollama/<model>    → ollama (local, keyless)
- *   everything else            → gemini (the ADK-native default)
+ *   kimi-*     → moonshot      everything else   → gemini (the ADK-native default)
  */
 
-export type ProviderId = 'gemini' | 'anthropic' | 'openai' | 'xai' | 'ollama';
+export type ProviderId = 'gemini' | 'anthropic' | 'openai' | 'xai' | 'moonshot' | 'ollama';
 
 interface ProviderInfo {
   /** Env var holding the API key; null = keyless (local). */
@@ -27,6 +27,7 @@ export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
   anthropic: { keyEnv: 'ANTHROPIC_API_KEY', label: 'Anthropic Claude' },
   openai: { keyEnv: 'OPENAI_API_KEY', label: 'OpenAI GPT' },
   xai: { keyEnv: 'XAI_API_KEY', label: 'xAI Grok' },
+  moonshot: { keyEnv: 'MOONSHOT_API_KEY', label: 'Moonshot Kimi' },
   ollama: { keyEnv: null, label: 'Ollama (local)' },
 };
 
@@ -37,6 +38,7 @@ export function providerForModel(model: string): ProviderId {
   if (/^claude-/.test(model)) return 'anthropic';
   if (/^gpt-/.test(model) || /^o[0-9]/.test(model)) return 'openai';
   if (/^grok-/.test(model)) return 'xai';
+  if (/^kimi-/.test(model)) return 'moonshot';
   return 'gemini';
 }
 
