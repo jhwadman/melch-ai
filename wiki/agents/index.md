@@ -32,4 +32,5 @@
 - [Global Synthesis Council](/agents/syndicate.md) — The Global Synthesis Council syndicate.
 - [Systems Operator](/agents/systems_operator.md) — The Systems Operator syndicate.
 - [Tutor](/agents/tutor.md) — The Tutor syndicate.
+- [Weather](/agents/weather.md) — The Weather syndicate.
 <!-- /wiki:generated -->

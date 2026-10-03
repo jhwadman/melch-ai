@@ -5,41 +5,41 @@
     "at": "2026-10-03"
   },
   "stats": {
-    "nodes": 586,
-    "edges": 1358,
+    "nodes": 596,
+    "edges": 1383,
     "byKind": {
-      "doc": 81,
+      "doc": 84,
       "provider": 5,
-      "env": 96,
+      "env": 97,
       "model": 7,
       "tool": 33,
-      "file": 65,
-      "syndicate": 31,
-      "agent": 87,
+      "file": 67,
+      "syndicate": 32,
+      "agent": 88,
       "mcp-server": 4,
       "table": 16,
-      "module": 115,
-      "script": 44,
+      "module": 116,
+      "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 206,
-      "requires_env": 149,
+      "links_to": 211,
+      "requires_env": 150,
       "routes_to": 7,
-      "defined_in": 74,
-      "documents": 55,
-      "contains": 87,
-      "uses_model": 87,
+      "defined_in": 75,
+      "documents": 56,
+      "contains": 88,
+      "uses_model": 88,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 325,
+      "imports": 328,
       "reads_table": 28,
-      "runs": 64,
-      "derives_from": 210
+      "runs": 66,
+      "derives_from": 220
     },
     "byTier": {
-      "extracted": 1358,
+      "extracted": 1383,
       "inferred": 0
     },
     "isolated": 3
@@ -418,6 +418,18 @@
       }
     },
     {
+      "id": "/agents/weather.md",
+      "kind": "doc",
+      "label": "Weather",
+      "source": "/agents/weather.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 206
+      }
+    },
+    {
       "id": "/decisions/0001-okf-profile.md",
       "kind": "doc",
       "label": "ADR 0001: Adopt OKF v0.2 as the bundle format",
@@ -766,6 +778,18 @@
       }
     },
     {
+      "id": "/decisions/0032-openapi-tools.md",
+      "kind": "doc",
+      "label": "ADR 0032: Any HTTP API with an OpenAPI spec becomes an agent's tools through `openapi:`, read-only by default",
+      "source": "/decisions/0032-openapi-tools.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 589
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -955,6 +979,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 246
+      }
+    },
+    {
+      "id": "/tools/openapi-tools.md",
+      "kind": "doc",
+      "label": "OpenAPI tools",
+      "source": "/tools/openapi-tools.md",
+      "attrs": {
+        "type": "tool",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 207
       }
     },
     {
@@ -1948,6 +1984,16 @@
       }
     },
     {
+      "id": "agent:weather/Forecaster",
+      "kind": "agent",
+      "label": "Forecaster",
+      "source": "config/agents/examples/weather.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "weather"
+      }
+    },
+    {
       "id": "env:A2A_AGENT_TOKENS",
       "kind": "env",
       "label": "A2A_AGENT_TOKENS",
@@ -2060,6 +2106,12 @@
       "kind": "env",
       "label": "ALLOW_PRIVATE_MCP",
       "source": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "id": "env:ALLOW_PRIVATE_OPENAPI",
+      "kind": "env",
+      "label": "ALLOW_PRIVATE_OPENAPI",
+      "source": "lib/tools/openapiTools.ts"
     },
     {
       "id": "env:ALLOW_SCHEMA_MISMATCH",
@@ -2713,6 +2765,13 @@
       "attrs": {}
     },
     {
+      "id": "file:config/agents/examples/weather.yaml",
+      "kind": "file",
+      "label": "weather.yaml",
+      "source": "config/agents/examples/weather.yaml",
+      "attrs": {}
+    },
+    {
       "id": "file:config/agents/README.md",
       "kind": "file",
       "label": "README.md",
@@ -2957,6 +3016,13 @@
       "source": "tests/models.test.ts"
     },
     {
+      "id": "file:tests/openapiTools.test.ts",
+      "kind": "file",
+      "label": "openapiTools.test.ts",
+      "source": "tests/openapiTools.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/questions.test.ts",
       "kind": "file",
       "label": "questions.test.ts",
@@ -3131,7 +3197,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 327
+        "lines": 368
       }
     },
     {
@@ -3212,7 +3278,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 650
+        "lines": 672
       }
     },
     {
@@ -3599,7 +3665,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 825
+        "lines": 855
       }
     },
     {
@@ -3654,6 +3720,15 @@
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
         "lines": 143
+      }
+    },
+    {
+      "id": "module:lib/tools/openapiTools.ts",
+      "kind": "module",
+      "label": "lib/tools/openapiTools.ts",
+      "source": "lib/tools/openapiTools.ts",
+      "attrs": {
+        "lines": 192
       }
     },
     {
@@ -4067,7 +4142,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1329
+        "lines": 1336
       }
     },
     {
@@ -4458,6 +4533,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate tutor"
+      }
+    },
+    {
+      "id": "script:syndicate:weather",
+      "kind": "script",
+      "label": "npm run syndicate:weather",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate weather"
       }
     },
     {
@@ -4860,6 +4944,17 @@
       "kind": "syndicate",
       "label": "Tutor",
       "source": "config/agents/examples/tutor.yaml",
+      "attrs": {
+        "memory": "internal-only",
+        "agents": 1,
+        "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:weather",
+      "kind": "syndicate",
+      "label": "Weather",
+      "source": "config/agents/examples/weather.yaml",
       "attrs": {
         "memory": "internal-only",
         "agents": 1,
@@ -5841,6 +5936,34 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/agents/tutor.md"
+    },
+    {
+      "from": "/agents/weather.md",
+      "to": "file:config/agents/examples/weather.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/weather.md frontmatter"
+    },
+    {
+      "from": "/agents/weather.md",
+      "to": "syndicate:weather",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/weather.md"
+    },
+    {
+      "from": "/agents/weather.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/weather.md:17"
+    },
+    {
+      "from": "/agents/weather.md",
+      "to": "/tools/openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/weather.md:17"
     },
     {
       "from": "/decisions/0001-okf-profile.md",
@@ -7033,6 +7156,48 @@
       "evidence": "/decisions/0031-ask-user.md frontmatter"
     },
     {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "file:config/agents/examples/weather.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8221,6 +8386,48 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/tools/evidence-tools.md"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "file:config/agents/examples/weather.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/agents/weather.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:19"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:21"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:21"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -9630,6 +9837,13 @@
       "evidence": "config/agents/examples/tutor.yaml"
     },
     {
+      "from": "agent:weather/Forecaster",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/weather.yaml"
+    },
+    {
       "from": "mcp-server:http://localhost:8931/sse",
       "to": "module:scripts/demo_mcp_server.ts",
       "rel": "defined_in",
@@ -9953,6 +10167,13 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/tools/skillToolset.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -10220,6 +10441,13 @@
     {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/tools/openapiTools.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -11609,6 +11837,20 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
     },
     {
       "from": "module:lib/tools/science/corrections.ts",
@@ -13613,6 +13855,20 @@
       "evidence": "package.json"
     },
     {
+      "from": "script:syndicate:weather",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:weather",
+      "to": "syndicate:weather",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
       "from": "script:telemetry:embed",
       "to": "module:scripts/telemetry_admin.ts",
       "rel": "runs",
@@ -14486,6 +14742,20 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/examples/tutor.yaml"
+    },
+    {
+      "from": "syndicate:weather",
+      "to": "agent:weather/Forecaster",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/weather.yaml"
+    },
+    {
+      "from": "syndicate:weather",
+      "to": "file:config/agents/examples/weather.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/weather.yaml"
     },
     {
       "from": "table:adk_a2a_tasks",

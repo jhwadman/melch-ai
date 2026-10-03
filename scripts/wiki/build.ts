@@ -113,6 +113,12 @@ const PRIVATE_SYNDICATES = new Map<string, string>(priv.privateSyndicates ?? [])
 
 // ── Source: config/agents/*.yaml → syndicate docs ────────────────────────────
 
+/** ` · openapi: <spec> (<operations>)` for each entry, for a composition line. */
+function openapiNote(openapi: RawSubagent['openapi']): string {
+  if (!openapi?.length) return '';
+  return ` · openapi: ${openapi.map((e) => `\`${e.spec ?? '?'}\`${e.operations?.length ? ` (${e.operations.join(', ')})` : ' (GET operations)'}`).join(', ')}`;
+}
+
 /** ` · skills: <dir>` (and whether their scripts may run), for a composition line. */
 function skillsNote(skills: RawSubagent['skills']): string {
   if (!skills?.dir) return '';
@@ -139,6 +145,7 @@ interface RawSubagent {
   tools?: string[];
   mcp_server_url?: string;
   skills?: { dir?: string; scripts?: string; tools?: string[] };
+  openapi?: Array<{ spec?: string; operations?: string[] }>;
   /** A subagent that IS another syndicate, resolved from its file at load time. */
   yaml_reference?: string;
 }
@@ -258,7 +265,7 @@ function syndicateSpecs(): DocSpec[] {
       }`,
       `- orchestrator: **${orch.name ?? '?'}** (\`${orch.model ?? 'default'}\`)${
         orch.tools?.length ? ` · tools: ${orch.tools.map((t) => `\`${t}\``).join(', ')}` : ''
-      }${skillsNote(orch.skills)}`,
+      }${skillsNote(orch.skills)}${openapiNote(orch.openapi)}`,
       ...(cfg.workflow ? workflowLines(cfg.workflow) : []),
       '',
       table(
@@ -266,7 +273,7 @@ function syndicateSpecs(): DocSpec[] {
         subs.map((s) => [
           s.name ?? '?',
           s.yaml_reference ? nestedSyndicate(s.yaml_reference, pageOf) : `\`${s.model ?? 'default'}\``,
-          ((s.tools ?? []).map((t) => `\`${t}\``).join(', ') + skillsNote(s.skills)) || '—',
+          ((s.tools ?? []).map((t) => `\`${t}\``).join(', ') + skillsNote(s.skills) + openapiNote(s.openapi)) || '—',
           s.mcp_server_url ? '`mcp_server_url`' : '—',
         ]),
       ),

@@ -1,0 +1,77 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Open-Meteo Forecast",
+    "version": "1",
+    "description": "A hand-written subset of Open-Meteo's forecast API (keyless, read-only), for config/agents/examples/weather.yaml. Docs: https://open-meteo.com/en/docs"
+  },
+  "servers": [
+    {
+      "url": "https://api.open-meteo.com/v1"
+    }
+  ],
+  "paths": {
+    "/forecast": {
+      "get": {
+        "operationId": "getForecast",
+        "summary": "The weather now and the daily forecast for a latitude and longitude.",
+        "parameters": [
+          {
+            "name": "latitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "longitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "current",
+            "in": "query",
+            "description": "Comma-separated current variables. Use temperature_2m,precipitation,wind_speed_10m,weather_code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "daily",
+            "in": "query",
+            "description": "Comma-separated daily variables. Use temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "forecast_days",
+            "in": "query",
+            "description": "Days of forecast (1-16). Default 7.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "description": "The place's timezone, e.g. Europe/Paris, or auto.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current conditions and the daily forecast",
+            "each with its units.": null
+          }
+        }
+      }
+    }
+  }
+}

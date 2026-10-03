@@ -215,6 +215,21 @@ orchestrator:
   # frontmatter once it is loaded; a name already in `tools:` above is an
   # error (it is always on). Omitted, a skill unlocks nothing.
   # Maps to: tools[] (a toolset) and instruction (the appended index)
+
+  # [optional] HTTP APIs as tools, each from an OpenAPI 3 spec FILE
+  # (.yaml/.yml/.json, relative to this syndicate file; never a URL).
+  # One tool per operation, named from its operationId in snake_case.
+  # Without `operations`, only GET operations become tools; a named
+  # operation can be listed under require_approval. `auth` names an
+  # environment variable, never a value. Every server passes the SSRF
+  # guard (ALLOW_PRIVATE_OPENAPI=true for local development).
+  # lib/tools/openapiTools.ts; worked example: examples/weather.yaml.
+  # openapi:
+  #   - spec: "specs/my-api.json"
+  #     operations: [listOrders, createOrder]   # default: the GET operations
+  #     auth: { bearer_env: "MY_API_TOKEN" }    # or api_key: { env, in, name }
+  #     base_url: "https://api.example.com/v2"  # overrides servers[0].url
+  #     prefix: "shop"                          # shop_list_orders, ...
   # skills:
   #   dir: ".claude/skills"
   #   scripts: "none"

@@ -103,6 +103,33 @@ const skillsSchema = z
   })
   .describe('Agent Skills (SKILL.md directories) this agent reads the way a coding harness does.');
 
+// ── OpenAPI ──────────────────────────────────────────────────────────────────
+
+const envName = z.string().regex(/^[A-Z_][A-Z0-9_]*$/, 'an environment variable name (A–Z, 0–9, _)');
+const openapiEntry = z
+  .strictObject({
+    spec: z.string().min(1).describe('An OpenAPI 3 spec file (.yaml, .yml, .json), relative to this syndicate file. Files only, never URLs.'),
+    operations: z
+      .array(z.string().min(1))
+      .min(1)
+      .optional()
+      .describe('Operations to expose, by operationId or tool name. Omitted: every GET operation, and nothing that writes.'),
+    base_url: z.string().url().optional().describe('Overrides the spec\'s servers[0].url. Checked by the SSRF guard.'),
+    prefix: z.string().regex(/^[a-z][a-z0-9_]*$/).optional().describe('Prepended to each tool name, to keep two APIs apart.'),
+    auth: z
+      .strictObject({
+        bearer_env: envName.optional().describe('Environment variable holding a bearer token.'),
+        api_key: z
+          .strictObject({ env: envName, in: z.enum(['header', 'query']), name: z.string().min(1) })
+          .optional()
+          .describe('An API key read from `env`, sent in a header or the query under `name`.'),
+      })
+      .refine((a) => !!a.bearer_env !== !!a.api_key, 'exactly one of bearer_env or api_key')
+      .optional()
+      .describe('Credentials, always from the environment, never written in YAML.'),
+  })
+  .describe('An HTTP API as tools, from its OpenAPI spec (lib/tools/openapiTools.ts).');
+
 // ── Agents ───────────────────────────────────────────────────────────────────
 
 const agentFields = {
@@ -147,6 +174,7 @@ const agentFields = {
     .optional()
     .describe('MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.'),
   skills: skillsSchema.optional(),
+  openapi: z.array(openapiEntry).min(1).optional(),
   orchestration: z
     .strictObject({
       role: z.enum(['primary', 'sub-agent']).optional(),
@@ -506,9 +534,11 @@ function crossFieldProblems(raw: unknown): Problem[] {
       return;
     }
     const tools = Array.isArray(agent.tools) ? agent.tools : [];
+    // An OpenAPI operation can be gated once it is named under `operations`.
+    const operations = (Array.isArray(agent.openapi) ? agent.openapi : []).flatMap((e) => (isObj(e) && Array.isArray(e.operations) ? e.operations : []));
     (Array.isArray(agent.require_approval) ? agent.require_approval : []).forEach((name, j) => {
-      if (typeof name === 'string' && !tools.includes(name)) {
-        out.push({ path: [...path, 'require_approval', j], message: `'${name}' is not in this agent's tools` });
+      if (typeof name === 'string' && !tools.includes(name) && !operations.includes(name)) {
+        out.push({ path: [...path, 'require_approval', j], message: `'${name}' is not in this agent's tools or its openapi operations` });
       }
     });
   };
