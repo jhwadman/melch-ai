@@ -117,6 +117,37 @@ dispatch:
   # waiting user as progress. Default "reason".
   reason_key: "reason"
 
+# [optional] Switches this syndicate to a WORKFLOW: the agents below are
+# the nodes of a graph, and `edges` says what runs after what. Nothing
+# delegates, nothing classifies; the orchestrator is a node like any
+# other. Cannot be combined with `dispatch`. Contract: lib/workflow.ts;
+# worked example: examples/pipeline.yaml (ADR 0030).
+#
+#   - A chain is a list. `START` opens at least one chain. A name is an
+#     agent or a declared node; a list of names fans out (after one
+#     node) or fans in (before one node); a map
+#     `{ <route>: <node or nodes>, default: <node> }` ends a chain and
+#     routes on the output of the node before it (`route_key` of a JSON
+#     output, else the trimmed text).
+#   - Every node receives the previous node's output as its message and,
+#     unless its YAML sets includeContents, sees nothing else.
+#   - `ask_user` pauses the turn (input-required); the next message is
+#     the answer, and the node outputs { reply, input }.
+#   - require_approval, skills.scripts: local and a2a_agent_url are not
+#     supported inside a workflow yet.
+# workflow:
+#   edges:
+#     - [START, OrchestratorName, { article: [MySubagent, Other], default: Other }]
+#     - [[MySubagent, Other], Both, Review, Confirm]
+#   nodes:
+#     OrchestratorName: { route_key: "kind" }      # an agent: modifiers only
+#     Both:    { join: true }                      # waits for every predecessor
+#     Each:    { map: "MySubagent", max_parallel: 4 }   # one run per list item
+#     Lookup:  { tool: "web_extract" }             # a registry tool as a node
+#     Review:  { retry: { max_attempts: 2, initial_delay: 1 }, timeout: 120 }
+#     Confirm: { ask_user: "Publish? Reply yes, or say what to change." }
+#   max_concurrency: 4
+
 # ── Orchestrator ────────────────────────────────────────────
 # Maps to: new LlmAgent({ ... }) — the root agent passed to InMemoryRunner.
 

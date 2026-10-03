@@ -31,6 +31,7 @@ Top-level keys:
 - `variables:`: default values for `{{token}}` placeholders used across the file. Override them at run time with `--bind key=value` or `--bindings '{"key":"value"}'`. The loader injects `{{current_date}}` fresh on every load; omit static date strings.
 - `memory_extraction_rules:`: domain rules appended to the shared fact-extraction prompt in `long-term` mode, such as what to store and what to skip.
 - `dispatch:`: switches the syndicate from delegate mode to plan-dispatch routing where a classifier picks a route. In delegate mode, subagents act as tools the orchestrator calls, and the orchestrator re-emits the chosen answer. The `dispatch:` block requires `default_route` naming a declared subagent that can answer any message. It accepts `route_key`, `reason_key`, and `route_overrides` (a list of `{route, pattern, flags, reason}`). A regex match in `route_overrides` pins the route and skips the classifier.
+- `workflow:`: makes the syndicate a graph instead of a delegation: `edges` lists chains of agent names (`START` opens one; a list fans out or in; a map `{route: Agent, default: Agent}` routes on the previous node's output), and `nodes` declares `join`, `map`, `tool` and `ask_user` nodes plus `retry` and `timeout` modifiers. Every node receives the previous node's output as its message. Cannot be combined with `dispatch:`. Read `pipeline.yaml` for the worked example.
 - `orchestrator:`: required orchestrator block.
 - `subagents:`: list of subagent blocks; omit it (or pass `[]`) for a single-agent syndicate.
 

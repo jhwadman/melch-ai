@@ -98,6 +98,7 @@ Field reference:
 | `memory_extraction_model` | root | The model that distils this syndicate's turns into memory records (long-term only); any model id. Default: the deployment's `MEMORY_EXTRACTION_MODEL`. |
 | `memory_retention_days` | root | Days a fact in this syndicate's namespace is kept; the server deletes older facts when it loads the syndicate and daily after. Requires `memory_namespace` (never applied to the shared default namespace). |
 | `dispatch` | root | Switches the syndicate from DELEGATE to PLAN-DISPATCH routing (§6). `default_route` (required) names the fail-static subagent; `route_key` / `reason_key` name the router's JSON properties (defaults `route` / `reason`). Honoured by every surface (the CLI, the server, the worker, evals). |
+| `workflow` | root | Switches the syndicate to a WORKFLOW (§6): a graph whose nodes are its agents plus declared `join`, `map`, `tool` and `ask_user` nodes, and whose `edges` say what runs after what and on which route. The orchestrator is a node like any other; nothing delegates. Cannot be combined with `dispatch`. Contract: `lib/workflow.ts`; worked example: `examples/pipeline.yaml`. |
 | `guards` | root | Optional list of post-answer guard NAMES (`lib/guards/index.ts`). Each runs after the answering turn and before the reply publishes, receiving the final text plus every tool-result text of that turn, and rewrites in place rather than re-asking the model; its notes land in the `[STATUS]` stream. Guards declared by a syndicate reached through `yaml_reference:` count too — the server resolves the union via `collectGuards()`. Resolved by name, never by module path, so adding one is a deliberate act in code; **the published registry ships one, `science`** (citation checks for `research.yaml`); `registerGuard()` adds your own from code, and an unregistered name is warned about and skipped. |
 | `name` / `model` / `instruction` | agent | The agent triple. Any Gemini id, `claude-*`, or `ollama/*` for open-weight local models (see §5). |
 | `description` | subagent | **The delegation API.** The orchestrator reads this when deciding to hand off — write it like a function signature ("Use this subagent to…, pass it…"). |
@@ -835,6 +836,74 @@ happening. The `reason` field is written for that reader, not for logs.
 Implemented in `scripts/a2a_server.ts`; like `yaml_reference`, it is
 A2A-only — the CLI runner (`scripts/syndicate_chat.ts`) still compiles
 every syndicate in DELEGATE mode.
+
+### Workflows (`workflow:`) — the third orchestration method
+
+A syndicate that declares a `workflow:` block is a **graph**. Its agents
+are the nodes; `edges` says what runs after what, and on which route;
+nothing delegates and nothing classifies. It is for the shape the other
+two methods cannot express: run these two at once, join what they
+produce, edit it, ask the person, then publish.
+
+```yaml
+workflow:
+  edges:
+    - [START, Planner, { article: [Writer, Checker], default: Answerer }]
+    - [[Writer, Checker], Both, Editor, Confirm, Publisher]
+  nodes:
+    Planner: { route_key: "kind" }                 # an agent: modifiers only
+    Both:    { join: true }                        # waits for every predecessor
+    Editor:  { retry: { max_attempts: 2 } }
+    Confirm: { ask_user: "Publish this draft? Reply yes, or say what to change." }
+```
+
+**Edges.** Each entry is a chain. `START` opens at least one chain. A
+name is an agent or a declared node; a list of names fans out (after one
+node) or fans in (before one node); a map `{ <route>: <node or nodes>,
+default: <node> }` ends a chain and routes on the output of the node
+before it — the `route_key` property of a JSON output (an agent with an
+`outputSchema`), else the trimmed text — with `default` catching what no
+key matched. Every node receives the previous node's output as its
+message; a join hands on `{ <predecessor>: <output>, … }`.
+
+**Nodes.** `workflow.nodes` declares the nodes that are not agents, each
+exactly one kind: `join: true`; `map: <Agent>` (runs the agent once per
+item of a list input, concurrently, `max_parallel` at a time, and outputs
+the list of results); `tool: <registry name>` (runs the tool with the
+node input as its arguments); `ask_user: "<question>"` (below). An entry
+named after an agent carries modifiers only: `route_key`, `retry`
+(`max_attempts`, `initial_delay`, `max_delay`, `backoff_factor`, in
+seconds) and `timeout` (seconds), which any node may carry.
+
+**The pause.** An `ask_user` node ends the turn `input-required`
+(`result.input`: the node, the question, and what it was asked about).
+The next message on the conversation is the answer: the node's output
+becomes `{ "reply": <the answer>, "input": <what it received> }` and the
+graph resumes where it waited. `melchizedek-chat` prints the question
+and takes the next line; the A2A server ends the task `input-required`
+with a data part `{ type: 'input_request', interrupt_id, node, message,
+payload, schema }`, and the client's next message on the same
+conversation resumes it. A later message after the graph has finished
+starts it again from `START`.
+
+**What a node sees.** Unless its YAML sets `includeContents`, a node
+agent sees only its input — not the conversation, not the other nodes —
+which is what makes a graph legible: each agent's input is one value a
+person can read in the trace. Every node runs in the shared session, so
+`memory_system: long-term` would ingest node inputs as user turns;
+`internal-only` is the sensible default for a workflow.
+
+**Failure.** A node's error is not the turn's: a node with `retry` tries
+again (the attempt is recorded in `answer.nodeErrors`), and a node that
+gives up fails the turn with `NODE_FAILED` naming it. `max_steps` and
+the deadline cap the whole graph as they cap any turn.
+
+**Not yet.** Approval gates (`require_approval`, `skills.scripts: local`)
+and remote `a2a_agent_url` subagents are refused inside a workflow by
+the schema, and a workflow cannot be another syndicate's `yaml_reference`
+(ADK cannot yet make a `Workflow` a subagent; nested, only its
+orchestrator runs). The record is [ADR 0030](./wiki/decisions/0030-workflow-graphs.md);
+the contract is `lib/workflow.ts`, on ADK's `Workflow`.
 
 ## 7. Extending the framework
 

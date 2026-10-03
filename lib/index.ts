@@ -44,6 +44,8 @@ export type {
 } from './runtime/syndicateTurn.ts';
 export { compileGraph, compileSubagent } from './compile.ts';
 export type { CompileOptions } from './compile.ts';
+export { compileWorkflow, isWorkflowSyndicate, describeInput } from './workflow.ts';
+export type { WorkflowConfig, WorkflowNodeYaml, EdgeElement, PendingInput, CompiledWorkflow } from './workflow.ts';
 
 // ── Serve it over A2A, or call a remote A2A agent ───────────────────────────
 export { createA2AApp, compileAgentCard, currentRequestContext } from './a2a/app.ts';

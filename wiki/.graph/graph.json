@@ -5,41 +5,41 @@
     "at": "2026-10-03"
   },
   "stats": {
-    "nodes": 566,
-    "edges": 1307,
+    "nodes": 580,
+    "edges": 1343,
     "byKind": {
-      "doc": 77,
+      "doc": 79,
       "provider": 5,
       "env": 96,
       "model": 7,
       "tool": 32,
-      "file": 61,
-      "syndicate": 30,
-      "agent": 81,
+      "file": 63,
+      "syndicate": 31,
+      "agent": 87,
       "mcp-server": 4,
       "table": 16,
-      "module": 112,
-      "script": 43,
+      "module": 114,
+      "script": 44,
       "external": 2
     },
     "byRelation": {
-      "links_to": 198,
+      "links_to": 203,
       "requires_env": 149,
       "routes_to": 7,
-      "defined_in": 73,
-      "documents": 54,
-      "contains": 81,
-      "uses_model": 81,
+      "defined_in": 74,
+      "documents": 55,
+      "contains": 87,
+      "uses_model": 87,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 314,
+      "imports": 322,
       "reads_table": 28,
-      "runs": 62,
-      "derives_from": 194
+      "runs": 64,
+      "derives_from": 201
     },
     "byTier": {
-      "extracted": 1307,
+      "extracted": 1343,
       "inferred": 0
     },
     "isolated": 2
@@ -271,6 +271,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 163
+      }
+    },
+    {
+      "id": "/agents/pipeline.md",
+      "kind": "doc",
+      "label": "Editorial Pipeline",
+      "source": "/agents/pipeline.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 376
       }
     },
     {
@@ -730,6 +742,18 @@
       }
     },
     {
+      "id": "/decisions/0030-workflow-graphs.md",
+      "kind": "doc",
+      "label": "ADR 0030: A syndicate can be a graph: the `workflow:` block, on ADK's Workflow, is the third orchestration method",
+      "source": "/decisions/0030-workflow-graphs.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 948
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -858,7 +882,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 424
+        "words": 436
       }
     },
     {
@@ -1477,6 +1501,71 @@
         "role": "subagent",
         "syndicate": "patient_advocate",
         "description": "Use this subagent for real-time medical research: current treatment guidelines, drug information and interactions, what a test or procedure measures, typical recovery timelines, and recent findings."
+      }
+    },
+    {
+      "id": "agent:pipeline/Answerer",
+      "kind": "agent",
+      "label": "Answerer",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Answers a request that is not an article."
+      }
+    },
+    {
+      "id": "agent:pipeline/Checker",
+      "kind": "agent",
+      "label": "Checker",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Lists the claims a piece on this brief would have to get right."
+      }
+    },
+    {
+      "id": "agent:pipeline/Editor",
+      "kind": "agent",
+      "label": "Editor",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Merges the Writer's draft and the Checker's list into the final draft."
+      }
+    },
+    {
+      "id": "agent:pipeline/Planner",
+      "kind": "agent",
+      "label": "Planner",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "pipeline"
+      }
+    },
+    {
+      "id": "agent:pipeline/Publisher",
+      "kind": "agent",
+      "label": "Publisher",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Applies the person's decision to the draft and returns the published text."
+      }
+    },
+    {
+      "id": "agent:pipeline/Writer",
+      "kind": "agent",
+      "label": "Writer",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "pipeline",
+        "description": "Writes the draft from the Planner's brief."
       }
     },
     {
@@ -2551,6 +2640,13 @@
       "attrs": {}
     },
     {
+      "id": "file:config/agents/examples/pipeline.yaml",
+      "kind": "file",
+      "label": "pipeline.yaml",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {}
+    },
+    {
       "id": "file:config/agents/examples/research.yaml",
       "kind": "file",
       "label": "research.yaml",
@@ -2850,6 +2946,12 @@
       "source": "tests/syndicateTurn.test.ts"
     },
     {
+      "id": "file:tests/workflow.test.ts",
+      "kind": "file",
+      "label": "workflow.test.ts",
+      "source": "tests/workflow.test.ts"
+    },
+    {
       "id": "file:tsconfig.build.json",
       "kind": "file",
       "label": "tsconfig.build.json",
@@ -2938,7 +3040,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 661
+        "lines": 705
       }
     },
     {
@@ -2992,7 +3094,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 313
+        "lines": 327
       }
     },
     {
@@ -3019,7 +3121,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 670
+        "lines": 671
       }
     },
     {
@@ -3055,7 +3157,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 119
+        "lines": 121
       }
     },
     {
@@ -3073,7 +3175,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 640
+        "lines": 650
       }
     },
     {
@@ -3343,7 +3445,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 802
+        "lines": 902
       }
     },
     {
@@ -3451,7 +3553,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 635
+        "lines": 811
       }
     },
     {
@@ -3752,6 +3854,24 @@
       }
     },
     {
+      "id": "module:lib/workflow.ts",
+      "kind": "module",
+      "label": "lib/workflow.ts",
+      "source": "lib/workflow.ts",
+      "attrs": {
+        "lines": 208
+      }
+    },
+    {
+      "id": "module:lib/workflowConfig.ts",
+      "kind": "module",
+      "label": "lib/workflowConfig.ts",
+      "source": "lib/workflowConfig.ts",
+      "attrs": {
+        "lines": 146
+      }
+    },
+    {
       "id": "module:scripts/a2a_server.ts",
       "kind": "module",
       "label": "scripts/a2a_server.ts",
@@ -3883,7 +4003,7 @@
       "label": "scripts/syndicate_chat.ts",
       "source": "scripts/syndicate_chat.ts",
       "attrs": {
-        "lines": 489
+        "lines": 497
       }
     },
     {
@@ -3901,7 +4021,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1314
+        "lines": 1329
       }
     },
     {
@@ -4241,6 +4361,15 @@
       }
     },
     {
+      "id": "script:syndicate:pipeline",
+      "kind": "script",
+      "label": "npm run syndicate:pipeline",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate pipeline"
+      }
+    },
+    {
       "id": "script:syndicate:scribe",
       "kind": "script",
       "label": "npm run syndicate:scribe",
@@ -4555,6 +4684,17 @@
         "memory": "long-term",
         "agents": 2,
         "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:pipeline",
+      "kind": "syndicate",
+      "label": "Editorial Pipeline",
+      "source": "config/agents/examples/pipeline.yaml",
+      "attrs": {
+        "memory": "internal-only",
+        "agents": 6,
+        "mode": "workflow"
       }
     },
     {
@@ -5425,6 +5565,34 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/agents/patient_advocate.md"
+    },
+    {
+      "from": "/agents/pipeline.md",
+      "to": "file:config/agents/examples/pipeline.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/pipeline.md frontmatter"
+    },
+    {
+      "from": "/agents/pipeline.md",
+      "to": "syndicate:pipeline",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/pipeline.md"
+    },
+    {
+      "from": "/agents/pipeline.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/pipeline.md:17"
+    },
+    {
+      "from": "/agents/pipeline.md",
+      "to": "/overview/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/pipeline.md:17"
     },
     {
       "from": "/agents/research_brief.md",
@@ -6722,6 +6890,62 @@
       "evidence": "/decisions/0029-skills-read-like-a-harness.md:44"
     },
     {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "file:config/agents/examples/pipeline.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "file:tests/workflow.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md frontmatter"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md:42"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "/overview/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md:37"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -7501,6 +7725,13 @@
     {
       "from": "/overview/architecture.md",
       "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
+      "from": "/overview/architecture.md",
+      "to": "/decisions/0030-workflow-graphs.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/architecture.md:27"
@@ -8773,6 +9004,48 @@
       "evidence": "config/agents/examples/patient_advocate.yaml"
     },
     {
+      "from": "agent:pipeline/Answerer",
+      "to": "model:gemini-3.5-flash-lite",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Checker",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Editor",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Planner",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Publisher",
+      "to": "model:gemini-3.5-flash-lite",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "agent:pipeline/Writer",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
       "from": "agent:research_brief/Editor",
       "to": "model:gemini-3.8-flash",
       "rel": "uses_model",
@@ -9788,6 +10061,13 @@
       "evidence": "lib/index.ts"
     },
     {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/workflow.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/dispatch.ts",
       "rel": "imports",
@@ -9811,6 +10091,13 @@
     {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/tools/skillToolset.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/workflowConfig.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -10859,6 +11146,13 @@
       "evidence": "lib/runtime/syndicateTurn.ts"
     },
     {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/workflow.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
       "from": "module:lib/session/supabaseSessionService.ts",
       "to": "module:lib/session/transcript.ts",
       "rel": "imports",
@@ -10980,6 +11274,13 @@
     {
       "from": "module:lib/syndicateSchema.ts",
       "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/workflowConfig.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/syndicateSchema.ts"
@@ -11606,6 +11907,34 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/wiki/vault.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
     },
     {
       "from": "module:scripts/a2a_server.ts",
@@ -13043,6 +13372,20 @@
       "evidence": "package.json"
     },
     {
+      "from": "script:syndicate:pipeline",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:pipeline",
+      "to": "syndicate:pipeline",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
       "from": "script:syndicate:scribe",
       "to": "module:scripts/syndicate_chat.ts",
       "rel": "runs",
@@ -13629,6 +13972,55 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/examples/patient_advocate.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Answerer",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Checker",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Editor",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Planner",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Publisher",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "agent:pipeline/Writer",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
+    },
+    {
+      "from": "syndicate:pipeline",
+      "to": "file:config/agents/examples/pipeline.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/pipeline.yaml"
     },
     {
       "from": "syndicate:research_brief",

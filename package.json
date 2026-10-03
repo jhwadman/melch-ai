@@ -96,6 +96,7 @@
     "syndicate:scribe": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate scribe",
     "syndicate:assistant": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate assistant",
     "syndicate:harness": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate harness",
+    "syndicate:pipeline": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate pipeline",
     "syndicate:conversational": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate conversational",
     "assistant:worker": "node --disable-warning=DEP0040 --experimental-strip-types scripts/assistant_worker.ts",
     "demo:models": "node --disable-warning=DEP0040 --experimental-strip-types scripts/demo_model_optionality.ts",

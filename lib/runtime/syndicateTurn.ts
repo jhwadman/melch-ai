@@ -31,6 +31,10 @@ import { InMemorySessionService, Runner, StreamingMode, getFunctionCalls, getFun
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
 import { agentGates, compileGraph, compileSubagent } from '../compile.ts';
+import { ROUTE_STEP_SUFFIX, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
+import type { PendingInput } from '../workflow.ts';
+export { describeInput } from '../workflow.ts';
+export type { PendingInput } from '../workflow.ts';
 import type { CompileOptions } from '../compile.ts';
 import { isDispatchSyndicate, matchRouteOverride, resolveRoute } from '../dispatch.ts';
 import type { RouteResolution } from '../dispatch.ts';
@@ -142,9 +146,13 @@ export interface DrainedRun {
   /** Native search grounding (Gemini groundingMetadata). */
   grounding?: { queries: string[]; sources: string[] };
   error?: { code: string; message: string };
+  /** Workflow runs: questions `ask_user` nodes raised (`adk_request_input`). */
+  inputRequests: PendingInput[];
+  /** Workflow runs: errors nodes reported along the way (a retried attempt, a failed node). */
+  nodeErrors: Array<{ node: string; code: string; message: string }>;
 }
 
-export type TurnStage = 'classify' | 'dispatch' | 'delegate';
+export type TurnStage = 'classify' | 'dispatch' | 'delegate' | 'workflow';
 
 export interface RouteDecision extends RouteResolution {
   /** `approval`: the turn resumed the route that asked for an approval (ADR 0028). */
@@ -159,6 +167,9 @@ export interface SyndicateTurnResult {
   /** The call waiting for approval, when status is input-required. Answer it
    *  with `approvalResponsePart(approval.id, approved)` as the next turn's part. */
   approval?: PendingApproval;
+  /** The question a workflow's `ask_user` node asked, when status is
+   *  input-required. The next message on the conversation is the answer. */
+  input?: PendingInput;
   /** The text the user receives (relay fallback and guards applied). */
   text: string;
   error?: { code: string; message: string };
@@ -227,6 +238,13 @@ export async function drainAgentStream(
     subagentNames?: Set<string>;
     /** Forward partial reply text to events.onTextDelta (answering stages only). */
     streamText?: boolean;
+    /**
+     * What an event carrying an error means. `fail` (default): the run is
+     * over, the error is the result. `collect`: note it and read on — a
+     * workflow node that will retry emits its failed attempt, and a node
+     * that gives up ends the stream itself.
+     */
+    errorPolicy?: 'fail' | 'collect';
   } = {},
 ): Promise<DrainedRun> {
   const ev = opts.events ?? {};
@@ -242,10 +260,13 @@ export async function drainAgentStream(
     thoughts: '',
     tokens: { input: 0, output: 0, thinking: 0 },
     eventCount: 0,
+    inputRequests: [],
+    nodeErrors: [],
   };
   const grounding = newGroundingState();
   let groundingAnnounced = false;
   let streamed = false;
+  let lastNode = '';
 
   for await (const event of stream) {
     const e = event as any;
@@ -263,8 +284,24 @@ export async function drainAgentStream(
       groundingAnnounced = true;
     }
 
+    // A workflow event names its node; say when the graph moves on. The
+    // root (a path with no dot) and the hidden route steps are not nodes a
+    // person declared, so they stay out of the progress.
+    const nodePath: string | undefined = e.nodeInfo?.path;
+    if (nodePath && nodePath.includes('.') && e.author && !String(e.author).endsWith(ROUTE_STEP_SUFFIX) && e.author !== lastNode && e.partial !== true) {
+      lastNode = e.author;
+      ev.log?.(`⇢ Node: ${e.author}`);
+      if (opts.publishToolStatus) ev.onProgress?.(`Running node: ${e.author}`);
+    }
+
     if ((e.errorCode || e.errorMessage) && e.errorCode !== 'STOP') {
-      d.error = { code: String(e.errorCode ?? 'ERROR'), message: String(e.errorMessage ?? '') };
+      const error = { code: String(e.errorCode ?? 'ERROR'), message: String(e.errorMessage ?? '') };
+      if (opts.errorPolicy === 'collect') {
+        d.nodeErrors.push({ node: String(e.author ?? ''), ...error });
+        ev.warn?.(`Node ${e.author ?? '?'} reported [${error.code}]: ${error.message}`);
+        continue;
+      }
+      d.error = error;
       ev.warn?.(`Error [${d.error.code}]: ${d.error.message}`);
       break;
     }
@@ -290,6 +327,13 @@ export async function drainAgentStream(
         d.delegations.push(target);
         ev.log?.(`→ Delegating to: ${target}`);
         if (opts.publishToolStatus) ev.onProgress?.(`Delegating to subagent: ${target}`);
+        continue;
+      }
+      const inputRequest = inputRequestFrom(e.author, call);
+      if (inputRequest) {
+        // An ask_user node: the workflow waits for the person (lib/workflow.ts).
+        d.inputRequests.push(inputRequest);
+        ev.log?.(`⏸ ${describeInput(inputRequest)}`);
         continue;
       }
       if (!name) continue;
@@ -480,6 +524,8 @@ async function runTurnInner(
     publishToolStatus: boolean;
     /** Evaluated at span end: did the DELEGATE relay fall back? */
     relayFallback?: () => boolean;
+    /** Workflow runs collect node errors instead of stopping on the first. */
+    errorPolicy?: 'fail' | 'collect';
   }): Promise<DrainedRun> => {
     const runner = new Runner({
       agent: params.agent,
@@ -522,6 +568,7 @@ async function runTurnInner(
         publishToolStatus: params.publishToolStatus,
         subagentNames,
         streamText: params.stage !== 'classify' && !guarded,
+        errorPolicy: params.errorPolicy,
       });
     } catch (err) {
       // A provider call aborted by cancel / deadline surfaces as a thrown
@@ -644,6 +691,57 @@ async function runTurnInner(
       ev.warn?.(`Route '${resolution.route}' produced no output.`);
       result.text = `${resolution.route} returned no output — the server logs carry the upstream error.`;
     }
+  } else if (isWorkflowSyndicate(config)) {
+    // ══ WORKFLOW ═════════════════════════════════════════════════════════
+    // The syndicate is a graph (lib/workflow.ts): every agent a node, run
+    // by ADK's Workflow in the shared session. A node agent sees only its
+    // input unless its YAML says otherwise, so no projection is needed. An
+    // `ask_user` node ends the turn input-required; the next message
+    // resumes the graph where it waited.
+    const compiled = await compileWorkflow(config, compileOpts, transform);
+    try {
+      answer = await runAgent({
+        agent: compiled.workflow as unknown as LlmAgent,
+        sid: sessionId,
+        userParts: parts,
+        sessions: sessionService,
+        stage: 'workflow',
+        publishToolStatus: true,
+        errorPolicy: 'collect',
+      });
+    } catch (err) {
+      // A node that gave up (its retries spent, a timeout, a schema it could
+      // not satisfy) ends the run by throwing; the last reported error names it.
+      const last = control.stopReason ? undefined : (err as Error);
+      if (!last) throw err;
+      result.status = 'failed';
+      result.failedStage = 'workflow';
+      result.error = { code: 'NODE_FAILED', message: last.message };
+      return finish();
+    }
+    result.answer = answer;
+    if (answer.error || control.stopReason) {
+      result.status = 'failed';
+      result.failedStage = 'workflow';
+      result.error = answer.error;
+      return finish();
+    }
+    if (answer.inputRequests.length) {
+      const input = answer.inputRequests[answer.inputRequests.length - 1]!;
+      result.status = 'input-required';
+      result.input = input;
+      result.text = input.message;
+      ev.log?.(`⏸ Input needed: ${describeInput(input)}`);
+      return finish();
+    }
+    result.text = answer.text;
+    if (!result.text) {
+      const failed = answer.nodeErrors[answer.nodeErrors.length - 1];
+      ev.warn?.(`The workflow produced no output${failed ? ` (last node error: ${failed.node} [${failed.code}] ${failed.message})` : ''}.`);
+      result.text = failed
+        ? `The workflow ended without an answer — ${failed.node} failed [${failed.code}]: ${failed.message}`
+        : 'The workflow ended without an answer.';
+    }
   } else {
     // ══ DELEGATE ═════════════════════════════════════════════════════════
     // Subagents are AgentTools; the orchestrator relays the answer it got.
@@ -750,6 +848,8 @@ async function runRemoteRoute(
 
 function emptyRun(error?: { code: string; message: string }): DrainedRun {
   return {
+    inputRequests: [],
+    nodeErrors: [],
     text: '',
     lastToolResultText: '',
     toolResultTexts: [],

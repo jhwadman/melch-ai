@@ -524,6 +524,156 @@
       "additionalProperties": false,
       "description": "Opts into PLAN-DISPATCH orchestration (lib/dispatch.ts)."
     },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "edges": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "minItems": 2,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Several nodes: fan-out when they follow one node, fan-in when one node follows them."
+                },
+                {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ]
+                  },
+                  "description": "A routing map after a node: `{ <route>: <node or nodes>, default: <node> }`, matched against that node's output."
+                }
+              ]
+            }
+          },
+          "description": "Chains of nodes, each a list; `START` begins at least one. A routing map follows the node whose output it routes."
+        },
+        "nodes": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "ask_user": {
+                "description": "Pause and ask the person this; the reply becomes the node's output.",
+                "type": "string",
+                "minLength": 1
+              },
+              "schema": {
+                "description": "JSON Schema a structured reply to ask_user must satisfy; plain text passes as is.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "join": {
+                "description": "Wait for every predecessor; output `{ <predecessor>: <output> }`.",
+                "type": "boolean",
+                "const": true
+              },
+              "map": {
+                "description": "Run this agent once per item of a list input, concurrently; output the list of results.",
+                "type": "string",
+                "minLength": 1
+              },
+              "max_parallel": {
+                "description": "Concurrency of map. Default 8.",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "tool": {
+                "description": "Run this registry tool with the node input as its arguments.",
+                "type": "string",
+                "minLength": 1
+              },
+              "route_key": {
+                "description": "Property of a JSON output holding the route. Default \"route\".",
+                "type": "string",
+                "minLength": 1
+              },
+              "retry": {
+                "type": "object",
+                "properties": {
+                  "max_attempts": {
+                    "description": "Attempts including the first; 1 = no retry. ADK default 5.",
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "initial_delay": {
+                    "description": "Seconds before the first retry.",
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "max_delay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "backoff_factor": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Retry a node on failure (lib/workflow.ts)."
+              },
+              "timeout": {
+                "description": "Seconds this node may run before it fails.",
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "description": "A declared node (exactly one of ask_user, join, map, tool) or modifiers for an agent node (retry, timeout, route_key)."
+          }
+        },
+        "max_concurrency": {
+          "description": "Nodes that may run at once. Default: unbounded.",
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "edges"
+      ],
+      "additionalProperties": false,
+      "description": "Opts into a WORKFLOW: the syndicate as a graph (lib/workflow.ts). Cannot be combined with dispatch."
+    },
     "variables": {
       "description": "Defaults for {{token}} interpolation. {{current_date}} is built in.",
       "type": "object",

@@ -119,6 +119,19 @@ function skillsNote(skills: RawSubagent['skills']): string {
   return ` · skills: \`${skills.dir}\`${skills.scripts === 'local' ? ' (scripts run after approval)' : ''}`;
 }
 
+/** The graph a `workflow:` block declares, one line per chain, then the declared nodes. */
+function workflowLines(wf: NonNullable<RawSyndicate['workflow']>): string[] {
+  const element = (e: unknown): string =>
+    typeof e === 'string' ? e : Array.isArray(e) ? `[${e.map(element).join(', ')}]` : `{ ${Object.entries(e as Record<string, unknown>).map(([k, v]) => `${k}: ${element(v)}`).join(', ')} }`;
+  const chains = (wf.edges ?? []).map((chain) => `  - \`${chain.map(element).join(' → ')}\``);
+  const nodes = Object.entries(wf.nodes ?? {}).map(([name, entry]) => {
+    const kind = ['ask_user', 'join', 'map', 'tool'].find((k) => entry[k] !== undefined);
+    const mods = ['route_key', 'retry', 'timeout'].filter((k) => entry[k] !== undefined);
+    return `  - **${name}**: ${kind ? `${kind}${kind === 'join' ? '' : ` ${JSON.stringify(entry[kind])}`}` : 'agent'}${mods.length ? ` · ${mods.join(', ')}` : ''}`;
+  });
+  return ['- workflow (a graph; the orchestrator is a node):', ...chains, ...(nodes.length ? ['- nodes:', ...nodes] : [])];
+}
+
 interface RawSubagent {
   name?: string;
   description?: string;
@@ -136,6 +149,7 @@ interface RawSyndicate {
   orchestrator?: RawSubagent & { instruction?: string };
   subagents?: RawSubagent[];
   dispatch?: { default_route?: string };
+  workflow?: { edges?: unknown[][]; nodes?: Record<string, Record<string, unknown>> };
 }
 
 /** Map YAML base name → npm script that runs it, from package.json. */
@@ -245,6 +259,7 @@ function syndicateSpecs(): DocSpec[] {
       `- orchestrator: **${orch.name ?? '?'}** (\`${orch.model ?? 'default'}\`)${
         orch.tools?.length ? ` · tools: ${orch.tools.map((t) => `\`${t}\``).join(', ')}` : ''
       }${skillsNote(orch.skills)}`,
+      ...(cfg.workflow ? workflowLines(cfg.workflow) : []),
       '',
       table(
         ['Subagent', 'Model', 'Tools', 'MCP'],
@@ -897,7 +912,7 @@ function entityLayer(
       attrs: {
         memory: cfg.memory_system ?? 'session-only',
         agents: 1 + (cfg.subagents?.length ?? 0),
-        mode: cfg.dispatch ? 'plan-dispatch' : 'delegate',
+        mode: cfg.workflow ? 'workflow' : cfg.dispatch ? 'plan-dispatch' : 'delegate',
         ...(cfg.dispatch?.default_route ? { default_route: cfg.dispatch.default_route } : {}),
       },
     });
