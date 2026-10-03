@@ -9,6 +9,8 @@ import type { DispatchConfig } from './dispatch.ts';
 export type { DispatchConfig } from './dispatch.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
 export type { SkillsConfig } from './tools/skillToolset.ts';
+import type { WorkflowConfig } from './workflowConfig.ts';
+export type { WorkflowConfig } from './workflowConfig.ts';
 
 // ── Types ─────────────────────────────────────────────────
 // Property names mirror their ADK counterparts 1:1.
@@ -155,6 +157,14 @@ export interface SyndicateYamlConfig {
    * See lib/dispatch.ts for the full contract.
    */
   dispatch?: DispatchConfig;
+  /**
+   * Opts this syndicate into a WORKFLOW: a graph whose nodes are its agents
+   * (plus join, map, tool and ask_user nodes) and whose edges say what runs
+   * after what and on which route. The orchestrator is a node like any
+   * other; nothing delegates. Cannot be combined with `dispatch`.
+   * Contract: lib/workflow.ts.
+   */
+  workflow?: WorkflowConfig;
   /** Optional default variable definitions for {{token}} interpolation. */
   variables?: VariableMap;
   /** Defines the persistence and semantic memory layer for the syndicate. */

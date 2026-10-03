@@ -6,6 +6,23 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Workflows: the `workflow:` block, the third orchestration method.** A
+  syndicate may be a graph: its agents are the nodes, `edges` says what runs
+  after what and on which route (a map after a node routes on the `route_key`
+  of its JSON output, else its text, with `default`), and `nodes` declares
+  what is not an agent — `join` (fan-in), `map` (one run per list item,
+  concurrently), `tool` (a registry tool as a node), `ask_user` (a pause: the
+  turn ends `input-required` with the question, the next message answers,
+  and the node outputs `{ reply, input }`). Any node may carry `retry` and
+  `timeout`. Every node receives the previous node's output as its message
+  and sees nothing else of the conversation unless its YAML says so. Runs on
+  ADK's `Workflow`; `runSyndicateTurn` gains `status: 'input-required'` with
+  `input` (the A2A server publishes an `input_request` data part;
+  `melchizedek-chat` prints the question and takes the next line);
+  `compileWorkflow` and `isWorkflowSyndicate` are exported. Not yet inside a
+  workflow: approval gates, skill scripts, remote subagents. Worked example:
+  `config/agents/examples/pipeline.yaml` (`npm run syndicate:pipeline`);
+  ADR 0030.
 - **Agent Skills in a syndicate: the `skills:` agent key and the Harness.**
   An agent may declare `skills: { dir, scripts?, tools? }`. Every skill's
   frontmatter (name, description) is appended to the agent's instruction at

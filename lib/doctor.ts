@@ -270,8 +270,9 @@ function walk(
   const orchModel = orch?.model;
   if (orch && orchModel) {
     // In DELEGATE mode the orchestrator calls its subagents as tools; under
-    // plan-dispatch it is a tool-less classifier and code runs the route.
-    const delegates = !config.dispatch && (config.subagents ?? []).length > 0;
+    // plan-dispatch it is a tool-less classifier and code runs the route; in
+    // a workflow it is one node of the graph.
+    const delegates = !config.dispatch && !config.workflow && (config.subagents ?? []).length > 0;
     rows.push({
       agent: prefix + orch.name,
       role: 'orchestrator',

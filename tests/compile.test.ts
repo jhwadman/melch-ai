@@ -17,6 +17,7 @@ import { AgentTool, LlmAgent } from '@google/adk';
 import { compileGraph, compileSubagent } from '../lib/compile.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { isDispatchSyndicate } from '../lib/dispatch.ts';
+import { compileWorkflow, isWorkflowSyndicate } from '../lib/workflow.ts';
 
 const agentDirectory = join(process.cwd(), 'config', 'agents');
 const agentFiles = readdirSync(agentDirectory, { recursive: true })
@@ -42,6 +43,14 @@ test('every shipped syndicate compiles into an ADK agent graph', async (t) => {
     if (usesMcp(filename)) continue;
     await t.test(`${filename} compiles`, async () => {
       const config = loadSyndicate(filename);
+      if (isWorkflowSyndicate(config)) {
+        // A graph: every agent a node, compiled by lib/workflow.ts.
+        const { workflow, agents } = await compileWorkflow(config);
+        assert.strictEqual(workflow.name, config.syndicate_name);
+        assert.ok(agents.get(config.orchestrator.name) instanceof LlmAgent, 'the orchestrator is a node');
+        await assert.rejects(compileGraph(config), /compileWorkflow/);
+        return;
+      }
       const root = await compileGraph(config);
       assert.ok(root instanceof LlmAgent, 'root is an LlmAgent');
       assert.strictEqual(root.name, config.orchestrator.name);

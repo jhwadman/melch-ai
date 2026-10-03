@@ -59,6 +59,12 @@ export interface CompileOptions {
   onUnknownTool?: (name: string) => void;
   /** Progress/diagnostic line sink (nested loads, MCP discovery). */
   log?: (message: string) => void;
+  /**
+   * Node settings for an agent compiled as a workflow node (lib/workflow.ts):
+   * ADK's `retryConfig` and `timeout`, which an LlmAgent takes only at
+   * construction. Called with the agent's name; undefined means none.
+   */
+  nodeConfig?: (agentName: string) => Record<string, unknown> | undefined;
 }
 
 /** generateContentConfig as every entrypoint has always sent it to ADK. */
@@ -243,6 +249,7 @@ export async function compileSubagent(
       subCfg.generateContentConfig as Record<string, unknown> | undefined,
     ) as any,
     ...passthroughFields(subCfg),
+    ...(opts.nodeConfig?.(subCfg.name) ?? {}),
   });
 }
 
@@ -260,6 +267,13 @@ export async function compileGraph(
 ): Promise<LlmAgent> {
   // A registry definition carries its nested syndicates (ADR 0018 item 6).
   if (config.bundled_references && !opts.loadNested) opts = { ...opts, loadNested: nestedLoader(config) };
+  // A graph has no orchestrator-with-tools shape to build: its agents are
+  // nodes (lib/workflow.ts). Nested as a yaml_reference, only its
+  // orchestrator runs, since ADK cannot yet make a Workflow a subagent.
+  if (config.workflow && !overrideName) {
+    throw new Error(`${config.syndicate_name}: a workflow syndicate is compiled with compileWorkflow (lib/workflow.ts), not compileGraph`);
+  }
+  if (config.workflow) opts.log?.(`${config.syndicate_name}: nested as a subagent, so only its orchestrator runs (a Workflow cannot be a subagent yet)`);
   const compiledTools: unknown[] = isDispatchSyndicate(config)
     ? []
     : await Promise.all(

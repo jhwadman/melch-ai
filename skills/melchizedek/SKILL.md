@@ -25,6 +25,7 @@ To modify an example, copy it into `config/agents/` in your project and edit it.
 
 - `assistant.yaml`: Assistant; the generic starting point: converses, summarizes pasted text or URLs, keeps a task list, and queues background jobs that `npx melchizedek-worker` runs (clone: `npm run assistant:worker`); keyless (Ollama with qwen3:8b pulled).
 - `harness.yaml`: Harness; works from a directory of Agent Skills the way a coding harness does: every skill's frontmatter is in its prompt, it reads the matching SKILL.md and the files it names, `/name` forces a skill, a Checker holds the result to the skill's own rules; `--bind skills_dir=<dir>` points it at a project's shelf (default: this package's own skills); gemini.
+- `pipeline.yaml`: Editorial Pipeline; a syndicate as a graph (`workflow:`): a planner routes on a JSON field, a writer and a checker run at once, a join feeds an editor that retries once, the person is asked before a publisher finishes; gemini.
 - `tutor.yaml`: Tutor; one agent that teaches a topic or pasted material by questioning; keyless (Ollama with qwen3:8b pulled).
 - `council.yaml`: Council; an advocate and a skeptic argue a question and a chair rules; keyless.
 - `critic.yaml`: Critic Review Workflow; a Drafter answers, a Critic scores it as JSON with a confidence field, and the loop repeats until confidence reaches 85 or higher (three rounds at most); gemini.
