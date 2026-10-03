@@ -4,7 +4,13 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 0.17.0 — 2026-10-02
+
+A syndicate file can now say much more of what ADK can do: hold Agent Skills,
+be a graph, ask the person, call any HTTP API from its spec, run code in
+Gemini's sandbox, compact a long conversation, and correct itself.
+
+### Behaviour change — read before upgrading
 
 - **Behaviour change: self-correction is on by default.** Every turn now runs
   ADK's reflect-and-retry plugins. A model reply ADK marks malformed
@@ -13,56 +19,9 @@ the starter pack and the templates), not the repo's full history.
   guidance and retried at most three times. Every retry counts against
   `max_steps`. Set `retries: { model_errors: 0, tool_errors: 0 }` at the root
   of a syndicate to restore the previous behaviour. ADR 0034.
-- **`url_context` and `examples:`.** `url_context` lets a Gemini agent read
-  the pages at URLs in the conversation, server-side; on other providers it is
-  a no-op the doctor reports as dropped. An agent's `examples: [{ input,
-  output }]` adds few-shot exchanges to every request (ADK's `ExampleTool`).
-- **Three agent keys from ADK: `code_execution`, `context`, `mode`.**
-  `code_execution: gemini` lets a Gemini agent write and run Python in
-  Gemini's server-side sandbox (nothing runs on the host). `context:
-  { compact_after_tokens, keep_recent_events?, summary_model? }` on a delegate
-  orchestrator summarizes earlier turns once a prompt passes the threshold,
-  keeping the recent ones verbatim and the full history stored. `mode: task`
-  on a workflow node makes its output the arguments of its `finish_task`
-  call. The schema places each where it means something. ADR 0033.
-- **`openapi:`: any HTTP API as an agent's tools, from its spec.** An agent
-  lists OpenAPI 3 spec files (relative to the syndicate file); every operation
-  becomes a tool named from its `operationId`, its parameters the arguments,
-  its summary the description. Read-only by default (GET operations only,
-  unless `operations` names others); a named operation can be listed under
-  `require_approval`. Credentials come from environment variables
-  (`auth.bearer_env`, `auth.api_key`), never YAML, and are never stored in
-  session state. Every server passes the SSRF guard (literal rules at
-  compile, DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` for local
-  development); results are capped at 20,000 characters. On ADK's
-  `OpenAPIToolset`. Worked example: `config/agents/examples/weather.yaml`
-  (`npm run syndicate:weather`), with two keyless Open-Meteo specs. ADR 0032.
-- **`ask_user`: an agent asks the person and waits.** A registry tool,
-  `ask_user(question, options?)`, on the orchestrator or a plan-dispatch
-  route. Called, it ends the turn `input-required` with `result.input`
-  (`node`, `message`, `payload.options`); the next plain-text message on the
-  conversation becomes the call's result and the agent resumes its own tool
-  loop (a dispatch turn goes straight back to the route that asked). Over A2A
-  the task carries an `input_request` data part — the same one a workflow's
-  `ask_user` node publishes. A delegated subagent or a workflow node listing
-  it is a load error. ADR 0031.
-- **Workflows: the `workflow:` block, the third orchestration method.** A
-  syndicate may be a graph: its agents are the nodes, `edges` says what runs
-  after what and on which route (a map after a node routes on the `route_key`
-  of its JSON output, else its text, with `default`), and `nodes` declares
-  what is not an agent — `join` (fan-in), `map` (one run per list item,
-  concurrently), `tool` (a registry tool as a node), `ask_user` (a pause: the
-  turn ends `input-required` with the question, the next message answers,
-  and the node outputs `{ reply, input }`). Any node may carry `retry` and
-  `timeout`. Every node receives the previous node's output as its message
-  and sees nothing else of the conversation unless its YAML says so. Runs on
-  ADK's `Workflow`; `runSyndicateTurn` gains `status: 'input-required'` with
-  `input` (the A2A server publishes an `input_request` data part;
-  `melchizedek-chat` prints the question and takes the next line);
-  `compileWorkflow` and `isWorkflowSyndicate` are exported. Not yet inside a
-  workflow: approval gates, skill scripts, remote subagents. Worked example:
-  `config/agents/examples/pipeline.yaml` (`npm run syndicate:pipeline`);
-  ADR 0030.
+
+### Added
+
 - **Agent Skills in a syndicate: the `skills:` agent key and the Harness.**
   An agent may declare `skills: { dir, scripts?, tools? }`. Every skill's
   frontmatter (name, description) is appended to the agent's instruction at
@@ -84,6 +43,56 @@ the starter pack and the templates), not the repo's full history.
   so a harness, this one or any other, can read them as skill resources. A
   skill installed by an earlier release keeps its old path until it is
   reinstalled with `--force`.
+- **Workflows: the `workflow:` block, the third orchestration method.** A
+  syndicate may be a graph: its agents are the nodes, `edges` says what runs
+  after what and on which route (a map after a node routes on the `route_key`
+  of its JSON output, else its text, with `default`), and `nodes` declares
+  what is not an agent — `join` (fan-in), `map` (one run per list item,
+  concurrently), `tool` (a registry tool as a node), `ask_user` (a pause: the
+  turn ends `input-required` with the question, the next message answers,
+  and the node outputs `{ reply, input }`). Any node may carry `retry` and
+  `timeout`. Every node receives the previous node's output as its message
+  and sees nothing else of the conversation unless its YAML says so. Runs on
+  ADK's `Workflow`; `runSyndicateTurn` gains `status: 'input-required'` with
+  `input` (the A2A server publishes an `input_request` data part;
+  `melchizedek-chat` prints the question and takes the next line);
+  `compileWorkflow` and `isWorkflowSyndicate` are exported. Not yet inside a
+  workflow: approval gates, skill scripts, remote subagents. Worked example:
+  `config/agents/examples/pipeline.yaml` (`npm run syndicate:pipeline`);
+  ADR 0030.
+- **`ask_user`: an agent asks the person and waits.** A registry tool,
+  `ask_user(question, options?)`, on the orchestrator or a plan-dispatch
+  route. Called, it ends the turn `input-required` with `result.input`
+  (`node`, `message`, `payload.options`); the next plain-text message on the
+  conversation becomes the call's result and the agent resumes its own tool
+  loop (a dispatch turn goes straight back to the route that asked). Over A2A
+  the task carries an `input_request` data part — the same one a workflow's
+  `ask_user` node publishes. A delegated subagent or a workflow node listing
+  it is a load error. ADR 0031.
+- **`openapi:`: any HTTP API as an agent's tools, from its spec.** An agent
+  lists OpenAPI 3 spec files (relative to the syndicate file); every operation
+  becomes a tool named from its `operationId`, its parameters the arguments,
+  its summary the description. Read-only by default (GET operations only,
+  unless `operations` names others); a named operation can be listed under
+  `require_approval`. Credentials come from environment variables
+  (`auth.bearer_env`, `auth.api_key`), never YAML, and are never stored in
+  session state. Every server passes the SSRF guard (literal rules at
+  compile, DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` for local
+  development); results are capped at 20,000 characters. On ADK's
+  `OpenAPIToolset`. Worked example: `config/agents/examples/weather.yaml`
+  (`npm run syndicate:weather`), with two keyless Open-Meteo specs. ADR 0032.
+- **Three agent keys from ADK: `code_execution`, `context`, `mode`.**
+  `code_execution: gemini` lets a Gemini agent write and run Python in
+  Gemini's server-side sandbox (nothing runs on the host). `context:
+  { compact_after_tokens, keep_recent_events?, summary_model? }` on a delegate
+  orchestrator summarizes earlier turns once a prompt passes the threshold,
+  keeping the recent ones verbatim and the full history stored. `mode: task`
+  on a workflow node makes its output the arguments of its `finish_task`
+  call. The schema places each where it means something. ADR 0033.
+- **`url_context` and `examples:`.** `url_context` lets a Gemini agent read
+  the pages at URLs in the conversation, server-side; on other providers it is
+  a no-op the doctor reports as dropped. An agent's `examples: [{ input,
+  output }]` adds few-shot exchanges to every request (ADK's `ExampleTool`).
 
 ## 0.16.2 — 2026-10-02
 
