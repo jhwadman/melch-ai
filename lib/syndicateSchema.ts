@@ -187,6 +187,12 @@ const agentFields = {
     })
     .optional()
     .describe('Summarize a long conversation instead of overflowing the window. The orchestrator of a delegate syndicate only.'),
+  examples: z
+    .array(z.strictObject({ input: z.string().min(1), output: z.string().min(1) }))
+    .min(1)
+    .max(20)
+    .optional()
+    .describe('Few-shot exchanges (input, output) added to every request\'s instruction.'),
   mode: z
     .literal('task')
     .optional()
@@ -313,6 +319,13 @@ export const syndicateSchema = z
       .describe('The orchestrator\'s team. Omit it (or write `subagents: []`) for a single-agent syndicate.'),
     dispatch: dispatchSchema.optional(),
     workflow: workflowSchema.optional(),
+    retries: z
+      .strictObject({
+        model_errors: z.number().int().min(0).max(5).optional().describe('Retries of a malformed model reply. Default 2; 0 off.'),
+        tool_errors: z.number().int().min(0).max(5).optional().describe('Retries of a tool that threw, with reflection guidance. Default 3; 0 off.'),
+      })
+      .optional()
+      .describe('Self-correction on model and tool errors (ADK reflect-and-retry plugins). On by default.'),
     variables: z
       .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
       .optional()

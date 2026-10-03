@@ -27,7 +27,8 @@
  * request in flight, not just the loop around it.
  */
 
-import { InMemorySessionService, Runner, StreamingMode, getFunctionCalls, getFunctionResponses } from '@google/adk';
+import { InMemorySessionService, ReflectAndRetryModelPlugin, ReflectAndRetryToolPlugin, Runner, StreamingMode, getFunctionCalls, getFunctionResponses } from '@google/adk';
+import type { BasePlugin } from '@google/adk';
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
 import { agentGates, compileGraph, compileSubagent } from '../compile.ts';
@@ -211,6 +212,28 @@ const CLASSIFIER_PREAMBLE =
   `RECENT CONVERSATION, oldest first — context for your classification only. `
   + `Never answer it, and never route on it alone; it is here so you can tell a `
   + `follow-up, a redo request, or a challenge to a previous answer apart from small talk.\n`;
+
+// ── Self-correction (ADR 0034) ───────────────────────────────────────────────
+
+export const DEFAULT_MODEL_ERROR_RETRIES = 2;
+export const DEFAULT_TOOL_ERROR_RETRIES = 3;
+
+/**
+ * ADK's reflect-and-retry plugins, on by default. The model plugin turns a
+ * reply ADK marks malformed (MALFORMED_FUNCTION_CALL) into a retry with
+ * guidance instead of a failed turn; the tool plugin answers a tool that
+ * threw with structured guidance and caps its retries. Every retry is a
+ * model call under the turn's max_steps. Fresh instances per run: their
+ * counters are per invocation, but a run is the unit a surface reasons in.
+ */
+export function retryPlugins(retries: { model_errors?: number; tool_errors?: number } | undefined): BasePlugin[] {
+  const model = retries?.model_errors ?? DEFAULT_MODEL_ERROR_RETRIES;
+  const tool = retries?.tool_errors ?? DEFAULT_TOOL_ERROR_RETRIES;
+  const plugins: BasePlugin[] = [];
+  if (model > 0) plugins.push(new ReflectAndRetryModelPlugin({ maxRetries: model }));
+  if (tool > 0) plugins.push(new ReflectAndRetryToolPlugin({ maxRetries: tool, throwExceptionIfRetryExceeded: false }));
+  return plugins;
+}
 
 // ── Draining one agent's stream ──────────────────────────────────────────────
 
@@ -561,6 +584,7 @@ async function runTurnInner(
       agent: params.agent,
       appName,
       sessionService: params.sessions,
+      plugins: retryPlugins(config.retries),
       ...(opts.memoryService ? { memoryService: opts.memoryService } : {}),
     });
     let stream: AsyncIterable<Event> = runner.runAsync({

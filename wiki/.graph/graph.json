@@ -5,20 +5,20 @@
     "at": "2026-10-03"
   },
   "stats": {
-    "nodes": 598,
-    "edges": 1388,
+    "nodes": 602,
+    "edges": 1394,
     "byKind": {
-      "doc": 85,
+      "doc": 86,
       "provider": 5,
       "env": 97,
       "model": 7,
-      "tool": 33,
-      "file": 68,
+      "tool": 34,
+      "file": 69,
       "syndicate": 32,
       "agent": 88,
       "mcp-server": 4,
       "table": 16,
-      "module": 116,
+      "module": 117,
       "script": 45,
       "external": 2
     },
@@ -33,16 +33,16 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 329,
+      "imports": 331,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 223
+      "derives_from": 227
     },
     "byTier": {
-      "extracted": 1388,
+      "extracted": 1394,
       "inferred": 0
     },
-    "isolated": 3
+    "isolated": 4
   },
   "nodes": [
     {
@@ -799,6 +799,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 527
+      }
+    },
+    {
+      "id": "/decisions/0034-self-correction.md",
+      "kind": "doc",
+      "label": "ADR 0034: Self-correction is on by default (ADK's reflect-and-retry plugins); url_context and examples join the agent surface",
+      "source": "/decisions/0034-self-correction.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 483
       }
     },
     {
@@ -3054,6 +3066,12 @@
       "source": "tests/questionsA2a.test.ts"
     },
     {
+      "id": "file:tests/selfCorrection.test.ts",
+      "kind": "file",
+      "label": "selfCorrection.test.ts",
+      "source": "tests/selfCorrection.test.ts"
+    },
+    {
       "id": "file:tests/skillHarness.test.ts",
       "kind": "file",
       "label": "skillHarness.test.ts",
@@ -3215,7 +3233,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 413
+        "lines": 433
       }
     },
     {
@@ -3296,7 +3314,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 679
+        "lines": 688
       }
     },
     {
@@ -3350,7 +3368,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 370
+        "lines": 371
       }
     },
     {
@@ -3575,7 +3593,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 940
+        "lines": 964
       }
     },
     {
@@ -3683,7 +3701,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 890
+        "lines": 903
       }
     },
     {
@@ -3692,7 +3710,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 144
+        "lines": 148
       }
     },
     {
@@ -3837,6 +3855,15 @@
       "source": "lib/tools/toolContract.ts",
       "attrs": {
         "lines": 174
+      }
+    },
+    {
+      "id": "module:lib/tools/urlContextTool.ts",
+      "kind": "module",
+      "label": "lib/tools/urlContextTool.ts",
+      "source": "lib/tools/urlContextTool.ts",
+      "attrs": {
+        "lines": 47
       }
     },
     {
@@ -5251,6 +5278,12 @@
       "attrs": {
         "description": "Change a task: mark it done, cancel it, reopen it, or edit its title, notes, or due date."
       }
+    },
+    {
+      "id": "tool:url_context",
+      "kind": "tool",
+      "label": "url_context",
+      "source": "lib/toolRegistry.ts"
     },
     {
       "id": "tool:web_extract",
@@ -7242,6 +7275,34 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0033-context-task-code.md:27"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "file:tests/selfCorrection.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "module:lib/tools/urlContextTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md frontmatter"
     },
     {
       "from": "/memory/architecture.md",
@@ -11767,6 +11828,13 @@
     },
     {
       "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/tools/urlContextTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/tools/webExtractTool.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12037,6 +12105,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/taskTools.ts"
+    },
+    {
+      "from": "module:lib/tools/urlContextTool.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/urlContextTool.ts"
     },
     {
       "from": "module:lib/tools/webExtractTool.ts",

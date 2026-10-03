@@ -301,6 +301,30 @@
           ],
           "additionalProperties": false
         },
+        "examples": {
+          "description": "Few-shot exchanges (input, output) added to every request's instruction.",
+          "minItems": 1,
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "minLength": 1
+              },
+              "output": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "input",
+              "output"
+            ],
+            "additionalProperties": false
+          }
+        },
         "mode": {
           "description": "\"task\": the agent works until it calls finish_task; its arguments (matching outputSchema) are the node's output. Workflow nodes only.",
           "type": "string",
@@ -632,6 +656,30 @@
             ],
             "additionalProperties": false
           },
+          "examples": {
+            "description": "Few-shot exchanges (input, output) added to every request's instruction.",
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "input": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "output": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "input",
+                "output"
+              ],
+              "additionalProperties": false
+            }
+          },
           "mode": {
             "description": "\"task\": the agent works until it calls finish_task; its arguments (matching outputSchema) are the node's output. Workflow nodes only.",
             "type": "string",
@@ -901,6 +949,25 @@
       ],
       "additionalProperties": false,
       "description": "Opts into a WORKFLOW: the syndicate as a graph (lib/workflow.ts). Cannot be combined with dispatch."
+    },
+    "retries": {
+      "description": "Self-correction on model and tool errors (ADK reflect-and-retry plugins). On by default.",
+      "type": "object",
+      "properties": {
+        "model_errors": {
+          "description": "Retries of a malformed model reply. Default 2; 0 off.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "tool_errors": {
+          "description": "Retries of a tool that threw, with reflection guidance. Default 3; 0 off.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        }
+      },
+      "additionalProperties": false
     },
     "variables": {
       "description": "Defaults for {{token}} interpolation. {{current_date}} is built in.",

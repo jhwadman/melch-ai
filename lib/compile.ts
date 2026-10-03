@@ -28,7 +28,7 @@
  * Contract and rationale: lib/dispatch.ts.
  */
 
-import { AgentTool, BuiltInCodeExecutor, FunctionTool, LLMRegistry, LlmAgent, LlmSummarizer, TokenBasedContextCompactor } from '@google/adk';
+import { AgentTool, BuiltInCodeExecutor, ExampleTool, FunctionTool, LLMRegistry, LlmAgent, LlmSummarizer, TokenBasedContextCompactor } from '@google/adk';
 import type { BaseTool, Context, RunAsyncToolRequest } from '@google/adk';
 import type { BaseLlm } from '@google/adk';
 import { relative } from 'node:path';
@@ -237,13 +237,33 @@ export function declaresApprovals(config: SyndicateYamlConfig): boolean {
   return agentGates(config.orchestrator) || (config.subagents ?? []).some((s) => agentGates(s));
 }
 
+/** An agent's `examples:` entry: one exchange the model should imitate. */
+export interface ExampleConfig {
+  input: string;
+  output: string;
+}
+
+/**
+ * ADK's ExampleTool from YAML pairs: never called by the model, it adds the
+ * exchanges to every request's instruction as few-shot examples.
+ */
+export function examplesTool(examples: ExampleConfig[] | undefined): unknown[] {
+  if (!examples?.length) return [];
+  return [
+    new ExampleTool(
+      examples.map((e) => ({ input: { role: 'user', parts: [{ text: e.input }] }, output: [{ role: 'model', parts: [{ text: e.output }] }] })),
+    ),
+  ];
+}
+
 async function resolveAgentTools(
   toolNames: string[] | undefined,
   mcpServerUrl: string | undefined,
   opts: CompileOptions,
   openapi?: OpenApiConfig[],
+  examples?: ExampleConfig[],
 ): Promise<unknown[]> {
-  const tools = resolveNamedTools(toolNames, opts.onUnknownTool);
+  const tools = [...resolveNamedTools(toolNames, opts.onUnknownTool), ...examplesTool(examples)];
   // OpenAPI operations become tools here, so require_approval can name them.
   for (const entry of openapi ?? []) {
     const built = await buildOpenApiTools(entry);
@@ -317,7 +337,7 @@ export async function compileSubagent(
     return compileGraph(nested, opts, subCfg.name, subCfg.description);
   }
 
-  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi), subCfg.require_approval, subCfg.name);
+  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples), subCfg.require_approval, subCfg.name);
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
@@ -376,7 +396,7 @@ export async function compileGraph(
   // that exactly rather than widening the contract in passing.
   compiledTools.push(
     ...gateTools(
-      await resolveAgentTools(config.orchestrator.tools, undefined, opts, config.orchestrator.openapi),
+      await resolveAgentTools(config.orchestrator.tools, undefined, opts, config.orchestrator.openapi, config.orchestrator.examples),
       config.orchestrator.require_approval,
       overrideName || config.orchestrator.name,
     ),

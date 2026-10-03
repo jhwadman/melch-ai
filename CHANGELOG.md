@@ -6,6 +6,17 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Behaviour change: self-correction is on by default.** Every turn now runs
+  ADK's reflect-and-retry plugins. A model reply ADK marks malformed
+  (`MALFORMED_FUNCTION_CALL`) is retried up to twice with guidance instead of
+  failing the turn; a tool that throws is answered with structured reflection
+  guidance and retried at most three times. Every retry counts against
+  `max_steps`. Set `retries: { model_errors: 0, tool_errors: 0 }` at the root
+  of a syndicate to restore the previous behaviour. ADR 0034.
+- **`url_context` and `examples:`.** `url_context` lets a Gemini agent read
+  the pages at URLs in the conversation, server-side; on other providers it is
+  a no-op the doctor reports as dropped. An agent's `examples: [{ input,
+  output }]` adds few-shot exchanges to every request (ADK's `ExampleTool`).
 - **Three agent keys from ADK: `code_execution`, `context`, `mode`.**
   `code_execution: gemini` lets a Gemini agent write and run Python in
   Gemini's server-side sandbox (nothing runs on the host). `context:
