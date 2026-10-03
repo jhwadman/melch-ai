@@ -5,25 +5,25 @@
     "at": "2026-10-03"
   },
   "stats": {
-    "nodes": 580,
-    "edges": 1343,
+    "nodes": 586,
+    "edges": 1358,
     "byKind": {
-      "doc": 79,
+      "doc": 81,
       "provider": 5,
       "env": 96,
       "model": 7,
-      "tool": 32,
-      "file": 63,
+      "tool": 33,
+      "file": 65,
       "syndicate": 31,
       "agent": 87,
       "mcp-server": 4,
       "table": 16,
-      "module": 114,
+      "module": 115,
       "script": 44,
       "external": 2
     },
     "byRelation": {
-      "links_to": 203,
+      "links_to": 206,
       "requires_env": 149,
       "routes_to": 7,
       "defined_in": 74,
@@ -33,16 +33,16 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 322,
+      "imports": 325,
       "reads_table": 28,
       "runs": 64,
-      "derives_from": 201
+      "derives_from": 210
     },
     "byTier": {
-      "extracted": 1343,
+      "extracted": 1358,
       "inferred": 0
     },
-    "isolated": 2
+    "isolated": 3
   },
   "nodes": [
     {
@@ -754,6 +754,18 @@
       }
     },
     {
+      "id": "/decisions/0031-ask-user.md",
+      "kind": "doc",
+      "label": "ADR 0031: An agent asks the person through `ask_user`, a long-running tool on the input-required path",
+      "source": "/decisions/0031-ask-user.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 530
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -919,6 +931,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 400
+      }
+    },
+    {
+      "id": "/tools/ask-user.md",
+      "kind": "doc",
+      "label": "Ask the user",
+      "source": "/tools/ask-user.md",
+      "attrs": {
+        "type": "tool",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 265
       }
     },
     {
@@ -2933,6 +2957,19 @@
       "source": "tests/models.test.ts"
     },
     {
+      "id": "file:tests/questions.test.ts",
+      "kind": "file",
+      "label": "questions.test.ts",
+      "source": "tests/questions.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/questionsA2a.test.ts",
+      "kind": "file",
+      "label": "questionsA2a.test.ts",
+      "source": "tests/questionsA2a.test.ts"
+    },
+    {
       "id": "file:tests/skillHarness.test.ts",
       "kind": "file",
       "label": "skillHarness.test.ts",
@@ -3440,12 +3477,21 @@
       }
     },
     {
+      "id": "module:lib/runtime/questions.ts",
+      "kind": "module",
+      "label": "lib/runtime/questions.ts",
+      "source": "lib/runtime/questions.ts",
+      "attrs": {
+        "lines": 112
+      }
+    },
+    {
       "id": "module:lib/runtime/syndicateTurn.ts",
       "kind": "module",
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 902
+        "lines": 940
       }
     },
     {
@@ -3553,7 +3599,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 811
+        "lines": 825
       }
     },
     {
@@ -3562,7 +3608,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 139
+        "lines": 144
       }
     },
     {
@@ -3868,7 +3914,7 @@
       "label": "lib/workflowConfig.ts",
       "source": "lib/workflowConfig.ts",
       "attrs": {
-        "lines": 146
+        "lines": 148
       }
     },
     {
@@ -4942,6 +4988,12 @@
       "kind": "table",
       "label": "melchizedek_usage",
       "source": "db/migrations/0004_usage.sql"
+    },
+    {
+      "id": "tool:ask_user",
+      "kind": "tool",
+      "label": "ask_user",
+      "source": "lib/toolRegistry.ts"
     },
     {
       "id": "tool:check_retraction",
@@ -6946,6 +6998,41 @@
       "evidence": "/decisions/0030-workflow-graphs.md:37"
     },
     {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "file:tests/questions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "file:tests/questionsA2a.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8029,6 +8116,55 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md:38"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "file:tests/questions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:25"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:25"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0031-ask-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:27"
     },
     {
       "from": "/tools/evidence-tools.md",
@@ -11069,6 +11205,13 @@
       "evidence": "lib/registry.ts"
     },
     {
+      "from": "module:lib/runtime/questions.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/questions.ts"
+    },
+    {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/a2a/remoteAgent.ts",
       "rel": "imports",
@@ -11127,6 +11270,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/questions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -11284,6 +11434,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
     },
     {
       "from": "module:lib/toolRegistry.ts",

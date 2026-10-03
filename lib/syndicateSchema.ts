@@ -530,9 +530,22 @@ function crossFieldProblems(raw: unknown): Problem[] {
       }
     });
   };
+  // ask_user ends the turn waiting for the person, the same pause as an
+  // approval, so it is allowed in the same places (lib/runtime/questions.ts).
+  const questionProblems = (agent: Record<string, unknown>, path: (string | number)[], allowed: boolean) => {
+    const tools = Array.isArray(agent.tools) ? agent.tools : [];
+    const at = tools.indexOf('ask_user');
+    if (at === -1) return;
+    if (isObj(raw.workflow)) {
+      out.push({ path: [...path, 'tools', at], message: 'ask_user is not supported on a workflow node yet; use an ask_user node (workflow.nodes)' });
+    } else if (!allowed) {
+      out.push({ path: [...path, 'tools', at], message: 'ask_user pauses the turn, which only the orchestrator or a plan-dispatch route can do; a delegated subagent cannot' });
+    }
+  };
   if (isObj(raw.orchestrator)) {
     gateProblems(raw.orchestrator, ['orchestrator'], true);
     skillProblems(raw.orchestrator, ['orchestrator'], true);
+    questionProblems(raw.orchestrator, ['orchestrator'], true);
   }
   const dispatching = isObj(raw.dispatch);
 
@@ -540,6 +553,7 @@ function crossFieldProblems(raw: unknown): Problem[] {
     if (!isObj(sub)) return;
     gateProblems(sub, ['subagents', i], dispatching);
     skillProblems(sub, ['subagents', i], dispatching);
+    questionProblems(sub, ['subagents', i], dispatching);
     const hasRef = typeof sub.yaml_reference === 'string';
     const hasRemote = typeof sub.a2a_agent_url === 'string';
     if (hasRef && hasRemote) {

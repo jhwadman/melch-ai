@@ -6,6 +6,15 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **`ask_user`: an agent asks the person and waits.** A registry tool,
+  `ask_user(question, options?)`, on the orchestrator or a plan-dispatch
+  route. Called, it ends the turn `input-required` with `result.input`
+  (`node`, `message`, `payload.options`); the next plain-text message on the
+  conversation becomes the call's result and the agent resumes its own tool
+  loop (a dispatch turn goes straight back to the route that asked). Over A2A
+  the task carries an `input_request` data part — the same one a workflow's
+  `ask_user` node publishes. A delegated subagent or a workflow node listing
+  it is a load error. ADR 0031.
 - **Workflows: the `workflow:` block, the third orchestration method.** A
   syndicate may be a graph: its agents are the nodes, `edges` says what runs
   after what and on which route (a map after a node routes on the `route_key`

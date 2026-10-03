@@ -46,6 +46,8 @@ import { registerAvailableProviders } from '../models/registry.ts';
 import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
 import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
+import { pendingQuestion, questionAnswerPart, questionFrom, turnStartOfCall } from './questions.ts';
+export { ASK_USER, pendingQuestion, questionAnswerPart } from './questions.ts';
 import type { PendingApproval } from './approvals.ts';
 export { approvalResponsePart, describeApproval, pendingApproval } from './approvals.ts';
 export type { PendingApproval } from './approvals.ts';
@@ -155,8 +157,9 @@ export interface DrainedRun {
 export type TurnStage = 'classify' | 'dispatch' | 'delegate' | 'workflow';
 
 export interface RouteDecision extends RouteResolution {
-  /** `approval`: the turn resumed the route that asked for an approval (ADR 0028). */
-  decidedBy: 'override' | 'forced' | 'classifier' | 'approval';
+  /** `approval`: the turn resumed the route that asked for an approval (ADR 0028).
+   *  `answer`: the message answered the route's open `ask_user` question. */
+  decidedBy: 'override' | 'forced' | 'classifier' | 'approval' | 'answer';
 }
 
 export interface SyndicateTurnResult {
@@ -329,7 +332,7 @@ export async function drainAgentStream(
         if (opts.publishToolStatus) ev.onProgress?.(`Delegating to subagent: ${target}`);
         continue;
       }
-      const inputRequest = inputRequestFrom(e.author, call);
+      const inputRequest = inputRequestFrom(e.author, call) ?? questionFrom(e.author, call);
       if (inputRequest) {
         // An ask_user node: the workflow waits for the person (lib/workflow.ts).
         d.inputRequests.push(inputRequest);
@@ -444,7 +447,7 @@ async function runTurnInner(
   const transform = opts.transformAgent ?? ((a: LlmAgent) => a);
   const subagentNames = new Set((config.subagents ?? []).map((s) => s.name));
   const trace = opts.trace === false ? undefined : opts.trace ?? {};
-  const parts = opts.parts.map((p) => (typeof p === 'string' ? { text: p } : p));
+  let parts = opts.parts.map((p) => (typeof p === 'string' ? { text: p } : p));
   const messageText = parts.map((p: any) => (typeof p.text === 'string' ? p.text : '')).join('\n');
 
   const result: SyndicateTurnResult = {
@@ -499,11 +502,38 @@ async function runTurnInner(
     // The log names the call, not its arguments: they are user content.
     ev.log?.(`✓ Approval ${decision.approved ? 'granted' : 'refused'}: ${resuming.agent} → ${resuming.tool}`);
   }
+
+  // ── Questions (lib/runtime/questions.ts) ───────────────────────────────────
+  // While an agent's `ask_user` call is open, a plain-text message is its
+  // answer: it becomes that call's response, and the agent that asked
+  // resumes its own tool loop. A workflow's pauses are ADK's own business.
+  let answering: { agent: string; id: string } | undefined;
+  if (!decision && !isWorkflowSyndicate(config)) {
+    const question = pendingQuestion(existing?.events ?? []);
+    const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
+    if (question && plainText) {
+      answering = { agent: question.node, id: question.id };
+      parts = [questionAnswerPart(question.id, messageText)];
+      ev.log?.(`✓ Answer to ${question.node}'s question`);
+    }
+  }
+  /** The agent a dispatch turn must resume, and the call its interrupted turn holds. */
+  const resumeTarget = resuming ? { agent: resuming.agent, id: resuming.id, why: 'resuming an approval' } : answering ? { ...answering, why: 'answering its question' } : undefined;
   /** After the answering run: is a gated call now waiting? */
   const awaitingApproval = async (agentName: string): Promise<PendingApproval | undefined> => {
     const after = await sessionService.getSession({ appName, userId, sessionId });
     const pending = pendingApproval(after?.events ?? []);
     return pending && pending.agent === agentName ? pending : undefined;
+  };
+  /** After the answering run: did the agent ask the person something? */
+  const asked = (run: DrainedRun): SyndicateTurnResult | undefined => {
+    const input = run.inputRequests[run.inputRequests.length - 1];
+    if (!input) return undefined;
+    result.status = 'input-required';
+    result.input = input;
+    result.text = input.message;
+    ev.log?.(`⏸ Input needed: ${describeInput(input)}`);
+    return finish();
   };
   const pause = (pending: PendingApproval): SyndicateTurnResult => {
     result.status = 'input-required';
@@ -587,16 +617,16 @@ async function runTurnInner(
     // Deterministic overrides first: when the message itself decides the
     // route there is nothing to classify, and the classifier call is skipped.
     const warnings: string[] = [];
-    let resolution: RouteResolution | null = resuming ? null : matchRouteOverride(messageText, config, warnings);
+    let resolution: RouteResolution | null = resumeTarget ? null : matchRouteOverride(messageText, config, warnings);
     let decidedBy: RouteDecision['decidedBy'] = 'override';
     for (const w of warnings) ev.warn?.(w);
 
-    if (resuming) {
-      if (!subagentNames.has(resuming.agent)) {
-        throw new Error(`Approval ${resuming.id} was raised by '${resuming.agent}', which is not a route of this syndicate.`);
+    if (resumeTarget) {
+      if (!subagentNames.has(resumeTarget.agent)) {
+        throw new Error(`Call ${resumeTarget.id} was raised by '${resumeTarget.agent}', which is not a route of this syndicate.`);
       }
-      resolution = { route: resuming.agent, reason: 'resuming an approval', fellBack: false, fallbackReason: '', viaOverride: false };
-      decidedBy = 'approval';
+      resolution = { route: resumeTarget.agent, reason: resumeTarget.why, fellBack: false, fallbackReason: '', viaOverride: false };
+      decidedBy = resuming ? 'approval' : 'answer';
     } else if (resolution) {
       ev.log?.(`⇄ Route pinned by override: ${resolution.route}`);
     } else if (opts.forceRoute) {
@@ -660,12 +690,16 @@ async function runTurnInner(
         agent: routeAgent,
         sid: sessionId,
         userParts: parts,
-        // Resuming an approval: the interrupted turn is replayed raw, so ADK
-        // finds the call the approval answers (ADR 0028).
+        // Resuming an approval or answering a question: the interrupted turn
+        // is replayed raw, so ADK finds the call the message answers.
         sessions: new ProjectedSessionService(
           sessionService,
           routeCfg.name,
-          resuming ? { rawFrom: (events) => interruptedTurnStart(events, resuming!.id) } : {},
+          resuming
+            ? { rawFrom: (events) => interruptedTurnStart(events, resuming!.id) }
+            : answering
+              ? { rawFrom: (events) => turnStartOfCall(events, answering!.id) }
+              : {},
         ),
         stage: 'dispatch',
         route: resolution,
@@ -683,6 +717,8 @@ async function runTurnInner(
       const pending = await awaitingApproval(routeCfg.name);
       if (pending) return pause(pending);
     }
+    const askedRoute = asked(answer);
+    if (askedRoute) return askedRoute;
     result.text = answer.text;
     if (!result.text) {
       // Naming the route turns a blank reply into a lead (the XScout outage
@@ -769,6 +805,8 @@ async function runTurnInner(
       const pending = await awaitingApproval(config.orchestrator.name);
       if (pending) return pause(pending);
     }
+    const askedOrchestrator = asked(answer);
+    if (askedOrchestrator) return askedOrchestrator;
     result.text = answer.text;
     // Failed-relay fallback: an orchestrator can botch the hop that relays a
     // specialist's answer — STOP with no text, or the bare tool NAME as its

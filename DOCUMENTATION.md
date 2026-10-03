@@ -134,6 +134,7 @@ instance:
 | `generate_image` | FunctionTool | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A FunctionTool because binary `inlineData` cannot survive the AgentTool text boundary. |
 | `inspect_image` | FunctionTool | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | FunctionTool | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
+| `ask_user` | LongRunningFunctionTool | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Orchestrator or plan-dispatch route only (§6, Questions). |
 | `task_queue` | FunctionTool | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. |
 
 **MCP tools** are the exception to the registry: a subagent with
@@ -567,6 +568,35 @@ syndicate. Only function tools from the registry can be gated, not MCP tools
 or native-search sentinels. In code, `runSyndicateTurn` returns
 `status: 'input-required'` with `approval`, and the next turn's part
 `approvalResponsePart(approval.id, approved)` answers it.
+
+#### Questions (`ask_user`)
+
+An agent can ask the person something mid-turn and wait for the answer
+(`lib/runtime/questions.ts`, [ADR 0031](./wiki/decisions/0031-ask-user.md)).
+It lists the tool:
+
+```yaml
+orchestrator:
+  name: Desk
+  tools: [ask_user]   # ask_user(question, options?)
+```
+
+When the model calls `ask_user`, the turn ends `input-required`, final. The
+status message is the question ("Desk asks: Which account? (personal /
+work)") with a data part
+`{ type: 'input_request', interrupt_id, node, message, payload }`, where
+`payload.options` lists the choices when the agent gave some. The caller's
+next message on the same conversation is the answer: its text becomes the
+call's result, and the agent resumes its own tool loop where it asked. A
+workflow's `ask_user` node (§6, Workflows) publishes the same data part and
+is answered the same way, so a client handles both alike.
+
+`ask_user` is allowed where an approval gate is: the orchestrator and the
+subagents of a plan-dispatch syndicate (a dispatch turn that answers goes
+straight back to the route that asked, without the classifier). A delegated
+subagent or a workflow node listing it is a load error. In code,
+`runSyndicateTurn` returns `status: 'input-required'` with `input`
+(`node`, `message`, `payload`), and the next message's text answers it.
 
 #### Limits
 

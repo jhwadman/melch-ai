@@ -141,5 +141,7 @@ export function inputRequestFrom(author: string | undefined, call: { name?: stri
 
 /** One line a person can read: what the workflow is waiting for. */
 export function describeInput(input: PendingInput): string {
-  return `${input.node} asks: ${input.message || '(no question text)'}`;
+  const options = (input.payload as { options?: unknown } | undefined)?.options;
+  const choices = Array.isArray(options) && options.length ? ` (${options.join(' / ')})` : '';
+  return `${input.node} asks: ${input.message || '(no question text)'}${choices}`;
 }
