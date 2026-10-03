@@ -77,9 +77,11 @@ call) that an application calls itself.
 
 - `ProviderId` gains `moonshot`; every exhaustive switch and record was
   extended, and TypeScript enforces the next one.
-- The provider has not been run live from this repository; every cell of
-  its row is asserted against the request body the adapter sends
-  (`tests/capabilityMatrix.test.ts`, `tests/models.test.ts`).
+- Every cell of its row is asserted against the request body the adapter
+  sends (`tests/capabilityMatrix.test.ts`, `tests/models.test.ts`). One
+  plain turn was verified live on 2026-10-03 (`npm run demo:models`,
+  kimi-k3 at low effort, 17.9 s, 262 thinking tokens surfaced); tool loops
+  and the dropped search were not exercised live.
 - `kimi-k2.5` and the `moonshot-v1` ids, retired on 2026-08-31, are not
   routed by name; the 404 hint names the retirement.
 - The cost guidance lives in the adapter header, the config comment,

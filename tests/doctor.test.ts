@@ -47,6 +47,16 @@ function withEnv<T>(vars: Record<string, string>, fn: () => T): T {
   }
 }
 
+test('the providers line names each provider\'s own key when it is unset', () => {
+  withEnv({}, () => {
+    const text = renderDoctor(runDoctor({ agentsDir: AGENTS }));
+    const line = text.split('\n').find((l) => l.startsWith('providers'))!;
+    assert.match(line, /Moonshot Kimi MOONSHOT_API_KEY not set/);
+    assert.match(line, /xAI Grok XAI_API_KEY not set/);
+    assert.match(line, /Ollama \(local\) local/);
+  });
+});
+
 test('listSyndicateFiles sees the root and examples/, never the schema or evals/', () => {
   const files = listSyndicateFiles(AGENTS);
   assert.ok(files.includes('examples/council.yaml'));

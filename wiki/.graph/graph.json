@@ -822,7 +822,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 603
+        "words": 624
       }
     },
     {
@@ -3303,7 +3303,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 672
+        "lines": 684
       }
     },
     {
@@ -3474,7 +3474,7 @@
       "label": "lib/models/kimiLlm.ts",
       "source": "lib/models/kimiLlm.ts",
       "attrs": {
-        "lines": 185
+        "lines": 188
       }
     },
     {

@@ -83,9 +83,12 @@
  *     keeps scratchpads out of history, so K3 re-reasons each step
  *     (degraded, stated in lib/models/capabilities.ts); if Moonshot ever
  *     enforces it, the turn ends with MOONSHOT_HTTP_ERROR naming the field.
- *   - Not run live from this repository: every cell of its capability row
- *     is asserted against the request body the adapter sends
- *     (tests/capabilityMatrix.test.ts), as for every other provider.
+ *   - Every cell of its capability row is asserted against the request body
+ *     the adapter sends (tests/capabilityMatrix.test.ts), as for every other
+ *     provider. Verified live on 2026-10-03 through `npm run demo:models`:
+ *     kimi-k3 at low effort answered the zoo's explainer prompt in 17.9 s,
+ *     440 tokens in, 486 out, 262 of them thinking, the scratchpad surfaced
+ *     from reasoning_content; tool loops and search were not exercised.
  */
 
 import { LLMRegistry } from '@google/adk';
