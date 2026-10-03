@@ -175,6 +175,22 @@ const agentFields = {
     .describe('MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.'),
   skills: skillsSchema.optional(),
   openapi: z.array(openapiEntry).min(1).optional(),
+  code_execution: z
+    .literal('gemini')
+    .optional()
+    .describe('"gemini": the model writes and runs Python in Gemini\'s server-side sandbox; nothing runs on this host. Gemini models only.'),
+  context: z
+    .strictObject({
+      compact_after_tokens: z.number().int().min(1000).describe('Compact when the last request\'s prompt passed this many tokens.'),
+      keep_recent_events: z.number().int().min(1).max(100).optional().describe('Events kept verbatim after the summary. Default 6.'),
+      summary_model: z.string().min(1).optional().describe('The model that writes the summary. Default: the agent\'s own.'),
+    })
+    .optional()
+    .describe('Summarize a long conversation instead of overflowing the window. The orchestrator of a delegate syndicate only.'),
+  mode: z
+    .literal('task')
+    .optional()
+    .describe('"task": the agent works until it calls finish_task; its arguments (matching outputSchema) are the node\'s output. Workflow nodes only.'),
   orchestration: z
     .strictObject({
       role: z.enum(['primary', 'sub-agent']).optional(),
@@ -572,6 +588,25 @@ function crossFieldProblems(raw: unknown): Problem[] {
       out.push({ path: [...path, 'tools', at], message: 'ask_user pauses the turn, which only the orchestrator or a plan-dispatch route can do; a delegated subagent cannot' });
     }
   };
+  // Execution keys (ADR 0033): where each one means something.
+  const executionProblems = (agent: Record<string, unknown>, path: (string | number)[], isOrchestrator: boolean) => {
+    const model = typeof agent.model === 'string' ? agent.model : isObj(raw.orchestrator) && typeof raw.orchestrator.model === 'string' ? raw.orchestrator.model : '';
+    if (agent.code_execution !== undefined && model && !/^gemini-/.test(model)) {
+      out.push({ path: [...path, 'code_execution'], message: `code_execution: gemini needs a gemini-* model (this agent's is ${model})` });
+    }
+    if (agent.context !== undefined && (!isOrchestrator || isObj(raw.dispatch) || isObj(raw.workflow))) {
+      out.push({
+        path: [...path, 'context'],
+        message: 'context compaction applies to the orchestrator of a delegate syndicate: a dispatch route reads a bounded projection, a workflow node sees only its input, and a subagent starts fresh on every call',
+      });
+    }
+    if (agent.mode !== undefined && !isObj(raw.workflow)) {
+      out.push({ path: [...path, 'mode'], message: 'mode: task applies to workflow nodes, whose output is the finish_task arguments' });
+    }
+  };
+  if (isObj(raw.orchestrator)) executionProblems(raw.orchestrator, ['orchestrator'], true);
+  for (const [i, sub] of (Array.isArray(raw.subagents) ? raw.subagents : []).entries()) if (isObj(sub)) executionProblems(sub, ['subagents', i], false);
+
   if (isObj(raw.orchestrator)) {
     gateProblems(raw.orchestrator, ['orchestrator'], true);
     skillProblems(raw.orchestrator, ['orchestrator'], true);

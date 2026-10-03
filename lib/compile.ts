@@ -28,7 +28,7 @@
  * Contract and rationale: lib/dispatch.ts.
  */
 
-import { AgentTool, FunctionTool, LlmAgent } from '@google/adk';
+import { AgentTool, BuiltInCodeExecutor, FunctionTool, LLMRegistry, LlmAgent, LlmSummarizer, TokenBasedContextCompactor } from '@google/adk';
 import type { BaseTool, Context, RunAsyncToolRequest } from '@google/adk';
 import type { BaseLlm } from '@google/adk';
 import { relative } from 'node:path';
@@ -107,6 +107,49 @@ function passthroughFields(cfg: {
   if (cfg.globalInstruction !== undefined) out.globalInstruction = cfg.globalInstruction;
   if (cfg.disallowTransferToParent !== undefined) out.disallowTransferToParent = cfg.disallowTransferToParent;
   if (cfg.disallowTransferToPeers !== undefined) out.disallowTransferToPeers = cfg.disallowTransferToPeers;
+  return out;
+}
+
+/** An agent's `context:` block: compact a long conversation into a summary (ADR 0033). */
+export interface ContextConfig {
+  /** Compact when the last request's prompt passed this many tokens. */
+  compact_after_tokens: number;
+  /** Events kept verbatim after the summary. Default 6. */
+  keep_recent_events?: number;
+  /** The model that writes the summary. Default: the agent's own. */
+  summary_model?: string;
+}
+
+export const DEFAULT_KEEP_RECENT_EVENTS = 6;
+
+/**
+ * The LlmAgent fields the engine builds from YAML rather than passing
+ * through (ADR 0033): `code_execution: gemini` (Gemini's server-side
+ * sandbox runs the model's Python; nothing runs on this host), `context:`
+ * (ADK's token-based compactor with an LLM summarizer, so a long
+ * conversation is summarized instead of overflowing the window), and
+ * `mode: task` (the agent works until it calls finish_task; on a workflow
+ * node, its arguments become the node's output).
+ */
+function executionFields(
+  cfg: { model?: string; code_execution?: 'gemini'; context?: ContextConfig; mode?: 'task' },
+  opts: CompileOptions,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (cfg.code_execution === 'gemini') out.codeExecutor = new BuiltInCodeExecutor();
+  if (cfg.mode) out.mode = cfg.mode;
+  if (cfg.context) {
+    const resolve = opts.resolveModel ?? ((m) => m);
+    const summaryModel = resolve(cfg.context.summary_model ?? cfg.model);
+    const llm = typeof summaryModel === 'string' || !summaryModel ? LLMRegistry.newLlm(String(summaryModel ?? cfg.model)) : summaryModel;
+    out.contextCompactors = [
+      new TokenBasedContextCompactor({
+        tokenThreshold: cfg.context.compact_after_tokens,
+        eventRetentionSize: cfg.context.keep_recent_events ?? DEFAULT_KEEP_RECENT_EVENTS,
+        summarizer: new LlmSummarizer({ llm }),
+      }),
+    ];
+  }
   return out;
 }
 
@@ -290,6 +333,7 @@ export async function compileSubagent(
       subCfg.generateContentConfig as Record<string, unknown> | undefined,
     ) as any,
     ...passthroughFields(subCfg),
+    ...executionFields(subCfg, opts),
     ...(opts.nodeConfig?.(subCfg.name) ?? {}),
   });
 }
@@ -363,5 +407,6 @@ export async function compileGraph(
       config.orchestrator.generateContentConfig as Record<string, unknown> | undefined,
     ) as any,
     ...passthroughFields(config.orchestrator),
+    ...executionFields(config.orchestrator, opts),
   });
 }

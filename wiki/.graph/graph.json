@@ -5,15 +5,15 @@
     "at": "2026-10-03"
   },
   "stats": {
-    "nodes": 596,
-    "edges": 1383,
+    "nodes": 598,
+    "edges": 1388,
     "byKind": {
-      "doc": 84,
+      "doc": 85,
       "provider": 5,
       "env": 97,
       "model": 7,
       "tool": 33,
-      "file": 67,
+      "file": 68,
       "syndicate": 32,
       "agent": 88,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 211,
+      "links_to": 212,
       "requires_env": 150,
       "routes_to": 7,
       "defined_in": 75,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 328,
+      "imports": 329,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 220
+      "derives_from": 223
     },
     "byTier": {
-      "extracted": 1383,
+      "extracted": 1388,
       "inferred": 0
     },
     "isolated": 3
@@ -787,6 +787,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 589
+      }
+    },
+    {
+      "id": "/decisions/0033-context-task-code.md",
+      "kind": "doc",
+      "label": "ADR 0033: Three ADK agent features as YAML keys, each placed where it means something: code_execution, context, mode",
+      "source": "/decisions/0033-context-task-code.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 527
       }
     },
     {
@@ -2998,6 +3010,12 @@
       "source": "tests/agents.test.ts"
     },
     {
+      "id": "file:tests/execution.test.ts",
+      "kind": "file",
+      "label": "execution.test.ts",
+      "source": "tests/execution.test.ts"
+    },
+    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -3197,7 +3215,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 368
+        "lines": 413
       }
     },
     {
@@ -3278,7 +3296,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 672
+        "lines": 679
       }
     },
     {
@@ -3665,7 +3683,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 855
+        "lines": 890
       }
     },
     {
@@ -7198,6 +7216,34 @@
       "evidence": "/decisions/0032-openapi-tools.md frontmatter"
     },
     {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "file:tests/execution.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md frontmatter"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "/decisions/0029-skills-read-like-a-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md:27"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -10423,6 +10469,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
     },
     {
       "from": "module:lib/loadSyndicate.ts",
