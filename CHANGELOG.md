@@ -4,6 +4,25 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+- **Moonshot AI (Kimi) is a provider.** `kimi-*` model ids route to a new
+  direct adapter (`lib/models/kimiLlm.ts`, chat completions against
+  `api.moonshot.ai`), funded by `MOONSHOT_API_KEY` (`MOONSHOT_BASE_URL` for a
+  proxy). Tool calling, delegation, strict structured output, streaming,
+  images and `reasoning_content` work; native `web_search` is dropped with a
+  warning (Moonshot's model-side search retires 2026-10-20), and thinking is
+  not carried across a tool loop (K3 re-reasons each step; both stated in
+  the capability matrix). `kimi-k3` takes `reasoning_effort` (pinned `high`,
+  `DEFAULT_KIMI_REASONING_EFFORT`); K2.x ids take a thinking switch. With no
+  direct key the gateway serves the ids as `moonshotai/…`. The doctor,
+  `.env.example`, the schema comments and the docs know the provider;
+  `model_zoo.yaml` gains a sixth agent, `kimi` on `kimi-k3` at low effort,
+  and the Zookeeper names six providers. Cost note: `kimi-k3` is priced
+  like Claude Sonnet 4.6 ($3 / $15, thinking billed as output), so
+  `kimi-k2.6` is the budget tier and the gateway the cheap route to K3.
+  Not run live from this repository.
+
 ## 0.16.2 — 2026-10-02
 
 - **`OTEL_EXPORT_CONTENT=off` also drops library content attributes.** In

@@ -179,6 +179,7 @@ export const CONSOLE_URLS: Record<ProviderId, string> = {
   anthropic: 'https://console.anthropic.com',
   openai: 'https://platform.openai.com/api-keys',
   xai: 'https://console.x.ai',
+  moonshot: 'https://platform.moonshot.ai',
   ollama: 'https://ollama.com',
 };
 

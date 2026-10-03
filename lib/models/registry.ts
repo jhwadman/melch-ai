@@ -11,7 +11,7 @@
  *      registry then string-matches supportedModels patterns:
  *        claude-*  → ClaudeLlm      gpt-* / o<digit>* → GptLlm
  *        grok-*    → GrokLlm        ollama/<model>    → OllamaLlm
- *        gemini-*  → TracedGemini (ADK's Gemini + llm.request spans)
+ *        kimi-*    → KimiLlm        gemini-*          → TracedGemini (ADK's Gemini + llm.request spans)
  *
  *   2. resolveModel() — instance factory for BYOK paths (scripts/
  *      a2a_server.ts), where a per-request API key from an HTTP header must
@@ -35,6 +35,7 @@ import {
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GPT_MODEL,
   DEFAULT_GROK_MODEL,
+  DEFAULT_KIMI_MODEL,
   DEFAULT_OLLAMA_MODEL,
 } from '../config.ts';
 import {
@@ -44,6 +45,7 @@ import {
 import { ClaudeLlm, registerClaudeLlm } from './claudeLlm.ts';
 import { GptLlm, registerGptLlm } from './gptLlm.ts';
 import { GrokLlm, registerGrokLlm } from './grokLlm.ts';
+import { KimiLlm, registerKimiLlm } from './kimiLlm.ts';
 import { OllamaLlm, registerOllamaLlm } from './ollamaLlm.ts';
 import { GatewayLlm, registerGatewayLlm } from './gatewayLlm.ts';
 import {
@@ -217,6 +219,7 @@ const REGISTRARS: Record<ProviderId, () => void> = {
   anthropic: registerClaudeLlm,
   openai: registerGptLlm,
   xai: registerGrokLlm,
+  moonshot: registerKimiLlm,
   ollama: registerOllamaLlm,
 };
 
@@ -233,6 +236,7 @@ const PATTERNS: Record<Exclude<ProviderId, 'ollama'>, Array<string | RegExp>> = 
   anthropic: ClaudeLlm.supportedModels,
   openai: GptLlm.supportedModels,
   xai: GrokLlm.supportedModels,
+  moonshot: KimiLlm.supportedModels,
 };
 
 let providersRegistered = false;
@@ -284,6 +288,8 @@ function modelHint(provider: ProviderId): string {
       return 'gpt-*/o*';
     case 'xai':
       return 'grok-*';
+    case 'moonshot':
+      return 'kimi-*';
     case 'ollama':
       return 'ollama/*';
     case 'gemini':
@@ -315,6 +321,7 @@ const DEFAULT_MODEL_FOR: Record<ProviderId, string> = {
   anthropic: DEFAULT_CLAUDE_MODEL,
   openai: DEFAULT_GPT_MODEL,
   xai: DEFAULT_GROK_MODEL,
+  moonshot: DEFAULT_KIMI_MODEL,
   ollama: DEFAULT_OLLAMA_MODEL,
 };
 
@@ -362,6 +369,8 @@ export function resolveModel(
       return new GptLlm({ model: resolved, apiKey, endpoint });
     case 'xai':
       return new GrokLlm({ model: resolved, apiKey });
+    case 'moonshot':
+      return new KimiLlm({ model: resolved, apiKey, baseUrl: endpoint?.baseURL });
     case 'gemini':
       return new TracedGemini({ model: resolved, apiKey, endpoint });
   }
@@ -369,7 +378,7 @@ export function resolveModel(
 
 function normalizeProvider(provider?: string): ProviderId {
   const p = provider?.toLowerCase();
-  if (p === 'ollama' || p === 'anthropic' || p === 'openai' || p === 'xai') {
+  if (p === 'ollama' || p === 'anthropic' || p === 'openai' || p === 'xai' || p === 'moonshot') {
     return p;
   }
   return 'gemini';

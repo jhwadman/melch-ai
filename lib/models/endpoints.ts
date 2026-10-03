@@ -11,7 +11,7 @@
  *   gemini     direct | vertex           Google Application Default Credentials
  *   anthropic  direct | bedrock | vertex AWS credential chain / Google ADC
  *   openai     direct | azure            AZURE_OPENAI_API_KEY, else Entra ID
- *   xai, ollama direct only
+ *   xai, moonshot, ollama  direct only (moonshot: MOONSHOT_BASE_URL for a proxy)
  *
  * Configuration comes from the environment (`endpointFromEnv`) or, per
  * request, from the server's `credentials` plug point, which may return an
@@ -32,6 +32,7 @@ export const PLATFORMS_FOR: Record<ProviderId, readonly Platform[]> = {
   anthropic: ['direct', 'bedrock', 'vertex'],
   openai: ['direct', 'azure'],
   xai: ['direct'],
+  moonshot: ['direct'],
   ollama: ['direct'],
 };
 
@@ -115,6 +116,8 @@ export function endpointFromEnv(provider: ProviderId, env: NodeJS.ProcessEnv = p
       return { ...base, ...(trimmed(env.ANTHROPIC_BASE_URL) ? { baseURL: trimmed(env.ANTHROPIC_BASE_URL) } : {}) };
     case 'openai/direct':
       return { ...base, ...(trimmed(env.OPENAI_BASE_URL) ? { baseURL: trimmed(env.OPENAI_BASE_URL) } : {}) };
+    case 'moonshot/direct':
+      return { ...base, ...(trimmed(env.MOONSHOT_BASE_URL) ? { baseURL: trimmed(env.MOONSHOT_BASE_URL) } : {}) };
     case 'openai/azure': {
       const endpoint = trimmed(env.AZURE_OPENAI_ENDPOINT);
       const key = trimmed(env.AZURE_OPENAI_API_KEY);

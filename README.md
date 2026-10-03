@@ -96,7 +96,7 @@ npm run chat:syndicate  # interactive REPL with the default syndicate
 ```
 
 Model optionality is one YAML line per agent: `gemini-*`, `claude-*`,
-`gpt-*`, `grok-*`, and `ollama/*` ids each route to their provider
+`gpt-*`, `grok-*`, `kimi-*`, and `ollama/*` ids each route to their provider
 (whichever keys you have; local needs none). Prove the whole surface:
 
 ```bash
@@ -135,7 +135,7 @@ worked specimen for a curriculum module:
 | `image_production.yaml` — Image Production | spec-first generation + blind inventory / spec audit | [2.04 · multi-modal agents](https://lyceumagents.com/curriculum/multimodal-agents/) |
 | `augustin.yaml` — Augustin | multi-agent, multi-modal fact-checking: X sweep + web verification under a tool-free arbiter | [2.05 · the fact-checking arbiter](https://lyceumagents.com/curriculum/fact-checking-agent/) |
 | `claude.yaml` — Claude Chat | minimal single-agent config; the multi-model adapter in one file | — |
-| `model_zoo.yaml` — Model Zoo | one lightweight agent per provider (Qwen/Claude/Grok/GPT/Gemini); model optionality proven by `npm run demo:models` | — |
+| `model_zoo.yaml` — Model Zoo | one lightweight agent per provider (Qwen/Claude/Grok/GPT/Gemini/Kimi); model optionality proven by `npm run demo:models` | — |
 | `scriptorium.yaml` — The Scriptorium | agents over the shipped knowledge bundle: query with citations, author through a validated save gate | — |
 | `scribe.yaml` — The Scribe | a technical brief in, a finished document out: draft, audit against the brief through a JSON-schema leaf, revise; wrote the `skills/` suite | — |
 | `research.yaml` — Research | plan-dispatch: triage names one of three routes, each holding its own tools; seven keyless science tools (Europe PMC, ClinicalTrials.gov, Crossref, OpenAlex) under an identifier and retraction guard | — |

@@ -8,11 +8,11 @@
  *
  *   ollama/qwen3:8b → Ollama (local)      claude-* → Anthropic
  *   grok-*          → xAI                 gpt-*    → OpenAI
- *   gemini-*        → Google
+ *   gemini-*        → Google              kimi-*   → Moonshot
  *
  * For each provider it prints: INPUT, THINKING (when the model exposes it —
  * qwen3's <think> blocks, Claude extended thinking, GPT reasoning summaries,
- * Grok reasoning summaries), OUTPUT, and a TRACE footer (wall time, input /
+ * Grok reasoning summaries, Kimi's reasoning_content), OUTPUT, and a TRACE footer (wall time, input /
  * output / thinking tokens) read from the same llm.request OpenTelemetry
  * spans every entrypoint emits. Providers whose key (or local server) is
  * absent are SKIPPED — never fatal, so the demo runs on any machine.
@@ -20,7 +20,7 @@
  * Flags:
  *   --search   also declare the provider-agnostic web_search tool on every
  *              agent: four providers enable their NATIVE search; the local
- *              model logs the omit warning (and stays keyless).
+ *              model and Kimi log the omit warning (and local stays keyless).
  *
  * Usage:
  *   npm run demo:models
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
 
   const config = loadSyndicate('examples/model_zoo.yaml');
 
-  console.log(`\n${c.bold}MODEL OPTIONALITY DEMO${c.reset} — one prompt, five providers`);
+  console.log(`\n${c.bold}MODEL OPTIONALITY DEMO${c.reset} — one prompt, six providers`);
   console.log(`${c.dim}Syndicate: ${config.syndicate_name} (config/agents/model_zoo.yaml)${c.reset}`);
   console.log(`${c.dim}web_search tool: ${withSearch ? 'DECLARED on every agent (--search)' : 'off (pass --search to enable)'}${c.reset}\n`);
 

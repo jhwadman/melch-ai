@@ -39,6 +39,7 @@ import {
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GPT_MODEL,
   DEFAULT_GROK_MODEL,
+  DEFAULT_KIMI_MODEL,
   DEFAULT_OLLAMA_MODEL,
   WIKI_AGENT_MODEL,
 } from '../../lib/config.ts';
@@ -539,6 +540,7 @@ function providerSpec(): DocSpec {
     anthropic: DEFAULT_CLAUDE_MODEL,
     openai: DEFAULT_GPT_MODEL,
     xai: DEFAULT_GROK_MODEL,
+    moonshot: DEFAULT_KIMI_MODEL,
     ollama: DEFAULT_OLLAMA_MODEL,
   };
   const prefixes: Record<string, string> = {
@@ -546,6 +548,7 @@ function providerSpec(): DocSpec {
     anthropic: '`claude-*`',
     openai: '`gpt-*`, `o<digit>*`',
     xai: '`grok-*`',
+    moonshot: '`kimi-*`',
     ollama: '`ollama/<model>`',
   };
   const rows = (Object.keys(PROVIDERS) as Array<keyof typeof PROVIDERS>).map((id) => [
@@ -561,7 +564,7 @@ function providerSpec(): DocSpec {
       type: 'model-provider',
       title: 'Provider routing',
       description:
-        'How a model string in YAML reaches the right provider adapter: one prefix table, five providers, availability by API key.',
+        'How a model string in YAML reaches the right provider adapter: one prefix table, six providers, availability by API key.',
       tags: ['models', 'routing'],
       sources: [
         { resource: 'lib/models/providerMap.ts' },

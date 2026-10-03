@@ -16,7 +16,7 @@ import { hasSupabaseCredentials } from '../lib/persistence/supabaseProvider.ts';
 const TEMPLATES = ['.env.example'];
 
 const SENSITIVE = [
-  'GOOGLE_GENAI_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY',
+  'GOOGLE_GENAI_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY', 'MOONSHOT_API_KEY',
   'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'A2A_SERVER_SECRET', 'MODEL_GATEWAY_API_KEY',
 ];
 
@@ -45,7 +45,7 @@ for (const template of TEMPLATES) {
       process.chdir(dir);
       try {
         loadEnv();
-        for (const p of ['gemini', 'anthropic', 'openai', 'xai'] as const) {
+        for (const p of ['gemini', 'anthropic', 'openai', 'xai', 'moonshot'] as const) {
           assert.strictEqual(providerKeyPresent(p), false, `${p} must not look funded`);
         }
         assert.strictEqual(hasSupabaseCredentials(), false);

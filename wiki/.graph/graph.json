@@ -2,44 +2,44 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-02"
+    "at": "2026-10-03"
   },
   "stats": {
-    "nodes": 556,
-    "edges": 1277,
+    "nodes": 563,
+    "edges": 1291,
     "byKind": {
-      "doc": 74,
-      "provider": 5,
-      "env": 96,
-      "model": 7,
+      "doc": 75,
+      "provider": 6,
+      "env": 98,
+      "model": 8,
       "tool": 32,
       "file": 59,
       "syndicate": 29,
-      "agent": 79,
+      "agent": 80,
       "mcp-server": 4,
       "table": 16,
-      "module": 111,
+      "module": 112,
       "script": 42,
       "external": 2
     },
     "byRelation": {
-      "links_to": 189,
-      "requires_env": 149,
-      "routes_to": 7,
+      "links_to": 190,
+      "requires_env": 153,
+      "routes_to": 8,
       "defined_in": 72,
       "documents": 53,
-      "contains": 79,
-      "uses_model": 79,
+      "contains": 80,
+      "uses_model": 80,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 312,
+      "imports": 315,
       "reads_table": 28,
       "runs": 60,
-      "derives_from": 183
+      "derives_from": 186
     },
     "byTier": {
-      "extracted": 1277,
+      "extracted": 1291,
       "inferred": 0
     },
     "isolated": 2
@@ -246,7 +246,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 213
+        "words": 222
       }
     },
     {
@@ -706,6 +706,18 @@
       }
     },
     {
+      "id": "/decisions/0029-moonshot-kimi-provider.md",
+      "kind": "doc",
+      "label": "ADR 0029: Moonshot AI (Kimi) is a direct provider; its search stays off the model",
+      "source": "/decisions/0029-moonshot-kimi-provider.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 603
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -786,7 +798,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1481
+        "words": 1614
       }
     },
     {
@@ -1378,6 +1390,17 @@
         "role": "subagent",
         "syndicate": "model_zoo",
         "description": "Grok 4.7 (reasoning effort: medium), by xAI."
+      }
+    },
+    {
+      "id": "agent:model_zoo/kimi",
+      "kind": "agent",
+      "label": "kimi",
+      "source": "config/agents/examples/model_zoo.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "model_zoo",
+        "description": "Kimi K3 (reasoning effort: low), by Moonshot AI; open weights."
       }
     },
     {
@@ -2132,6 +2155,20 @@
       "source": "lib/memory/providers.ts"
     },
     {
+      "id": "env:MOONSHOT_API_KEY",
+      "kind": "env",
+      "label": "MOONSHOT_API_KEY",
+      "source": "lib/models/kimiLlm.ts",
+      "attrs": {}
+    },
+    {
+      "id": "env:MOONSHOT_BASE_URL",
+      "kind": "env",
+      "label": "MOONSHOT_BASE_URL",
+      "source": "lib/models/kimiLlm.ts",
+      "attrs": {}
+    },
+    {
       "id": "env:NAME",
       "kind": "env",
       "label": "NAME",
@@ -2841,6 +2878,12 @@
       "source": "lib/config.ts (DEFAULT_GROK_MODEL)"
     },
     {
+      "id": "model:kimi-k3",
+      "kind": "model",
+      "label": "kimi-k3",
+      "source": "config/agents/examples/model_zoo.yaml"
+    },
+    {
       "id": "model:ollama/qwen3:8b",
       "kind": "model",
       "label": "ollama/qwen3:8b",
@@ -2930,7 +2973,7 @@
       "label": "lib/config.ts",
       "source": "lib/config.ts",
       "attrs": {
-        "lines": 123
+        "lines": 142
       }
     },
     {
@@ -2948,7 +2991,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 670
+        "lines": 671
       }
     },
     {
@@ -3056,7 +3099,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 370
+        "lines": 383
       }
     },
     {
@@ -3074,7 +3117,7 @@
       "label": "lib/models/endpoints.ts",
       "source": "lib/models/endpoints.ts",
       "attrs": {
-        "lines": 319
+        "lines": 322
       }
     },
     {
@@ -3114,6 +3157,15 @@
       }
     },
     {
+      "id": "module:lib/models/kimiLlm.ts",
+      "kind": "module",
+      "label": "lib/models/kimiLlm.ts",
+      "source": "lib/models/kimiLlm.ts",
+      "attrs": {
+        "lines": 185
+      }
+    },
+    {
       "id": "module:lib/models/ollamaLlm.ts",
       "kind": "module",
       "label": "lib/models/ollamaLlm.ts",
@@ -3137,7 +3189,7 @@
       "label": "lib/models/providerMap.ts",
       "source": "lib/models/providerMap.ts",
       "attrs": {
-        "lines": 60
+        "lines": 62
       }
     },
     {
@@ -3146,7 +3198,7 @@
       "label": "lib/models/registry.ts",
       "source": "lib/models/registry.ts",
       "attrs": {
-        "lines": 377
+        "lines": 386
       }
     },
     {
@@ -3821,7 +3873,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1307
+        "lines": 1310
       }
     },
     {
@@ -3861,6 +3913,12 @@
       "id": "provider:gemini",
       "kind": "provider",
       "label": "Google Gemini",
+      "source": "lib/models/providerMap.ts"
+    },
+    {
+      "id": "provider:moonshot",
+      "kind": "provider",
+      "label": "Moonshot Kimi",
       "source": "lib/models/providerMap.ts"
     },
     {
@@ -4442,7 +4500,7 @@
       "source": "config/agents/examples/model_zoo.yaml",
       "attrs": {
         "memory": "session-only",
-        "agents": 6,
+        "agents": 7,
         "mode": "delegate"
       }
     },
@@ -6538,6 +6596,34 @@
       "evidence": "/decisions/0028-approval-gates.md:39"
     },
     {
+      "from": "/decisions/0029-moonshot-kimi-provider.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-moonshot-kimi-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0029-moonshot-kimi-provider.md",
+      "to": "module:lib/models/kimiLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-moonshot-kimi-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0029-moonshot-kimi-provider.md",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-moonshot-kimi-provider.md frontmatter"
+    },
+    {
+      "from": "/decisions/0029-moonshot-kimi-provider.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-moonshot-kimi-provider.md:67"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -6983,14 +7069,14 @@
       "to": "/decisions/0012-direct-adapters-canonical.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:41"
+      "evidence": "/models/provider-routing.md:42"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:45"
+      "evidence": "/models/provider-routing.md:46"
     },
     {
       "from": "/models/provider-routing.md",
@@ -7018,7 +7104,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:51"
+      "evidence": "/models/provider-routing.md:52"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -8463,6 +8549,13 @@
       "evidence": "config/agents/examples/model_zoo.yaml"
     },
     {
+      "from": "agent:model_zoo/kimi",
+      "to": "model:kimi-k3",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/model_zoo.yaml"
+    },
+    {
       "from": "agent:model_zoo/qwen_local",
       "to": "model:ollama/qwen3.5:9b",
       "rel": "uses_model",
@@ -9014,6 +9107,13 @@
       "rel": "routes_to",
       "tier": "extracted",
       "evidence": "lib/config.ts (DEFAULT_GROK_MODEL)"
+    },
+    {
+      "from": "model:kimi-k3",
+      "to": "provider:moonshot",
+      "rel": "routes_to",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/model_zoo.yaml"
     },
     {
       "from": "model:ollama/qwen3:8b",
@@ -9871,6 +9971,13 @@
     },
     {
       "from": "module:lib/models/endpoints.ts",
+      "to": "env:MOONSHOT_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
       "to": "env:OPENAI_BASE_URL",
       "rel": "requires_env",
       "tier": "extracted",
@@ -10003,6 +10110,34 @@
       "evidence": "lib/models/grokLlm.ts"
     },
     {
+      "from": "module:lib/models/kimiLlm.ts",
+      "to": "module:lib/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiLlm.ts"
+    },
+    {
+      "from": "module:lib/models/kimiLlm.ts",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiLlm.ts"
+    },
+    {
+      "from": "module:lib/models/kimiLlm.ts",
+      "to": "env:MOONSHOT_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiLlm.ts"
+    },
+    {
+      "from": "module:lib/models/kimiLlm.ts",
+      "to": "env:MOONSHOT_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiLlm.ts"
+    },
+    {
       "from": "module:lib/models/ollamaLlm.ts",
       "to": "module:lib/models/openAiCompatibleLlm.ts",
       "rel": "imports",
@@ -10124,6 +10259,13 @@
     {
       "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/grokLlm.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/registry.ts"
+    },
+    {
+      "from": "module:lib/models/registry.ts",
+      "to": "module:lib/models/kimiLlm.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
@@ -12439,6 +12581,13 @@
       "evidence": "lib/models/providerMap.ts"
     },
     {
+      "from": "provider:moonshot",
+      "to": "env:MOONSHOT_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/providerMap.ts"
+    },
+    {
       "from": "provider:openai",
       "to": "env:OPENAI_API_KEY",
       "rel": "requires_env",
@@ -13274,6 +13423,13 @@
     {
       "from": "syndicate:model_zoo",
       "to": "agent:model_zoo/grok",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/model_zoo.yaml"
+    },
+    {
+      "from": "syndicate:model_zoo",
+      "to": "agent:model_zoo/kimi",
       "rel": "contains",
       "tier": "extracted",
       "evidence": "config/agents/examples/model_zoo.yaml"

@@ -99,6 +99,8 @@ test('gatewayWireModel prefixes the provider slug and dots the Anthropic version
     assert.equal(gatewayWireModel('gemini-3.8-flash', GATEWAYS.vercel), 'google/gemini-3.8-flash');
     assert.equal(gatewayWireModel('grok-4.7', GATEWAYS.vercel), 'xai/grok-4.7');
     assert.equal(gatewayWireModel('grok-4.7', GATEWAYS.openrouter), 'x-ai/grok-4.7');
+    assert.equal(gatewayWireModel('kimi-k3', GATEWAYS.openrouter), 'moonshotai/kimi-k3');
+    assert.equal(gatewayWireModel('kimi-k3', GATEWAYS.vercel), 'moonshotai/kimi-k3');
     // Already qualified ids pass through; Ollama ids are never mapped.
     assert.equal(gatewayWireModel('anthropic/claude-opus-5', GATEWAYS.vercel), 'anthropic/claude-opus-5');
     assert.equal(gatewayWireModel('ollama/qwen3:8b', GATEWAYS.vercel), 'ollama/qwen3:8b');

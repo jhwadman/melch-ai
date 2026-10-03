@@ -29,6 +29,7 @@ import type { Capability, MatrixRow } from '../lib/models/capabilities.ts';
 import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
 import { GptLlm } from '../lib/models/gptLlm.ts';
 import { GrokLlm } from '../lib/models/grokLlm.ts';
+import { KimiLlm } from '../lib/models/kimiLlm.ts';
 import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
 import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
 import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
@@ -45,6 +46,7 @@ const FAKE_ENV: Record<AdapterRow, Record<string, string>> = {
   anthropic: { ANTHROPIC_API_KEY: 'fixture-ant-test-0123456789abcdef' }, // gitleaks:allow (test fixture)
   openai: { OPENAI_API_KEY: 'fixture-openai-0123456789abcdef' }, // gitleaks:allow (test fixture)
   xai: { XAI_API_KEY: 'fixture-xai-0123456789abcdef' }, // gitleaks:allow (test fixture)
+  moonshot: { MOONSHOT_API_KEY: 'fixture-moonshot-0123456789abcdef' }, // gitleaks:allow (test fixture)
   ollama: {},
   gateway: { MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'fixture-gateway-0123456789abcdef' },
 };
@@ -60,6 +62,7 @@ const MODEL: Record<AdapterRow, string> = {
   anthropic: 'claude-sonnet-4-6',
   openai: 'gpt-5-mini',
   xai: 'grok-4.5',
+  moonshot: 'kimi-k3',
   ollama: 'ollama/qwen3:8b',
   // A provider whose direct key is absent, so the gateway serves it.
   gateway: 'claude-sonnet-4-6',
@@ -74,6 +77,8 @@ function adapterFor(row: AdapterRow) {
       return new GptLlm({ model });
     case 'xai':
       return new GrokLlm({ model });
+    case 'moonshot':
+      return new KimiLlm({ model });
     case 'ollama':
       return new OllamaLlm({ model });
     case 'gateway':
@@ -131,6 +136,7 @@ const DIALECT: Record<AdapterRow, Dialect> = {
   anthropic: 'anthropic',
   openai: 'responses',
   xai: 'responses',
+  moonshot: 'chat',
   ollama: 'chat',
   gateway: 'chat',
 };

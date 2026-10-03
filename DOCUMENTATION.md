@@ -122,7 +122,7 @@ instance:
 
 | Name | Kind | Does |
 |---|---|---|
-| `web_search` | Provider-agnostic | Live web search via the agent model's NATIVE search: Gemini grounding, Anthropic `web_search` server tool, OpenAI Responses `web_search`, xAI Agent Tools `web_search`. On local `ollama/*` models the tool is omitted with a one-time warning (keyless stays keyless). On grok-* agents, optional server-side domain filters via `XAI_WEB_SEARCH_ALLOWED_DOMAINS` / `_EXCLUDED_DOMAINS` in `.env` (max 5, mutually exclusive; xAI accepts no date bounds — those are `x_search`-only). Prefer this in new YAMLs. |
+| `web_search` | Provider-agnostic | Live web search via the agent model's NATIVE search: Gemini grounding, Anthropic `web_search` server tool, OpenAI Responses `web_search`, xAI Agent Tools `web_search`. On local `ollama/*` models, and on `kimi-*` (Moonshot's model-side search retires 2026-10-20; its successor is a REST API, not a request field), the tool is omitted with a one-time warning (keyless stays keyless). On grok-* agents, optional server-side domain filters via `XAI_WEB_SEARCH_ALLOWED_DOMAINS` / `_EXCLUDED_DOMAINS` in `.env` (max 5, mutually exclusive; xAI accepts no date bounds — those are `x_search`-only). Prefer this in new YAMLs. |
 | `web_extract` | FunctionTool | Deterministic page reading: fetches 1–5 agent-chosen URLs and returns clean page text (no LLM summarization). Keyless — works on every provider including local `ollama/*`. Per-page char budget (default 15k, `WEB_EXTRACT_CHAR_LIMIT`); long pages return a head+tail window with an `offset` continuation call served from a 15-minute cache. SSRF-guarded (http(s) only, private/link-local hosts refused, redirects re-checked). Block pages (bot checks, paywall stubs, JS shells) are detected code-side and returned as labeled `Error:` blocks, never as content. Pair with `web_search`: search to find, extract to read past the headline. |
 | `x_search` | xAI-only | Live search over X (Twitter) posts via xAI Agent Tools. Self-gates to `grok-*` agents; a silent no-op on every other provider, so mixed-provider YAMLs stay safe. Optional server-side constraints in `.env`: `XAI_X_SEARCH_FROM_DATE`/`_TO_DATE` (inclusive `YYYY-MM-DD`) and `_ALLOWED_HANDLES`/`_EXCLUDED_HANDLES` (max 20, mutually exclusive — allowlist wins). |
 | `collections_search` | xAI-only | Semantic search over xAI **Collections** — hosted document stores (PDFs/text/CSVs) uploaded at console.x.ai — server-side RAG with `collections://…` citations. Which collections: `XAI_COLLECTION_IDS` in `.env` (optional `XAI_COLLECTIONS_MAX_RESULTS`). Declared with no ids → omitted with a warning; non-xAI providers → silent no-op. |
@@ -152,7 +152,7 @@ are data, never instructions.
 > Gemini-native; every non-Gemini adapter normalizes them back to
 > standard lowercase JSON-Schema at request-build time
 > (`lib/models/schemaNormalize.ts`). MCP tools therefore work on any
-> provider's agents — Gemini, Claude, GPT, or Grok.
+> provider's agents — Gemini, Claude, GPT, Grok, or Kimi.
 
 ## 4. Sessions & long-term memory
 
@@ -260,6 +260,7 @@ accordingly — model optionality is a single YAML line per agent:
 | `claude-*` | Anthropic | `lib/models/claudeLlm.ts` | `ANTHROPIC_API_KEY` | ✅ server tool |
 | `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
 | `grok-*` | xAI | `lib/models/grokLlm.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
+| `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiLlm.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
 | `ollama/*` | Local Ollama | `lib/models/ollamaLlm.ts` | none | ⚠ omitted + warning |
 | *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayLlm.ts` (chat completions) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
 
@@ -270,6 +271,43 @@ partial delta events stream, one aggregated event persists with usage),
 structured outputs ride `outputSchema` → `text.format`, and two
 xAI-only tools — `x_search` and `collections_search` (§3) — turn on
 live X search and hosted-document RAG. All verified live on grok-4.5.
+
+**Moonshot AI (Kimi).** `kimi-*` ids route to `lib/models/kimiLlm.ts`, a
+subclass of the chat-completions base, against `https://api.moonshot.ai/v1`
+(`MOONSHOT_BASE_URL` for a proxy). Get a key at platform.moonshot.ai; the
+`.cn` console serves mainland China. The family (USD per 1M tokens, October
+2026): `kimi-k3`, the flagship — 2.8T-parameter open-weight MoE, 1M context,
+vision, always-on thinking, $3 in / $0.30 cache hit / $15 out; `kimi-k2.6`,
+the cheaper general tier (256K, vision, thinking switchable, $0.95 / $4);
+`kimi-k2.7-code` and `kimi-k2.7-code-highspeed` (256K, coding, thinking
+cannot be turned off; the highspeed variant streams at ~180 tokens/s for
+twice the price). There is no small or "flash" K3. On price, K3 is a mid-tier
+closed model, not a bargain: Claude Sonnet 4.6's rate, and Claude Sonnet 5.5
+($2 / $10) undercuts it per token while leading it on the coding boards;
+thinking is always on and billed as output, which is why the adapter pins
+effort below Moonshot's `max`. Choose K3 for the strongest open weights
+(self-hostable) and the flat-rate 1M context; choose `kimi-k2.6` for cost;
+or serve K3 through `MODEL_GATEWAY` (OpenRouter's endpoints run from about
+$0.88 to $3.45 per 1M input, the cheap ones quantized). What works: tool calling
+and delegation, strict `json_schema` structured output (K3 and K2.7 Code
+document it; K2.6 is unstable on `$ref`/`oneOf`), SSE streaming, images as
+base64 (Moonshot takes no public image URLs), MCP tools (they are function
+tools to the model), `reasoning_content` surfaced as THINKING. Reasoning:
+K3 takes a top-level `reasoning_effort` (`low` | `high` | `max`); the adapter
+pins `DEFAULT_KIMI_REASONING_EFFORT` (`high`, `lib/config.ts`) unless
+`generateContentConfig.reasoningEffort` says otherwise, and maps `none` to
+`low` because K3 cannot stop thinking. K2.x models take a `thinking:
+{ type }` switch instead: `reasoningEffort: "none"` or `thinkingBudget: 0`
+sends `disabled`, and any effort value is dropped from the body. What does
+not: native `web_search` (dropped with a warning; `web_extract` works, and
+Moonshot's standalone `POST /v1/tools/search`, billed per call, could back
+a client-side tool), and thinking carried across a tool loop (Moonshot asks
+for K3's `reasoning_content` back on the assistant message; this adapter
+keeps scratchpads out of history, so K3 re-reasons each step). K3's open
+weights mean the same id is served by OpenRouter, Together, Fireworks and
+Vercel AI Gateway; with no direct key, `MODEL_GATEWAY` maps it to
+`moonshotai/kimi-k3`. Not run live from this repository: the row in the
+capability matrix is asserted against the request body the adapter sends.
 
 **Which keys do I need?** `npm run doctor` (the `melchizedek-doctor` bin)
 reads every syndicate YAML, resolves each agent's model under your `.env`,
@@ -340,7 +378,7 @@ line each. `config/agents/examples/claude.yaml` is the minimal Claude example;
 provider, and `npm run demo:models` proves the whole surface: one
 prompt to every available provider, printing input, thinking (qwen3
 `<think>` blocks, Claude extended thinking, GPT reasoning summaries,
-Grok reasoning), output, and a per-request token/latency trace; add
+Grok reasoning, Kimi reasoning_content), output, and a per-request token/latency trace; add
 `-- --search` to watch four native web searches plus the local
 omission. Providers without keys are skipped, never fatal.
 
@@ -841,7 +879,7 @@ the canonical minimal block — `LlmAgent` + `Runner` +
 `InMemorySessionService` straight from `@google/adk`, ~30 lines you can
 copy into any repo that has `@google/adk` installed. Add
 `registerAvailableProviders()` from `lib/models/registry.ts` and the
-same block runs `claude-*` / `gpt-*` / `grok-*` / `ollama/*` ids too.
+same block runs `claude-*` / `gpt-*` / `grok-*` / `kimi-*` / `ollama/*` ids too.
 
 **Add a syndicate**: create `config/agents/<name>.yaml` — copy the
 closest starter-pack file from `config/agents/examples/` or start from
