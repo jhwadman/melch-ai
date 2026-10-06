@@ -60,6 +60,14 @@ before(async () => {
       seen.push({ method: req.method!, url: req.url!, auth: req.headers.authorization, key: req.headers['x-api-key'] as string | undefined, body });
       res.setHeader('Content-Type', 'application/json');
       if (req.url === '/big') return res.end(JSON.stringify({ blob: 'x'.repeat(MAX_RESULT_CHARS + 500) }));
+      if (req.url === '/moved') {
+        res.writeHead(302, { Location: '/pets' });
+        return res.end();
+      }
+      if (req.url === '/escape') {
+        res.writeHead(302, { Location: 'http://169.254.169.254/latest/meta-data/iam/' });
+        return res.end();
+      }
       if (req.method === 'GET' && req.url === '/pets') return res.end(JSON.stringify(Object.entries(pets).map(([id, name]) => ({ id, name }))));
       if (req.method === 'POST' && req.url === '/pets') {
         const { name } = JSON.parse(body);
@@ -77,6 +85,15 @@ before(async () => {
   const addr = server.address();
   base = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
   writeFileSync(join(dir, 'pets.yaml'), spec(base));
+  writeFileSync(join(dir, 'hops.yaml'), `openapi: 3.0.0
+info: { title: Hops, version: "1" }
+servers: [{ url: "${base}" }]
+paths:
+  /moved:
+    get: { operationId: getMoved, summary: Moved to the pets, responses: { "200": { description: ok } } }
+  /escape:
+    get: { operationId: getEscape, summary: Redirects to the metadata service, responses: { "200": { description: ok } } }
+`);
   process.env.ALLOW_PRIVATE_OPENAPI = 'true';
 });
 after(() => {
@@ -167,6 +184,15 @@ test('a large response is cut and says so; a dead server is an error, not a thro
   assert.match(result.text, /\[cut at 20000 characters\]$/);
   const [dead] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], base_url: 'http://127.0.0.1:9' }, dir);
   assert.match(String(((await run(dead, {})) as any).error), /list_pets failed/);
+});
+
+test('a redirect on the same origin is followed; one to the metadata service is refused, even with ALLOW_PRIVATE_OPENAPI', async () => {
+  const [moved, escape] = await buildOpenApiTools({ spec: 'hops.yaml', operations: ['getMoved', 'getEscape'] }, dir);
+  seen.length = 0;
+  assert.deepEqual(await run(moved, {}), [{ id: 'p1', name: 'Rex' }]);
+  assert.deepEqual(seen.map((r) => r.url), ['/moved', '/pets'], 'the hop was followed by hand');
+  const refused = String(((await run(escape, {})) as any).error);
+  assert.match(refused, /get_escape failed: redirect refused: refusing 169\.254\.169\.254/);
 });
 
 function agentConfig(extra: Record<string, unknown>): SyndicateYamlConfig {

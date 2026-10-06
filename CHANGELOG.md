@@ -6,6 +6,15 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Fix: OpenAPI tools no longer follow redirects past the SSRF guard.**
+  ADK's REST tool calls `fetch`, which follows redirects, and the guard
+  checked only the configured server: an allowed API with an open redirect
+  could send a call to the cloud metadata service, and an `api_key` header
+  went with it. A call now follows redirects one hop at a time
+  (`lib/net/redirects.ts`): same-origin hops get the server's own check,
+  cross-origin hops the full guard (even with `ALLOW_PRIVATE_OPENAPI`) and
+  only content-negotiation headers. A refused hop returns an error to the
+  model. Nothing changes for a fetch made outside an OpenAPI tool call.
 - **Fix: `DELETE /memory` erases expired conversations.** A namespace erase
   (the default) found conversations through their live session rows, so once
   a session expired after seven idle days its ledger turns, spans, payloads

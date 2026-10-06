@@ -28,6 +28,13 @@
  *     private hosts for local development, as ALLOW_PRIVATE_MCP does for MCP.
  *     The model chooses arguments, never the host: path parameters are
  *     URL-encoded by ADK and dot segments refused.
+ *   - REDIRECTS HELD TO THE SAME GUARD. ADK calls globalThis.fetch, which
+ *     follows redirects; a call runs under lib/net/redirects.ts instead, so
+ *     each hop is checked before it is fetched. A hop on the same origin
+ *     gets the server's own check; a hop to another origin must pass the
+ *     full guard even with ALLOW_PRIVATE_OPENAPI (that permits the server
+ *     you configured, not wherever it points), and loses every header but
+ *     content negotiation, credentials included.
  *   - BOUNDED RESULTS. A response larger than MAX_RESULT_CHARS is cut and
  *     says so; a network failure comes back as `{ error }`, never a throw.
  *
@@ -41,6 +48,8 @@ import { BaseTool, OpenAPIToolset, tokenToSchemeCredential } from '@google/adk';
 import type { RunAsyncToolRequest } from '@google/adk';
 
 import { blockedHostReason, checkHost } from '../net/addressGuard.ts';
+import { withRedirectGuard } from '../net/redirects.ts';
+import type { RedirectPolicy } from '../net/redirects.ts';
 
 export interface OpenApiAuthConfig {
   /** Environment variable holding a bearer token (`Authorization: Bearer …`). */
@@ -118,6 +127,19 @@ function credentialFor(auth: OpenApiAuthConfig | undefined, spec: string): { aut
   return {};
 }
 
+/**
+ * Where an API call may be redirected: the server's own rule on its origin,
+ * the full guard (no development exception) anywhere else.
+ */
+const REDIRECTS: RedirectPolicy = {
+  async hopProblem(url, crossOrigin) {
+    if (!/^https?:$/.test(url.protocol)) return `${url.protocol} is not http(s)`;
+    if (!crossOrigin) return hostProblem(url.href, true);
+    const reason = await checkHost(url.hostname);
+    return reason ? `refusing ${url.hostname}: ${reason}` : null;
+  },
+};
+
 /** Cut an API result to MAX_RESULT_CHARS, saying so. */
 export function boundResult(result: unknown): unknown {
   const text = typeof result === 'string' ? result : JSON.stringify(result ?? null);
@@ -164,8 +186,9 @@ export async function buildOpenApiTools(entry: OpenApiConfig, baseDir: string = 
 }
 
 /**
- * A copy of a generated tool whose call re-checks its host, catches a
- * network failure, and bounds the result. The original is untouched.
+ * A copy of a generated tool whose call re-checks its host, follows
+ * redirects only where the guard allows, catches a network failure, and
+ * bounds the result. The original is untouched.
  */
 function guarded<T extends BaseTool & { endpoint: { baseUrl: string } }>(tool: T): T {
   const copy = Object.create(tool) as T;
@@ -176,7 +199,7 @@ function guarded<T extends BaseTool & { endpoint: { baseUrl: string } }>(tool: T
       const problem = await hostProblem(tool.endpoint.baseUrl, true);
       if (problem) return { error: `${tool.name} was not called: ${problem}` };
       try {
-        return boundResult(await original(request));
+        return boundResult(await withRedirectGuard(REDIRECTS, () => original(request)));
       } catch (err) {
         return { error: `${tool.name} failed: ${err instanceof Error ? err.message : String(err)}` };
       }
