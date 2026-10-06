@@ -48,6 +48,7 @@ import type { TurnLock } from './turnLock.ts';
 import { compareSchema, schemaBehindMessage, shippedSchemaVersion } from '../storage/schemaVersion.ts';
 import type { RlsHardeningStatus } from '../storage/rlsStatus.ts';
 import { scopeHashOf } from '../observability/audit.ts';
+import { validTraceparent } from '../observability/tracer.ts';
 import type { AuditSink } from '../observability/audit.ts';
 
 /** One end user's concurrent tasks, unless maxConcurrentPerScope says otherwise (ADR 0039). */
@@ -868,7 +869,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
           caller: identity.caller,
           ownsNested: identity.ownsNested ?? false,
           operator: identity.operator ?? false,
-          sourceIp: req.ip,
+          sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent),
         },
         () => next(),
       );
@@ -898,7 +899,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       // so no key holder can reach another's data.
       const scopeKey = deriveUserId({ apiKey, siteUserId });
       requestContextStorage.run(
-        { apiKey, provider, siteUserId, scopeKey, surface, caller: 'shared-secret', ownsNested: !siteUserId, operator: !!options.serverSecret, sourceIp: req.ip },
+        { apiKey, provider, siteUserId, scopeKey, surface, caller: 'shared-secret', ownsNested: !siteUserId, operator: !!options.serverSecret, sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent) },
         () => next(),
       );
       return;
@@ -919,7 +920,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
         // Everyone holding the secret is one caller; without a secret (loopback) the caller is local.
         caller: options.serverSecret ? 'shared-secret' : 'local',
         operator: !!options.serverSecret,
-        sourceIp: req.ip,
+        sourceIp: req.ip, traceparent: validTraceparent(req.headers.traceparent),
       },
       () => next(),
     );

@@ -61,6 +61,8 @@ export interface A2AContext {
   operator?: boolean;
   /** The request's source address (behind A2A_TRUST_PROXY), for the audit trail only. */
   sourceIp?: string;
+  /** The caller's W3C traceparent, when well formed: the turn's root span links to it. */
+  traceparent?: string;
 }
 
 export interface SurfaceContext {
@@ -508,6 +510,8 @@ export class SyndicateExecutor implements AgentExecutor {
     // Reports the task once: to the task log and metrics, and its spend to
     // the policy. Never throws into the task.
     let reported = false;
+    // The turn's trace (the last root span started: a dispatch turn's answer).
+    let traceId: string | undefined;
     const report = async (
       ctx: A2AContext | undefined,
       status: TaskRecord['status'],
@@ -526,6 +530,9 @@ export class SyndicateExecutor implements AgentExecutor {
       }
       try {
         this.opts.onTaskEnd?.({
+          taskId,
+          traceId,
+          ...(ctx?.traceparent ? { callerTraceId: ctx.traceparent.split('-')[1] } : {}),
           agentId,
           syndicate: config.syndicate_name,
           caller: ctx?.caller,
@@ -547,7 +554,7 @@ export class SyndicateExecutor implements AgentExecutor {
           sourceIp: ctx?.sourceIp,
           agentId,
           taskId,
-          detail: { syndicate: config.syndicate_name, ...(reason ? { reason } : {}), durationMs: Date.now() - started, llmCalls: usage.llmCalls },
+          detail: { syndicate: config.syndicate_name, ...(reason ? { reason } : {}), ...(traceId ? { traceId } : {}), durationMs: Date.now() - started, llmCalls: usage.llmCalls },
         });
       } catch {
         /* nor a broken audit sink */
@@ -672,6 +679,10 @@ export class SyndicateExecutor implements AgentExecutor {
           taskId,
           configHash: this.configHashFor(),
           attributes: surfaceAttributes(ctx),
+          traceparent: ctx.traceparent,
+          onSpanStart: (ids) => {
+            traceId = ids.traceId;
+          },
         },
         events: {
           onProgress: (text) => publishWorking(eventBus, taskId, contextId, text),

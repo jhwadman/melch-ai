@@ -54,6 +54,13 @@ the starter pack and the templates), not the repo's full history.
   it (`memoryDestinations`, `memoryCrossesProviders`). DOCUMENTATION gains
   "Where your data goes": every destination, its retention, and the setting
   that changes it.
+- **A request can be followed across systems.** Every task record
+  (`onTaskEnd`, and the JSON log line) carries `taskId` and `traceId`; the
+  trace id is the one the spans and the ledger row carry. A request with a
+  W3C `traceparent` header is linked from the turn's root span
+  (`caller.trace_id`, and `callerTraceId` on the record); the turn keeps
+  its own trace id. `validTraceparent` and `callerSpanContext` are exported
+  from `melchizedek-agents/observability/tracer`. ADR 0043.
 - **`mcp_tools:`, an agent key**: the MCP server's tools the agent may use;
   any other tool the server lists is not exposed. On a dispatch route,
   `require_approval` may name a listed MCP tool, so a write waits for a

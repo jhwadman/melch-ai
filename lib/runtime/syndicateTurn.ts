@@ -94,6 +94,8 @@ export interface TraceOptions {
   /** Extra root-span attributes (surface headers, eval tags). */
   attributes?: Record<string, string | number | boolean>;
   onSpanStart?: (ids: { traceId: string; spanId: string }) => void;
+  /** A caller's W3C traceparent: the turn's root span links to it (never joins it). */
+  traceparent?: string;
 }
 
 export interface SyndicateTurnOptions {
@@ -610,6 +612,7 @@ async function runTurnInner(
         configHash: trace.configHash,
         attributes: trace.attributes,
         onSpanStart: trace.onSpanStart,
+        traceparent: trace.traceparent,
         onEnd: () => ({
           'syndicate.relay_fallback': params.stage === 'delegate' && !!params.relayFallback?.(),
           ...(control.stopReason ? { 'syndicate.stop_reason': control.stopReason } : {}),
