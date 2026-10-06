@@ -5,15 +5,15 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 636,
-    "edges": 1476,
+    "nodes": 641,
+    "edges": 1481,
     "byKind": {
-      "doc": 95,
+      "doc": 96,
       "provider": 6,
       "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 81,
+      "file": 85,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 225,
+      "links_to": 226,
       "requires_env": 156,
       "routes_to": 8,
       "defined_in": 76,
@@ -36,10 +36,10 @@
       "imports": 348,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 269
+      "derives_from": 273
     },
     "byTier": {
-      "extracted": 1476,
+      "extracted": 1481,
       "inferred": 0
     },
     "isolated": 4
@@ -874,6 +874,18 @@
       }
     },
     {
+      "id": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "kind": "doc",
+      "label": "ADR 0040: Releases ship from a version tag, with npm provenance and an SBOM; CI is pinned and scanned",
+      "source": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 379
+      }
+    },
+    {
       "id": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "kind": "doc",
       "label": "ADR 0041: Tool vendors get least privilege: OpenAPI auth cannot read framework secrets; MCP tools are allowlisted, gateable and bounded",
@@ -1038,7 +1050,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1153
+        "words": 1251
       }
     },
     {
@@ -2779,6 +2791,30 @@
       "kind": "file",
       "label": ".env.example",
       "source": ".env.example"
+    },
+    {
+      "id": "file:.github/dependabot.yml",
+      "kind": "file",
+      "label": "dependabot.yml",
+      "source": ".github/dependabot.yml"
+    },
+    {
+      "id": "file:.github/workflows/ci.yml",
+      "kind": "file",
+      "label": "ci.yml",
+      "source": ".github/workflows/ci.yml"
+    },
+    {
+      "id": "file:.github/workflows/codeql.yml",
+      "kind": "file",
+      "label": "codeql.yml",
+      "source": ".github/workflows/codeql.yml"
+    },
+    {
+      "id": "file:.github/workflows/release.yml",
+      "kind": "file",
+      "label": "release.yml",
+      "source": ".github/workflows/release.yml"
     },
     {
       "id": "file:compose.yaml",
@@ -7776,6 +7812,34 @@
       "evidence": "/decisions/0039-public-deployments-state-their-posture.md:32"
     },
     {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "file:.github/dependabot.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "file:.github/workflows/ci.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "file:.github/workflows/codeql.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "file:.github/workflows/release.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
       "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "to": "file:tests/mcpTools.test.ts",
       "rel": "derives_from",
@@ -8642,6 +8706,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:40"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:54"
     },
     {
       "from": "/operations/setup.md",
