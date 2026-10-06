@@ -17,7 +17,7 @@
  *                             with A2A_AUTH=callers it stays valid beside the caller
  *                             tokens, with its old scoping, until you remove it
  *   A2A_AUTH                  who a caller is (ADR 0025): secret (default) | callers |
- *                             jwt | header
+ *                             jwt | header (required with PUBLIC_URL, ADR 0039)
  *   A2A_CALLERS               callers: `name:sha256[:scope]; …` — one token per calling
  *                             backend. Mint: melchizedek-serve --new-caller <name>
  *   A2A_JWT_JWKS_URL          jwt: your identity provider's JWKS (or A2A_JWT_SECRET, HS256)
@@ -31,17 +31,21 @@
  *   ALLOW_UNHARDENED_DB       "true" to accept an unhardened Supabase schema
  *   A2A_TASK_TIMEOUT_MS       per-task wall-clock budget (900000; 0 = none)
  *   A2A_MAX_CONCURRENT_TASKS  concurrent tasks across all agents (0 = unlimited)
+ *   A2A_MAX_CONCURRENT_PER_SCOPE   concurrent tasks for one end user (4; 0 = unlimited)
+ *   A2A_MAX_CONCURRENT_PER_CALLER  concurrent tasks for one caller (0 = unlimited)
  *   A2A_RATE_LIMIT_MAX        task submissions per window per IP (60)
  *   A2A_RATE_LIMIT_WINDOW_MS  rate-limit window (900000)
  *   A2A_AUTH_FAILURE_MAX      failed authentications per window per IP (30)
- *   A2A_TRUST_PROXY           Express trust-proxy: hop count, true/false, or subnets (1)
+ *   A2A_TRUST_PROXY           Express trust-proxy: hop count, true/false, or subnets
+ *                             (false; required with PUBLIC_URL)
  *   A2A_BODY_LIMIT            JSON body limit ("1mb")
  *   A2A_KEY_MODE              server (default): models run on the server's keys;
  *                             byok: the caller's X-API-Key pays. Under A2A_AUTH=secret
  *                             the mode also scopes data: X-User-Id in server mode,
  *                             the key's hash in byok (the pre-0.16 behaviour)
  *   A2A_SERVED_AGENTS         comma list: the only agent ids /:agentId/ serves;
- *                             only these may fall back to examples/ and templates/
+ *                             only these may fall back to examples/ and templates/;
+ *                             * serves every one (required with PUBLIC_URL)
  *   A2A_REGISTRY_AGENTS       comma list: bare ids that load from adk_agent_registry
  *                             (others are files; registry:<id> always is the registry)
  *   A2A_SHUTDOWN_GRACE_MS     how long SIGTERM waits for running tasks (25000)
@@ -110,7 +114,9 @@ function envInt(name: string, fallback: number): number {
 
 function envTrustProxy(): number | boolean | string {
   const raw = process.env.A2A_TRUST_PROXY?.trim();
-  if (!raw) return 1;
+  // Unset: trust no proxy, so a client cannot choose its own IP with
+  // X-Forwarded-For. A public server must set it (the posture check below).
+  if (!raw) return false;
   if (/^\d+$/.test(raw)) return Number(raw);
   if (raw === 'true') return true;
   if (raw === 'false') return false;
@@ -236,7 +242,28 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
     }
     return n;
   };
-  const servedAgents = list('A2A_SERVED_AGENTS');
+  // `*` serves every file in the agents directory and every registry row,
+  // stated on purpose; unset means the same off a public URL (ADR 0039).
+  const servedList = list('A2A_SERVED_AGENTS');
+  const servedAgents = servedList?.length === 1 && servedList[0] === '*' ? undefined : servedList;
+
+  // ── Public posture (ADR 0039) ──────────────────────────────────────────────
+  // A server on a public URL states how it authenticates, which agents it
+  // answers, and how many proxies stand in front of it. Each default was the
+  // permissive choice, so none is taken silently here.
+  if (publicUrl) {
+    const missing: string[] = [];
+    if (!process.env.A2A_AUTH?.trim()) {
+      missing.push('A2A_AUTH: callers or jwt (one identity per caller; recommended), header (a gateway authenticates users), or secret (one shared secret; any holder can act as any user by naming them in X-User-Id)');
+    }
+    if (!servedList?.length) {
+      missing.push('A2A_SERVED_AGENTS: the agent ids this server answers, comma-separated, or * for every file in the agents directory and every registry row');
+    }
+    if (!process.env.A2A_TRUST_PROXY?.trim()) {
+      missing.push('A2A_TRUST_PROXY: how many proxies stand in front of this server (1 behind one load balancer), or false when clients connect directly');
+    }
+    if (missing.length) fatal(`PUBLIC_URL is set, so this server must state its security posture. Set:\n  - ${missing.join('\n  - ')}`);
+  }
   const registryAgents = list('A2A_REGISTRY_AGENTS');
 
   // Storage: Postgres when DATABASE_URL is set (every durable store, safe
@@ -322,6 +349,8 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
       allowSchemaMismatch: process.env.ALLOW_SCHEMA_MISMATCH?.trim().toLowerCase() === 'true',
       turnLockWaitMs: envInt('A2A_TURN_LOCK_WAIT_MS', 30_000),
       maxConcurrentTasks: envInt('A2A_MAX_CONCURRENT_TASKS', 0),
+      maxConcurrentPerScope: envInt('A2A_MAX_CONCURRENT_PER_SCOPE', 4),
+      maxConcurrentPerCaller: envInt('A2A_MAX_CONCURRENT_PER_CALLER', 0),
       rateLimit: { windowMs: envInt('A2A_RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000), max: envInt('A2A_RATE_LIMIT_MAX', 60) },
       authFailureLimit: { windowMs: 15 * 60 * 1000, max: envInt('A2A_AUTH_FAILURE_MAX', 30) },
       trustProxy: envTrustProxy(),

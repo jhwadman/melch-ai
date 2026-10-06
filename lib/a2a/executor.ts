@@ -193,31 +193,71 @@ export interface ExecutorOptions {
 
 const NO_USAGE: TurnUsage = { llmCalls: 0, inputTokens: 0, outputTokens: 0, thinkingTokens: 0 };
 
-/** Concurrency cap and in-flight registry shared by all executors. */
+/** Per-key caps beside the global one: 0 or absent means no cap. */
+export interface TaskLimits {
+  /** Concurrent tasks for one scope (one end user's data). */
+  perScope?: number;
+  /** Concurrent tasks for one authenticated caller (a backend, a token). */
+  perCaller?: number;
+}
+
+/** Concurrency caps and in-flight registry shared by all executors. */
 export class TaskLimiter {
   readonly max: number;
+  readonly perScope: number;
+  readonly perCaller: number;
   private readonly running = new Map<string, AbortController>();
+  /** taskId → the keys it counts against, so release frees exactly those. */
+  private readonly keysOf = new Map<string, string[]>();
+  private readonly counts = new Map<string, number>();
   private draining = false;
   private idleWaiters: Array<() => void> = [];
 
-  constructor(max: number) {
+  constructor(max: number, limits: TaskLimits = {}) {
     this.max = max > 0 ? max : Infinity;
+    this.perScope = limits.perScope && limits.perScope > 0 ? limits.perScope : Infinity;
+    this.perCaller = limits.perCaller && limits.perCaller > 0 ? limits.perCaller : Infinity;
+  }
+
+  /**
+   * Why a task for this scope and caller may not start now, or undefined.
+   * Checked before acquire() so the refusal can name the cap that was hit.
+   */
+  refusal(who: { scopeKey?: string; caller?: string } = {}): string | undefined {
+    if (this.draining) return 'The server is shutting down; retry shortly.';
+    if (this.running.size >= this.max) return `The server is at its limit of ${this.max} concurrent tasks; retry shortly.`;
+    if (who.scopeKey && (this.counts.get(`s:${who.scopeKey}`) ?? 0) >= this.perScope) {
+      return `This user already has ${this.perScope} tasks running, the most allowed at once; retry when one finishes.`;
+    }
+    if (who.caller && (this.counts.get(`c:${who.caller}`) ?? 0) >= this.perCaller) {
+      return `This caller already has ${this.perCaller} tasks running, the most allowed at once; retry when one finishes.`;
+    }
+    return undefined;
   }
 
   get inFlight(): number {
     return this.running.size;
   }
 
-  /** Reserve a slot. Returns undefined when saturated or shutting down. */
-  acquire(taskId: string): AbortController | undefined {
-    if (this.draining || this.running.size >= this.max) return undefined;
+  /** Reserve a slot. Returns undefined when any cap is reached or the server is shutting down. */
+  acquire(taskId: string, who: { scopeKey?: string; caller?: string } = {}): AbortController | undefined {
+    if (this.refusal(who)) return undefined;
     const controller = new AbortController();
     this.running.set(taskId, controller);
+    const keys = [who.scopeKey && `s:${who.scopeKey}`, who.caller && `c:${who.caller}`].filter((k): k is string => !!k);
+    for (const k of keys) this.counts.set(k, (this.counts.get(k) ?? 0) + 1);
+    this.keysOf.set(taskId, keys);
     return controller;
   }
 
   release(taskId: string): void {
     this.running.delete(taskId);
+    for (const k of this.keysOf.get(taskId) ?? []) {
+      const n = (this.counts.get(k) ?? 1) - 1;
+      if (n > 0) this.counts.set(k, n);
+      else this.counts.delete(k);
+    }
+    this.keysOf.delete(taskId);
     if (this.running.size === 0) for (const w of this.idleWaiters.splice(0)) w();
   }
 
@@ -546,11 +586,10 @@ export class SyndicateExecutor implements AgentExecutor {
         }
       }
 
-      slot = this.opts.limiter.acquire(taskId);
+      const who = { scopeKey: ctx.scopeKey, caller: ctx.caller };
+      slot = this.opts.limiter.acquire(taskId, who);
       if (!slot) {
-        const why = this.opts.limiter.isDraining
-          ? 'The server is shutting down; retry shortly.'
-          : `The server is at its limit of ${this.opts.limiter.max} concurrent tasks; retry shortly.`;
+        const why = this.opts.limiter.refusal(who) ?? 'The server is at capacity; retry shortly.';
         warn(`Task ${short} rejected — ${why}`);
         publishFinal(eventBus, taskId, contextId, 'rejected', why);
         await report(ctx, 'rejected', 'capacity');

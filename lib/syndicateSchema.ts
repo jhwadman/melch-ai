@@ -363,7 +363,7 @@ export const syndicateSchema = z
       .int()
       .positive()
       .optional()
-      .describe('Hard cap on runner loops (LLM → tool cycles).'),
+      .describe('Hard cap on model calls per turn, subagents included. Default 50 (DEFAULT_MAX_STEPS) when unset.'),
     bundled_references: z
       .record(z.string(), z.record(z.string(), z.unknown()))
       .optional()

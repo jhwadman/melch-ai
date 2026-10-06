@@ -687,7 +687,10 @@ subagent or a workflow node listing it is a load error. In code,
 | `A2A_AUTH_FAILURE_MAX` failed logins per IP per 15 min, then blocked | 30 |
 | `A2A_TASK_TIMEOUT_MS` per task | 15 min |
 | `A2A_MAX_CONCURRENT_TASKS` | unlimited |
-| `max_steps` (YAML): model calls per turn, subagents included | none |
+| `A2A_MAX_CONCURRENT_PER_SCOPE`: tasks at once for one end user | 4 |
+| `A2A_MAX_CONCURRENT_PER_CALLER`: tasks at once for one caller | unlimited |
+| `max_steps` (YAML): model calls per turn, subagents included | 50 |
+| `A2A_TRUST_PROXY`: proxies in front (required with `PUBLIC_URL`) | none trusted |
 | `A2A_BODY_LIMIT` | 1 MB |
 | `A2A_SHUTDOWN_GRACE_MS`: SIGTERM waits for running tasks | 25 s |
 | `A2A_SHUTDOWN_DELAY_MS`: of that, `/readyz` fails while requests are still served | 5 s |
@@ -720,7 +723,11 @@ Without `A2A_SERVER_SECRET` the server binds `127.0.0.1` only; binding
 another `HOST` requires the secret or `ALLOW_UNAUTHENTICATED=true`. With
 `PUBLIC_URL` set it refuses to start without the secret, with the
 `.env.example` placeholder as the secret, or against an unhardened
-database (unless `ALLOW_UNHARDENED_DB=true`). With durable storage it reads
+database (unless `ALLOW_UNHARDENED_DB=true`), and until the deployment
+states its posture: `A2A_AUTH` (prefer `callers` or `jwt`; `secret` lets any
+holder of the secret act as any user), `A2A_SERVED_AGENTS` (a list, or `*`
+for every agent) and `A2A_TRUST_PROXY` (the number of proxies in front, or
+`false`). The refusal names each one missing. With durable storage it reads
 `melchizedek_schema_version` and refuses to start on a database behind the
 migrations it ships, naming `melchizedek-db apply` (or
 `ALLOW_SCHEMA_MISMATCH=true` to start anyway); a database ahead of it only
@@ -746,8 +753,8 @@ local conversation keeps talking to the same remote conversation.
 `Dockerfile` builds the compiled server and runs it as a non-root user with
 a health check; `compose.yaml` adds optional Ollama and Phoenix (traces).
 `npx melchizedek-db print|apply|status` installs and checks the database.
-Set `PUBLIC_URL`, `A2A_SERVER_SECRET` and the provider keys from your
-secret manager; give the orchestrator's stop timeout at least
+Set `PUBLIC_URL`, `A2A_SERVER_SECRET`, `A2A_AUTH`, `A2A_SERVED_AGENTS`,
+`A2A_TRUST_PROXY` and the provider keys from your secret manager; give the orchestrator's stop timeout at least
 `A2A_SHUTDOWN_GRACE_MS`. On SIGTERM the server first fails `/readyz` and
 keeps serving for `A2A_SHUTDOWN_DELAY_MS` so the load balancer deregisters
 it, then closes the listener and drains running tasks for the rest of the

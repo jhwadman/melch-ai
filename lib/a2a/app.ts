@@ -47,6 +47,9 @@ import { inProcessTurnLock } from './turnLock.ts';
 import type { TurnLock } from './turnLock.ts';
 import { compareSchema, schemaBehindMessage, shippedSchemaVersion } from '../storage/schemaVersion.ts';
 import type { RlsHardeningStatus } from '../storage/rlsStatus.ts';
+
+/** One end user's concurrent tasks, unless maxConcurrentPerScope says otherwise (ADR 0039). */
+export const DEFAULT_MAX_CONCURRENT_PER_SCOPE = 4;
 import { eraseScope } from '../memory/erase.ts';
 import type { EraseCounts } from '../memory/erase.ts';
 import { namespacedMemoryService } from '../memory/namespace.ts';
@@ -188,6 +191,10 @@ export interface A2AAppOptions {
   streamText?: boolean;
   /** Concurrent tasks across all agents. 0 = unlimited. */
   maxConcurrentTasks?: number;
+  /** Concurrent tasks for one scope (one end user). Default 4; 0 = unlimited. */
+  maxConcurrentPerScope?: number;
+  /** Concurrent tasks for one authenticated caller. Default 0 (unlimited). */
+  maxConcurrentPerCaller?: number;
   /** Task submissions (POST) per window per client IP. */
   rateLimit?: { windowMs: number; max: number };
   /**
@@ -528,7 +535,10 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     return { sessionService, memoryService: memory, durable: sessionService !== internalSessions };
   };
 
-  const limiter = new TaskLimiter(options.maxConcurrentTasks ?? 0);
+  const limiter = new TaskLimiter(options.maxConcurrentTasks ?? 0, {
+    perScope: options.maxConcurrentPerScope ?? DEFAULT_MAX_CONCURRENT_PER_SCOPE,
+    perCaller: options.maxConcurrentPerCaller ?? 0,
+  });
   const metrics = options.metricsToken ? createMetrics() : undefined;
   const onTaskEnd = (record: TaskRecord) => {
     metrics?.observeTask(record);

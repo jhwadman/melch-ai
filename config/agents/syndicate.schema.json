@@ -1021,7 +1021,7 @@
       "maximum": 9007199254740991
     },
     "max_steps": {
-      "description": "Hard cap on runner loops (LLM → tool cycles).",
+      "description": "Hard cap on model calls per turn, subagents included. Default 50 (DEFAULT_MAX_STEPS) when unset.",
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991
