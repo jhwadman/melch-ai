@@ -56,5 +56,6 @@ checks the tag against `package.json`, runs tsc and the tests, builds from an
 empty `dist/`, publishes with npm provenance through trusted publishing (no
 token stored), and creates the GitHub Release with the CHANGELOG section and
 a CycloneDX SBOM. A laptop `npm publish` still works but carries no
-provenance; prefer the tag. The npm side needs a one-time trusted-publisher
+provenance; prefer the tag. A tag for a version already on npm skips the
+publish step and still creates the Release with its SBOM. The npm side needs a one-time trusted-publisher
 entry for `release.yml` in the package settings on npmjs.com.

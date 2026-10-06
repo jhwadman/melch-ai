@@ -5,7 +5,9 @@ name: release
 # then proves the tag matches package.json, runs the gates, builds from an
 # empty dist/, publishes with npm provenance through trusted publishing
 # (OIDC: no npm token is stored anywhere), and attaches a CycloneDX SBOM to
-# the GitHub Release. One-time setup on npmjs.com: package settings →
+# the GitHub Release. A version already on npm (a laptop publish) is not
+# published again: the tag then only creates the Release and its SBOM.
+# One-time setup on npmjs.com: package settings →
 # Trusted publisher → GitHub Actions, repository jhwadman/melch-ai,
 # workflow release.yml, environment npm.
 on:
@@ -44,8 +46,15 @@ jobs:
         run: rm -rf dist && npm run build
       - name: SBOM (CycloneDX) of what the package depends on
         run: npm sbom --sbom-format cyclonedx --omit dev > "melchizedek-agents-${GITHUB_REF_NAME}.cdx.json"
-      - name: publish with provenance
-        run: npm publish --provenance --access public --ignore-scripts
+      - name: publish with provenance (skipped when this version is already on npm)
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          if npm view "melchizedek-agents@${VERSION}" version >/dev/null 2>&1; then
+            echo "melchizedek-agents@${VERSION} is already on npm (published by hand); creating the GitHub Release only."
+          else
+            npm publish --provenance --access public --ignore-scripts
+          fi
       - name: GitHub Release with the SBOM
         env:
           GH_TOKEN: ${{ github.token }}
