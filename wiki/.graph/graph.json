@@ -906,7 +906,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 860
+        "words": 924
       }
     },
     {
@@ -3359,7 +3359,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1083
+        "lines": 1102
       }
     },
     {
@@ -3530,7 +3530,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 306
+        "lines": 340
       }
     },
     {

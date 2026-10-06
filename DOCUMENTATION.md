@@ -576,6 +576,30 @@ or pass your own `resolveRequest`.
   `setTelemetryRedactor(fn)`. Sessions and memory are not redacted; use
   `DELETE /memory` there.
 
+#### Where your data goes
+
+What a deployment sends where, how long it is kept, and the setting that
+changes it. "Your Postgres" is the database `DATABASE_URL` (or Supabase)
+names; nothing is kept by the framework anywhere else.
+
+| Data | Goes to | Kept | Change it with |
+|---|---|---|---|
+| The prompt: the user's message, the conversation, tool results | The model provider of each agent that runs (the model-id prefix) | The provider's policy | The `model:` lines in the YAML; `ollama/` ids stay on your machine |
+| Tool calls (`web_search`, `web_extract`, OpenAPI, MCP) | The tool's own host | That host's policy | The agent's `tools:`, `openapi:`, `mcp_server_url` / `mcp_tools` |
+| Sessions (conversation history) | Your Postgres, `adk_sessions` | 7 days after the last message | `ttlDays` (`postgresStorage`) |
+| Long-term memory facts | Your Postgres, `adk_memory_facts`; **the transcript is also sent to the extraction and embedding providers, Gemini by default whatever the agents run on** (the server warns at boot when they differ) | Until erased, or `memory_retention_days` | `MEMORY_EXTRACTION_MODEL`, `MEMORY_EMBEDDING_PROVIDER`, `memory_retention_days` |
+| The ledger: each turn's input, output and tool results (key-shaped secrets redacted) | Your Postgres, `adk_turns`, `adk_telemetry` | **Until you prune it**: schedule `melchizedek_prune_telemetry(<days>)` | `TELEMETRY_REDACT`, the prune's `turn_days` |
+| Sampled full model requests | Your Postgres, `adk_payloads` | 30 days | `TELEMETRY_PAYLOADS`, `TELEMETRY_PAYLOAD_TTL_DAYS` |
+| Traces, when `OTEL_EXPORTER_OTLP_ENDPOINT` is set | Your OTLP collector, conversation content included with key-shaped secrets redacted (`off` drops it) | Your collector's policy | `OTEL_EXPORT_CONTENT` (`redacted`, `off`, `raw`) |
+| The audit trail (no content) | Your Postgres, `melchizedek_audit` | Until `melchizedek_prune_audit(<days>)` | The prune schedule |
+| The task record (no content) | stdout | Your log platform's policy | `A2A_LOG_FORMAT` |
+
+`DELETE /memory` erases a user from every Postgres store above except the
+audit trail, which holds no content, only a hash of the scope. It does not
+reach a provider's own retention: read each provider's data terms, and the
+business associate or data processing agreement you need with it, before
+sending it regulated data.
+
 #### Who pays
 
 `A2A_KEY_MODE` (option `keyMode`), whatever the authenticator:
