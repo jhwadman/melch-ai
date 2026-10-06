@@ -2,28 +2,28 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-03"
+    "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 609,
-    "edges": 1408,
+    "nodes": 613,
+    "edges": 1420,
     "byKind": {
-      "doc": 87,
+      "doc": 89,
       "provider": 6,
       "env": 99,
       "model": 8,
       "tool": 34,
-      "file": 69,
+      "file": 70,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 16,
-      "module": 118,
+      "module": 119,
       "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 213,
+      "links_to": 217,
       "requires_env": 154,
       "routes_to": 8,
       "defined_in": 75,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 334,
+      "imports": 335,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 230
+      "derives_from": 237
     },
     "byTier": {
-      "extracted": 1408,
+      "extracted": 1420,
       "inferred": 0
     },
     "isolated": 4
@@ -826,6 +826,18 @@
       }
     },
     {
+      "id": "/decisions/0036-verdict-vocabulary-computed-by-guard.md",
+      "kind": "doc",
+      "label": "ADR 0036: A fact-check verdict vocabulary is computed by a guard, not applied by the prompt",
+      "source": "/decisions/0036-verdict-vocabulary-computed-by-guard.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 832
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -954,7 +966,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 436
+        "words": 437
       }
     },
     {
@@ -1027,6 +1039,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 207
+      }
+    },
+    {
+      "id": "/tools/post-answer-guards.md",
+      "kind": "doc",
+      "label": "Post-answer guards",
+      "source": "/tools/post-answer-guards.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1091
       }
     },
     {
@@ -3071,6 +3095,12 @@
       "source": "tests/governance.test.ts"
     },
     {
+      "id": "file:tests/guards.augustin.test.ts",
+      "kind": "file",
+      "label": "guards.augustin.test.ts",
+      "source": "tests/guards.augustin.test.ts"
+    },
+    {
       "id": "file:tests/identity.test.ts",
       "kind": "file",
       "label": "identity.test.ts",
@@ -3316,12 +3346,21 @@
       }
     },
     {
+      "id": "module:lib/guards/augustin.ts",
+      "kind": "module",
+      "label": "lib/guards/augustin.ts",
+      "source": "lib/guards/augustin.ts",
+      "attrs": {
+        "lines": 527
+      }
+    },
+    {
       "id": "module:lib/guards/index.ts",
       "kind": "module",
       "label": "lib/guards/index.ts",
       "source": "lib/guards/index.ts",
       "attrs": {
-        "lines": 78
+        "lines": 104
       }
     },
     {
@@ -7391,6 +7430,34 @@
       "evidence": "/decisions/0035-moonshot-kimi-provider.md:67"
     },
     {
+      "from": "/decisions/0036-verdict-vocabulary-computed-by-guard.md",
+      "to": "file:tests/guards.augustin.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-verdict-vocabulary-computed-by-guard.md frontmatter"
+    },
+    {
+      "from": "/decisions/0036-verdict-vocabulary-computed-by-guard.md",
+      "to": "module:lib/guards/augustin.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-verdict-vocabulary-computed-by-guard.md frontmatter"
+    },
+    {
+      "from": "/decisions/0036-verdict-vocabulary-computed-by-guard.md",
+      "to": "module:lib/guards/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-verdict-vocabulary-computed-by-guard.md frontmatter"
+    },
+    {
+      "from": "/decisions/0036-verdict-vocabulary-computed-by-guard.md",
+      "to": "/tools/post-answer-guards.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-verdict-vocabulary-computed-by-guard.md:42"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8217,6 +8284,13 @@
       "evidence": "/overview/architecture.md:25"
     },
     {
+      "from": "/overview/architecture.md",
+      "to": "/tools/post-answer-guards.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
       "from": "/overview/melchizedek.md",
       "to": "file:DOCUMENTATION.md",
       "rel": "derives_from",
@@ -8621,6 +8695,48 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/openapi-tools.md:21"
+    },
+    {
+      "from": "/tools/post-answer-guards.md",
+      "to": "module:lib/guards/augustin.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/post-answer-guards.md frontmatter"
+    },
+    {
+      "from": "/tools/post-answer-guards.md",
+      "to": "module:lib/guards/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/post-answer-guards.md frontmatter"
+    },
+    {
+      "from": "/tools/post-answer-guards.md",
+      "to": "module:lib/guards/science.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/post-answer-guards.md frontmatter"
+    },
+    {
+      "from": "/tools/post-answer-guards.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/post-answer-guards.md frontmatter"
+    },
+    {
+      "from": "/tools/post-answer-guards.md",
+      "to": "/decisions/0036-verdict-vocabulary-computed-by-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/post-answer-guards.md:154"
+    },
+    {
+      "from": "/tools/post-answer-guards.md",
+      "to": "/tools/evidence-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/post-answer-guards.md:60"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -10455,6 +10571,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/guards/index.ts",
+      "to": "module:lib/guards/augustin.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/guards/index.ts"
     },
     {
       "from": "module:lib/guards/index.ts",

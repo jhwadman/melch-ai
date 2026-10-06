@@ -6,6 +6,24 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **A second built-in guard, `augustin`.** `guards: [augustin]` makes a
+  fact-check desk's verdict vocabulary mechanical: the guard parses the last
+  fenced JSON `verdicts` block among the turn's tool results (one entry per
+  claim id — FACT grade, ARGUMENT `for`/`against` counts, OPINION — plus
+  `primary_read`, `primary` and `sources`), rewrites each claim-tagged
+  bullet's opening word from its verdict (True / Missing context /
+  Misleading / False / Unverified; Supported / Unsupported / Unverified with
+  `for ≤ 1` never Supported; Opinion), folds extra Opinion bullets into the
+  first, computes the `**Fact check: …**` headline over the words, puts the
+  "was not read" limit sentence directly under it when the primary source
+  was not read, appends `[unsourced: <domain>]` to a cited domain no tool
+  result produced, and strips the `[Cn]` tags. Overview and conversational
+  answers pass through (the limit line aside); no block or a malformed one
+  ships the text unchanged with a note; the guard never throws. The pure
+  rules are re-exported from the `./guards` entry as `applyAugustinGuard`,
+  `computeAugustinWord`, `computeAugustinHeadline`, `parseAugustinVerdicts`,
+  `canonicalAugustinWord` and `AUGUSTIN_VERDICT_WORDS` (types `Verdict`,
+  `VerdictsBlock`, `VerdictWord`, `ClaimKind`, `ComputedWord`). ADR 0036.
 - **Moonshot AI (Kimi) is a provider.** `kimi-*` model ids route to a new
   direct adapter (`lib/models/kimiLlm.ts`, chat completions against
   `api.moonshot.ai`), funded by `MOONSHOT_API_KEY` (`MOONSHOT_BASE_URL` for a

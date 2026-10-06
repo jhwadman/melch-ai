@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-10-03
+  at: 2026-10-06
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -28,11 +28,11 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `module` | `module:<name>` | 118 | one source module |
+| `module` | `module:<name>` | 119 | one source module |
 | `env` | `env:<name>` | 99 | an environment variable the code reads |
+| `doc` | `/dir/doc.md` | 89 | a concept document in the bundle — identity is its bundle path |
 | `agent` | `agent:<name>` | 89 | one orchestrator or subagent inside a syndicate |
-| `doc` | `/dir/doc.md` | 87 | a concept document in the bundle — identity is its bundle path |
-| `file` | `file:<name>` | 69 | a repo file that is not a source module (DDL, config, prose) |
+| `file` | `file:<name>` | 70 | a repo file that is not a source module (DDL, config, prose) |
 | `script` | `script:<name>` | 45 | an npm script entrypoint |
 | `tool` | `tool:<name>` | 34 | a tool an agent may declare by name |
 | `syndicate` | `syndicate:<name>` | 32 | one agent-team definition (a YAML) |
@@ -50,9 +50,9 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `imports` | extracted | A imports B | 334 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 230 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 213 | a resolved markdown link between documents |
+| `imports` | extracted | A imports B | 335 | a static import edge between source files |
+| `derives_from` | extracted | A derives from B | 237 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 217 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 154 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |
