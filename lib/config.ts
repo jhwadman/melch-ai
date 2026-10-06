@@ -87,6 +87,14 @@ export const DEFAULT_KIMI_MODEL = 'kimi-k3';
 export const DEFAULT_KIMI_REASONING_EFFORT = 'high';
 
 /**
+ * Model calls one turn may make, subagents included, when the syndicate sets
+ * no `max_steps`. A runaway tool loop stops here instead of at the provider's
+ * bill. Every shipped example that sets a cap sets 12 to 30; a syndicate that
+ * needs more raises its own `max_steps` (ADR 0039).
+ */
+export const DEFAULT_MAX_STEPS = 50;
+
+/**
  * Default open-weight model, served locally by Ollama (lib/models/ollamaLlm.ts).
  * qwen3:8b is the smallest pulled model that supports tool calling — the
  * floor capability for syndicate delegation. Vision work uses ollama/qwen3-vl:8b.

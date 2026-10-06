@@ -173,6 +173,11 @@ const agentFields = {
     .string()
     .optional()
     .describe('MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.'),
+  mcp_tools: z
+    .array(z.string().min(1))
+    .min(1)
+    .optional()
+    .describe('The MCP server\'s tools this agent may use, by name; any other tool the server lists is not exposed. Without it, every listed tool is. require_approval may name these. Needs mcp_server_url.'),
   skills: skillsSchema.optional(),
   openapi: z.array(openapiEntry).min(1).optional(),
   code_execution: z
@@ -363,7 +368,7 @@ export const syndicateSchema = z
       .int()
       .positive()
       .optional()
-      .describe('Hard cap on runner loops (LLM → tool cycles).'),
+      .describe('Hard cap on model calls per turn, subagents included. Default 50 (DEFAULT_MAX_STEPS) when unset.'),
     bundled_references: z
       .record(z.string(), z.record(z.string(), z.unknown()))
       .optional()
@@ -563,11 +568,13 @@ function crossFieldProblems(raw: unknown): Problem[] {
       return;
     }
     const tools = Array.isArray(agent.tools) ? agent.tools : [];
-    // An OpenAPI operation can be gated once it is named under `operations`.
+    // An OpenAPI operation can be gated once it is named under `operations`,
+    // and an MCP tool once it is named under `mcp_tools`.
     const operations = (Array.isArray(agent.openapi) ? agent.openapi : []).flatMap((e) => (isObj(e) && Array.isArray(e.operations) ? e.operations : []));
+    const mcpTools = Array.isArray(agent.mcp_tools) ? agent.mcp_tools : [];
     (Array.isArray(agent.require_approval) ? agent.require_approval : []).forEach((name, j) => {
-      if (typeof name === 'string' && !tools.includes(name) && !operations.includes(name)) {
-        out.push({ path: [...path, 'require_approval', j], message: `'${name}' is not in this agent's tools or its openapi operations` });
+      if (typeof name === 'string' && !tools.includes(name) && !operations.includes(name) && !mcpTools.includes(name)) {
+        out.push({ path: [...path, 'require_approval', j], message: `'${name}' is not in this agent's tools, its openapi operations or its mcp_tools` });
       }
     });
   };
@@ -615,6 +622,9 @@ function crossFieldProblems(raw: unknown): Problem[] {
     }
     if (agent.mode !== undefined && !isObj(raw.workflow)) {
       out.push({ path: [...path, 'mode'], message: 'mode: task applies to workflow nodes, whose output is the finish_task arguments' });
+    }
+    if (agent.mcp_tools !== undefined && typeof agent.mcp_server_url !== 'string') {
+      out.push({ path: [...path, 'mcp_tools'], message: 'mcp_tools chooses among an MCP server\'s tools; it needs mcp_server_url' });
     }
   };
   if (isObj(raw.orchestrator)) executionProblems(raw.orchestrator, ['orchestrator'], true);

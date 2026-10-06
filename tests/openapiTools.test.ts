@@ -16,7 +16,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 
-import { MAX_RESULT_CHARS, buildOpenApiTools, toSnake } from '../lib/tools/openapiTools.ts';
+import { MAX_RESULT_CHARS, buildOpenApiTools, credentialEnvProblem, toSnake } from '../lib/tools/openapiTools.ts';
+import { readFileSync as readText } from 'node:fs';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { approvalResponsePart } from '../lib/runtime/approvals.ts';
@@ -157,6 +158,27 @@ test('auth comes from the environment; an unset variable fails the build', async
   await assert.rejects(buildOpenApiTools({ spec: 'pets.yaml', auth: { bearer_env: 'PETS_TOKEN' } }, dir), /PETS_TOKEN is not set/);
 });
 
+test('auth may never name one of the framework\'s own settings (the database, a provider key, an A2A secret)', async () => {
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'test-only-value';
+  await assert.rejects(
+    buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], auth: { bearer_env: 'SUPABASE_SERVICE_ROLE_KEY' } }, dir),
+    /SUPABASE_SERVICE_ROLE_KEY is one of the framework's own settings and may not be sent to an API/,
+  );
+  // Every variable .env.example documents is the framework's own: none may become a credential.
+  const documented = [...readText('.env.example', 'utf-8').matchAll(/^#?\s?([A-Z][A-Z0-9_]{2,})=/gm)].map((m) => m[1]!);
+  assert.ok(documented.length > 50);
+  const allowed = documented.filter((name) => credentialEnvProblem(name, {}) === null);
+  assert.deepEqual(allowed, [], `framework variables an OpenAPI auth could read: ${allowed.join(', ')}`);
+  assert.equal(credentialEnvProblem('WEATHER_API_KEY', {}), null, "an API's own variable is fine");
+});
+
+test('OPENAPI_CREDENTIAL_ENVS turns the rule into an exact allowlist', () => {
+  const env = { OPENAPI_CREDENTIAL_ENVS: 'PETS_TOKEN, OPENAI_API_KEY' };
+  assert.equal(credentialEnvProblem('PETS_TOKEN', env), null);
+  assert.equal(credentialEnvProblem('OPENAI_API_KEY', env), null, 'an operator may allow a provider key on purpose');
+  assert.match(credentialEnvProblem('WEATHER_API_KEY', env)!, /not in OPENAPI_CREDENTIAL_ENVS/);
+});
+
 test('the SSRF guard refuses a private server unless ALLOW_PRIVATE_OPENAPI', async () => {
   delete process.env.ALLOW_PRIVATE_OPENAPI;
   try {
@@ -246,7 +268,7 @@ test('schema: auth is exactly one form from the environment; gates name listed o
   assert.throws(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', auth: { bearer_env: 'sk-live-123' } }]), 't'), /environment variable name/);
   assert.throws(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', token: 'x' }]), 't'), /token/);
   assert.doesNotThrow(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', operations: ['createPet'] }], { require_approval: ['createPet'] }), 't'));
-  assert.throws(() => validateSyndicateConfig(raw([{ spec: 'a.yaml' }], { require_approval: ['createPet'] }), 't'), /not in this agent's tools or its openapi operations/);
+  assert.throws(() => validateSyndicateConfig(raw([{ spec: 'a.yaml' }], { require_approval: ['createPet'] }), 't'), /not in this agent's tools, its openapi operations or its mcp_tools/);
 });
 
 test('a relative spec path resolves beside the syndicate file, whatever the working directory', () => {

@@ -87,6 +87,16 @@ test('max_steps caps model calls across the whole turn, subagents included', asy
   assert.equal(r.llmCalls, 5);
 });
 
+test('without max_steps, a turn stops at DEFAULT_MAX_STEPS (50) model calls', async () => {
+  const boss = new ScriptedLlm('scripted/boss', () => call('Scout', { request: 'again' }));
+  const scout = new ScriptedLlm('scripted/scout', () => text('still nothing'));
+  const config = delegateConfig();
+  assert.equal(config.max_steps, undefined);
+  const r = await turn(config, { boss, scout });
+  assert.equal(r.error?.code, 'STEP_LIMIT');
+  assert.equal(r.llmCalls, 50);
+});
+
 test('cancel: aborting the signal stops a hung provider call', async () => {
   const controller = new AbortController();
   const boss = new ScriptedLlm('scripted/boss', (_req, _n, signal) => hangUntilAborted(signal));

@@ -262,6 +262,7 @@ async function resolveAgentTools(
   opts: CompileOptions,
   openapi?: OpenApiConfig[],
   examples?: ExampleConfig[],
+  mcpAllowed?: string[],
 ): Promise<unknown[]> {
   const tools = [...resolveNamedTools(toolNames, opts.onUnknownTool), ...examplesTool(examples)];
   // OpenAPI operations become tools here, so require_approval can name them.
@@ -275,7 +276,18 @@ async function resolveAgentTools(
   }
   if (mcpServerUrl) {
     opts.log?.(`Loading MCP tools: ${mcpServerUrl}`);
-    const mcpTools = await createMcpTools(mcpServerUrl);
+    const offered = await createMcpTools(mcpServerUrl);
+    // mcp_tools: only the named tools are exposed (a server's list is its
+    // own to change); a name the server does not offer is reported, and a
+    // gate on it fails the compile in gateTools.
+    const allowed = mcpAllowed ? new Set(mcpAllowed) : undefined;
+    const mcpTools = allowed ? offered.filter((t) => allowed.has(t.name)) : offered;
+    if (allowed) {
+      const missing = [...allowed].filter((n) => !offered.some((t) => t.name === n));
+      if (missing.length) opts.log?.(`MCP ${mcpServerUrl} does not offer ${missing.map((n) => `'${n}'`).join(', ')} (mcp_tools)`);
+      const hidden = offered.length - mcpTools.length;
+      if (hidden) opts.log?.(`MCP ${mcpServerUrl}: ${hidden} tool(s) not in mcp_tools are not exposed`);
+    }
     for (const mcpTool of mcpTools) {
       if (!tools.some((t: any) => t.name === mcpTool.name)) tools.push(mcpTool);
     }
@@ -337,7 +349,7 @@ export async function compileSubagent(
     return compileGraph(nested, opts, subCfg.name, subCfg.description);
   }
 
-  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples), subCfg.require_approval, subCfg.name);
+  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples, subCfg.mcp_tools), subCfg.require_approval, subCfg.name);
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);

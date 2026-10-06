@@ -5,15 +5,15 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 620,
-    "edges": 1432,
+    "nodes": 626,
+    "edges": 1452,
     "byKind": {
-      "doc": 90,
+      "doc": 92,
       "provider": 6,
-      "env": 100,
+      "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 74,
+      "file": 77,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,8 +23,8 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 217,
-      "requires_env": 155,
+      "links_to": 222,
+      "requires_env": 156,
       "routes_to": 8,
       "defined_in": 75,
       "documents": 56,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 339,
+      "imports": 340,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 244
+      "derives_from": 257
     },
     "byTier": {
-      "extracted": 1432,
+      "extracted": 1452,
       "inferred": 0
     },
     "isolated": 4
@@ -862,6 +862,30 @@
       }
     },
     {
+      "id": "/decisions/0039-public-deployments-state-their-posture.md",
+      "kind": "doc",
+      "label": "ADR 0039: A public deployment states its posture; turns and users have default caps",
+      "source": "/decisions/0039-public-deployments-state-their-posture.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 450
+      }
+    },
+    {
+      "id": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "kind": "doc",
+      "label": "ADR 0041: Tool vendors get least privilege: OpenAPI auth cannot read framework secrets; MCP tools are allowlisted, gateable and bounded",
+      "source": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 435
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -978,7 +1002,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 962
+        "words": 1030
       }
     },
     {
@@ -1014,7 +1038,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1378
+        "words": 1414
       }
     },
     {
@@ -1026,7 +1050,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 473
+        "words": 543
       }
     },
     {
@@ -1062,7 +1086,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 272
+        "words": 321
       }
     },
     {
@@ -2495,6 +2519,12 @@
       "source": "lib/models/endpoints.ts"
     },
     {
+      "id": "env:OPENAPI_CREDENTIAL_ENVS",
+      "kind": "env",
+      "label": "OPENAPI_CREDENTIAL_ENVS",
+      "source": "lib/tools/openapiTools.ts"
+    },
+    {
       "id": "env:OTEL_CONSOLE_ALL_SPANS",
       "kind": "env",
       "label": "OTEL_CONSOLE_ALL_SPANS",
@@ -3126,6 +3156,12 @@
       "source": "tests/identity.test.ts"
     },
     {
+      "id": "file:tests/mcpTools.test.ts",
+      "kind": "file",
+      "label": "mcpTools.test.ts",
+      "source": "tests/mcpTools.test.ts"
+    },
+    {
       "id": "file:tests/models.test.ts",
       "kind": "file",
       "label": "models.test.ts",
@@ -3137,6 +3173,12 @@
       "label": "openapiTools.test.ts",
       "source": "tests/openapiTools.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/publicPosture.test.ts",
+      "kind": "file",
+      "label": "publicPosture.test.ts",
+      "source": "tests/publicPosture.test.ts"
     },
     {
       "id": "file:tests/questions.test.ts",
@@ -3193,6 +3235,12 @@
       "kind": "file",
       "label": "syndicateTurn.test.ts",
       "source": "tests/syndicateTurn.test.ts"
+    },
+    {
+      "id": "file:tests/taskLimiter.test.ts",
+      "kind": "file",
+      "label": "taskLimiter.test.ts",
+      "source": "tests/taskLimiter.test.ts"
     },
     {
       "id": "file:tests/workflow.test.ts",
@@ -3286,7 +3334,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1053
+        "lines": 1063
       }
     },
     {
@@ -3295,7 +3343,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 705
+        "lines": 744
       }
     },
     {
@@ -3349,7 +3397,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 433
+        "lines": 445
       }
     },
     {
@@ -3358,7 +3406,7 @@
       "label": "lib/config.ts",
       "source": "lib/config.ts",
       "attrs": {
-        "lines": 142
+        "lines": 150
       }
     },
     {
@@ -3430,7 +3478,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 688
+        "lines": 690
       }
     },
     {
@@ -3727,7 +3775,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 964
+        "lines": 965
       }
     },
     {
@@ -3844,7 +3892,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 903
+        "lines": 913
       }
     },
     {
@@ -3898,7 +3946,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 178
+        "lines": 205
       }
     },
     {
@@ -3907,7 +3955,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 215
+        "lines": 246
       }
     },
     {
@@ -4186,7 +4234,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 484
+        "lines": 513
       }
     },
     {
@@ -4204,7 +4252,7 @@
       "label": "scripts/db.ts",
       "source": "scripts/db.ts",
       "attrs": {
-        "lines": 179
+        "lines": 195
       }
     },
     {
@@ -7587,6 +7635,104 @@
       "evidence": "/decisions/0038-graceful-stop-readiness-first.md frontmatter"
     },
     {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "file:tests/publicPosture.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "file:tests/taskLimiter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:lib/config.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "/decisions/0025-built-in-authenticators.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md:32"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "file:tests/mcpTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8316,6 +8462,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/decisions/0039-public-deployments-state-their-posture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:40"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -8617,6 +8770,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/decisions/0039-public-deployments-state-their-posture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:36"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -8667,6 +8827,13 @@
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:29"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md:29"
@@ -8835,6 +9002,13 @@
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:21"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/openapi-tools.md:21"
@@ -11921,6 +12095,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/dispatch.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12370,6 +12551,13 @@
     {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "env:OPENAPI_CREDENTIAL_ENVS",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"

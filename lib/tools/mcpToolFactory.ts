@@ -81,6 +81,31 @@ export const MCP_REDIRECTS: RedirectPolicy = {
 export const mcpFetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> =>
   fetchWithRedirectPolicy(input, init, MCP_REDIRECTS, (i, o) => fetch(i, o));
 
+/**
+ * A remote MCP server is an untrusted tool vendor: its tool descriptions go
+ * into the prompt and its results into the conversation. Both are bounded,
+ * so a server cannot flood the context (or the bill) with either.
+ */
+export const MAX_MCP_DESCRIPTION_CHARS = 1_000;
+export const MAX_MCP_RESULT_CHARS = 20_000;
+const bounded = (text: string, max: number, what: string): string =>
+  text.length <= max ? text : `${text.slice(0, max)}… [${what} cut at ${max} characters]`;
+
+/** Every MCP connection opened and still in use, so a shutdown can close them. */
+const openTransports = new Set<SSEClientTransport>();
+
+/**
+ * Close every open MCP connection. A connection otherwise lives as long as
+ * the process (its tools are called for the life of the compiled agent), and
+ * its stream reconnects when the server restarts; an embedding app that
+ * stops cleanly, or a test, calls this.
+ */
+export async function closeMcpConnections(): Promise<void> {
+  const all = [...openTransports];
+  openTransports.clear();
+  await Promise.all(all.map((t) => t.close().catch(() => {})));
+}
+
 export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool[]> {
   let transport: SSEClientTransport | undefined;
   try {
@@ -97,6 +122,7 @@ export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool
     });
 
     await client.connect(transport);
+    openTransports.add(transport);
     
     // Fetch available tools from the MCP server
     const toolsResponse = await client.listTools();
@@ -138,7 +164,7 @@ export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool
 
       return new FunctionTool({
         name: tool.name,
-        description: tool.description || `MCP Tool: ${tool.name}`,
+        description: bounded(tool.description || `MCP Tool: ${tool.name}`, MAX_MCP_DESCRIPTION_CHARS, 'description'),
         parameters: {
           type: 'OBJECT',
           properties,
@@ -160,7 +186,7 @@ export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool
             }
             const content = (result as McpCallToolResult).content;
             const texts = content.filter(c => c.type === 'text').map(c => c.text ?? '');
-            return texts.join('\n');
+            return bounded(texts.join('\n'), MAX_MCP_RESULT_CHARS, 'result');
           } catch (error: any) {
             return `[MCP ERROR] Tool ${tool.name} failed: ${error.message}`;
           }
@@ -171,6 +197,7 @@ export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool
     console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, error);
     // A failed connect leaves the SSE stream's reconnect timer running; close
     // it, or every unreachable server keeps retrying for the process's life.
+    if (transport) openTransports.delete(transport);
     await transport?.close().catch(() => {});
     return [];
   }

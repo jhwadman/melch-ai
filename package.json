@@ -1,6 +1,6 @@
 {
   "name": "melchizedek-agents",
-  "version": "0.17.1",
+  "version": "0.18.0",
   "description": "A multi-model, multi-agent orchestration framework on Google ADK — YAML-defined syndicates, Supabase session persistence, pgvector long-term memory. Companion repo to the lyceumagents.com curriculum.",
   "type": "module",
   "license": "MIT",
@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/jhwadman/melch-ai/issues"
   },
-  "//": "adk + genai are pinned exact in dev: newer genai minors change response part shapes and silently break the chat printer. Bump deliberately, verify a live run, then update the pin. adk itself is a PEER dependency — the consumer's app owns the ADK instance so the model registry is a singleton.",
+  "//": "adk + genai are pinned exact in dev: newer genai minors change response part shapes and silently break the chat printer. Bump deliberately, verify a live run, then update the pin. adk itself is a PEER dependency — the consumer's app owns the ADK instance so the model registry is a singleton. The adk peer range is capped to the tested minor (~2.2.0): a new adk minor can pull a second genai copy, so the range widens only after a release is tested against it.",
   "engines": {
     "node": ">=22.6.0"
   },
@@ -126,7 +126,7 @@
     "@anthropic-ai/bedrock-sdk": ">=0.20.0",
     "@anthropic-ai/vertex-sdk": ">=0.11.0",
     "@azure/identity": ">=4.0.0",
-    "@google/adk": "^2.2.0",
+    "@google/adk": "~2.2.0",
     "redis": ">=4.6.0"
   },
   "dependencies": {

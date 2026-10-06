@@ -4,6 +4,57 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 0.18.0 — 2026-10-06
+
+### Breaking — read before upgrading
+
+- **A public server states its posture (ADR 0039).** With `PUBLIC_URL` set,
+  the server refuses to start until all three are set explicitly; the boot
+  message names each one missing:
+  - `A2A_AUTH`: `callers` or `jwt` (recommended), `header`, or `secret`
+    (one shared secret: any holder can act as any user via `X-User-Id`).
+  - `A2A_SERVED_AGENTS`: the agent ids to serve, or `*` for every agent.
+  - `A2A_TRUST_PROXY`: proxies in front (`1` behind one load balancer), or
+    `false` when clients connect directly.
+- **`A2A_TRUST_PROXY` defaults to `false`** (was 1): a server reached
+  directly no longer takes the client's `X-Forwarded-For` as its address.
+- **A turn stops at 50 model calls** when the YAML sets no `max_steps`
+  (`DEFAULT_MAX_STEPS`). A syndicate that needs more sets `max_steps`.
+- **One end user runs at most 4 tasks at once** (`A2A_MAX_CONCURRENT_PER_SCOPE`,
+  `maxConcurrentPerScope`; 0 = unlimited). `A2A_MAX_CONCURRENT_PER_CALLER`
+  adds a per-caller cap, off by default. The refusal names the cap.
+
+- **The `@google/adk` peer range is `~2.2.0`** (was `^2.2.0`): the tested
+  minor. A new ADK minor can bring a second `@google/genai` copy, whose
+  response shapes the framework pins; the range widens when a release is
+  tested against it. ADK 2.2.0 is the latest published, so no install
+  changes today.
+
+- **An OpenAPI `auth` may not name one of the framework's own settings**
+  (the database URL, a provider key, an `A2A_` secret: anything under the
+  framework's prefixes). The YAML chooses the host too, so this was a way
+  to send a secret anywhere. `OPENAPI_CREDENTIAL_ENVS` makes the rule an
+  exact allowlist. ADR 0041.
+- **MCP tool descriptions are cut at 1,000 characters and results at
+  20,000**, each marked where it was cut.
+
+### Changes
+
+- **`mcp_tools:`, an agent key**: the MCP server's tools the agent may use;
+  any other tool the server lists is not exposed. On a dispatch route,
+  `require_approval` may name a listed MCP tool, so a write waits for a
+  person. `closeMcpConnections()` closes every open MCP connection.
+- **`melchizedek-db apply` is one transaction under an advisory lock.** The
+  whole install (migrations, hardening, telemetry) runs as one psql
+  `--single-transaction` script that takes `pg_advisory_xact_lock` first: a
+  failure anywhere rolls everything back, and two applies started together
+  run one after the other. The output still names each file.
+- `TaskLimiter` takes per-scope and per-caller limits and says which one
+  refused (`refusal()`); `createA2AApp` takes `maxConcurrentPerScope` and
+  `maxConcurrentPerCaller`; `DEFAULT_MAX_CONCURRENT_PER_SCOPE` is exported
+  from `melchizedek-agents/a2a` and `DEFAULT_MAX_STEPS` from
+  `melchizedek-agents/config`.
+
 ## 0.17.1 — 2026-10-06
 
 - **Fix: a rolling deploy no longer refuses requests.** On SIGTERM the
