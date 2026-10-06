@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (privately)
+    url: https://github.com/jhwadman/melch-ai/security/advisories/new
+    about: Never in a public issue. See SECURITY.md.
+  - name: Documentation
+    url: https://github.com/jhwadman/melch-ai/blob/main/DOCUMENTATION.md
+    about: The full reference, before asking.

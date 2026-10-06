@@ -1,0 +1,33 @@
+name: Bug report
+description: Something the framework does that it should not, or the docs say it does and it does not.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: A security problem goes to private vulnerability reporting, not here. Never paste a key, a token, or a user's data.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`npm ls melchizedek-agents`, or the commit"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The syndicate YAML (trimmed), the command, and the output. A failing test is best.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Node version, OS, storage (none / DATABASE_URL / Supabase), model providers
