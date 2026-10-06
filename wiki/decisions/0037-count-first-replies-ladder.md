@@ -1,6 +1,6 @@
 ---
 type: decision
-title: 'ADR 0036: A thread''s replies are counted before a page is bought — a min_likes ladder over the counts endpoint'
+title: 'ADR 0037: A thread''s replies are counted before a page is bought — a min_likes ladder over the counts endpoint'
 description: x_api_search reads a post's replies by asking /2/tweets/counts/recent how many there are and how many clear each like floor, then buying one page at the first floor that holds a page's worth, instead of buying twenty replies by relevancy out of thousands; the ladder is built on min_likes because that is the engagement operator the pay-per-use tier accepts.
 tags:
   - decision
@@ -14,7 +14,7 @@ sources:
   - resource: tests/xApiSearch.test.ts
 ---
 
-# ADR 0036: A thread's replies are counted before a page is bought
+# ADR 0037: A thread's replies are counted before a page is bought
 
 ## Context
 

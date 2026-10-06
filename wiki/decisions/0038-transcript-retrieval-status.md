@@ -1,6 +1,6 @@
 ---
 type: decision
-title: 'ADR 0037: media_transcript reads YouTube captions keylessly and leads every block with a RETRIEVAL STATUS'
+title: 'ADR 0038: media_transcript reads YouTube captions keylessly and leads every block with a RETRIEVAL STATUS'
 description: A video's transcript comes from the caption track YouTube already holds, fetched through YouTube's own player endpoint as the ANDROID client with no API key, no third-party service and no binary; the first line of every result is one of OK, NO_CAPTIONS, BLOCKED, UNSUPPORTED_URL or ERROR, and only OK is followed by text, because a fact-check desk must never be handed a guessed transcript.
 tags:
   - decision
@@ -16,7 +16,7 @@ sources:
   - resource: lib/net/addressGuard.ts
 ---
 
-# ADR 0037: `media_transcript` — keyless YouTube captions behind a retrieval status
+# ADR 0038: `media_transcript` — keyless YouTube captions behind a retrieval status
 
 ## Context
 

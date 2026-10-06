@@ -826,10 +826,10 @@
       }
     },
     {
-      "id": "/decisions/0036-count-first-replies-ladder.md",
+      "id": "/decisions/0037-count-first-replies-ladder.md",
       "kind": "doc",
-      "label": "ADR 0036: A thread's replies are counted before a page is bought — a min_likes ladder over the counts endpoint",
-      "source": "/decisions/0036-count-first-replies-ladder.md",
+      "label": "ADR 0037: A thread's replies are counted before a page is bought — a min_likes ladder over the counts endpoint",
+      "source": "/decisions/0037-count-first-replies-ladder.md",
       "attrs": {
         "type": "decision",
         "status": "stable",
@@ -838,10 +838,10 @@
       }
     },
     {
-      "id": "/decisions/0037-transcript-retrieval-status.md",
+      "id": "/decisions/0038-transcript-retrieval-status.md",
       "kind": "doc",
-      "label": "ADR 0037: media_transcript reads YouTube captions keylessly and leads every block with a RETRIEVAL STATUS",
-      "source": "/decisions/0037-transcript-retrieval-status.md",
+      "label": "ADR 0038: media_transcript reads YouTube captions keylessly and leads every block with a RETRIEVAL STATUS",
+      "source": "/decisions/0038-transcript-retrieval-status.md",
       "attrs": {
         "type": "decision",
         "status": "stable",
@@ -7445,39 +7445,39 @@
       "evidence": "/decisions/0035-moonshot-kimi-provider.md:67"
     },
     {
-      "from": "/decisions/0036-count-first-replies-ladder.md",
+      "from": "/decisions/0037-count-first-replies-ladder.md",
       "to": "file:tests/xApiSearch.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0036-count-first-replies-ladder.md frontmatter"
+      "evidence": "/decisions/0037-count-first-replies-ladder.md frontmatter"
     },
     {
-      "from": "/decisions/0036-count-first-replies-ladder.md",
+      "from": "/decisions/0037-count-first-replies-ladder.md",
       "to": "module:lib/tools/xApiSearchTool.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0036-count-first-replies-ladder.md frontmatter"
+      "evidence": "/decisions/0037-count-first-replies-ladder.md frontmatter"
     },
     {
-      "from": "/decisions/0037-transcript-retrieval-status.md",
+      "from": "/decisions/0038-transcript-retrieval-status.md",
       "to": "file:tests/mediaTranscript.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0037-transcript-retrieval-status.md frontmatter"
+      "evidence": "/decisions/0038-transcript-retrieval-status.md frontmatter"
     },
     {
-      "from": "/decisions/0037-transcript-retrieval-status.md",
+      "from": "/decisions/0038-transcript-retrieval-status.md",
       "to": "module:lib/net/addressGuard.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0037-transcript-retrieval-status.md frontmatter"
+      "evidence": "/decisions/0038-transcript-retrieval-status.md frontmatter"
     },
     {
-      "from": "/decisions/0037-transcript-retrieval-status.md",
+      "from": "/decisions/0038-transcript-retrieval-status.md",
       "to": "module:lib/tools/mediaTranscriptTool.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0037-transcript-retrieval-status.md frontmatter"
+      "evidence": "/decisions/0038-transcript-retrieval-status.md frontmatter"
     },
     {
       "from": "/memory/architecture.md",
@@ -8944,14 +8944,14 @@
     },
     {
       "from": "/tools/web-tools.md",
-      "to": "/decisions/0036-count-first-replies-ladder.md",
+      "to": "/decisions/0037-count-first-replies-ladder.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/web-tools.md:34"
     },
     {
       "from": "/tools/web-tools.md",
-      "to": "/decisions/0037-transcript-retrieval-status.md",
+      "to": "/decisions/0038-transcript-retrieval-status.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/web-tools.md:36"
