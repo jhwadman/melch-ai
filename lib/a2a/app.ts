@@ -47,6 +47,8 @@ import { inProcessTurnLock } from './turnLock.ts';
 import type { TurnLock } from './turnLock.ts';
 import { compareSchema, schemaBehindMessage, shippedSchemaVersion } from '../storage/schemaVersion.ts';
 import type { RlsHardeningStatus } from '../storage/rlsStatus.ts';
+import { scopeHashOf } from '../observability/audit.ts';
+import type { AuditSink } from '../observability/audit.ts';
 
 /** One end user's concurrent tasks, unless maxConcurrentPerScope says otherwise (ADR 0039). */
 export const DEFAULT_MAX_CONCURRENT_PER_SCOPE = 4;
@@ -111,6 +113,8 @@ export interface A2AAppOptions {
      * fatal with `requireHardenedDb`, a warning otherwise.
      */
     rlsHardening?: () => Promise<RlsHardeningStatus>;
+    /** Appends audit events (postgresStorage supplies one; ADR 0042). */
+    audit?: AuditSink;
     /**
      * One turn at a time per conversation across instances (postgresStorage
      * supplies an advisory lock). Default: a lock in this process.
@@ -191,6 +195,11 @@ export interface A2AAppOptions {
   streamText?: boolean;
   /** Concurrent tasks across all agents. 0 = unlimited. */
   maxConcurrentTasks?: number;
+  /**
+   * Where audit events go: failed authentications, task outcomes, erasures
+   * (ADR 0042). Default: the storage's sink when it has one, else none.
+   */
+  audit?: AuditSink;
   /** Concurrent tasks for one scope (one end user). Default 4; 0 = unlimited. */
   maxConcurrentPerScope?: number;
   /** Concurrent tasks for one authenticated caller. Default 0 (unlimited). */
@@ -535,6 +544,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     return { sessionService, memoryService: memory, durable: sessionService !== internalSessions };
   };
 
+  const audit: AuditSink | undefined = options.audit ?? options.storage?.audit;
   const limiter = new TaskLimiter(options.maxConcurrentTasks ?? 0, {
     perScope: options.maxConcurrentPerScope ?? DEFAULT_MAX_CONCURRENT_PER_SCOPE,
     perCaller: options.maxConcurrentPerCaller ?? 0,
@@ -602,6 +612,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       agentId,
       policy: options.policy,
       onTaskEnd,
+      onAudit: audit,
       log,
       warn,
     });
@@ -725,6 +736,11 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   );
   const rejectAuth = (req: Request, res: Response, error: string) => {
     warn(`401 ${req.method} ${req.path} from ${req.ip}: ${error}`);
+    try {
+      audit?.({ event: 'auth.failure', outcome: 'denied', sourceIp: req.ip, detail: { method: req.method, path: req.path, reason: error } });
+    } catch {
+      /* the refusal stands whatever the sink does */
+    }
     res.status(401).json({ error });
   };
   if (options.serverSecret) {
@@ -833,6 +849,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
           caller: identity.caller,
           ownsNested: identity.ownsNested ?? false,
           operator: identity.operator ?? false,
+          sourceIp: req.ip,
         },
         () => next(),
       );
@@ -862,7 +879,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       // so no key holder can reach another's data.
       const scopeKey = deriveUserId({ apiKey, siteUserId });
       requestContextStorage.run(
-        { apiKey, provider, siteUserId, scopeKey, surface, caller: 'shared-secret', ownsNested: !siteUserId, operator: !!options.serverSecret },
+        { apiKey, provider, siteUserId, scopeKey, surface, caller: 'shared-secret', ownsNested: !siteUserId, operator: !!options.serverSecret, sourceIp: req.ip },
         () => next(),
       );
       return;
@@ -883,6 +900,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
         // Everyone holding the secret is one caller; without a secret (loopback) the caller is local.
         caller: options.serverSecret ? 'shared-secret' : 'local',
         operator: !!options.serverSecret,
+        sourceIp: req.ip,
       },
       () => next(),
     );
@@ -945,10 +963,12 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
         includeNested: !!ctx.ownsNested,
       });
       log(`Erasure for scope ${ctx.scopeKey}${all ? ' (all namespaces)' : ''}: ${JSON.stringify(counts)}`);
+      audit?.({ event: 'memory.erase', outcome: 'ok', caller: ctx.caller, scopeHash: scopeHashOf(ctx.scopeKey), sourceIp: ctx.sourceIp, detail: { allNamespaces: all, deleted: counts } });
       res.json({ deleted: counts });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       warn(`Erasure failed: ${msg}`);
+      audit?.({ event: 'memory.erase', outcome: 'failed', caller: ctx.caller, scopeHash: scopeHashOf(ctx.scopeKey), sourceIp: ctx.sourceIp, detail: { allNamespaces: all } });
       res.status(503).json({ error: msg });
     }
   });

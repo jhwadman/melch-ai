@@ -31,6 +31,7 @@ import { declaresApprovals } from '../compile.ts';
 import type { MessagePart, PendingInput, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
 import { describeInput } from '../runtime/syndicateTurn.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
+import type { AuditSink } from '../observability/audit.ts';
 import type { Policy } from './policy.ts';
 
 /** Per-request caller context, set by the server's identity middleware. */
@@ -58,6 +59,8 @@ export interface A2AContext {
    *  server secret), as opposed to an end user (a JWT, a gateway header).
    *  Operator-only adopter routes check it. */
   operator?: boolean;
+  /** The request's source address (behind A2A_TRUST_PROXY), for the audit trail only. */
+  sourceIp?: string;
 }
 
 export interface SurfaceContext {
@@ -178,6 +181,8 @@ export interface ExecutorOptions {
   policy?: Policy;
   /** One record per task, however it ended: the task log and metrics. */
   onTaskEnd?: (record: TaskRecord) => void;
+  /** Receives one `task.end` audit event per task (ADR 0042). */
+  onAudit?: AuditSink;
   /**
    * Stream the answer as the model writes it, as `answer` artifact chunks
    * (see answerStream). Off by default; never for a syndicate with guards.
@@ -532,6 +537,20 @@ export class SyndicateExecutor implements AgentExecutor {
         });
       } catch {
         /* a broken log sink must not fail the task */
+      }
+      try {
+        this.opts.onAudit?.({
+          event: 'task.end',
+          outcome: status,
+          caller: ctx?.caller,
+          scopeHash: scopeKey ? createHash('sha256').update(scopeKey).digest('hex').slice(0, 12) : undefined,
+          sourceIp: ctx?.sourceIp,
+          agentId,
+          taskId,
+          detail: { syndicate: config.syndicate_name, ...(reason ? { reason } : {}), durationMs: Date.now() - started, llmCalls: usage.llmCalls },
+        });
+      } catch {
+        /* nor a broken audit sink */
       }
     };
     let ctxForReport: A2AContext | undefined;

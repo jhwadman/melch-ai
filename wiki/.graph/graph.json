@@ -5,41 +5,41 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 626,
-    "edges": 1452,
+    "nodes": 631,
+    "edges": 1463,
     "byKind": {
-      "doc": 92,
+      "doc": 93,
       "provider": 6,
       "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 77,
+      "file": 79,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
-      "table": 16,
-      "module": 120,
+      "table": 17,
+      "module": 121,
       "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 222,
+      "links_to": 223,
       "requires_env": 156,
       "routes_to": 8,
-      "defined_in": 75,
+      "defined_in": 76,
       "documents": 56,
       "contains": 89,
       "uses_model": 89,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 340,
+      "imports": 343,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 257
+      "derives_from": 263
     },
     "byTier": {
-      "extracted": 1452,
+      "extracted": 1463,
       "inferred": 0
     },
     "isolated": 4
@@ -886,6 +886,18 @@
       }
     },
     {
+      "id": "/decisions/0042-append-only-audit-trail.md",
+      "kind": "doc",
+      "label": "ADR 0042: An append-only audit trail of who did what, from where",
+      "source": "/decisions/0042-append-only-audit-trail.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 386
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -906,7 +918,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 11404
+        "words": 12009
       }
     },
     {
@@ -1002,7 +1014,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1030
+        "words": 1087
       }
     },
     {
@@ -3078,6 +3090,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0012_audit_log.sql",
+      "kind": "file",
+      "label": "0012_audit_log.sql",
+      "source": "db/migrations/0012_audit_log.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -3136,6 +3155,12 @@
       "kind": "file",
       "label": "agents.test.ts",
       "source": "tests/agents.test.ts"
+    },
+    {
+      "id": "file:tests/auditTrail.test.ts",
+      "kind": "file",
+      "label": "auditTrail.test.ts",
+      "source": "tests/auditTrail.test.ts"
     },
     {
       "id": "file:tests/execution.test.ts",
@@ -3334,7 +3359,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1063
+        "lines": 1083
       }
     },
     {
@@ -3343,7 +3368,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 744
+        "lines": 763
       }
     },
     {
@@ -3671,6 +3696,15 @@
       }
     },
     {
+      "id": "module:lib/observability/audit.ts",
+      "kind": "module",
+      "label": "lib/observability/audit.ts",
+      "source": "lib/observability/audit.ts",
+      "attrs": {
+        "lines": 63
+      }
+    },
+    {
       "id": "module:lib/observability/embeddings.ts",
       "kind": "module",
       "label": "lib/observability/embeddings.ts",
@@ -3820,7 +3854,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 237
+        "lines": 242
       }
     },
     {
@@ -5283,6 +5317,12 @@
       "kind": "table",
       "label": "adk_verdicts",
       "source": "db/telemetry.sql"
+    },
+    {
+      "id": "table:melchizedek_audit",
+      "kind": "table",
+      "label": "melchizedek_audit",
+      "source": "db/migrations/0012_audit_log.sql"
     },
     {
       "id": "table:melchizedek_memory_ingest",
@@ -7733,6 +7773,41 @@
       "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
     },
     {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "file:db/migrations/0012_audit_log.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "file:tests/auditTrail.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "module:lib/observability/audit.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -7902,6 +7977,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0012_audit_log.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -7912,14 +7994,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:32"
+      "evidence": "/memory/schema.md:33"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2130"
+      "evidence": "/memory/schema.md:2237"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -8466,6 +8548,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:40"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0042-append-only-audit-trail.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:50"
     },
     {
       "from": "/operations/setup.md",
@@ -10576,6 +10665,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/observability/audit.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/observability/metrics.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -10640,6 +10736,13 @@
     {
       "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/observability/audit.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/executor.ts"
@@ -12215,6 +12318,13 @@
     {
       "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/memory/supabaseMemoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/observability/audit.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/index.ts"
@@ -15564,6 +15674,13 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "db/telemetry.sql"
+    },
+    {
+      "from": "table:melchizedek_audit",
+      "to": "file:db/migrations/0012_audit_log.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0012_audit_log.sql"
     },
     {
       "from": "table:melchizedek_memory_ingest",

@@ -25,6 +25,8 @@ import { PostgresTaskStore, reapExpiredTasks, renewTaskLeases } from './taskStor
 import { postgresTaskBackend } from './taskQueue.ts';
 import { searchPathOption } from '../schema.ts';
 import { POSTGRES_RLS_QUERY, evaluatePostgresRls } from '../rlsStatus.ts';
+import { postgresAuditSink } from '../../observability/audit.ts';
+import type { AuditSink } from '../../observability/audit.ts';
 import type { RlsHardeningStatus, RlsRow } from '../rlsStatus.ts';
 import type { TaskBackend } from '../../tools/taskTools.ts';
 import { createHash, randomUUID } from 'node:crypto';
@@ -85,6 +87,8 @@ export interface PostgresStorage {
    * tables (lib/storage/rlsStatus.ts). Never throws.
    */
   rlsHardening: () => Promise<RlsHardeningStatus>;
+  /** Appends to melchizedek_audit (migration 0012, ADR 0042). */
+  audit: AuditSink;
   /**
    * One turn at a time per conversation, across every instance on this
    * database: a session-level advisory lock on a dedicated connection, so a
@@ -206,6 +210,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
         throw err;
       }
     },
+    audit: postgresAuditSink(pool),
     async rlsHardening() {
       try {
         const r = await pool.query(POSTGRES_RLS_QUERY);
