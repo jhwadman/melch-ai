@@ -223,7 +223,11 @@ npx melchizedek-db status    # schema version, hardening, session counts
 
 That runs the migrations in [`db/migrations/`](./db/migrations/) and then
 [`db/hardening.sql`](./db/hardening.sql). Both are idempotent, so re-running
-them is also the upgrade path from any earlier layout.
+them is also the upgrade path from any earlier layout. `apply` runs the whole
+install as one transaction under an advisory lock: if any statement fails,
+nothing is changed, and two applies started together run one after the other.
+Rolling back a migration that succeeded is a restore from backup (§6), since
+the migrations only move forward.
 
 The tables go in the `public` schema by default. To keep them out of reach of
 a REST layer (Supabase exposes `public`), install into a private schema and

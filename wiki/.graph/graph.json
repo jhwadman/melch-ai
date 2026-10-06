@@ -990,7 +990,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1008
+        "words": 1030
       }
     },
     {
@@ -4228,7 +4228,7 @@
       "label": "scripts/db.ts",
       "source": "scripts/db.ts",
       "attrs": {
-        "lines": 179
+        "lines": 195
       }
     },
     {

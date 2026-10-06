@@ -24,8 +24,19 @@ the starter pack and the templates), not the repo's full history.
   `maxConcurrentPerScope`; 0 = unlimited). `A2A_MAX_CONCURRENT_PER_CALLER`
   adds a per-caller cap, off by default. The refusal names the cap.
 
+- **The `@google/adk` peer range is `~2.2.0`** (was `^2.2.0`): the tested
+  minor. A new ADK minor can bring a second `@google/genai` copy, whose
+  response shapes the framework pins; the range widens when a release is
+  tested against it. ADK 2.2.0 is the latest published, so no install
+  changes today.
+
 ### Changes
 
+- **`melchizedek-db apply` is one transaction under an advisory lock.** The
+  whole install (migrations, hardening, telemetry) runs as one psql
+  `--single-transaction` script that takes `pg_advisory_xact_lock` first: a
+  failure anywhere rolls everything back, and two applies started together
+  run one after the other. The output still names each file.
 - `TaskLimiter` takes per-scope and per-caller limits and says which one
   refused (`refusal()`); `createA2AApp` takes `maxConcurrentPerScope` and
   `maxConcurrentPerCaller`; `DEFAULT_MAX_CONCURRENT_PER_SCOPE` is exported
