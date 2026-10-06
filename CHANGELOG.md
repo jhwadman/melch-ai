@@ -4,6 +4,31 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## 0.17.1 — 2026-10-06
+
+- **Fix: a rolling deploy no longer refuses requests.** On SIGTERM the
+  server closed its listener at once, while the load balancer was still
+  sending it traffic. It now fails `/readyz` first and keeps serving for
+  `A2A_SHUTDOWN_DELAY_MS` (default 5 s), then closes and drains. The delay
+  counts inside `A2A_SHUTDOWN_GRACE_MS`, so a stop takes no longer than
+  before. `A2AApp.markUnready()` does the same for an embedding app.
+  ADR 0038.
+- **`/readyz` fails while durable storage does not answer** (503,
+  `reason: 'storage'`), so an instance that lost its database leaves the
+  rotation instead of failing turns. The cause is logged once per outage;
+  the answer is cached for 2 s and concurrent probes share one read, so the
+  unauthenticated route cannot be used to flood the database.
+- **Fix: the MCP client no longer follows redirects past the SSRF guard.**
+  The SSE transport used the default fetch, which follows redirects; it now
+  uses `mcpFetch`, under the rule 0.17.0 gave OpenAPI tools: same-origin hops
+  get the server's check, cross-origin hops the full guard and no
+  credential header.
+- **Fix: a failed MCP connect closes its transport.** The SSE stream's
+  reconnect timer kept running after `createMcpTools` gave up, for the life
+  of the process.
+- **`MELCHIZEDEK_DOTENV=off`** makes every bin ignore `.env` files and run
+  on its environment alone.
+
 ## 0.17.0 — 2026-10-06
 
 ### Read before upgrading
