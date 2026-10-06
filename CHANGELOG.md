@@ -4,7 +4,22 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 0.17.0 — 2026-10-06
+
+### Read before upgrading
+
+- **Run `npx melchizedek-db apply`.** Migration `0011_erase_expired` ships
+  with this version, and the server refuses to start against a database
+  behind the shipped migrations.
+- **A public Supabase deployment on `DATABASE_URL` must be hardened.** The
+  boot-time RLS check now runs on that path; `db/hardening.sql` (which
+  `melchizedek-db apply` runs) satisfies it, `ALLOW_UNHARDENED_DB=true`
+  opts out.
+- **Self-correction is on by default.** Retries count against `max_steps`
+  and can raise spend; `retries: { model_errors: 0, tool_errors: 0 }`
+  restores the previous behaviour.
+
+### Changes
 
 - **Behaviour change: the hardening check runs on the `DATABASE_URL` path.**
   The boot-time RLS check ran only on the deprecated supabase-js path, so a

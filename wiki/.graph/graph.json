@@ -2,28 +2,28 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-03"
+    "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 609,
-    "edges": 1408,
+    "nodes": 616,
+    "edges": 1423,
     "byKind": {
-      "doc": 87,
+      "doc": 89,
       "provider": 6,
       "env": 99,
       "model": 8,
       "tool": 34,
-      "file": 69,
+      "file": 72,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 16,
-      "module": 118,
+      "module": 120,
       "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 213,
+      "links_to": 215,
       "requires_env": 154,
       "routes_to": 8,
       "defined_in": 75,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 334,
+      "imports": 338,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 230
+      "derives_from": 239
     },
     "byTier": {
-      "extracted": 1408,
+      "extracted": 1423,
       "inferred": 0
     },
     "isolated": 4
@@ -826,6 +826,30 @@
       }
     },
     {
+      "id": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "kind": "doc",
+      "label": "ADR 0036: OpenAPI calls follow redirects one hop at a time, under the SSRF guard",
+      "source": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 477
+      }
+    },
+    {
+      "id": "/decisions/0037-hardening-check-on-every-storage-path.md",
+      "kind": "doc",
+      "label": "ADR 0037: The hardening check runs on every storage path, judged by what could expose the tables",
+      "source": "/decisions/0037-hardening-check-on-every-storage-path.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 328
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -834,7 +858,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 831
+        "words": 860
       }
     },
     {
@@ -846,7 +870,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 10248
+        "words": 11404
       }
     },
     {
@@ -942,7 +966,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 863
+        "words": 911
       }
     },
     {
@@ -978,7 +1002,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1343
+        "words": 1378
       }
     },
     {
@@ -1026,7 +1050,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 207
+        "words": 272
       }
     },
     {
@@ -2999,6 +3023,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0011_erase_expired.sql",
+      "kind": "file",
+      "label": "0011_erase_expired.sql",
+      "source": "db/migrations/0011_erase_expired.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -3101,6 +3132,18 @@
       "kind": "file",
       "label": "questionsA2a.test.ts",
       "source": "tests/questionsA2a.test.ts"
+    },
+    {
+      "id": "file:tests/redirects.test.ts",
+      "kind": "file",
+      "label": "redirects.test.ts",
+      "source": "tests/redirects.test.ts"
+    },
+    {
+      "id": "file:tests/rlsStatus.test.ts",
+      "kind": "file",
+      "label": "rlsStatus.test.ts",
+      "source": "tests/rlsStatus.test.ts"
     },
     {
       "id": "file:tests/selfCorrection.test.ts",
@@ -3213,7 +3256,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 988
+        "lines": 1001
       }
     },
     {
@@ -3366,7 +3409,7 @@
       "label": "lib/memory/erase.ts",
       "source": "lib/memory/erase.ts",
       "attrs": {
-        "lines": 68
+        "lines": 73
       }
     },
     {
@@ -3541,6 +3584,15 @@
       }
     },
     {
+      "id": "module:lib/net/redirects.ts",
+      "kind": "module",
+      "label": "lib/net/redirects.ts",
+      "source": "lib/net/redirects.ts",
+      "attrs": {
+        "lines": 110
+      }
+    },
+    {
       "id": "module:lib/observability/embeddings.ts",
       "kind": "module",
       "label": "lib/observability/embeddings.ts",
@@ -3609,7 +3661,7 @@
       "label": "lib/persistence/supabaseProvider.ts",
       "source": "lib/persistence/supabaseProvider.ts",
       "attrs": {
-        "lines": 170
+        "lines": 133
       }
     },
     {
@@ -3690,7 +3742,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 221
+        "lines": 237
       }
     },
     {
@@ -3727,6 +3779,15 @@
       "source": "lib/storage/postgres/taskStore.ts",
       "attrs": {
         "lines": 230
+      }
+    },
+    {
+      "id": "module:lib/storage/rlsStatus.ts",
+      "kind": "module",
+      "label": "lib/storage/rlsStatus.ts",
+      "source": "lib/storage/rlsStatus.ts",
+      "attrs": {
+        "lines": 97
       }
     },
     {
@@ -3816,7 +3877,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 192
+        "lines": 215
       }
     },
     {
@@ -7391,6 +7452,76 @@
       "evidence": "/decisions/0035-moonshot-kimi-provider.md:67"
     },
     {
+      "from": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-redirects-under-the-ssrf-guard.md frontmatter"
+    },
+    {
+      "from": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "to": "file:tests/redirects.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-redirects-under-the-ssrf-guard.md frontmatter"
+    },
+    {
+      "from": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "to": "module:lib/net/redirects.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-redirects-under-the-ssrf-guard.md frontmatter"
+    },
+    {
+      "from": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-redirects-under-the-ssrf-guard.md frontmatter"
+    },
+    {
+      "from": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-redirects-under-the-ssrf-guard.md:24"
+    },
+    {
+      "from": "/decisions/0037-hardening-check-on-every-storage-path.md",
+      "to": "file:tests/rlsStatus.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0037-hardening-check-on-every-storage-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0037-hardening-check-on-every-storage-path.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0037-hardening-check-on-every-storage-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0037-hardening-check-on-every-storage-path.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0037-hardening-check-on-every-storage-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0037-hardening-check-on-every-storage-path.md",
+      "to": "module:lib/storage/rlsStatus.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0037-hardening-check-on-every-storage-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0037-hardening-check-on-every-storage-path.md",
+      "to": "/decisions/0021-postgres-first-storage.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0037-hardening-check-on-every-storage-path.md:28"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -7553,6 +7684,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0011_erase_expired.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -7563,14 +7701,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:31"
+      "evidence": "/memory/schema.md:32"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:1924"
+      "evidence": "/memory/schema.md:2130"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -10199,6 +10337,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/storage/rlsStatus.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/storage/schemaVersion.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -11613,29 +11758,8 @@
     },
     {
       "from": "module:lib/persistence/supabaseProvider.ts",
-      "to": "table:adk_agent_registry",
-      "rel": "reads_table",
-      "tier": "extracted",
-      "evidence": "lib/persistence/supabaseProvider.ts"
-    },
-    {
-      "from": "module:lib/persistence/supabaseProvider.ts",
-      "to": "table:adk_memory_facts",
-      "rel": "reads_table",
-      "tier": "extracted",
-      "evidence": "lib/persistence/supabaseProvider.ts"
-    },
-    {
-      "from": "module:lib/persistence/supabaseProvider.ts",
-      "to": "table:adk_sessions",
-      "rel": "reads_table",
-      "tier": "extracted",
-      "evidence": "lib/persistence/supabaseProvider.ts"
-    },
-    {
-      "from": "module:lib/persistence/supabaseProvider.ts",
-      "to": "table:adk_telemetry",
-      "rel": "reads_table",
+      "to": "module:lib/storage/rlsStatus.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/persistence/supabaseProvider.ts"
     },
@@ -11858,6 +11982,13 @@
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/storage/rlsStatus.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/storage/schema.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -11890,6 +12021,34 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/taskQueue.ts"
+    },
+    {
+      "from": "module:lib/storage/rlsStatus.ts",
+      "to": "table:adk_agent_registry",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/storage/rlsStatus.ts"
+    },
+    {
+      "from": "module:lib/storage/rlsStatus.ts",
+      "to": "table:adk_memory_facts",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/storage/rlsStatus.ts"
+    },
+    {
+      "from": "module:lib/storage/rlsStatus.ts",
+      "to": "table:adk_sessions",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/storage/rlsStatus.ts"
+    },
+    {
+      "from": "module:lib/storage/rlsStatus.ts",
+      "to": "table:adk_telemetry",
+      "rel": "reads_table",
+      "tier": "extracted",
+      "evidence": "lib/storage/rlsStatus.ts"
     },
     {
       "from": "module:lib/storage/schema.ts",
@@ -12104,6 +12263,13 @@
     {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/net/redirects.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
