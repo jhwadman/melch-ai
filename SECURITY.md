@@ -14,8 +14,9 @@ and a GitHub security advisory once a release is available.
 
 ## Supported versions
 
-The project is pre-1.0. Security fixes land on the latest minor release only;
-upgrade to it to receive them.
+The project is pre-1.0. Security fixes land on the latest minor release, and
+for 30 days after a new minor ships, on the previous one too
+([VERSIONING.md](./VERSIONING.md)).
 
 ## Scope
 

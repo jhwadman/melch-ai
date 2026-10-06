@@ -1,0 +1,20 @@
+name: Feature request
+description: Something the framework should do that it does not.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and what stops you today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+      description: If it is a YAML key, a setting or a tool, sketch how it would read.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

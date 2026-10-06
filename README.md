@@ -164,6 +164,9 @@ See `config/agents/syndicateSchema.yaml` for the annotated schema reference.
 - [`DOCUMENTATION.md`](./DOCUMENTATION.md) — Full reference: architecture, syndicate YAML, tools, memory, providers, A2A, extending, security.
 - [`AGENT_SETUP.md`](./AGENT_SETUP.md) — A paste-ready prompt that walks your coding agent (Claude Code, Cursor, Codex) through setup.
 - [`skills/README.md`](./skills/README.md) — The bundled `SKILL.md` suite.
+- [`VERSIONING.md`](./VERSIONING.md) — What an upgrade may break, deprecation, and which versions get fixes.
+- [`SUPPORT.md`](./SUPPORT.md) — Where to ask, and what to expect: a single-maintainer project with no SLA.
+- [`SECURITY.md`](./SECURITY.md) and [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## License
 
