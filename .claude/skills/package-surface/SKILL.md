@@ -47,3 +47,14 @@ Confirm, in order:
 
 Publishing is a maintainer's act: ask before running it, naming the version
 and what changed in one line.
+
+## How a release ships
+
+A maintainer pushes a version tag (`git tag v0.18.0 && git push origin
+v0.18.0`) on the merged release commit. `.github/workflows/release.yml` then
+checks the tag against `package.json`, runs tsc and the tests, builds from an
+empty `dist/`, publishes with npm provenance through trusted publishing (no
+token stored), and creates the GitHub Release with the CHANGELOG section and
+a CycloneDX SBOM. A laptop `npm publish` still works but carries no
+provenance; prefer the tag. The npm side needs a one-time trusted-publisher
+entry for `release.yml` in the package settings on npmjs.com.

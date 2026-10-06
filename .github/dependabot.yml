@@ -15,3 +15,13 @@ updates:
     directory: /
     schedule:
       interval: monthly
+  # Container images are pinned by digest (Dockerfile, compose.yaml, the CI
+  # service): these propose the new digest when an image moves.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly

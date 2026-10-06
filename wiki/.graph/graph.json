@@ -5,15 +5,15 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 620,
-    "edges": 1432,
+    "nodes": 625,
+    "edges": 1437,
     "byKind": {
-      "doc": 90,
+      "doc": 91,
       "provider": 6,
       "env": 100,
       "model": 8,
       "tool": 34,
-      "file": 74,
+      "file": 78,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 217,
+      "links_to": 218,
       "requires_env": 155,
       "routes_to": 8,
       "defined_in": 75,
@@ -36,10 +36,10 @@
       "imports": 339,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 244
+      "derives_from": 248
     },
     "byTier": {
-      "extracted": 1432,
+      "extracted": 1437,
       "inferred": 0
     },
     "isolated": 4
@@ -862,6 +862,18 @@
       }
     },
     {
+      "id": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "kind": "doc",
+      "label": "ADR 0040: Releases ship from a version tag, with npm provenance and an SBOM; CI is pinned and scanned",
+      "source": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 379
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -978,7 +990,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 962
+        "words": 1060
       }
     },
     {
@@ -2713,6 +2725,30 @@
       "kind": "file",
       "label": ".env.example",
       "source": ".env.example"
+    },
+    {
+      "id": "file:.github/dependabot.yml",
+      "kind": "file",
+      "label": "dependabot.yml",
+      "source": ".github/dependabot.yml"
+    },
+    {
+      "id": "file:.github/workflows/ci.yml",
+      "kind": "file",
+      "label": "ci.yml",
+      "source": ".github/workflows/ci.yml"
+    },
+    {
+      "id": "file:.github/workflows/codeql.yml",
+      "kind": "file",
+      "label": "codeql.yml",
+      "source": ".github/workflows/codeql.yml"
+    },
+    {
+      "id": "file:.github/workflows/release.yml",
+      "kind": "file",
+      "label": "release.yml",
+      "source": ".github/workflows/release.yml"
     },
     {
       "id": "file:compose.yaml",
@@ -7587,6 +7623,34 @@
       "evidence": "/decisions/0038-graceful-stop-readiness-first.md frontmatter"
     },
     {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "file:.github/dependabot.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "file:.github/workflows/ci.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "file:.github/workflows/codeql.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "file:.github/workflows/release.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8313,6 +8377,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:46"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:50"
     },
     {
       "from": "/operations/setup.md",

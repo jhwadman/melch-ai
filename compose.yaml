@@ -28,13 +28,15 @@ services:
 
   ollama:
     profiles: [local-models]
-    image: ollama/ollama
+    # Pinned by digest (latest on 2026-10-06); Dependabot proposes updates.
+    image: ollama/ollama@sha256:1bef639749741b375e9a1eb2c1346fb57ce52f5432de1f74846e44ccc18e1687
     ports: ["11434:11434"]
     volumes: [ollama:/root/.ollama]
 
   phoenix:
     profiles: [traces]
-    image: arizephoenix/phoenix
+    # Pinned by digest (latest on 2026-10-06); Dependabot proposes updates.
+    image: arizephoenix/phoenix@sha256:d240d8d4e364ee3483ed2de41ec12b760cc90bb0d4c6e2f190388772aba6fe1f
     ports: ["6006:6006"]
 
 volumes:
