@@ -30,8 +30,20 @@ the starter pack and the templates), not the repo's full history.
   tested against it. ADK 2.2.0 is the latest published, so no install
   changes today.
 
+- **An OpenAPI `auth` may not name one of the framework's own settings**
+  (the database URL, a provider key, an `A2A_` secret: anything under the
+  framework's prefixes). The YAML chooses the host too, so this was a way
+  to send a secret anywhere. `OPENAPI_CREDENTIAL_ENVS` makes the rule an
+  exact allowlist. ADR 0041.
+- **MCP tool descriptions are cut at 1,000 characters and results at
+  20,000**, each marked where it was cut.
+
 ### Changes
 
+- **`mcp_tools:`, an agent key**: the MCP server's tools the agent may use;
+  any other tool the server lists is not exposed. On a dispatch route,
+  `require_approval` may name a listed MCP tool, so a write waits for a
+  person. `closeMcpConnections()` closes every open MCP connection.
 - **`melchizedek-db apply` is one transaction under an advisory lock.** The
   whole install (migrations, hardening, telemetry) runs as one psql
   `--single-transaction` script that takes `pg_advisory_xact_lock` first: a

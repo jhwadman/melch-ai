@@ -161,6 +161,15 @@
           "description": "MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.",
           "type": "string"
         },
+        "mcp_tools": {
+          "description": "The MCP server's tools this agent may use, by name; any other tool the server lists is not exposed. Without it, every listed tool is. require_approval may name these. Needs mcp_server_url.",
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "skills": {
           "type": "object",
           "properties": {
@@ -515,6 +524,15 @@
           "mcp_server_url": {
             "description": "MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.",
             "type": "string"
+          },
+          "mcp_tools": {
+            "description": "The MCP server's tools this agent may use, by name; any other tool the server lists is not exposed. Without it, every listed tool is. require_approval may name these. Needs mcp_server_url.",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           "skills": {
             "type": "object",

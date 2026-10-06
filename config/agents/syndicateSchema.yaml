@@ -414,6 +414,13 @@ subagents:
     # See config/agents/librarian.yaml for the worked example.
     # mcp_server_url: "http://localhost:8931/sse"
 
+    # [optional] The MCP server's tools this agent may use, by name. Any
+    # other tool the server lists is not exposed (a server's list is its
+    # own to change). Without it, every listed tool is. On a dispatch
+    # route, require_approval may name these (ADR 0041). Descriptions are
+    # cut at 1,000 characters and results at 20,000.
+    # mcp_tools: [wiki_search, wiki_read]
+
     # [optional] Agent Skills for this subagent; same block as on the
     # orchestrator. `scripts: "local"` is allowed here only under
     # `dispatch:` (a delegated subagent cannot pause the turn, ADR 0028).

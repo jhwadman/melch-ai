@@ -5,15 +5,15 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 623,
-    "edges": 1443,
+    "nodes": 626,
+    "edges": 1452,
     "byKind": {
-      "doc": 91,
+      "doc": 92,
       "provider": 6,
-      "env": 100,
+      "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 76,
+      "file": 77,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,8 +23,8 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 220,
-      "requires_env": 155,
+      "links_to": 222,
+      "requires_env": 156,
       "routes_to": 8,
       "defined_in": 75,
       "documents": 56,
@@ -36,10 +36,10 @@
       "imports": 340,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 251
+      "derives_from": 257
     },
     "byTier": {
-      "extracted": 1443,
+      "extracted": 1452,
       "inferred": 0
     },
     "isolated": 4
@@ -874,6 +874,18 @@
       }
     },
     {
+      "id": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "kind": "doc",
+      "label": "ADR 0041: Tool vendors get least privilege: OpenAPI auth cannot read framework secrets; MCP tools are allowlisted, gateable and bounded",
+      "source": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 435
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1038,7 +1050,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 473
+        "words": 543
       }
     },
     {
@@ -1074,7 +1086,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 272
+        "words": 321
       }
     },
     {
@@ -2507,6 +2519,12 @@
       "source": "lib/models/endpoints.ts"
     },
     {
+      "id": "env:OPENAPI_CREDENTIAL_ENVS",
+      "kind": "env",
+      "label": "OPENAPI_CREDENTIAL_ENVS",
+      "source": "lib/tools/openapiTools.ts"
+    },
+    {
       "id": "env:OTEL_CONSOLE_ALL_SPANS",
       "kind": "env",
       "label": "OTEL_CONSOLE_ALL_SPANS",
@@ -3138,6 +3156,12 @@
       "source": "tests/identity.test.ts"
     },
     {
+      "id": "file:tests/mcpTools.test.ts",
+      "kind": "file",
+      "label": "mcpTools.test.ts",
+      "source": "tests/mcpTools.test.ts"
+    },
+    {
       "id": "file:tests/models.test.ts",
       "kind": "file",
       "label": "models.test.ts",
@@ -3373,7 +3397,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 433
+        "lines": 445
       }
     },
     {
@@ -3454,7 +3478,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 688
+        "lines": 690
       }
     },
     {
@@ -3868,7 +3892,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 903
+        "lines": 913
       }
     },
     {
@@ -3922,7 +3946,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 178
+        "lines": 205
       }
     },
     {
@@ -3931,7 +3955,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 215
+        "lines": 246
       }
     },
     {
@@ -7667,6 +7691,48 @@
       "evidence": "/decisions/0039-public-deployments-state-their-posture.md:32"
     },
     {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "file:tests/mcpTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8767,6 +8833,13 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:29"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -8929,6 +9002,13 @@
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:21"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/openapi-tools.md:21"
@@ -12471,6 +12551,13 @@
     {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "env:OPENAPI_CREDENTIAL_ENVS",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"

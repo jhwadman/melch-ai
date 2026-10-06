@@ -180,7 +180,11 @@ writes is exposed only by naming it, and a named operation can be listed
 under `require_approval` (as written under `operations`) so a person
 approves each call. `auth` names an environment variable, never a value
 (`bearer_env`, or `api_key` with `in: header | query` and `name`); an unset
-variable fails the compile, and a static token is applied to the request,
+variable fails the compile, and so does one of the framework's own settings
+(the database URL, a provider key, an `A2A_` secret: anything `.env.example`
+documents), since the YAML chooses the host it goes to.
+`OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`
+may name. A refused or unset variable fails the compile, and a static token is applied to the request,
 never stored in session state. Every server must be http(s) and pass the
 SSRF guard: its literal rules when the agent compiles, the full check with
 DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for

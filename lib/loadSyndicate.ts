@@ -111,6 +111,8 @@ export interface AgentYamlConfig {
 
   // ── Melchizedek-internal ──
   mcp_server_url?: string;
+  /** The MCP server's tools this agent may use; the rest are not exposed. */
+  mcp_tools?: string[];
   /**
    * Agent Skills (SKILL.md directories) this agent holds the way a coding
    * harness does: the index in its instruction, a skill read on demand, its
