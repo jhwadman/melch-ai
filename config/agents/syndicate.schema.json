@@ -24,6 +24,11 @@
           "minLength": 1,
           "description": "Model id; its prefix picks the provider (gemini-*, claude-*, gpt-*/o*, grok-*, ollama/*)."
         },
+        "fallback_model": {
+          "description": "A model on another provider that answers when this agent's model fails provider-side (5xx, 429, network) before producing anything, or while that provider's circuit is open (ADR 0044).",
+          "type": "string",
+          "minLength": 1
+        },
         "instruction": {
           "type": "string",
           "minLength": 1,
@@ -385,6 +390,11 @@
           },
           "model": {
             "description": "Model id. Inherits the orchestrator's when omitted.",
+            "type": "string",
+            "minLength": 1
+          },
+          "fallback_model": {
+            "description": "A model on another provider that answers when this agent's model fails provider-side (5xx, 429, network) before producing anything, or while that provider's circuit is open (ADR 0044).",
             "type": "string",
             "minLength": 1
           },

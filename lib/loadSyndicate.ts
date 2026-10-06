@@ -113,6 +113,8 @@ export interface AgentYamlConfig {
   mcp_server_url?: string;
   /** The MCP server's tools this agent may use; the rest are not exposed. */
   mcp_tools?: string[];
+  /** Answers when `model` fails provider-side, or its provider's circuit is open (ADR 0044). */
+  fallback_model?: string;
   /**
    * Agent Skills (SKILL.md directories) this agent holds the way a coding
    * harness does: the index in its instruction, a skill read on demand, its

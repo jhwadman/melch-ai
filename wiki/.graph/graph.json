@@ -5,25 +5,25 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 633,
-    "edges": 1468,
+    "nodes": 636,
+    "edges": 1476,
     "byKind": {
-      "doc": 94,
+      "doc": 95,
       "provider": 6,
       "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 80,
+      "file": 81,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 121,
+      "module": 122,
       "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 224,
+      "links_to": 225,
       "requires_env": 156,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 344,
+      "imports": 348,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 266
+      "derives_from": 269
     },
     "byTier": {
-      "extracted": 1468,
+      "extracted": 1476,
       "inferred": 0
     },
     "isolated": 4
@@ -910,6 +910,18 @@
       }
     },
     {
+      "id": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "kind": "doc",
+      "label": "ADR 0044: An agent may name a fallback model; a provider that keeps failing is skipped for a cooldown",
+      "source": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 338
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -990,7 +1002,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1614
+        "words": 1695
       }
     },
     {
@@ -3181,6 +3193,12 @@
       "source": "tests/execution.test.ts"
     },
     {
+      "id": "file:tests/fallback.test.ts",
+      "kind": "file",
+      "label": "fallback.test.ts",
+      "source": "tests/fallback.test.ts"
+    },
+    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -3440,7 +3458,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 445
+        "lines": 463
       }
     },
     {
@@ -3521,7 +3539,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 690
+        "lines": 692
       }
     },
     {
@@ -3594,6 +3612,15 @@
       "source": "lib/models/endpoints.ts",
       "attrs": {
         "lines": 322
+      }
+    },
+    {
+      "id": "module:lib/models/fallback.ts",
+      "kind": "module",
+      "label": "lib/models/fallback.ts",
+      "source": "lib/models/fallback.ts",
+      "attrs": {
+        "lines": 118
       }
     },
     {
@@ -3944,7 +3971,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 913
+        "lines": 918
       }
     },
     {
@@ -7847,6 +7874,27 @@
       "evidence": "/decisions/0043-link-inbound-trace-context.md frontmatter"
     },
     {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "file:tests/fallback.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/fallback.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8321,6 +8369,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:24"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:98"
     },
     {
       "from": "/models/provider-routing.md",
@@ -10914,6 +10969,20 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/models/fallback.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/toolRegistry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -11583,6 +11652,20 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
     },
     {
       "from": "module:lib/models/gateway.ts",

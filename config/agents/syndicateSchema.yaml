@@ -185,6 +185,12 @@ orchestrator:
   # Subagents inherit this if not set on their own config.
   model: "gemini-3.5-flash-lite"
 
+  # [optional] A model that answers when `model` fails provider-side (5xx,
+  # 429, a connection reset) before producing anything, or while that
+  # provider's circuit is open (MODEL_BREAKER_THRESHOLD, ADR 0044). Put it
+  # on another provider. A 4xx is never redirected.
+  # fallback_model: "claude-haiku-4-5"
+
   # [required] The agent's system prompt / persona.
   # Maps to: instruction
   instruction: |

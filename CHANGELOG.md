@@ -61,6 +61,13 @@ the starter pack and the templates), not the repo's full history.
   (`caller.trace_id`, and `callerTraceId` on the record); the turn keeps
   its own trace id. `validTraceparent` and `callerSpanContext` are exported
   from `melchizedek-agents/observability/tracer`. ADR 0043.
+- **`fallback_model:`, an agent key, and a per-provider circuit breaker.**
+  When an agent's model fails provider-side (5xx, 429, a reset, after its
+  retries) before producing output, its `fallback_model` answers; after
+  `MODEL_BREAKER_THRESHOLD` consecutive failures (default 5) the provider
+  is skipped for `MODEL_BREAKER_COOLDOWN_MS` (30 s) by agents that have a
+  fallback. A 4xx, a canceled turn and a half-finished stream are never
+  redirected. ADR 0044.
 - **`mcp_tools:`, an agent key**: the MCP server's tools the agent may use;
   any other tool the server lists is not exposed. On a dispatch route,
   `require_approval` may name a listed MCP tool, so a write waits for a
