@@ -24,15 +24,33 @@
  *   READ-ONLY app token — this file has no write path and never will) and
  *   the Gemini key the server already holds.
  *
- * WHAT IT COSTS (docs.x.com pricing, read 2026-08-25;
+ * WHAT IT COSTS (docs.x.com/x-api/getting-started/pricing, read 2026-10-05;
  *   re-verify at console.x.com before trusting a plan):
- *     Posts: Read   $0.005 per post RETURNED — `max_results` is the dial,
- *                   so a 20-post page is a dime at the ceiling.
- *     Vision        ~1,100 tokens per image, flat, whatever its pixel size
- *                   (measured live 2026-09-20) — well under a cent a page.
+ *     Posts: Read     $0.005 per post RETURNED — `max_results` is the dial,
+ *                     so a 20-post page is a dime at the ceiling.
+ *     Counts: Recent  $0.005 per REQUEST, however many posts it counts —
+ *                     the whole point of counting before buying.
+ *     Vision          ~1,100 tokens per image, flat, whatever its pixel size
+ *                     (measured live 2026-09-20) — well under a cent a page.
  *   Photos only are read: a video's still tells you what the thumbnail
  *   shows, not what the clip says, and a pass that reported on a frame as
  *   though it were the video would be wrong in the confident direction.
+ *
+ * COUNT FIRST, BUY SECOND (the replies path, 2026-10-05):
+ *   A pasted post's thread is where the correction usually sits, and the
+ *   reply worth reading is the one with real engagement — but a plain
+ *   `conversation_id:<id>` page buys twenty replies by relevancy out of
+ *   thousands. `replies` instead asks the counts endpoint how many replies
+ *   the thread has in the window, walks a like ladder (min_likes:1000, 300,
+ *   100, 30, 10) with counts calls until a rung holds a page's worth, then
+ *   buys ONE page at that rung. Counts calls are half a cent each whatever
+ *   they count; the page is priced per post as before. Verified live on
+ *   this token on 2026-10-05: `min_likes:`, `min_replies:` and
+ *   `min_reposts:` are accepted by both /2/tweets/counts/recent and
+ *   /2/tweets/search/recent; `min_faves:` and `min_retweets:` are refused
+ *   ("Operator is not available in current product or product packaging").
+ *   `conversation_id:` is accepted by counts. If counts fail, the path
+ *   falls back to the single unfiltered page and says so.
  *
  * SECURITY:
  *   - Image bytes are fetched from `pbs.twimg.com` ONLY (the API's own media
@@ -65,8 +83,17 @@ export const X_API_SEARCH_TOOL_NAME = 'x_api_search';
 
 const API = 'https://api.x.com/2';
 
-/** Unit cost of a post read, USD — one place, dated in the header. */
-export const PRICE = { postRead: 0.005 } as const;
+/** Unit costs, USD — one place, dated in the header. A post read is per
+ *  post returned; a counts call is per request. */
+export const PRICE = { postRead: 0.005, countsRecent: 0.005 } as const;
+
+/** The like ladder the replies path walks, top down: a viral thread settles
+ *  in a call or two, a quiet one walks to the bottom for three cents. */
+export const LIKE_LADDER = [1000, 300, 100, 30, 10] as const;
+/** A rung is bought when at least this many replies clear it… */
+export const RUNG_MIN = 5;
+/** …and a thread with no more than this many replies is bought whole, no ladder. */
+export const RUNG_MAX = 20;
 
 /** X's own ceiling on a recent-search query. */
 export const QUERY_LIMIT = 512;
@@ -167,8 +194,13 @@ export interface XApiDeps {
 
 /** Operators the agent may use. Anything else with a colon is dropped: the
  *  window is set by parameters (since:/until: would 400 the call), and the
- *  paid-tier operators would 400 on this token. */
-const ALLOWED_OPERATORS = new Set(['from', 'to', 'lang', 'has', 'is', 'url', 'conversation_id', 'retweets_of']);
+ *  operators this token's product does not carry would 400 too. The three
+ *  engagement floors are the ones the API accepts on this tier (verified
+ *  live 2026-10-05); `min_faves`/`min_retweets` are the old names and 400. */
+const ALLOWED_OPERATORS = new Set([
+  'from', 'to', 'lang', 'has', 'is', 'url', 'conversation_id', 'retweets_of',
+  'min_likes', 'min_replies', 'min_reposts',
+]);
 
 /** A model writes a query the way a person would; the API grammar is
  *  stricter than a model is careful. Keep words, quoted phrases, parentheses,
@@ -462,6 +494,230 @@ const DEFAULT_DEPS: XApiDeps = {
   env: process.env,
 };
 
+const iso = (ms: number): string => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+type JsonResult = { ok: true; json: any } | { ok: false; reason: string };
+
+/** One authenticated GET. A 429 whose window rolls within MAX_RATE_WAIT_MS
+ *  is waited out once; every other outcome is a reason, never a throw. The
+ *  reasons are the sentences the rendered blocks print. */
+async function getJson(url: URL, token: string, deps: XApiDeps): Promise<JsonResult> {
+  for (let attempt = 0; ; attempt++) {
+    let res: Response;
+    try {
+      res = await deps.fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    } catch (err) {
+      return { ok: false, reason: `network: ${(err as Error).message ?? err}` };
+    }
+    if (res.status === 429 && attempt === 0) {
+      const reset = Number(res.headers.get('x-rate-limit-reset')) * 1000;
+      const waitMs = Number.isFinite(reset) ? reset - deps.now() + 500 : NaN;
+      if (Number.isFinite(waitMs) && waitMs > 0 && waitMs <= MAX_RATE_WAIT_MS) {
+        console.log(`[x_api_search] rate limited — holding ${Math.ceil(waitMs / 1000)}s for the window to roll`);
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+      const at = Number.isFinite(reset) ? ` until ${iso(reset)}` : '';
+      return { ok: false, reason: `HTTP 429 — rate limited${at}` };
+    }
+    if (!res.ok) {
+      let detail = '';
+      try {
+        detail = JSON.stringify(await res.json()).slice(0, 300);
+      } catch { /* not JSON */ }
+      return { ok: false, reason: `HTTP ${res.status}${detail ? ` — ${detail}` : ''}` };
+    }
+    try {
+      return { ok: true, json: await res.json() };
+    } catch (err) {
+      return { ok: false, reason: `unparseable body: ${(err as Error).message ?? err}` };
+    }
+  }
+}
+
+/** The posts a query matches in the window, from /2/tweets/counts/recent —
+ *  one request, one price, however many it counts. */
+async function countPosts(
+  query: string,
+  window: { start: string; end: string },
+  token: string,
+  deps: XApiDeps,
+): Promise<{ ok: true; count: number } | { ok: false; reason: string }> {
+  const url = new URL(`${API}/tweets/counts/recent`);
+  url.searchParams.set('query', query);
+  url.searchParams.set('start_time', window.start);
+  url.searchParams.set('end_time', window.end);
+  url.searchParams.set('granularity', 'day');
+  const got = await getJson(url, token, deps);
+  if (!got.ok) return got;
+  const total = got.json?.meta?.total_tweet_count;
+  if (typeof total === 'number' && Number.isFinite(total)) return { ok: true, count: total };
+  const buckets = got.json?.data;
+  if (Array.isArray(buckets)) return { ok: true, count: buckets.reduce((n: number, b: any) => n + (Number(b?.tweet_count) || 0), 0) };
+  return { ok: false, reason: 'counts body carried no total' };
+}
+
+// ── Replies: count first, buy second ────────────────────────────────────────
+
+export interface Rung {
+  minLikes: number;
+  count: number;
+}
+
+export interface RepliesOutcome {
+  id: string;
+  days: number;
+  window: { start: string; end: string };
+  /** replies in the window per the counts endpoint; absent when counts failed */
+  total?: number;
+  /** why the counts endpoint could not be used, when it could not */
+  countsReason?: string;
+  /** the rungs tried, in order, with the count at each */
+  ladder: Rung[];
+  /** the min_likes floor the page was bought at; absent for an unfiltered page */
+  chosen?: number;
+  /** slots bought on the page (max_results) */
+  bought: number;
+  /** counts requests made — priced separately from the page */
+  countsCalls: number;
+  /** false when the page purchase itself failed */
+  ok: boolean;
+  reason?: string;
+  posts: XPost[];
+}
+
+const plural = (n: number, word: string): string =>
+  `${n.toLocaleString('en-US')} ${n === 1 ? word : word.endsWith('y') ? `${word.slice(0, -1)}ies` : `${word}s`}`;
+
+export function renderRepliesBlock(out: RepliesOutcome, readings: Map<string, ImageReading>, picked: Set<string>, imagesRead: number): string {
+  const head =
+    `X API REPLIES — conversation ${out.id}, X’s last ${out.days} day${out.days === 1 ? '' : 's'} ` +
+    `(${out.window.start.slice(0, 10)} to ${out.window.end.slice(0, 10)}), counted before buying`;
+  const ladder = out.ladder.length
+    ? ` Like ladder: ${out.ladder.map((r) => `min_likes:${r.minLikes} → ${r.count.toLocaleString('en-US')}${r.minLikes === out.chosen ? ' ← chosen' : ''}`).join(' · ')}.`
+    : '';
+  let counts: string;
+  if (out.countsReason !== undefined) {
+    counts = `COUNTS: unavailable (${out.countsReason}) — one unfiltered page bought instead.`;
+  } else if (out.total === 0) {
+    return `${head}\nCOUNTS: 0 replies in the window. No page was bought. X returns only the last ${out.days} day${out.days === 1 ? '' : 's'} to recent search, so a post older than that may have replies this call cannot see; say the thread was quiet or out of window, never that nobody replied.`;
+  } else if (out.chosen !== undefined) {
+    counts = `COUNTS: ${plural(out.total!, 'reply')} in the window.${ladder}`;
+  } else if (out.ladder.length) {
+    counts = `COUNTS: ${plural(out.total!, 'reply')} in the window.${ladder} No rung held ${RUNG_MIN}; one unfiltered page bought instead.`;
+  } else {
+    counts = `COUNTS: ${plural(out.total!, 'reply')} in the window — few enough to buy whole, no ladder.`;
+  }
+  if (!out.ok) {
+    return `${head}\n${counts}\nTHE PAGE PURCHASE FAILED (${out.reason}). You have the counts above and no reply text; say the replies could not be read.`;
+  }
+  const rung = out.chosen !== undefined ? ` with at least ${out.chosen.toLocaleString('en-US')} likes` : '';
+  const photos = out.posts.reduce((n, p) => n + (p.media ?? []).filter((m) => m.type === 'photo').length, 0);
+  const imagesLine = photos ? ` ${plural(photos, 'photo')} attached, ${imagesRead} transcribed beneath their posts.` : '';
+  if (!out.posts.length) {
+    return `${head}\n${counts}\nPAGE: the search returned no posts${rung} (${out.bought} slots). The counts and the page disagree — replies may have been deleted or protected between the two calls. Say the replies could not be read.`;
+  }
+  return [
+    head,
+    counts,
+    `PAGE: ${plural(out.posts.length, 'reply')}${rung} on one page (${out.bought} slots), most relevant first — the thread’s most-engaged replies, a SAMPLE of the conversation, never a census. Likes measure reach, not accuracy: a liked reply is a lead for the web check.${imagesLine}`,
+    EVIDENCE_RULES,
+    ...out.posts.map((p) => postLines(p, readings, picked)),
+  ].join('\n');
+}
+
+/** The replies to one post: count the thread, walk the ladder, buy one
+ *  page at the first rung that holds RUNG_MIN replies. Never throws. */
+async function runReplies(id: string, token: string, input: XApiSearchInput, deps: XApiDeps): Promise<string> {
+  const days = Math.max(1, Math.min(Math.floor(input.days ?? MAX_DAYS), MAX_DAYS));
+  const now = deps.now();
+  const window = { start: iso(now - days * 86_400_000), end: iso(now - 30_000) };
+  const base = `conversation_id:${id} is:reply -is:retweet`;
+  const out: RepliesOutcome = { id, days, window, ladder: [], bought: 0, countsCalls: 0, ok: false, posts: [] };
+
+  const total = await countPosts(base, window, token, deps);
+  out.countsCalls++;
+  let slice: number | undefined;
+  if (!total.ok) {
+    out.countsReason = total.reason;
+  } else {
+    out.total = total.count;
+    if (total.count === 0) {
+      console.log(`[x_api_search] replies ${id} → 0 in the window; nothing bought (≈$${PRICE.countsRecent.toFixed(3)}, 1 counts call)`);
+      return renderRepliesBlock(out, new Map(), new Set(), 0);
+    }
+    slice = total.count;
+    if (total.count > RUNG_MAX) {
+      for (const minLikes of LIKE_LADDER) {
+        const c = await countPosts(`${base} min_likes:${minLikes}`, window, token, deps);
+        out.countsCalls++;
+        if (!c.ok) {
+          // A rung that fails mid-ladder: keep what was learned, buy unfiltered.
+          out.countsReason = c.reason;
+          out.ladder = [];
+          slice = undefined;
+          break;
+        }
+        out.ladder.push({ minLikes, count: c.count });
+        if (c.count >= RUNG_MIN) {
+          out.chosen = minLikes;
+          slice = c.count;
+          break;
+        }
+      }
+    }
+  }
+
+  const cap = Math.max(MIN_RESULTS, Math.min(Math.floor(input.max_results ?? DEFAULT_RESULTS), resultsCap(deps.env)));
+  out.bought = Math.max(MIN_RESULTS, Math.min(slice ?? DEFAULT_RESULTS, cap));
+  const query = out.chosen !== undefined ? `${base} min_likes:${out.chosen}` : base;
+  const url = new URL(`${API}/tweets/search/recent`);
+  url.searchParams.set('query', query);
+  url.searchParams.set('start_time', window.start);
+  url.searchParams.set('end_time', window.end);
+  url.searchParams.set('max_results', String(out.bought));
+  url.searchParams.set('sort_order', input.sort === 'recency' ? 'recency' : 'relevancy');
+  for (const [k, v] of Object.entries(FIELDS)) url.searchParams.set(k, v);
+  const got = await getJson(url, token, deps);
+  if (!got.ok) {
+    out.reason = got.reason;
+    return renderRepliesBlock(out, new Map(), new Set(), 0);
+  }
+  out.ok = true;
+  out.posts = parseSearchJson(got.json);
+  const wantImages = input.read_images !== false;
+  const picked = wantImages ? pickImages(out.posts, imageMax(deps.env)) : [];
+  const readings = picked.length ? await readImages(picked, deps) : new Map<string, ImageReading>();
+  const imagesRead = [...readings.values()].filter((r) => r.ok).length;
+  const cost = out.countsCalls * PRICE.countsRecent + out.posts.length * PRICE.postRead;
+  console.log(
+    `[x_api_search] replies ${id} → ${out.total ?? '?'} in window, ladder ${out.ladder.map((r) => `${r.minLikes}:${r.count}`).join(' ') || '—'}, ` +
+      `bought ${out.posts.length} at ${out.chosen !== undefined ? `min_likes:${out.chosen}` : 'no floor'} ` +
+      `(≈$${cost.toFixed(3)}: ${out.countsCalls} counts call${out.countsCalls === 1 ? '' : 's'} × $${PRICE.countsRecent} + ${out.posts.length} post${out.posts.length === 1 ? '' : 's'} × $${PRICE.postRead}), ` +
+      `${imagesRead}/${picked.length} image(s) transcribed on ${visionModel(deps.env)}${imageFailures(readings)}`,
+  );
+  return renderRepliesBlock(out, readings, new Set(picked.map((p) => p.media.key)), imagesRead);
+}
+
+/** The conversation id when a sanitized query asks for a thread and nothing
+ *  else — `conversation_id:<id>` with at most is:reply / -is:retweet / lang:
+ *  beside it. Such a query is what the replies path exists for; free words
+ *  or other operators make it an ordinary filtered search. */
+export function conversationOnly(query: string): string | undefined {
+  let id: string | undefined;
+  for (const tok of query.split(/\s+/).filter(Boolean)) {
+    const conv = /^conversation_id:(\d{6,25})$/i.exec(tok);
+    if (conv) {
+      if (id) return undefined;
+      id = conv[1];
+      continue;
+    }
+    if (/^(is:reply|-is:retweet|lang:[a-z-]{2,10})$/i.test(tok)) continue;
+    return undefined;
+  }
+  return id;
+}
+
 /** The numeric id out of a bare id or any x.com / twitter.com status link. */
 export function parsePostId(raw: string | undefined): string | undefined {
   const s = (raw ?? '').trim();
@@ -475,6 +731,8 @@ export interface XApiSearchInput {
   query?: string;
   /** a post id or status link — look THAT post up instead of searching */
   post?: string;
+  /** a post id or status link — read its replies, counted before one page is bought */
+  replies?: string;
   days?: number;
   sort?: 'relevancy' | 'recency';
   max_results?: number;
@@ -518,7 +776,7 @@ async function lookupPost(id: string, token: string, input: XApiSearchInput, dep
   console.log(`[x_api_search] lookup ${id} → ${posts.length} post (≈$${PRICE.postRead.toFixed(3)}), ${imagesRead}/${picked.length} image(s) transcribed on ${visionModel(deps.env)}${imageFailures(readings)}`);
   const photos = (posts[0]!.media ?? []).filter((m) => m.type === 'photo').length;
   return [
-    `${head} — the post itself, as the API returns it.${photos ? ` ${photos} photo${photos === 1 ? '' : 's'} attached, ${imagesRead} transcribed beneath it.` : ''} For the replies and quotes around it, search conversation_id:${id}.`,
+    `${head} — the post itself, as the API returns it.${photos ? ` ${photos} photo${photos === 1 ? '' : 's'} attached, ${imagesRead} transcribed beneath it.` : ''} For its most-engaged replies, call again with replies: "${id}" (the thread is counted before one page is bought).`,
     EVIDENCE_RULES,
     ...posts.map((p) => postLines(p, readings, new Set(picked.map((x) => x.media.key)))),
   ].join('\n');
@@ -535,11 +793,19 @@ export async function runXApiSearch(input: XApiSearchInput, deps: XApiDeps = DEF
     if (!id) return `X API LOOKUP — "${input.post.trim().slice(0, 120)}" is neither a post id nor an x.com/…/status/<id> link. Pass the link as the user pasted it, or search instead.`;
     return lookupPost(id, token, input, deps);
   }
+  if (input.replies !== undefined && input.replies.trim()) {
+    const id = parsePostId(input.replies);
+    if (!id) return `X API REPLIES — "${input.replies.trim().slice(0, 120)}" is neither a post id nor an x.com/…/status/<id> link. Pass the post's link or id as replies.`;
+    return runReplies(id, token, input, deps);
+  }
   const query = sanitizeQuery(input.query);
+  // A query that is only `conversation_id:<id>` asks for a thread: it takes
+  // the count-first path, so the prompt that wrote it gets the ladder too.
+  const thread = conversationOnly(query);
+  if (thread) return runReplies(thread, token, input, deps);
   const days = Math.max(1, Math.min(Math.floor(input.days ?? MAX_DAYS), MAX_DAYS));
   const sort = input.sort === 'recency' ? 'recency' : 'relevancy';
   const max = Math.max(MIN_RESULTS, Math.min(Math.floor(input.max_results ?? DEFAULT_RESULTS), resultsCap(deps.env)));
-  const iso = (ms: number): string => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
   const now = deps.now();
   // X wants end_time at least ten seconds in the past; thirty keeps clock skew out of it.
   const window = { start: iso(now - days * 86_400_000), end: iso(now - 30_000) };
@@ -556,41 +822,10 @@ export async function runXApiSearch(input: XApiSearchInput, deps: XApiDeps = DEF
   url.searchParams.set('sort_order', sort);
   for (const [k, v] of Object.entries(FIELDS)) url.searchParams.set(k, v);
 
-  let json: any;
-  for (let attempt = 0; ; attempt++) {
-    let res: Response;
-    try {
-      res = await deps.fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-    } catch (err) {
-      return renderBlock({ ...outcome, reason: `network: ${(err as Error).message ?? err}` }, new Map(), new Set(), 0);
-    }
-    if (res.status === 429 && attempt === 0) {
-      const reset = Number(res.headers.get('x-rate-limit-reset')) * 1000;
-      const waitMs = Number.isFinite(reset) ? reset - deps.now() + 500 : NaN;
-      if (Number.isFinite(waitMs) && waitMs > 0 && waitMs <= MAX_RATE_WAIT_MS) {
-        console.log(`[x_api_search] rate limited — holding ${Math.ceil(waitMs / 1000)}s for the window to roll`);
-        await new Promise((r) => setTimeout(r, waitMs));
-        continue;
-      }
-      const at = Number.isFinite(reset) ? ` until ${iso(reset)}` : '';
-      return renderBlock({ ...outcome, reason: `HTTP 429 — rate limited${at}` }, new Map(), new Set(), 0);
-    }
-    if (!res.ok) {
-      let detail = '';
-      try {
-        detail = JSON.stringify(await res.json()).slice(0, 300);
-      } catch { /* not JSON */ }
-      return renderBlock({ ...outcome, reason: `HTTP ${res.status}${detail ? ` — ${detail}` : ''}` }, new Map(), new Set(), 0);
-    }
-    try {
-      json = await res.json();
-    } catch (err) {
-      return renderBlock({ ...outcome, reason: `unparseable body: ${(err as Error).message ?? err}` }, new Map(), new Set(), 0);
-    }
-    break;
-  }
+  const got = await getJson(url, token, deps);
+  if (!got.ok) return renderBlock({ ...outcome, reason: got.reason }, new Map(), new Set(), 0);
 
-  const posts = parseSearchJson(json);
+  const posts = parseSearchJson(got.json);
   const wantImages = input.read_images !== false;
   const picked = wantImages ? pickImages(posts, imageMax(deps.env)) : [];
   const readings = picked.length ? await readImages(picked, deps) : new Map<string, ImageReading>();
@@ -613,21 +848,29 @@ export const xApiSearchContract = defineTool({
     'match, not a semantic search: plain words are ANDed, "quoted phrases" match exactly, (a OR b) groups alternatives, ' +
     'from:handle names an account, -is:reply drops replies, lang:en filters language. Retweets are always excluded. ' +
     'Keep queries to a handful of terms and run several formulations; an empty page means those words, in that ' +
-    'window, and nothing more. To read ONE specific post the user linked, pass its x.com/…/status/<id> link (or the ' +
-    'id) as `post` instead of a query: you get that post with its photos transcribed; search conversation_id:<id> ' +
-    'afterwards for the replies and quotes around it.',
+    'window, and nothing more. min_likes:N / min_replies:N / min_reposts:N keep only posts above an engagement floor. ' +
+    'To read ONE specific post the user linked, pass its x.com/…/status/<id> link (or the id) as `post` instead of a ' +
+    'query: you get that post with its photos transcribed. To read its REPLIES, pass the same link or id as `replies`: ' +
+    'the thread is counted first (how many replies, how many clear each like floor) and ONE page of the most-engaged ' +
+    'replies is bought at the floor that holds a page’s worth — the block reports the counts, the floor chosen and the ' +
+    'replies with their metrics. A query that is only conversation_id:<id> takes the same path.',
   schema: z
     .object({
       query: z
         .string()
         .max(QUERY_LIMIT)
         .optional()
-        .describe('The search terms. Plain words, "exact phrases", (alternatives OR grouped), from:handle, -is:reply, lang:xx. Omit when passing `post`.'),
+        .describe('The search terms. Plain words, "exact phrases", (alternatives OR grouped), from:handle, -is:reply, lang:xx, min_likes:N. Omit when passing `post` or `replies`.'),
       post: z
         .string()
         .max(300)
         .optional()
         .describe('A post to look up instead of searching: an x.com/<handle>/status/<id> (or twitter.com) link as pasted, or the bare numeric id.'),
+      replies: z
+        .string()
+        .max(300)
+        .optional()
+        .describe('A post whose replies to read, count-first: the same link or id. The thread is counted, a like ladder is walked with cheap counts calls, and one page of the most-engaged replies is bought at the rung that holds 5–20 of them.'),
       days: z
       .number()
       .int()
@@ -651,8 +894,8 @@ export const xApiSearchContract = defineTool({
         .optional()
         .describe('Transcribe the photos attached to the posts (default true). Set false for a text-only page.'),
     })
-    .refine((v) => Boolean(v.query?.trim()) || Boolean(v.post?.trim()), {
-      message: 'pass either `query` (search terms) or `post` (a status link or id)',
+    .refine((v) => Boolean(v.query?.trim()) || Boolean(v.post?.trim()) || Boolean(v.replies?.trim()), {
+      message: 'pass either `query` (search terms), `post` (a status link or id to read) or `replies` (a status link or id whose replies to read)',
     }),
   execute: (input) => runXApiSearch(input),
 });

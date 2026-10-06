@@ -2,44 +2,44 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-03"
+    "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 609,
-    "edges": 1408,
+    "nodes": 615,
+    "edges": 1423,
     "byKind": {
-      "doc": 87,
+      "doc": 89,
       "provider": 6,
       "env": 99,
       "model": 8,
-      "tool": 34,
-      "file": 69,
+      "tool": 35,
+      "file": 71,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 16,
-      "module": 118,
+      "module": 119,
       "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 213,
+      "links_to": 215,
       "requires_env": 154,
       "routes_to": 8,
-      "defined_in": 75,
-      "documents": 56,
+      "defined_in": 76,
+      "documents": 57,
       "contains": 89,
       "uses_model": 89,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 334,
+      "imports": 339,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 230
+      "derives_from": 236
     },
     "byTier": {
-      "extracted": 1408,
+      "extracted": 1423,
       "inferred": 0
     },
     "isolated": 4
@@ -90,7 +90,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 275
+        "words": 318
       }
     },
     {
@@ -826,6 +826,30 @@
       }
     },
     {
+      "id": "/decisions/0036-count-first-replies-ladder.md",
+      "kind": "doc",
+      "label": "ADR 0036: A thread's replies are counted before a page is bought — a min_likes ladder over the counts endpoint",
+      "source": "/decisions/0036-count-first-replies-ladder.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 815
+      }
+    },
+    {
+      "id": "/decisions/0037-transcript-retrieval-status.md",
+      "kind": "doc",
+      "label": "ADR 0037: media_transcript reads YouTube captions keylessly and leads every block with a RETRIEVAL STATUS",
+      "source": "/decisions/0037-transcript-retrieval-status.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 804
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1062,7 +1086,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 287
+        "words": 288
       }
     },
     {
@@ -1074,7 +1098,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 393
+        "words": 853
       }
     },
     {
@@ -3077,6 +3101,12 @@
       "source": "tests/identity.test.ts"
     },
     {
+      "id": "file:tests/mediaTranscript.test.ts",
+      "kind": "file",
+      "label": "mediaTranscript.test.ts",
+      "source": "tests/mediaTranscript.test.ts"
+    },
+    {
       "id": "file:tests/models.test.ts",
       "kind": "file",
       "label": "models.test.ts",
@@ -3126,6 +3156,12 @@
       "kind": "file",
       "label": "workflow.test.ts",
       "source": "tests/workflow.test.ts"
+    },
+    {
+      "id": "file:tests/xApiSearch.test.ts",
+      "kind": "file",
+      "label": "xApiSearch.test.ts",
+      "source": "tests/xApiSearch.test.ts"
     },
     {
       "id": "file:tsconfig.build.json",
@@ -3762,7 +3798,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 148
+        "lines": 153
       }
     },
     {
@@ -3808,6 +3844,15 @@
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
         "lines": 143
+      }
+    },
+    {
+      "id": "module:lib/tools/mediaTranscriptTool.ts",
+      "kind": "module",
+      "label": "lib/tools/mediaTranscriptTool.ts",
+      "source": "lib/tools/mediaTranscriptTool.ts",
+      "attrs": {
+        "lines": 441
       }
     },
     {
@@ -3951,7 +3996,7 @@
       "label": "lib/tools/xApiSearchTool.ts",
       "source": "lib/tools/xApiSearchTool.ts",
       "attrs": {
-        "lines": 662
+        "lines": 905
       }
     },
     {
@@ -4239,7 +4284,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1339
+        "lines": 1353
       }
     },
     {
@@ -5240,6 +5285,15 @@
       "kind": "tool",
       "label": "load_memory",
       "source": "lib/toolRegistry.ts"
+    },
+    {
+      "id": "tool:media_transcript",
+      "kind": "tool",
+      "label": "media_transcript",
+      "source": "lib/toolRegistry.ts",
+      "attrs": {
+        "description": "Read the transcript of a YouTube video (watch, shorts, live or youtu.be link) from its captions — the uploader’s when they exist, YouTube’s automatic ones otherwise."
+      }
     },
     {
       "id": "tool:preload_memory",
@@ -7391,6 +7445,41 @@
       "evidence": "/decisions/0035-moonshot-kimi-provider.md:67"
     },
     {
+      "from": "/decisions/0036-count-first-replies-ladder.md",
+      "to": "file:tests/xApiSearch.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-count-first-replies-ladder.md frontmatter"
+    },
+    {
+      "from": "/decisions/0036-count-first-replies-ladder.md",
+      "to": "module:lib/tools/xApiSearchTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0036-count-first-replies-ladder.md frontmatter"
+    },
+    {
+      "from": "/decisions/0037-transcript-retrieval-status.md",
+      "to": "file:tests/mediaTranscript.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0037-transcript-retrieval-status.md frontmatter"
+    },
+    {
+      "from": "/decisions/0037-transcript-retrieval-status.md",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0037-transcript-retrieval-status.md frontmatter"
+    },
+    {
+      "from": "/decisions/0037-transcript-retrieval-status.md",
+      "to": "module:lib/tools/mediaTranscriptTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0037-transcript-retrieval-status.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8806,6 +8895,13 @@
     },
     {
       "from": "/tools/web-tools.md",
+      "to": "module:lib/tools/mediaTranscriptTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/web-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/web-tools.md",
       "to": "module:lib/tools/webExtractTool.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8827,6 +8923,13 @@
     },
     {
       "from": "/tools/web-tools.md",
+      "to": "tool:media_transcript",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/tools/web-tools.md"
+    },
+    {
+      "from": "/tools/web-tools.md",
       "to": "tool:web_extract",
       "rel": "documents",
       "tier": "extracted",
@@ -8841,10 +8944,24 @@
     },
     {
       "from": "/tools/web-tools.md",
-      "to": "/models/provider-routing.md",
+      "to": "/decisions/0036-count-first-replies-ladder.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/web-tools.md:34"
+    },
+    {
+      "from": "/tools/web-tools.md",
+      "to": "/decisions/0037-transcript-retrieval-status.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/web-tools.md:36"
+    },
+    {
+      "from": "/tools/web-tools.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/web-tools.md:38"
     },
     {
       "from": "/tools/wiki-tools.md",
@@ -11949,6 +12066,13 @@
     },
     {
       "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/tools/mediaTranscriptTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/tools/scienceTools.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12100,6 +12224,27 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mediaTranscriptTool.ts",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mediaTranscriptTool.ts"
+    },
+    {
+      "from": "module:lib/tools/mediaTranscriptTool.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mediaTranscriptTool.ts"
+    },
+    {
+      "from": "module:lib/tools/mediaTranscriptTool.ts",
+      "to": "module:lib/tools/webExtractTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mediaTranscriptTool.ts"
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
@@ -13490,6 +13635,13 @@
     {
       "from": "module:scripts/wiki/build.ts",
       "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/wiki/build.ts"
+    },
+    {
+      "from": "module:scripts/wiki/build.ts",
+      "to": "module:lib/tools/mediaTranscriptTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/wiki/build.ts"
@@ -15168,6 +15320,13 @@
       "evidence": "lib/tools/scienceTools.ts"
     },
     {
+      "from": "tool:media_transcript",
+      "to": "module:lib/tools/mediaTranscriptTool.ts",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "lib/tools/mediaTranscriptTool.ts"
+    },
+    {
       "from": "tool:resolve_identifier",
       "to": "module:lib/tools/scienceTools.ts",
       "rel": "defined_in",
@@ -15316,10 +15475,10 @@
     },
     {
       "from": "tool:x_api_search",
-      "to": "module:lib/tools/webExtractTool.ts",
+      "to": "module:lib/tools/xApiSearchTool.ts",
       "rel": "defined_in",
       "tier": "extracted",
-      "evidence": "lib/tools/webExtractTool.ts"
+      "evidence": "lib/tools/xApiSearchTool.ts"
     }
   ]
 }

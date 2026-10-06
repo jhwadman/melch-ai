@@ -6,6 +6,35 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **`x_api_search` reads a thread count-first.** A new `replies` argument
+  (a status link or id) asks `/2/tweets/counts/recent` how many replies the
+  window holds, walks a `min_likes:` ladder (1000, 300, 100, 30, 10) with
+  counts calls until a rung holds at least five replies, and buys ONE page at
+  that rung, sized to it, most relevant first. Twenty replies or fewer are
+  bought whole; none buys nothing; a failing counts endpoint falls back to the
+  old single page and the block says so. The block reports the total, each
+  rung's count, the rung chosen and the replies with metrics; the log line
+  prices counts calls ($0.005 per request) and posts ($0.005 per post
+  returned) separately. A query that is only `conversation_id:<id>` takes the
+  same path. `min_likes:`, `min_replies:` and `min_reposts:` now survive the
+  query hygiene (verified accepted on the pay-per-use tier, 2026-10-05;
+  `min_faves:`/`min_retweets:` are refused by the API and still dropped).
+  The post-lookup block's closing hint now names `replies`. ADR 0036.
+- **`media_transcript`: a YouTube video's captions as text.** A new registry
+  tool, `media_transcript(url, language?)`, keyless and without third-party
+  services: the URL is reduced to a video id, YouTube's own player endpoint
+  (ANDROID client) supplies the caption tracks, and the chosen track is
+  fetched from a `*.youtube.com` host only, under timeouts and byte caps. The
+  first line is always `RETRIEVAL STATUS: OK | NO_CAPTIONS | BLOCKED |
+  UNSUPPORTED_URL | ERROR`; only OK carries a transcript (title, channel,
+  duration, language and kind, timestamped paragraphs, cut at 60,000
+  characters with the cut declared). Bot checks, sign-in demands, 403/429 and
+  empty caption bodies are BLOCKED — expected from datacenter egress — and
+  never a guessed transcript. Audio-only podcasts are UNSUPPORTED_URL.
+  Exposure is a YAML act: no shipped syndicate declares it. ADR 0037.
+- `.env.example` documents `X_BEARER_TOKEN` and the `X_API_*` dials; the
+  DOCUMENTATION tool table lists `x_api_search` and `media_transcript`.
+
 - **Moonshot AI (Kimi) is a provider.** `kimi-*` model ids route to a new
   direct adapter (`lib/models/kimiLlm.ts`, chat completions against
   `api.moonshot.ai`), funded by `MOONSHOT_API_KEY` (`MOONSHOT_BASE_URL` for a

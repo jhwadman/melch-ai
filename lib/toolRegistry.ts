@@ -26,6 +26,7 @@ import { X_SEARCH } from './tools/xSearchTool.ts';
 import { askUserTool } from './runtime/questions.ts';
 import { URL_CONTEXT } from './tools/urlContextTool.ts';
 import { xApiSearchTool } from './tools/xApiSearchTool.ts';
+import { mediaTranscriptTool } from './tools/mediaTranscriptTool.ts';
 
 // Knowledge-bundle tools, derived from their contracts so the YAML names
 // can never drift from the definitions. The agentic composites
@@ -76,6 +77,10 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   // X API v2 recent search as a client-side contract, photos transcribed
   // inline — runs on every provider; needs X_BEARER_TOKEN in the server env.
   x_api_search: xApiSearchTool,
+  // A YouTube video's captions as text, keyless, from YouTube's own player
+  // endpoint; the first line is always a RETRIEVAL STATUS the agent reads
+  // before anything else. lib/tools/mediaTranscriptTool.ts.
+  media_transcript: mediaTranscriptTool,
   // xAI-only: semantic search over hosted Collections (XAI_COLLECTION_IDS).
   collections_search: COLLECTIONS_SEARCH,
   // Gemini-only ADK grounding tool, kept for backward compatibility.

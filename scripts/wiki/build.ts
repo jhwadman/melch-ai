@@ -51,6 +51,7 @@ import { TASK_TOOL_CONTRACTS } from '../../lib/tools/taskTools.ts';
 import { toStandardJsonSchema, type ToolContract } from '../../lib/tools/toolContract.ts';
 import { webExtractContract } from '../../lib/tools/webExtractTool.ts';
 import { xApiSearchContract } from '../../lib/tools/xApiSearchTool.ts';
+import { mediaTranscriptContract } from '../../lib/tools/mediaTranscriptTool.ts';
 import { WIKI_TOOL_CONTRACTS } from '../../lib/tools/wikiTools.ts';
 import {
   appendLog,
@@ -371,6 +372,7 @@ function toolDocSpecs(): DocSpec[] {
           { resource: 'lib/tools/webExtractTool.ts' },
           { resource: 'lib/tools/webSearchTool.ts' },
           { resource: 'lib/tools/xApiSearchTool.ts' },
+          { resource: 'lib/tools/mediaTranscriptTool.ts' },
         ],
       },
       body: [
@@ -384,12 +386,12 @@ function toolDocSpecs(): DocSpec[] {
           kind: 'generated',
           id: 'contracts',
           source: 'lib/tools/webExtractTool.ts',
-          markdown: contractsTable([webExtractContract, xApiSearchContract]),
+          markdown: contractsTable([webExtractContract, xApiSearchContract, mediaTranscriptContract]),
         },
         {
           kind: 'prose',
           markdown:
-            '`web_search`, `x_search`, and `collections_search` are not contracts — they are sentinels that enable each provider\'s native server-side search (see [provider routing](/models/provider-routing.md)). `web_extract` and `x_api_search` execute client-side, so they work on any provider; `web_extract` alone needs no key and runs on local models.',
+            '`web_search`, `x_search`, and `collections_search` are not contracts — they are sentinels that enable each provider\'s native server-side search (see [provider routing](/models/provider-routing.md)). `web_extract`, `x_api_search` and `media_transcript` execute client-side, so they work on any provider; `web_extract` and `media_transcript` need no key and run on local models.',
         },
       ],
     },
@@ -753,7 +755,19 @@ const TOOL_FAMILIES: Array<{
   {
     doc: '/tools/web-tools.md',
     module: 'lib/tools/webExtractTool.ts',
-    contracts: [webExtractContract, xApiSearchContract],
+    contracts: [webExtractContract],
+    isPrivate: false,
+  },
+  {
+    doc: '/tools/web-tools.md',
+    module: 'lib/tools/xApiSearchTool.ts',
+    contracts: [xApiSearchContract],
+    isPrivate: false,
+  },
+  {
+    doc: '/tools/web-tools.md',
+    module: 'lib/tools/mediaTranscriptTool.ts',
+    contracts: [mediaTranscriptContract],
     isPrivate: false,
   },
   {

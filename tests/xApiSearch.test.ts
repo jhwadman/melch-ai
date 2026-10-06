@@ -12,13 +12,18 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 
 import {
+  conversationOnly,
   EVIDENCE_RULES,
   imageMax,
+  LIKE_LADDER,
   parsePostId,
   parseSearchJson,
   pickImages,
   readImage,
   renderBlock,
+  renderRepliesBlock,
+  RUNG_MAX,
+  RUNG_MIN,
   runXApiSearch,
   sanitizeQuery,
   xApiSearchContract,
@@ -99,6 +104,8 @@ function fakeDeps(over: Partial<XApiDeps> & { calls?: string[] } = {}): XApiDeps
 test('sanitizeQuery keeps the allowed grammar and drops the operators that would 400', () => {
   const q = sanitizeQuery('("cable cut" OR Baltic) from:Reuters -is:reply lang:en since:2026-09-01 min_faves:100 -until:2026-09-19 place_country:US');
   assert.strictEqual(q, '("cable cut" OR Baltic) from:Reuters -is:reply lang:en -is:retweet');
+  // the engagement floors this tier accepts survive; the old names do not (verified live 2026-10-05)
+  assert.strictEqual(sanitizeQuery('shutdown min_likes:500 min_replies:20 min_reposts:50 min_retweets:50'), 'shutdown min_likes:500 min_replies:20 min_reposts:50 -is:retweet');
 });
 
 test('sanitizeQuery balances quotes and parentheses, normalizes curly quotes, and excludes retweets once', () => {
@@ -317,7 +324,7 @@ test('a post lookup fetches THAT post by id, with its photos, and points at the 
   assert.strictEqual(u.origin + u.pathname, 'https://api.x.com/2/tweets');
   assert.strictEqual(u.searchParams.get('ids'), '2101559363584381365');
   assert.match(u.searchParams.get('expansions')!, /attachments\.media_keys/);
-  assert.match(out, /^X API LOOKUP — post 2101559363584381365 — the post itself, as the API returns it\. 1 photo attached, 1 transcribed beneath it\. For the replies and quotes around it, search conversation_id:2101559363584381365\./);
+  assert.match(out, /^X API LOOKUP — post 2101559363584381365 — the post itself, as the API returns it\. 1 photo attached, 1 transcribed beneath it\. For its most-engaged replies, call again with replies: "2101559363584381365"/);
   assert.ok(out.includes(EVIDENCE_RULES));
   assert.match(out, /- @wire_desk \(Wire Desk\) · verified/);
   assert.match(out, /IMAGE 1\/2 \(photo 1200×800; author alt: "satellite map"\), transcribed:/);
@@ -343,4 +350,144 @@ test('the contract requires a query or a post', async () => {
   assert.match(neither, /^Error: invalid arguments for x_api_search: .*pass either `query`/);
   const both = await executeContract(xApiSearchContract, { query: '', post: '' });
   assert.match(both, /^Error: invalid arguments/);
+});
+
+// ── Replies: count first, buy second ────────────────────────────────────────
+
+
+test('conversationOnly recognises a thread query and nothing else', () => {
+  assert.strictEqual(conversationOnly('conversation_id:2107029927589470636 -is:retweet'), '2107029927589470636');
+  assert.strictEqual(conversationOnly('conversation_id:2107029927589470636 is:reply lang:en -is:retweet'), '2107029927589470636');
+  assert.strictEqual(conversationOnly('conversation_id:2107029927589470636 shutdown -is:retweet'), undefined, 'free words make it a filtered search');
+  assert.strictEqual(conversationOnly('conversation_id:2107029927589470636 min_likes:50 -is:retweet'), undefined, 'an explicit floor is the agent’s own search');
+  assert.strictEqual(conversationOnly('conversation_id:1 -is:retweet'), undefined, 'too short to be a post id');
+  assert.strictEqual(conversationOnly('shutdown -is:retweet'), undefined);
+});
+
+/** A fake API whose counts answer by the floor in the query. */
+function repliesDeps(counts: Record<string, number | 'fail'>, over: Partial<XApiDeps> = {}): XApiDeps & { calls: string[] } {
+  const calls: string[] = [];
+  return fakeDeps({
+    calls,
+    ...over,
+    fetch: async (input) => {
+      const url = new URL(String(input));
+      calls.push(url.toString());
+      if (url.pathname === '/2/tweets/counts/recent') {
+        const q = url.searchParams.get('query') ?? '';
+        const floor = /min_likes:(\d+)/.exec(q)?.[1] ?? 'total';
+        const n = counts[floor];
+        if (n === 'fail' || n === undefined) return new Response(JSON.stringify({ title: 'Forbidden', detail: 'counts not in product' }), { status: 403 });
+        return new Response(JSON.stringify({ data: [{ tweet_count: n }], meta: { total_tweet_count: n } }), { status: 200 });
+      }
+      if (url.pathname === '/2/tweets/search/recent') return new Response(JSON.stringify(PAGE), { status: 200 });
+      throw new Error(`unexpected fetch ${url}`);
+    },
+  });
+}
+
+test('replies walks the like ladder with counts calls and buys ONE page at the first rung that holds a page’s worth', async () => {
+  const deps = repliesDeps({ total: 3690, '1000': 0, '300': 4, '100': 14 });
+  const out = await runXApiSearch({ replies: 'https://x.com/elonmusk/status/2107029927589470636', read_images: false }, deps);
+
+  const queries = deps.calls.map((c) => new URL(c)).map((u) => `${u.pathname} ${u.searchParams.get('query')}`);
+  assert.deepStrictEqual(queries, [
+    '/2/tweets/counts/recent conversation_id:2107029927589470636 is:reply -is:retweet',
+    '/2/tweets/counts/recent conversation_id:2107029927589470636 is:reply -is:retweet min_likes:1000',
+    '/2/tweets/counts/recent conversation_id:2107029927589470636 is:reply -is:retweet min_likes:300',
+    '/2/tweets/counts/recent conversation_id:2107029927589470636 is:reply -is:retweet min_likes:100',
+    '/2/tweets/search/recent conversation_id:2107029927589470636 is:reply -is:retweet min_likes:100',
+  ]);
+  const counts = new URL(deps.calls[0]!);
+  assert.strictEqual(counts.searchParams.get('granularity'), 'day');
+  assert.strictEqual(counts.searchParams.get('start_time'), '2026-09-13T12:00:00Z');
+  const page = new URL(deps.calls[4]!);
+  assert.strictEqual(page.searchParams.get('max_results'), '14', 'the page is sized to the rung');
+  assert.strictEqual(page.searchParams.get('sort_order'), 'relevancy');
+  assert.match(page.searchParams.get('expansions')!, /attachments\.media_keys/);
+
+  assert.match(out, /^X API REPLIES — conversation 2107029927589470636, X’s last 7 days \(2026-09-13 to 2026-09-20\), counted before buying\n/);
+  assert.match(out, /COUNTS: 3,690 replies in the window\. Like ladder: min_likes:1000 → 0 · min_likes:300 → 4 · min_likes:100 → 14 ← chosen\./);
+  assert.match(out, /PAGE: 3 replies with at least 100 likes on one page \(14 slots\), most relevant first/);
+  assert.match(out, /Likes measure reach, not accuracy/);
+  assert.ok(out.includes(EVIDENCE_RULES));
+  assert.match(out, /- @wire_desk \(Wire Desk\) · verified · 2026-09-19 14:02Z · 1,203 likes/);
+});
+
+test('a thread with no replies in the window buys nothing', async () => {
+  const deps = repliesDeps({ total: 0 });
+  const out = await runXApiSearch({ replies: '2107029927589470636' }, deps);
+  assert.strictEqual(deps.calls.length, 1, 'one counts call, no page');
+  assert.match(out, /COUNTS: 0 replies in the window\. No page was bought\./);
+  assert.match(out, /never that nobody replied/);
+});
+
+test('a small thread is bought whole with no ladder', async () => {
+  const deps = repliesDeps({ total: 7 });
+  const out = await runXApiSearch({ replies: '2107029927589470636', read_images: false }, deps);
+  assert.strictEqual(deps.calls.length, 2, 'one counts call and one page');
+  const page = new URL(deps.calls[1]!);
+  assert.strictEqual(page.searchParams.get('query'), 'conversation_id:2107029927589470636 is:reply -is:retweet');
+  assert.strictEqual(page.searchParams.get('max_results'), '10', 'the API floor, not 7');
+  assert.match(out, /COUNTS: 7 replies in the window — few enough to buy whole, no ladder\./);
+  assert.match(out, /PAGE: 3 replies on one page \(10 slots\)/);
+});
+
+test('a ladder no rung of which holds a page’s worth falls back to an unfiltered page and says so', async () => {
+  const deps = repliesDeps({ total: 40, '1000': 0, '300': 0, '100': 0, '30': 1, '10': 3 });
+  const out = await runXApiSearch({ replies: '2107029927589470636', read_images: false }, deps);
+  assert.strictEqual(deps.calls.length, 1 + LIKE_LADDER.length + 1);
+  const page = new URL(deps.calls.at(-1)!);
+  assert.strictEqual(page.searchParams.get('query'), 'conversation_id:2107029927589470636 is:reply -is:retweet');
+  assert.strictEqual(page.searchParams.get('max_results'), '20', 'the default page, capped by the thread size');
+  assert.match(out, new RegExp(`min_likes:10 → 3\\. No rung held ${RUNG_MIN}; one unfiltered page bought instead\\.`));
+  assert.ok(RUNG_MAX > RUNG_MIN);
+});
+
+test('when the counts endpoint is unavailable the path buys the old single page and names the reason', async () => {
+  const deps = repliesDeps({ total: 'fail' });
+  const out = await runXApiSearch({ replies: '2107029927589470636', read_images: false }, deps);
+  assert.strictEqual(deps.calls.length, 2);
+  const page = new URL(deps.calls[1]!);
+  assert.strictEqual(page.searchParams.get('query'), 'conversation_id:2107029927589470636 is:reply -is:retweet');
+  assert.strictEqual(page.searchParams.get('max_results'), '20');
+  assert.match(out, /COUNTS: unavailable \(HTTP 403 — \{"title":"Forbidden","detail":"counts not in product"\}\) — one unfiltered page bought instead\./);
+  assert.match(out, /PAGE: 3 replies on one page \(20 slots\)/);
+});
+
+test('a rung that fails mid-ladder keeps the thread total and buys unfiltered', async () => {
+  const deps = repliesDeps({ total: 3690, '1000': 0, '300': 'fail' });
+  const out = await runXApiSearch({ replies: '2107029927589470636', read_images: false }, deps);
+  assert.match(out, /COUNTS: unavailable \(HTTP 403/);
+  assert.strictEqual(new URL(deps.calls.at(-1)!).searchParams.get('query'), 'conversation_id:2107029927589470636 is:reply -is:retweet');
+});
+
+test('a bare conversation_id query takes the replies path; a filtered one stays a search', async () => {
+  const routed = repliesDeps({ total: 3690, '1000': 6 });
+  const out1 = await runXApiSearch({ query: 'conversation_id:2107029927589470636', read_images: false, max_results: 10 }, routed);
+  assert.match(out1, /^X API REPLIES — conversation 2107029927589470636/);
+  assert.match(out1, /min_likes:1000 → 6 ← chosen/);
+  assert.strictEqual(new URL(routed.calls.at(-1)!).searchParams.get('max_results'), '10', 'the agent’s cap holds');
+
+  const plain = fakeDeps();
+  const out2 = await runXApiSearch({ query: 'conversation_id:2107029927589470636 shutdown', read_images: false }, plain);
+  assert.match(out2, /^X API SEARCH — /);
+  assert.strictEqual(plain.calls.length, 1);
+});
+
+test('the page purchase failing after the counts still reports the counts', () => {
+  const out = renderRepliesBlock(
+    { id: '1', days: 7, window: { start: '2026-09-13T12:00:00Z', end: '2026-09-20T11:59:30Z' }, total: 500, ladder: [{ minLikes: 1000, count: 0 }, { minLikes: 300, count: 9 }], chosen: 300, bought: 10, countsCalls: 3, ok: false, reason: 'HTTP 503', posts: [] },
+    new Map(), new Set(), 0,
+  );
+  assert.match(out, /COUNTS: 500 replies in the window\. Like ladder: min_likes:1000 → 0 · min_likes:300 → 9 ← chosen\.\nTHE PAGE PURCHASE FAILED \(HTTP 503\)/);
+});
+
+test('the contract accepts replies alone and refuses a non-link', async () => {
+  const ok = xApiSearchContract.schema.safeParse({ replies: 'https://x.com/a/status/2107029927589470636' });
+  assert.ok(ok.success);
+  const deps = fakeDeps();
+  const out = await runXApiSearch({ replies: 'https://x.com/elonmusk' }, deps);
+  assert.match(out, /^X API REPLIES — "https:\/\/x\.com\/elonmusk" is neither a post id nor an x\.com/);
+  assert.deepStrictEqual(deps.calls, []);
 });
