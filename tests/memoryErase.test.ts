@@ -148,3 +148,14 @@ test('the doctor flags an undeclared or shared namespace on the deployment\'s ow
   assert.equal(list[4].memory.issue, undefined);
   assert.equal(list[5].memory.issue, undefined, 'shipped examples are copied before use');
 });
+
+test('memoryCrossesProviders names the providers memory reaches that the agents do not', async () => {
+  const { memoryCrossesProviders, memoryDestinations } = await import('../lib/memory/providers.ts');
+  const defaults = memoryDestinations({});
+  assert.deepEqual(defaults, { extraction: 'gemini', embeddings: 'gemini' }, 'by default both go to Gemini');
+  assert.deepEqual(memoryCrossesProviders(['claude-sonnet-4-6'], defaults), ['gemini'], 'a Claude-only syndicate still sends memory to Gemini');
+  assert.deepEqual(memoryCrossesProviders(['gemini-3.5-flash'], defaults), [], 'a Gemini syndicate stays on Gemini');
+  const onClaude = memoryDestinations({ MEMORY_EXTRACTION_MODEL: 'claude-haiku-4-5', MEMORY_EMBEDDING_PROVIDER: 'openai-compatible' });
+  assert.deepEqual(memoryCrossesProviders(['claude-sonnet-4-6'], onClaude), [], 'extraction on the agents\' provider, embeddings on the operator\'s own endpoint');
+  assert.deepEqual(memoryCrossesProviders(['claude-sonnet-4-6'], memoryDestinations({ MEMORY_EXTRACTION_MODEL: 'claude-haiku-4-5', MEMORY_EMBEDDING_PROVIDER: 'openai' })), ['openai']);
+});

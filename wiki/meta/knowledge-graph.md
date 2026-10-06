@@ -51,7 +51,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
 | `imports` | extracted | A imports B | 343 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 262 | declared in the document’s `sources:` frontmatter |
+| `derives_from` | extracted | A derives from B | 263 | declared in the document’s `sources:` frontmatter |
 | `links_to` | extracted | A links to B | 223 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 156 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |

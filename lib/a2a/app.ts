@@ -56,6 +56,7 @@ import { eraseScope } from '../memory/erase.ts';
 import type { EraseCounts } from '../memory/erase.ts';
 import { namespacedMemoryService } from '../memory/namespace.ts';
 import type { Embedder, MemoryExtractor } from '../memory/providers.ts';
+import { memoryCrossesProviders, memoryDestinations } from '../memory/providers.ts';
 import {
   A2A_APP_NAME,
   SyndicateExecutor,
@@ -528,6 +529,23 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
    * and only `long-term` syndicates get the memory service.
    */
   const internalSessions = new InMemorySessionService();
+  // Long-term memory sends transcripts to its extraction and embedding
+  // providers; say so once per syndicate when they are not the agents' own.
+  const memoryFlowWarned = new Set<string>();
+  const warnMemoryFlow = (cfg: SyndicateYamlConfig) => {
+    if (memoryFlowWarned.has(cfg.syndicate_name)) return;
+    memoryFlowWarned.add(cfg.syndicate_name);
+    const dest = memoryDestinations(process.env, { extractor: options.memory?.extractor, embedder: options.memory?.embedder });
+    const models = [cfg.orchestrator?.model, ...(cfg.subagents ?? []).map((s) => s.model)];
+    const crossed = memoryCrossesProviders(models, dest);
+    if (crossed.length) {
+      warn(
+        `'${cfg.syndicate_name}' keeps long-term memory, so its transcripts also go to ${crossed.join(' and ')} `
+          + `(extraction: ${dest.extraction}, embeddings: ${dest.embeddings}), which its agents do not use. `
+          + 'Set MEMORY_EXTRACTION_MODEL and MEMORY_EMBEDDING_PROVIDER to keep memory on an approved provider.',
+      );
+    }
+  };
   const servicesFor = (cfg: SyndicateYamlConfig) => {
     const mode = cfg.memory_system;
     const sessionService = mode === 'internal-only' || !durableSessions ? internalSessions : durableSessions;
@@ -535,6 +553,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     // turn reaches — including AgentTool children, which run under their own
     // ADK app name — recalls and stores in the root syndicate's memory.
     const memory = mode === 'long-term' && memoryService ? namespacedMemoryService(memoryService, memoryAppName(cfg)) : undefined;
+    if (memory) warnMemoryFlow(cfg);
     if (mode === 'long-term' && !memoryService) {
       warn(`'${cfg.syndicate_name}' requests long-term memory but Supabase is not configured — memory disabled.`);
     }

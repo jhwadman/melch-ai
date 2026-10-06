@@ -303,3 +303,37 @@ export function memoryProvidersFromEnv(
   }
   return { extractor, embedder };
 }
+
+/**
+ * Where long-term memory sends a syndicate's transcripts: the provider that
+ * extracts facts and the one that embeds them. By default both are Gemini,
+ * whatever the agents run on, so a deployment approved for one provider can
+ * send transcripts to another without noticing; the server warns when they
+ * differ (memoryCrossesProviders).
+ */
+export function memoryDestinations(
+  env: NodeJS.ProcessEnv = process.env,
+  override: { extractor?: { model: string }; embedder?: { provider: string } } = {},
+): { extraction: string; embeddings: string } {
+  const model = override.extractor?.model ?? (env.MEMORY_EXTRACTION_MODEL?.trim() || MEMORY_EXTRACTION_MODEL);
+  return {
+    extraction: providerForModel(model),
+    embeddings: (override.embedder?.provider ?? (env.MEMORY_EMBEDDING_PROVIDER?.trim() || 'gemini')).toLowerCase(),
+  };
+}
+
+/**
+ * The memory destinations a syndicate's own agents do not already use, or []
+ * when memory stays with the agents' providers. An embedding endpoint the
+ * operator configured themselves (`openai-compatible`) is not counted.
+ */
+export function memoryCrossesProviders(
+  models: Array<string | undefined>,
+  dest: { extraction: string; embeddings: string },
+): string[] {
+  const agents = new Set<string>(models.filter((m): m is string => !!m).map((m) => providerForModel(m)));
+  const out = new Set<string>();
+  if (!agents.has(dest.extraction)) out.add(dest.extraction);
+  if (dest.embeddings !== 'openai-compatible' && !agents.has(dest.embeddings)) out.add(dest.embeddings);
+  return [...out];
+}

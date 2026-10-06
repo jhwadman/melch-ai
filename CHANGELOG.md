@@ -47,6 +47,13 @@ the starter pack and the templates), not the repo's full history.
   and DELETE; `melchizedek_prune_audit(days)` is the retention path.
   `postgresStorage` supplies the sink (`audit`), and `createA2AApp` takes
   an `audit` option for any other. Run `npx melchizedek-db apply`.
+- **The server says where memory sends transcripts.** Long-term memory's
+  extraction and embedding providers default to Gemini whatever the agents
+  run on; a syndicate whose agents use other providers now gets one boot
+  warning naming the providers memory reaches and the variables that move
+  it (`memoryDestinations`, `memoryCrossesProviders`). DOCUMENTATION gains
+  "Where your data goes": every destination, its retention, and the setting
+  that changes it.
 - **`mcp_tools:`, an agent key**: the MCP server's tools the agent may use;
   any other tool the server lists is not exposed. On a dispatch route,
   `require_approval` may name a listed MCP tool, so a write waits for a
