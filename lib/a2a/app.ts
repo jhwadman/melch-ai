@@ -270,6 +270,12 @@ export interface A2AApp {
   /** Stop admitting tasks, wait up to `graceMs` for running ones, cancel the rest.
    *  Resolves with the number of tasks that had to be canceled. */
   shutdown(graceMs: number): Promise<number>;
+  /**
+   * Fail `/readyz` from now on while still serving every request, so a load
+   * balancer stops routing here before the listener closes. The first step of
+   * a graceful stop; `shutdown()` is the last.
+   */
+  markUnready(): void;
 }
 
 interface Handlers {
@@ -641,9 +647,52 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       res.type('text/plain; version=0.0.4').send(metrics!.render(limiter.inFlight));
     });
   }
-  app.get('/readyz', (_req, res) => {
-    if (limiter.isDraining) {
+  // Readiness: not while stopping, and not while durable storage is
+  // unreachable (a turn there would fail). The reason is logged once per
+  // change of state, never per probe, and the answer names no host.
+  let unready = false;
+  let storageDown = false;
+  // /readyz is unauthenticated, so the database is asked at most once per
+  // READY_CACHE_MS however often it is probed; concurrent probes share the
+  // one check in flight.
+  const READY_CACHE_MS = 2_000;
+  let lastCheck: { at: number; ok: boolean } | undefined;
+  let checking: Promise<boolean> | undefined;
+  const checkStorage = async (): Promise<boolean> => {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        readSchemaVersion!(),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('no answer within 2 s')), 2_000); }),
+      ]);
+      if (storageDown) log('readyz: the database answers again.');
+      storageDown = false;
+      return true;
+    } catch (err: unknown) {
+      if (!storageDown) warn(`readyz: the database is unreachable (${err instanceof Error ? err.message : String(err)}); reporting not ready.`);
+      storageDown = true;
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const storageReachable = async (): Promise<boolean> => {
+    if (!readSchemaVersion) return true;
+    if (lastCheck && Date.now() - lastCheck.at < READY_CACHE_MS) return lastCheck.ok;
+    checking ??= checkStorage().then((ok) => {
+      lastCheck = { at: Date.now(), ok };
+      checking = undefined;
+      return ok;
+    });
+    return checking;
+  };
+  app.get('/readyz', async (_req, res) => {
+    if (unready || limiter.isDraining) {
       res.status(503).json({ status: 'draining' });
+      return;
+    }
+    if (!(await storageReachable())) {
+      res.status(503).json({ status: 'unavailable', reason: 'storage' });
       return;
     }
     res.json({ status: 'ready', sessions: sessionBackend, inFlight: limiter.inFlight });
@@ -990,6 +1039,9 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     app,
     config,
     sessionBackend,
+    markUnready: () => {
+      unready = true;
+    },
     shutdown: async (graceMs: number) => {
       const left = await limiter.drain(graceMs);
       for (const t of leaseTimers) clearInterval(t);

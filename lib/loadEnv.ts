@@ -19,6 +19,11 @@
  * as a credential. Before this, `cp .env.example .env` crashed the default
  * quickstart (`Invalid supabaseUrl`), made the doctor report every provider
  * funded, and turned the example bearer secret into a live one.
+ *
+ * `MELCHIZEDEK_DOTENV=off` in the environment skips every file: the process
+ * runs on its ambient environment alone. A container whose secrets arrive as
+ * real variables wants that, and so does a test that starts a bin from a
+ * clone holding a real `.env`, which must never reach live services.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -68,6 +73,7 @@ export function parseEnvFile(raw: string): Map<string, string> {
  *   clone run from another directory still finds its own `.env`.
  */
 export function loadEnv(moduleUrl?: string): void {
+  if (process.env.MELCHIZEDEK_DOTENV?.trim().toLowerCase() === 'off') return;
   const files = [join(process.cwd(), '.env')];
   if (moduleUrl) {
     const own = join(findRepoRoot(dirname(fileURLToPath(moduleUrl))), '.env');

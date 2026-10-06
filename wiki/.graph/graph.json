@@ -5,15 +5,15 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 616,
-    "edges": 1423,
+    "nodes": 620,
+    "edges": 1432,
     "byKind": {
-      "doc": 89,
+      "doc": 90,
       "provider": 6,
-      "env": 99,
+      "env": 100,
       "model": 8,
       "tool": 34,
-      "file": 72,
+      "file": 74,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,8 +23,8 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 215,
-      "requires_env": 154,
+      "links_to": 217,
+      "requires_env": 155,
       "routes_to": 8,
       "defined_in": 75,
       "documents": 56,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 338,
+      "imports": 339,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 239
+      "derives_from": 244
     },
     "byTier": {
-      "extracted": 1423,
+      "extracted": 1432,
       "inferred": 0
     },
     "isolated": 4
@@ -850,6 +850,18 @@
       }
     },
     {
+      "id": "/decisions/0038-graceful-stop-readiness-first.md",
+      "kind": "doc",
+      "label": "ADR 0038: A graceful stop fails readiness first, inside the grace budget",
+      "source": "/decisions/0038-graceful-stop-readiness-first.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 411
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -966,7 +978,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 911
+        "words": 962
       }
     },
     {
@@ -1014,7 +1026,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 400
+        "words": 473
       }
     },
     {
@@ -2370,6 +2382,12 @@
       "source": "lib/storage/schema.ts"
     },
     {
+      "id": "env:MELCHIZEDEK_DOTENV",
+      "kind": "env",
+      "label": "MELCHIZEDEK_DOTENV",
+      "source": "lib/loadEnv.ts"
+    },
+    {
       "id": "env:MELCHIZEDEK_REGISTRY_AUTHOR",
       "kind": "env",
       "label": "MELCHIZEDEK_REGISTRY_AUTHOR",
@@ -3134,6 +3152,12 @@
       "source": "tests/questionsA2a.test.ts"
     },
     {
+      "id": "file:tests/readiness.test.ts",
+      "kind": "file",
+      "label": "readiness.test.ts",
+      "source": "tests/readiness.test.ts"
+    },
+    {
       "id": "file:tests/redirects.test.ts",
       "kind": "file",
       "label": "redirects.test.ts",
@@ -3150,6 +3174,12 @@
       "kind": "file",
       "label": "selfCorrection.test.ts",
       "source": "tests/selfCorrection.test.ts"
+    },
+    {
+      "id": "file:tests/serverShutdown.test.ts",
+      "kind": "file",
+      "label": "serverShutdown.test.ts",
+      "source": "tests/serverShutdown.test.ts"
     },
     {
       "id": "file:tests/skillHarness.test.ts",
@@ -3256,7 +3286,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1001
+        "lines": 1053
       }
     },
     {
@@ -3391,7 +3421,7 @@
       "label": "lib/loadEnv.ts",
       "source": "lib/loadEnv.ts",
       "attrs": {
-        "lines": 101
+        "lines": 107
       }
     },
     {
@@ -3868,7 +3898,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 143
+        "lines": 178
       }
     },
     {
@@ -4156,7 +4186,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 470
+        "lines": 484
       }
     },
     {
@@ -7522,6 +7552,41 @@
       "evidence": "/decisions/0037-hardening-check-on-every-storage-path.md:28"
     },
     {
+      "from": "/decisions/0038-graceful-stop-readiness-first.md",
+      "to": "file:tests/readiness.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0038-graceful-stop-readiness-first.md frontmatter"
+    },
+    {
+      "from": "/decisions/0038-graceful-stop-readiness-first.md",
+      "to": "file:tests/serverShutdown.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0038-graceful-stop-readiness-first.md frontmatter"
+    },
+    {
+      "from": "/decisions/0038-graceful-stop-readiness-first.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0038-graceful-stop-readiness-first.md frontmatter"
+    },
+    {
+      "from": "/decisions/0038-graceful-stop-readiness-first.md",
+      "to": "module:lib/loadEnv.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0038-graceful-stop-readiness-first.md frontmatter"
+    },
+    {
+      "from": "/decisions/0038-graceful-stop-readiness-first.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0038-graceful-stop-readiness-first.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8244,6 +8309,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/decisions/0038-graceful-stop-readiness-first.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:46"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -8591,6 +8663,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md:27"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:29"
     },
     {
       "from": "/protocols/mcp.md",
@@ -10777,6 +10856,13 @@
       "evidence": "lib/index.ts"
     },
     {
+      "from": "module:lib/loadEnv.ts",
+      "to": "env:MELCHIZEDEK_DOTENV",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/loadEnv.ts"
+    },
+    {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/compile.ts",
       "rel": "imports",
@@ -12242,6 +12328,13 @@
     {
       "from": "module:lib/tools/mcpToolFactory.ts",
       "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/net/redirects.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"

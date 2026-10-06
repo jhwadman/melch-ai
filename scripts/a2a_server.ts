@@ -45,6 +45,7 @@
  *   A2A_REGISTRY_AGENTS       comma list: bare ids that load from adk_agent_registry
  *                             (others are files; registry:<id> always is the registry)
  *   A2A_SHUTDOWN_GRACE_MS     how long SIGTERM waits for running tasks (25000)
+ *   A2A_SHUTDOWN_DELAY_MS     of that, how long /readyz fails while requests are still served (5000)
  *   A2A_BUDGETS               daily budgets per UTC day (ADR 0026), JSON:
  *                             {"perCaller":{"tasks":500,"llmCalls":5000,"tokens":5000000},
  *                              "callers":{"reports":{"tasks":100}},"perScope":{"tasks":50}}.
@@ -349,7 +350,7 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   // The secret is not needed past this point; drop the reference.
   secret = undefined;
 
-  const { app, config, sessionBackend, shutdown } = built;
+  const { app, config, sessionBackend, shutdown, markUnready } = built;
   const server: Server = await new Promise((resolve) => {
     const s = host ? app.listen(port, host, () => resolve(s)) : app.listen(port, () => resolve(s));
   });
@@ -378,12 +379,25 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   let stopping = false;
   const graceMs = envInt('A2A_SHUTDOWN_GRACE_MS', 25_000);
+  // A load balancer keeps sending requests for a few seconds after SIGTERM,
+  // until it sees /readyz fail and deregisters this instance. Closing the
+  // listener at once would refuse those requests; fail readiness first and
+  // keep serving for the delay, then close and drain. The delay is part of
+  // the grace budget (running tasks keep running through it), so a stop still
+  // takes at most A2A_SHUTDOWN_GRACE_MS, inside Kubernetes' default 30 s.
+  const delayMs = Math.min(envInt('A2A_SHUTDOWN_DELAY_MS', 5_000), graceMs);
   const stop = async (signal: string) => {
     if (stopping) return;
     stopping = true;
-    emit('info', `[A2A] ${signal}: draining — no new tasks; waiting up to ${graceMs} ms for running ones.`);
+    markUnready();
+    if (delayMs > 0) {
+      emit('info', `[A2A] ${signal}: /readyz now fails; still serving for ${delayMs} ms while the load balancer deregisters this instance.`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+    const drainMs = graceMs - delayMs;
+    emit('info', `[A2A] ${signal}: draining — no new tasks; waiting up to ${drainMs} ms for running ones.`);
     server.close();
-    const canceled = await shutdown(graceMs);
+    const canceled = await shutdown(drainMs);
     if (canceled > 0) emit('warn', `[A2A] ⚠ ${canceled} task(s) did not finish in time and were canceled.`);
     // Give canceled tasks a moment to publish their final status, then flush
     // telemetry so the last turns reach the ledger, then release the pool.
