@@ -118,10 +118,11 @@ applies, in order:
    joined with `; `, source parentheses unioned — and are dropped.
 3. **The headline is arithmetic** over the tagged bullets' computed words:
    one bullet, its word (`Missing context` reads `True, but missing
-   context`); all Opinion, `Opinion`; otherwise the non-Opinion words must
-   all sit in one fact family — {True, Missing context}, {Misleading},
-   {False}, {Unverified} — to carry it, and anything else, argument words
-   included, is `Mixed`. The word in the verdict line is replaced; when tagged
+   context`); all Opinion, `Opinion`; an Opinion beside any ruling word,
+   `Mixed` — a piece whose weight is opinion is never True on the facts it
+   cites along the way; otherwise the words must all sit in one fact
+   family — {True, Missing context}, {Misleading}, {False}, {Unverified} —
+   to carry it, and anything else, argument words included, is `Mixed`. The word in the verdict line is replaced; when tagged
    bullets exist with no verdict line, one is inserted first.
 4. **Limits first.** When `primary_read` is false, the sentence directly under
    the verdict line is made to begin

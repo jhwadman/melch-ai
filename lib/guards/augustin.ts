@@ -231,10 +231,12 @@ export function computeWord(verdict: Verdict, written?: string | null): Computed
 
 /**
  * The headline over the tagged bullets' computed words. One bullet: its word.
- * All Opinion: Opinion. Otherwise the non-Opinion words must all sit in one
- * FACT family — {True, Missing context}, {Misleading}, {False}, {Unverified}
- * — to carry the headline; anything else, arguments included, is Mixed.
- * Returns null when there is nothing to compute over.
+ * All Opinion: Opinion. An Opinion beside any ruling word: Mixed — a piece
+ * whose weight is opinion is never True on the facts it cites along the way.
+ * Otherwise the words must all sit in one FACT family — {True, Missing
+ * context}, {Misleading}, {False}, {Unverified} — to carry the headline;
+ * anything else, arguments included, is Mixed. Returns null when there is
+ * nothing to compute over.
  */
 export function computeHeadline(words: readonly VerdictWord[]): string | null {
   if (words.length === 0) return null;
@@ -242,6 +244,7 @@ export function computeHeadline(words: readonly VerdictWord[]): string | null {
   if (words.length === 1) return asHeadline(words[0]!);
   const ruling = words.filter((w) => w !== 'Opinion');
   if (ruling.length === 0) return 'Opinion';
+  if (ruling.length < words.length) return 'Mixed';
   const set = new Set(ruling);
   if ([...set].every((w) => w === 'True' || w === 'Missing context')) {
     return set.has('Missing context') ? 'True, but missing context' : 'True';

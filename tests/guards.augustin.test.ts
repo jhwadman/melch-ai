@@ -122,13 +122,34 @@ test('the headline is arithmetic over the words', () => {
   assert.strictEqual(computeHeadline(['Misleading']), 'Misleading');
   assert.strictEqual(computeHeadline(['Missing context']), 'True, but missing context');
   assert.strictEqual(computeHeadline(['Opinion', 'Opinion']), 'Opinion');
-  assert.strictEqual(computeHeadline(['True', 'True', 'Opinion']), 'True');
+  assert.strictEqual(computeHeadline(['True', 'True']), 'True');
   assert.strictEqual(computeHeadline(['True', 'Missing context']), 'True, but missing context');
   assert.strictEqual(computeHeadline(['False', 'False']), 'False');
-  assert.strictEqual(computeHeadline(['Unverified', 'Unverified', 'Opinion']), 'Unverified');
+  assert.strictEqual(computeHeadline(['Unverified', 'Unverified']), 'Unverified');
   assert.strictEqual(computeHeadline(['True', 'Misleading']), 'Mixed');
   assert.strictEqual(computeHeadline(['Supported', 'Supported']), 'Mixed', 'argument words carry no headline family');
   assert.strictEqual(computeHeadline(['True', 'Unsupported']), 'Mixed');
+});
+
+test('an Opinion beside any ruling word makes the headline Mixed, whatever the ruling family', () => {
+  assert.strictEqual(computeHeadline(['True', 'Opinion']), 'Mixed');
+  assert.strictEqual(computeHeadline(['True', 'True', 'Opinion']), 'Mixed');
+  assert.strictEqual(computeHeadline(['Missing context', 'Opinion']), 'Mixed');
+  assert.strictEqual(computeHeadline(['Misleading', 'Opinion']), 'Mixed');
+  assert.strictEqual(computeHeadline(['False', 'False', 'Opinion']), 'Mixed');
+  assert.strictEqual(computeHeadline(['Unverified', 'Unverified', 'Opinion']), 'Mixed');
+  assert.strictEqual(computeHeadline(['Supported', 'Opinion']), 'Mixed');
+  assert.strictEqual(computeHeadline(['Unsupported', 'Opinion']), 'Mixed');
+  // Through the guard: facts that check out beside an opinion headline Mixed, not True.
+  const t = [
+    '**Fact check: True**',
+    'The episode itself was not read.',
+    '- True: the council voted 7-2 on 2026-09-30 (apnews.com) [C1]',
+    '- Opinion: the host, that the vote was cowardly. Nothing in the record speaks to motive (crooked.com) [C4]',
+  ].join('\n');
+  const { text, notes } = applyGuard(t, tools);
+  assert.strictEqual(text.split('\n')[0], '**Fact check: Mixed**');
+  assert.deepStrictEqual(notes, ['headline True→Mixed']);
 });
 
 // ── applyGuard on a FACT CHECK answer ────────────────────────────────────────

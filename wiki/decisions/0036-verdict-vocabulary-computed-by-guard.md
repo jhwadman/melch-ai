@@ -102,8 +102,10 @@ where prompt rules did not.
 - The headline arithmetic is the contract's: a single argument bullet
   headlines its own word (`Supported` / `Unsupported`), and several
   argument bullets headline `Mixed`, because the desk's headline vocabulary
-  has no argument family. Opinion bullets are ignored by the headline when a
-  ruling bullet exists.
+  has no argument family. An Opinion bullet beside any ruling bullet
+  headlines `Mixed`: a piece whose weight is opinion is never True on the
+  facts it cites along the way, and the sentence under the line says which
+  part is record and which is the speaker's view.
 - A sentence the model wrote in its own words that says something was
   `not read` satisfies the limit rule; the fixed sentence is inserted only
   when no such sentence sits under the verdict line.
