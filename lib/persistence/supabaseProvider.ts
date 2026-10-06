@@ -12,12 +12,10 @@ import type { BaseSessionService, BaseMemoryService } from '@google/adk';
 import { isPlaceholderValue } from '../loadEnv.ts';
 import type { Embedder, MemoryExtractor } from '../memory/providers.ts';
 
-export interface RlsHardeningStatus {
-  /** true only when db/hardening.sql has been applied and RLS is on for both tables. */
-  applied: boolean;
-  /** Human-readable explanation for logs. */
-  detail: string;
-}
+import { evaluateRlsRows } from '../storage/rlsStatus.ts';
+import type { RlsHardeningStatus, RlsRow } from '../storage/rlsStatus.ts';
+
+export type { RlsHardeningStatus } from '../storage/rlsStatus.ts';
 
 export interface PersistenceServices {
   sessionService: BaseSessionService;
@@ -109,42 +107,7 @@ export async function createSupabaseServices(
           detail: 'db/hardening.sql has not been applied (status function missing)',
         };
       }
-      const rows = (data ?? []) as { table_name: string; rls_enabled: boolean }[];
-      const unprotected = ['adk_memory_facts', 'adk_sessions'].filter(
-        (t) => !rows.some((r) => r.table_name === t && r.rls_enabled),
-      );
-      if (unprotected.length > 0) {
-        return {
-          applied: false,
-          detail: `RLS is disabled on: ${unprotected.join(', ')}`,
-        };
-      }
-      // adk_agent_registry is optional (only deployments that boot
-      // `registry:<id>` create it) but NOT advisory: an unprotected registry
-      // is agent takeover via the anon key, so a present-and-open table
-      // fails the check outright. Absent table => no row => nothing to say.
-      const registryRow = rows.find((r) => r.table_name === 'adk_agent_registry');
-      if (registryRow && !registryRow.rls_enabled) {
-        return {
-          applied: false,
-          detail:
-            'RLS is disabled on: adk_agent_registry (agent definitions are ' +
-            'writable with the anon key) — re-run db/hardening.sql',
-        };
-      }
-
-      // Advisory only — adk_telemetry is optional (db/telemetry.sql). If it
-      // exists but hardening.sql wasn't re-run afterwards, say so without
-      // failing the check (the mandatory tables are protected).
-      const telemetryRow = rows.find((r) => r.table_name === 'adk_telemetry');
-      if (telemetryRow && !telemetryRow.rls_enabled) {
-        return {
-          applied: true,
-          detail:
-            'RLS enabled on adk_memory_facts and adk_sessions — but NOT on adk_telemetry; re-run db/hardening.sql',
-        };
-      }
-      return { applied: true, detail: 'RLS enabled on adk_memory_facts and adk_sessions' };
+      return evaluateRlsRows((data ?? []) as RlsRow[]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return { applied: false, detail: `hardening check failed: ${msg}` };

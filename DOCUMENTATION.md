@@ -1078,8 +1078,12 @@ by a person; `skills/README.md` records the procedure.
   optional `adk_telemetry` sink and `adk_agent_registry` with its version
   history (an unprotected registry is worst of all: agent definitions writable with the anon key
   means anyone can rewrite the instructions your server boots). The A2A
-  server verifies hardening at boot and is fatal on public deployments
-  without it. Note `service_role` bypasses RLS by design — the hardening
+  server verifies hardening at boot on both storage paths (`DATABASE_URL`
+  and supabase-js) and is fatal on public deployments without it
+  (`ALLOW_UNHARDENED_DB=true` accepts the risk). Over `DATABASE_URL` the check
+  passes on its own when the database has no `anon` or `authenticated` role
+  (plain Postgres: no API serves the tables) or when the tables live in a
+  schema other than `public` (`MELCHIZEDEK_DB_SCHEMA`). Note `service_role` bypasses RLS by design — the hardening
   constrains the API surface, not the trusted server.
 - **A2A**: bearer auth, a failed-login limiter and a request rate limit
   are built in; without `A2A_SERVER_SECRET` the server binds loopback only.

@@ -6,6 +6,16 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Behaviour change: the hardening check runs on the `DATABASE_URL` path.**
+  The boot-time RLS check ran only on the deprecated supabase-js path, so a
+  deployment that followed the recommended setup was never checked, and
+  "fatal on public deployments without it" did not hold. `postgresStorage`
+  now supplies `rlsHardening()` and the server applies the same rules
+  (`lib/storage/rlsStatus.ts`): with `PUBLIC_URL` set, a Supabase database
+  whose `public` tables lack RLS stops the server (set
+  `ALLOW_UNHARDENED_DB=true` to accept the risk). A database with no `anon`
+  or `authenticated` role, or with the tables in a private schema, passes.
+  `createA2AApp`'s `storage` option accepts `rlsHardening` for custom storage.
 - **Fix: OpenAPI tools no longer follow redirects past the SSRF guard.**
   ADK's REST tool calls `fetch`, which follows redirects, and the guard
   checked only the configured server: an allowed API with an open redirect

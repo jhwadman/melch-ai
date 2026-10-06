@@ -24,6 +24,8 @@ import { PostgresSessionService } from './sessionService.ts';
 import { PostgresTaskStore, reapExpiredTasks, renewTaskLeases } from './taskStore.ts';
 import { postgresTaskBackend } from './taskQueue.ts';
 import { searchPathOption } from '../schema.ts';
+import { POSTGRES_RLS_QUERY, evaluatePostgresRls } from '../rlsStatus.ts';
+import type { RlsHardeningStatus, RlsRow } from '../rlsStatus.ts';
 import type { TaskBackend } from '../../tools/taskTools.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
@@ -78,6 +80,11 @@ export interface PostgresStorage {
   erase: (scopeKey: string, options?: EraseOptions) => Promise<EraseCounts>;
   /** The highest migration recorded in melchizedek_schema_version; null if none. */
   schemaVersion: () => Promise<number | null>;
+  /**
+   * Whether db/hardening.sql is in force where an API could expose the
+   * tables (lib/storage/rlsStatus.ts). Never throws.
+   */
+  rlsHardening: () => Promise<RlsHardeningStatus>;
   /**
    * One turn at a time per conversation, across every instance on this
    * database: a session-level advisory lock on a dedicated connection, so a
@@ -197,6 +204,15 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
         // No version table at all: the migrations were never applied.
         if ((err as { code?: string }).code === '42P01') return null;
         throw err;
+      }
+    },
+    async rlsHardening() {
+      try {
+        const r = await pool.query(POSTGRES_RLS_QUERY);
+        const row = r.rows[0] as { api_roles: boolean; schema: string; rows: RlsRow[] };
+        return evaluatePostgresRls({ apiRoles: row.api_roles, schema: row.schema, rows: row.rows });
+      } catch (err) {
+        return { applied: false, detail: `hardening check failed: ${err instanceof Error ? err.message : String(err)}` };
       }
     },
     async erase(scopeKey, eraseOptions = {}) {
