@@ -93,3 +93,6 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 | Anthropic Claude on Vertex AI | native web search: ✗ not sent on Vertex AI; the web_search sentinel is dropped (use web_extract) |
 | OpenAI GPT on Azure OpenAI | native web search: ✗ not sent on Azure OpenAI; the web_search sentinel is dropped (use web_extract) |
 <!-- /wiki:generated -->
+
+
+An agent may name a `fallback_model` (`lib/models/fallback.ts`, [ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). Its model is then wrapped: a provider-side failure (what `lib/models/retry.ts` classifies retryable, after the adapter's own retries) is answered by the fallback if nothing was produced yet, and a per-provider circuit opens after `MODEL_BREAKER_THRESHOLD` consecutive failures (default 5) so those agents skip the provider for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx, a cancellation, and a stream that already yielded text are thrown as they are. Agents without a fallback are not wrapped.

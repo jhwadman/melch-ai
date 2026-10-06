@@ -142,6 +142,11 @@ const agentFields = {
     .string()
     .min(1)
     .describe('Model id; its prefix picks the provider (gemini-*, claude-*, gpt-*/o*, grok-*, ollama/*).'),
+  fallback_model: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('A model on another provider that answers when this agent\'s model fails provider-side (5xx, 429, network) before producing anything, or while that provider\'s circuit is open (ADR 0044).'),
   instruction: z.string().min(1).describe('System prompt / persona.'),
   globalInstruction: z
     .string()
