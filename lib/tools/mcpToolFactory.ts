@@ -3,6 +3,8 @@ import type { Schema } from '@google/genai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { checkHost } from '../net/addressGuard.ts';
+import { fetchWithRedirectPolicy } from '../net/redirects.ts';
+import type { RedirectPolicy } from '../net/redirects.ts';
 
 // Security (SSRF): mcp_server_url can arrive from a registry-stored syndicate
 // config. Only http(s), and the host must pass lib/net/addressGuard.ts (the
@@ -51,11 +53,41 @@ export function mcpAuthHeaders(url: URL, env: NodeJS.ProcessEnv = process.env): 
   return typeof token === 'string' && token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * Where an MCP connection may be redirected (ADR 0036's rule, applied to MCP):
+ * a hop on the server's own origin gets the server's check (ALLOW_PRIVATE_MCP
+ * applies), a hop anywhere else the full guard with no development exception,
+ * and lib/net/redirects.ts strips every credential header from it, so a
+ * bearer token from MCP_BEARER_TOKENS never follows a redirect off its host.
+ * The SDK already refuses a POST endpoint on another origin.
+ */
+export const MCP_REDIRECTS: RedirectPolicy = {
+  async hopProblem(url, crossOrigin) {
+    if (!crossOrigin) {
+      try {
+        await assertSafeMcpUrl(url.href);
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err);
+      }
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return `${url.protocol} is not http(s)`;
+    const reason = await checkHost(url.hostname);
+    return reason ? `refusing MCP redirect to ${url.hostname}: ${reason}` : null;
+  },
+};
+
+/** The fetch an MCP transport uses: every redirect hop checked before it is followed. */
+export const mcpFetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> =>
+  fetchWithRedirectPolicy(input, init, MCP_REDIRECTS, (i, o) => fetch(i, o));
+
 export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool[]> {
+  let transport: SSEClientTransport | undefined;
   try {
     const url = await assertSafeMcpUrl(mcpServerUrl);
-    const transport = new SSEClientTransport(url, {
-      requestInit: { headers: mcpAuthHeaders(url) }
+    transport = new SSEClientTransport(url, {
+      requestInit: { headers: mcpAuthHeaders(url) },
+      fetch: mcpFetch,
     });
     const client = new Client({
       name: 'melchizedek-a2a-client',
@@ -137,6 +169,9 @@ export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool
     });
   } catch (error) {
     console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, error);
+    // A failed connect leaves the SSE stream's reconnect timer running; close
+    // it, or every unreachable server keeps retrying for the process's life.
+    await transport?.close().catch(() => {});
     return [];
   }
 }
