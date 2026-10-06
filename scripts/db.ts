@@ -48,6 +48,20 @@ export function installOrder(withTelemetry: boolean): string[] {
   return withTelemetry ? [...base, 'telemetry.sql', 'hardening.sql'] : base;
 }
 
+/**
+ * The whole install as one psql script: an advisory lock first, then every
+ * file in order with a progress line before each. psql runs it with
+ * --single-transaction and ON_ERROR_STOP, so a failure anywhere rolls the
+ * whole install back (no half-applied migration), and a second `apply`
+ * started meanwhile waits on the lock instead of interleaving with this one.
+ */
+export const APPLY_LOCK_KEY = 'melchizedek-db apply';
+export function applyScript(files: string[], sqlOf: (file: string) => string, label: (file: string) => string = (f) => `db/${f}`): string {
+  const parts = [`SELECT pg_advisory_xact_lock(hashtext('${APPLY_LOCK_KEY}'));\n`];
+  for (const file of files) parts.push(`\\echo '→ applying ${label(file).replace(/'/g, '')}'\n`, sqlOf(file), '\n');
+  return parts.join('');
+}
+
 /** postgres://user:pass@host:port/db?sslmode=… → libpq environment variables. */
 export function pgEnv(url: string): Record<string, string> {
   const u = new URL(url);
@@ -103,20 +117,22 @@ async function main(): Promise<void> {
         console.error('  or set DATABASE_URL to the Postgres connection string (Supabase: Settings → Database).');
         process.exit(1);
       }
-      for (const file of installOrder(withTelemetry)) {
-        console.log(`→ applying db/${file}${schema === 'public' ? '' : ` into schema ${schema}`}`);
-        const r = spawnSync('psql', ['-v', 'ON_ERROR_STOP=1', '-q', '-f', '-'], {
-          input: sqlOf(file),
-          stdio: ['pipe', 'inherit', 'inherit'],
-          // The connection goes to psql as PG* variables, never as an
-          // argument, so the password stays out of the process list.
-          env: { ...process.env, ...pgEnv(url) },
-        });
-        if (r.error) {
-          console.error(`✗ could not run psql (${r.error.message}). Install the Postgres client, or use \`print\`.`);
-          process.exit(1);
-        }
-        if (r.status !== 0) process.exit(r.status ?? 1);
+      // One transaction under one lock (see applyScript): all of it, or none.
+      const script = applyScript(installOrder(withTelemetry), sqlOf, (f) => `db/${f}${schema === 'public' ? '' : ` into schema ${schema}`}`);
+      const r = spawnSync('psql', ['-v', 'ON_ERROR_STOP=1', '-q', '--single-transaction', '-f', '-'], {
+        input: script,
+        stdio: ['pipe', 'inherit', 'inherit'],
+        // The connection goes to psql as PG* variables, never as an
+        // argument, so the password stays out of the process list.
+        env: { ...process.env, ...pgEnv(url) },
+      });
+      if (r.error) {
+        console.error(`✗ could not run psql (${r.error.message}). Install the Postgres client, or use \`print\`.`);
+        process.exit(1);
+      }
+      if (r.status !== 0) {
+        console.error('✗ the install failed and was rolled back: the database is as it was before `apply`.');
+        process.exit(r.status ?? 1);
       }
       console.log('✓ database is installed and hardened');
       return;

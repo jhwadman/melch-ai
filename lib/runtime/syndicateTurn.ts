@@ -31,6 +31,7 @@ import { InMemorySessionService, ReflectAndRetryModelPlugin, ReflectAndRetryTool
 import type { BasePlugin } from '@google/adk';
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
+import { DEFAULT_MAX_STEPS } from '../config.ts';
 import { agentGates, compileGraph, compileSubagent } from '../compile.ts';
 import { ROUTE_STEP_SUFFIX, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
 import type { PendingInput } from '../workflow.ts';
@@ -93,6 +94,8 @@ export interface TraceOptions {
   /** Extra root-span attributes (surface headers, eval tags). */
   attributes?: Record<string, string | number | boolean>;
   onSpanStart?: (ids: { traceId: string; spanId: string }) => void;
+  /** A caller's W3C traceparent: the turn's root span links to it (never joins it). */
+  traceparent?: string;
 }
 
 export interface SyndicateTurnOptions {
@@ -117,7 +120,7 @@ export interface SyndicateTurnOptions {
   signal?: AbortSignal;
   /** Wall-clock budget for the turn, in ms. Default: none. */
   deadlineMs?: number;
-  /** Model-call ceiling for the whole turn. Default: the YAML's `max_steps`. */
+  /** Model-call ceiling for the whole turn. Default: the YAML's `max_steps`, else DEFAULT_MAX_STEPS (50). */
   maxLlmCalls?: number;
   /** Ask adapters for token-by-token partial events (the REPL's live view). */
   streaming?: boolean;
@@ -447,7 +450,7 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
   // caller that resolves models itself (the A2A server) is left alone.
   if (!opts.compile?.resolveModel) registerAvailableProviders();
   const control = createTurnControl({
-    maxLlmCalls: opts.maxLlmCalls ?? config.max_steps,
+    maxLlmCalls: opts.maxLlmCalls ?? config.max_steps ?? DEFAULT_MAX_STEPS,
     deadlineMs: opts.deadlineMs,
     signal: opts.signal,
   });
@@ -609,6 +612,7 @@ async function runTurnInner(
         configHash: trace.configHash,
         attributes: trace.attributes,
         onSpanStart: trace.onSpanStart,
+        traceparent: trace.traceparent,
         onEnd: () => ({
           'syndicate.relay_fallback': params.stage === 'delegate' && !!params.relayFallback?.(),
           ...(control.stopReason ? { 'syndicate.stop_reason': control.stopReason } : {}),

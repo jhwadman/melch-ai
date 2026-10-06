@@ -110,6 +110,8 @@ Field reference:
 | `a2a_agent_url` | subagent | A REMOTE agent over A2A (§6): the orchestrator delegates to it with one `request` argument; in plan-dispatch it can be a route. No `model`/`instruction` — the remote agent has its own. Credentials come from `A2A_AGENT_TOKENS`, never YAML. |
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
 | `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to ADK's LlmAgent. `includeContents: none` makes an agent see only the current message. |
+| `fallback_model` | any agent | A model, ideally on another provider, that answers when this agent's model fails provider-side (5xx, 429, a connection reset, after its own retries) before producing any output, or while that provider's circuit is open: after `MODEL_BREAKER_THRESHOLD` consecutive provider failures (default 5; 0 disables) the provider is skipped for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx and a canceled turn are never redirected, and a stream that already produced text is never replayed elsewhere ([ADR 0044](./wiki/decisions/0044-fallback-model-and-circuit-breaker.md)). |
+| `mcp_tools` | subagent | The MCP server's tools this agent may use; any other tool the server lists is not exposed. On a dispatch route `require_approval` may name them ([ADR 0041](./wiki/decisions/0041-tool-vendors-get-least-privilege.md)). |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
 | `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
@@ -180,7 +182,11 @@ writes is exposed only by naming it, and a named operation can be listed
 under `require_approval` (as written under `operations`) so a person
 approves each call. `auth` names an environment variable, never a value
 (`bearer_env`, or `api_key` with `in: header | query` and `name`); an unset
-variable fails the compile, and a static token is applied to the request,
+variable fails the compile, and so does one of the framework's own settings
+(the database URL, a provider key, an `A2A_` secret: anything `.env.example`
+documents), since the YAML chooses the host it goes to.
+`OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`
+may name. A refused or unset variable fails the compile, and a static token is applied to the request,
 never stored in session state. Every server must be http(s) and pass the
 SSRF guard: its literal rules when the agent compiles, the full check with
 DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for
@@ -223,7 +229,11 @@ npx melchizedek-db status    # schema version, hardening, session counts
 
 That runs the migrations in [`db/migrations/`](./db/migrations/) and then
 [`db/hardening.sql`](./db/hardening.sql). Both are idempotent, so re-running
-them is also the upgrade path from any earlier layout.
+them is also the upgrade path from any earlier layout. `apply` runs the whole
+install as one transaction under an advisory lock: if any statement fails,
+nothing is changed, and two applies started together run one after the other.
+Rolling back a migration that succeeded is a restore from backup (§6), since
+the migrations only move forward.
 
 The tables go in the `public` schema by default. To keep them out of reach of
 a REST layer (Supabase exposes `public`), install into a private schema and
@@ -545,9 +555,28 @@ or pass your own `resolveRequest`.
   The counts live in the `melchizedek_usage` table (`db/migrations/0004_usage.sql`)
   when Postgres or Supabase is configured, else in process memory. A store
   that cannot be read refuses the task.
-- **One record per task** (option `onTaskEnd`): agent, caller, a hash of the
-  scope, status, reason, duration, model calls and tokens.
+- **One record per task** (option `onTaskEnd`): task id, trace id, agent,
+  caller, a hash of the scope, status, reason, duration, model calls and
+  tokens. The trace id is the one the turn's spans and its ledger row carry,
+  and the audit trail's `task.end` row names both ids, so one id joins the
+  log, the ledger, the audit trail and your tracing backend. A request
+  carrying a W3C `traceparent` header is linked, not joined: the turn's root
+  span links to the caller's span and records `caller.trace_id`, and the
+  record carries `callerTraceId`. The turn keeps a trace id of its own, since
+  ledger attribution and erasure key on it and a caller must not choose it.
   `A2A_LOG_FORMAT=json` prints every server line as JSON, this record included.
+- **The audit trail** (`melchizedek_audit`, `db/migrations/0012_audit_log.sql`;
+  option `audit`, supplied by `postgresStorage`): one row per failed
+  authentication (`auth.failure`), task outcome (`task.end`) and erasure
+  (`memory.erase`), with the caller's name, the source address, the agent and
+  task ids, and a hash of the scope. Never a scope key and never conversation
+  content. A trigger refuses UPDATE and DELETE; rows leave only through
+  `SELECT melchizedek_prune_audit(<days>)`, which you schedule (pg_cron, or a
+  job) for the retention your evidence needs, since the source address is
+  personal data. A failed write is logged once and each event is printed to
+  stderr as JSON until writes recover. A database owner can still alter the
+  table; ship the rows to a store you do not administer when the evidence must
+  survive that.
 - **Rate limit**: with an authenticator it counts per caller (an operator's
   backend) or per scope (an end user); under the shared secret, per IP.
 - **The telemetry ledger is redacted before it is written**:
@@ -555,6 +584,30 @@ or pass your own `resolveRequest`.
   `email`, `phone`, `card` (Luhn-checked) or `ssn`, or plug in your own with
   `setTelemetryRedactor(fn)`. Sessions and memory are not redacted; use
   `DELETE /memory` there.
+
+#### Where your data goes
+
+What a deployment sends where, how long it is kept, and the setting that
+changes it. "Your Postgres" is the database `DATABASE_URL` (or Supabase)
+names; nothing is kept by the framework anywhere else.
+
+| Data | Goes to | Kept | Change it with |
+|---|---|---|---|
+| The prompt: the user's message, the conversation, tool results | The model provider of each agent that runs (the model-id prefix) | The provider's policy | The `model:` lines in the YAML; `ollama/` ids stay on your machine |
+| Tool calls (`web_search`, `web_extract`, OpenAPI, MCP) | The tool's own host | That host's policy | The agent's `tools:`, `openapi:`, `mcp_server_url` / `mcp_tools` |
+| Sessions (conversation history) | Your Postgres, `adk_sessions` | 7 days after the last message | `ttlDays` (`postgresStorage`) |
+| Long-term memory facts | Your Postgres, `adk_memory_facts`; **the transcript is also sent to the extraction and embedding providers, Gemini by default whatever the agents run on** (the server warns at boot when they differ) | Until erased, or `memory_retention_days` | `MEMORY_EXTRACTION_MODEL`, `MEMORY_EMBEDDING_PROVIDER`, `memory_retention_days` |
+| The ledger: each turn's input, output and tool results (key-shaped secrets redacted) | Your Postgres, `adk_turns`, `adk_telemetry` | **Until you prune it**: schedule `melchizedek_prune_telemetry(<days>)` | `TELEMETRY_REDACT`, the prune's `turn_days` |
+| Sampled full model requests | Your Postgres, `adk_payloads` | 30 days | `TELEMETRY_PAYLOADS`, `TELEMETRY_PAYLOAD_TTL_DAYS` |
+| Traces, when `OTEL_EXPORTER_OTLP_ENDPOINT` is set | Your OTLP collector, conversation content included with key-shaped secrets redacted (`off` drops it) | Your collector's policy | `OTEL_EXPORT_CONTENT` (`redacted`, `off`, `raw`) |
+| The audit trail (no content) | Your Postgres, `melchizedek_audit` | Until `melchizedek_prune_audit(<days>)` | The prune schedule |
+| The task record (no content) | stdout | Your log platform's policy | `A2A_LOG_FORMAT` |
+
+`DELETE /memory` erases a user from every Postgres store above except the
+audit trail, which holds no content, only a hash of the scope. It does not
+reach a provider's own retention: read each provider's data terms, and the
+business associate or data processing agreement you need with it, before
+sending it regulated data.
 
 #### Who pays
 
@@ -687,7 +740,10 @@ subagent or a workflow node listing it is a load error. In code,
 | `A2A_AUTH_FAILURE_MAX` failed logins per IP per 15 min, then blocked | 30 |
 | `A2A_TASK_TIMEOUT_MS` per task | 15 min |
 | `A2A_MAX_CONCURRENT_TASKS` | unlimited |
-| `max_steps` (YAML): model calls per turn, subagents included | none |
+| `A2A_MAX_CONCURRENT_PER_SCOPE`: tasks at once for one end user | 4 |
+| `A2A_MAX_CONCURRENT_PER_CALLER`: tasks at once for one caller | unlimited |
+| `max_steps` (YAML): model calls per turn, subagents included | 50 |
+| `A2A_TRUST_PROXY`: proxies in front (required with `PUBLIC_URL`) | none trusted |
 | `A2A_BODY_LIMIT` | 1 MB |
 | `A2A_SHUTDOWN_GRACE_MS`: SIGTERM waits for running tasks | 25 s |
 | `A2A_SHUTDOWN_DELAY_MS`: of that, `/readyz` fails while requests are still served | 5 s |
@@ -720,7 +776,11 @@ Without `A2A_SERVER_SECRET` the server binds `127.0.0.1` only; binding
 another `HOST` requires the secret or `ALLOW_UNAUTHENTICATED=true`. With
 `PUBLIC_URL` set it refuses to start without the secret, with the
 `.env.example` placeholder as the secret, or against an unhardened
-database (unless `ALLOW_UNHARDENED_DB=true`). With durable storage it reads
+database (unless `ALLOW_UNHARDENED_DB=true`), and until the deployment
+states its posture: `A2A_AUTH` (prefer `callers` or `jwt`; `secret` lets any
+holder of the secret act as any user), `A2A_SERVED_AGENTS` (a list, or `*`
+for every agent) and `A2A_TRUST_PROXY` (the number of proxies in front, or
+`false`). The refusal names each one missing. With durable storage it reads
 `melchizedek_schema_version` and refuses to start on a database behind the
 migrations it ships, naming `melchizedek-db apply` (or
 `ALLOW_SCHEMA_MISMATCH=true` to start anyway); a database ahead of it only
@@ -746,8 +806,8 @@ local conversation keeps talking to the same remote conversation.
 `Dockerfile` builds the compiled server and runs it as a non-root user with
 a health check; `compose.yaml` adds optional Ollama and Phoenix (traces).
 `npx melchizedek-db print|apply|status` installs and checks the database.
-Set `PUBLIC_URL`, `A2A_SERVER_SECRET` and the provider keys from your
-secret manager; give the orchestrator's stop timeout at least
+Set `PUBLIC_URL`, `A2A_SERVER_SECRET`, `A2A_AUTH`, `A2A_SERVED_AGENTS`,
+`A2A_TRUST_PROXY` and the provider keys from your secret manager; give the orchestrator's stop timeout at least
 `A2A_SHUTDOWN_GRACE_MS`. On SIGTERM the server first fails `/readyz` and
 keeps serving for `A2A_SHUTDOWN_DELAY_MS` so the load balancer deregisters
 it, then closes the listener and drains running tasks for the rest of the

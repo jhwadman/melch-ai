@@ -84,3 +84,5 @@ A `CORRECTION` record carries a quote of what it supersedes. The service embeds 
 Every row is siloed by `user_key = appName/userId`, where `appName` on the A2A server is the syndicate's `memory_namespace` (else `melchizedek-a2a`).
 
 Erasure comes in two sizes. The A2A server's `DELETE /memory` and `erase(scopeKey)` remove a scope from every store: facts, sessions, ledger rows and A2A tasks ([A2A](/protocols/a2a.md)). `deleteUserMemory(userKey)` removes one user key's facts only, leaving sessions and the ledger in place. Both **throw** on failure rather than silently doing nothing. How the whole framework fits around this: [architecture](/overview/architecture.md).
+
+Memory's extraction and embedding providers are their own choice (`MEMORY_EXTRACTION_MODEL`, `MEMORY_EMBEDDING_PROVIDER`), Gemini by default whatever the agents run on, so a syndicate's transcripts can reach a provider its agents do not use. The A2A server says so once per long-term syndicate at load (`memoryCrossesProviders` in `lib/memory/providers.ts`), naming the providers and the two variables; DOCUMENTATION's "Where your data goes" lists every destination and its retention.

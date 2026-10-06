@@ -5,41 +5,41 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 625,
-    "edges": 1437,
+    "nodes": 641,
+    "edges": 1481,
     "byKind": {
-      "doc": 91,
+      "doc": 96,
       "provider": 6,
-      "env": 100,
+      "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 78,
+      "file": 85,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
-      "table": 16,
-      "module": 120,
+      "table": 17,
+      "module": 122,
       "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 218,
-      "requires_env": 155,
+      "links_to": 226,
+      "requires_env": 156,
       "routes_to": 8,
-      "defined_in": 75,
+      "defined_in": 76,
       "documents": 56,
       "contains": 89,
       "uses_model": 89,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 339,
+      "imports": 348,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 248
+      "derives_from": 273
     },
     "byTier": {
-      "extracted": 1437,
+      "extracted": 1481,
       "inferred": 0
     },
     "isolated": 4
@@ -862,6 +862,18 @@
       }
     },
     {
+      "id": "/decisions/0039-public-deployments-state-their-posture.md",
+      "kind": "doc",
+      "label": "ADR 0039: A public deployment states its posture; turns and users have default caps",
+      "source": "/decisions/0039-public-deployments-state-their-posture.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 450
+      }
+    },
+    {
       "id": "/decisions/0040-releases-from-tags-with-provenance.md",
       "kind": "doc",
       "label": "ADR 0040: Releases ship from a version tag, with npm provenance and an SBOM; CI is pinned and scanned",
@@ -874,6 +886,54 @@
       }
     },
     {
+      "id": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "kind": "doc",
+      "label": "ADR 0041: Tool vendors get least privilege: OpenAPI auth cannot read framework secrets; MCP tools are allowlisted, gateable and bounded",
+      "source": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 435
+      }
+    },
+    {
+      "id": "/decisions/0042-append-only-audit-trail.md",
+      "kind": "doc",
+      "label": "ADR 0042: An append-only audit trail of who did what, from where",
+      "source": "/decisions/0042-append-only-audit-trail.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 386
+      }
+    },
+    {
+      "id": "/decisions/0043-link-inbound-trace-context.md",
+      "kind": "doc",
+      "label": "ADR 0043: A caller's trace context is linked, never adopted",
+      "source": "/decisions/0043-link-inbound-trace-context.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 307
+      }
+    },
+    {
+      "id": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "kind": "doc",
+      "label": "ADR 0044: An agent may name a fallback model; a provider that keeps failing is skipped for a cooldown",
+      "source": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 338
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -882,7 +942,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 860
+        "words": 924
       }
     },
     {
@@ -894,7 +954,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 11404
+        "words": 12009
       }
     },
     {
@@ -954,7 +1014,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1614
+        "words": 1695
       }
     },
     {
@@ -990,7 +1050,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1060
+        "words": 1251
       }
     },
     {
@@ -1026,7 +1086,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1378
+        "words": 1414
       }
     },
     {
@@ -1038,7 +1098,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 473
+        "words": 543
       }
     },
     {
@@ -1074,7 +1134,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 272
+        "words": 321
       }
     },
     {
@@ -2507,6 +2567,12 @@
       "source": "lib/models/endpoints.ts"
     },
     {
+      "id": "env:OPENAPI_CREDENTIAL_ENVS",
+      "kind": "env",
+      "label": "OPENAPI_CREDENTIAL_ENVS",
+      "source": "lib/tools/openapiTools.ts"
+    },
+    {
       "id": "env:OTEL_CONSOLE_ALL_SPANS",
       "kind": "env",
       "label": "OTEL_CONSOLE_ALL_SPANS",
@@ -3084,6 +3150,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0012_audit_log.sql",
+      "kind": "file",
+      "label": "0012_audit_log.sql",
+      "source": "db/migrations/0012_audit_log.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -3144,10 +3217,22 @@
       "source": "tests/agents.test.ts"
     },
     {
+      "id": "file:tests/auditTrail.test.ts",
+      "kind": "file",
+      "label": "auditTrail.test.ts",
+      "source": "tests/auditTrail.test.ts"
+    },
+    {
       "id": "file:tests/execution.test.ts",
       "kind": "file",
       "label": "execution.test.ts",
       "source": "tests/execution.test.ts"
+    },
+    {
+      "id": "file:tests/fallback.test.ts",
+      "kind": "file",
+      "label": "fallback.test.ts",
+      "source": "tests/fallback.test.ts"
     },
     {
       "id": "file:tests/governance.test.ts",
@@ -3162,6 +3247,12 @@
       "source": "tests/identity.test.ts"
     },
     {
+      "id": "file:tests/mcpTools.test.ts",
+      "kind": "file",
+      "label": "mcpTools.test.ts",
+      "source": "tests/mcpTools.test.ts"
+    },
+    {
       "id": "file:tests/models.test.ts",
       "kind": "file",
       "label": "models.test.ts",
@@ -3173,6 +3264,12 @@
       "label": "openapiTools.test.ts",
       "source": "tests/openapiTools.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/publicPosture.test.ts",
+      "kind": "file",
+      "label": "publicPosture.test.ts",
+      "source": "tests/publicPosture.test.ts"
     },
     {
       "id": "file:tests/questions.test.ts",
@@ -3229,6 +3326,18 @@
       "kind": "file",
       "label": "syndicateTurn.test.ts",
       "source": "tests/syndicateTurn.test.ts"
+    },
+    {
+      "id": "file:tests/taskLimiter.test.ts",
+      "kind": "file",
+      "label": "taskLimiter.test.ts",
+      "source": "tests/taskLimiter.test.ts"
+    },
+    {
+      "id": "file:tests/traceCorrelation.test.ts",
+      "kind": "file",
+      "label": "traceCorrelation.test.ts",
+      "source": "tests/traceCorrelation.test.ts"
     },
     {
       "id": "file:tests/workflow.test.ts",
@@ -3322,7 +3431,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1053
+        "lines": 1103
       }
     },
     {
@@ -3331,7 +3440,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 705
+        "lines": 774
       }
     },
     {
@@ -3385,7 +3494,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 433
+        "lines": 463
       }
     },
     {
@@ -3394,7 +3503,7 @@
       "label": "lib/config.ts",
       "source": "lib/config.ts",
       "attrs": {
-        "lines": 142
+        "lines": 150
       }
     },
     {
@@ -3466,7 +3575,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 688
+        "lines": 692
       }
     },
     {
@@ -3493,7 +3602,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 306
+        "lines": 340
       }
     },
     {
@@ -3539,6 +3648,15 @@
       "source": "lib/models/endpoints.ts",
       "attrs": {
         "lines": 322
+      }
+    },
+    {
+      "id": "module:lib/models/fallback.ts",
+      "kind": "module",
+      "label": "lib/models/fallback.ts",
+      "source": "lib/models/fallback.ts",
+      "attrs": {
+        "lines": 118
       }
     },
     {
@@ -3659,6 +3777,15 @@
       }
     },
     {
+      "id": "module:lib/observability/audit.ts",
+      "kind": "module",
+      "label": "lib/observability/audit.ts",
+      "source": "lib/observability/audit.ts",
+      "attrs": {
+        "lines": 63
+      }
+    },
+    {
       "id": "module:lib/observability/embeddings.ts",
       "kind": "module",
       "label": "lib/observability/embeddings.ts",
@@ -3682,7 +3809,7 @@
       "label": "lib/observability/metrics.ts",
       "source": "lib/observability/metrics.ts",
       "attrs": {
-        "lines": 110
+        "lines": 116
       }
     },
     {
@@ -3718,7 +3845,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 772
+        "lines": 800
       }
     },
     {
@@ -3763,7 +3890,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 964
+        "lines": 968
       }
     },
     {
@@ -3808,7 +3935,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 237
+        "lines": 242
       }
     },
     {
@@ -3880,7 +4007,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 903
+        "lines": 918
       }
     },
     {
@@ -3934,7 +4061,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 178
+        "lines": 205
       }
     },
     {
@@ -3943,7 +4070,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 215
+        "lines": 246
       }
     },
     {
@@ -4222,7 +4349,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 484
+        "lines": 513
       }
     },
     {
@@ -4240,7 +4367,7 @@
       "label": "scripts/db.ts",
       "source": "scripts/db.ts",
       "attrs": {
-        "lines": 179
+        "lines": 195
       }
     },
     {
@@ -5271,6 +5398,12 @@
       "kind": "table",
       "label": "adk_verdicts",
       "source": "db/telemetry.sql"
+    },
+    {
+      "id": "table:melchizedek_audit",
+      "kind": "table",
+      "label": "melchizedek_audit",
+      "source": "db/migrations/0012_audit_log.sql"
     },
     {
       "id": "table:melchizedek_memory_ingest",
@@ -7623,6 +7756,62 @@
       "evidence": "/decisions/0038-graceful-stop-readiness-first.md frontmatter"
     },
     {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "file:tests/publicPosture.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "file:tests/taskLimiter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:lib/config.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md frontmatter"
+    },
+    {
+      "from": "/decisions/0039-public-deployments-state-their-posture.md",
+      "to": "/decisions/0025-built-in-authenticators.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0039-public-deployments-state-their-posture.md:32"
+    },
+    {
       "from": "/decisions/0040-releases-from-tags-with-provenance.md",
       "to": "file:.github/dependabot.yml",
       "rel": "derives_from",
@@ -7649,6 +7838,125 @@
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "file:tests/mcpTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0041-tool-vendors-get-least-privilege.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "file:db/migrations/0012_audit_log.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "file:tests/auditTrail.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0042-append-only-audit-trail.md",
+      "to": "module:lib/observability/audit.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
+    },
+    {
+      "from": "/decisions/0043-link-inbound-trace-context.md",
+      "to": "file:tests/traceCorrelation.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0043-link-inbound-trace-context.md frontmatter"
+    },
+    {
+      "from": "/decisions/0043-link-inbound-trace-context.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0043-link-inbound-trace-context.md frontmatter"
+    },
+    {
+      "from": "/decisions/0043-link-inbound-trace-context.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0043-link-inbound-trace-context.md frontmatter"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "file:tests/fallback.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/fallback.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
     },
     {
       "from": "/memory/architecture.md",
@@ -7820,6 +8128,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0012_audit_log.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -7830,14 +8145,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:32"
+      "evidence": "/memory/schema.md:33"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2130"
+      "evidence": "/memory/schema.md:2237"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -8121,6 +8436,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:98"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -8380,10 +8702,31 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/decisions/0039-public-deployments-state-their-posture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:40"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/decisions/0040-releases-from-tags-with-provenance.md",
       "rel": "links_to",
       "tier": "extracted",
+      "evidence": "/operations/setup.md:54"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0042-append-only-audit-trail.md",
+      "rel": "links_to",
+      "tier": "extracted",
       "evidence": "/operations/setup.md:50"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0043-link-inbound-trace-context.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:52"
     },
     {
       "from": "/operations/setup.md",
@@ -8688,6 +9031,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/decisions/0039-public-deployments-state-their-posture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:36"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -8738,6 +9088,13 @@
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:29"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md:29"
@@ -8906,6 +9263,13 @@
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:21"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/openapi-tools.md:21"
@@ -10473,7 +10837,21 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/observability/audit.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/observability/metrics.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/observability/tracer.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/app.ts"
@@ -10537,6 +10915,13 @@
     {
       "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/observability/audit.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/executor.ts"
@@ -10649,6 +11034,20 @@
     {
       "from": "module:lib/compile.ts",
       "to": "module:lib/models/capabilities.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
+      "to": "module:lib/models/fallback.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
+      "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compile.ts"
@@ -11326,6 +11725,20 @@
       "evidence": "lib/models/endpoints.ts"
     },
     {
+      "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
+    },
+    {
       "from": "module:lib/models/gateway.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
@@ -11992,6 +12405,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/dispatch.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12105,6 +12525,13 @@
     {
       "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/memory/supabaseMemoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/observability/audit.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/index.ts"
@@ -12441,6 +12868,13 @@
     {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "env:OPENAPI_CREDENTIAL_ENVS",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
@@ -15447,6 +15881,13 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "db/telemetry.sql"
+    },
+    {
+      "from": "table:melchizedek_audit",
+      "to": "file:db/migrations/0012_audit_log.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0012_audit_log.sql"
     },
     {
       "from": "table:melchizedek_memory_ingest",

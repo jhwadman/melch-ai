@@ -20,7 +20,12 @@
  *     (ADR 0028), so a POST or a DELETE can wait for a person.
  *   - SECRETS FROM THE ENVIRONMENT. `auth` names an environment variable,
  *     never a value; a variable that is not set fails the compile, so an
- *     agent never runs half-authenticated.
+ *     agent never runs half-authenticated. A YAML (possibly registry-stored)
+ *     chooses both the variable and the host, so it may never name one of
+ *     the framework's own secrets (credentialEnvProblem): the database URL,
+ *     a provider key or an A2A secret cannot be sent to an API.
+ *     OPENAPI_CREDENTIAL_ENVS, when the operator sets it, is the exact list
+ *     of variables an `auth` may name.
  *   - THE SSRF GUARD. Every server URL the tools will call must be http(s)
  *     and pass lib/net/addressGuard.ts: its literal rules at compile time
  *     (offline), and the full check with DNS before each call (a name can
@@ -109,9 +114,35 @@ async function hostProblem(baseUrl: string, resolve: boolean): Promise<string | 
   return reason ? `refusing ${url.hostname}: ${reason} (set ALLOW_PRIVATE_OPENAPI=true for local development)` : null;
 }
 
+/** Prefixes and names of variables the framework itself reads: never an API credential. */
+const FRAMEWORK_ENV_PREFIXES = [
+  'A2A_', 'SUPABASE_', 'DATABASE_', 'MCP_', 'MODEL_', 'MEMORY_', 'OTEL_', 'TELEMETRY_', 'MELCHIZEDEK_',
+  'GOOGLE_', 'GEMINI_', 'ANTHROPIC_', 'OPENAI_', 'AZURE_', 'AWS_', 'XAI_', 'MOONSHOT_', 'OLLAMA_', 'WIKI_',
+  'ALLOW_', 'OPENAPI_',
+];
+const FRAMEWORK_ENV_NAMES = new Set(['PUBLIC_URL', 'HOST', 'PORT', 'PATH', 'HOME', 'NODE_OPTIONS', 'WEB_EXTRACT_CHAR_LIMIT']);
+
+/**
+ * Why an `auth` may not read this variable, or null. With
+ * OPENAPI_CREDENTIAL_ENVS set, only the names it lists are allowed; without
+ * it, anything but the framework's own variables is.
+ */
+export function credentialEnvProblem(name: string, env: NodeJS.ProcessEnv = process.env): string | null {
+  const allow = env.OPENAPI_CREDENTIAL_ENVS?.split(',').map((s) => s.trim()).filter(Boolean);
+  if (allow?.length) {
+    return allow.includes(name) ? null : `${name} is not in OPENAPI_CREDENTIAL_ENVS (${allow.join(', ')})`;
+  }
+  if (FRAMEWORK_ENV_NAMES.has(name) || FRAMEWORK_ENV_PREFIXES.some((p) => name.startsWith(p))) {
+    return `${name} is one of the framework's own settings and may not be sent to an API; give the API its own variable (or list it in OPENAPI_CREDENTIAL_ENVS)`;
+  }
+  return null;
+}
+
 function credentialFor(auth: OpenApiAuthConfig | undefined, spec: string): { authScheme?: any; authCredential?: any } {
   if (!auth) return {};
   const read = (env: string): string => {
+    const refused = credentialEnvProblem(env);
+    if (refused) throw new Error(`openapi ${spec}: ${refused}`);
     const value = process.env[env]?.trim();
     if (!value) throw new Error(`openapi ${spec}: ${env} is not set (auth reads it from the environment)`);
     return value;

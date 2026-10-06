@@ -1,4 +1,5 @@
-import { trace, context } from '@opentelemetry/api';
+import { trace, context, defaultTextMapGetter, ROOT_CONTEXT } from '@opentelemetry/api';
+import type { Context, SpanContext } from '@opentelemetry/api';
 import { createRequire } from 'node:module';
 import { TELEMETRY_SCHEMA_VERSION, engineVersion } from './lineage.ts';
 import { FilteringSpanExporter, otlpContentMode } from './otlpFilter.ts';
@@ -376,6 +377,14 @@ export interface TraceMetadata {
   /** Receives the root span's ids as soon as it starts (before any child). */
   onSpanStart?: (ids: { traceId: string; spanId: string }) => void;
   /**
+   * A caller's W3C `traceparent`. The turn's root span LINKS to the caller's
+   * span (and records `caller.trace_id`) instead of joining its trace: a turn's
+   * trace id keys its ledger attribution, its in-process stats and erasure,
+   * so it must stay unique to the turn and never be chosen by a caller.
+   * Ignored unless well formed (validTraceparent).
+   */
+  traceparent?: string;
+  /**
    * Identity of the turn. These are what make a stored turn joinable to
    * its session row (`adk_sessions.id` = app:user:session) and to the ADK
    * events of the same invocation; without them a trace and a session can
@@ -434,13 +443,32 @@ export function serverToolEvents(
   return out;
 }
 
+const TRACEPARENT = /^00-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-[0-9a-f]{2}$/;
+
+/** A well-formed version-00 W3C traceparent, or undefined. Never throws. */
+export function validTraceparent(value: unknown): string | undefined {
+  return typeof value === 'string' && TRACEPARENT.test(value.trim().toLowerCase()) ? value.trim().toLowerCase() : undefined;
+}
+
+/** The caller's span a turn links to, from its `traceparent`; undefined when absent or malformed. */
+export function callerSpanContext(traceparent: string | undefined): SpanContext | undefined {
+  const tp = validTraceparent(traceparent);
+  if (!tp) return undefined;
+  const ctx: Context = new core.W3CTraceContextPropagator().extract(ROOT_CONTEXT, { traceparent: tp }, defaultTextMapGetter);
+  return trace.getSpanContext(ctx);
+}
+
 export async function* traceAgentRun(
   stream: AsyncIterableIterator<Event>,
   metadata: TraceMetadata
 ): AsyncGenerator<Event, void, void> {
   initializeTracing();
 
-  const span = tracer.startSpan(`Syndicate Execution: ${metadata.syndicateName}`);
+  const caller = callerSpanContext(metadata.traceparent);
+  const span = tracer.startSpan(
+    `Syndicate Execution: ${metadata.syndicateName}`,
+    caller ? { links: [{ context: caller }], attributes: { 'caller.trace_id': caller.traceId } } : undefined,
+  );
   turnContexts.set(span.spanContext().traceId, {
     sessionId: metadata.sessionId,
     userId: metadata.userId,

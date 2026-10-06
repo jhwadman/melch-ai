@@ -31,6 +31,7 @@ import { declaresApprovals } from '../compile.ts';
 import type { MessagePart, PendingInput, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
 import { describeInput } from '../runtime/syndicateTurn.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
+import type { AuditSink } from '../observability/audit.ts';
 import type { Policy } from './policy.ts';
 
 /** Per-request caller context, set by the server's identity middleware. */
@@ -58,6 +59,10 @@ export interface A2AContext {
    *  server secret), as opposed to an end user (a JWT, a gateway header).
    *  Operator-only adopter routes check it. */
   operator?: boolean;
+  /** The request's source address (behind A2A_TRUST_PROXY), for the audit trail only. */
+  sourceIp?: string;
+  /** The caller's W3C traceparent, when well formed: the turn's root span links to it. */
+  traceparent?: string;
 }
 
 export interface SurfaceContext {
@@ -178,6 +183,8 @@ export interface ExecutorOptions {
   policy?: Policy;
   /** One record per task, however it ended: the task log and metrics. */
   onTaskEnd?: (record: TaskRecord) => void;
+  /** Receives one `task.end` audit event per task (ADR 0042). */
+  onAudit?: AuditSink;
   /**
    * Stream the answer as the model writes it, as `answer` artifact chunks
    * (see answerStream). Off by default; never for a syndicate with guards.
@@ -193,31 +200,71 @@ export interface ExecutorOptions {
 
 const NO_USAGE: TurnUsage = { llmCalls: 0, inputTokens: 0, outputTokens: 0, thinkingTokens: 0 };
 
-/** Concurrency cap and in-flight registry shared by all executors. */
+/** Per-key caps beside the global one: 0 or absent means no cap. */
+export interface TaskLimits {
+  /** Concurrent tasks for one scope (one end user's data). */
+  perScope?: number;
+  /** Concurrent tasks for one authenticated caller (a backend, a token). */
+  perCaller?: number;
+}
+
+/** Concurrency caps and in-flight registry shared by all executors. */
 export class TaskLimiter {
   readonly max: number;
+  readonly perScope: number;
+  readonly perCaller: number;
   private readonly running = new Map<string, AbortController>();
+  /** taskId → the keys it counts against, so release frees exactly those. */
+  private readonly keysOf = new Map<string, string[]>();
+  private readonly counts = new Map<string, number>();
   private draining = false;
   private idleWaiters: Array<() => void> = [];
 
-  constructor(max: number) {
+  constructor(max: number, limits: TaskLimits = {}) {
     this.max = max > 0 ? max : Infinity;
+    this.perScope = limits.perScope && limits.perScope > 0 ? limits.perScope : Infinity;
+    this.perCaller = limits.perCaller && limits.perCaller > 0 ? limits.perCaller : Infinity;
+  }
+
+  /**
+   * Why a task for this scope and caller may not start now, or undefined.
+   * Checked before acquire() so the refusal can name the cap that was hit.
+   */
+  refusal(who: { scopeKey?: string; caller?: string } = {}): string | undefined {
+    if (this.draining) return 'The server is shutting down; retry shortly.';
+    if (this.running.size >= this.max) return `The server is at its limit of ${this.max} concurrent tasks; retry shortly.`;
+    if (who.scopeKey && (this.counts.get(`s:${who.scopeKey}`) ?? 0) >= this.perScope) {
+      return `This user already has ${this.perScope} tasks running, the most allowed at once; retry when one finishes.`;
+    }
+    if (who.caller && (this.counts.get(`c:${who.caller}`) ?? 0) >= this.perCaller) {
+      return `This caller already has ${this.perCaller} tasks running, the most allowed at once; retry when one finishes.`;
+    }
+    return undefined;
   }
 
   get inFlight(): number {
     return this.running.size;
   }
 
-  /** Reserve a slot. Returns undefined when saturated or shutting down. */
-  acquire(taskId: string): AbortController | undefined {
-    if (this.draining || this.running.size >= this.max) return undefined;
+  /** Reserve a slot. Returns undefined when any cap is reached or the server is shutting down. */
+  acquire(taskId: string, who: { scopeKey?: string; caller?: string } = {}): AbortController | undefined {
+    if (this.refusal(who)) return undefined;
     const controller = new AbortController();
     this.running.set(taskId, controller);
+    const keys = [who.scopeKey && `s:${who.scopeKey}`, who.caller && `c:${who.caller}`].filter((k): k is string => !!k);
+    for (const k of keys) this.counts.set(k, (this.counts.get(k) ?? 0) + 1);
+    this.keysOf.set(taskId, keys);
     return controller;
   }
 
   release(taskId: string): void {
     this.running.delete(taskId);
+    for (const k of this.keysOf.get(taskId) ?? []) {
+      const n = (this.counts.get(k) ?? 1) - 1;
+      if (n > 0) this.counts.set(k, n);
+      else this.counts.delete(k);
+    }
+    this.keysOf.delete(taskId);
     if (this.running.size === 0) for (const w of this.idleWaiters.splice(0)) w();
   }
 
@@ -463,6 +510,8 @@ export class SyndicateExecutor implements AgentExecutor {
     // Reports the task once: to the task log and metrics, and its spend to
     // the policy. Never throws into the task.
     let reported = false;
+    // The turn's trace (the last root span started: a dispatch turn's answer).
+    let traceId: string | undefined;
     const report = async (
       ctx: A2AContext | undefined,
       status: TaskRecord['status'],
@@ -481,6 +530,9 @@ export class SyndicateExecutor implements AgentExecutor {
       }
       try {
         this.opts.onTaskEnd?.({
+          taskId,
+          traceId,
+          ...(ctx?.traceparent ? { callerTraceId: ctx.traceparent.split('-')[1] } : {}),
           agentId,
           syndicate: config.syndicate_name,
           caller: ctx?.caller,
@@ -492,6 +544,20 @@ export class SyndicateExecutor implements AgentExecutor {
         });
       } catch {
         /* a broken log sink must not fail the task */
+      }
+      try {
+        this.opts.onAudit?.({
+          event: 'task.end',
+          outcome: status,
+          caller: ctx?.caller,
+          scopeHash: scopeKey ? createHash('sha256').update(scopeKey).digest('hex').slice(0, 12) : undefined,
+          sourceIp: ctx?.sourceIp,
+          agentId,
+          taskId,
+          detail: { syndicate: config.syndicate_name, ...(reason ? { reason } : {}), ...(traceId ? { traceId } : {}), durationMs: Date.now() - started, llmCalls: usage.llmCalls },
+        });
+      } catch {
+        /* nor a broken audit sink */
       }
     };
     let ctxForReport: A2AContext | undefined;
@@ -546,11 +612,10 @@ export class SyndicateExecutor implements AgentExecutor {
         }
       }
 
-      slot = this.opts.limiter.acquire(taskId);
+      const who = { scopeKey: ctx.scopeKey, caller: ctx.caller };
+      slot = this.opts.limiter.acquire(taskId, who);
       if (!slot) {
-        const why = this.opts.limiter.isDraining
-          ? 'The server is shutting down; retry shortly.'
-          : `The server is at its limit of ${this.opts.limiter.max} concurrent tasks; retry shortly.`;
+        const why = this.opts.limiter.refusal(who) ?? 'The server is at capacity; retry shortly.';
         warn(`Task ${short} rejected — ${why}`);
         publishFinal(eventBus, taskId, contextId, 'rejected', why);
         await report(ctx, 'rejected', 'capacity');
@@ -614,6 +679,10 @@ export class SyndicateExecutor implements AgentExecutor {
           taskId,
           configHash: this.configHashFor(),
           attributes: surfaceAttributes(ctx),
+          traceparent: ctx.traceparent,
+          onSpanStart: (ids) => {
+            traceId = ids.traceId;
+          },
         },
         events: {
           onProgress: (text) => publishWorking(eventBus, taskId, contextId, text),

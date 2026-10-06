@@ -24,6 +24,11 @@
           "minLength": 1,
           "description": "Model id; its prefix picks the provider (gemini-*, claude-*, gpt-*/o*, grok-*, ollama/*)."
         },
+        "fallback_model": {
+          "description": "A model on another provider that answers when this agent's model fails provider-side (5xx, 429, network) before producing anything, or while that provider's circuit is open (ADR 0044).",
+          "type": "string",
+          "minLength": 1
+        },
         "instruction": {
           "type": "string",
           "minLength": 1,
@@ -160,6 +165,15 @@
         "mcp_server_url": {
           "description": "MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.",
           "type": "string"
+        },
+        "mcp_tools": {
+          "description": "The MCP server's tools this agent may use, by name; any other tool the server lists is not exposed. Without it, every listed tool is. require_approval may name these. Needs mcp_server_url.",
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "skills": {
           "type": "object",
@@ -379,6 +393,11 @@
             "type": "string",
             "minLength": 1
           },
+          "fallback_model": {
+            "description": "A model on another provider that answers when this agent's model fails provider-side (5xx, 429, network) before producing anything, or while that provider's circuit is open (ADR 0044).",
+            "type": "string",
+            "minLength": 1
+          },
           "instruction": {
             "type": "string",
             "minLength": 1,
@@ -515,6 +534,15 @@
           "mcp_server_url": {
             "description": "MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.",
             "type": "string"
+          },
+          "mcp_tools": {
+            "description": "The MCP server's tools this agent may use, by name; any other tool the server lists is not exposed. Without it, every listed tool is. require_approval may name these. Needs mcp_server_url.",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           "skills": {
             "type": "object",
@@ -1021,7 +1049,7 @@
       "maximum": 9007199254740991
     },
     "max_steps": {
-      "description": "Hard cap on runner loops (LLM → tool cycles).",
+      "description": "Hard cap on model calls per turn, subagents included. Default 50 (DEFAULT_MAX_STEPS) when unset.",
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991

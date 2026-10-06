@@ -28,9 +28,8 @@
  * Contract and rationale: lib/dispatch.ts.
  */
 
-import { AgentTool, BuiltInCodeExecutor, ExampleTool, FunctionTool, LLMRegistry, LlmAgent, LlmSummarizer, TokenBasedContextCompactor } from '@google/adk';
+import { AgentTool, BaseLlm, BuiltInCodeExecutor, ExampleTool, FunctionTool, LLMRegistry, LlmAgent, LlmSummarizer, TokenBasedContextCompactor } from '@google/adk';
 import type { BaseTool, Context, RunAsyncToolRequest } from '@google/adk';
-import type { BaseLlm } from '@google/adk';
 import { relative } from 'node:path';
 
 import { isDispatchSyndicate } from './dispatch.ts';
@@ -39,6 +38,8 @@ import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
 import { capabilitySummary, describeCapabilities } from './models/capabilities.ts';
+import { FallbackLlm } from './models/fallback.ts';
+import { resolveModel as resolveRegistryModel } from './models/registry.ts';
 import { remoteAgentTool } from './a2a/remoteAgent.ts';
 import { buildSkillHarness } from './tools/skillToolset.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
@@ -256,12 +257,30 @@ export function examplesTool(examples: ExampleConfig[] | undefined): unknown[] {
   ];
 }
 
+/**
+ * An agent with `fallback_model:` gets its model wrapped (lib/models/fallback.ts):
+ * the fallback answers a provider-side failure, and a provider that keeps
+ * failing is skipped for a cooldown. A model id string is resolved to its
+ * adapter first, so the wrapper always holds two adapters.
+ */
+function withFallback(
+  primary: unknown,
+  fallbackId: string | undefined,
+  resolve: (m: string) => unknown,
+  opts: CompileOptions,
+): unknown {
+  if (!fallbackId) return primary;
+  const asLlm = (m: unknown): BaseLlm => (m instanceof BaseLlm ? m : resolveRegistryModel(String(m)));
+  return new FallbackLlm(asLlm(primary), asLlm(resolve(fallbackId)), opts.log ?? ((m) => console.warn(m)));
+}
+
 async function resolveAgentTools(
   toolNames: string[] | undefined,
   mcpServerUrl: string | undefined,
   opts: CompileOptions,
   openapi?: OpenApiConfig[],
   examples?: ExampleConfig[],
+  mcpAllowed?: string[],
 ): Promise<unknown[]> {
   const tools = [...resolveNamedTools(toolNames, opts.onUnknownTool), ...examplesTool(examples)];
   // OpenAPI operations become tools here, so require_approval can name them.
@@ -275,7 +294,18 @@ async function resolveAgentTools(
   }
   if (mcpServerUrl) {
     opts.log?.(`Loading MCP tools: ${mcpServerUrl}`);
-    const mcpTools = await createMcpTools(mcpServerUrl);
+    const offered = await createMcpTools(mcpServerUrl);
+    // mcp_tools: only the named tools are exposed (a server's list is its
+    // own to change); a name the server does not offer is reported, and a
+    // gate on it fails the compile in gateTools.
+    const allowed = mcpAllowed ? new Set(mcpAllowed) : undefined;
+    const mcpTools = allowed ? offered.filter((t) => allowed.has(t.name)) : offered;
+    if (allowed) {
+      const missing = [...allowed].filter((n) => !offered.some((t) => t.name === n));
+      if (missing.length) opts.log?.(`MCP ${mcpServerUrl} does not offer ${missing.map((n) => `'${n}'`).join(', ')} (mcp_tools)`);
+      const hidden = offered.length - mcpTools.length;
+      if (hidden) opts.log?.(`MCP ${mcpServerUrl}: ${hidden} tool(s) not in mcp_tools are not exposed`);
+    }
     for (const mcpTool of mcpTools) {
       if (!tools.some((t: any) => t.name === mcpTool.name)) tools.push(mcpTool);
     }
@@ -337,7 +367,7 @@ export async function compileSubagent(
     return compileGraph(nested, opts, subCfg.name, subCfg.description);
   }
 
-  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples), subCfg.require_approval, subCfg.name);
+  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples, subCfg.mcp_tools), subCfg.require_approval, subCfg.name);
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
@@ -345,7 +375,7 @@ export async function compileSubagent(
   return new LlmAgent({
     name: subCfg.name,
     description: subCfg.description,
-    model: resolveModel(subCfg.model) as any,
+    model: withFallback(resolveModel(subCfg.model), subCfg.fallback_model, resolveModel, opts) as any,
     instruction,
     tools: tools.length > 0 ? (tools as any[]) : undefined,
     outputSchema: subCfg.outputSchema as any,
@@ -419,7 +449,7 @@ export async function compileGraph(
   return new LlmAgent({
     name: overrideName || config.orchestrator.name,
     description: overrideDescription || config.orchestrator.description,
-    model: resolveModel(config.orchestrator.model) as any,
+    model: withFallback(resolveModel(config.orchestrator.model), config.orchestrator.fallback_model, resolveModel, opts) as any,
     instruction,
     tools: orchestratorTools.length > 0 ? (orchestratorTools as any[]) : undefined,
     outputSchema: config.orchestrator.outputSchema as any,

@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { installOrder, migrationFiles, pgEnv } from '../scripts/db.ts';
+import { join } from 'node:path';
+import { APPLY_LOCK_KEY, applyScript, installOrder, migrationFiles, pgEnv } from '../scripts/db.ts';
 
 test('a DATABASE_URL becomes libpq variables, password decoded and never an argument', () => {
   const env = pgEnv('postgresql://u%40x:p%23w@db.example.co:6543/postgres');
@@ -43,4 +44,22 @@ test('the install order is migrations, then hardening (and again after telemetry
   assert.strictEqual(order.at(-1), 'hardening.sql');
   assert.ok(order.indexOf('hardening.sql') > order.indexOf('migrations/0001_base.sql'));
   assert.ok(order.indexOf('telemetry.sql') > order.indexOf('hardening.sql'));
+});
+
+test('apply sends the whole install as one script: the lock first, then every file in order', () => {
+  const files = installOrder(true);
+  const script = applyScript(files, (f) => `-- body of ${f}\n`);
+  assert.ok(script.startsWith(`SELECT pg_advisory_xact_lock(hashtext('${APPLY_LOCK_KEY}'));`), 'the lock is the first statement');
+  let at = 0;
+  for (const f of files) {
+    const echo = script.indexOf(`\\echo '→ applying db/${f}'`, at);
+    const body = script.indexOf(`-- body of ${f}`, echo);
+    assert.ok(echo >= at && body > echo, `${f} in order, after its progress line`);
+    at = body;
+  }
+});
+
+test('no shipped SQL holds a statement that cannot run inside the single apply transaction', () => {
+  const sql = installOrder(true).map((f) => readFileSync(join('db', f), 'utf-8')).join('\n');
+  assert.doesNotMatch(sql, /\bCONCURRENTLY\b|\bVACUUM\b|^\s*(BEGIN|COMMIT|ROLLBACK)\s*;|ALTER SYSTEM|CREATE DATABASE/im);
 });

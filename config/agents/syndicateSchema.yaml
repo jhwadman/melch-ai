@@ -185,6 +185,12 @@ orchestrator:
   # Subagents inherit this if not set on their own config.
   model: "gemini-3.5-flash-lite"
 
+  # [optional] A model that answers when `model` fails provider-side (5xx,
+  # 429, a connection reset) before producing anything, or while that
+  # provider's circuit is open (MODEL_BREAKER_THRESHOLD, ADR 0044). Put it
+  # on another provider. A 4xx is never redirected.
+  # fallback_model: "claude-haiku-4-5"
+
   # [required] The agent's system prompt / persona.
   # Maps to: instruction
   instruction: |
@@ -413,6 +419,13 @@ subagents:
     # refused unless ALLOW_PRIVATE_MCP=true (local development).
     # See config/agents/librarian.yaml for the worked example.
     # mcp_server_url: "http://localhost:8931/sse"
+
+    # [optional] The MCP server's tools this agent may use, by name. Any
+    # other tool the server lists is not exposed (a server's list is its
+    # own to change). Without it, every listed tool is. On a dispatch
+    # route, require_approval may name these (ADR 0041). Descriptions are
+    # cut at 1,000 characters and results at 20,000.
+    # mcp_tools: [wiki_search, wiki_read]
 
     # [optional] Agent Skills for this subagent; same block as on the
     # orchestrator. `scripts: "local"` is allowed here only under
