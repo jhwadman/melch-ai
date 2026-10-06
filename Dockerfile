@@ -37,8 +37,9 @@ USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-# SIGTERM drains running tasks (A2A_SHUTDOWN_GRACE_MS, default 25 s): give the
-# orchestrator's stop timeout at least that long.
+# SIGTERM fails /readyz, keeps serving for A2A_SHUTDOWN_DELAY_MS (5 s), then
+# drains running tasks; the whole stop fits A2A_SHUTDOWN_GRACE_MS (25 s): give
+# the orchestrator's stop timeout at least that long.
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["node", "dist/scripts/a2a_server.js"]
 CMD ["syndicate.yaml"]

@@ -690,6 +690,7 @@ subagent or a workflow node listing it is a load error. In code,
 | `max_steps` (YAML): model calls per turn, subagents included | none |
 | `A2A_BODY_LIMIT` | 1 MB |
 | `A2A_SHUTDOWN_GRACE_MS`: SIGTERM waits for running tasks | 25 s |
+| `A2A_SHUTDOWN_DELAY_MS`: of that, `/readyz` fails while requests are still served | 5 s |
 
 The rate limit and the failed-login limit count in the process by default,
 so each replica keeps its own window. With `A2A_REDIS_URL` set (and the
@@ -747,7 +748,12 @@ a health check; `compose.yaml` adds optional Ollama and Phoenix (traces).
 `npx melchizedek-db print|apply|status` installs and checks the database.
 Set `PUBLIC_URL`, `A2A_SERVER_SECRET` and the provider keys from your
 secret manager; give the orchestrator's stop timeout at least
-`A2A_SHUTDOWN_GRACE_MS`.
+`A2A_SHUTDOWN_GRACE_MS`. On SIGTERM the server first fails `/readyz` and
+keeps serving for `A2A_SHUTDOWN_DELAY_MS` so the load balancer deregisters
+it, then closes the listener and drains running tasks for the rest of the
+grace period; point the readiness probe at `/readyz`, which also fails while
+durable storage does not answer. `MELCHIZEDEK_DOTENV=off` makes every bin
+ignore `.env` files and run on its environment alone.
 
 #### Backups
 
