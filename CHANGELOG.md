@@ -4,8 +4,50 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
-## Unreleased
+## 0.17.0 — 2026-10-06
 
+### Read before upgrading
+
+- **Run `npx melchizedek-db apply`.** Migration `0011_erase_expired` ships
+  with this version, and the server refuses to start against a database
+  behind the shipped migrations.
+- **A public Supabase deployment on `DATABASE_URL` must be hardened.** The
+  boot-time RLS check now runs on that path; `db/hardening.sql` (which
+  `melchizedek-db apply` runs) satisfies it, `ALLOW_UNHARDENED_DB=true`
+  opts out.
+- **Self-correction is on by default.** Retries count against `max_steps`
+  and can raise spend; `retries: { model_errors: 0, tool_errors: 0 }`
+  restores the previous behaviour.
+
+### Changes
+
+- **Behaviour change: the hardening check runs on the `DATABASE_URL` path.**
+  The boot-time RLS check ran only on the deprecated supabase-js path, so a
+  deployment that followed the recommended setup was never checked, and
+  "fatal on public deployments without it" did not hold. `postgresStorage`
+  now supplies `rlsHardening()` and the server applies the same rules
+  (`lib/storage/rlsStatus.ts`): with `PUBLIC_URL` set, a Supabase database
+  whose `public` tables lack RLS stops the server (set
+  `ALLOW_UNHARDENED_DB=true` to accept the risk). A database with no `anon`
+  or `authenticated` role, or with the tables in a private schema, passes.
+  `createA2AApp`'s `storage` option accepts `rlsHardening` for custom storage.
+- **Fix: OpenAPI tools no longer follow redirects past the SSRF guard.**
+  ADK's REST tool calls `fetch`, which follows redirects, and the guard
+  checked only the configured server: an allowed API with an open redirect
+  could send a call to the cloud metadata service, and an `api_key` header
+  went with it. A call now follows redirects one hop at a time
+  (`lib/net/redirects.ts`): same-origin hops get the server's own check,
+  cross-origin hops the full guard (even with `ALLOW_PRIVATE_OPENAPI`) and
+  only content-negotiation headers. A refused hop returns an error to the
+  model. Nothing changes for a fetch made outside an OpenAPI tool call.
+- **Fix: `DELETE /memory` erases expired conversations.** A namespace erase
+  (the default) found conversations through their live session rows, so once
+  a session expired after seven idle days its ledger turns, spans, payloads
+  and A2A tasks survived the erase while the response reported success.
+  Migration `0011_erase_expired` replaces `melchizedek_erase_scope`: a
+  namespace erase now keeps a turn or task only when its conversation is
+  still live in another namespace. Run `npx melchizedek-db apply`; the server
+  refuses to start against a database behind the shipped migrations.
 - **Moonshot AI (Kimi) is a provider.** `kimi-*` model ids route to a new
   direct adapter (`lib/models/kimiLlm.ts`, chat completions against
   `api.moonshot.ai`), funded by `MOONSHOT_API_KEY` (`MOONSHOT_BASE_URL` for a

@@ -46,6 +46,7 @@ import { createSupabaseServices, hasSupabaseCredentials } from '../persistence/s
 import { inProcessTurnLock } from './turnLock.ts';
 import type { TurnLock } from './turnLock.ts';
 import { compareSchema, schemaBehindMessage, shippedSchemaVersion } from '../storage/schemaVersion.ts';
+import type { RlsHardeningStatus } from '../storage/rlsStatus.ts';
 import { eraseScope } from '../memory/erase.ts';
 import type { EraseCounts } from '../memory/erase.ts';
 import { namespacedMemoryService } from '../memory/namespace.ts';
@@ -101,6 +102,12 @@ export interface A2AAppOptions {
      * migrations this package ships (ADR 0021).
      */
     schemaVersion?: () => Promise<number | null>;
+    /**
+     * Whether db/hardening.sql is in force (postgresStorage supplies it).
+     * When given, the server checks it at boot like the supabase-js path:
+     * fatal with `requireHardenedDb`, a warning otherwise.
+     */
+    rlsHardening?: () => Promise<RlsHardeningStatus>;
     /**
      * One turn at a time per conversation across instances (postgresStorage
      * supplies an advisory lock). Default: a lock in this process.
@@ -406,11 +413,13 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   let memoryService: BaseMemoryService | undefined;
   let erase: NonNullable<A2AAppOptions['storage']>['erase'];
   let readSchemaVersion: (() => Promise<number | null>) | undefined;
+  let checkHardening: (() => Promise<RlsHardeningStatus>) | undefined;
   if (options.storage) {
     durableSessions = options.storage.sessionService;
     memoryService = options.storage.memoryService;
     erase = options.storage.erase;
     readSchemaVersion = options.storage.schemaVersion;
+    checkHardening = options.storage.rlsHardening;
   } else if (hasSupabaseCredentials()) {
     // ADR 0021 item 6: the supabase-js path stays for a transition period.
     warn('Storage: supabase-js over the Supabase REST API is deprecated (ADR 0021). Set DATABASE_URL to the '
@@ -427,7 +436,11 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     memoryService = services.memoryService;
     erase = (scopeKey, eraseOpts) => eraseScope(services.rpcClient, scopeKey, eraseOpts);
     readSchemaVersion = services.schemaVersion;
-    const rls = await services.checkRlsHardening();
+    checkHardening = services.checkRlsHardening;
+  }
+  // Both storage paths: refuse a public deployment whose tables an API key can read.
+  if (checkHardening) {
+    const rls = await checkHardening();
     if (rls.applied) {
       log(`✓ DB hardening verified — ${rls.detail}.`);
     } else if (options.requireHardenedDb) {

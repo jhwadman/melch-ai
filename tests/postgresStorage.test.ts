@@ -290,6 +290,33 @@ test('erase: one namespace, everywhere, and nested — exactly the scope, sub-ag
   await assert.rejects(storage.erase('  '), /scope key is required/);
 });
 
+test('erase: a namespace erase reaches conversations whose sessions expired', { skip }, async () => {
+  await pool.query('TRUNCATE adk_sessions, adk_session_events, adk_turns, adk_telemetry, adk_payloads, adk_a2a_tasks');
+  // c1 is live in ns1, c9 is live in ns2, and c5's session rows expired and
+  // were pruned (0001): only the ledger and the task store still hold it.
+  await pool.query(`
+    INSERT INTO adk_sessions (id, app_name, user_id) VALUES
+      ('ns1:u1:c1','ns1','u1'),('ns2:u1:c9','ns2','u1'),('Scout:u1:c9','Scout','u1');
+    INSERT INTO adk_turns (ts, trace_id, span_id, syndicate, user_id, session_id) VALUES
+      (now() - interval '14 days','t5','s5','x','u1','c5'),(now(),'t1','s1','x','u1','c1'),
+      (now(),'t9','s9','y','u1','c9'),(now(),'t0','s0','x','u1',NULL),(now(),'t3','s3','x','u2','c5');
+    INSERT INTO adk_telemetry (trace_id, span_id, span_name, span) VALUES ('t5','a','llm.request','{}'),('t9','c','llm.request','{}');
+    INSERT INTO adk_payloads (ts, trace_id, span_id, reason) VALUES (now(),'t5','a','error');
+    INSERT INTO adk_a2a_tasks (owner, agent_id, id, context_id, task) VALUES
+      ('u1','desk','k5','c5','{}'),('u1','desk','k1','c1','{}'),('u1','desk','k9','c9','{}');
+  `);
+  const ids = async (sql: string) => (await pool.query(sql)).rows.map((r) => Object.values(r)[0]).sort();
+
+  const counts = await storage.erase('u1', { namespace: 'ns1' });
+  assert.equal(counts.turns, 3, 'the live c1, the expired c5, and the turn with no conversation');
+  assert.equal(counts.spans, 1);
+  assert.equal(counts.payloads, 1);
+  assert.equal(counts.tasks, 2, 'c1 and the expired c5');
+  assert.deepEqual(await ids('SELECT trace_id FROM adk_turns'), ['t3', 't9'], 'ns2 keeps its live c9; u2 is untouched');
+  assert.deepEqual(await ids('SELECT trace_id FROM adk_telemetry'), ['t9']);
+  assert.deepEqual(await ids('SELECT id FROM adk_a2a_tasks'), ['k9']);
+});
+
 test('the usage store adds atomically under concurrency and reads back per day and subject', { skip }, async () => {
   const { postgresUsageStore } = await import('../lib/a2a/policy.ts');
   const store = postgresUsageStore(pool);

@@ -8,6 +8,11 @@
  * markers, and (without a namespace) its task tools' list and jobs
  * (migration 0010), in one transaction. Returns what each store lost.
  *
+ * With a namespace, ledger turns and A2A tasks are kept only when their
+ * conversation is still live in another namespace (migration 0011): they do
+ * not record the namespace, and a conversation whose session expired must
+ * not survive an erase.
+ *
  * Throws on any failure: a deletion request that silently did nothing is
  * worse than an error the caller can surface and retry.
  */
