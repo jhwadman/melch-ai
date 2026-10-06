@@ -40,6 +40,13 @@ the starter pack and the templates), not the repo's full history.
 
 ### Changes
 
+- **An append-only audit trail** (`melchizedek_audit`, migration
+  `0012_audit_log`; ADR 0042). Every failed authentication, task outcome
+  and erasure is recorded with the caller, the source address, the agent
+  and task ids and a scope hash, and no content. A trigger refuses UPDATE
+  and DELETE; `melchizedek_prune_audit(days)` is the retention path.
+  `postgresStorage` supplies the sink (`audit`), and `createA2AApp` takes
+  an `audit` option for any other. Run `npx melchizedek-db apply`.
 - **`mcp_tools:`, an agent key**: the MCP server's tools the agent may use;
   any other tool the server lists is not exposed. On a dispatch route,
   `require_approval` may name a listed MCP tool, so a write waits for a

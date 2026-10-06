@@ -317,6 +317,16 @@ test('erase: a namespace erase reaches conversations whose sessions expired', { 
   assert.deepEqual(await ids('SELECT id FROM adk_a2a_tasks'), ['k9']);
 });
 
+test('audit: the storage appends events, and the table refuses UPDATE and DELETE (migration 0012)', { skip }, async () => {
+  storage.audit({ event: 'auth.failure', outcome: 'denied', sourceIp: '10.0.0.9', detail: { path: '/x' } });
+  await new Promise((r) => setTimeout(r, 200));
+  const rows = (await pool.query("SELECT event, outcome, source_ip, detail FROM melchizedek_audit WHERE source_ip = '10.0.0.9'")).rows;
+  assert.deepEqual(rows.map((r) => [r.event, r.outcome, r.detail.path]), [['auth.failure', 'denied', '/x']]);
+  await assert.rejects(pool.query("UPDATE melchizedek_audit SET outcome = 'ok'"), /append-only/);
+  await assert.rejects(pool.query('DELETE FROM melchizedek_audit'), /append-only/);
+  assert.equal(Number((await pool.query('SELECT melchizedek_prune_audit(1) AS n')).rows[0].n), 0, 'nothing older than a day');
+});
+
 test('the usage store adds atomically under concurrency and reads back per day and subject', { skip }, async () => {
   const { postgresUsageStore } = await import('../lib/a2a/policy.ts');
   const store = postgresUsageStore(pool);

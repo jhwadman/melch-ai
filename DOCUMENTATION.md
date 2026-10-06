@@ -556,6 +556,18 @@ or pass your own `resolveRequest`.
 - **One record per task** (option `onTaskEnd`): agent, caller, a hash of the
   scope, status, reason, duration, model calls and tokens.
   `A2A_LOG_FORMAT=json` prints every server line as JSON, this record included.
+- **The audit trail** (`melchizedek_audit`, `db/migrations/0012_audit_log.sql`;
+  option `audit`, supplied by `postgresStorage`): one row per failed
+  authentication (`auth.failure`), task outcome (`task.end`) and erasure
+  (`memory.erase`), with the caller's name, the source address, the agent and
+  task ids, and a hash of the scope. Never a scope key and never conversation
+  content. A trigger refuses UPDATE and DELETE; rows leave only through
+  `SELECT melchizedek_prune_audit(<days>)`, which you schedule (pg_cron, or a
+  job) for the retention your evidence needs, since the source address is
+  personal data. A failed write is logged once and each event is printed to
+  stderr as JSON until writes recover. A database owner can still alter the
+  table; ship the rows to a store you do not administer when the evidence must
+  survive that.
 - **Rate limit**: with an authenticator it counts per caller (an operator's
   backend) or per scope (an end user); under the shared secret, per IP.
 - **The telemetry ledger is redacted before it is written**:
