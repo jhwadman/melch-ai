@@ -499,7 +499,7 @@ options. `demo/a2a_demo.mjs` is a complete client.
 | `POST /a2a/jsonrpc`, `/a2a/rest` | bearer | the default syndicate |
 | `GET /<agentId>/.well-known/agent-card.json` | bearer | another syndicate's card; its URLs point at `/<agentId>/a2a/...` |
 | `POST /<agentId>/a2a/jsonrpc`, `/<agentId>/a2a/rest` | bearer | another syndicate (`A2A_SERVED_AGENTS` restricts which) |
-| `DELETE /memory` | bearer | erase everything stored for the calling scope: facts, sessions (with subagent rows) and ledger rows, with per-store counts; `?all=1` covers every memory namespace |
+| `DELETE /memory` | bearer | erase everything stored for the calling scope: facts, sessions (with subagent rows), ledger rows and A2A tasks, including conversations whose sessions have expired, with per-store counts; `?all=1` covers every memory namespace |
 
 "bearer" means the credential `A2A_AUTH` asks for (below); with no
 `A2A_SERVER_SECRET` and no authenticator the server binds `127.0.0.1` only.
@@ -785,7 +785,10 @@ compare row counts per table with the source. Two things a backup changes:
   recovery needs allow. After a restore, re-run any erasures made since the
   backup was taken. The server logs each one with its scope (`Erasure for
   scope …`); keep those lines for as long as you keep backups, since a
-  platform's log retention is usually shorter.
+  platform's log retention is usually shorter. The same holds for the
+  telemetry dead-letter spool (`outputs/telemetry-deadletter.ndjson`), which
+  holds ledger rows only while the database was unreachable: replay it
+  (`npm run telemetry:replay`) before honouring an erasure, then delete it.
 - **Secrets.** A dump holds every conversation in clear text. Encrypt it at
   rest and give it the same access rules as the database.
 

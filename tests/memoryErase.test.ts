@@ -58,14 +58,18 @@ test('eraseScope refuses an empty scope and throws on a database error', async (
 });
 
 test('the erase migration covers every store, revokes PUBLIC, and requires a scope', () => {
-  // The latest definition: 0010 replaced 0002's and added the later stores.
-  const sql = readFileSync('db/migrations/0010_erase_complete.sql', 'utf-8');
+  // The latest definition: 0011 replaced 0010's, which replaced 0002's.
+  const sql = readFileSync('db/migrations/0011_erase_expired.sql', 'utf-8');
   for (const store of ['memory_facts', 'sessions', 'turns', 'spans', 'payloads', 'verdicts', 'labels', 'tasks', 'memory_markers', 'task_tools']) {
     assert.match(sql, new RegExp(`store := '${store}'`), store);
   }
   assert.match(sql, /REVOKE ALL ON FUNCTION melchizedek_erase_scope\(text, text, boolean\) FROM PUBLIC/);
   assert.match(sql, /scope_key is required/);
   assert.match(sql, /SECURITY INVOKER/);
+  // A namespace erase keeps only conversations live in another namespace, so
+  // a conversation whose session expired is erased too.
+  assert.match(sql, /NOT \(session_id = ANY\(\$5\)\)/);
+  assert.match(sql, /NOT \(context_id = ANY\(\$5\)\)/);
 });
 
 test('namespacedMemoryService pins searches and ingestion to the root namespace', async () => {

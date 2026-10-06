@@ -6,6 +6,14 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Fix: `DELETE /memory` erases expired conversations.** A namespace erase
+  (the default) found conversations through their live session rows, so once
+  a session expired after seven idle days its ledger turns, spans, payloads
+  and A2A tasks survived the erase while the response reported success.
+  Migration `0011_erase_expired` replaces `melchizedek_erase_scope`: a
+  namespace erase now keeps a turn or task only when its conversation is
+  still live in another namespace. Run `npx melchizedek-db apply`; the server
+  refuses to start against a database behind the shipped migrations.
 - **Moonshot AI (Kimi) is a provider.** `kimi-*` model ids route to a new
   direct adapter (`lib/models/kimiLlm.ts`, chat completions against
   `api.moonshot.ai`), funded by `MOONSHOT_API_KEY` (`MOONSHOT_BASE_URL` for a
