@@ -11,6 +11,12 @@
 
 /** One finished (or refused) task, as the executor reports it. */
 export interface TaskRecord {
+  /** The A2A task id: joins this record to the task store and the audit trail. */
+  taskId?: string;
+  /** The turn's trace id: joins this record to its spans and its ledger row. */
+  traceId?: string;
+  /** The trace id of the caller's `traceparent`, when it sent one: the turn's root span links to it. */
+  callerTraceId?: string;
   /** The agent id the task was sent to; '' is the default syndicate. */
   agentId: string;
   syndicate: string;

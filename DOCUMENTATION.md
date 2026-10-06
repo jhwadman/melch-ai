@@ -553,8 +553,15 @@ or pass your own `resolveRequest`.
   The counts live in the `melchizedek_usage` table (`db/migrations/0004_usage.sql`)
   when Postgres or Supabase is configured, else in process memory. A store
   that cannot be read refuses the task.
-- **One record per task** (option `onTaskEnd`): agent, caller, a hash of the
-  scope, status, reason, duration, model calls and tokens.
+- **One record per task** (option `onTaskEnd`): task id, trace id, agent,
+  caller, a hash of the scope, status, reason, duration, model calls and
+  tokens. The trace id is the one the turn's spans and its ledger row carry,
+  and the audit trail's `task.end` row names both ids, so one id joins the
+  log, the ledger, the audit trail and your tracing backend. A request
+  carrying a W3C `traceparent` header is linked, not joined: the turn's root
+  span links to the caller's span and records `caller.trace_id`, and the
+  record carries `callerTraceId`. The turn keeps a trace id of its own, since
+  ledger attribution and erasure key on it and a caller must not choose it.
   `A2A_LOG_FORMAT=json` prints every server line as JSON, this record included.
 - **The audit trail** (`melchizedek_audit`, `db/migrations/0012_audit_log.sql`;
   option `audit`, supplied by `postgresStorage`): one row per failed

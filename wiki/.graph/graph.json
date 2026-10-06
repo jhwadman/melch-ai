@@ -5,15 +5,15 @@
     "at": "2026-10-06"
   },
   "stats": {
-    "nodes": 631,
-    "edges": 1463,
+    "nodes": 633,
+    "edges": 1468,
     "byKind": {
-      "doc": 93,
+      "doc": 94,
       "provider": 6,
       "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 79,
+      "file": 80,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 223,
+      "links_to": 224,
       "requires_env": 156,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,13 +33,13 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 343,
+      "imports": 344,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 263
+      "derives_from": 266
     },
     "byTier": {
-      "extracted": 1463,
+      "extracted": 1468,
       "inferred": 0
     },
     "isolated": 4
@@ -898,6 +898,18 @@
       }
     },
     {
+      "id": "/decisions/0043-link-inbound-trace-context.md",
+      "kind": "doc",
+      "label": "ADR 0043: A caller's trace context is linked, never adopted",
+      "source": "/decisions/0043-link-inbound-trace-context.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 307
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1014,7 +1026,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1087
+        "words": 1153
       }
     },
     {
@@ -3268,6 +3280,12 @@
       "source": "tests/taskLimiter.test.ts"
     },
     {
+      "id": "file:tests/traceCorrelation.test.ts",
+      "kind": "file",
+      "label": "traceCorrelation.test.ts",
+      "source": "tests/traceCorrelation.test.ts"
+    },
+    {
       "id": "file:tests/workflow.test.ts",
       "kind": "file",
       "label": "workflow.test.ts",
@@ -3359,7 +3377,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1102
+        "lines": 1103
       }
     },
     {
@@ -3368,7 +3386,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 763
+        "lines": 774
       }
     },
     {
@@ -3728,7 +3746,7 @@
       "label": "lib/observability/metrics.ts",
       "source": "lib/observability/metrics.ts",
       "attrs": {
-        "lines": 110
+        "lines": 116
       }
     },
     {
@@ -3764,7 +3782,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 772
+        "lines": 800
       }
     },
     {
@@ -3809,7 +3827,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 965
+        "lines": 968
       }
     },
     {
@@ -7808,6 +7826,27 @@
       "evidence": "/decisions/0042-append-only-audit-trail.md frontmatter"
     },
     {
+      "from": "/decisions/0043-link-inbound-trace-context.md",
+      "to": "file:tests/traceCorrelation.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0043-link-inbound-trace-context.md frontmatter"
+    },
+    {
+      "from": "/decisions/0043-link-inbound-trace-context.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0043-link-inbound-trace-context.md frontmatter"
+    },
+    {
+      "from": "/decisions/0043-link-inbound-trace-context.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0043-link-inbound-trace-context.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8555,6 +8594,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:50"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0043-link-inbound-trace-context.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:52"
     },
     {
       "from": "/operations/setup.md",
@@ -10673,6 +10719,13 @@
     {
       "from": "module:lib/a2a/app.ts",
       "to": "module:lib/observability/metrics.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/observability/tracer.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/app.ts"

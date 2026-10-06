@@ -48,3 +48,5 @@ Storage: set `DATABASE_URL` and every durable store — sessions, [memory](/memo
 Model choice guidance and the errors you will actually hit: [failure modes](/operations/failure-modes.md).
 
 Security-relevant events go to the audit trail, `melchizedek_audit` (migration 0012): every failed authentication, task outcome and erasure, with the caller, the source address and a scope hash, never a scope key or conversation content. A trigger keeps it append-only; `melchizedek_prune_audit(<days>)` is the only way rows leave, and the deployment schedules it for its retention period ([ADR 0042](/decisions/0042-append-only-audit-trail.md)).
+
+Correlation: every task record carries its task id and trace id, the same trace id the turn's spans and ledger row carry and the audit trail's `task.end` row names; a request with a W3C `traceparent` header is linked from the turn's root span (`callerSpanContext`, `lib/observability/tracer.ts`) and the record names `callerTraceId`, while the turn keeps its own trace id, which a caller can never choose ([ADR 0043](/decisions/0043-link-inbound-trace-context.md)).
