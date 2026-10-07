@@ -1030,7 +1030,7 @@
         "type": "meta",
         "status": "stable",
         "trust": "unverified",
-        "words": 1124
+        "words": 1165
       }
     },
     {
@@ -4300,7 +4300,7 @@
       "label": "lib/tools/wikiTools.ts",
       "source": "lib/tools/wikiTools.ts",
       "attrs": {
-        "lines": 838
+        "lines": 839
       }
     },
     {
@@ -4354,7 +4354,7 @@
       "label": "lib/wiki/entities.ts",
       "source": "lib/wiki/entities.ts",
       "attrs": {
-        "lines": 830
+        "lines": 856
       }
     },
     {

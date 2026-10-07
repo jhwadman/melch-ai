@@ -62,6 +62,13 @@ the starter pack and the templates), not the repo's full history.
 - **The `melchizedek-models` skill covers Kimi.** Its routing table, key list
   and verified ids (and its brief) add `kimi-*` to Moonshot AI,
   `MOONSHOT_API_KEY` and `kimi-k3`.
+- **`wiki_relate` appends.** A new assertion goes at the end of
+  `.graph/relations.json` and every stored record keeps its place and bytes,
+  where each write used to re-sort the whole file. A store that does not
+  parse is refused rather than overwritten. `melchizedek-agents/wiki/entities`
+  exports `appendRelation(wikiRoot, record)`, which returns `false` for a
+  duplicate, and `saveRelations` writes records in the order given instead of
+  sorting them.
 
 ## 0.18.0 — 2026-10-06
 

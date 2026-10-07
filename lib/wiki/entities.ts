@@ -742,13 +742,39 @@ export function relationEdges(records: RelationRecord[]): EntityEdge[] {
   }));
 }
 
+/**
+ * Replace the whole store with `records`, in the order given. The store's
+ * order is the order of assertion; nothing sorts it.
+ */
 export function saveRelations(wikiRoot: string, records: RelationRecord[]): void {
   const file = relationsPath(wikiRoot);
   mkdirSync(dirname(file), { recursive: true });
-  const sorted = [...records].sort(
-    (a, b) => a.from.localeCompare(b.from) || a.rel.localeCompare(b.rel) || a.to.localeCompare(b.to),
-  );
-  writeFileSync(file, `${JSON.stringify({ version: 1, relations: sorted }, null, 2)}\n`, 'utf-8');
+  writeFileSync(file, `${JSON.stringify({ version: 1, relations: records }, null, 2)}\n`, 'utf-8');
+}
+
+/**
+ * Add one assertion at the end of the store. Every record already there
+ * keeps its place and its bytes, so two branches that each assert something
+ * merge by keeping both sides. Returns false, writing nothing, when the edge
+ * is already asserted. Throws when the store does not parse rather than
+ * write over it.
+ */
+export function appendRelation(wikiRoot: string, record: RelationRecord): boolean {
+  const next = relationRecordSchema.parse(record);
+  const file = relationsPath(wikiRoot);
+  let store: { relations: unknown[] } & Record<string, unknown> = { version: 1, relations: [] };
+  if (existsSync(file)) {
+    const raw: unknown = JSON.parse(readFileSync(file, 'utf-8'));
+    const parsed = relationStoreSchema.safeParse(raw);
+    if (!parsed.success) throw new Error(`relations.json is not a relation store: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
+    store = raw as typeof store;
+    store.relations ??= [];
+    if (parsed.data.relations.some((r) => edgeKey(r) === edgeKey(next))) return false;
+  }
+  store.relations.push(next);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify(store, null, 2)}\n`, 'utf-8');
+  return true;
 }
 
 export interface GraphSnapshot {
