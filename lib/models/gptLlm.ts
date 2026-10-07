@@ -28,7 +28,7 @@
  *   Response `output` items map back:
  *     'reasoning' summary    → { text, thought: true } partial (display-only)
  *     'reasoning' item       → providerState on the part that follows it, on
- *                              ids that replay reasoning (ADR 0048): sent back
+ *                              ids that replay reasoning (ADR 0050): sent back
  *                              verbatim before that part's item within the
  *                              turn's tool loop; those requests carry
  *                              store: false and include the encrypted content
@@ -430,7 +430,7 @@ export class GptLlm extends BaseLlm {
   }
 
   /** Whether this id carries its reasoning across the steps of a tool loop
-   *  (ADR 0048): its requests send `store: false` and ask for encrypted
+   *  (ADR 0050): its requests send `store: false` and ask for encrypted
    *  reasoning, its responses write the reasoning items on the part that
    *  follows them, and its requests replay them. Base: OpenAI's
    *  reasoning-capable ids. GrokLlm overrides it per vendor. */
@@ -561,7 +561,7 @@ export class GptLlm extends BaseLlm {
       // Reasoning param — summaries and/or vendor effort control (see
       // reasoningParam hook; provider subclasses shape it).
       ...(reasoning ? { reasoning } : {}),
-      // Reasoning state (ADR 0048): the vendor keeps nothing server-side,
+      // Reasoning state (ADR 0050): the vendor keeps nothing server-side,
       // and returns the reasoning encrypted so the next step of the tool
       // loop can send it back from the part it rides on.
       ...(replays ? { store: false, include: [ENCRYPTED_REASONING] } : {}),

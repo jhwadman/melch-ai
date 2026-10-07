@@ -1,6 +1,6 @@
 ---
 type: decision
-title: 'ADR 0048: The Responses adapters replay encrypted reasoning items and store nothing with the vendor'
+title: 'ADR 0050: The Responses adapters replay encrypted reasoning items and store nothing with the vendor'
 description: For reasoning ids, GPT and Grok requests send store false and ask for encrypted reasoning; each run of reasoning items rides on the part after it (ADR 0046) and is replayed before that part within the turn's tool loop, for the same provider and model only.
 tags:
   - decision
@@ -17,7 +17,7 @@ sources:
   - resource: tests/responsesReasoningState.test.ts
 ---
 
-# ADR 0048: The Responses adapters replay encrypted reasoning items and store nothing with the vendor
+# ADR 0050: The Responses adapters replay encrypted reasoning items and store nothing with the vendor
 
 ## Context
 

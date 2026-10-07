@@ -19,7 +19,7 @@
  *       stores via the file_search wire shape — see collectionsSearchTool.ts)
  *     - reasoning summaries surfaced as { thought: true } THINKING output
  *     - reasoning carried across a tool loop on grok-4.5/4.7 (encrypted
- *       reasoning items as providerState, store: false — ADR 0048)
+ *       reasoning items as providerState, store: false — ADR 0050)
  *     - SSE streaming (ADK RunConfig streamingMode: SSE → partial deltas)
  *     - structured outputs (YAML outputSchema → text.format json_schema)
  *     - function tools with call_id round-tripping, lowercased schemas
@@ -113,7 +113,7 @@ export class GrokLlm extends GptLlm {
   }
 
   /** grok-4.5 and grok-4.7 carry their reasoning across a tool loop
-   *  (ADR 0048): xAI's Responses API takes `store: false` and
+   *  (ADR 0050): xAI's Responses API takes `store: false` and
    *  `include: ['reasoning.encrypted_content']` and accepts the returned
    *  reasoning items back in `input` (docs.x.ai › Model capabilities › Text
    *  › Generate text, checked 2026-10-07; grok-4.7 returns the encrypted

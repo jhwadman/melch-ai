@@ -187,7 +187,7 @@ const nativeSearch = (row: ProviderId): CapabilityCell =>
     : unsupported('no native search on this path; the web_search sentinel is dropped (use web_extract)');
 
 const responsesReasoningNote = (ids: string): string =>
-  `encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0048); ${ids}`;
+  `encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); ${ids}`;
 const CHAT_THINKING_NOTE =
   'thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever';
 

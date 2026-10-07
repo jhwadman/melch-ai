@@ -974,10 +974,10 @@
       }
     },
     {
-      "id": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "id": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "kind": "doc",
-      "label": "ADR 0048: The Responses adapters replay encrypted reasoning items and store nothing with the vendor",
-      "source": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "label": "ADR 0050: The Responses adapters replay encrypted reasoning items and store nothing with the vendor",
+      "source": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "attrs": {
         "type": "decision",
         "status": "stable",
@@ -8211,46 +8211,46 @@
       "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
     },
     {
-      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "to": "file:tests/responsesReasoningState.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0048-responses-reasoning-replay-without-storage.md frontmatter"
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
     },
     {
-      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "to": "module:lib/models/capabilities.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0048-responses-reasoning-replay-without-storage.md frontmatter"
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
     },
     {
-      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "to": "module:lib/models/gptLlm.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0048-responses-reasoning-replay-without-storage.md frontmatter"
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
     },
     {
-      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "to": "module:lib/models/grokLlm.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0048-responses-reasoning-replay-without-storage.md frontmatter"
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
     },
     {
-      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "to": "module:lib/models/providerState.ts",
       "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/decisions/0048-responses-reasoning-replay-without-storage.md frontmatter"
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
     },
     {
-      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0048-responses-reasoning-replay-without-storage.md:28"
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md:28"
     },
     {
       "from": "/memory/architecture.md",
@@ -8772,7 +8772,7 @@
     },
     {
       "from": "/models/provider-routing.md",
-      "to": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:117"
