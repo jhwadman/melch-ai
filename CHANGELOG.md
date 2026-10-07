@@ -52,6 +52,16 @@ the starter pack and the templates), not the repo's full history.
   non-https URL, is dropped with `llm.image.dropped` on the span and a
   one-time warning naming the type. Images inside tool results are not sent,
   as on GPT. The capability matrix marks Anthropic image input supported.
+- **An elided tool result's size is stored the same on every server.**
+  `trimEventForStorage` writes it with en-US digit grouping (`2,563 chars
+  dropped before storage — …`), where it followed the server's locale
+  (`2.563` in German). An en-US server stores the same bytes as before, and
+  rows already stored are untouched.
+- The capability matrix's Ollama and gateway `thinking_with_tools` note names
+  `reasoning:` as the lever (ADR 0047), compiled to `reasoningEffort`.
+- **The `melchizedek-models` skill covers Kimi.** Its routing table, key list
+  and verified ids (and its brief) add `kimi-*` to Moonshot AI,
+  `MOONSHOT_API_KEY` and `kimi-k3`.
 
 ## 0.18.0 — 2026-10-06
 
