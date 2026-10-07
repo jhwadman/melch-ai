@@ -50,7 +50,30 @@ const thinkingConfig = z
     thinkingBudget: z.number().int().optional().describe('Reasoning token budget. 0 = off, -1 = dynamic.'),
     includeThoughts: z.boolean().optional().describe('Stream the thinking trace in the response.'),
   })
-  .describe('Gemini thinking controls (generateContentConfig.thinkingConfig).');
+  .describe('Older spelling of `reasoning` for Gemini and Claude (thinkingLevel or thinkingBudget). Cannot be combined with `reasoning`.');
+
+export const REASONING_LEVELS = ['none', 'low', 'medium', 'high'] as const;
+
+/**
+ * The provider-neutral reasoning key (ADR 0047): a level, or a token budget.
+ * The compiler maps it per provider (lib/compile.ts reasoningConfig).
+ */
+const reasoningSchema = z
+  .union(
+    [
+      z.enum(REASONING_LEVELS),
+      z.strictObject({
+        budget_tokens: z.number().int().min(0).describe('Thinking tokens; 0 = none. Effort-only providers take the nearest level at or above it.'),
+      }),
+    ],
+    {
+      error: (iss) => {
+        const hint = typeof iss.input === 'string' ? suggest(iss.input, REASONING_LEVELS) : undefined;
+        return `must be one of ${REASONING_LEVELS.join(' | ')}, or { budget_tokens: <integer ≥ 0> } (got ${describeValue(iss.input)}${hint ? ` — did you mean "${hint}"?` : ''})`;
+      },
+    },
+  )
+  .describe('How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047).');
 
 /**
  * Loose on purpose: provider-specific fields (e.g. `toolConfig`) pass through
@@ -73,6 +96,10 @@ const generateContentConfig = z
       .array(z.looseObject({ category: z.string(), threshold: z.string() }))
       .optional(),
     thinkingConfig: thinkingConfig.optional(),
+    reasoningEffort: z
+      .string()
+      .optional()
+      .describe('Older spelling of `reasoning` for the chat-completions and Responses providers. Cannot be combined with `reasoning`.'),
   })
   .describe('Model generation config (@google/genai GenerateContentConfig). Do not set tools here.');
 
@@ -170,6 +197,7 @@ const agentFields = {
   disallowTransferToPeers: z.boolean().optional(),
   outputKey: z.string().optional().describe('Session-state key the final reply is saved under.'),
   generateContentConfig: generateContentConfig.optional(),
+  reasoning: reasoningSchema.optional(),
   outputSchema: z
     .record(z.string(), z.unknown())
     .optional()
@@ -528,13 +556,16 @@ function problemsFromIssues(issues: readonly z.core.$ZodIssue[], raw: unknown): 
       continue;
     }
     if (issue.code === 'too_small' && issue.origin === 'number') {
-      out.push({ path: p, message: `must be a positive integer (got ${describeValue(got)})` });
+      out.push({ path: p, message: `must be ${Number(issue.minimum) === 0 ? '0 or more' : 'a positive integer'} (got ${describeValue(got)})` });
       continue;
     }
     out.push({ path: p, message: issue.message });
   }
   return out;
 }
+
+/** The generateContentConfig keys `reasoning` replaces (ADR 0047). */
+export const REASONING_OLDER_SPELLING = ['thinkingConfig', 'reasoningEffort'] as const;
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -634,6 +665,26 @@ function crossFieldProblems(raw: unknown): Problem[] {
   };
   if (isObj(raw.orchestrator)) executionProblems(raw.orchestrator, ['orchestrator'], true);
   for (const [i, sub] of (Array.isArray(raw.subagents) ? raw.subagents : []).entries()) if (isObj(sub)) executionProblems(sub, ['subagents', i], false);
+
+  // One spelling per agent (ADR 0047): `reasoning` is mapped onto the very
+  // fields the older spelling sets, so the two together would leave which
+  // one wins to merge order.
+  const reasoningProblems = (agent: Record<string, unknown>, path: (string | number)[]) => {
+    if (agent.reasoning === undefined) return;
+    if (typeof agent.yaml_reference === 'string' || typeof agent.a2a_agent_url === 'string') {
+      out.push({ path: [...path, 'reasoning'], message: 'applies to an inline agent; a nested syndicate (yaml_reference) or a remote agent (a2a_agent_url) sets its own' });
+    }
+    if (!isObj(agent.generateContentConfig)) return;
+    for (const key of REASONING_OLDER_SPELLING) {
+      if (agent.generateContentConfig[key] === undefined) continue;
+      out.push({
+        path: [...path, 'reasoning'],
+        message: `cannot be combined with generateContentConfig.${key}; reasoning replaces it, so keep one (ADR 0047)`,
+      });
+    }
+  };
+  if (isObj(raw.orchestrator)) reasoningProblems(raw.orchestrator, ['orchestrator']);
+  for (const [i, sub] of subs.entries()) if (isObj(sub)) reasoningProblems(sub, ['subagents', i]);
 
   if (isObj(raw.orchestrator)) {
     gateProblems(raw.orchestrator, ['orchestrator'], true);

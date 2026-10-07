@@ -38,6 +38,7 @@
  */
 
 import { LLMRegistry } from '@google/adk';
+import type { LlmRequest } from '@google/adk';
 
 import { DEFAULT_GROK_REASONING_EFFORT } from '../config.ts';
 import { GptLlm } from './gptLlm.ts';
@@ -93,12 +94,15 @@ export class GrokLlm extends GptLlm {
    *  | 'high' | 'xhigh' on 4.7; xAI defaults to 'high', and reasoning cannot
    *  be disabled) via the Responses API `reasoning.effort` field — docs.x.ai
    *  › Model capabilities › Text › Reasoning › Effort levels. We pin
-   *  DEFAULT_GROK_REASONING_EFFORT (medium). Other grok ids don't accept
+   *  DEFAULT_GROK_REASONING_EFFORT (medium) unless the agent sets an effort
+   *  (the YAML `reasoning:` key, ADR 0047). Other grok ids don't accept
    *  the param and get none (their reasoning summaries arrive unrequested);
    *  if xAI ever rejects it, GptLlm's guarded 400 retry drops it. */
-  protected reasoningParam(): Record<string, unknown> | undefined {
+  protected reasoningParam(llmRequest?: LlmRequest): Record<string, unknown> | undefined {
     if (/^grok-4\.(5|7)/.test(this.model)) {
-      return { effort: DEFAULT_GROK_REASONING_EFFORT };
+      const effort = (llmRequest?.config as any)?.reasoningEffort;
+      // Reasoning cannot be stopped here; "none" is sent as the lowest effort.
+      return { effort: effort === undefined ? DEFAULT_GROK_REASONING_EFFORT : effort === 'none' ? 'low' : effort };
     }
     return undefined;
   }

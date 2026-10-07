@@ -109,11 +109,9 @@ orchestrator:
     WHY: one sentence, at most 30 words.
     CONDITIONS: the blocking and should-fix findings, one per line with the reviewer's name in brackets; "none" if none.
     NOTES: the notes, one per line with the reviewer's name in brackets; omit the section if there are none.
+  reasoning: low
   generateContentConfig:
     maxOutputTokens: 4096
-    thinkingConfig:
-      thinkingLevel: LOW
-      includeThoughts: false
 subagents:
   - name: Correctness
     description: "Reviews whether a change does what its stated intent claims, and only that, and returns findings lines or \"no findings\". Holds no tools. Pass the complete change and its intent verbatim."
@@ -132,11 +130,9 @@ subagents:
       {{review_ground}}
 
       {{finding_format}}
+    reasoning: medium
     generateContentConfig:
       maxOutputTokens: 2048
-      thinkingConfig:
-        thinkingLevel: MEDIUM
-        includeThoughts: false
   - name: Risk
     description: "Reviews a change for security, data, privacy, cost and blast radius, and returns findings lines or \"no findings\". Holds no tools. Pass the complete change and its intent verbatim."
     model: gemini-3.8-flash
@@ -157,11 +153,9 @@ subagents:
       {{review_ground}}
 
       {{finding_format}}
+    reasoning: medium
     generateContentConfig:
       maxOutputTokens: 2048
-      thinkingConfig:
-        thinkingLevel: MEDIUM
-        includeThoughts: false
   - name: Operability
     description: "Reviews a change for rollout, rollback, migration and observability, and returns findings lines or \"no findings\". Holds no tools. Pass the complete change and its intent verbatim."
     model: gemini-3.5-flash-lite
@@ -181,8 +175,6 @@ subagents:
       {{review_ground}}
 
       {{finding_format}}
+    reasoning: low
     generateContentConfig:
       maxOutputTokens: 2048
-      thinkingConfig:
-        thinkingLevel: LOW
-        includeThoughts: false

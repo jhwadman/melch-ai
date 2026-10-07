@@ -24,6 +24,7 @@ import { planTransport } from './gateway.ts';
 import type { TransportPlan } from './gateway.ts';
 import { nativeSearchOn, PLATFORMS_FOR, platformFromEnv } from './endpoints.ts';
 import type { Platform } from './endpoints.ts';
+import type { ReasoningSetting } from '../loadSyndicate.ts';
 
 /** The platform a direct path uses (ADR 0023); a misconfigured one reads as direct here, the doctor reports it. */
 function directPlatform(provider: ProviderId): Platform {
@@ -283,6 +284,8 @@ export interface AgentNeedsInput {
   tools?: readonly string[];
   outputSchema?: unknown;
   generateContentConfig?: { thinkingConfig?: { thinkingBudget?: number; includeThoughts?: boolean } };
+  /** The provider-neutral reasoning key (ADR 0047). */
+  reasoning?: ReasoningSetting;
   /** True when this agent delegates to subagents through tools (DELEGATE mode). */
   delegates?: boolean;
 }
@@ -294,7 +297,10 @@ export function requiredCapabilities(agent: AgentNeedsInput): Capability[] {
   if (tools.includes('load_memory')) needs.add('memory_tools');
   if (agent.outputSchema) needs.add('structured_output');
   const thinking = agent.generateContentConfig?.thinkingConfig;
-  const thinks = !!thinking && (thinking.thinkingBudget ?? 0) !== 0;
+  const thinks =
+    agent.reasoning !== undefined
+      ? agent.reasoning !== 'none' && !(typeof agent.reasoning === 'object' && agent.reasoning.budget_tokens === 0)
+      : !!thinking && (thinking.thinkingBudget ?? 0) !== 0;
   if (thinks && (tools.length > 0 || agent.delegates)) needs.add('thinking_with_tools');
   if (tools.includes('web_search')) needs.add('native_search');
   return [...needs];

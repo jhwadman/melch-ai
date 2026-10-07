@@ -21,6 +21,10 @@
 # Or chat with the zoo:  npm run chat:syndicate -- --syndicate model_zoo
 #   (the orchestrator delegates your question to a provider you name).
 #
+# ONE KEY FOR REASONING: `reasoning: none | low | medium | high` reads the
+# same on every provider; the compiler sends each one the field it takes
+# (a thinking budget, a thinking level or an effort word; ADR 0047).
+#
 # ONE INSTRUCTION, SIX MODELS: every explainer's `instruction:` is the
 # same `{{explainer}}` variable, so the six prompts are identical by
 # construction and any difference in the answers comes from the model.
@@ -127,18 +131,16 @@ subagents:
     # OLLAMA_MAX_TOKENS. A larger window (Modelfile `PARAMETER num_ctx`; /v1
     # ignores num_ctx) only lets it think past five minutes. "none" is the
     # one value Ollama's /v1 honours here: answers in ~15 s on a laptop.
-    generateContentConfig:
-      reasoningEffort: "none"
+    reasoning: none
 
   - name: "claude"
     description: "Claude Sonnet, by Anthropic. Pass the question word for word; returns a plain explanation of at most three paragraphs."
     model: "claude-sonnet-4-6"
     instruction: "{{explainer}}"
-    # Extended thinking: the adapter maps thinkingBudget to Anthropic's
-    # thinking parameter and surfaces the scratchpad as THINKING output.
-    generateContentConfig:
-      thinkingConfig:
-        thinkingBudget: 2048
+    # Extended thinking: `low` is a 2,048-token budget on Claude, which the
+    # adapter sends as Anthropic's thinking parameter and surfaces as
+    # THINKING output (ADR 0047).
+    reasoning: low
 
   - name: "grok"
     description: "Grok 4.7 (reasoning effort: medium), by xAI. Pass the question word for word; returns a plain explanation of at most three paragraphs."
@@ -167,5 +169,4 @@ subagents:
     # tokens, thinking billed as output), so it is here as the strongest
     # open-weight model, not as the cheap seat: kimi-k2.6 is a quarter of
     # the price if cost matters more; see the table in lib/models/kimiLlm.ts.
-    generateContentConfig:
-      reasoningEffort: "low"
+    reasoning: low

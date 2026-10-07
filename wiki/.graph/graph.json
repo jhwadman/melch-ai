@@ -5,26 +5,26 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 644,
-    "edges": 1489,
+    "nodes": 655,
+    "edges": 1535,
     "byKind": {
-      "doc": 97,
+      "doc": 100,
       "provider": 6,
-      "env": 101,
+      "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 86,
+      "file": 91,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 123,
-      "script": 45,
+      "module": 124,
+      "script": 46,
       "external": 2
     },
     "byRelation": {
-      "links_to": 227,
-      "requires_env": 156,
+      "links_to": 233,
+      "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
       "documents": 56,
@@ -33,15 +33,18 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 349,
+      "imports": 363,
       "reads_table": 28,
-      "runs": 66,
-      "derives_from": 277,
+      "runs": 67,
+      "derives_from": 295,
+      "supersedes": 1,
+      "explains": 1,
+      "depends_on": 2,
       "constrains": 2
     },
     "byTier": {
-      "extracted": 1487,
-      "inferred": 2
+      "extracted": 1529,
+      "inferred": 6
     },
     "isolated": 4
   },
@@ -691,7 +694,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 893
+        "words": 947
       }
     },
     {
@@ -935,6 +938,18 @@
       }
     },
     {
+      "id": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "kind": "doc",
+      "label": "ADR 0045: Own the runtime behind the seam: a native runtime beside ADK, built in stages, with ADK removed at 1.0",
+      "source": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1089
+      }
+    },
+    {
       "id": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "kind": "doc",
       "label": "ADR 0046: Provider reasoning state rides on the content part it belongs before",
@@ -943,7 +958,19 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 799
+        "words": 786
+      }
+    },
+    {
+      "id": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "kind": "doc",
+      "label": "ADR 0047: One provider-neutral reasoning key, mapped per provider by the compiler",
+      "source": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1252
       }
     },
     {
@@ -955,7 +982,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 924
+        "words": 1183
       }
     },
     {
@@ -1027,7 +1054,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2088
+        "words": 2320
       }
     },
     {
@@ -1047,6 +1074,18 @@
       "kind": "doc",
       "label": "Failure modes",
       "source": "/operations/failure-modes.md",
+      "attrs": {
+        "type": "runbook",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1075
+      }
+    },
+    {
+      "id": "/operations/parity-harness.md",
+      "kind": "doc",
+      "label": "Parity harness",
+      "source": "/operations/parity-harness.md",
       "attrs": {
         "type": "runbook",
         "status": "stable",
@@ -2479,6 +2518,12 @@
       "source": "scripts/registry.ts"
     },
     {
+      "id": "env:MELCHIZEDEK_RUNTIME",
+      "kind": "env",
+      "label": "MELCHIZEDEK_RUNTIME",
+      "source": "scripts/parity_check.ts"
+    },
+    {
       "id": "env:MELCHIZEDEK_TASKS_FILE",
       "kind": "env",
       "label": "MELCHIZEDEK_TASKS_FILE",
@@ -2557,7 +2602,7 @@
       "id": "env:OLLAMA_BASE_URL",
       "kind": "env",
       "label": "OLLAMA_BASE_URL",
-      "source": "scripts/demo_model_optionality.ts",
+      "source": "scripts/parity_check.ts",
       "attrs": {}
     },
     {
@@ -3248,6 +3293,18 @@
       "source": "tests/fallback.test.ts"
     },
     {
+      "id": "file:tests/fixtures/parity.yaml",
+      "kind": "file",
+      "label": "parity.yaml",
+      "source": "tests/fixtures/parity.yaml"
+    },
+    {
+      "id": "file:tests/fixtures/sessions/generate.ts",
+      "kind": "file",
+      "label": "generate.ts",
+      "source": "tests/fixtures/sessions/generate.ts"
+    },
+    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -3279,6 +3336,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/parityHarness.test.ts",
+      "kind": "file",
+      "label": "parityHarness.test.ts",
+      "source": "tests/parityHarness.test.ts"
+    },
+    {
       "id": "file:tests/publicPosture.test.ts",
       "kind": "file",
       "label": "publicPosture.test.ts",
@@ -3302,6 +3365,12 @@
       "kind": "file",
       "label": "readiness.test.ts",
       "source": "tests/readiness.test.ts"
+    },
+    {
+      "id": "file:tests/reasoningKey.test.ts",
+      "kind": "file",
+      "label": "reasoningKey.test.ts",
+      "source": "tests/reasoningKey.test.ts"
     },
     {
       "id": "file:tests/reasoningState.test.ts",
@@ -3334,6 +3403,12 @@
       "source": "tests/serverShutdown.test.ts"
     },
     {
+      "id": "file:tests/sessionFixtures.test.ts",
+      "kind": "file",
+      "label": "sessionFixtures.test.ts",
+      "source": "tests/sessionFixtures.test.ts"
+    },
+    {
       "id": "file:tests/skillHarness.test.ts",
       "kind": "file",
       "label": "skillHarness.test.ts",
@@ -3344,7 +3419,8 @@
       "id": "file:tests/syndicateTurn.test.ts",
       "kind": "file",
       "label": "syndicateTurn.test.ts",
-      "source": "tests/syndicateTurn.test.ts"
+      "source": "tests/syndicateTurn.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/taskLimiter.test.ts",
@@ -3513,7 +3589,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 463
+        "lines": 551
       }
     },
     {
@@ -3540,7 +3616,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 684
+        "lines": 685
       }
     },
     {
@@ -3594,7 +3670,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 692
+        "lines": 710
       }
     },
     {
@@ -3648,7 +3724,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 385
+        "lines": 391
       }
     },
     {
@@ -3702,7 +3778,7 @@
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 734
+        "lines": 738
       }
     },
     {
@@ -3711,7 +3787,7 @@
       "label": "lib/models/grokLlm.ts",
       "source": "lib/models/grokLlm.ts",
       "attrs": {
-        "lines": 116
+        "lines": 120
       }
     },
     {
@@ -4035,7 +4111,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 918
+        "lines": 969
       }
     },
     {
@@ -4413,7 +4489,7 @@
       "label": "scripts/demo_model_optionality.ts",
       "source": "scripts/demo_model_optionality.ts",
       "attrs": {
-        "lines": 217
+        "lines": 220
       }
     },
     {
@@ -4459,6 +4535,15 @@
       "source": "scripts/memory_admin.ts",
       "attrs": {
         "lines": 271
+      }
+    },
+    {
+      "id": "module:scripts/parity_check.ts",
+      "kind": "module",
+      "label": "scripts/parity_check.ts",
+      "source": "scripts/parity_check.ts",
+      "attrs": {
+        "lines": 760
       }
     },
     {
@@ -4693,6 +4778,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/memory_admin.ts"
+      }
+    },
+    {
+      "id": "script:parity",
+      "kind": "script",
+      "label": "npm run parity",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/parity_check.ts"
       }
     },
     {
@@ -7217,6 +7311,13 @@
       "evidence": "/decisions/0024-adk-behind-the-runtime-seam.md frontmatter"
     },
     {
+      "from": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0024-adk-behind-the-runtime-seam.md:57"
+    },
+    {
       "from": "/decisions/0025-built-in-authenticators.md",
       "to": "file:tests/identity.test.ts",
       "rel": "derives_from",
@@ -7987,6 +8088,41 @@
       "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
     },
     {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "file:package.json",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "file:tests/syndicateTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:24"
+    },
+    {
       "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "to": "file:tests/reasoningState.test.ts",
       "rel": "derives_from",
@@ -8015,8 +8151,64 @@
       "evidence": "/decisions/0046-provider-reasoning-state-on-the-part.md frontmatter"
     },
     {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "file:tests/reasoningKey.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/grokLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "file:tests/fixtures/sessions/generate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "file:tests/sessionFixtures.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/memory/architecture.md frontmatter"
@@ -8051,6 +8243,13 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "module:lib/storage/postgres/index.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8061,35 +8260,35 @@
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:26"
+      "evidence": "/memory/architecture.md:29"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:44"
+      "evidence": "/memory/architecture.md:47"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:22"
+      "evidence": "/memory/architecture.md:25"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:86"
+      "evidence": "/memory/architecture.md:95"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:86"
+      "evidence": "/memory/architecture.md:95"
     },
     {
       "from": "/memory/schema.md",
@@ -8481,7 +8680,7 @@
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:46"
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8495,14 +8694,21 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:111"
+      "evidence": "/models/provider-routing.md:115"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:99"
+      "evidence": "/models/provider-routing.md:103"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:46"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8510,6 +8716,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:24"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/operations/parity-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:54"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8523,7 +8736,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:52"
+      "evidence": "/models/provider-routing.md:56"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -8685,6 +8898,55 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/failure-modes.md:64"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "file:tests/fixtures/parity.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md frontmatter"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "file:tests/parityHarness.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md frontmatter"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md frontmatter"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md frontmatter"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "module:scripts/parity_check.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md frontmatter"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md:23"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md:36"
     },
     {
       "from": "/operations/setup.md",
@@ -11110,7 +11372,21 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
+      "to": "module:lib/syndicateSchema.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compile.ts"
@@ -11632,6 +11908,13 @@
       "rel": "reads_table",
       "tier": "extracted",
       "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/models/capabilities.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/capabilities.ts"
     },
     {
       "from": "module:lib/models/capabilities.ts",
@@ -13875,6 +14158,13 @@
     },
     {
       "from": "module:scripts/demo_model_optionality.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/demo_model_optionality.ts"
+    },
+    {
+      "from": "module:scripts/demo_model_optionality.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -14019,6 +14309,97 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/memory_admin.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/loadEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "env:MELCHIZEDEK_RUNTIME",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "env:OLLAMA_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "env:OTEL_CONSOLE_SPANS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
     },
     {
       "from": "module:scripts/purge_supabase.ts",
@@ -14646,6 +15027,13 @@
     {
       "from": "script:memory",
       "to": "module:scripts/memory_admin.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:parity",
+      "to": "module:scripts/parity_check.ts",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"

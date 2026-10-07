@@ -1,0 +1,126 @@
+{
+  "fixture": "07-two-turns",
+  "description": "A two-turn conversation with one agent: the second turn reads the first from the stored session.",
+  "generatedBy": "tests/fixtures/sessions/generate.ts",
+  "adkVersion": "2.2.0",
+  "storedForm": "trimmed",
+  "endsWith": "completed",
+  "syndicate": {
+    "syndicate_name": "Conversation Fixture",
+    "memory_system": "internal-only",
+    "orchestrator": {
+      "name": "Solo",
+      "model": "scripted/solo",
+      "instruction": "Converse."
+    },
+    "subagents": []
+  },
+  "turns": [
+    [
+      {
+        "text": "hello"
+      }
+    ],
+    [
+      {
+        "text": "again"
+      }
+    ]
+  ],
+  "sessions": [
+    {
+      "appName": "fixtures",
+      "userId": "user-1",
+      "sessionId": "conv-07",
+      "state": {},
+      "events": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "hello"
+              }
+            ]
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Solo",
+          "id": "ev000002",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225601000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "first answer"
+              }
+            ]
+          },
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000002",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000003",
+          "longRunningToolIds": [],
+          "timestamp": 1767225602000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000002",
+          "author": "Solo",
+          "id": "ev000004",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225603000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "second answer"
+              }
+            ]
+          },
+          "turnComplete": true
+        }
+      ]
+    }
+  ]
+}
