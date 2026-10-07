@@ -63,7 +63,7 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 | structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ◐3 | ✓4 |
 | thinking with tool use | ✓ | ✓5 | ✓6 | ✓7 | ◐8 | ◐9 | ◐10 |
 | token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| image input | ✓ | ✗11 | ✓12 | ✓13 | ✓14 | ✓15 | ✓16 |
+| image input | ✓ | ✓11 | ✓12 | ✓13 | ✓14 | ✓15 | ✓16 |
 | native web search | ✓ | ✓ | ✓ | ✓ | ✗17 | ✗18 | ✗19 |
 
 ✓ supported · ◐ degraded · ✗ unsupported. Gemini cells are ADK's own adapter; every other cell is asserted against the request the adapter sends.
@@ -78,7 +78,7 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 8. Moonshot Kimi · thinking with tool use: reasoning_content is not replayed across tool calls, which Moonshot asks for on kimi-k3, so the model re-reasons each step; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
 9. Ollama (local) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever.
 10. Gateway (any id) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever.
-11. Anthropic Claude · image input: image parts are dropped from the request; route image work to a Gemini, GPT or vision Ollama agent.
+11. Anthropic Claude · image input: user-turn images only.
 12. OpenAI GPT · image input: user-turn images only.
 13. xAI Grok · image input: user-turn images only.
 14. Moonshot Kimi · image input: user-turn images only, sent as base64 (Moonshot takes no public image URLs).
@@ -97,6 +97,10 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 | Anthropic Claude on Vertex AI | native web search: ✗ not sent on Vertex AI; the web_search sentinel is dropped (use web_extract) |
 | OpenAI GPT on Azure OpenAI | native web search: ✗ not sent on Azure OpenAI; the web_search sentinel is dropped (use web_extract) |
 <!-- /wiki:generated -->
+
+## Images
+
+An image reaches a model as a part of the user's message (`inlineData` with base64 bytes, or `fileData` with a URI; the [A2A server](/protocols/a2a.md) refuses file parts, so images come from library callers of `runSyndicateTurn`). Each adapter sends user-turn images only; an image inside a tool result travels as that result's JSON, never as image input. Claude's adapter sends `inlineData` as a base64 `image` block (`image/png` when the part names no type) and an `https` `fileData` URI as a URL `image` block that Anthropic fetches, in the parts' order. Anthropic takes JPEG, PNG, GIF and WebP: any other type, or a URI that is not `https`, is dropped with `llm.image.dropped` (the media type or the URL scheme, never the URL) on the `llm.request` span and one warning per type. Gemini takes both shapes natively (ADK's own adapter). GPT and Grok send `inlineData` as an input image data URI and the chat-completions adapters as an `image_url` data URI; none of these reads `fileData`.
 
 ## Reasoning state across tool steps
 

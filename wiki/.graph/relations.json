@@ -28,6 +28,14 @@
     },
     {
       "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "/operations/agent-skills.md",
+      "rel": "constrains",
+      "evidence": "skills/melchizedek-models/SKILL.md \"Settings per agent\" restates ADR 0047 Decision 2 (thinking level, thinking budget 0/2048/8192/16384, effort word) and Decision 6 (thinkingConfig and reasoningEffort as the older spelling); skills/melchizedek-author/assets/minimal.yaml sets reasoning:. A change to the mapping changes those shipped skills and their briefs.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "depends_on",
       "evidence": "ADR 0047 maps reasoning: none on Ollama to reasoning_effort \"none\", the one value ADR 0027 found Ollama's /v1 endpoint honours; the model zoo's qwen_local relies on it.",
@@ -39,6 +47,63 @@
       "to": "module:lib/models/claudeLlm.ts",
       "rel": "depends_on",
       "evidence": "ADR 0047: \"high stops at 16,384 because the Claude adapter raises max_tokens to at least the budget plus 2,048\", keeping a non-streaming request under the Anthropic SDK ceiling.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "script:parity",
+      "rel": "explains",
+      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "script:fixtures:sessions:check",
+      "rel": "explains",
+      "evidence": "/memory/architecture.md, Stored event shape: \"With `--check` it exits 1 when a fixture no longer matches what the runtime writes, which is what a dependency bump that changes the stored shape looks like. `npm run fixtures:sessions:check` runs that check, and CI's test job runs it after the offline suite on both Node versions.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07",
+      "note": "The script runs tests/fixtures/sessions/generate.ts --check; the build links scripts only to source modules, so this edge is asserted."
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 3: \"ReasoningSetting moves from the loader to the contract, and lib/loadSyndicate.ts imports and re-exports it, so the dependency points from the loader to the contract.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 2: \"The module is types only, its one import is ProviderState, and no module in its import graph names @google/*.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0045 Decision 1: \"The model contract is the engine's own message format, with a slot for the provider-opaque reasoning state that @google/genai Content cannot carry.\" ADR 0048 is that contract.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0048 Decision 1: \"Any part may carry providerState, reusing ADR 0046's type.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0048 Decision 3: ReasoningSetting (ADR 0047) belongs to the contract, and \"Each adapter maps the setting itself, so a fallback model gets its own mapping.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -63,14 +128,6 @@
       "to": "module:lib/models/providerState.ts",
       "rel": "depends_on",
       "evidence": "ADR 0050 Decision, Replay: \"currentTurnStart in lib/models/providerState.ts holds that rule for every adapter.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/operations/parity-harness.md",
-      "to": "script:parity",
-      "rel": "explains",
-      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     }

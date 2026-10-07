@@ -31,6 +31,9 @@
  *     they preceded as providerState (lib/models/providerState.ts, ADR 0046)
  *     and are replayed verbatim before that part within the current turn's
  *     tool loop, which Anthropic requires for thinking with tool use.
+ *   - Vision: user-turn inlineData parts become base64 image blocks and https
+ *     fileData parts URL image blocks; a type Anthropic rejects is dropped
+ *     with llm.image.dropped on the span and a one-time warning.
  *   - Token usage: response.usage is mapped to LlmResponse.usageMetadata, so
  *     traceAgentRun / llm.request spans count Claude tokens like Gemini's.
  *
@@ -77,7 +80,13 @@ type AnthropicContentBlock =
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; input: unknown }
   | { type: 'tool_result'; tool_use_id: string; content: string }
+  | AnthropicImageBlock
   | SignedThinkingBlock;
+
+type AnthropicImageBlock = {
+  type: 'image';
+  source: { type: 'base64'; media_type: string; data: string } | { type: 'url'; url: string };
+};
 
 /** A `thinking` or `redacted_thinking` block exactly as the API returned it. */
 type SignedThinkingBlock = { type: 'thinking' | 'redacted_thinking' } & Record<string, unknown>;
@@ -93,6 +102,31 @@ export const THINKING_STATE_KIND = 'thinking_blocks';
 
 const isSignedThinking = (b: any): b is SignedThinkingBlock =>
   !!b && typeof b === 'object' && (b.type === 'thinking' || b.type === 'redacted_thinking');
+
+/** The image media types the Messages API accepts. */
+const ANTHROPIC_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+
+/**
+ * A user-turn image part → an Anthropic image block: inlineData as a base64
+ * source (image/png when it names no type), an https fileData URI as a URL
+ * source. When Anthropic would not accept the part, returns what is wrong
+ * with it instead (the media type, or the URL's scheme, never the URL), for
+ * the span and the warning.
+ */
+function imageBlockFor(p: any): AnthropicImageBlock | string {
+  // The caller's type string reaches a log line and the ledger: printable, short.
+  const named = (type: string) => type.replace(/[^\x20-\x7e]/g, '?').slice(0, 64);
+  if (p.inlineData?.data) {
+    const mediaType = String(p.inlineData.mimeType ?? 'image/png').toLowerCase();
+    if (!ANTHROPIC_IMAGE_TYPES.has(mediaType)) return named(mediaType);
+    return { type: 'image', source: { type: 'base64', media_type: mediaType, data: p.inlineData.data } };
+  }
+  const uri = String(p.fileData.fileUri);
+  const mediaType = p.fileData.mimeType ? String(p.fileData.mimeType).toLowerCase() : undefined;
+  if (mediaType && !ANTHROPIC_IMAGE_TYPES.has(mediaType)) return named(mediaType);
+  if (!/^https:\/\//i.test(uri)) return `non-https URL (${/^[a-z][a-z0-9+.-]*:/i.exec(uri)?.[0] ?? 'no scheme'})`;
+  return { type: 'image', source: { type: 'url', url: uri } };
+}
 
 /**
  * Where the current turn starts in `contents`: the last user content that is
@@ -161,6 +195,7 @@ export class ClaudeLlm extends BaseLlm {
   private apiKey?: string;
   private endpoint?: ProviderEndpoint;
   private searchDropWarned = false;
+  private imageDropWarned = new Set<string>();
 
   /**
    * `endpoint` (ADR 0023): where the request goes — Anthropic's API (or a
@@ -234,6 +269,7 @@ export class ClaudeLlm extends BaseLlm {
     // stored prefix may differ from what the model saw (tool payloads are
     // elided before storage), which would invalidate them (ADR 0046).
     const turnStart = currentTurnStart(llmRequest.contents);
+    const droppedImages = new Set<string>();
 
     for (const [index, content] of llmRequest.contents.entries()) {
       // System instruction lives in config.systemInstruction, not contents.
@@ -267,6 +303,11 @@ export class ClaudeLlm extends BaseLlm {
         }
         if (p.text) {
           blocks.push({ type: 'text', text: p.text });
+        } else if (role === 'user' && (p.inlineData?.data || p.fileData?.fileUri)) {
+          // A user-turn image, in place. Images inside tool results stay out.
+          const image = imageBlockFor(p);
+          if (typeof image === 'string') droppedImages.add(image);
+          else blocks.push(image);
         } else if (p.functionCall) {
           // ADK function_call → Anthropic tool_use
           blocks.push({
@@ -287,6 +328,14 @@ export class ClaudeLlm extends BaseLlm {
 
       if (blocks.length > 0) {
         messages.push({ role, content: blocks });
+      }
+    }
+    if (droppedImages.size > 0) {
+      setLlmSpanAttribute('llm.image.dropped', [...droppedImages].join(','));
+      for (const what of droppedImages) {
+        if (this.imageDropWarned.has(what)) continue;
+        this.imageDropWarned.add(what);
+        console.warn(`⚠ An image part (${what}) is not sent to Claude, which takes JPEG, PNG, GIF or WebP, inline or by https URL.`);
       }
     }
 

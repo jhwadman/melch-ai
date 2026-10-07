@@ -34,6 +34,7 @@ orchestrator:
         3. <Compose the reply from what came back.>
       </execution_framework>
     </prompt_instructions>
+  reasoning: low                    # none | low | medium | high, on any provider (melchizedek-models)
   generateContentConfig:
     maxOutputTokens: 4096
 
@@ -47,6 +48,7 @@ subagents:
     instruction: |
       You are Worker. <The one job, its inputs, and the exact shape of the
       report you return.>
+    reasoning: none                 # a gathering agent; raise it when the job is judgment
     generateContentConfig:
       maxOutputTokens: 2048
     # For structured output put the schema HERE, on a leaf with no tools —

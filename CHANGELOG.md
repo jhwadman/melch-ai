@@ -25,6 +25,12 @@ the starter pack and the templates), not the repo's full history.
   asks of its provider is unchanged: the templates' `includeThoughts: false`
   was already the default, and the zoo's Claude agent keeps its 2,048-token
   budget as `low`.
+- **The shipped skills teach `reasoning:`.** `melchizedek-author` and
+  `melchizedek-models` (and their briefs) set reasoning with `reasoning:`, show
+  what each level becomes per provider (and the newer Claude models on which
+  to leave it unset until the adapter maps it to their effort setting), and
+  describe `generateContentConfig.thinkingConfig` and `reasoningEffort` as the
+  older spelling that still loads. The author skill's `assets/minimal.yaml` sets it.
 - `lib/compile.ts` exports `reasoningConfig`, `withReasoning` and
   `REASONING_BUDGETS`. The `AgentYamlConfig` type gains `reasoning`, and
   `GenerateContentConfig` gains `reasoningEffort`.
@@ -39,6 +45,20 @@ the starter pack and the templates), not the repo's full history.
   uses for provider-opaque reasoning state. The final event no longer
   carries `customMetadata['anthropic.thinking']`; the same blocks are on
   the part.
+- **Claude agents see images.** `ClaudeLlm` sends a user-turn `inlineData`
+  part as a base64 image block (`image/png` when it names no type) and an
+  `https` `fileData` part as a URL image block, in the parts' order. Before,
+  it dropped both. JPEG, PNG, GIF and WebP are sent; any other type, or a
+  non-https URL, is dropped with `llm.image.dropped` on the span and a
+  one-time warning naming the type. Images inside tool results are not sent,
+  as on GPT. The capability matrix marks Anthropic image input supported.
+- **The engine's own model contract (ADR 0048).** New module
+  `melchizedek-agents/models/contract`, types only: `Message`, `Part`,
+  `ToolDeclaration`, `NativeTool`, `ModelRequest`, `ModelResponse`,
+  `ModelAdapter`, `ProviderCapabilities` and their parts. The native
+  runtime and every model adapter will speak it, and no adapter uses it
+  yet. `ReasoningLevel` and `ReasoningSetting` are defined there now.
+  `melchizedek-agents/loadSyndicate` re-exports them unchanged.
 - **Thinking with tool use works on GPT and Grok (ADR 0050).** On
   reasoning ids (o-series, `gpt-5*`, `grok-4.5`, `grok-4.7`), the Responses
   adapters write each run of encrypted reasoning items on the part after it
