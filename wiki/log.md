@@ -7,6 +7,30 @@ machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-07] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/session/transcript.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/fallbackAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0044-fallback-model-and-circuit-breaker.md —constrains→ module:lib/models/circuitBreaker.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0044-fallback-model-and-circuit-breaker.md —constrains→ module:lib/models/fallbackAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/openAiCompatibleLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/kimiLlm.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0050-responses-reasoning-replay-without-storage.md —depends_on→ module:lib/models/providerState.ts
 
 by claude-code/claude-opus-5-5

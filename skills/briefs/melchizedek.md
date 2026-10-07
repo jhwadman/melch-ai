@@ -43,7 +43,7 @@ The starter pack (file → name → what it does → tier / extra requirement):
 Check the keys:
 - `npx melchizedek-doctor` (clone: `npm run doctor`) reads every syndicate the loader can see, resolves each agent's model to a provider under the current `.env`, and prints one table: agent, model, provider, which server-side tools the path keeps or drops, and whether the path is funded, with one verdict per syndicate and the variables that would unlock the most. Read-only; nothing sent, nothing written, no key value printed.
 - `--json` for machine-readable output; `--check` exits 1 when any syndicate is blocked.
-- Which key: GOOGLE_GENAI_API_KEY for gemini-* ids, ANTHROPIC_API_KEY for claude-*, OPENAI_API_KEY for gpt-*, XAI_API_KEY for grok-*, none for ollama/* (Ollama must be running, model pulled). Details and the gateway fallback: the melchizedek-models skill.
+- Which key: GOOGLE_GENAI_API_KEY for gemini-* ids, ANTHROPIC_API_KEY for claude-*, OPENAI_API_KEY for gpt-*, XAI_API_KEY for grok-*, MOONSHOT_API_KEY for kimi-*, none for ollama/* (Ollama must be running, model pulled). Details and the gateway fallback: the melchizedek-models skill.
 
 Run one:
 - Interactive: `npx melchizedek-chat --syndicate <name>` (clone: `npm run chat:syndicate -- --syndicate <name>`; every example also has an alias such as `npm run syndicate:tutor`). A banner shows the syndicate, orchestrator, subagents, and whether sessions and memory are in Supabase or in memory. Type `exit` to end the session; that is also when a long-term syndicate writes its memory.
@@ -60,7 +60,7 @@ Delegate a task from this agent:
 
 When something fails:
 - `Gemini API Key is not configured`: `.env` missing or GOOGLE_GENAI_API_KEY unset.
-- `Model not found` for a claude-*, gpt-* or grok-* id: that provider's key is not set, so the provider was not registered; the doctor names the variable.
+- `Model not found` for a claude-*, gpt-*, grok-* or kimi-* id: that provider's key is not set, so the provider was not registered; the doctor names the variable.
 - `OLLAMA_UNREACHABLE` for ollama/* ids: Ollama is not running, or the model is not pulled (`ollama list`).
 - `[400] Tool call context circulation is not enabled`: the agent's `model:` is too old for agent transfer; use `gemini-3.8-flash` or newer.
 - `Refusing to connect to private/loopback MCP host`: the SSRF guard; for a local MCP server set `ALLOW_PRIVATE_MCP=true` in `.env`.
@@ -68,5 +68,5 @@ When something fails:
 
 The other skills: melchizedek-author (design or edit a syndicate file), melchizedek-serve (A2A server and MCP in both directions), melchizedek-memory (Supabase sessions and long-term memory), melchizedek-models (model ids, providers, keys, the gateway), melchizedek-scribe (write documents from a brief with the Scribe).
 
-IDENTIFIERS (verbatim): config/agents/, config/agents/examples/, node_modules/melchizedek-agents/config/agents/examples/, MELCHIZEDEK_AGENTS_DIR, npx melchizedek-doctor, --json, --check, npx melchizedek-chat --syndicate, CHAT_STREAMING=false, --bind, --bindings, {{current_date}}, GOOGLE_GENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, XAI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ALLOW_PRIVATE_MCP=true, X_BEARER_TOKEN, scribe.yaml, tutor.yaml, augustin.yaml, syndicate.yaml
+IDENTIFIERS (verbatim): config/agents/, config/agents/examples/, node_modules/melchizedek-agents/config/agents/examples/, MELCHIZEDEK_AGENTS_DIR, npx melchizedek-doctor, --json, --check, npx melchizedek-chat --syndicate, CHAT_STREAMING=false, --bind, --bindings, {{current_date}}, GOOGLE_GENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, XAI_API_KEY, MOONSHOT_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ALLOW_PRIVATE_MCP=true, X_BEARER_TOKEN, scribe.yaml, tutor.yaml, augustin.yaml, syndicate.yaml
 LIMITS: the starter-pack section is a bulleted list, one line per file, file name in backticks first. Body under 170 lines.

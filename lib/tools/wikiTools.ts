@@ -53,6 +53,7 @@ import {
   trustTier,
 } from '../wiki/format.ts';
 import {
+  appendRelation,
   edgeKey,
   entityStats,
   findNodes,
@@ -64,7 +65,6 @@ import {
   NODE_KINDS,
   RELATIONS,
   relationsByTier,
-  saveRelations,
   shortestPath,
   snapshotDrift,
   type EntityNode,
@@ -578,12 +578,6 @@ export const wikiRelateContract = defineTool({
       return `REJECTED — ${fromNode!.id} is a public document and ${toNode!.id} is private knowledge. Public documents never point into the private annex; move the claim to a /private/ document instead.`;
     }
 
-    const { records } = loadRelations(root);
-    const key = edgeKey({ from: fromNode!.id, rel: relation, to: toNode!.id });
-    if (records.some((r) => edgeKey(r) === key)) {
-      return `UNCHANGED — ${key} is already asserted. wiki_graph on either node shows it.`;
-    }
-
     const record = {
       from: fromNode!.id,
       to: toNode!.id,
@@ -593,7 +587,14 @@ export const wikiRelateContract = defineTool({
       at: todayIso(),
       ...(note ? { note } : {}),
     };
-    saveRelations(root, [...records, record]);
+    // Appended at the end, never re-sorted: relations.json merges by keeping both sides.
+    try {
+      if (!appendRelation(root, record)) {
+        return `UNCHANGED — ${edgeKey(record)} is already asserted. wiki_graph on either node shows it.`;
+      }
+    } catch (err) {
+      return `REJECTED — the relation store could not be appended to, so nothing was written: ${err instanceof Error ? err.message : String(err)}. Fix .graph/relations.json first.`;
+    }
     appendLog(
       root,
       todayIso(),
@@ -603,7 +604,7 @@ export const wikiRelateContract = defineTool({
       logTargetFor(isPrivateNode(fromNode!) || isPrivateNode(toNode!)),
     );
 
-    const reverse = records.find(
+    const reverse = loadRelations(root).records.find(
       (r) => r.from === toNode!.id && r.to === fromNode!.id && r.rel === relation,
     );
     return [

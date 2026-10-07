@@ -191,15 +191,18 @@ const REASONING_ITEM = {
   encrypted_content: 'enc-fixture-0123',
 };
 
+/** The reasoning_content Kimi returned before its tool call, as the adapter stores it (ADR 0046). */
+const KIMI_REASONING = 'Scout will know; ask it.';
+
 /**
  * The state the row's own adapter wrote on the call: reasoning items on the
- * Responses rows, Anthropic's signed block everywhere else (which the
- * chat-completions adapters must ignore).
+ * Responses rows, reasoning_content on Moonshot, Anthropic's signed block
+ * everywhere else (which the other chat-completions adapters must ignore).
  */
 function stateOnCall(row: AdapterRow) {
-  return DIALECT[row] === 'responses'
-    ? { provider: row, kind: 'reasoning_items', model: MODEL[row], payload: [REASONING_ITEM] }
-    : { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] };
+  if (DIALECT[row] === 'responses') return { provider: row, kind: 'reasoning_items', model: MODEL[row], payload: [REASONING_ITEM] };
+  if (row === 'moonshot') return { provider: 'moonshot', kind: 'reasoning_content', model: MODEL.moonshot, payload: KIMI_REASONING };
+  return { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] };
 }
 
 /**
@@ -288,7 +291,12 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
         const tools = (body.tools ?? []).length > 0;
         if (!tools) return 'unsupported';
         // The budget has no wire form here; only reasoning_effort travels.
-        return body.reasoning_effort === 'low' && !('thinking' in body) ? 'degraded' : 'unsupported';
+        if (body.reasoning_effort !== 'low' || 'thinking' in body) return 'unsupported';
+        // Supported where the assistant message holding the call gets its
+        // reasoning_content back (Kimi); elsewhere the model re-reasons.
+        const assistant = (body.messages ?? []).find((m: any) => m.role === 'assistant');
+        const replayed = assistant?.reasoning_content === KIMI_REASONING && assistant.tool_calls?.[0]?.id === 'call_1';
+        return replayed ? 'supported' : 'degraded';
       }
     }
   },

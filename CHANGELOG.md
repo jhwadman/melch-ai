@@ -80,6 +80,47 @@ the starter pack and the templates), not the repo's full history.
   `buildResponsesInput` takes an optional `replay` argument;
   `models/gptLlm` exports `REASONING_STATE_KIND`, and `models/providerState`
   exports `currentTurnStart`.
+- **Kimi keeps its reasoning across tool steps (ADR 0046).** On `kimi-k3`,
+  `kimi-k2.6` and `kimi-k2.7-code`, the adapter stores each response's
+  `reasoning_content` on the part that follows it and sends it back on that
+  assistant message within the turn's tool loop, for the same model only,
+  as Moonshot asks. A tool loop's later steps bill the replayed reasoning
+  as input. `OpenAiCompatibleLlm` gains the opt-in hook
+  `replaysReasoningContent()` (off by default; Ollama and the gateway keep
+  it off) and exports `REASONING_CONTENT_KIND`; `models/kimiLlm` exports
+  `wantsReasoningReplay`. `currentTurnStart` returns -1 when no user
+  content opens the turn, so every content is then the current turn's.
+- **The fallback model on the engine's own contract (ADR 0044, ADR 0048).**
+  New module `melchizedek-agents/models/fallbackAdapter`: `FallbackAdapter`,
+  a `ModelAdapter` around a primary and a fallback adapter, with
+  `FallbackAdapterOptions` and `isProviderError`. It applies ADR 0044's
+  rules to a failed final's `error.retryable` and `status`, and hands the
+  fallback the request with its own model id and the caller's `reasoning`
+  unchanged. Nothing uses it yet. The breaker's state moves to the new
+  module `melchizedek-agents/models/circuitBreaker` (`circuitOpen`,
+  `recordFailure`, `recordSuccess`, `resetCircuits`, `breakerSettings`, and
+  `setBreakerClock` for tests), shared by both wrappers, so a provider
+  tripped on one path is skipped on the other. `models/fallback` still
+  exports `circuitOpen` and `resetCircuits`, and `FallbackLlm` behaves as
+  before.
+- **An elided tool result's size is stored the same on every server.**
+  `trimEventForStorage` writes it with en-US digit grouping (`2,563 chars
+  dropped before storage — …`), where it followed the server's locale
+  (`2.563` in German). An en-US server stores the same bytes as before, and
+  rows already stored are untouched.
+- The capability matrix's Ollama and gateway `thinking_with_tools` note names
+  `reasoning:` as the lever (ADR 0047), compiled to `reasoningEffort`.
+- **The shipped skills cover Kimi.** `melchizedek-models` adds `kimi-*` to
+  Moonshot AI in its routing table, `MOONSHOT_API_KEY` to its key list and
+  `kimi-k3` to its verified ids; `melchizedek` adds the key and `kimi-*` to
+  its `Model not found` line. Their briefs match.
+- **`wiki_relate` appends.** A new assertion goes at the end of
+  `.graph/relations.json` and every stored record keeps its place and bytes,
+  where each write used to re-sort the whole file. A store that does not
+  parse is refused rather than overwritten. `melchizedek-agents/wiki/entities`
+  exports `appendRelation(wikiRoot, record)`, which returns `false` for a
+  duplicate, and `saveRelations` writes records in the order given instead of
+  sorting them.
 
 ## 0.18.0 — 2026-10-06
 
