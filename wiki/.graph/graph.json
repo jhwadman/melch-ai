@@ -5,15 +5,15 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 660,
-    "edges": 1563,
+    "nodes": 662,
+    "edges": 1574,
     "byKind": {
-      "doc": 102,
+      "doc": 103,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 92,
+      "file": 93,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 245,
+      "links_to": 247,
       "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,18 +33,18 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 365,
+      "imports": 366,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 302,
+      "derives_from": 307,
       "supersedes": 1,
-      "constrains": 5,
-      "depends_on": 5,
+      "constrains": 7,
+      "depends_on": 6,
       "explains": 2
     },
     "byTier": {
-      "extracted": 1550,
-      "inferred": 13
+      "extracted": 1558,
+      "inferred": 16
     },
     "isolated": 4
   },
@@ -986,6 +986,18 @@
       }
     },
     {
+      "id": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "kind": "doc",
+      "label": "ADR 0050: The Responses adapters replay encrypted reasoning items and store nothing with the vendor",
+      "source": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 867
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1078,7 +1090,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2469
+        "words": 2741
       }
     },
     {
@@ -3416,6 +3428,12 @@
       "source": "tests/redirects.test.ts"
     },
     {
+      "id": "file:tests/responsesReasoningState.test.ts",
+      "kind": "file",
+      "label": "responsesReasoningState.test.ts",
+      "source": "tests/responsesReasoningState.test.ts"
+    },
+    {
       "id": "file:tests/rlsStatus.test.ts",
       "kind": "file",
       "label": "rlsStatus.test.ts",
@@ -3818,7 +3836,7 @@
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 738
+        "lines": 827
       }
     },
     {
@@ -3827,7 +3845,7 @@
       "label": "lib/models/grokLlm.ts",
       "source": "lib/models/grokLlm.ts",
       "attrs": {
-        "lines": 120
+        "lines": 135
       }
     },
     {
@@ -3872,7 +3890,7 @@
       "label": "lib/models/providerState.ts",
       "source": "lib/models/providerState.ts",
       "attrs": {
-        "lines": 60
+        "lines": 77
       }
     },
     {
@@ -8284,6 +8302,48 @@
       "evidence": "/decisions/0048-engine-owned-model-contract.md:28"
     },
     {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "file:tests/responsesReasoningState.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/grokLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md:28"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8869,7 +8929,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:119"
+      "evidence": "/models/provider-routing.md:123"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8884,6 +8944,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:46"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:121"
     },
     {
       "from": "/models/provider-routing.md",
@@ -12332,6 +12399,13 @@
     {
       "from": "module:lib/models/gptLlm.ts",
       "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/providerState.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gptLlm.ts"

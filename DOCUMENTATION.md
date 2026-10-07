@@ -444,7 +444,10 @@ dimmed THINKING output and kept out of session history. On Claude, any
 `generateContentConfig.thinkingConfig.thinkingBudget`) enables Anthropic
 extended thinking, tools included: the signed thinking blocks ride on the
 response's parts as `providerState` and are replayed verbatim within the
-turn's tool loop (ADR 0046).
+turn's tool loop (ADR 0046). GPT's reasoning ids (o-series, `gpt-5*`) and
+`grok-4.5`/`grok-4.7` do the same with their encrypted reasoning items.
+Their requests send `store: false`, so the vendor keeps no copy of the
+response (ADR 0050).
 
 The engine's own model contract is `lib/models/contract.ts` (ADR 0048),
 importable as `melchizedek-agents/models/contract`. It defines the message

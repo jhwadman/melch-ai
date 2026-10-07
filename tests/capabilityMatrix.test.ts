@@ -183,10 +183,28 @@ function withDelegationTools(row: AdapterRow): LlmRequest {
 /** The signed block Claude returned before its tool call, as the adapter stores it (ADR 0046). */
 const SIGNED_THINKING = { type: 'thinking', thinking: 'I should ask Scout.', signature: 'sig-fixture-0123' };
 
+/** The reasoning item a Responses model returned before its function call (ADR 0046). */
+const REASONING_ITEM = {
+  type: 'reasoning',
+  id: 'rs_fixture_1',
+  summary: [{ type: 'summary_text', text: 'I should ask Scout.' }],
+  encrypted_content: 'enc-fixture-0123',
+};
+
+/**
+ * The state the row's own adapter wrote on the call: reasoning items on the
+ * Responses rows, Anthropic's signed block everywhere else (which the
+ * chat-completions adapters must ignore).
+ */
+function stateOnCall(row: AdapterRow) {
+  return DIALECT[row] === 'responses'
+    ? { provider: row, kind: 'reasoning_items', model: MODEL[row], payload: [REASONING_ITEM] }
+    : { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] };
+}
+
 /**
  * A thinking agent mid tool loop: a prior model turn with thought + call, then
- * the result. The call carries Anthropic's signed block as providerState;
- * every other adapter must ignore it.
+ * the result. The call carries the reasoning state its step produced.
  */
 function thinkingToolLoop(row: AdapterRow): LlmRequest {
   const req = withDelegationTools(row);
@@ -199,7 +217,7 @@ function thinkingToolLoop(row: AdapterRow): LlmRequest {
         { text: 'I should ask Scout.', thought: true } as any,
         {
           functionCall: { id: 'call_1', name: 'Scout', args: { request: 'find it' } },
-          providerState: { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] },
+          providerState: stateOnCall(row),
         } as any,
       ],
     },
@@ -254,11 +272,17 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
         return replayed ? 'supported' : 'unsupported';
       }
       case 'responses': {
+        // The reasoning item goes back verbatim, immediately before the
+        // function_call it preceded, on a request that keeps nothing
+        // server-side and asks for the next step's reasoning encrypted.
         const reasons = !!body.reasoning;
         const tools = (body.tools ?? []).length > 0;
-        const replayed = (body.input ?? []).some((i: any) => i.type === 'reasoning');
         if (!reasons || !tools) return 'unsupported';
-        return replayed ? 'supported' : 'degraded';
+        const input: any[] = body.input ?? [];
+        const at = input.findIndex((i) => i.type === 'function_call');
+        const replayed = at > 0 && JSON.stringify(input[at - 1]) === JSON.stringify(REASONING_ITEM);
+        const stateless = body.store === false && (body.include ?? []).includes('reasoning.encrypted_content');
+        return replayed && stateless ? 'supported' : 'degraded';
       }
       case 'chat': {
         const tools = (body.tools ?? []).length > 0;

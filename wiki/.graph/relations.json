@@ -106,6 +106,30 @@
       "evidence": "ADR 0048 Decision 3: ReasoningSetting (ADR 0047) belongs to the contract, and \"Each adapter maps the setting itself, so a fallback model gets its own mapping.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0050 Decision: reasoning ids \"send store: false and include: ['reasoning.encrypted_content']\"; each run of reasoning items rides verbatim on the part after it and is replayed before that part within the turn's tool loop.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/grokLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0050 Decision, Which ids: \"xAI's grok-4.5 and grok-4.7, through the adapter hook replaysReasoning()\". Other grok ids send nothing new.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "depends_on",
+      "evidence": "ADR 0050 Decision, Replay: \"currentTurnStart in lib/models/providerState.ts holds that rule for every adapter.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }
