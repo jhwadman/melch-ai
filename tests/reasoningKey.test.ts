@@ -208,17 +208,23 @@ test('requiredCapabilities reads reasoning: an agent with tools that thinks need
   assert.deepStrictEqual(requiredCapabilities({ reasoning: 'high' }), [], 'no tools, nothing to lose');
 });
 
-test('the doctor reports the gap for a thinking Claude agent declared with reasoning', () => {
+test('the doctor reads reasoning: a thinking agent with tools gets its path\'s gap', () => {
+  // The doctor must see `reasoning:` as thinking. Ollama's chat-completions
+  // path keeps thinking with tools degraded, so the gap shows there; Claude
+  // replays signed thinking on the tool loop (ADR 0046), so the same agent on
+  // Claude has none.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-reasoning-'));
   const saved = process.env.ANTHROPIC_API_KEY;
+  const agent = (model: string) =>
+    ['syndicate_name: Thinker', 'orchestrator:', '  name: Lead', `  model: ${model}`, '  instruction: x', '  reasoning: medium', '  tools: [web_extract]'].join('\n');
   try {
-    fs.writeFileSync(
-      path.join(dir, 'thinker.yaml'),
-      ['syndicate_name: Thinker', 'orchestrator:', '  name: Lead', '  model: claude-sonnet-4-6', '  instruction: x', '  reasoning: medium', '  tools: [web_extract]'].join('\n'),
-    );
+    fs.writeFileSync(path.join(dir, 'local.yaml'), agent('ollama/qwen3:8b'));
+    fs.writeFileSync(path.join(dir, 'claude.yaml'), agent('claude-sonnet-4-6'));
     process.env.ANTHROPIC_API_KEY = FAKE.anthropic.ANTHROPIC_API_KEY;
-    const row = runDoctor({ agentsDir: dir }).syndicates.find((s) => s.file === 'thinker.yaml')!.rows[0];
-    assert.deepStrictEqual(row.gaps.map((g) => `${g.capability}:${g.support}`), ['thinking_with_tools:unsupported']);
+    const rows = runDoctor({ agentsDir: dir }).syndicates;
+    const gaps = (file: string) => rows.find((s) => s.file === file)!.rows[0].gaps.map((g) => `${g.capability}:${g.support}`);
+    assert.deepStrictEqual(gaps('local.yaml'), ['thinking_with_tools:degraded']);
+    assert.deepStrictEqual(gaps('claude.yaml'), []);
   } finally {
     if (saved === undefined) delete process.env.ANTHROPIC_API_KEY;
     else process.env.ANTHROPIC_API_KEY = saved;
