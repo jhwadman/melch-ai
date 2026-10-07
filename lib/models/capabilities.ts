@@ -189,7 +189,7 @@ const nativeSearch = (row: ProviderId): CapabilityCell =>
 const RESPONSES_REASONING_NOTE =
   'reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step';
 const CHAT_THINKING_NOTE =
-  'thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever';
+  'thinkingConfig budgets are ignored on chat-completions; reasoning: is the lever, compiled to reasoningEffort and sent as reasoning_effort (ADR 0047)';
 
 export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityCell>> = {
   gemini: {

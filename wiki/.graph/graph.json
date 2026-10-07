@@ -946,7 +946,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1089
+        "words": 1173
       }
     },
     {
@@ -982,7 +982,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1316
+        "words": 1326
       }
     },
     {
@@ -1054,7 +1054,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2469
+        "words": 2487
       }
     },
     {
@@ -4021,7 +4021,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 399
+        "lines": 413
       }
     },
     {

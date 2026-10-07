@@ -174,7 +174,8 @@ export function projectTranscript(
 }
 
 /**
- * Strip from an event what no reader of the STORED session will ever use.
+ * Shrink an event for the STORED session: thought signatures go, and an
+ * oversized tool result becomes a marker.
  *
  * ── What the durable record is actually made of ───────────────────────────
  * Measured across 128 live sessions, by part field:
@@ -196,24 +197,36 @@ export function projectTranscript(
  * "76% is tool results" and predicted a 70% saving from eliding payloads
  * alone; the real saving from that change was 12%.
  *
- * ── Why none of it is needed ──────────────────────────────────────────────
- * The stored row has exactly two readers. {@link projectTranscript} drops
- * thought parts and tool traffic entirely on the way into a prompt, so a
- * stored signature is never replayed to a model. The memory service's
- * `serializeEvents` walks `part.text` alone, so a payload has never
- * contributed one extracted fact. Everything above is written, re-uploaded
- * on every later event in the turn (this service re-upserts the whole
- * array), and re-fetched whole next turn — for nothing. One live session had
- * reached 1.17 MB; a 60-turn conversation uploaded ~288 MB getting there.
+ * ── Who reads it back ─────────────────────────────────────────────────────
+ * A plan-dispatch route reads the session through {@link projectTranscript},
+ * which drops past turns' thought parts and tool traffic on the way into a
+ * prompt (a resumed turn is the exception, below). Every other agent reads
+ * its stored session unprojected: its next turn's prompt replays earlier
+ * calls and their results as stored. From a trimmed row the model is handed the elision marker in
+ * place of the result, beside the answer it wrote from that result
+ * (tests/fixtures/sessions/08-elided-result.json), and past parts without
+ * their signatures. The memory service's `serializeEvents` walks `part.text`
+ * alone, so a payload has never contributed one extracted fact.
+ *
+ * So the cost of trimming is a past turn's long result, outside plan-dispatch:
+ * a follow-up that needs a detail the answer did not quote has to call the
+ * tool again. Untrimmed, everything above is written, re-uploaded on every
+ * later event in the turn (this service re-upserts the whole array), and
+ * re-fetched whole next turn. One live session had reached 1.17 MB; a
+ * 60-turn conversation uploaded ~288 MB getting there.
  *
  * ── What survives ─────────────────────────────────────────────────────────
  * A trimmed response KEEPS its shape: `id` and `name` are preserved and only
  * the body is replaced, because ADK pairs calls to responses by id
  * (`rearrangeEventsForLatestFunctionResponse` throws on a widowed half), so
  * an elided result must remain a result. The marker records what was dropped
- * and how big it was — what an operator reading the row needs. Small results
- * pass through untouched: they are cheap, and a short one is occasionally
- * the only record of what a number was.
+ * and how big it was, for an operator reading the row and for the model that
+ * replays it. Its size is grouped en-US on any server, so the stored text
+ * does not depend on the locale. Its wording, that no consumer reads a
+ * result back, is wrong outside plan-dispatch, but it is stored text that
+ * existing rows already hold, so it stays as written. Small results pass
+ * through untouched: they are cheap, and a short one is occasionally the
+ * only record of what a number was.
  *
  * Provider reasoning state (`providerState`, lib/models/providerState.ts,
  * ADR 0046) is kept whole on every part. Resuming an interrupted turn
@@ -223,10 +236,11 @@ export function projectTranscript(
  * the field with the rest of a past turn's parts.
  *
  * ── The one constraint on changing this ───────────────────────────────────
- * Dropping `thoughtSignature` is safe BECAUSE the projection never feeds
- * stored events back to a model. Anything that starts replaying raw stored
- * events into Gemini would need the signature preserved, or lose thought
- * continuity across a resumed session.
+ * Stored events ARE fed back to a model: outside plan-dispatch on every later
+ * turn, and on every resume. A replayed call stays valid only because it
+ * keeps the skip value (ADR 0028); every other signature is gone, and with it
+ * Gemini's thought continuity across turns. Anything that needs that
+ * continuity needs the real signature stored.
  *
  * Pure: returns a new event, never mutates the input. The caller applies it
  * to the SERIALIZED COPY only — the live in-memory session must keep both
@@ -246,7 +260,7 @@ export function trimEventForStorage(
   const next = parts.map(part => {
     let out = part;
 
-    // The dominant cost, and never read back from storage.
+    // The dominant cost. A replayed part goes without it; a call keeps a stand-in.
     if (out.thoughtSignature !== undefined) {
       const { thoughtSignature, ...rest } = out;
       // A stored function call can be replayed in its own turn: resuming an
@@ -275,7 +289,7 @@ export function trimEventForStorage(
       [key]: {
         ...holder,
         response: {
-          elided: `${size.toLocaleString()} chars dropped before storage — tool results are not read back by any consumer (lib/session/transcript.ts)`,
+          elided: `${size.toLocaleString('en-US')} chars dropped before storage — tool results are not read back by any consumer (lib/session/transcript.ts)`,
         },
       },
     };
