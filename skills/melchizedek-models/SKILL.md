@@ -1,6 +1,6 @@
 ---
 name: melchizedek-models
-description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent generation settings. Use when the user changes a model line, adds a provider key, sees Model not found or a gateway error, or asks which keys a syndicate needs."
+description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent settings such as how hard an agent reasons. Use when the user changes a model line, adds a provider key, wants an agent to think more or less, sees Model not found or a gateway error, or asks which keys a syndicate needs."
 ---
 
 ## How a model id routes
@@ -104,12 +104,25 @@ The runtime telemetry attributes every call to the upstream provider and records
 
 ## Settings per agent
 
+Set how hard an agent reasons with `reasoning:` on the agent block, beside `model:`. It takes `none`, `low`, `medium`, `high`, or `{ budget_tokens: 4096 }`, and reads the same on every provider. Leave it unset to keep the provider's default. The compiler sends each provider the field that provider reads:
+
+| Provider | What `reasoning:` becomes |
+| --- | --- |
+| Gemini 3 and later | a thinking level: `none` is `MINIMAL`, then `LOW`, `MEDIUM`, `HIGH` |
+| Gemini 2.x, and Claude 4.6 or older | a thinking budget of 0, 2048, 8192 or 16384 tokens |
+| Every other provider, and the gateway | an effort word; where the provider lacks that word, its nearest setting above |
+
+A `budget_tokens` value goes as written to Gemini and Claude, and as the smallest level that covers it everywhere else. Because the gateway can serve any cloud id, the effort word is always sent as well, and a direct provider ignores the field it does not read. Change the `model:` line and the setting carries over.
+
+Four limits apply. The Claude adapter raises a budget under 1024 to 1024, and a Claude budget above about 19000 fails a non-streaming turn in the Anthropic SDK, so stay at or under `high`. Gemini 2.5 Pro rejects a budget of 0, so `none` fails on it. On Claude Opus 4.7, 4.8, 5 and 5.5, Sonnet 5 and 5.5, Haiku 5.5, and Fable 5 and 5.1, leave `reasoning:` unset for now: those models think adaptively by default and refuse a thinking budget. The adapter will map `reasoning:` to their effort setting in a later release.
+
 You can configure generation parameters under `generateContentConfig:` on any agent in the syndicate YAML:
 - `temperature`: controls randomness where the provider still exposes the parameter.
-- `maxOutputTokens`: caps total token generation.
-- `thinkingConfig`: sets reasoning parameters on Gemini models that think, such as `{ thinkingLevel: MEDIUM, includeThoughts: false }`. Thinking tokens count against `maxOutputTokens`.
+- `maxOutputTokens`: caps total token generation. Thinking tokens count against it, so a reasoning agent with long output needs room. The Claude adapter raises its own ceiling to fit the thinking budget.
 
-The framework's own pattern places data-gathering subagents on a lite model with a tight output cap, while assigning synthesis tasks to a stronger model with a thinking level and room to reason.
+`thinkingConfig` and `reasoningEffort` inside `generateContentConfig:` are the older, provider-specific spelling of `reasoning:`. They still load, but each reaches only the providers that read it: a `thinkingLevel` written for Gemini does nothing on Claude. An agent that sets either beside `reasoning:` fails to load. Keep `thinkingConfig` only for `includeThoughts: true`, which streams Gemini's thought trace and has no `reasoning:` form. Such an agent sets its level inside `thinkingConfig` too, with `thinkingLevel`, and leaves `reasoning:` out.
+
+The framework's own pattern places data-gathering subagents on a lite model with `reasoning: none` and a tight output cap, while synthesis runs on a stronger model with `reasoning: low` or higher and room to reason. The templates in `config/agents/templates/` follow it.
 
 ## Mixing providers in one syndicate
 
