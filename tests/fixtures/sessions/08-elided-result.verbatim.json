@@ -1,0 +1,135 @@
+{
+  "fixture": "08-elided-result",
+  "description": "A tool result over 2,000 characters, and an answer read from it. trimEventForStorage replaces the result body with an elision marker and keeps its id and name; the verbatim form keeps the whole result.",
+  "generatedBy": "tests/fixtures/sessions/generate.ts",
+  "adkVersion": "2.2.0",
+  "storedForm": "verbatim",
+  "endsWith": "completed",
+  "syndicate": {
+    "syndicate_name": "Elision Fixture",
+    "memory_system": "internal-only",
+    "orchestrator": {
+      "name": "Clerk",
+      "model": "scripted/clerk",
+      "instruction": "Read filings.",
+      "tools": [
+        "fixture_fetch_filing"
+      ]
+    },
+    "subagents": []
+  },
+  "turns": [
+    [
+      {
+        "text": "what was MU's revenue last quarter?"
+      }
+    ]
+  ],
+  "sessions": [
+    {
+      "appName": "fixtures",
+      "userId": "user-1",
+      "sessionId": "conv-08",
+      "state": {},
+      "events": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "what was MU's revenue last quarter?"
+              }
+            ]
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Clerk",
+          "id": "ev000002",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225601000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "fixture_fetch_filing",
+                  "args": {
+                    "ticker": "MU"
+                  },
+                  "id": "adk-00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Clerk",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "adk-00000000-0000-4000-8000-000000000002",
+                  "name": "fixture_fetch_filing",
+                  "response": {
+                    "result": "Note 1. Standard disclosure text, unchanged from the prior quarter.\nNote 2. Standard disclosure text, unchanged from the prior quarter.\nNote 3. Standard disclosure text, unchanged from the prior quarter.\nNote 4. Standard disclosure text, unchanged from the prior quarter.\nNote 5. Standard disclosure text, unchanged from the prior quarter.\nNote 6. Standard disclosure text, unchanged from the prior quarter.\nNote 7. Standard disclosure text, unchanged from the prior quarter.\nNote 8. Standard disclosure text, unchanged from the prior quarter.\nNote 9. Standard disclosure text, unchanged from the prior quarter.\nNote 10. Standard disclosure text, unchanged from the prior quarter.\nNote 11. Standard disclosure text, unchanged from the prior quarter.\nNote 12. Standard disclosure text, unchanged from the prior quarter.\nNote 13. Standard disclosure text, unchanged from the prior quarter.\nNote 14. Standard disclosure text, unchanged from the prior quarter.\nNote 15. Standard disclosure text, unchanged from the prior quarter.\nNote 16. Standard disclosure text, unchanged from the prior quarter.\nNote 17. Standard disclosure text, unchanged from the prior quarter.\nNote 18. Standard disclosure text, unchanged from the prior quarter.\nNote 19. Standard disclosure text, unchanged from the prior quarter.\nNote 20. Standard disclosure text, unchanged from the prior quarter.\nNote 21. Standard disclosure text, unchanged from the prior quarter.\nNote 22. Standard disclosure text, unchanged from the prior quarter.\nNote 23. Standard disclosure text, unchanged from the prior quarter.\nNote 24. Standard disclosure text, unchanged from the prior quarter.\nNote 25. Standard disclosure text, unchanged from the prior quarter.\nNote 26. Standard disclosure text, unchanged from the prior quarter.\nNote 27. Standard disclosure text, unchanged from the prior quarter.\nNote 28. Standard disclosure text, unchanged from the prior quarter.\nNote 29. Standard disclosure text, unchanged from the prior quarter.\nNote 30. Standard disclosure text, unchanged from the prior quarter.\nNote 31. Standard disclosure text, unchanged from the prior quarter.\nNote 32. Standard disclosure text, unchanged from the prior quarter.\nNote 33. Standard disclosure text, unchanged from the prior quarter.\nNote 34. Standard disclosure text, unchanged from the prior quarter.\nNote 35. Standard disclosure text, unchanged from the prior quarter.\nNote 36. Standard disclosure text, unchanged from the prior quarter.\nNet revenue for the quarter: 9.30B USD."
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000003",
+          "longRunningToolIds": [],
+          "timestamp": 1767225602000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Clerk",
+          "id": "ev000004",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225603000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "From the filing: Net revenue for the quarter: 9.30B USD."
+              }
+            ]
+          },
+          "turnComplete": true
+        }
+      ]
+    }
+  ]
+}

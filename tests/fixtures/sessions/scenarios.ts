@@ -29,6 +29,18 @@ export const sentNotes: string[] = [];
 export const SEND_NOTE = 'fixture_send_note';
 /** An ungated lookup (fixture 06). */
 export const LOOKUP = 'fixture_lookup';
+/** A lookup whose result is too long to store whole (fixture 08). */
+export const FETCH_FILING = 'fixture_fetch_filing';
+
+/**
+ * What the filing lookup returns: past the 2,000 characters
+ * trimEventForStorage keeps, with the one figure an answer needs on its last
+ * line.
+ */
+export const FILING = [
+  ...Array.from({ length: 36 }, (_, i) => `Note ${i + 1}. Standard disclosure text, unchanged from the prior quarter.`),
+  'Net revenue for the quarter: 9.30B USD.',
+].join('\n');
 
 registerTool(
   SEND_NOTE,
@@ -51,6 +63,17 @@ registerTool(
     description: 'Look up a ticker.',
     parameters: z.object({ ticker: z.string() }),
     execute: async ({ ticker }) => `${ticker}: 104.20 USD`,
+  }),
+  { override: true },
+);
+
+registerTool(
+  FETCH_FILING,
+  new FunctionTool({
+    name: FETCH_FILING,
+    description: "Fetch a company's latest quarterly filing.",
+    parameters: z.object({ ticker: z.string() }),
+    execute: async () => FILING,
   }),
   { override: true },
 );
@@ -259,6 +282,28 @@ export const scenarios: Scenario[] = [
     }),
     turns: [[{ text: 'hello' }], [{ text: 'again' }]],
     endsWith: 'completed',
+  },
+  {
+    name: '08-elided-result',
+    description:
+      'A tool result over 2,000 characters, and an answer read from it. trimEventForStorage replaces the result body with an elision marker and keeps its id and name; the verbatim form keeps the whole result.',
+    sessionId: 'conv-08',
+    config: config({
+      syndicate_name: 'Elision Fixture',
+      memory_system: 'internal-only',
+      orchestrator: { name: 'Clerk', model: 'scripted/clerk', instruction: 'Read filings.', tools: [FETCH_FILING] },
+      subagents: [],
+    }),
+    models: () => ({
+      clerk: new ScriptedLlm('scripted/clerk', (req) => {
+        const r = lastFunctionResponse(req);
+        return r ? text(`From the filing: ${String(r.response?.result ?? '').split('\n').at(-1)}`) : geminiCall(FETCH_FILING, { ticker: 'MU' });
+      }),
+    }),
+    turns: [[{ text: "what was MU's revenue last quarter?" }]],
+    endsWith: 'completed',
+    // Trimming rewrites exactly this case, so both stored forms are frozen.
+    verbatimToo: true,
   },
 ];
 

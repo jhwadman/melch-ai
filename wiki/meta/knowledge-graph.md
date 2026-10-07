@@ -33,7 +33,7 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 | `doc` | `/dir/doc.md` | 100 | a concept document in the bundle — identity is its bundle path |
 | `file` | `file:<name>` | 91 | a repo file that is not a source module (DDL, config, prose) |
 | `agent` | `agent:<name>` | 89 | one orchestrator or subagent inside a syndicate |
-| `script` | `script:<name>` | 46 | an npm script entrypoint |
+| `script` | `script:<name>` | 47 | an npm script entrypoint |
 | `tool` | `tool:<name>` | 34 | a tool an agent may declare by name |
 | `syndicate` | `syndicate:<name>` | 32 | one agent-team definition (a YAML) |
 | `table` | `table:<name>` | 17 | a database table |
@@ -67,8 +67,8 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
 | `depends_on` | inferred | A depends on B | 2 | the first cannot do its job unless the second holds |
 | `constrains` | inferred | A constrains B | 2 | a decision or doctrine limits what the target may do |
+| `explains` | inferred | A explains B | 2 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 1 | replaces an earlier decision or document |
-| `explains` | inferred | A explains B | 1 | the document is where the target’s rationale is written down |
 | `alternative_to` | inferred | A is an alternative to B | 0 | two ways of reaching the same capability |
 | `mitigates` | inferred | A mitigates B | 0 | the mechanism exists to contain the named failure |
 | `contradicts` | inferred | A contradicts B | 0 | two sources state incompatible things — a rot signal |
