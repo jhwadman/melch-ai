@@ -11,10 +11,26 @@
       "note": "In part: supersedes the deferral of owning the agent loop and ADK as the lasting runtime; the seam, turn-wide controls, boundary suite and A2A stance stand."
     },
     {
-      "from": "/operations/parity-harness.md",
-      "to": "script:parity",
-      "rel": "explains",
-      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Decision, Storage: \"trimEventForStorage and the session services keep the field whole; the transcript projection drops it with the rest of a past turn.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "/operations/agent-skills.md",
+      "rel": "constrains",
+      "evidence": "skills/melchizedek-models/SKILL.md \"Settings per agent\" restates ADR 0047 Decision 2 (thinking level, thinking budget 0/2048/8192/16384, effort word) and Decision 6 (thinkingConfig and reasoningEffort as the older spelling); skills/melchizedek-author/assets/minimal.yaml sets reasoning:. A change to the mapping changes those shipped skills and their briefs.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -35,18 +51,10 @@
       "at": "2026-10-07"
     },
     {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "module:lib/models/gptLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "module:lib/session/transcript.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0046 Decision, Storage: \"trimEventForStorage and the session services keep the field whole; the transcript projection drops it with the rest of a past turn.\"",
+      "from": "/operations/parity-harness.md",
+      "to": "script:parity",
+      "rel": "explains",
+      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     }

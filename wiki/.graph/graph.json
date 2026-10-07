@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 655,
-    "edges": 1535,
+    "edges": 1537,
     "byKind": {
       "doc": 100,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 233,
+      "links_to": 234,
       "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
@@ -38,13 +38,13 @@
       "runs": 67,
       "derives_from": 295,
       "supersedes": 1,
-      "explains": 1,
+      "constrains": 3,
       "depends_on": 2,
-      "constrains": 2
+      "explains": 1
     },
     "byTier": {
-      "extracted": 1529,
-      "inferred": 6
+      "extracted": 1530,
+      "inferred": 7
     },
     "isolated": 4
   },
@@ -1066,7 +1066,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 502
+        "words": 521
       }
     },
     {
@@ -8779,6 +8779,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/agent-skills.md:40"
+    },
+    {
+      "from": "/operations/agent-skills.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/agent-skills.md:29"
     },
     {
       "from": "/operations/agent-skills.md",

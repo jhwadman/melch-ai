@@ -25,6 +25,11 @@ the starter pack and the templates), not the repo's full history.
   asks of its provider is unchanged: the templates' `includeThoughts: false`
   was already the default, and the zoo's Claude agent keeps its 2,048-token
   budget as `low`.
+- **The shipped skills teach `reasoning:`.** `melchizedek-author` and
+  `melchizedek-models` (and their briefs) set reasoning with `reasoning:`, show
+  what each level becomes per provider, and describe
+  `generateContentConfig.thinkingConfig` and `reasoningEffort` as the older
+  spelling that still loads. The author skill's `assets/minimal.yaml` sets it.
 - `lib/compile.ts` exports `reasoningConfig`, `withReasoning` and
   `REASONING_BUDGETS`. The `AgentYamlConfig` type gains `reasoning`, and
   `GenerateContentConfig` gains `reasoningEffort`.
