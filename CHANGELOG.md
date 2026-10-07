@@ -27,9 +27,10 @@ the starter pack and the templates), not the repo's full history.
   budget as `low`.
 - **The shipped skills teach `reasoning:`.** `melchizedek-author` and
   `melchizedek-models` (and their briefs) set reasoning with `reasoning:`, show
-  what each level becomes per provider, and describe
-  `generateContentConfig.thinkingConfig` and `reasoningEffort` as the older
-  spelling that still loads. The author skill's `assets/minimal.yaml` sets it.
+  what each level becomes per provider (and the newer Claude models on which
+  to leave it unset until the adapter maps it to their effort setting), and
+  describe `generateContentConfig.thinkingConfig` and `reasoningEffort` as the
+  older spelling that still loads. The author skill's `assets/minimal.yaml` sets it.
 - `lib/compile.ts` exports `reasoningConfig`, `withReasoning` and
   `REASONING_BUDGETS`. The `AgentYamlConfig` type gains `reasoning`, and
   `GenerateContentConfig` gains `reasoningEffort`.

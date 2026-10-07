@@ -109,12 +109,12 @@ Set how hard an agent reasons with `reasoning:` on the agent block, beside `mode
 | Provider | What `reasoning:` becomes |
 | --- | --- |
 | Gemini 3 and later | a thinking level: `none` is `MINIMAL`, then `LOW`, `MEDIUM`, `HIGH` |
-| Gemini 2.x and `claude-*` | a thinking budget of 0, 2048, 8192 or 16384 tokens |
+| Gemini 2.x, and Claude 4.6 or older | a thinking budget of 0, 2048, 8192 or 16384 tokens |
 | Every other provider, and the gateway | an effort word; where the provider lacks that word, its nearest setting above |
 
 A `budget_tokens` value goes as written to Gemini and Claude, and as the smallest level that covers it everywhere else. Because the gateway can serve any cloud id, the effort word is always sent as well, and a direct provider ignores the field it does not read. Change the `model:` line and the setting carries over.
 
-Three limits apply. The Claude adapter raises a budget under 1024 to 1024, and a Claude budget above about 19000 fails a non-streaming turn in the Anthropic SDK, so stay at or under `high`. Gemini 2.5 Pro rejects a budget of 0, so `none` fails on it.
+Four limits apply. The Claude adapter raises a budget under 1024 to 1024, and a Claude budget above about 19000 fails a non-streaming turn in the Anthropic SDK, so stay at or under `high`. Gemini 2.5 Pro rejects a budget of 0, so `none` fails on it. On Claude Opus 4.7, 4.8, 5 and 5.5, Sonnet 5 and 5.5, Haiku 5.5, and Fable 5 and 5.1, leave `reasoning:` unset for now: those models think adaptively by default and refuse a thinking budget. The adapter will map `reasoning:` to their effort setting in a later release.
 
 You can configure generation parameters under `generateContentConfig:` on any agent in the syndicate YAML:
 - `temperature`: controls randomness where the provider still exposes the parameter.
