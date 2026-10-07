@@ -1,0 +1,189 @@
+{
+  "fixture": "05-workflow-ask-user",
+  "description": "A workflow paused at an ask_user node: Triage ran, the Confirm node raised adk_request_input with the draft as its payload, and the turn ended input-required before Publisher.",
+  "generatedBy": "tests/fixtures/sessions/generate.ts",
+  "adkVersion": "2.2.0",
+  "storedForm": "trimmed",
+  "endsWith": "input-required",
+  "syndicate": {
+    "syndicate_name": "Workflow Fixture",
+    "memory_system": "internal-only",
+    "orchestrator": {
+      "name": "Triage",
+      "description": "Triage",
+      "model": "scripted/triage",
+      "instruction": "Draft."
+    },
+    "subagents": [
+      {
+        "name": "Publisher",
+        "description": "Publisher",
+        "model": "scripted/publisher",
+        "instruction": "Publish."
+      }
+    ],
+    "workflow": {
+      "edges": [
+        [
+          "START",
+          "Triage",
+          "Confirm",
+          "Publisher"
+        ]
+      ],
+      "nodes": {
+        "Confirm": {
+          "ask_user": "Publish?"
+        }
+      }
+    }
+  },
+  "turns": [
+    [
+      {
+        "text": "write the release note"
+      }
+    ]
+  ],
+  "sessions": [
+    {
+      "appName": "fixtures",
+      "userId": "user-1",
+      "sessionId": "conv-05",
+      "state": {},
+      "events": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "write the release note"
+              }
+            ]
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000
+        },
+        {
+          "author": "user",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "write the release note"
+              }
+            ]
+          },
+          "id": "ev000002",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225601000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Triage",
+          "id": "ev000003",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225602000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "the draft"
+              }
+            ]
+          },
+          "turnComplete": true,
+          "output": "the draft",
+          "nodeInfo": {
+            "messageAsOutput": true,
+            "path": "Workflow Fixture.Triage",
+            "outputFor": [
+              "Workflow Fixture.Triage"
+            ]
+          }
+        },
+        {
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_input",
+                  "args": {
+                    "interruptId": "00000000-0000-4000-8000-000000000002",
+                    "payload": "the draft",
+                    "message": "Publish?",
+                    "response_schema": null
+                  },
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          },
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "id": "ev000004",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Confirm",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "the draft"
+            }
+          },
+          "timestamp": 1767225603000,
+          "nodeInfo": {
+            "path": "Workflow Fixture.Confirm"
+          }
+        },
+        {
+          "author": "Workflow Fixture",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "write the release note"
+            }
+          },
+          "id": "ev000005",
+          "timestamp": 1767225604000,
+          "nodeInfo": {
+            "path": "Workflow Fixture"
+          }
+        }
+      ]
+    }
+  ]
+}
