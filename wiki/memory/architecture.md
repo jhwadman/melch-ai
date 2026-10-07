@@ -15,6 +15,9 @@ sources:
   - resource: lib/memory/store.ts
   - resource: lib/memory/erase.ts
   - resource: lib/storage/postgres/index.ts
+  - resource: lib/session/transcript.ts
+  - resource: tests/fixtures/sessions/generate.ts
+  - resource: tests/sessionFixtures.test.ts
 ---
 
 # Memory architecture
@@ -52,6 +55,12 @@ The memory logic runs on a `MemoryStore` (`lib/memory/store.ts`), the five datab
 The Supabase path erases through the same database function (`lib/memory/erase.ts`). Conversations are kept seven days after their last update (`expire_at`); `melchizedek_prune_sessions()` deletes expired ones, nightly under pg_cron or by `npm run sessions:prune`.
 
 The suite `tests/postgresStorage.test.ts` runs all of it against a real Postgres when `TEST_DATABASE_URL` is set.
+
+### Stored event shape
+
+A stored event is an ADK `Event` serialized as JSON, and the rows already in `adk_sessions.events` and `adk_session_events` are never migrated. The two stores hold it in different forms. The Supabase service passes each event through `trimEventForStorage` (`lib/session/transcript.ts`): a `thoughtSignature` on a function call becomes Gemini's skip value, other signatures are dropped, and a tool result over 2,000 characters is replaced by a marker. The Postgres adapter keeps the event verbatim. A DELEGATE subagent writes its own row, keyed by its name as `app_name` with the conversation's session id. A plan-dispatch classifier runs in a throwaway in-memory lane and writes nothing.
+
+`tests/fixtures/sessions/` freezes these shapes as written by the ADK runtime, so any runtime behind `runSyndicateTurn` can be shown to read and resume the conversations production already holds. There are seven fixtures: a DELEGATE turn, a plan-dispatch turn, an open approval, an open `ask_user` question, a workflow paused at an `ask_user` node, a Gemini turn with a `thoughtSignature` on a function call (in both stored forms), and a two-turn conversation. `generate.ts` writes them on demand, never under `npm test`. It drives real ADK objects through `runSyndicateTurn` with scripted models and normalizes ids and timestamps, so regenerating writes the same bytes. `--check` exits 1 when a fixture no longer matches what the runtime writes, which is what an ADK upgrade that changes the stored shape looks like. `tests/sessionFixtures.test.ts` parses each fixture, finds the open approval and question with `pendingApproval` and `pendingQuestion`, and resumes the approval, the question and the paused workflow from the stored events alone.
 
 ## Write path
 
