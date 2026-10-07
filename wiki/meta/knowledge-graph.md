@@ -50,7 +50,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `imports` | extracted | A imports B | 366 | a static import edge between source files |
+| `imports` | extracted | A imports B | 367 | a static import edge between source files |
 | `derives_from` | extracted | A derives from B | 307 | declared in the document’s `sources:` frontmatter |
 | `links_to` | extracted | A links to B | 247 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 159 | this environment variable must be set for the node to work |
@@ -65,7 +65,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
-| `constrains` | inferred | A constrains B | 8 | a decision or doctrine limits what the target may do |
+| `constrains` | inferred | A constrains B | 10 | a decision or doctrine limits what the target may do |
 | `depends_on` | inferred | A depends on B | 6 | the first cannot do its job unless the second holds |
 | `explains` | inferred | A explains B | 2 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 1 | replaces an earlier decision or document |
@@ -79,7 +79,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 Both stores sit in `.graph/` inside the bundle — a dot-directory, so the vault walker ignores them and no document operation can see them:
 
 - `.graph/graph.json` — the derived snapshot: every node, every extracted relation, stamped with the build that produced it. Regenerate with `npm run wiki:build`; never edit it.
-- `.graph/relations.json` — the asserted relations: `from`, `to`, `rel`, `evidence`, `by`, `at`, in the order they were asserted. Written only through the gate, which appends each one at the end and never reorders what is there, so two branches that each assert something merge by keeping both sides.
+- `.graph/relations.json` — the asserted relations: `from`, `to`, `rel`, `evidence`, `by`, `at`. Written only through the gate.
 
 A published copy of the bundle carries a snapshot rebuilt from what that copy actually holds, never one derived over `/private/`, so a map of private structure never rides along ([ADR 0003](/decisions/0003-path-based-visibility.md)).
 
@@ -87,6 +87,6 @@ A published copy of the bundle carries a snapshot rebuilt from what that copy ac
 
 [`wiki_graph`](/tools/wiki-tools.md) is the read path: no arguments for the census, `find` to locate a node, `node` to see everything attached to one, `path_to` for the chain joining two, `kind` to list a population. It reports its own staleness — documents added since the last build are named, not hidden.
 
-`wiki_relate` is the only write path, and it refuses more than it accepts: an extracted relation (the build owns those), a missing endpoint, a public document pointing into the private annex, a duplicate, an assertion without evidence, or a store that does not parse (which it never overwrites). Accepted edges append to `log.md` under the `relate` op with the actor who made them (to `/private/log.md` when an endpoint is private).
+`wiki_relate` is the only write path, and it refuses more than it accepts: an extracted relation (the build owns those), a missing endpoint, a public document pointing into the private annex, a duplicate, or an assertion without evidence. Accepted edges append to `log.md` under the `relate` op with the actor who made them (to `/private/log.md` when an endpoint is private).
 
 The [Cartographers](/agents/cartographers.md) do this conversationally — the Surveyor reads and proposes with quotations, the Registrar records through the gate. [Gardening](/meta/gardening.md) covers the prose side of the same discipline, and [how this bundle works](/meta/wiki-system.md) the format underneath both.

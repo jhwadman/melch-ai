@@ -22,6 +22,10 @@
  *   - Reasoning ("<think>…</think>" blocks, reasoning_content fields)
  *     surfaced as a { text, thought: true } part in a partial response —
  *     printers display it dimmed; it never enters session history.
+ *   - Opt-in, off by default (replaysReasoningContent): an assistant
+ *     message's reasoning_content kept as providerState on the part that
+ *     follows it and sent back on that message within the turn's tool loop,
+ *     for the same provider and model (ADR 0046). Kimi turns it on.
  *   - A per-request `llm.request` OpenTelemetry span (lib/observability).
  *   - Retries of transient failures (lib/models/retry.ts) before any byte
  *     is yielded, and HTTP errors carrying `status` + `retryable`.
@@ -46,6 +50,7 @@ import {
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 import { toLowercaseJsonSchema, toStrictJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
 import { fetchWithRetry, isRetryableStatus } from './retry.ts';
+import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
 
 // ── OpenAI-compatible wire types (the subset these providers implement) ──────
 
@@ -59,6 +64,7 @@ type OpenAiMessage =
   | {
       role: 'assistant';
       content: string | null;
+      reasoning_content?: string;
       tool_calls?: Array<{
         id: string;
         type: 'function';
@@ -69,6 +75,9 @@ type OpenAiMessage =
 
 const OPEN_THINK = '<think>';
 const CLOSE_THINK = '</think>';
+
+/** The providerState kind an opted-in adapter writes: an assistant message's reasoning_content. */
+export const REASONING_CONTENT_KIND = 'reasoning_content';
 
 /**
  * Splits "<think>…</think>" scratchpad from the reply.
@@ -261,6 +270,20 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
       reasoning: [fieldReasoning, thinkReasoning].filter(Boolean).join('\n\n'),
       answer,
     };
+  }
+
+  /**
+   * Whether an assistant message's `reasoning_content` is carried to the
+   * next step of the tool loop (ADR 0046). Default: never — the scratchpad
+   * stays display-only, as Ollama and the gateway keep it. An adapter whose
+   * provider asks for the field back on a tool loop turns it on (KimiLlm):
+   * the response's reasoning_content is written as providerState
+   * { provider, kind: 'reasoning_content', model } on the part that follows
+   * it, and sent back as that assistant message's reasoning_content on the
+   * current turn's steps, for the same provider and model only.
+   */
+  protected replaysReasoningContent(): boolean {
+    return false;
   }
 
   /** Yielded before the HTTP call when a precondition is missing (e.g. no
@@ -508,7 +531,7 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
       }
 
       yield this.finalResponse(
-        parts,
+        this.withReasoningState(parts, message.reasoning_content),
         choice.finish_reason,
         Boolean(reasoning),
         usageMetadata,
@@ -544,6 +567,8 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
     let answer = '';
     let answerStarted = false;
     let sawReasoning = false;
+    // The reasoning_content field alone, whole, for replaysReasoningContent.
+    let reasoningContent = '';
     let finishReason: string | undefined;
     let usage: any;
 
@@ -575,6 +600,7 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
       const fieldReasoning: string =
         delta.reasoning ?? delta.reasoning_content ?? '';
       if (fieldReasoning) yield partial(fieldReasoning, true);
+      if (typeof delta.reasoning_content === 'string') reasoningContent += delta.reasoning_content;
 
       if (typeof delta.content === 'string' && delta.content) {
         const split = splitter.push(delta.content);
@@ -622,7 +648,23 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
       parts.push({ functionCall: { name: acc.name, args, id: acc.id } });
     }
 
-    yield this.finalResponse(parts, finishReason, sawReasoning, mapUsage(usage));
+    yield this.finalResponse(this.withReasoningState(parts, reasoningContent), finishReason, sawReasoning, mapUsage(usage));
+  }
+
+  /**
+   * `parts` with the response's reasoning_content as providerState on the
+   * first one, the part it preceded (ADR 0046), when this adapter replays it.
+   * A response with no part has nothing to carry it and nothing to replay.
+   */
+  private withReasoningState(parts: any[], reasoningContent: unknown): any[] {
+    if (!this.replaysReasoningContent() || typeof reasoningContent !== 'string' || !reasoningContent || parts.length === 0) {
+      return parts;
+    }
+    const [first, ...rest] = parts;
+    return [
+      withProviderState(first, { provider: this.providerId(), kind: REASONING_CONTENT_KIND, model: this.model, payload: reasoningContent }),
+      ...rest,
+    ];
   }
 
   /**
@@ -668,8 +710,13 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
   protected buildMessages(llmRequest: LlmRequest): OpenAiMessage[] {
     const systemParts: string[] = [];
     const messages: OpenAiMessage[] = [];
+    // reasoning_content goes back only on the current turn's tool loop, the
+    // span providers ask for it on. Earlier turns' state is left out: the
+    // stored history is not what the model saw (tool payloads are elided
+    // before storage), and replaying it bills it again as input (ADR 0046).
+    const turnStart = this.replaysReasoningContent() ? currentTurnStart(llmRequest.contents) : Infinity;
 
-    for (const content of llmRequest.contents) {
+    for (const [index, content] of llmRequest.contents.entries()) {
       // ADK injects the system instruction as a 'system' role content.
       if ((content as any).role === 'system') {
         const text = content.parts
@@ -681,8 +728,10 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
       }
 
       const isModel = content.role === 'model';
+      const replay = isModel && index > turnStart;
       const textChunks: string[] = [];
       const imageParts: OpenAiContentPart[] = [];
+      const reasoning: string[] = [];
       const toolCalls: Array<{
         id: string;
         type: 'function';
@@ -691,6 +740,10 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
 
       for (const part of content.parts ?? []) {
         const p = part as any;
+        // This adapter's own reasoning_content for this message, verbatim.
+        // Another provider's state, or another model's, is skipped.
+        const state = replay ? providerStateOf(p, this.providerId(), REASONING_CONTENT_KIND, this.model) : undefined;
+        if (typeof state?.payload === 'string') reasoning.push(state.payload);
         if (p.thought) {
           // Prior-turn scratchpad is display-only; never replay it.
           continue;
@@ -730,6 +783,7 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
           messages.push({
             role: 'assistant',
             content: text || null,
+            ...(reasoning.length > 0 ? { reasoning_content: reasoning.join('') } : {}),
             ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
           });
         }

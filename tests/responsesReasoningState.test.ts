@@ -17,7 +17,9 @@
  *   - only the current turn's tool loop replays, and a run of reasoning that
  *     a server-side tool call followed is not carried;
  *   - the guarded 400 retry drops the reasoning additions and keeps
- *     `store: false`.
+ *     `store: false`;
+ *   - the shared turn-start rule (currentTurnStart), including -1 when no
+ *     user content opens the turn, as GPT's and Kimi's requests show it.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -31,6 +33,8 @@ import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { GptLlm, REASONING_STATE_KIND, buildResponsesInput } from '../lib/models/gptLlm.ts';
 import { GrokLlm } from '../lib/models/grokLlm.ts';
+import { KimiLlm } from '../lib/models/kimiLlm.ts';
+import { REASONING_CONTENT_KIND } from '../lib/models/openAiCompatibleLlm.ts';
 import { currentTurnStart, withProviderState } from '../lib/models/providerState.ts';
 import type { ProviderState } from '../lib/models/providerState.ts';
 import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
@@ -41,6 +45,7 @@ const APP = 'test-app';
 const USER = 'u1';
 const OPENAI_KEY = 'fixture-openai-0123456789abcdef'; // gitleaks:allow (test fixture)
 const XAI_KEY = 'fixture-xai-0123456789abcdef'; // gitleaks:allow (test fixture)
+const MOONSHOT_KEY = 'fixture-moonshot-0123456789abcdef'; // gitleaks:allow (test fixture)
 const INCLUDE = ['reasoning.encrypted_content'];
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -426,11 +431,41 @@ test('currentTurnStart: the last user content that is not purely tool results', 
   const u = (t: string) => ({ role: 'user', parts: [{ text: t }] });
   const m = { role: 'model', parts: [{ functionCall: { name: 'f', args: {} } }] };
   const r = { role: 'user', parts: [{ functionResponse: { name: 'f', response: {} } }] };
-  assert.equal(currentTurnStart([]), 0);
+  // No user content opens the turn: -1, so every content is this turn's.
+  assert.equal(currentTurnStart([]), -1);
+  assert.equal(currentTurnStart([m, r]), -1);
   assert.equal(currentTurnStart([u('a'), m, r]), 0);
   assert.equal(currentTurnStart([u('a'), m, r, u('b'), m, r]), 3);
   // A user content mixing a tool result with text starts a turn.
   assert.equal(currentTurnStart([u('a'), m, { role: 'user', parts: [fr('x'), { text: 'and also' }] }, m, r]), 2);
   // An empty user content does not.
   assert.equal(currentTurnStart([u('a'), m, { role: 'user', parts: [] }]), 0);
+});
+
+test('currentTurnStart -1 on the wire: with no user content opening the turn, GPT and Kimi replay the first model content', async () => {
+  const result = { role: 'user', parts: [{ functionResponse: { id: 'c1', name: 'Scout', response: { result: 'x' } } }] };
+  const loop = (model: string, state: ProviderState) =>
+    ({
+      model,
+      contents: [{ role: 'model', parts: [withProviderState({ functionCall: { id: 'c1', name: 'Scout', args: {} } }, state)] }, result],
+      liveConnectConfig: {},
+      toolsDict: {},
+      config: {},
+    }) as unknown as LlmRequest;
+  const firstBody = (llm: BaseLlm, request: LlmRequest) =>
+    withResponses([], async (sent) => {
+      for await (const _ of llm.generateContentAsync(request, false)) {
+        // drain; the 400 surfaces as an error response
+      }
+      return sent[0].body;
+    });
+
+  const gptBody = await firstBody(gpt(), loop('gpt-5-mini', { provider: 'openai', kind: REASONING_STATE_KIND, model: 'gpt-5-mini', payload: [R1] }));
+  assert.deepStrictEqual(gptBody.input[callIndex(gptBody.input, 'c1') - 1], R1);
+
+  const kimi = new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY });
+  const kimiBody = await firstBody(kimi, loop('kimi-k3', { provider: 'moonshot', kind: REASONING_CONTENT_KIND, model: 'kimi-k3', payload: 'step one' }));
+  const assistant = kimiBody.messages.find((m: any) => m.role === 'assistant');
+  assert.equal(assistant.reasoning_content, 'step one');
+  assert.equal(assistant.tool_calls?.[0]?.id, 'c1');
 });

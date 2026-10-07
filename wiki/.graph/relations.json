@@ -132,6 +132,22 @@
       "at": "2026-10-07"
     },
     {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/kimiLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\" /models/provider-routing.md: \"Kimi turns the hook on for the ids Moonshot's thinking-model guide asks it of within a tool loop\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "constrains",
+      "evidence": "/models/provider-routing.md: \"The chat-completions base (lib/models/openAiCompatibleLlm.ts) carries reasoning_content behind one opt-in hook, replaysReasoningContent(), off by default ... sends it back as that assistant message's reasoning_content on the current turn's tool loop, for the same provider and model only.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
       "from": "/decisions/0045-own-runtime-behind-the-seam.md",
       "to": "module:lib/session/transcript.ts",
       "rel": "constrains",

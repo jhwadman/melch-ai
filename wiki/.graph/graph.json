@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 662,
-    "edges": 1575,
+    "edges": 1578,
     "byKind": {
       "doc": 103,
       "provider": 6,
@@ -33,18 +33,18 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 366,
+      "imports": 367,
       "reads_table": 28,
       "runs": 67,
       "derives_from": 307,
       "supersedes": 1,
-      "constrains": 8,
+      "constrains": 10,
       "depends_on": 6,
       "explains": 2
     },
     "byTier": {
-      "extracted": 1558,
-      "inferred": 17
+      "extracted": 1559,
+      "inferred": 19
     },
     "isolated": 4
   },
@@ -1054,7 +1054,7 @@
         "type": "meta",
         "status": "stable",
         "trust": "unverified",
-        "words": 1165
+        "words": 1124
       }
     },
     {
@@ -1090,7 +1090,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2759
+        "words": 3017
       }
     },
     {
@@ -3773,7 +3773,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 391
+        "lines": 392
       }
     },
     {
@@ -3854,7 +3854,7 @@
       "label": "lib/models/kimiLlm.ts",
       "source": "lib/models/kimiLlm.ts",
       "attrs": {
-        "lines": 188
+        "lines": 208
       }
     },
     {
@@ -3872,7 +3872,7 @@
       "label": "lib/models/openAiCompatibleLlm.ts",
       "source": "lib/models/openAiCompatibleLlm.ts",
       "attrs": {
-        "lines": 848
+        "lines": 902
       }
     },
     {
@@ -8929,7 +8929,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:123"
+      "evidence": "/models/provider-routing.md:125"
     },
     {
       "from": "/models/provider-routing.md",
@@ -12535,6 +12535,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/ollamaLlm.ts"
+    },
+    {
+      "from": "module:lib/models/openAiCompatibleLlm.ts",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/openAiCompatibleLlm.ts"
     },
     {
       "from": "module:lib/models/openAiCompatibleLlm.ts",
