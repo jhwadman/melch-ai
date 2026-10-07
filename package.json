@@ -102,6 +102,7 @@
     "assistant:worker": "node --disable-warning=DEP0040 --experimental-strip-types scripts/assistant_worker.ts",
     "demo:models": "node --disable-warning=DEP0040 --experimental-strip-types scripts/demo_model_optionality.ts",
     "demo:direct": "node --disable-warning=DEP0040 --experimental-strip-types scripts/direct_call.ts",
+    "parity": "node --disable-warning=DEP0040 --experimental-strip-types scripts/parity_check.ts",
     "mcp:demo": "node --disable-warning=DEP0040 --experimental-strip-types scripts/demo_mcp_server.ts",
     "mcp:wiki": "node --disable-warning=DEP0040 --experimental-strip-types scripts/wiki/mcp_server.ts",
     "mcp:science": "node --disable-warning=DEP0040 --experimental-strip-types scripts/science_mcp_server.ts",
