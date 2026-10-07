@@ -235,8 +235,9 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok('test', 'strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf)'),
-    thinking_with_tools: degraded(
-      'reasoning_content is not replayed across tool calls, which Moonshot asks for on kimi-k3, so the model re-reasons each step; effort travels as reasoning_effort (K3) or a thinking switch (K2.x)',
+    thinking_with_tools: ok(
+      'test',
+      "reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x)",
     ),
     streaming: ok(),
     vision: ok('test', 'user-turn images only, sent as base64 (Moonshot takes no public image URLs)'),

@@ -60,17 +60,17 @@ export function withProviderState<T extends object>(part: T, state: ProviderStat
 
 /**
  * Where the current turn starts in `contents`: the index of the last user
- * content that is not purely tool results, or 0 when there is none. The
- * model contents after it are this turn's tool loop, the only place an
- * adapter replays its state. Earlier turns' state is left out: dropping it
- * from the front of the history is allowed, and the stored history before
- * it may differ from what the model saw (tool payloads are elided before
- * storage).
+ * content that is not purely tool results, or -1 when there is none (every
+ * content is then this turn's, the first included). The model contents
+ * after it are this turn's tool loop, the only place an adapter replays its
+ * state. Earlier turns' state is left out: dropping it from the front of
+ * the history is allowed, and the stored history before it may differ from
+ * what the model saw (tool payloads are elided before storage).
  */
 export function currentTurnStart(contents: ReadonlyArray<{ role?: string; parts?: ReadonlyArray<unknown> }>): number {
   for (let i = contents.length - 1; i >= 0; i--) {
     const c = contents[i];
     if (c.role === 'user' && (c.parts ?? []).some((p) => !(p as { functionResponse?: unknown } | null)?.functionResponse)) return i;
   }
-  return 0;
+  return -1;
 }
