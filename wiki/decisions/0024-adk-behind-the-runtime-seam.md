@@ -54,6 +54,8 @@ None of these is fixed by leaving ADK; all of them are fixed by owning the seam.
    - A subagent with `a2a_agent_url:` is a remote agent reached over A2A, as a delegation tool or a plan-dispatch route (`lib/a2a/remoteAgent.ts`).
    - In-process composition stays the default, as Google's and Microsoft's A2A guidance both recommend for same-team agents. A2A is for real boundaries: another team, deployment, language or framework.
 
+> **Note (2026-10-07):** Owning the agent loop is no longer deferred. The engine builds its own runtime in stages behind this seam: ADK is the default until release 0.19.0 and is removed at 1.0.0, see [ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md). Items 1 (the seam), 2, 3 and 5 stand; item 4 holds while ADK is a runtime.
+
 ## Alternatives considered
 
 - **"Strictly A2A": every agent its own A2A server.** Rejected. It adds an HTTP hop, auth and a failure mode to every delegation, and A2A still needs a runtime inside each agent.
