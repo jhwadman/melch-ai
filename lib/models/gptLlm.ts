@@ -83,6 +83,7 @@ import { providerForModel } from './providerMap.ts';
 import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
 import { providerRequestOptions } from '../runtime/turnControl.ts';
 import { toLowercaseJsonSchema, toStrictJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
+import { providerErrorResponse } from './errorResponse.ts';
 
 /** Reasoning-capable ids: o-series and the gpt-5 family. The reasoning
  *  param is also dropped and retried once on a 400, so a miss here only
@@ -575,11 +576,9 @@ export class GptLlm extends BaseLlm {
       const response = await this.createWithRetry(client, request);
       yield* this.mapFinalResponse(response);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      yield {
-        errorCode: `${this.providerId().toUpperCase()}_ERROR`,
-        errorMessage: msg,
-      };
+      // The SDK's own retries are spent: say whether another model may
+      // succeed (customMetadata 'error.retryable', lib/models/errorResponse.ts).
+      yield providerErrorResponse(err, `${this.providerId().toUpperCase()}_ERROR`);
     }
   }
 

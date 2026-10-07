@@ -43,6 +43,8 @@ fallback applies only when a key is missing, never when a provider fails.
   which wrapped agents go straight to their fallback. After the cooldown one
   call is let through; a success closes the circuit.
 
+> **Note (2026-10-07):** As shipped in 0.18.0, `FallbackLlm` saw a failure only as a throw, which only Gemini makes; GPT, Grok, Kimi, Ollama and the gateway yield an error response instead, so their fallback never answered and the failed call was counted as a success. The rule now holds for error responses as well as throws: those adapters set `customMetadata['error.retryable']` (and `'error.status'`) from `retry.ts`'s classification (`lib/models/errorResponse.ts`), a retryable one before any output is counted and redirected without being yielded, a non-retryable one is passed on, and only a call that yielded content counts as a success. Claude is excepted until its adapter uses the same helper (ticket WS0-8).
+
 ## Alternatives
 
 - **Wrap every agent's model, fallback or not.** A breaker without a
