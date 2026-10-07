@@ -1054,7 +1054,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2320
+        "words": 2469
       }
     },
     {
@@ -3733,7 +3733,7 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 517
+        "lines": 566
       }
     },
     {
@@ -8703,14 +8703,14 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:115"
+      "evidence": "/models/provider-routing.md:119"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:103"
+      "evidence": "/models/provider-routing.md:107"
     },
     {
       "from": "/models/provider-routing.md",

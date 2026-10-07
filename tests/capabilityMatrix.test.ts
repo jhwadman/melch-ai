@@ -154,7 +154,13 @@ function toolSchema(row: AdapterRow, body: any, name: string): any {
 }
 
 function hasImage(row: AdapterRow, body: any): boolean {
-  const text = JSON.stringify(row === 'anthropic' ? body.messages : DIALECT[row] === 'responses' ? body.input : body.messages);
+  if (DIALECT[row] === 'anthropic') {
+    // An image block with a base64 source carrying the part's media type.
+    return (body.messages ?? []).some((m: any) =>
+      (Array.isArray(m.content) ? m.content : []).some((b: any) => b.type === 'image' && b.source?.type === 'base64' && b.source.media_type === 'image/png'),
+    );
+  }
+  const text = JSON.stringify(DIALECT[row] === 'responses' ? body.input : body.messages);
   return /"type":"(image|input_image|image_url)"/.test(text);
 }
 

@@ -39,6 +39,13 @@ the starter pack and the templates), not the repo's full history.
   uses for provider-opaque reasoning state. The final event no longer
   carries `customMetadata['anthropic.thinking']`; the same blocks are on
   the part.
+- **Claude agents see images.** `ClaudeLlm` sends a user-turn `inlineData`
+  part as a base64 image block (`image/png` when it names no type) and an
+  `https` `fileData` part as a URL image block, in the parts' order. Before,
+  it dropped both. JPEG, PNG, GIF and WebP are sent; any other type, or a
+  non-https URL, is dropped with `llm.image.dropped` on the span and a
+  one-time warning naming the type. Images inside tool results are not sent,
+  as on GPT. The capability matrix marks Anthropic image input supported.
 
 ## 0.18.0 — 2026-10-06
 
