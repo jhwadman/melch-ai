@@ -13,6 +13,7 @@ import type { ContextConfig, ExampleConfig } from './compile.ts';
 export type { OpenApiConfig } from './tools/openapiTools.ts';
 export type { SkillsConfig } from './tools/skillToolset.ts';
 import type { WorkflowConfig } from './workflowConfig.ts';
+import type { ReasoningSetting } from './models/contract.ts';
 export type { WorkflowConfig } from './workflowConfig.ts';
 
 // ── Types ─────────────────────────────────────────────────
@@ -31,12 +32,12 @@ export interface ThinkingConfig {
 
 /**
  * How hard an agent reasons, on any provider (ADR 0047): a level, or a token
- * budget. The compiler maps it to the field the agent's provider reads
+ * budget. The engine's model contract (lib/models/contract.ts) defines it.
+ * The compiler maps it to the field the agent's provider reads
  * (lib/compile.ts reasoningConfig); `thinkingConfig` and `reasoningEffort`
  * inside generateContentConfig are the older, provider-specific spelling.
  */
-export type ReasoningLevel = 'none' | 'low' | 'medium' | 'high';
-export type ReasoningSetting = ReasoningLevel | { budget_tokens: number };
+export type { ReasoningLevel, ReasoningSetting } from './models/contract.ts';
 
 export interface SafetySetting {
   category: string;

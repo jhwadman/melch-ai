@@ -49,6 +49,46 @@
       "evidence": "ADR 0046 Decision, Storage: \"trimEventForStorage and the session services keep the field whole; the transcript projection drops it with the rest of a past turn.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 3: \"ReasoningSetting moves from the loader to the contract, and lib/loadSyndicate.ts imports and re-exports it, so the dependency points from the loader to the contract.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 2: \"The module is types only, its one import is ProviderState, and no module in its import graph names @google/*.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0045 Decision 1: \"The model contract is the engine's own message format, with a slot for the provider-opaque reasoning state that @google/genai Content cannot carry.\" ADR 0048 is that contract.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0048 Decision 1: \"Any part may carry providerState, reusing ADR 0046's type.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0048 Decision 3: ReasoningSetting (ADR 0047) belongs to the contract, and \"Each adapter maps the setting itself, so a fallback model gets its own mapping.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }

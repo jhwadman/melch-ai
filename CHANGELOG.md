@@ -39,6 +39,13 @@ the starter pack and the templates), not the repo's full history.
   uses for provider-opaque reasoning state. The final event no longer
   carries `customMetadata['anthropic.thinking']`; the same blocks are on
   the part.
+- **The engine's own model contract (ADR 0048).** New module
+  `melchizedek-agents/models/contract`, types only: `Message`, `Part`,
+  `ToolDeclaration`, `NativeTool`, `ModelRequest`, `ModelResponse`,
+  `ModelAdapter`, `ProviderCapabilities` and their parts. The native
+  runtime and every model adapter will speak it, and no adapter uses it
+  yet. `ReasoningLevel` and `ReasoningSetting` are defined there now.
+  `melchizedek-agents/loadSyndicate` re-exports them unchanged.
 
 ## 0.18.0 — 2026-10-06
 

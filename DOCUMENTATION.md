@@ -446,6 +446,13 @@ extended thinking, tools included: the signed thinking blocks ride on the
 response's parts as `providerState` and are replayed verbatim within the
 turn's tool loop (ADR 0046).
 
+The engine's own model contract is `lib/models/contract.ts` (ADR 0048),
+importable as `melchizedek-agents/models/contract`. It defines the message
+format, request, response stream and adapter interface of the native
+runtime (ADR 0045), with no `@google/*` in its import graph, and the
+adapters move onto it in stages. `wiki/models/model-contract.md` gives
+each field's purpose and its mapping onto every provider's wire.
+
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it
 as an `[OTEL_SPAN_JSON]` line; `melchizedek-chat` and the `syndicate:*`
