@@ -130,6 +130,14 @@
       "evidence": "ADR 0050 Decision, Replay: \"currentTurnStart in lib/models/providerState.ts holds that rule for every adapter.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Consequences: \"Lowercase JSON Schema is the one dialect inside the contract. A schema in Gemini's uppercase dialect is converted once, where it enters, instead of by every adapter.\" contractToolDeclaration and toContractJsonSchema are that conversion.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }

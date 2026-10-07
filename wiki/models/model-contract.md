@@ -13,7 +13,9 @@ sources:
   - resource: lib/models/contract.ts
   - resource: lib/models/providerState.ts
   - resource: lib/models/capabilities.ts
+  - resource: lib/models/schemaNormalize.ts
   - resource: tests/modelContract.test.ts
+  - resource: tests/contractToolDeclarations.test.ts
 ---
 
 # Model contract
@@ -61,6 +63,19 @@ A final response's parts are `OutputPart`s: text, toolCall and blob.
 **`ToolDeclaration`** is `{ name, description, parameters, strict? }`. `parameters` is lowercase JSON Schema (`JsonSchema`), the dialect every provider but Gemini's own requires, so no adapter converts from Gemini's uppercase one. `strict` asks the provider to enforce the schema on the arguments it generates. Where the provider has no such switch, the declaration goes without it.
 
 **`NativeTool`** names a tool the provider runs on its own side: `web_search`, `google_search`, `url_context`, `x_search`, `collections_search`, `code_execution`. A request names them, so no sentinel tool object rides in the tool list. The adapter adds its provider's own tool object, or drops the tool when its path cannot run it. Every drop is stated in advance by `lib/models/capabilities.ts` and marked on the span (`llm.capability.dropped`). Tool options stay deployment configuration that the adapter reads (xAI's domain filters and `XAI_COLLECTION_IDS`), never request fields.
+
+### Building declarations
+
+`lib/models/schemaNormalize.ts` builds both from the tools the registry resolves, so neither an adapter nor the runtime reads a tool's private fields ([ADR 0019](/decisions/0019-multi-model-parity-matrix.md)) or keeps its own dialect converter:
+
+- **`contractToolDeclaration(tool, { strict? })`** returns a `ToolDeclaration`, or undefined for a tool that declares nothing.
+  - A `defineTool` contract (`lib/tools/toolContract.ts`) is declared straight from its zod schema with `z.toJSONSchema`, as the MCP surface is, never through Gemini's dialect. The declaration leaves out the keywords `additionalProperties` and `default`, which the ADK path cannot carry, so a contract declares the same parameters as the `FunctionTool` that `toFunctionTool()` makes of it, whichever runtime resolves it. The one exception is a property itself named `additionalProperties` or `default`, which `toGeminiSchema` drops by name and this path keeps.
+  - An ADK tool (`FunctionTool`, `AgentTool`, `load_memory`, an MCP tool) is read from its own `_getDeclaration()`: its `parameters`, or else its `parametersJsonSchema`. Gemini's dialect is converted once, here: types are lowercased, and the int64 bounds Gemini spells as strings (`minLength: '2'`) become integers. OpenAPI's `nullable: true` becomes a schema that admits null. A plain typed node gains `null` in its type (`['number', 'null']`) and in any `enum`. A bare `anyOf` gains a `{ type: 'null' }` branch. A node built otherwise (`$ref`, `allOf`, `oneOf`, `const`) moves into an `anyOf` beside `{ type: 'null' }`, with its description staying on the node.
+  - The walk follows only the keywords that hold schemas (`properties`, `items`, `prefixItems`, `anyOf`, `oneOf`, `allOf`, `$defs`, and the rest), so a parameter named `type`, `enum` or `default` is converted like any other, and `enum`, `const` and `examples` stay data.
+  - With `strict`, every object node that has properties, at any depth, lists all of them as `required` and sets `additionalProperties: false`, and the declaration carries `strict: true`. An optional property becomes required as it is, not widened to null, because the contract's zod schema would refuse a null. An object without properties (a map) is left open, so a strict provider refuses it rather than receive a field the model can never fill. `toContractJsonSchema(schema, { strict? })` is the same conversion for any schema, such as an `outputSchema`.
+- **`nativeToolOf(tool)`** returns the `NativeTool` a tool object stands for, by marker and name rather than by class, so a second copy of a module still matches. ADK's built-in code executor (the agent's `code_execution: gemini`) is `code_execution`, by ADK's global-registry marker. A tool named `web_search`, `google_search`, `url_context`, `x_search` or `collections_search` is that NativeTool when it declares no function: ADK marks its own built-ins (`GOOGLE_SEARCH`, `URL_CONTEXT`) as run by the model, and the engine's sentinels return no declaration. A client-side tool registered under one of those names declares itself and stays client-side. ADK's other in-model tools (Vertex AI Search, enterprise web search, Maps grounding, RAG retrieval) have no `NativeTool` and declare nothing, so the code building a request reports them as dropped.
+
+Every tool the registry resolves is one or the other, except `preload_memory`, which writes memory into the instruction and declares nothing (`tests/contractToolDeclarations.test.ts`). The functions the ADK path's adapters call, `toolDeclarationFor`, `toLowercaseJsonSchema` and `toStrictJsonSchema`, keep their behaviour.
 
 **`ToolChoice`** is `'auto' | 'none' | 'required' | { name }`, default `auto`. It is a preference. An adapter sends it as asked where the provider allows, and weakens `required` or a named tool to `auto` where the provider rejects forcing: Anthropic's Fable 5.1, Opus 5.5 and Sonnet 5.5 reject a forced tool choice, as do Claude models with thinking on. A weakened choice is marked on the span as `llm.tool_choice.weakened`. `none` is always honoured, by sending no tools if need be.
 

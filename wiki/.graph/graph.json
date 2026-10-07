@@ -5,15 +5,15 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 662,
-    "edges": 1574,
+    "nodes": 663,
+    "edges": 1579,
     "byKind": {
       "doc": 103,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 93,
+      "file": 94,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -33,18 +33,18 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 366,
+      "imports": 368,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 307,
+      "derives_from": 309,
       "supersedes": 1,
-      "constrains": 7,
+      "constrains": 8,
       "depends_on": 6,
       "explains": 2
     },
     "byTier": {
-      "extracted": 1558,
-      "inferred": 16
+      "extracted": 1562,
+      "inferred": 17
     },
     "isolated": 4
   },
@@ -1078,7 +1078,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 4095
+        "words": 4607
       }
     },
     {
@@ -3317,6 +3317,12 @@
       "source": "tests/auditTrail.test.ts"
     },
     {
+      "id": "file:tests/contractToolDeclarations.test.ts",
+      "kind": "file",
+      "label": "contractToolDeclarations.test.ts",
+      "source": "tests/contractToolDeclarations.test.ts"
+    },
+    {
       "id": "file:tests/execution.test.ts",
       "kind": "file",
       "label": "execution.test.ts",
@@ -3917,7 +3923,7 @@
       "label": "lib/models/schemaNormalize.ts",
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
-        "lines": 133
+        "lines": 388
       }
     },
     {
@@ -8800,6 +8806,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "file:tests/contractToolDeclarations.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "file:tests/modelContract.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8828,59 +8841,66 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:122"
+      "evidence": "/models/model-contract.md:69"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:37"
+      "evidence": "/models/model-contract.md:39"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:71"
+      "evidence": "/models/model-contract.md:86"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:78"
+      "evidence": "/models/model-contract.md:93"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:23"
+      "evidence": "/models/model-contract.md:25"
     },
     {
       "from": "/models/provider-routing.md",
@@ -12682,6 +12702,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
+    },
+    {
+      "from": "module:lib/models/schemaNormalize.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/schemaNormalize.ts"
+    },
+    {
+      "from": "module:lib/models/schemaNormalize.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/schemaNormalize.ts"
     },
     {
       "from": "module:lib/observability/embeddings.ts",

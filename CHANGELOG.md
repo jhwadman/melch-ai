@@ -59,6 +59,16 @@ the starter pack and the templates), not the repo's full history.
   runtime and every model adapter will speak it, and no adapter uses it
   yet. `ReasoningLevel` and `ReasoningSetting` are defined there now.
   `melchizedek-agents/loadSyndicate` re-exports them unchanged.
+- **Tool declarations in the contract's shape.** `models/schemaNormalize`
+  exports `contractToolDeclaration(tool, { strict? })`, which builds a
+  contract `ToolDeclaration` from an ADK tool or straight from a
+  `defineTool` contract's zod schema; `nativeToolOf(tool)`, which names the
+  `NativeTool` a server-side tool or Gemini's code executor stands for; and
+  `toContractJsonSchema(schema, { strict? })`. Gemini's dialect (uppercase
+  types, int64 bounds as strings, `nullable`) is converted once, at any
+  depth, and the strict form reaches every nested object. Nothing calls
+  them yet; `toolDeclarationFor`, `toLowercaseJsonSchema` and
+  `toStrictJsonSchema` are unchanged.
 - **Thinking with tool use works on GPT and Grok (ADR 0050).** On
   reasoning ids (o-series, `gpt-5*`, `grok-4.5`, `grok-4.7`), the Responses
   adapters write each run of encrypted reasoning items on the part after it
