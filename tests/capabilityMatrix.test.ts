@@ -183,10 +183,18 @@ function withDelegationTools(row: AdapterRow): LlmRequest {
 /** The signed block Claude returned before its tool call, as the adapter stores it (ADR 0046). */
 const SIGNED_THINKING = { type: 'thinking', thinking: 'I should ask Scout.', signature: 'sig-fixture-0123' };
 
+/** The reasoning_content Kimi returned before its tool call, as the adapter stores it (ADR 0046). */
+const KIMI_REASONING = 'Scout will know; ask it.';
+
+/** A row's own reasoning state on the call, where its adapter writes one; the rest get Anthropic's. */
+const OWN_STATE: Partial<Record<AdapterRow, object>> = {
+  moonshot: { provider: 'moonshot', kind: 'reasoning_content', model: MODEL.moonshot, payload: KIMI_REASONING },
+};
+
 /**
  * A thinking agent mid tool loop: a prior model turn with thought + call, then
- * the result. The call carries Anthropic's signed block as providerState;
- * every other adapter must ignore it.
+ * the result. The call carries the row's own state as providerState, or
+ * Anthropic's signed block, which every other adapter must ignore.
  */
 function thinkingToolLoop(row: AdapterRow): LlmRequest {
   const req = withDelegationTools(row);
@@ -199,7 +207,7 @@ function thinkingToolLoop(row: AdapterRow): LlmRequest {
         { text: 'I should ask Scout.', thought: true } as any,
         {
           functionCall: { id: 'call_1', name: 'Scout', args: { request: 'find it' } },
-          providerState: { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] },
+          providerState: OWN_STATE[row] ?? { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] },
         } as any,
       ],
     },
@@ -264,7 +272,12 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
         const tools = (body.tools ?? []).length > 0;
         if (!tools) return 'unsupported';
         // The budget has no wire form here; only reasoning_effort travels.
-        return body.reasoning_effort === 'low' && !('thinking' in body) ? 'degraded' : 'unsupported';
+        if (body.reasoning_effort !== 'low' || 'thinking' in body) return 'unsupported';
+        // Supported where the assistant message holding the call gets its
+        // reasoning_content back (Kimi); elsewhere the model re-reasons.
+        const assistant = (body.messages ?? []).find((m: any) => m.role === 'assistant');
+        const replayed = assistant?.reasoning_content === KIMI_REASONING && assistant.tool_calls?.[0]?.id === 'call_1';
+        return replayed ? 'supported' : 'degraded';
       }
     }
   },

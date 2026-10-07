@@ -52,6 +52,15 @@ the starter pack and the templates), not the repo's full history.
   non-https URL, is dropped with `llm.image.dropped` on the span and a
   one-time warning naming the type. Images inside tool results are not sent,
   as on GPT. The capability matrix marks Anthropic image input supported.
+- **Kimi keeps its reasoning across tool steps (ADR 0046).** On `kimi-k3`,
+  `kimi-k2.6` and `kimi-k2.7-code`, the adapter stores each response's
+  `reasoning_content` on the part that follows it and sends it back on that
+  assistant message within the turn's tool loop, for the same model only,
+  as Moonshot asks. A tool loop's later steps bill the replayed reasoning
+  as input. `OpenAiCompatibleLlm` gains the opt-in hook
+  `replaysReasoningContent()` (off by default; Ollama and the gateway keep
+  it off) and exports `REASONING_CONTENT_KIND`; `models/kimiLlm` exports
+  `wantsReasoningReplay`.
 
 ## 0.18.0 — 2026-10-06
 
