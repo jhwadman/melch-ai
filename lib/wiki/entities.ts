@@ -32,7 +32,7 @@
  *   construction.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { z } from 'zod';
@@ -763,8 +763,16 @@ export function appendRelation(wikiRoot: string, record: RelationRecord): boolea
   const next = relationRecordSchema.parse(record);
   const file = relationsPath(wikiRoot);
   let store: { relations: unknown[] } & Record<string, unknown> = { version: 1, relations: [] };
-  if (existsSync(file)) {
-    const raw: unknown = JSON.parse(readFileSync(file, 'utf-8'));
+  // Read once, with no existence check first: a check and then a read can
+  // see two different files (CodeQL js/file-system-race).
+  let text: string | undefined;
+  try {
+    text = readFileSync(file, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+  }
+  if (text !== undefined) {
+    const raw: unknown = JSON.parse(text);
     const parsed = relationStoreSchema.safeParse(raw);
     if (!parsed.success) throw new Error(`relations.json is not a relation store: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
     store = raw as typeof store;
@@ -773,7 +781,10 @@ export function appendRelation(wikiRoot: string, record: RelationRecord): boolea
   }
   store.relations.push(next);
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(store, null, 2)}\n`, 'utf-8');
+  // Replace the store in one step, so a reader never sees half a file.
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(store, null, 2)}\n`, 'utf-8');
+  renameSync(tmp, file);
   return true;
 }
 
