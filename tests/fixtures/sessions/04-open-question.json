@@ -1,0 +1,106 @@
+{
+  "fixture": "04-open-question",
+  "description": "An open ask_user question: the orchestrator called ask_user (a long-running tool), the run ended with no response to the call, and the turn ended input-required.",
+  "generatedBy": "tests/fixtures/sessions/generate.ts",
+  "adkVersion": "2.2.0",
+  "storedForm": "trimmed",
+  "endsWith": "input-required",
+  "syndicate": {
+    "syndicate_name": "Question Fixture",
+    "memory_system": "internal-only",
+    "orchestrator": {
+      "name": "Boss",
+      "model": "scripted/boss",
+      "instruction": "Help.",
+      "tools": [
+        "ask_user"
+      ]
+    },
+    "subagents": []
+  },
+  "turns": [
+    [
+      {
+        "text": "pay the invoice"
+      }
+    ]
+  ],
+  "sessions": [
+    {
+      "appName": "fixtures",
+      "userId": "user-1",
+      "sessionId": "conv-04",
+      "state": {},
+      "events": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "pay the invoice"
+              }
+            ]
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000002",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [
+            "adk-00000000-0000-4000-8000-000000000002"
+          ],
+          "timestamp": 1767225601000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "ask_user",
+                  "args": {
+                    "question": "Which account?",
+                    "options": [
+                      "personal",
+                      "work"
+                    ]
+                  },
+                  "id": "adk-00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "skipSummarization": true
+          },
+          "id": "ev000003",
+          "longRunningToolIds": [],
+          "timestamp": 1767225602000
+        }
+      ]
+    }
+  ]
+}

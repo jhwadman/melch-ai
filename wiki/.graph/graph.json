@@ -5,15 +5,15 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 642,
-    "edges": 1488,
+    "nodes": 644,
+    "edges": 1491,
     "byKind": {
       "doc": 97,
       "provider": 6,
       "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 85,
+      "file": 87,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -36,11 +36,11 @@
       "imports": 348,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 277,
+      "derives_from": 280,
       "supersedes": 1
     },
     "byTier": {
-      "extracted": 1487,
+      "extracted": 1490,
       "inferred": 1
     },
     "isolated": 4
@@ -955,7 +955,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 924
+        "words": 1183
       }
     },
     {
@@ -3248,6 +3248,12 @@
       "source": "tests/fallback.test.ts"
     },
     {
+      "id": "file:tests/fixtures/sessions/generate.ts",
+      "kind": "file",
+      "label": "generate.ts",
+      "source": "tests/fixtures/sessions/generate.ts"
+    },
+    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -3326,6 +3332,12 @@
       "kind": "file",
       "label": "serverShutdown.test.ts",
       "source": "tests/serverShutdown.test.ts"
+    },
+    {
+      "id": "file:tests/sessionFixtures.test.ts",
+      "kind": "file",
+      "label": "sessionFixtures.test.ts",
+      "source": "tests/sessionFixtures.test.ts"
     },
     {
       "id": "file:tests/skillHarness.test.ts",
@@ -8023,6 +8035,20 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "file:tests/fixtures/sessions/generate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "file:tests/sessionFixtures.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "module:lib/memory/erase.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8051,6 +8077,13 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "module:lib/storage/postgres/index.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8061,35 +8094,35 @@
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:26"
+      "evidence": "/memory/architecture.md:29"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:44"
+      "evidence": "/memory/architecture.md:47"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:22"
+      "evidence": "/memory/architecture.md:25"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:86"
+      "evidence": "/memory/architecture.md:95"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:86"
+      "evidence": "/memory/architecture.md:95"
     },
     {
       "from": "/memory/schema.md",

@@ -1,0 +1,94 @@
+{
+  "fixture": "02-plan-dispatch",
+  "description": "PLAN-DISPATCH: the classifier picks a route and the route answers directly in the shared session. The classifier runs in a throwaway in-memory lane, so none of its events are stored.",
+  "generatedBy": "tests/fixtures/sessions/generate.ts",
+  "adkVersion": "2.2.0",
+  "storedForm": "trimmed",
+  "endsWith": "completed",
+  "syndicate": {
+    "syndicate_name": "Dispatch Fixture",
+    "memory_system": "internal-only",
+    "orchestrator": {
+      "name": "Router",
+      "model": "scripted/router",
+      "instruction": "Classify."
+    },
+    "subagents": [
+      {
+        "name": "Chat",
+        "model": "scripted/chat",
+        "instruction": "Chat.",
+        "description": "small talk"
+      },
+      {
+        "name": "Research",
+        "model": "scripted/research",
+        "instruction": "Research.",
+        "description": "research"
+      }
+    ],
+    "dispatch": {
+      "default_route": "Chat"
+    }
+  },
+  "turns": [
+    [
+      {
+        "text": "what do the sources say?"
+      }
+    ]
+  ],
+  "sessions": [
+    {
+      "appName": "fixtures",
+      "userId": "user-1",
+      "sessionId": "conv-02",
+      "state": {},
+      "events": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "what do the sources say?"
+              }
+            ]
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Research",
+          "id": "ev000002",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225601000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "research answer: three sources agree"
+              }
+            ]
+          },
+          "turnComplete": true
+        }
+      ]
+    }
+  ]
+}
