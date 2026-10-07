@@ -1,6 +1,6 @@
 ---
 name: melchizedek-models
-description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent settings such as how hard an agent reasons. Use when the user changes a model line, adds a provider key, wants an agent to think more or less, sees Model not found or a gateway error, or asks which keys a syndicate needs."
+description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, Kimi, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent settings such as how hard an agent reasons. Use when the user changes a model line, adds a provider key, wants an agent to think more or less, sees Model not found or a gateway error, or asks which keys a syndicate needs."
 ---
 
 ## How a model id routes
@@ -12,6 +12,7 @@ The runtime reads the prefix of each `model:` string to select the provider:
 | `claude-*` | Anthropic |
 | `gpt-*`, `o<digit>*` | OpenAI |
 | `grok-*` | xAI |
+| `kimi-*` | Moonshot AI (Kimi) |
 | `ollama/<model>` | Local Ollama |
 | Everything else | Gemini (ADK-native default) |
 
@@ -26,6 +27,7 @@ The deployment verifies these ids:
 - `gpt-5-mini`
 - `gpt-5`
 - `grok-4.7`
+- `kimi-k3`
 - `ollama/qwen3:8b`
 
 The framework sets a server-side tool flag that triggers a 400 error about tool call context circulation on `gemini-2.5-flash`. Use `gemini-3.8-flash` or newer instead.
@@ -39,6 +41,7 @@ Each provider requires a distinct environment variable in your `.env` file or pr
 - Anthropic: `ANTHROPIC_API_KEY`
 - OpenAI: `OPENAI_API_KEY`
 - xAI: `XAI_API_KEY`
+- Moonshot AI (Kimi): `MOONSHOT_API_KEY`
 - Ollama: no key for `ollama/*`
 
 The runtime registers a provider only when its matching key is present. When you omit the key, the runtime logs the provider as disabled, and any agent on that provider halts with `Model not found`.
@@ -144,7 +147,7 @@ npm run demo:direct -- --model ollama/qwen3:8b hello
 
 When a model fails to run, consult the error message:
 
-- `Model not found`: The provider's key is unset for a `claude-*`, `gpt-*`, or `grok-*` id. Set the required provider key, or supply `MODEL_GATEWAY` and `MODEL_GATEWAY_API_KEY`.
+- `Model not found`: The provider's key is unset for a `claude-*`, `gpt-*`, `grok-*`, or `kimi-*` id. Set the required provider key, or supply `MODEL_GATEWAY` and `MODEL_GATEWAY_API_KEY`.
 - `GATEWAY_HTTP_ERROR ... 404/400`: The gateway rejected the mapped id. Fix the name with `MODEL_GATEWAY_MODEL_MAP`.
 - `GATEWAY_KEY_MISSING`: You set `MODEL_GATEWAY` without `MODEL_GATEWAY_API_KEY`. Set `MODEL_GATEWAY_API_KEY` in your `.env` file.
 - `OLLAMA_UNREACHABLE`: Ollama is not running (`ollama serve`) or you have not pulled the requested model (`ollama list`).

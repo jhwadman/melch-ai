@@ -6,19 +6,19 @@ STRUCTURE (exact):
 Frontmatter, verbatim:
 ---
 name: melchizedek-models
-description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent settings such as how hard an agent reasons. Use when the user changes a model line, adds a provider key, wants an agent to think more or less, sees Model not found or a gateway error, or asks which keys a syndicate needs."
+description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, Kimi, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent settings such as how hard an agent reasons. Use when the user changes a model line, adds a provider key, wants an agent to think more or less, sees Model not found or a gateway error, or asks which keys a syndicate needs."
 ---
 Then `##` sections in this order: "How a model id routes", "Which key unlocks what", "Run with no key at all", "One key for every cloud provider", "Settings per agent", "Mixing providers in one syndicate", "Reading the errors".
 
 FACTS:
 How a model id routes:
-- The `model:` string's prefix names the provider: `claude-*` to Anthropic, `gpt-*` and `o<digit>*` to OpenAI, `grok-*` to xAI, `ollama/<model>` to a local Ollama, and everything else to Gemini (the ADK-native default).
+- The `model:` string's prefix names the provider: `claude-*` to Anthropic, `gpt-*` and `o<digit>*` to OpenAI, `grok-*` to xAI, `kimi-*` to Moonshot AI (Kimi), `ollama/<model>` to a local Ollama, and everything else to Gemini (the ADK-native default).
 - There is no allowlist in the engine: any id a provider currently serves works as written. A new model is a one-line YAML change.
-- Ids verified in this deployment: `gemini-3.8-flash` (production), `gemini-3.5-flash-lite` (subagents, cost), `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5-20251001`, `gpt-5-mini`, `gpt-5`, `grok-4.7`, `ollama/qwen3:8b`.
+- Ids verified in this deployment: `gemini-3.8-flash` (production), `gemini-3.5-flash-lite` (subagents, cost), `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5-20251001`, `gpt-5-mini`, `gpt-5`, `grok-4.7`, `kimi-k3`, `ollama/qwen3:8b`.
 - `gemini-2.5-flash` returns a 400 about tool call context circulation with the server-side tool flag the framework sets; use `gemini-3.8-flash` or newer.
 - Subagents inherit the orchestrator's `model` when they set none.
 Which key unlocks what:
-- `GOOGLE_GENAI_API_KEY` for Gemini (also the embedding model behind long-term memory); `ANTHROPIC_API_KEY`; `OPENAI_API_KEY`; `XAI_API_KEY`; no key for `ollama/*`.
+- `GOOGLE_GENAI_API_KEY` for Gemini (also the embedding model behind long-term memory); `ANTHROPIC_API_KEY`; `OPENAI_API_KEY`; `XAI_API_KEY`; `MOONSHOT_API_KEY` for Kimi; no key for `ollama/*`.
 - A provider registers only when its key is present; a missing key logs the provider as disabled, and an agent on that provider fails with `Model not found`.
 - `npx melchizedek-doctor` (clone: `npm run doctor`) reads every syndicate, resolves each agent's model under the current `.env`, and prints per agent: model, provider, which server-side search tools the path keeps or drops, and whether it is funded; per syndicate a verdict; and the variables that would unlock the most. `--json`, `--check` (exit 1 when any syndicate is blocked). Read-only, no key value printed.
 - The `# tier:` first line of every starter-pack file states its cost class (`keyless`, one provider name, or `multi-provider`); the doctor checks the claim against the models.
@@ -42,10 +42,10 @@ Mixing providers in one syndicate:
 - Any agent in a graph can run on a different provider; `model_zoo.yaml` declares one lightweight agent per provider, and in a clone `npm run demo:models` sends one prompt through each.
 - In code, `registerAvailableProviders()` from `melchizedek-agents` registers every provider whose key is present so a plain ADK `LlmAgent` can take any of these ids; in a clone `npm run demo:direct -- --model ollama/qwen3:8b hello` runs one agent with no YAML.
 Reading the errors:
-- `Model not found` for a `claude-*`, `gpt-*` or `grok-*` id: the provider's key is unset. Set it, or set the gateway pair.
+- `Model not found` for a `claude-*`, `gpt-*`, `grok-*` or `kimi-*` id: the provider's key is unset. Set it, or set the gateway pair.
 - `GATEWAY_HTTP_ERROR ... 404/400`: the gateway rejected the mapped id; fix the name with `MODEL_GATEWAY_MODEL_MAP`.
 - `GATEWAY_KEY_MISSING`: `MODEL_GATEWAY` is set without `MODEL_GATEWAY_API_KEY`.
 - `OLLAMA_UNREACHABLE`: Ollama is not running (`ollama serve`) or the model is not pulled (`ollama list`).
 
-IDENTIFIERS (verbatim): model:, claude-*, gpt-*, grok-*, ollama/, gemini-3.8-flash, gemini-3.5-flash-lite, gemini-2.5-flash, ollama/qwen3:8b, GOOGLE_GENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, XAI_API_KEY, npx melchizedek-doctor, --json, --check, # tier:, ollama pull qwen3:8b, http://localhost:11434/v1, MODEL_GATEWAY, MODEL_GATEWAY_API_KEY, MODEL_GATEWAY_MODEL_MAP, MODEL_GATEWAY_BASE_URL, X-API-Key, reasoning:, budget_tokens, generateContentConfig:, maxOutputTokens, thinkingConfig, reasoningEffort, thinkingLevel, includeThoughts, config/agents/templates/, model_zoo.yaml, npm run demo:models, registerAvailableProviders, GATEWAY_HTTP_ERROR, GATEWAY_KEY_MISSING, OLLAMA_UNREACHABLE, Model not found
+IDENTIFIERS (verbatim): model:, claude-*, gpt-*, grok-*, kimi-*, ollama/, gemini-3.8-flash, gemini-3.5-flash-lite, gemini-2.5-flash, kimi-k3, ollama/qwen3:8b, GOOGLE_GENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, XAI_API_KEY, MOONSHOT_API_KEY, npx melchizedek-doctor, --json, --check, # tier:, ollama pull qwen3:8b, http://localhost:11434/v1, MODEL_GATEWAY, MODEL_GATEWAY_API_KEY, MODEL_GATEWAY_MODEL_MAP, MODEL_GATEWAY_BASE_URL, X-API-Key, reasoning:, budget_tokens, generateContentConfig:, maxOutputTokens, thinkingConfig, reasoningEffort, thinkingLevel, includeThoughts, config/agents/templates/, model_zoo.yaml, npm run demo:models, registerAvailableProviders, GATEWAY_HTTP_ERROR, GATEWAY_KEY_MISSING, OLLAMA_UNREACHABLE, Model not found
 LIMITS: the routing prefixes and what `reasoning:` becomes per provider may each be a short table. Body under 160 lines.

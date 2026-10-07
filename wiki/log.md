@@ -11,6 +11,14 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/schemaNormalize.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/session/transcript.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/fallbackAdapter.ts
 
 by claude-code/claude-opus-5-5

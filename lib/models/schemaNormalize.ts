@@ -12,7 +12,19 @@
  *   Tools are declared once (YAML / MCP discovery) in the Gemini dialect, so
  *   every non-Gemini adapter runs its tool schemas through this function at
  *   request-build time. See DOCUMENTATION.md §7.1.
+ *
+ *   The engine's own model contract (lib/models/contract.ts, ADR 0048) takes
+ *   tools in its own shape instead: contractToolDeclaration() builds a
+ *   ToolDeclaration from an ADK tool or a defineTool contract, converting
+ *   Gemini's dialect once, where the tool enters, and nativeToolOf() names
+ *   the server-side tools that declare nothing. The functions above stay as
+ *   they are for the ADK path's adapters.
  */
+
+import { z } from 'zod';
+
+import type { JsonSchema, NativeTool, ToolDeclaration } from './contract.ts';
+import type { ToolContract } from '../tools/toolContract.ts';
 
 /**
  * Deep-clones a Gemini/ADK-style JSON schema, lowercasing every `type` value
@@ -129,4 +141,247 @@ function strictNode(node: unknown): unknown {
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+// ── Tool declarations in the contract's shape (ADR 0048) ─────────────────────
+
+/** Keywords whose value is one schema (`items` may also be a draft-4 tuple of them). */
+const SUBSCHEMA_KEYWORDS = new Set([
+  'items', 'additionalItems', 'additionalProperties', 'unevaluatedItems', 'unevaluatedProperties',
+  'contains', 'propertyNames', 'not', 'if', 'then', 'else',
+]);
+/** Keywords whose value is a list of schemas. */
+const SUBSCHEMA_LIST_KEYWORDS = new Set(['anyOf', 'oneOf', 'allOf', 'prefixItems']);
+/** Keywords whose value maps names to schemas. */
+const SUBSCHEMA_MAP_KEYWORDS = new Set(['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas']);
+/** Bounds Gemini's Schema spells as int64 strings (`'1'`); JSON Schema wants integers. */
+const INTEGER_KEYWORDS = ['minLength', 'maxLength', 'minItems', 'maxItems', 'minProperties', 'maxProperties'] as const;
+
+/**
+ * Keywords a declaration built from a defineTool contract leaves out. The
+ * ADK path cannot carry them (toGeminiSchema drops them), so leaving them out
+ * of the direct path too means a contract declares the same parameters
+ * whichever path resolves it.
+ */
+const CONTRACT_DROPPED_KEYWORDS = ['additionalProperties', 'default'] as const;
+
+/** The tools a provider runs on its own side, as the contract names them. */
+const NATIVE_TOOLS: readonly NativeTool[] = [
+  'web_search', 'google_search', 'url_context', 'x_search', 'collections_search', 'code_execution',
+];
+
+/**
+ * ADK's markers, read through the global symbol registry so this module
+ * imports nothing from ADK: a tool the model runs itself (GOOGLE_SEARCH,
+ * ADK's URL_CONTEXT) and Gemini's built-in code executor.
+ */
+const ADK_IN_MODEL_TOOL = Symbol.for('google.adk.inModelTool');
+const ADK_BUILT_IN_CODE_EXECUTOR = Symbol.for('google.adk.builtInCodeExecutor');
+
+/** A deep copy of a JSON value, so a walk can change it without touching a tool's own schema. */
+function cloneJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(cloneJson);
+  if (isPlainObject(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, cloneJson(v)]));
+  return value;
+}
+
+/**
+ * Visits every schema node in place, children first. It follows only the
+ * keywords that hold schemas, so a property named `type`, `enum` or
+ * `default` is a property like any other, and data (`enum`, `const`,
+ * `default`, `examples`) is never read as a schema.
+ */
+function walkSchema(node: unknown, visit: (node: Record<string, unknown>) => void): void {
+  if (!isPlainObject(node)) return; // boolean schemas, malformed nodes
+  for (const [key, value] of Object.entries(node)) {
+    if (SUBSCHEMA_KEYWORDS.has(key)) {
+      if (Array.isArray(value)) value.forEach((v) => walkSchema(v, visit));
+      else walkSchema(value, visit);
+    } else if (SUBSCHEMA_LIST_KEYWORDS.has(key) && Array.isArray(value)) {
+      value.forEach((v) => walkSchema(v, visit));
+    } else if (SUBSCHEMA_MAP_KEYWORDS.has(key) && isPlainObject(value)) {
+      Object.values(value).forEach((v) => walkSchema(v, visit));
+    }
+  }
+  visit(node);
+}
+
+/** Keywords that say what a node is about, not what it admits; they stay put when a nullable node is wrapped. */
+const ANNOTATION_KEYWORDS = new Set(['title', 'description', 'default', 'examples', '$comment', 'deprecated', 'readOnly', 'writeOnly', '$defs', 'definitions']);
+/** Keywords beside which a type that admits null still refuses it. */
+const NULL_REFUSING_KEYWORDS = ['allOf', 'anyOf', 'oneOf', '$ref', 'not', 'const'];
+
+/**
+ * One node from Gemini's dialect into lowercase JSON Schema: types
+ * lowercased, int64 bounds as integers, the strict form when asked, and
+ * OpenAPI's `nullable: true` turned into a schema that admits null. Strict
+ * comes before null, because admitting null may move the node's properties
+ * into an anyOf branch the walk has already passed. A node already in the
+ * standard dialect passes through unchanged.
+ */
+function toContractNode(node: Record<string, unknown>, dropped: readonly string[], strict: boolean): void {
+  for (const key of dropped) delete node[key];
+  if (typeof node.type === 'string') node.type = node.type.toLowerCase();
+  else if (Array.isArray(node.type)) node.type = node.type.map((t) => (typeof t === 'string' ? t.toLowerCase() : t));
+  for (const key of INTEGER_KEYWORDS) {
+    const bound = node[key];
+    if (typeof bound === 'string' && /^\d+$/.test(bound)) node[key] = Number(bound);
+  }
+  if (strict) toStrictNode(node);
+  if (typeof node.nullable !== 'boolean') return;
+  const nullable = node.nullable;
+  delete node.nullable;
+  if (nullable) admitNull(node);
+}
+
+/**
+ * Make `node` admit null. A plain typed node gains `null` in its type (and
+ * its enum, which would otherwise refuse it); a bare `anyOf` gains a null
+ * branch; anything else ($ref, allOf, oneOf, const…) moves into an anyOf
+ * beside `{ type: 'null' }`, its annotations staying on the node.
+ */
+function admitNull(node: Record<string, unknown>): void {
+  const composed = NULL_REFUSING_KEYWORDS.some((k) => k in node);
+  if (node.type !== undefined && !composed) {
+    const types = Array.isArray(node.type) ? node.type : [node.type];
+    if (!types.includes('null')) node.type = typeof node.type === 'string' ? [node.type, 'null'] : [...types, 'null'];
+    if (Array.isArray(node.enum) && !node.enum.includes(null)) node.enum = [...node.enum, null];
+    return;
+  }
+  const constraints = Object.keys(node).filter((k) => !ANNOTATION_KEYWORDS.has(k));
+  if (constraints.length === 0) return; // an unconstrained schema admits null already
+  if (constraints.length === 1 && constraints[0] === 'anyOf' && Array.isArray(node.anyOf)) {
+    if (!node.anyOf.some((s) => isPlainObject(s) && s.type === 'null')) node.anyOf = [...node.anyOf, { type: 'null' }];
+    return;
+  }
+  // fromEntries defines each key, so an own `__proto__` from an untrusted
+  // (MCP) schema stays a key instead of setting the new object's prototype.
+  const inner = Object.fromEntries(constraints.map((key) => [key, node[key]]));
+  for (const key of constraints) delete node[key];
+  node.anyOf = [inner, { type: 'null' }];
+}
+
+/**
+ * The strict form of one node: an object with properties lists them all as
+ * required and allows no others. An optional property becomes required as
+ * it is, not widened to null: a contract's zod schema would refuse the null.
+ */
+function toStrictNode(node: Record<string, unknown>): void {
+  if (!isPlainObject(node.properties)) return;
+  node.required = Object.keys(node.properties);
+  node.additionalProperties = false;
+}
+
+/**
+ * A copy of `schema` as lowercase JSON Schema, the contract's one dialect
+ * (`JsonSchema`), from either dialect. With `strict`, every object node
+ * that has properties, at any depth (inside `items`, `anyOf`, `$defs`, …),
+ * lists all of them as required and sets `additionalProperties: false`: the
+ * form OpenAI's and Anthropic's strict modes demand. An object without
+ * properties (a map) is left open, so a strict provider refuses it instead
+ * of receiving a field the model can never fill. Never mutates `schema`.
+ */
+export function toContractJsonSchema(schema: unknown, options: { strict?: boolean } = {}): JsonSchema {
+  return contractSchema(schema, [], options.strict === true);
+}
+
+function contractSchema(schema: unknown, dropped: readonly string[], strict: boolean): JsonSchema {
+  const root = isPlainObject(schema) ? (cloneJson(schema) as Record<string, unknown>) : { type: 'object', properties: {} };
+  const drop = ['$schema', ...dropped];
+  walkSchema(root, (node) => toContractNode(node, drop, strict));
+  return root;
+}
+
+/** A defineTool contract (lib/tools/toolContract.ts), told apart from an ADK tool, which has runAsync. */
+function isToolContract(tool: Record<string, unknown>): tool is Record<string, unknown> & ToolContract {
+  const schema = tool.schema as { safeParse?: unknown } | undefined;
+  return !!schema && typeof schema.safeParse === 'function' && typeof tool.execute === 'function' && !('runAsync' in tool);
+}
+
+/**
+ * The declaration a model receives for one client-side tool, in the
+ * contract's shape (ToolDeclaration, lib/models/contract.ts).
+ *
+ * - A defineTool contract: built directly from its zod schema
+ *   (`z.toJSONSchema`, called as toStandardJsonSchema calls it), never
+ *   through Gemini's uppercase dialect. The keywords `additionalProperties`
+ *   and `default` are left out, as the ADK path leaves them out, so the
+ *   contract and the FunctionTool that toFunctionTool() makes of it declare
+ *   the same parameters. (The one exception is a property itself named
+ *   `additionalProperties` or `default`: toGeminiSchema drops it by name,
+ *   and this keeps it.)
+ * - An ADK tool (FunctionTool, AgentTool, the memory tools, MCP tools): read
+ *   from its own `_getDeclaration()` (ADR 0019), `parameters` or else
+ *   `parametersJsonSchema`, and converted from Gemini's dialect once, here.
+ * - A plain object with `name` and `parameters` (tests, hand-built tools).
+ *
+ * With `strict`, the parameters take the strict form (toContractJsonSchema)
+ * and the declaration carries `strict: true`. Returns undefined for a tool
+ * that declares nothing (a server-side tool: see nativeToolOf, or
+ * `preload_memory`, which only edits the request) and for one with no name.
+ */
+export function contractToolDeclaration(tool: unknown, options: { strict?: boolean } = {}): ToolDeclaration | undefined {
+  if (!isPlainObject(tool)) return undefined;
+  const strict = options.strict === true;
+  let name: unknown;
+  let description: unknown;
+  let parameters: JsonSchema;
+  if (isToolContract(tool)) {
+    name = tool.name;
+    description = tool.description;
+    parameters = contractSchema(z.toJSONSchema(tool.schema), CONTRACT_DROPPED_KEYWORDS, strict);
+  } else {
+    let decl: Record<string, unknown> | undefined;
+    if (typeof tool._getDeclaration === 'function') {
+      try {
+        decl = (tool._getDeclaration as () => Record<string, unknown> | undefined)() ?? undefined;
+      } catch {
+        decl = undefined;
+      }
+      // A tool that implements _getDeclaration and returns nothing declares nothing.
+      if (!decl) return undefined;
+    }
+    name = decl ? decl.name ?? tool.name : tool.name;
+    description = decl ? decl.description ?? tool.description : tool.description;
+    const declared = decl ? decl.parameters ?? decl.parametersJsonSchema : tool.parameters;
+    parameters = contractSchema(declared, [], strict);
+  }
+  if (!name || typeof name !== 'string') return undefined;
+  return {
+    name,
+    description: typeof description === 'string' ? description : '',
+    parameters,
+    ...(strict ? { strict: true } : {}),
+  };
+}
+
+/**
+ * The NativeTool a tool object stands for, or undefined for any other tool.
+ * Recognised by marker and name, never by class, so a second copy of a
+ * module (or of ADK) still matches:
+ *   - Gemini code execution: ADK's built-in code executor, by its marker
+ *     (the agent's `codeExecutor`, from `code_execution: gemini`).
+ *   - A tool named web_search, google_search, url_context, x_search or
+ *     collections_search that declares no function: ADK marks its own
+ *     built-ins (GOOGLE_SEARCH, URL_CONTEXT) as run by the model, and the
+ *     engine's sentinels (lib/tools/*Tool.ts) return no declaration.
+ * A client-side tool registered under one of those names declares itself,
+ * so it stays a client-side tool. ADK's other in-model tools (Vertex AI
+ * Search, enterprise web search, Maps grounding, RAG retrieval) have no
+ * NativeTool: they are undefined here and declare nothing, so a caller
+ * building a request reports them as dropped.
+ */
+export function nativeToolOf(tool: unknown): NativeTool | undefined {
+  if (!tool || typeof tool !== 'object') return undefined;
+  const t = tool as Record<PropertyKey, unknown>;
+  if (t[ADK_BUILT_IN_CODE_EXECUTOR] === true) return 'code_execution';
+  const name = NATIVE_TOOLS.find((n) => n === t.name);
+  if (!name) return undefined;
+  if (t[ADK_IN_MODEL_TOOL] === true) return name;
+  if (typeof t._getDeclaration !== 'function') return undefined;
+  try {
+    return (t._getDeclaration as () => unknown)() ? undefined : name;
+  } catch {
+    return undefined;
+  }
 }

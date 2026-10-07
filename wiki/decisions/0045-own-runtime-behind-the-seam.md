@@ -57,6 +57,8 @@ ADR 0024's third trigger has partly fired: these limits can be removed, rather t
    - The default does not flip to `native` while any ADK-written session fixture fails to resume under `native`.
    - The ADK path is deleted only after two weeks in production with `native` as the default and no incident attributed to the runtime.
 
+> **Note (2026-10-07):** The stored Event JSON in item 4 carries an elided tool result's size inside its marker text. `trimEventForStorage` (`lib/session/transcript.ts`) now writes that size with en-US digit grouping (`2,563`) on every server, where it used to follow the server's locale (`2.563` in German, `2 563` in French). The JSON shape and the marker's wording are unchanged, and an en-US server writes the same bytes as before. Rows already stored keep the grouping they were written with, and no code parses the size.
+
 ## Alternatives considered
 
 - **Keep ADK and fix the gaps inside it.** Carry provider-opaque reasoning state on a part field by convention, add Anthropic vision, and add a provider-neutral `reasoning:` key. This closes the reasoning-replay gaps but none of the four structural limits, and the peer dependency stays. Partly adopted: it is the first workstream, because every other option needs it too.
