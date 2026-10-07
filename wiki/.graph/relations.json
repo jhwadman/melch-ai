@@ -66,6 +66,14 @@
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07",
       "note": "The script runs tests/fixtures/sessions/generate.ts --check; the build links scripts only to source modules, so this edge is asserted."
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0045, decision 4: the stored Event JSON in adk_sessions.events never changes without an ADR; its note (2026-10-07): \"The stored Event JSON in item 4 carries an elided tool result's size inside its marker text. trimEventForStorage (lib/session/transcript.ts) now writes that size with en-US digit grouping\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }

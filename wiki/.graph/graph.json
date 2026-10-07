@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 656,
-    "edges": 1538,
+    "edges": 1539,
     "byKind": {
       "doc": 100,
       "provider": 6,
@@ -38,13 +38,13 @@
       "runs": 67,
       "derives_from": 295,
       "supersedes": 1,
-      "constrains": 3,
+      "constrains": 4,
       "depends_on": 2,
       "explains": 2
     },
     "byTier": {
       "extracted": 1530,
-      "inferred": 8
+      "inferred": 9
     },
     "isolated": 4
   },
