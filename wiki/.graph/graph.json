@@ -5,10 +5,10 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 643,
-    "edges": 1484,
+    "nodes": 644,
+    "edges": 1491,
     "byKind": {
-      "doc": 96,
+      "doc": 97,
       "provider": 6,
       "env": 101,
       "model": 8,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 226,
+      "links_to": 228,
       "requires_env": 156,
       "routes_to": 8,
       "defined_in": 76,
@@ -36,11 +36,12 @@
       "imports": 348,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 276
+      "derives_from": 280,
+      "supersedes": 1
     },
     "byTier": {
-      "extracted": 1484,
-      "inferred": 0
+      "extracted": 1490,
+      "inferred": 1
     },
     "isolated": 4
   },
@@ -690,7 +691,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 893
+        "words": 947
       }
     },
     {
@@ -931,6 +932,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 338
+      }
+    },
+    {
+      "id": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "kind": "doc",
+      "label": "ADR 0045: Own the runtime behind the seam: a native runtime beside ADK, built in stages, with ADK removed at 1.0",
+      "source": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1089
       }
     },
     {
@@ -3337,7 +3350,8 @@
       "id": "file:tests/syndicateTurn.test.ts",
       "kind": "file",
       "label": "syndicateTurn.test.ts",
-      "source": "tests/syndicateTurn.test.ts"
+      "source": "tests/syndicateTurn.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/taskLimiter.test.ts",
@@ -7201,6 +7215,13 @@
       "evidence": "/decisions/0024-adk-behind-the-runtime-seam.md frontmatter"
     },
     {
+      "from": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0024-adk-behind-the-runtime-seam.md:57"
+    },
+    {
       "from": "/decisions/0025-built-in-authenticators.md",
       "to": "file:tests/identity.test.ts",
       "rel": "derives_from",
@@ -7969,6 +7990,41 @@
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "file:package.json",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "file:tests/syndicateTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:24"
     },
     {
       "from": "/memory/architecture.md",
