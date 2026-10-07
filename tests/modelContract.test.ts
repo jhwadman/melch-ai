@@ -291,7 +291,7 @@ test('ProviderCapabilities states one path\'s capabilities, field by matrix colu
     outputSchema: { support: 'supported', note: 'sent as a forced tool call; with a thinking budget the tool is offered under tool_choice auto' },
     reasoningState: { support: 'supported' },
     streaming: { support: 'supported' },
-    blobs: { support: 'unsupported', note: 'image parts are dropped from the request', mimeTypes: [], urls: false, outsideUserTurns: false },
+    blobs: { support: 'supported', note: 'user-turn images only', mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], urls: true, outsideUserTurns: false },
     nativeTools: { web_search: { support: 'supported' } },
     toolChoice: ['auto', 'none'],
     reasoning: 'budget',

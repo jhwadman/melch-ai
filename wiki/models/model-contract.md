@@ -174,7 +174,7 @@ The Messages API, on Anthropic's API or through Bedrock or Vertex AI (ADR 0023).
 | `ThinkingPart` | not sent. Received from `thinking` blocks (summaries when `display: 'summarized'`). |
 | `ToolCallPart` | `{ type: 'tool_use', id, name, input: args }` |
 | `ToolResultPart` | `{ type: 'tool_result', tool_use_id: id, content: <JSON text>, is_error }` |
-| `BlobPart` | `{ type: 'image', source }`, or `{ type: 'document', source }` for `application/pdf`; `source` is `{ type: 'base64', media_type, data }` or `{ type: 'url', url }` |
+| `BlobPart` | user turns: `{ type: 'image', source }` for JPEG, PNG, GIF and WebP, where `source` is `{ type: 'base64', media_type, data }` or, for an https URL, `{ type: 'url', url }`. Any other type, or a non-https URL, is dropped with `llm.image.dropped` on the span. |
 | `providerState` | `{ provider: 'anthropic', kind: 'thinking_blocks', model, payload }`: the signed `thinking` and `redacted_thinking` blocks, emitted verbatim immediately before the part, on the current turn's assistant messages only (ADR 0046) |
 | `tools` | `{ name, description, input_schema: parameters, strict }` |
 | `nativeTools` | `web_search` → `{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }` on Claude 4.6 and later, `web_search_20250305` on earlier models; on Anthropic's own API only, never on Bedrock or Vertex AI (`nativeSearchOn`, `lib/models/endpoints.ts`). The rest dropped. |
