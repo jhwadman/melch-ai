@@ -202,11 +202,11 @@ export function projectTranscript(
  * which drops past turns' thought parts and tool traffic on the way into a
  * prompt (a resumed turn is the exception, below). Every other agent reads
  * its stored session unprojected: its next turn's prompt replays earlier
- * calls and their results as stored. From a trimmed row the model is handed the elision marker in
- * place of the result, beside the answer it wrote from that result
- * (tests/fixtures/sessions/08-elided-result.json), and past parts without
- * their signatures. The memory service's `serializeEvents` walks `part.text`
- * alone, so a payload has never contributed one extracted fact.
+ * calls and their results as stored. From a trimmed row the model is handed
+ * the elision marker in place of the result, beside the answer it wrote from
+ * that result (tests/fixtures/sessions/08-elided-result.json), and past parts
+ * without their signatures. The memory service's `serializeEvents` walks
+ * `part.text` alone, so a payload has never contributed one extracted fact.
  *
  * So the cost of trimming is a past turn's long result, outside plan-dispatch:
  * a follow-up that needs a detail the answer did not quote has to call the
@@ -237,10 +237,11 @@ export function projectTranscript(
  *
  * ── The one constraint on changing this ───────────────────────────────────
  * Stored events ARE fed back to a model: outside plan-dispatch on every later
- * turn, and on every resume. A replayed call stays valid only because it
- * keeps the skip value (ADR 0028); every other signature is gone, and with it
- * Gemini's thought continuity across turns. Anything that needs that
- * continuity needs the real signature stored.
+ * turn, and on every resume. From a trimmed row, a replayed call stays valid
+ * only because it keeps the skip value (ADR 0028); every other signature is
+ * gone, and with it Gemini's thought continuity across turns. Anything that
+ * needs that continuity needs the real signature stored, which only the
+ * Postgres adapter's verbatim rows keep.
  *
  * Pure: returns a new event, never mutates the input. The caller applies it
  * to the SERIALIZED COPY only — the live in-memory session must keep both
