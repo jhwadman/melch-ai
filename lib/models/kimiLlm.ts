@@ -78,11 +78,18 @@
  *     warning, like on Ollama; `web_extract` works, and `MOONSHOT_API_KEY`
  *     would fund a client-side search tool over that REST API if one is
  *     added (lib/tools/).
- *   - Thinking with tools: Moonshot asks that K3's `reasoning_content` be
- *     passed back with the assistant message on a tool loop. This base
- *     keeps scratchpads out of history, so K3 re-reasons each step
- *     (degraded, stated in lib/models/capabilities.ts); if Moonshot ever
- *     enforces it, the turn ends with MOONSHOT_HTTP_ERROR naming the field.
+ *   - Thinking with tools: Moonshot's thinking-model guide (October 2026)
+ *     asks for every id above that an assistant message's
+ *     `reasoning_content` be sent back on the next request of a tool loop
+ *     ("required" on K3). This adapter turns on the base's
+ *     replaysReasoningContent for those ids (wantsReasoningReplay), so the
+ *     field rides as providerState on the part that followed it and goes
+ *     back on that message within the turn's tool loop, for the same model
+ *     only (ADR 0046). Earlier turns' reasoning is not sent: K3 and
+ *     K2.7 Code also ask for it across turns ("preserved thinking"), and
+ *     the stored history of a past turn is not what the model saw. The
+ *     replayed text is billed again as input on every later step of the
+ *     loop, mostly at the cache-hit price, since the prefix is unchanged.
  *   - Every cell of its capability row is asserted against the request body
  *     the adapter sends (tests/capabilityMatrix.test.ts), as for every other
  *     provider. Verified live on 2026-10-03 through `npm run demo:models`:
@@ -102,6 +109,14 @@ export const MOONSHOT_BASE_URL = 'https://api.moonshot.ai/v1';
 /** The flagship takes `reasoning_effort`; the K2 generation takes a `thinking` switch. */
 export function isKimiK3(model: string): boolean {
   return /^kimi-k3\b/.test(model);
+}
+
+/**
+ * The ids Moonshot documents as wanting `reasoning_content` back on a tool
+ * loop: K3, K2.6 and K2.7 Code (with its highspeed variant).
+ */
+export function wantsReasoningReplay(model: string): boolean {
+  return isKimiK3(model) || /^kimi-k2\.(6|7-code)\b/.test(model);
 }
 
 // ── KimiLlm ───────────────────────────────────────────────────────────────────
@@ -133,6 +148,11 @@ export class KimiLlm extends OpenAiCompatibleLlm {
 
   protected headers(): Record<string, string> {
     return { Authorization: `Bearer ${this.key() ?? ''}` };
+  }
+
+  /** reasoning_content goes back on the tool loop for the ids that ask for it (see the header). */
+  protected override replaysReasoningContent(): boolean {
+    return wantsReasoningReplay(this.model);
   }
 
   protected override missingRequirement(): LlmResponse | undefined {

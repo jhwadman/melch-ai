@@ -70,6 +70,16 @@ the starter pack and the templates), not the repo's full history.
   `buildResponsesInput` takes an optional `replay` argument;
   `models/gptLlm` exports `REASONING_STATE_KIND`, and `models/providerState`
   exports `currentTurnStart`.
+- **Kimi keeps its reasoning across tool steps (ADR 0046).** On `kimi-k3`,
+  `kimi-k2.6` and `kimi-k2.7-code`, the adapter stores each response's
+  `reasoning_content` on the part that follows it and sends it back on that
+  assistant message within the turn's tool loop, for the same model only,
+  as Moonshot asks. A tool loop's later steps bill the replayed reasoning
+  as input. `OpenAiCompatibleLlm` gains the opt-in hook
+  `replaysReasoningContent()` (off by default; Ollama and the gateway keep
+  it off) and exports `REASONING_CONTENT_KIND`; `models/kimiLlm` exports
+  `wantsReasoningReplay`. `currentTurnStart` returns -1 when no user
+  content opens the turn, so every content is then the current turn's.
 - **The fallback model on the engine's own contract (ADR 0044, ADR 0048).**
   New module `melchizedek-agents/models/fallbackAdapter`: `FallbackAdapter`,
   a `ModelAdapter` around a primary and a fallback adapter, with
