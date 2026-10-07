@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-10-06
+  at: 2026-10-07
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -28,12 +28,12 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `module` | `module:<name>` | 122 | one source module |
-| `env` | `env:<name>` | 101 | an environment variable the code reads |
-| `doc` | `/dir/doc.md` | 96 | a concept document in the bundle — identity is its bundle path |
+| `module` | `module:<name>` | 123 | one source module |
+| `env` | `env:<name>` | 102 | an environment variable the code reads |
+| `doc` | `/dir/doc.md` | 97 | a concept document in the bundle — identity is its bundle path |
 | `agent` | `agent:<name>` | 89 | one orchestrator or subagent inside a syndicate |
-| `file` | `file:<name>` | 85 | a repo file that is not a source module (DDL, config, prose) |
-| `script` | `script:<name>` | 45 | an npm script entrypoint |
+| `file` | `file:<name>` | 87 | a repo file that is not a source module (DDL, config, prose) |
+| `script` | `script:<name>` | 46 | an npm script entrypoint |
 | `tool` | `tool:<name>` | 34 | a tool an agent may declare by name |
 | `syndicate` | `syndicate:<name>` | 32 | one agent-team definition (a YAML) |
 | `table` | `table:<name>` | 17 | a database table |
@@ -50,14 +50,14 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `imports` | extracted | A imports B | 348 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 273 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 226 | a resolved markdown link between documents |
-| `requires_env` | extracted | A requires B | 156 | this environment variable must be set for the node to work |
+| `imports` | extracted | A imports B | 358 | a static import edge between source files |
+| `derives_from` | extracted | A derives from B | 278 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 229 | a resolved markdown link between documents |
+| `requires_env` | extracted | A requires B | 159 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |
 | `defined_in` | extracted | A is defined in B | 76 | where the thing is declared in source |
-| `runs` | extracted | A runs B | 66 | an entrypoint — a script, a process, a worker — executes this |
+| `runs` | extracted | A runs B | 67 | an entrypoint — a script, a process, a worker — executes this |
 | `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
 | `documents` | extracted | A documents B | 56 | the document derives from, and describes, this entity |
 | `reads_table` | extracted | A reads or writes B | 28 | the module names this table |
@@ -65,10 +65,10 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
+| `explains` | inferred | A explains B | 1 | the document is where the target’s rationale is written down |
 | `depends_on` | inferred | A depends on B | 0 | the first cannot do its job unless the second holds |
 | `constrains` | inferred | A constrains B | 0 | a decision or doctrine limits what the target may do |
 | `supersedes` | inferred | A supersedes B | 0 | replaces an earlier decision or document |
-| `explains` | inferred | A explains B | 0 | the document is where the target’s rationale is written down |
 | `alternative_to` | inferred | A is an alternative to B | 0 | two ways of reaching the same capability |
 | `mitigates` | inferred | A mitigates B | 0 | the mechanism exists to contain the named failure |
 | `contradicts` | inferred | A contradicts B | 0 | two sources state incompatible things — a rot signal |

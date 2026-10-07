@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "relations": [
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "script:parity",
+      "rel": "explains",
+      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    }
+  ]
+}
