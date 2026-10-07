@@ -5,25 +5,25 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 656,
-    "edges": 1538,
+    "nodes": 660,
+    "edges": 1563,
     "byKind": {
-      "doc": 100,
+      "doc": 102,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 91,
+      "file": 92,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 124,
+      "module": 125,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 234,
+      "links_to": 245,
       "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,18 +33,18 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 363,
+      "imports": 365,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 295,
+      "derives_from": 302,
       "supersedes": 1,
-      "constrains": 3,
-      "depends_on": 2,
+      "constrains": 5,
+      "depends_on": 5,
       "explains": 2
     },
     "byTier": {
-      "extracted": 1530,
-      "inferred": 8
+      "extracted": 1550,
+      "inferred": 13
     },
     "isolated": 4
   },
@@ -974,6 +974,18 @@
       }
     },
     {
+      "id": "/decisions/0048-engine-owned-model-contract.md",
+      "kind": "doc",
+      "label": "ADR 0048: The engine owns its model message format, not @google/genai Content",
+      "source": "/decisions/0048-engine-owned-model-contract.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 987
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1043,6 +1055,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 580
+      }
+    },
+    {
+      "id": "/models/model-contract.md",
+      "kind": "doc",
+      "label": "Model contract",
+      "source": "/models/model-contract.md",
+      "attrs": {
+        "type": "schema",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 4095
       }
     },
     {
@@ -3323,6 +3347,13 @@
       "source": "tests/mcpTools.test.ts"
     },
     {
+      "id": "file:tests/modelContract.test.ts",
+      "kind": "file",
+      "label": "modelContract.test.ts",
+      "source": "tests/modelContract.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/models.test.ts",
       "kind": "file",
       "label": "models.test.ts",
@@ -3670,7 +3701,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 710
+        "lines": 711
       }
     },
     {
@@ -3734,6 +3765,15 @@
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
         "lines": 566
+      }
+    },
+    {
+      "id": "module:lib/models/contract.ts",
+      "kind": "module",
+      "label": "lib/models/contract.ts",
+      "source": "lib/models/contract.ts",
+      "attrs": {
+        "lines": 471
       }
     },
     {
@@ -8202,6 +8242,48 @@
       "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
     },
     {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "file:tests/modelContract.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md:22"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md:24"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md:28"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8655,6 +8737,90 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/meta/wiki-system.md:34"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "file:tests/modelContract.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:122"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:37"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:71"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:21"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:21"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:78"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:21"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/provider-routing.md",
@@ -11703,6 +11869,13 @@
     },
     {
       "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/persistence/supabaseProvider.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12001,6 +12174,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/contract.ts",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/contract.ts"
     },
     {
       "from": "module:lib/models/endpoints.ts",

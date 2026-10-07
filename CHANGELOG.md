@@ -52,6 +52,13 @@ the starter pack and the templates), not the repo's full history.
   non-https URL, is dropped with `llm.image.dropped` on the span and a
   one-time warning naming the type. Images inside tool results are not sent,
   as on GPT. The capability matrix marks Anthropic image input supported.
+- **The engine's own model contract (ADR 0048).** New module
+  `melchizedek-agents/models/contract`, types only: `Message`, `Part`,
+  `ToolDeclaration`, `NativeTool`, `ModelRequest`, `ModelResponse`,
+  `ModelAdapter`, `ProviderCapabilities` and their parts. The native
+  runtime and every model adapter will speak it, and no adapter uses it
+  yet. `ReasoningLevel` and `ReasoningSetting` are defined there now.
+  `melchizedek-agents/loadSyndicate` re-exports them unchanged.
 
 ## 0.18.0 — 2026-10-06
 
