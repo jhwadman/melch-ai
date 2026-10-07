@@ -33,6 +33,22 @@
       "evidence": "ADR 0047: \"high stops at 16,384 because the Claude adapter raises max_tokens to at least the budget plus 2,048\", keeping a non-streaming request under the Anthropic SDK ceiling.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Decision, Storage: \"trimEventForStorage and the session services keep the field whole; the transcript projection drops it with the rest of a past turn.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }

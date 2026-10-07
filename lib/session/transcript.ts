@@ -215,6 +215,13 @@ export function projectTranscript(
  * pass through untouched: they are cheap, and a short one is occasionally
  * the only record of what a number was.
  *
+ * Provider reasoning state (`providerState`, lib/models/providerState.ts,
+ * ADR 0046) is kept whole on every part. Resuming an interrupted turn
+ * (ADR 0028) replays that turn's stored events raw, and a Claude tool call
+ * continued with thinking on needs its signed thinking blocks back verbatim:
+ * an elided or shortened block is a rejected request. The projection drops
+ * the field with the rest of a past turn's parts.
+ *
  * ── The one constraint on changing this ───────────────────────────────────
  * Dropping `thoughtSignature` is safe BECAUSE the projection never feeds
  * stored events back to a model. Anything that starts replaying raw stored

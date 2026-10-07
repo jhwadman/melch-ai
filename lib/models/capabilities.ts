@@ -205,8 +205,9 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok('test', 'sent as a forced tool call; with a thinking budget the tool is offered under tool_choice auto'),
-    thinking_with_tools: unsupported(
-      'signed thinking blocks are not replayed on tool loops, which Anthropic requires; give a thinking Claude agent no tools',
+    thinking_with_tools: ok(
+      'test',
+      "signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046); a step answering another model's tool call runs without thinking",
     ),
     streaming: ok(),
     vision: unsupported('image parts are dropped from the request; route image work to a Gemini, GPT or vision Ollama agent'),
