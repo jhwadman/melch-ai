@@ -11,10 +11,18 @@
       "note": "In part: supersedes the deferral of owning the agent loop and ADK as the lasting runtime; the seam, turn-wide controls, boundary suite and A2A stance stand."
     },
     {
-      "from": "/operations/parity-harness.md",
-      "to": "script:parity",
-      "rel": "explains",
-      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Decision, Storage: \"trimEventForStorage and the session services keep the field whole; the transcript projection drops it with the rest of a past turn.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -35,18 +43,34 @@
       "at": "2026-10-07"
     },
     {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
       "to": "module:lib/models/gptLlm.ts",
       "rel": "constrains",
-      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\"",
+      "evidence": "ADR 0048 Decision: reasoning ids \"send store: false and include: ['reasoning.encrypted_content']\"; each run of reasoning items rides verbatim on the part after it and is replayed before that part within the turn's tool loop.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
     {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "module:lib/session/transcript.ts",
+      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/grokLlm.ts",
       "rel": "constrains",
-      "evidence": "ADR 0046 Decision, Storage: \"trimEventForStorage and the session services keep the field whole; the transcript projection drops it with the rest of a past turn.\"",
+      "evidence": "ADR 0048 Decision, Which ids: \"xAI's grok-4.5 and grok-4.7, through the adapter hook replaysReasoning()\". Other grok ids send nothing new.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "depends_on",
+      "evidence": "ADR 0048 Decision, Replay: \"currentTurnStart in lib/models/providerState.ts holds that rule for every adapter.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "script:parity",
+      "rel": "explains",
+      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     }

@@ -39,6 +39,17 @@ the starter pack and the templates), not the repo's full history.
   uses for provider-opaque reasoning state. The final event no longer
   carries `customMetadata['anthropic.thinking']`; the same blocks are on
   the part.
+- **Thinking with tool use works on GPT and Grok (ADR 0048).** On
+  reasoning ids (o-series, `gpt-5*`, `grok-4.5`, `grok-4.7`), the Responses
+  adapters write each run of encrypted reasoning items on the part after it
+  and replay them before that part within the turn's tool loop, for the same
+  provider and model only. These requests now send `store: false` and
+  `include: ['reasoning.encrypted_content']`, so OpenAI and xAI no longer
+  keep the response server-side, as they did by default. The guarded 400
+  retry also drops the `include` and the replayed items.
+  `buildResponsesInput` takes an optional `replay` argument;
+  `models/gptLlm` exports `REASONING_STATE_KIND`, and `models/providerState`
+  exports `currentTurnStart`.
 
 ## 0.18.0 — 2026-10-06
 

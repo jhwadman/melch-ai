@@ -3,6 +3,18 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-07] relate | /decisions/0048-responses-reasoning-replay-without-storage.md —depends_on→ module:lib/models/providerState.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-responses-reasoning-replay-without-storage.md —constrains→ module:lib/models/grokLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-responses-reasoning-replay-without-storage.md —constrains→ module:lib/models/gptLlm.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/gptLlm.ts
 
 by claude-code/claude-opus-5-5
