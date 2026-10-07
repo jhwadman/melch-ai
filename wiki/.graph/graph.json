@@ -5,8 +5,8 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 666,
-    "edges": 1592,
+    "nodes": 668,
+    "edges": 1600,
     "byKind": {
       "doc": 104,
       "provider": 6,
@@ -18,12 +18,12 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 126,
+      "module": 128,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 251,
+      "links_to": 252,
       "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,19 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 370,
+      "imports": 374,
       "reads_table": 28,
       "runs": 67,
       "derives_from": 312,
       "supersedes": 2,
-      "constrains": 9,
+      "constrains": 12,
       "depends_on": 7,
       "explains": 2,
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1571,
-      "inferred": 21
+      "extracted": 1576,
+      "inferred": 24
     },
     "isolated": 4
   },
@@ -1103,7 +1103,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3613
+        "words": 3795
       }
     },
     {
@@ -3802,6 +3802,15 @@
       }
     },
     {
+      "id": "module:lib/models/circuitBreaker.ts",
+      "kind": "module",
+      "label": "lib/models/circuitBreaker.ts",
+      "source": "lib/models/circuitBreaker.ts",
+      "attrs": {
+        "lines": 82
+      }
+    },
+    {
       "id": "module:lib/models/claudeLlm.ts",
       "kind": "module",
       "label": "lib/models/claudeLlm.ts",
@@ -3843,7 +3852,16 @@
       "label": "lib/models/fallback.ts",
       "source": "lib/models/fallback.ts",
       "attrs": {
-        "lines": 118
+        "lines": 87
+      }
+    },
+    {
+      "id": "module:lib/models/fallbackAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/fallbackAdapter.ts",
+      "source": "lib/models/fallbackAdapter.ts",
+      "attrs": {
+        "lines": 108
       }
     },
     {
@@ -9051,6 +9069,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:138"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -12460,6 +12485,13 @@
     },
     {
       "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallback.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12471,6 +12503,27 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallbackAdapter.ts",
+      "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallbackAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/fallbackAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallbackAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/fallbackAdapter.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallbackAdapter.ts"
     },
     {
       "from": "module:lib/models/gateway.ts",
