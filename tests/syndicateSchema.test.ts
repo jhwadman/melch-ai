@@ -229,6 +229,52 @@ test('a subagent needs a description; generateContentConfig and outputSchema sta
   assertProblem(problemsOf(typed), /orchestrator\.generateContentConfig\.temperature — expected number/);
 });
 
+test('reasoning takes a level or a budget, and names the near miss (ADR 0047)', () => {
+  for (const ok of ['none', 'low', 'medium', 'high', { budget_tokens: 0 }, { budget_tokens: 4096 }]) {
+    const raw = base();
+    raw.orchestrator.reasoning = ok;
+    raw.subagents[0].reasoning = ok;
+    assert.deepEqual(problemsOf(raw), [], `reasoning: ${JSON.stringify(ok)}`);
+  }
+
+  const typo = base();
+  typo.orchestrator.reasoning = 'hgih';
+  assertProblem(problemsOf(typo), /orchestrator\.reasoning — must be one of none \| low \| medium \| high, or \{ budget_tokens: <integer ≥ 0> \} \(got "hgih" — did you mean "high"\?\)/);
+  for (const bad of [{ budget_tokens: -1 }, { budget_tokens: 1.5 }, { budget: 1024 }, 3]) {
+    const raw = base();
+    raw.subagents[0].reasoning = bad;
+    assertProblem(problemsOf(raw), /subagents\[0\]\.reasoning(\.budget_tokens)? — /);
+  }
+
+  const misspelt = base();
+  misspelt.orchestrator.reasonning = 'low';
+  assertProblem(problemsOf(misspelt), /orchestrator\.reasonning — unknown key \(did you mean "reasoning"\?\)/);
+});
+
+test('reasoning next to the older spelling is a load error naming both keys', () => {
+  const thinking = base();
+  thinking.orchestrator.reasoning = 'low';
+  thinking.orchestrator.generateContentConfig = { thinkingConfig: { thinkingLevel: 'LOW' } };
+  assertProblem(problemsOf(thinking), /orchestrator\.reasoning — cannot be combined with generateContentConfig\.thinkingConfig/);
+
+  const effort = base();
+  effort.subagents[0].reasoning = { budget_tokens: 2048 };
+  effort.subagents[0].generateContentConfig = { reasoningEffort: 'low', maxOutputTokens: 512 };
+  assertProblem(problemsOf(effort), /subagents\[0\]\.reasoning — cannot be combined with generateContentConfig\.reasoningEffort/);
+
+  // A nested or remote subagent brings its own reasoning.
+  const nested = base();
+  nested.subagents[0] = { name: 'Desk', description: 'Researches.', yaml_reference: 'research_desk.yaml', reasoning: 'high' };
+  assertProblem(problemsOf(nested), /subagents\[0\]\.reasoning — applies to an inline agent/);
+
+  // The older spelling alone still loads, and so does reasoning beside other generation fields.
+  const older = base();
+  older.orchestrator.generateContentConfig = { thinkingConfig: { thinkingLevel: 'LOW' }, reasoningEffort: 'low' };
+  older.subagents[0].reasoning = 'medium';
+  older.subagents[0].generateContentConfig = { maxOutputTokens: 512 };
+  assert.deepEqual(problemsOf(older), []);
+});
+
 test('a non-mapping document fails with a pointed message', () => {
   assertProblem(problemsOf(null), /\(root\) — expected a mapping/);
   assertProblem(problemsOf(['a']), /\(root\) — expected a mapping/);

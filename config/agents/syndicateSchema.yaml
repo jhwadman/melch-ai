@@ -296,10 +296,27 @@ orchestrator:
   # Maps to: outputKey
   outputKey: "orchestrator_output"
 
+  # ── reasoning ─────────────────────────────────────────────
+  # [optional] How hard the agent reasons, on any provider (ADR 0047):
+  #   none | low | medium | high, or { budget_tokens: <int> }.
+  # The compiler sends each provider the field it reads:
+  #   gemini-3 and later    → thinkingConfig.thinkingLevel
+  #                           (none = MINIMAL, then LOW, MEDIUM, HIGH)
+  #   gemini-2.x, claude-*  → thinkingConfig.thinkingBudget
+  #                           (none 0, low 2048, medium 8192, high 16384)
+  #   gpt-*/o*, grok-*, kimi-*, ollama/*, a gateway
+  #                         → reasoningEffort (an effort word; where the
+  #                           provider lacks one, its nearest setting above)
+  # A budget is sent as-is to Gemini and Claude, and as the smallest level
+  # that covers it everywhere else. Unset, each provider keeps its default.
+  # Cannot be combined with generateContentConfig.thinkingConfig or
+  # generateContentConfig.reasoningEffort, its older spelling.
+  reasoning: medium
+
   # ── generateContentConfig ─────────────────────────────────
   # Maps to: generateContentConfig on LlmAgent (→ GenerateContentConfig)
-  # ⚠ Do NOT set tools or thinkingConfig here — use the top-level
-  #   `tools:` field and `generateContentConfig.thinkingConfig` respectively.
+  # ⚠ Do NOT set tools here — use the top-level `tools:` field. Set
+  #   reasoning with the `reasoning:` key above, not thinkingConfig.
 
   generateContentConfig:
 
@@ -350,15 +367,16 @@ orchestrator:
       - category: "HARM_CATEGORY_SEXUALLY_EXPLICIT"
         threshold: "BLOCK_MEDIUM_AND_ABOVE"
 
-    # ── Thinking config (Gemini 2.5+ only) ──────────────────
-    # Maps to: generateContentConfig.thinkingConfig → ThinkingConfig
-    thinkingConfig:
-      # Token budget for the model's internal reasoning trace.
-      # 0 = thinking disabled. -1 = dynamic (model decides).
-      thinkingBudget: 1024
-
-      # Whether to include the thinking trace in the streamed response.
-      includeThoughts: true
+    # ── Thinking config: the older spelling of `reasoning:` ─
+    # Provider-specific: Gemini and Claude read thinkingConfig, the
+    # chat-completions and Responses providers read reasoningEffort.
+    # Still accepted, but not together with `reasoning:` (a load error).
+    # includeThoughts (stream Gemini's thinking trace) has no `reasoning:`
+    # form yet.
+    # thinkingConfig:
+    #   thinkingLevel: "MEDIUM"   # Gemini 3; thinkingBudget on 2.x and Claude
+    #   includeThoughts: true
+    # reasoningEffort: "medium"
 
 # ── Subagents ───────────────────────────────────────────────
 # Each entry maps to: new LlmAgent({ ... }) wrapped in AgentTool
@@ -441,12 +459,11 @@ subagents:
     # Maps to: outputKey
     outputKey: "subagent_result"
 
+    # [optional] Same key as on the orchestrator.
+    reasoning: none             # As little thinking as the model allows, for speed
+
     # ── generateContentConfig ───────────────────────────────
     # Same fields as orchestrator above. Only set what you want to override.
 
     generateContentConfig:
       maxOutputTokens: 1024
-
-      thinkingConfig:
-        thinkingBudget: 0       # Disable thinking for speed
-        includeThoughts: false

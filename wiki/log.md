@@ -3,6 +3,14 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-07] relate | /decisions/0047-provider-neutral-reasoning-key.md —depends_on→ module:lib/models/claudeLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0047-provider-neutral-reasoning-key.md —depends_on→ /decisions/0027-thinking-without-answer-is-an-error.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-03] build | structural build: 1 created, 1 updated
 
 by process:wiki-build

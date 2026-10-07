@@ -4,6 +4,31 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+- **`reasoning:` sets how hard an agent reasons, on any provider (ADR 0047).**
+  Write `none`, `low`, `medium` or `high`, or `{ budget_tokens: <int> }`, on
+  the orchestrator or a subagent. The compiler sends each provider the field
+  it reads:
+  - Gemini 3: a thinking level.
+  - Claude and Gemini 2.x: a thinking budget of 0, 2,048, 8,192 or 16,384
+    tokens.
+  - GPT, Grok, Kimi, Ollama and the gateway: an effort word.
+  `generateContentConfig.thinkingConfig` and `reasoningEffort` remain
+  valid as the older spelling. Setting either beside `reasoning` on the same
+  agent is a load error. Agents that set neither are unchanged.
+- **GPT and Grok honour an effort.** `GptLlm` sends `reasoning.effort` when
+  the agent sets one (`reasoning:`, or `generateContentConfig.reasoningEffort`),
+  and `GrokLlm` sends it in place of its pinned `medium`. Before, both ignored
+  it. `reasoningParam` takes the request as an optional argument.
+- **The model zoo and every template use `reasoning:`.** What each agent
+  asks of its provider is unchanged: the templates' `includeThoughts: false`
+  was already the default, and the zoo's Claude agent keeps its 2,048-token
+  budget as `low`.
+- `lib/compile.ts` exports `reasoningConfig`, `withReasoning` and
+  `REASONING_BUDGETS`. The `AgentYamlConfig` type gains `reasoning`, and
+  `GenerateContentConfig` gains `reasoningEffort`.
+
 ## 0.18.0 — 2026-10-06
 
 ### Breaking — read before upgrading

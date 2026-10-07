@@ -257,6 +257,7 @@ function needsOf(agent: Partial<AgentNeedsInput> & { tools?: string[] }, delegat
     tools: agent.tools ?? [],
     outputSchema: agent.outputSchema,
     generateContentConfig: agent.generateContentConfig,
+    reasoning: agent.reasoning,
     delegates,
   };
 }

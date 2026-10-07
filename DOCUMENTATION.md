@@ -72,11 +72,9 @@ orchestrator:
     You are the Conductor… (persona, objective, workflow contract)
   tools:
     - "google_search"             # names resolved via lib/toolRegistry.ts
+  reasoning: medium               # none | low | medium | high, or { budget_tokens: 4096 }
   generateContentConfig:
     maxOutputTokens: 4096
-    thinkingConfig:
-      thinkingLevel: "MEDIUM"     # or thinkingBudget on older models
-      includeThoughts: true
 
 subagents:
   - name: "Researcher"
@@ -104,7 +102,8 @@ Field reference:
 | `name` / `model` / `instruction` | agent | The agent triple. Any Gemini id, `claude-*`, or `ollama/*` for open-weight local models (see §5). |
 | `description` | subagent | **The delegation API.** The orchestrator reads this when deciding to hand off — write it like a function signature ("Use this subagent to…, pass it…"). |
 | `tools` | agent | Names resolved by the tool registry (§3). Long-term memory agents add `preload_memory` / `load_memory`. |
-| `generateContentConfig` | agent | Temperature, output caps, thinking budget/level. |
+| `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude (2,048 / 8,192 / 16,384 tokens for low / medium / high), an effort word on GPT, Grok, Kimi, Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). Unset, each adapter keeps its own default. |
+| `generateContentConfig` | agent | Temperature, output caps. Its `thinkingConfig` and `reasoningEffort` are the older, provider-specific spelling of `reasoning`; setting either next to `reasoning` is a load error. |
 | `outputSchema` | agent | Structured-JSON contract. **Constraint:** an agent holding `outputSchema` cannot also hold transfer powers — the ADK deadlocks it. Keep schema-holders as leaf agents (see `critic.yaml`'s header comment for the war story). |
 | `yaml_reference` | subagent | Mount another syndicate file as a nested subagent. |
 | `a2a_agent_url` | subagent | A REMOTE agent over A2A (§6): the orchestrator delegates to it with one `request` argument; in plan-dispatch it can be a route. No `model`/`instruction` — the remote agent has its own. Credentials come from `A2A_AGENT_TOKENS`, never YAML. |
@@ -348,11 +347,12 @@ document it; K2.6 is unstable on `$ref`/`oneOf`), SSE streaming, images as
 base64 (Moonshot takes no public image URLs), MCP tools (they are function
 tools to the model), `reasoning_content` surfaced as THINKING. Reasoning:
 K3 takes a top-level `reasoning_effort` (`low` | `high` | `max`); the adapter
-pins `DEFAULT_KIMI_REASONING_EFFORT` (`high`, `lib/config.ts`) unless
-`generateContentConfig.reasoningEffort` says otherwise, and maps `none` to
-`low` because K3 cannot stop thinking. K2.x models take a `thinking:
-{ type }` switch instead: `reasoningEffort: "none"` or `thinkingBudget: 0`
-sends `disabled`, and any effort value is dropped from the body. What does
+pins `DEFAULT_KIMI_REASONING_EFFORT` (`high`, `lib/config.ts`) unless the
+agent's `reasoning:` says otherwise (`medium` is sent as `high`, which K3
+has in its place), and maps `none` to `low` because K3 cannot stop
+thinking. K2.x models take a `thinking: { type }` switch instead:
+`reasoning: none` sends `disabled`, and any effort value is dropped from
+the body. What does
 not: native `web_search` (dropped with a warning; `web_extract` works, and
 Moonshot's standalone `POST /v1/tools/search`, billed per call, could back
 a client-side tool), and thinking carried across a tool loop (Moonshot asks
@@ -439,10 +439,9 @@ Grok reasoning, Kimi reasoning_content), output, and a per-request token/latency
 omission. Providers without keys are skipped, never fatal.
 
 Reasoning/thinking: scratchpads from every provider are surfaced as
-dimmed THINKING output and kept out of session history. On Claude,
-`generateContentConfig.thinkingConfig.thinkingBudget` enables
-Anthropic extended thinking (thinking + tool use on the same Claude
-agent is not supported yet).
+dimmed THINKING output and kept out of session history. On Claude, any
+`reasoning:` other than `none` enables Anthropic extended thinking
+(thinking + tool use on the same Claude agent is not supported yet).
 
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it

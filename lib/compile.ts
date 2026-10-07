@@ -34,7 +34,9 @@ import { relative } from 'node:path';
 
 import { isDispatchSyndicate } from './dispatch.ts';
 import { loadSyndicate, nestedLoader } from './loadSyndicate.ts';
-import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
+import type { ReasoningLevel, ReasoningSetting, SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
+import { REASONING_OLDER_SPELLING } from './syndicateSchema.ts';
+import { providerForModel } from './models/providerMap.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
 import { capabilitySummary, describeCapabilities } from './models/capabilities.ts';
@@ -84,6 +86,91 @@ function withServerSideToolInvocations(
       includeServerSideToolInvocations: true,
     },
   };
+}
+
+// ── Reasoning (ADR 0047) ─────────────────────────────────────────────────────
+
+/**
+ * Thinking tokens per level, for the providers that take a budget (Claude,
+ * Gemini 2.x). The same table rounds a `budget_tokens` value up to a level
+ * for the providers that take only a level or an effort word.
+ */
+export const REASONING_BUDGETS: Readonly<Record<ReasoningLevel, number>> = { none: 0, low: 2048, medium: 8192, high: 16384 };
+
+const GEMINI_THINKING_LEVEL: Readonly<Record<ReasoningLevel, string>> = { none: 'MINIMAL', low: 'LOW', medium: 'MEDIUM', high: 'HIGH' };
+
+/** The smallest level whose budget covers the setting: never less thought than asked. */
+function reasoningLevel(setting: ReasoningSetting): ReasoningLevel {
+  if (typeof setting === 'string') return setting;
+  const n = setting.budget_tokens;
+  return n <= 0 ? 'none' : n <= REASONING_BUDGETS.low ? 'low' : n <= REASONING_BUDGETS.medium ? 'medium' : 'high';
+}
+
+/**
+ * The effort word for `generateContentConfig.reasoningEffort`, which the
+ * chat-completions adapters, the gateway and the Responses adapters read.
+ * A word the provider lacks becomes its nearest setting above.
+ */
+function reasoningEffort(model: string, level: ReasoningLevel): string {
+  switch (providerForModel(model)) {
+    case 'openai':
+      if (level !== 'none') return level;
+      // o-series cannot stop reasoning; the first GPT-5 generation says
+      // "minimal"; GPT-5.1 and later say "none".
+      return /^o\d/.test(model) ? 'low' : /^gpt-5(?![.\d])/.test(model) ? 'minimal' : 'none';
+    case 'xai':
+      return level === 'none' ? 'low' : level; // Grok 4.5/4.7 cannot stop reasoning
+    case 'moonshot':
+      return level === 'medium' ? 'high' : level; // K3 has low | high | max
+    default:
+      return level;
+  }
+}
+
+/**
+ * The generateContentConfig fields a `reasoning:` setting becomes for one
+ * model (ADR 0047). `reasoningEffort` is always set, so the gateway (which
+ * may serve any id) carries the level too; the Claude adapter ignores it and
+ * the genai SDK drops it from a Gemini request. Claude and Gemini also get
+ * the `thinkingConfig` their adapters read.
+ */
+export function reasoningConfig(model: string, setting: ReasoningSetting): Record<string, unknown> {
+  const level = reasoningLevel(setting);
+  const budget = typeof setting === 'string' ? REASONING_BUDGETS[setting] : setting.budget_tokens;
+  const out: Record<string, unknown> = { reasoningEffort: reasoningEffort(model, level) };
+  const provider = providerForModel(model);
+  if (provider === 'anthropic') out.thinkingConfig = { thinkingBudget: budget };
+  if (provider === 'gemini') {
+    // Gemini 3 takes a level; 2.x and older take only a budget. An explicit
+    // budget is sent as one on any Gemini, except 0, which is `none`.
+    const budgetOnly = /^gemini-[12]\./.test(model);
+    out.thinkingConfig = budgetOnly || (typeof setting !== 'string' && budget > 0) ? { thinkingBudget: budget } : { thinkingLevel: GEMINI_THINKING_LEVEL[level] };
+  }
+  return out;
+}
+
+/**
+ * An agent's generateContentConfig with its `reasoning:` key mapped in for
+ * the model it runs on. Unchanged (the same object) when the agent sets no
+ * `reasoning`. The loader refuses `reasoning` next to the older spelling;
+ * this refuses it too, for a config built in code.
+ */
+export function withReasoning(
+  agent: { name?: string; reasoning?: ReasoningSetting; generateContentConfig?: object },
+  model: string | undefined,
+): Record<string, unknown> | undefined {
+  const cfg = agent.generateContentConfig as Record<string, unknown> | undefined;
+  if (agent.reasoning === undefined) return cfg;
+  const clash = REASONING_OLDER_SPELLING.filter((k) => cfg?.[k] !== undefined);
+  if (clash.length) {
+    throw new Error(`${agent.name ?? 'agent'}: reasoning cannot be combined with ${clash.map((k) => `generateContentConfig.${k}`).join(' or ')}; reasoning replaces it (ADR 0047)`);
+  }
+  return { ...cfg, ...reasoningConfig(model ?? '', agent.reasoning) };
+}
+
+/** The model id an agent runs on, from its YAML or its resolved adapter. */
+function modelIdOf(yamlModel: string | undefined, resolved: unknown): string | undefined {
+  return yamlModel ?? (typeof resolved === 'string' ? resolved : resolved instanceof BaseLlm ? resolved.model : undefined);
 }
 
 /**
@@ -371,17 +458,16 @@ export async function compileSubagent(
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
   const resolveModel = opts.resolveModel ?? ((m) => m);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
+  const model = resolveModel(subCfg.model);
 
   return new LlmAgent({
     name: subCfg.name,
     description: subCfg.description,
-    model: withFallback(resolveModel(subCfg.model), subCfg.fallback_model, resolveModel, opts) as any,
+    model: withFallback(model, subCfg.fallback_model, resolveModel, opts) as any,
     instruction,
     tools: tools.length > 0 ? (tools as any[]) : undefined,
     outputSchema: subCfg.outputSchema as any,
-    generateContentConfig: withServerSideToolInvocations(
-      subCfg.generateContentConfig as Record<string, unknown> | undefined,
-    ) as any,
+    generateContentConfig: withServerSideToolInvocations(withReasoning(subCfg, modelIdOf(subCfg.model, model))) as any,
     ...passthroughFields(subCfg),
     ...executionFields(subCfg, opts),
     ...(opts.nodeConfig?.(subCfg.name) ?? {}),
@@ -446,15 +532,17 @@ export async function compileGraph(
     config.orchestrator.tools,
   );
 
+  const model = resolveModel(config.orchestrator.model);
+
   return new LlmAgent({
     name: overrideName || config.orchestrator.name,
     description: overrideDescription || config.orchestrator.description,
-    model: withFallback(resolveModel(config.orchestrator.model), config.orchestrator.fallback_model, resolveModel, opts) as any,
+    model: withFallback(model, config.orchestrator.fallback_model, resolveModel, opts) as any,
     instruction,
     tools: orchestratorTools.length > 0 ? (orchestratorTools as any[]) : undefined,
     outputSchema: config.orchestrator.outputSchema as any,
     generateContentConfig: withServerSideToolInvocations(
-      config.orchestrator.generateContentConfig as Record<string, unknown> | undefined,
+      withReasoning(config.orchestrator, modelIdOf(config.orchestrator.model, model)),
     ) as any,
     ...passthroughFields(config.orchestrator),
     ...executionFields(config.orchestrator, opts),

@@ -143,10 +143,8 @@ orchestrator:
           type: string
           enum: [card_number, bank_details, password, government_id]
     required: [kind, summary, requester, requested_action, references, dates, amounts, deadline, urgency, sentiment, missing, redacted]
+  reasoning: low
   generateContentConfig:
     maxOutputTokens: 1536
     responseMimeType: application/json
-    thinkingConfig:
-      thinkingLevel: LOW
-      includeThoughts: false
 subagents: []

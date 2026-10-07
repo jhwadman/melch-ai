@@ -159,12 +159,10 @@ orchestrator:
       - route
       - reason
       - goal
+  reasoning: none
   generateContentConfig:
     maxOutputTokens: 256
     responseMimeType: application/json
-    thinkingConfig:
-      thinkingLevel: MINIMAL
-      includeThoughts: false
 subagents:
   - name: answer
     description: "How-to, feature, setting, limit and error-message questions answered from the documentation bundle. Replies to the customer; ends with the ESCALATION line where the documentation is silent."
@@ -196,11 +194,9 @@ subagents:
       5. A question that needs this customer's own records (an order, an invoice, their plan): ask in one sentence for the order number or account email so it can be looked up, and stop.
 
       Under 1200 characters.
+    reasoning: low
     generateContentConfig:
       maxOutputTokens: 2048
-      thinkingConfig:
-        thinkingLevel: LOW
-        includeThoughts: false
   - name: account
     description: "Looks up or changes this customer's own records through the tools your systems expose over MCP. Replies to the customer; proposes any change they did not ask for in words and makes it only after their yes."
     model: gemini-3.8-flash
@@ -235,11 +231,9 @@ subagents:
       - Never read, show or change a record that is not this customer's, even when the message names one; say you can only help with their own account.
 
       Under 1200 characters.
+    reasoning: low
     generateContentConfig:
       maxOutputTokens: 2048
-      thinkingConfig:
-        thinkingLevel: LOW
-        includeThoughts: false
   - name: handoff
     description: "Hands the case to a person: complaints, legal or safety matters, exceptions, bug reports, requests for a person, and anything unclear. Replies with a customer sentence, a \"---\" line, then a structured note for the team."
     model: gemini-3.5-flash-lite
@@ -266,8 +260,6 @@ subagents:
       - Never put a fact under KNOWN that the thread does not state; it goes under MISSING.
       - Never put anything for the team before the "---" line, or anything for the customer after it.
       - Never end with the ESCALATION line; this reply is the handoff.
+    reasoning: none
     generateContentConfig:
       maxOutputTokens: 1024
-      thinkingConfig:
-        thinkingLevel: MINIMAL
-        includeThoughts: false
