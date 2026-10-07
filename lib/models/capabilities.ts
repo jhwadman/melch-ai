@@ -187,8 +187,8 @@ const nativeSearch = (row: ProviderId): CapabilityCell =>
     ? ok(row === 'gemini' ? 'adk' : 'test')
     : unsupported('no native search on this path; the web_search sentinel is dropped (use web_extract)');
 
-const RESPONSES_REASONING_NOTE =
-  'reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step';
+const responsesReasoningNote = (ids: string): string =>
+  `encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); ${ids}`;
 const CHAT_THINKING_NOTE =
   'thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever';
 
@@ -221,7 +221,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok(),
-    thinking_with_tools: degraded(RESPONSES_REASONING_NOTE),
+    thinking_with_tools: ok('test', responsesReasoningNote('reasoning ids only (o-series, gpt-5*)')),
     streaming: ok(),
     vision: ok('test', 'user-turn images only'),
     native_search: nativeSearch('openai'),
@@ -230,7 +230,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok(),
-    thinking_with_tools: degraded(RESPONSES_REASONING_NOTE),
+    thinking_with_tools: ok('test', responsesReasoningNote('grok-4.5 and grok-4.7; other grok ids re-reason each step')),
     streaming: ok(),
     vision: ok('test', 'user-turn images only'),
     native_search: nativeSearch('xai'),
@@ -239,8 +239,9 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok('test', 'strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf)'),
-    thinking_with_tools: degraded(
-      'reasoning_content is not replayed across tool calls, which Moonshot asks for on kimi-k3, so the model re-reasons each step; effort travels as reasoning_effort (K3) or a thinking switch (K2.x)',
+    thinking_with_tools: ok(
+      'test',
+      "reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x)",
     ),
     streaming: ok(),
     vision: ok('test', 'user-turn images only, sent as base64 (Moonshot takes no public image URLs)'),

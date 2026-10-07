@@ -73,7 +73,7 @@ import { providerRequestOptions } from '../runtime/turnControl.ts';
 import { toLowercaseJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
 import { claudeClientSpec, endpointFromEnv, endpointLabel, instantiateClient, nativeSearchOn, platformModel, SdkMissingError } from './endpoints.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
-import { providerStateOf, withProviderState } from './providerState.ts';
+import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
 import { adaptiveThinking, claudeGeneration, claudeUrlImagesOn, THINKING_BINDING_BETA } from './claudeModels.ts';
 
 // ── Type aliases to avoid @anthropic-ai/sdk import errors when not installed ─
@@ -183,18 +183,6 @@ async function outputFormatFor(schema: Record<string, unknown>): Promise<{ type:
   } catch (err) {
     return { refused: err instanceof Error ? err.message : String(err) };
   }
-}
-
-/**
- * Where the current turn starts in `contents`: the last user content that is
- * not purely tool results. Everything after it is this turn's tool loop.
- */
-function currentTurnStart(contents: LlmRequest['contents']): number {
-  for (let i = contents.length - 1; i >= 0; i--) {
-    const c = contents[i];
-    if (c.role === 'user' && (c.parts ?? []).some((p: any) => !p.functionResponse)) return i;
-  }
-  return 0;
 }
 
 /**

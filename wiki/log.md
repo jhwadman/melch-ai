@@ -15,6 +15,46 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-07] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/openAiCompatibleLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/kimiLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0050-responses-reasoning-replay-without-storage.md —depends_on→ module:lib/models/providerState.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0050-responses-reasoning-replay-without-storage.md —constrains→ module:lib/models/grokLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0050-responses-reasoning-replay-without-storage.md —constrains→ module:lib/models/gptLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —depends_on→ /decisions/0047-provider-neutral-reasoning-key.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —depends_on→ /decisions/0046-provider-reasoning-state-on-the-part.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/loadSyndicate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/contract.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0047-provider-neutral-reasoning-key.md —constrains→ /operations/agent-skills.md
 
 by claude-code/claude-opus-5-5
