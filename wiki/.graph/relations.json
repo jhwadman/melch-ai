@@ -51,6 +51,15 @@
       "at": "2026-10-07"
     },
     {
+      "from": "/memory/architecture.md",
+      "to": "script:fixtures:sessions:check",
+      "rel": "explains",
+      "evidence": "/memory/architecture.md, Stored event shape: \"With `--check` it exits 1 when a fixture no longer matches what the runtime writes, which is what a dependency bump that changes the stored shape looks like. `npm run fixtures:sessions:check` runs that check, and CI's test job runs it after the offline suite on both Node versions.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07",
+      "note": "The script runs tests/fixtures/sessions/generate.ts --check; the build links scripts only to source modules, so this edge is asserted."
+    },
+    {
       "from": "/decisions/0048-engine-owned-model-contract.md",
       "to": "module:lib/loadSyndicate.ts",
       "rel": "constrains",

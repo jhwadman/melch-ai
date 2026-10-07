@@ -210,7 +210,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
       "signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046); a step answering another model's tool call runs without thinking",
     ),
     streaming: ok(),
-    vision: unsupported('image parts are dropped from the request; route image work to a Gemini, GPT or vision Ollama agent'),
+    vision: ok('test', 'user-turn images only'),
     native_search: nativeSearch('anthropic'),
   },
   openai: {

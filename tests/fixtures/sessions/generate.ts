@@ -19,8 +19,11 @@
  * like ADK's), every UUID inside any string (invocation ids `e-<uuid>`, call
  * ids `adk-<uuid>`, interrupt ids) becomes a fixed UUID in order of first
  * appearance, and timestamps count up one second per event from 2026-01-01.
- * A diff after an ADK upgrade means the stored shape changed: read it before
- * committing it.
+ * The size in an elision marker is written by toLocaleString(), so it follows
+ * the machine's locale (`2.563` in German); it is rewritten with en-US digit
+ * grouping (`2,563`). A diff after an ADK upgrade means the stored shape
+ * changed: read it before committing it. `npm run fixtures:sessions:check`
+ * runs the check, and CI runs it after the offline suite.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -42,6 +45,8 @@ setLogLevel(LogLevel.ERROR);
 const ADK_VERSION: string = createRequire(import.meta.url)('@google/adk/package.json').version;
 const BASE_TIMESTAMP = Date.UTC(2026, 0, 1);
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+/** trimEventForStorage's marker: the size it dropped, localized, then this text. */
+const ELIDED = /^(.+?)( chars dropped before storage — )/;
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 const keyOf = (appName: string, userId: string, sessionId: string) => `${appName}:${userId}:${sessionId}`;
@@ -75,8 +80,14 @@ function normalizer() {
     if (!uuids.has(k)) uuids.set(k, `00000000-0000-4000-8000-${String(uuids.size + 1).padStart(12, '0')}`);
     return uuids.get(k)!;
   };
+  // Only a size in this machine's format is rewritten, so a change in how
+  // the size is written still shows as a diff.
+  const enUsSize = (m: string, size: string, rest: string) => {
+    const n = Number(size.replace(/\D/g, ''));
+    return size && n.toLocaleString() === size ? `${n.toLocaleString('en-US')}${rest}` : m;
+  };
   const walk = (v: Json): Json => {
-    if (typeof v === 'string') return eventIds.get(v) ?? v.replace(UUID, uuid);
+    if (typeof v === 'string') return eventIds.get(v) ?? v.replace(UUID, uuid).replace(ELIDED, enUsSize);
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k.replace(UUID, uuid), walk(x)]));
     return v;

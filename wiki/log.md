@@ -23,6 +23,10 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-07] relate | /memory/architecture.md —explains→ script:fixtures:sessions:check
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/gptLlm.ts
 
 by claude-code/claude-opus-5-5
