@@ -33,8 +33,12 @@
  * `role: "model"` turn, label it with the desk that spoke, and drop what no
  * successor can use — thoughts, tool calls, tool results.
  *
- * The projection is a READ-TIME view. The stored session keeps everything,
- * verbatim, because long-term memory ingestion reads the real record.
+ * The projection is a READ-TIME view: it changes nothing in storage. What
+ * the store keeps depends on the store. The Supabase service passes each
+ * event through {@link trimEventForStorage} before writing it, so thought
+ * signatures go and an oversized tool result becomes a marker; the Postgres
+ * adapter keeps every event verbatim. Both keep the text whole, which is all
+ * long-term memory ingestion reads.
  */
 
 import { BaseSessionService } from '@google/adk';
