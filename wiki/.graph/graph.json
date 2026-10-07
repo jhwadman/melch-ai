@@ -5,15 +5,15 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 647,
-    "edges": 1504,
+    "nodes": 650,
+    "edges": 1514,
     "byKind": {
-      "doc": 97,
+      "doc": 98,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 87,
+      "file": 89,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 229,
+      "links_to": 231,
       "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
@@ -36,12 +36,13 @@
       "imports": 358,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 278,
+      "derives_from": 285,
+      "supersedes": 1,
       "explains": 1
     },
     "byTier": {
-      "extracted": 1503,
-      "inferred": 1
+      "extracted": 1512,
+      "inferred": 2
     },
     "isolated": 4
   },
@@ -691,7 +692,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 893
+        "words": 947
       }
     },
     {
@@ -935,6 +936,18 @@
       }
     },
     {
+      "id": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "kind": "doc",
+      "label": "ADR 0045: Own the runtime behind the seam: a native runtime beside ADK, built in stages, with ADK removed at 1.0",
+      "source": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1089
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -943,7 +956,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 924
+        "words": 1183
       }
     },
     {
@@ -3260,6 +3273,12 @@
       "source": "tests/fixtures/parity.yaml"
     },
     {
+      "id": "file:tests/fixtures/sessions/generate.ts",
+      "kind": "file",
+      "label": "generate.ts",
+      "source": "tests/fixtures/sessions/generate.ts"
+    },
+    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -3346,6 +3365,12 @@
       "source": "tests/serverShutdown.test.ts"
     },
     {
+      "id": "file:tests/sessionFixtures.test.ts",
+      "kind": "file",
+      "label": "sessionFixtures.test.ts",
+      "source": "tests/sessionFixtures.test.ts"
+    },
+    {
       "id": "file:tests/skillHarness.test.ts",
       "kind": "file",
       "label": "skillHarness.test.ts",
@@ -3356,7 +3381,8 @@
       "id": "file:tests/syndicateTurn.test.ts",
       "kind": "file",
       "label": "syndicateTurn.test.ts",
-      "source": "tests/syndicateTurn.test.ts"
+      "source": "tests/syndicateTurn.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/taskLimiter.test.ts",
@@ -7238,6 +7264,13 @@
       "evidence": "/decisions/0024-adk-behind-the-runtime-seam.md frontmatter"
     },
     {
+      "from": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0024-adk-behind-the-runtime-seam.md:57"
+    },
+    {
       "from": "/decisions/0025-built-in-authenticators.md",
       "to": "file:tests/identity.test.ts",
       "rel": "derives_from",
@@ -8008,8 +8041,57 @@
       "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
     },
     {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "file:package.json",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "file:tests/syndicateTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md frontmatter"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "file:tests/fixtures/sessions/generate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "file:tests/sessionFixtures.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/memory/architecture.md frontmatter"
@@ -8044,6 +8126,13 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "module:lib/storage/postgres/index.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8054,35 +8143,35 @@
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:26"
+      "evidence": "/memory/architecture.md:29"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:44"
+      "evidence": "/memory/architecture.md:47"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:22"
+      "evidence": "/memory/architecture.md:25"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:86"
+      "evidence": "/memory/architecture.md:95"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:86"
+      "evidence": "/memory/architecture.md:95"
     },
     {
       "from": "/memory/schema.md",

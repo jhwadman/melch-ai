@@ -2,6 +2,15 @@
   "version": 1,
   "relations": [
     {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0024 note (2026-10-07): \"Owning the agent loop is no longer deferred. The engine builds its own runtime in stages behind this seam ... see ADR 0045. Items 1 (the seam), 2, 3 and 5 stand; item 4 holds while ADK is a runtime.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07",
+      "note": "In part: supersedes the deferral of owning the agent loop and ADK as the lasting runtime; the seam, turn-wide controls, boundary suite and A2A stance stand."
+    },
+    {
       "from": "/operations/parity-harness.md",
       "to": "script:parity",
       "rel": "explains",

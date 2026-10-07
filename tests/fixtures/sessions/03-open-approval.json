@@ -1,0 +1,134 @@
+{
+  "fixture": "03-open-approval",
+  "description": "An open approval (ADR 0028): the orchestrator called a tool in its require_approval list, ADK recorded an adk_request_confirmation call pinning the original call, and the turn ended input-required.",
+  "generatedBy": "tests/fixtures/sessions/generate.ts",
+  "adkVersion": "2.2.0",
+  "storedForm": "trimmed",
+  "endsWith": "input-required",
+  "syndicate": {
+    "syndicate_name": "Approval Fixture",
+    "memory_system": "internal-only",
+    "orchestrator": {
+      "name": "Boss",
+      "model": "scripted/boss",
+      "instruction": "Send notes.",
+      "tools": [
+        "fixture_send_note"
+      ],
+      "require_approval": [
+        "fixture_send_note"
+      ]
+    },
+    "subagents": []
+  },
+  "turns": [
+    [
+      {
+        "text": "tell ops the build is green"
+      }
+    ]
+  ],
+  "sessions": [
+    {
+      "appName": "fixtures",
+      "userId": "user-1",
+      "sessionId": "conv-03",
+      "state": {},
+      "events": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "tell ops the build is green"
+              }
+            ]
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000002",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225601000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "fixture_send_note",
+                  "args": {
+                    "to": "ops@acme.test"
+                  },
+                  "id": "adk-00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_confirmation",
+                  "args": {
+                    "originalFunctionCall": {
+                      "name": "fixture_send_note",
+                      "args": {
+                        "to": "ops@acme.test"
+                      },
+                      "id": "adk-00000000-0000-4000-8000-000000000002"
+                    },
+                    "toolConfirmation": {
+                      "hint": "Please approve or reject the tool call fixture_send_note() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+                      "confirmed": false
+                    }
+                  },
+                  "id": "adk-00000000-0000-4000-8000-000000000003"
+                }
+              }
+            ],
+            "role": "user"
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {
+              "adk-00000000-0000-4000-8000-000000000002": {
+                "hint": "Please approve or reject the tool call fixture_send_note() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+                "confirmed": false
+              }
+            },
+            "skipSummarization": true
+          },
+          "longRunningToolIds": [
+            "adk-00000000-0000-4000-8000-000000000003"
+          ],
+          "id": "ev000003",
+          "timestamp": 1767225602000
+        }
+      ]
+    }
+  ]
+}
