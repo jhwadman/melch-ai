@@ -32,6 +32,8 @@ jobs:
         run: npx tsc --noEmit
       - name: offline test suite (no network, no keys)
         run: npm test
+      - name: stored session shapes are unchanged
+        run: npm run fixtures:sessions:check
       - name: coverage of lib/ (floor a few points under the measured 87.8 / 82.1 / 83.2)
         if: matrix.node == '24'
         run: >-

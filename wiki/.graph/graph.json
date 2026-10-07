@@ -5,8 +5,8 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 655,
-    "edges": 1535,
+    "nodes": 656,
+    "edges": 1536,
     "byKind": {
       "doc": 100,
       "provider": 6,
@@ -19,7 +19,7 @@
       "mcp-server": 4,
       "table": 17,
       "module": 124,
-      "script": 46,
+      "script": 47,
       "external": 2
     },
     "byRelation": {
@@ -38,13 +38,13 @@
       "runs": 67,
       "derives_from": 295,
       "supersedes": 1,
-      "explains": 1,
+      "explains": 2,
       "depends_on": 2,
       "constrains": 2
     },
     "byTier": {
       "extracted": 1529,
-      "inferred": 6
+      "inferred": 7
     },
     "isolated": 4
   },
@@ -982,7 +982,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1183
+        "words": 1316
       }
     },
     {
@@ -4736,6 +4736,15 @@
       }
     },
     {
+      "id": "script:fixtures:sessions:check",
+      "kind": "script",
+      "label": "npm run fixtures:sessions:check",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types tests/fixtures/sessions/generate.ts --check"
+      }
+    },
+    {
       "id": "script:init",
       "kind": "script",
       "label": "npm run init",
@@ -8281,14 +8290,14 @@
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:95"
+      "evidence": "/memory/architecture.md:97"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:95"
+      "evidence": "/memory/architecture.md:97"
     },
     {
       "from": "/memory/schema.md",

@@ -17,9 +17,9 @@ import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { MessagePart } from '../lib/runtime/syndicateTurn.ts';
 import { APPROVAL_REQUEST, approvalResponsePart, pendingApproval } from '../lib/runtime/approvals.ts';
 import { ASK_USER, pendingQuestion } from '../lib/runtime/questions.ts';
-import { SKIP_SIGNATURE } from '../lib/session/transcript.ts';
+import { DEFAULT_MAX_STORED_PAYLOAD_CHARS, SKIP_SIGNATURE } from '../lib/session/transcript.ts';
 import { INPUT_REQUEST } from '../lib/workflow.ts';
-import { APP, SEND_NOTE, THOUGHT_SIGNATURE, USER, scenario, scenarios, sentNotes } from './fixtures/sessions/scenarios.ts';
+import { APP, FETCH_FILING, FILING, SEND_NOTE, THOUGHT_SIGNATURE, USER, scenario, scenarios, sentNotes } from './fixtures/sessions/scenarios.ts';
 import { conversation, fixtureFiles, loadFixture, pendingWorkflowInput, seedSessions } from './helpers/sessionFixtures.ts';
 import type { SessionFixture } from './helpers/sessionFixtures.ts';
 import { scriptedResolver, sentTexts } from './helpers/scriptedLlm.ts';
@@ -107,6 +107,36 @@ test('06 thought signature: trimmed rows keep a replayable call, verbatim rows k
   assert.equal(answer(verbatim).thoughtSignature, THOUGHT_SIGNATURE);
 });
 
+test('08 elided result: trimmed rows keep a paired marker, verbatim rows the whole result, and the next turn reads either', async () => {
+  const size = JSON.stringify({ result: FILING }).length;
+  assert.ok(size > DEFAULT_MAX_STORED_PAYLOAD_CHARS, 'the result is long enough to be trimmed');
+  for (const form of ['trimmed', 'verbatim'] as const) {
+    const f = loadFixture('08-elided-result', form);
+    const events = conversation(f).events;
+    const call = events.flatMap(parts).find((p) => p.functionCall)!.functionCall;
+    const response = events.flatMap(parts).find((p) => p.functionResponse)!.functionResponse;
+    assert.equal(response.id, call.id, `${form}: the result stays paired with its call`);
+    assert.equal(response.name, FETCH_FILING);
+    if (form === 'trimmed') {
+      assert.deepEqual(Object.keys(response.response), ['elided']);
+      assert.match(response.response.elided, new RegExp(`^${size.toLocaleString('en-US')} chars dropped before storage`));
+      assert.ok(!JSON.stringify(f.sessions).includes('Standard disclosure text'), 'none of the result is stored');
+    } else {
+      assert.deepEqual(response.response, { result: FILING });
+    }
+    assert.equal(parts(events.at(-1)!)[0]?.text, 'From the filing: Net revenue for the quarter: 9.30B USD.', `${form}: the answer read from the result is stored`);
+
+    // Outside plan-dispatch the stored session is read unprojected, so the
+    // next turn's prompt replays the call and its result as stored: from the
+    // trimmed form, the model is handed the marker in place of the result.
+    const { result, models } = await resume(f, [{ text: 'and then?' }]);
+    assert.equal(result.status, 'completed', `${form}: ${result.error?.message}`);
+    const replayed = models.clerk!.requests[0]!.contents.flatMap((c) => c.parts ?? []).find((p) => p.functionResponse)?.functionResponse;
+    assert.equal(replayed?.name, FETCH_FILING);
+    assert.deepEqual(replayed?.response, response.response, `${form}: the next turn reads the stored result as stored`);
+  }
+});
+
 test('03 open approval: found in the stored events, and an approval resumes the turn', async () => {
   const f = loadFixture('03-open-approval');
   const events = conversation(f).events;
@@ -172,6 +202,8 @@ test('a completed conversation reads back: the answering agent sees what was sai
     [loadFixture('06-thought-signature'), 'analyst', ['where is MU trading?', 'Latest quote: MU: 104.20 USD.']],
     [loadFixture('06-thought-signature', 'verbatim'), 'analyst', ['where is MU trading?', 'Latest quote: MU: 104.20 USD.']],
     [loadFixture('07-two-turns'), 'solo', ['hello', 'first answer', 'again', 'second answer']],
+    [loadFixture('08-elided-result'), 'clerk', ["what was MU's revenue last quarter?", 'From the filing: Net revenue for the quarter: 9.30B USD.']],
+    [loadFixture('08-elided-result', 'verbatim'), 'clerk', ["what was MU's revenue last quarter?", 'From the filing: Net revenue for the quarter: 9.30B USD.']],
   ];
   for (const [f, answering, said] of cases) {
     const { result, models } = await resume(f, [{ text: 'and then?' }]);
