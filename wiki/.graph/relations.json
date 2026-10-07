@@ -130,6 +130,30 @@
       "evidence": "ADR 0050 Decision, Replay: \"currentTurnStart in lib/models/providerState.ts holds that rule for every adapter.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0044 Decision, The breaker: \"Per provider, shared by every wrapped agent in the process: MODEL_BREAKER_THRESHOLD consecutive failures (default 5; 0 disables) open it for MODEL_BREAKER_COOLDOWN_MS (default 30 s)\". circuitBreaker.ts holds that state for FallbackLlm and FallbackAdapter alike.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/fallbackAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0044 Decision, What redirects: only a provider-side failure that retry.ts classifies retryable, \"redirected only if the primary had produced nothing yet\"; a 4xx, a canceled turn and a stream that failed midway are never redirected. FallbackAdapter applies these to a failed final's error.retryable and status.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/fallbackAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 4: \"A failure is a final with error set, never a throw\" and \"a cancellation is never retryable\"; Decision 5: \"retryable decides whether a fallback answers\"; Decision 3: \"Each adapter maps the setting itself, so a fallback model gets its own mapping.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }

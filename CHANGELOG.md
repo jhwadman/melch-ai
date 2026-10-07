@@ -70,6 +70,19 @@ the starter pack and the templates), not the repo's full history.
   `buildResponsesInput` takes an optional `replay` argument;
   `models/gptLlm` exports `REASONING_STATE_KIND`, and `models/providerState`
   exports `currentTurnStart`.
+- **The fallback model on the engine's own contract (ADR 0044, ADR 0048).**
+  New module `melchizedek-agents/models/fallbackAdapter`: `FallbackAdapter`,
+  a `ModelAdapter` around a primary and a fallback adapter, with
+  `FallbackAdapterOptions` and `isProviderError`. It applies ADR 0044's
+  rules to a failed final's `error.retryable` and `status`, and hands the
+  fallback the request with its own model id and the caller's `reasoning`
+  unchanged. Nothing uses it yet. The breaker's state moves to the new
+  module `melchizedek-agents/models/circuitBreaker` (`circuitOpen`,
+  `recordFailure`, `recordSuccess`, `resetCircuits`, `breakerSettings`, and
+  `setBreakerClock` for tests), shared by both wrappers, so a provider
+  tripped on one path is skipped on the other. `models/fallback` still
+  exports `circuitOpen` and `resetCircuits`, and `FallbackLlm` behaves as
+  before.
 
 ## 0.18.0 — 2026-10-06
 
