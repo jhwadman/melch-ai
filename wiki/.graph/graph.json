@@ -5,15 +5,15 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 668,
-    "edges": 1600,
+    "nodes": 669,
+    "edges": 1606,
     "byKind": {
       "doc": 104,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 95,
+      "file": 96,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -33,19 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 374,
+      "imports": 376,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 312,
+      "derives_from": 314,
       "supersedes": 2,
-      "constrains": 12,
+      "constrains": 14,
       "depends_on": 7,
       "explains": 2,
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1576,
-      "inferred": 24
+      "extracted": 1580,
+      "inferred": 26
     },
     "isolated": 4
   },
@@ -947,7 +947,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1089
+        "words": 1173
       }
     },
     {
@@ -1019,7 +1019,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1316
+        "words": 1326
       }
     },
     {
@@ -1091,7 +1091,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 4095
+        "words": 4607
       }
     },
     {
@@ -1103,7 +1103,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3795
+        "words": 3813
       }
     },
     {
@@ -3342,6 +3342,12 @@
       "source": "tests/claudeCurrentApi.test.ts"
     },
     {
+      "id": "file:tests/contractToolDeclarations.test.ts",
+      "kind": "file",
+      "label": "contractToolDeclarations.test.ts",
+      "source": "tests/contractToolDeclarations.test.ts"
+    },
+    {
       "id": "file:tests/execution.test.ts",
       "kind": "file",
       "label": "execution.test.ts",
@@ -3969,7 +3975,7 @@
       "label": "lib/models/schemaNormalize.ts",
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
-        "lines": 133
+        "lines": 388
       }
     },
     {
@@ -4131,7 +4137,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 399
+        "lines": 418
       }
     },
     {
@@ -4410,7 +4416,7 @@
       "label": "lib/tools/wikiTools.ts",
       "source": "lib/tools/wikiTools.ts",
       "attrs": {
-        "lines": 838
+        "lines": 839
       }
     },
     {
@@ -4464,7 +4470,7 @@
       "label": "lib/wiki/entities.ts",
       "source": "lib/wiki/entities.ts",
       "attrs": {
-        "lines": 830
+        "lines": 867
       }
     },
     {
@@ -8908,6 +8914,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "file:tests/contractToolDeclarations.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "file:tests/modelContract.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8936,59 +8949,66 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:122"
+      "evidence": "/models/model-contract.md:69"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:37"
+      "evidence": "/models/model-contract.md:39"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:71"
+      "evidence": "/models/model-contract.md:86"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:78"
+      "evidence": "/models/model-contract.md:93"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:23"
+      "evidence": "/models/model-contract.md:25"
     },
     {
       "from": "/models/provider-routing.md",
@@ -12860,6 +12880,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
+    },
+    {
+      "from": "module:lib/models/schemaNormalize.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/schemaNormalize.ts"
+    },
+    {
+      "from": "module:lib/models/schemaNormalize.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/schemaNormalize.ts"
     },
     {
       "from": "module:lib/observability/embeddings.ts",
