@@ -5,8 +5,8 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 655,
-    "edges": 1537,
+    "nodes": 656,
+    "edges": 1538,
     "byKind": {
       "doc": 100,
       "provider": 6,
@@ -19,7 +19,7 @@
       "mcp-server": 4,
       "table": 17,
       "module": 124,
-      "script": 46,
+      "script": 47,
       "external": 2
     },
     "byRelation": {
@@ -40,11 +40,11 @@
       "supersedes": 1,
       "constrains": 3,
       "depends_on": 2,
-      "explains": 1
+      "explains": 2
     },
     "byTier": {
       "extracted": 1530,
-      "inferred": 7
+      "inferred": 8
     },
     "isolated": 4
   },
@@ -982,7 +982,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1183
+        "words": 1316
       }
     },
     {
@@ -1054,7 +1054,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2320
+        "words": 2469
       }
     },
     {
@@ -3733,7 +3733,7 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 517
+        "lines": 566
       }
     },
     {
@@ -4733,6 +4733,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/doctor.ts"
+      }
+    },
+    {
+      "id": "script:fixtures:sessions:check",
+      "kind": "script",
+      "label": "npm run fixtures:sessions:check",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types tests/fixtures/sessions/generate.ts --check"
       }
     },
     {
@@ -8281,14 +8290,14 @@
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:95"
+      "evidence": "/memory/architecture.md:97"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:95"
+      "evidence": "/memory/architecture.md:97"
     },
     {
       "from": "/memory/schema.md",
@@ -8694,14 +8703,14 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:115"
+      "evidence": "/models/provider-routing.md:119"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:103"
+      "evidence": "/models/provider-routing.md:107"
     },
     {
       "from": "/models/provider-routing.md",
