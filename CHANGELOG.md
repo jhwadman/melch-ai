@@ -93,6 +93,24 @@ the starter pack and the templates), not the repo's full history.
   tripped on one path is skipped on the other. `models/fallback` still
   exports `circuitOpen` and `resetCircuits`, and `FallbackLlm` behaves as
   before.
+- **An elided tool result's size is stored the same on every server.**
+  `trimEventForStorage` writes it with en-US digit grouping (`2,563 chars
+  dropped before storage — …`), where it followed the server's locale
+  (`2.563` in German). An en-US server stores the same bytes as before, and
+  rows already stored are untouched.
+- The capability matrix's Ollama and gateway `thinking_with_tools` note names
+  `reasoning:` as the lever (ADR 0047), compiled to `reasoningEffort`.
+- **The shipped skills cover Kimi.** `melchizedek-models` adds `kimi-*` to
+  Moonshot AI in its routing table, `MOONSHOT_API_KEY` to its key list and
+  `kimi-k3` to its verified ids; `melchizedek` adds the key and `kimi-*` to
+  its `Model not found` line. Their briefs match.
+- **`wiki_relate` appends.** A new assertion goes at the end of
+  `.graph/relations.json` and every stored record keeps its place and bytes,
+  where each write used to re-sort the whole file. A store that does not
+  parse is refused rather than overwritten. `melchizedek-agents/wiki/entities`
+  exports `appendRelation(wikiRoot, record)`, which returns `false` for a
+  duplicate, and `saveRelations` writes records in the order given instead of
+  sorting them.
 
 ## 0.18.0 — 2026-10-06
 

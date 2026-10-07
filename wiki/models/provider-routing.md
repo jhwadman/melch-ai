@@ -76,8 +76,8 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 6. OpenAI GPT · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); reasoning ids only (o-series, gpt-5*).
 7. xAI Grok · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); grok-4.5 and grok-4.7; other grok ids re-reason each step.
 8. Moonshot Kimi · thinking with tool use: reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
-9. Ollama (local) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever.
-10. Gateway (any id) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever.
+9. Ollama (local) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; reasoning: is the lever, compiled to reasoningEffort and sent as reasoning_effort (ADR 0047).
+10. Gateway (any id) · thinking with tool use: thinkingConfig budgets are ignored on chat-completions; reasoning: is the lever, compiled to reasoningEffort and sent as reasoning_effort (ADR 0047).
 11. Anthropic Claude · image input: user-turn images only.
 12. OpenAI GPT · image input: user-turn images only.
 13. xAI Grok · image input: user-turn images only.

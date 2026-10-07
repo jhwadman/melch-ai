@@ -14,6 +14,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert';
+import { spawnSync } from 'node:child_process';
 import type { Event } from '@google/adk';
 import { projectTranscript, renderTranscriptDigest, trimEventForStorage } from '../lib/session/transcript.ts';
 
@@ -178,6 +179,25 @@ test('an oversized tool result is elided before it is stored', () => {
   const dumped = JSON.stringify(trimmed);
   assert.ok(!dumped.includes('xxxxx'));
   assert.match(dumped, /chars dropped before storage/);
+});
+
+test('the elided size is grouped en-US whatever the server locale', (t) => {
+  // Node takes its default locale from the environment at startup, so a
+  // German server is a child process with LC_ALL set.
+  const transcript = new URL('../lib/session/transcript.ts', import.meta.url).href;
+  const script = `const { trimEventForStorage } = await import(${JSON.stringify(transcript)});
+const event = { author: 'a', content: { role: 'user', parts: [{ functionResponse: { id: 'i', name: 'n', response: { s: 'x'.repeat(2550) } } }] } };
+console.log(JSON.stringify([(2563).toLocaleString(), trimEventForStorage(event).content.parts[0].functionResponse.response.elided]));`;
+  const run = spawnSync(
+    process.execPath,
+    ['--disable-warning=DEP0040', '--experimental-strip-types', '--input-type=module', '-e', script],
+    { env: { ...process.env, LANG: 'de_DE.UTF-8', LC_ALL: 'de_DE.UTF-8' }, encoding: 'utf-8' },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  const [local, elided] = JSON.parse(run.stdout.trim().split('\n').at(-1)!);
+  if (local !== '2.563') return t.skip(`this Node ignores LC_ALL (2563 formats as ${local})`);
+  // {"s":"x…"} is 2,558 characters.
+  assert.match(elided, /^2,558 chars dropped before storage/);
 });
 
 test('the camelCase toolResponse shape is trimmed too — it is the larger share', () => {

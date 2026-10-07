@@ -189,7 +189,7 @@ const nativeSearch = (row: ProviderId): CapabilityCell =>
 const responsesReasoningNote = (ids: string): string =>
   `encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); ${ids}`;
 const CHAT_THINKING_NOTE =
-  'thinkingConfig budgets are ignored on chat-completions; generateContentConfig.reasoningEffort is the lever';
+  'thinkingConfig budgets are ignored on chat-completions; reasoning: is the lever, compiled to reasoningEffort and sent as reasoning_effort (ADR 0047)';
 
 export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityCell>> = {
   gemini: {
