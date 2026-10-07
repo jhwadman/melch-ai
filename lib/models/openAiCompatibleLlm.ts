@@ -50,7 +50,7 @@ import {
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 import { toLowercaseJsonSchema, toStrictJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
 import { fetchWithRetry, isRetryableStatus } from './retry.ts';
-import { providerStateOf, withProviderState } from './providerState.ts';
+import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
 
 // ── OpenAI-compatible wire types (the subset these providers implement) ──────
 
@@ -78,19 +78,6 @@ const CLOSE_THINK = '</think>';
 
 /** The providerState kind an opted-in adapter writes: an assistant message's reasoning_content. */
 export const REASONING_CONTENT_KIND = 'reasoning_content';
-
-/**
- * Where the current turn starts in `contents`: the last user content that is
- * not purely tool results. Everything after it is this turn's tool loop;
- * with no such content (-1), everything is.
- */
-function currentTurnStart(contents: LlmRequest['contents']): number {
-  for (let i = contents.length - 1; i >= 0; i--) {
-    const c = contents[i];
-    if (c.role === 'user' && (c.parts ?? []).some((p: any) => !p.functionResponse)) return i;
-  }
-  return -1;
-}
 
 /**
  * Splits "<think>…</think>" scratchpad from the reply.

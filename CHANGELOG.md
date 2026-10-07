@@ -52,6 +52,24 @@ the starter pack and the templates), not the repo's full history.
   non-https URL, is dropped with `llm.image.dropped` on the span and a
   one-time warning naming the type. Images inside tool results are not sent,
   as on GPT. The capability matrix marks Anthropic image input supported.
+- **The engine's own model contract (ADR 0048).** New module
+  `melchizedek-agents/models/contract`, types only: `Message`, `Part`,
+  `ToolDeclaration`, `NativeTool`, `ModelRequest`, `ModelResponse`,
+  `ModelAdapter`, `ProviderCapabilities` and their parts. The native
+  runtime and every model adapter will speak it, and no adapter uses it
+  yet. `ReasoningLevel` and `ReasoningSetting` are defined there now.
+  `melchizedek-agents/loadSyndicate` re-exports them unchanged.
+- **Thinking with tool use works on GPT and Grok (ADR 0050).** On
+  reasoning ids (o-series, `gpt-5*`, `grok-4.5`, `grok-4.7`), the Responses
+  adapters write each run of encrypted reasoning items on the part after it
+  and replay them before that part within the turn's tool loop, for the same
+  provider and model only. These requests now send `store: false` and
+  `include: ['reasoning.encrypted_content']`, so OpenAI and xAI no longer
+  keep the response server-side, as they did by default. The guarded 400
+  retry also drops the `include` and the replayed items.
+  `buildResponsesInput` takes an optional `replay` argument;
+  `models/gptLlm` exports `REASONING_STATE_KIND`, and `models/providerState`
+  exports `currentTurnStart`.
 - **Kimi keeps its reasoning across tool steps (ADR 0046).** On `kimi-k3`,
   `kimi-k2.6` and `kimi-k2.7-code`, the adapter stores each response's
   `reasoning_content` on the part that follows it and sends it back on that
@@ -60,7 +78,8 @@ the starter pack and the templates), not the repo's full history.
   as input. `OpenAiCompatibleLlm` gains the opt-in hook
   `replaysReasoningContent()` (off by default; Ollama and the gateway keep
   it off) and exports `REASONING_CONTENT_KIND`; `models/kimiLlm` exports
-  `wantsReasoningReplay`.
+  `wantsReasoningReplay`. `currentTurnStart` returns -1 when no user
+  content opens the turn, so every content is then the current turn's.
 
 ## 0.18.0 — 2026-10-06
 

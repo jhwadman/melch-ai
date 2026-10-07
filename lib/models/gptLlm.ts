@@ -27,6 +27,11 @@
  *
  *   Response `output` items map back:
  *     'reasoning' summary    → { text, thought: true } partial (display-only)
+ *     'reasoning' item       → providerState on the part that follows it, on
+ *                              ids that replay reasoning (ADR 0050): sent back
+ *                              verbatim before that part's item within the
+ *                              turn's tool loop; those requests carry
+ *                              store: false and include the encrypted content
  *     'message' output_text  → text part (2nd+ message item opens a new paragraph)
  *     'function_call'        → functionCall part
  *     '*_call' / 'custom_tool_call' (server-side: web_search, x_search…)
@@ -75,6 +80,7 @@ import {
   collectionsMaxResultsFromEnv,
 } from '../tools/collectionsSearchTool.ts';
 import { providerForModel } from './providerMap.ts';
+import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
 import { providerRequestOptions } from '../runtime/turnControl.ts';
 import { toLowercaseJsonSchema, toStrictJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
 
@@ -85,17 +91,42 @@ function isReasoningModel(model: string): boolean {
   return /^o[0-9]/.test(model) || /^gpt-5/.test(model);
 }
 
+/** The providerState kind these adapters write: the reasoning output items
+ *  that preceded a part, verbatim (ADR 0046). */
+export const REASONING_STATE_KIND = 'reasoning_items';
+
+/** The `include` value that returns reasoning items with their encrypted content. */
+const ENCRYPTED_REASONING = 'reasoning.encrypted_content';
+
+/** A reasoning item that can be sent back with `store: false`: one that
+ *  carries its encrypted content (its id alone points at nothing stored). */
+const isReplayableReasoning = (item: any): boolean =>
+  !!item && typeof item === 'object' && item.type === 'reasoning' && typeof item.encrypted_content === 'string';
+
 // ── Request building (exported for offline tests) ────────────────────────────
 
-/** ADK Contents → Responses API `input` items + `instructions` string. */
-export function buildResponsesInput(llmRequest: LlmRequest): {
+/**
+ * ADK Contents → Responses API `input` items + `instructions` string.
+ *
+ * With `replay`, the reasoning items `replay.provider`'s adapter for
+ * `replay.model` wrote on a part (providerState, ADR 0046) are sent back
+ * verbatim, immediately before that part's item, on the model contents of
+ * the current turn's tool loop only. A model content that replays keeps the
+ * model's order of text and calls, so each run of reasoning items is
+ * followed by the item it preceded.
+ */
+export function buildResponsesInput(
+  llmRequest: LlmRequest,
+  replay?: { provider: string; model: string },
+): {
   instructions: string | undefined;
   input: any[];
 } {
   const systemParts: string[] = [];
   const input: any[] = [];
+  const turnStart = replay ? currentTurnStart(llmRequest.contents) : llmRequest.contents.length;
 
-  for (const content of llmRequest.contents) {
+  for (const [index, content] of llmRequest.contents.entries()) {
     if ((content as any).role === 'system') {
       const text = content.parts
         ?.filter((p: any) => p.text)
@@ -107,9 +138,23 @@ export function buildResponsesInput(llmRequest: LlmRequest): {
 
     const role = content.role === 'model' ? 'assistant' : 'user';
     const contentParts: any[] = [];
+    const flush = () => {
+      if (contentParts.length > 0) input.push({ role, content: contentParts.splice(0) });
+    };
+    const replayHere = role === 'assistant' && index > turnStart ? replay : undefined;
+    let ordered = false;
 
     for (const part of content.parts ?? []) {
       const p = part as any;
+      // The reasoning items that preceded this part. Another provider's,
+      // or another model's, are skipped.
+      const payload = replayHere ? providerStateOf(p, replayHere.provider, REASONING_STATE_KIND, replayHere.model)?.payload : undefined;
+      const items = Array.isArray(payload) ? payload.filter(isReplayableReasoning) : [];
+      if (items.length > 0) {
+        flush();
+        input.push(...items);
+        ordered = true;
+      }
       if (p.thought) {
         // Prior-turn scratchpad is display-only; never replay it.
         continue;
@@ -126,6 +171,7 @@ export function buildResponsesInput(llmRequest: LlmRequest): {
           image_url: `data:${mime};base64,${p.inlineData.data}`,
         });
       } else if (p.functionCall) {
+        if (ordered) flush();
         input.push({
           type: 'function_call',
           call_id: p.functionCall.id ?? `call_${input.length}`,
@@ -141,9 +187,7 @@ export function buildResponsesInput(llmRequest: LlmRequest): {
       }
     }
 
-    if (contentParts.length > 0) {
-      input.push({ role, content: contentParts });
-    }
+    flush();
   }
 
   const configSystem = (llmRequest.config as any)?.systemInstruction;
@@ -385,6 +429,15 @@ export class GptLlm extends BaseLlm {
     return { summary: 'auto', ...(effort !== undefined ? { effort } : {}) };
   }
 
+  /** Whether this id carries its reasoning across the steps of a tool loop
+   *  (ADR 0050): its requests send `store: false` and ask for encrypted
+   *  reasoning, its responses write the reasoning items on the part that
+   *  follows them, and its requests replay them. Base: OpenAI's
+   *  reasoning-capable ids. GrokLlm overrides it per vendor. */
+  protected replaysReasoning(): boolean {
+    return isReasoningModel(this.model);
+  }
+
   /** Extra options for the OpenAI SDK client constructor. Subclasses
    *  override per vendor (GrokLlm sets a long request timeout, per xAI's
    *  streaming guidance for reasoning models). */
@@ -445,7 +498,11 @@ export class GptLlm extends BaseLlm {
       ...this.clientOptions(),
     });
 
-    const { instructions, input } = buildResponsesInput(llmRequest);
+    const replays = this.replaysReasoning();
+    const { instructions, input } = buildResponsesInput(
+      llmRequest,
+      replays ? { provider: this.providerId(), model: this.model } : undefined,
+    );
     let tools = buildResponsesTools(llmRequest);
     if (wantsWebSearch(llmRequest)) {
       if (nativeSearchOn('openai', endpoint.platform)) {
@@ -504,6 +561,10 @@ export class GptLlm extends BaseLlm {
       // Reasoning param — summaries and/or vendor effort control (see
       // reasoningParam hook; provider subclasses shape it).
       ...(reasoning ? { reasoning } : {}),
+      // Reasoning state (ADR 0050): the vendor keeps nothing server-side,
+      // and returns the reasoning encrypted so the next step of the tool
+      // loop can send it back from the part it rides on.
+      ...(replays ? { store: false, include: [ENCRYPTED_REASONING] } : {}),
     };
 
     try {
@@ -523,8 +584,11 @@ export class GptLlm extends BaseLlm {
   }
 
   /** responses.create with the guarded reasoning retry: if the model
-   *  rejects the reasoning param with a 400 (a non-reasoning model matched
-   *  the pattern), drop it and try once more. */
+   *  rejects the request with a 400 while it carries reasoning additions (a
+   *  non-reasoning model matched the pattern, or a replayed reasoning item
+   *  was refused), drop the reasoning param, the encrypted-reasoning
+   *  include and the replayed items, and try once more. `store: false`
+   *  stays. */
   private async createWithRetry(
     client: any,
     request: Record<string, unknown>,
@@ -532,8 +596,11 @@ export class GptLlm extends BaseLlm {
     try {
       return await client.responses.create(request, providerRequestOptions());
     } catch (err: any) {
-      if (err?.status === 400 && request.reasoning) {
+      if (err?.status === 400 && (request.reasoning || request.include)) {
         delete request.reasoning;
+        delete request.include;
+        request.input = (request.input as any[]).filter((i) => i?.type !== 'reasoning');
+        setLlmSpanAttribute('llm.retry_without_reasoning', true);
         return await client.responses.create(request, providerRequestOptions());
       }
       throw err;
@@ -569,18 +636,39 @@ export class GptLlm extends BaseLlm {
     }
 
     const parts: any[] = [];
+    // Each run of reasoning items rides, verbatim, on the part made from the
+    // output item right after it (providerState, ADR 0046), and is replayed
+    // immediately before that part's item. A run followed by anything else
+    // (a server-side tool call, a message with no text, nothing) is dropped:
+    // a replayed reasoning item must be followed by the item it preceded.
+    const carries = this.replaysReasoning();
+    let run: any[] = [];
+    const emit = (part: Record<string, unknown>) => {
+      parts.push(
+        run.length > 0
+          ? withProviderState(part, { provider: this.providerId(), kind: REASONING_STATE_KIND, model: this.model, payload: run })
+          : part,
+      );
+      run = [];
+    };
     // A model that searches server-side emits one message item per turn
     // between searches. Consumers concatenate text parts bare, so each item
     // after the first starts on a new paragraph — otherwise narration runs
     // straight into the answer's first line ("…names.- Nasdaq futures").
     let messageItems = 0;
     for (const item of response.output ?? []) {
+      if (item.type === 'reasoning') {
+        if (carries && isReplayableReasoning(item)) run.push(item);
+        continue;
+      }
       if (item.type === 'message') {
         const sep = messageItems++ > 0 ? '\n\n' : '';
         let first = true;
         for (const c of item.content ?? []) {
           if (c.type === 'output_text' && c.text) {
-            parts.push({ text: first ? sep + c.text : c.text });
+            const part = { text: first ? sep + c.text : c.text };
+            if (first) emit(part);
+            else parts.push(part);
             first = false;
           }
         }
@@ -591,10 +679,11 @@ export class GptLlm extends BaseLlm {
         } catch {
           args = { raw: item.arguments };
         }
-        parts.push({
+        emit({
           functionCall: { name: item.name, args, id: item.call_id },
         });
       }
+      run = [];
     }
 
     const usage = response.usage;
