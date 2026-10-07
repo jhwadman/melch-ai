@@ -5,25 +5,25 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 656,
-    "edges": 1539,
+    "nodes": 662,
+    "edges": 1575,
     "byKind": {
-      "doc": 100,
+      "doc": 103,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 91,
+      "file": 93,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 124,
+      "module": 125,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 234,
+      "links_to": 247,
       "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,18 +33,18 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 363,
+      "imports": 366,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 295,
+      "derives_from": 307,
       "supersedes": 1,
-      "constrains": 4,
-      "depends_on": 2,
+      "constrains": 8,
+      "depends_on": 6,
       "explains": 2
     },
     "byTier": {
-      "extracted": 1530,
-      "inferred": 9
+      "extracted": 1558,
+      "inferred": 17
     },
     "isolated": 4
   },
@@ -974,6 +974,30 @@
       }
     },
     {
+      "id": "/decisions/0048-engine-owned-model-contract.md",
+      "kind": "doc",
+      "label": "ADR 0048: The engine owns its model message format, not @google/genai Content",
+      "source": "/decisions/0048-engine-owned-model-contract.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 987
+      }
+    },
+    {
+      "id": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "kind": "doc",
+      "label": "ADR 0050: The Responses adapters replay encrypted reasoning items and store nothing with the vendor",
+      "source": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 867
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1046,6 +1070,18 @@
       }
     },
     {
+      "id": "/models/model-contract.md",
+      "kind": "doc",
+      "label": "Model contract",
+      "source": "/models/model-contract.md",
+      "attrs": {
+        "type": "schema",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 4095
+      }
+    },
+    {
       "id": "/models/provider-routing.md",
       "kind": "doc",
       "label": "Provider routing",
@@ -1054,7 +1090,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2487
+        "words": 2759
       }
     },
     {
@@ -3323,6 +3359,13 @@
       "source": "tests/mcpTools.test.ts"
     },
     {
+      "id": "file:tests/modelContract.test.ts",
+      "kind": "file",
+      "label": "modelContract.test.ts",
+      "source": "tests/modelContract.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/models.test.ts",
       "kind": "file",
       "label": "models.test.ts",
@@ -3383,6 +3426,12 @@
       "kind": "file",
       "label": "redirects.test.ts",
       "source": "tests/redirects.test.ts"
+    },
+    {
+      "id": "file:tests/responsesReasoningState.test.ts",
+      "kind": "file",
+      "label": "responsesReasoningState.test.ts",
+      "source": "tests/responsesReasoningState.test.ts"
     },
     {
       "id": "file:tests/rlsStatus.test.ts",
@@ -3670,7 +3719,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 710
+        "lines": 711
       }
     },
     {
@@ -3737,6 +3786,15 @@
       }
     },
     {
+      "id": "module:lib/models/contract.ts",
+      "kind": "module",
+      "label": "lib/models/contract.ts",
+      "source": "lib/models/contract.ts",
+      "attrs": {
+        "lines": 471
+      }
+    },
+    {
       "id": "module:lib/models/endpoints.ts",
       "kind": "module",
       "label": "lib/models/endpoints.ts",
@@ -3778,7 +3836,7 @@
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 738
+        "lines": 827
       }
     },
     {
@@ -3787,7 +3845,7 @@
       "label": "lib/models/grokLlm.ts",
       "source": "lib/models/grokLlm.ts",
       "attrs": {
-        "lines": 120
+        "lines": 135
       }
     },
     {
@@ -3832,7 +3890,7 @@
       "label": "lib/models/providerState.ts",
       "source": "lib/models/providerState.ts",
       "attrs": {
-        "lines": 60
+        "lines": 77
       }
     },
     {
@@ -4021,7 +4079,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 413
+        "lines": 414
       }
     },
     {
@@ -8202,6 +8260,90 @@
       "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
     },
     {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "file:tests/modelContract.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md:22"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md:24"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0048-engine-owned-model-contract.md:28"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "file:tests/responsesReasoningState.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/grokLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md frontmatter"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md:28"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8657,6 +8799,90 @@
       "evidence": "/meta/wiki-system.md:34"
     },
     {
+      "from": "/models/model-contract.md",
+      "to": "file:tests/modelContract.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:122"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:37"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:71"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:21"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:21"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:78"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:21"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:23"
+    },
+    {
       "from": "/models/provider-routing.md",
       "to": "module:lib/models/capabilities.ts",
       "rel": "derives_from",
@@ -8703,7 +8929,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:119"
+      "evidence": "/models/provider-routing.md:123"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8718,6 +8944,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:46"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:121"
     },
     {
       "from": "/models/provider-routing.md",
@@ -11703,6 +11936,13 @@
     },
     {
       "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/persistence/supabaseProvider.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12003,6 +12243,13 @@
       "evidence": "lib/models/claudeLlm.ts"
     },
     {
+      "from": "module:lib/models/contract.ts",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/contract.ts"
+    },
+    {
       "from": "module:lib/models/endpoints.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
@@ -12152,6 +12399,13 @@
     {
       "from": "module:lib/models/gptLlm.ts",
       "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/providerState.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gptLlm.ts"

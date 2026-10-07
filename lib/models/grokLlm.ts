@@ -18,6 +18,8 @@
  *     - x_search (live X posts) and collections_search (hosted document
  *       stores via the file_search wire shape — see collectionsSearchTool.ts)
  *     - reasoning summaries surfaced as { thought: true } THINKING output
+ *     - reasoning carried across a tool loop on grok-4.5/4.7 (encrypted
+ *       reasoning items as providerState, store: false — ADR 0050)
  *     - SSE streaming (ADK RunConfig streamingMode: SSE → partial deltas)
  *     - structured outputs (YAML outputSchema → text.format json_schema)
  *     - function tools with call_id round-tripping, lowercased schemas
@@ -44,6 +46,9 @@ import { DEFAULT_GROK_REASONING_EFFORT } from '../config.ts';
 import { GptLlm } from './gptLlm.ts';
 
 const XAI_BASE_URL = 'https://api.x.ai/v1';
+
+/** The ids that take a reasoning effort and return encrypted reasoning. */
+const GROK_REASONING_IDS = /^grok-4\.(5|7)/;
 
 export const DEFAULT_GROK_TIMEOUT_MS = 600_000;
 const MIN_GROK_TIMEOUT_MS = 120_000;
@@ -99,12 +104,22 @@ export class GrokLlm extends GptLlm {
    *  the param and get none (their reasoning summaries arrive unrequested);
    *  if xAI ever rejects it, GptLlm's guarded 400 retry drops it. */
   protected reasoningParam(llmRequest?: LlmRequest): Record<string, unknown> | undefined {
-    if (/^grok-4\.(5|7)/.test(this.model)) {
+    if (GROK_REASONING_IDS.test(this.model)) {
       const effort = (llmRequest?.config as any)?.reasoningEffort;
       // Reasoning cannot be stopped here; "none" is sent as the lowest effort.
       return { effort: effort === undefined ? DEFAULT_GROK_REASONING_EFFORT : effort === 'none' ? 'low' : effort };
     }
     return undefined;
+  }
+
+  /** grok-4.5 and grok-4.7 carry their reasoning across a tool loop
+   *  (ADR 0050): xAI's Responses API takes `store: false` and
+   *  `include: ['reasoning.encrypted_content']` and accepts the returned
+   *  reasoning items back in `input` (docs.x.ai › Model capabilities › Text
+   *  › Generate text, checked 2026-10-07; grok-4.7 returns the encrypted
+   *  content even unasked). Other grok ids send neither. */
+  protected replaysReasoning(): boolean {
+    return GROK_REASONING_IDS.test(this.model);
   }
 }
 

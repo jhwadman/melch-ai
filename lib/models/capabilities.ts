@@ -186,8 +186,8 @@ const nativeSearch = (row: ProviderId): CapabilityCell =>
     ? ok(row === 'gemini' ? 'adk' : 'test')
     : unsupported('no native search on this path; the web_search sentinel is dropped (use web_extract)');
 
-const RESPONSES_REASONING_NOTE =
-  'reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step';
+const responsesReasoningNote = (ids: string): string =>
+  `encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); ${ids}`;
 const CHAT_THINKING_NOTE =
   'thinkingConfig budgets are ignored on chat-completions; reasoning: is the lever, compiled to reasoningEffort and sent as reasoning_effort (ADR 0047)';
 
@@ -217,7 +217,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok(),
-    thinking_with_tools: degraded(RESPONSES_REASONING_NOTE),
+    thinking_with_tools: ok('test', responsesReasoningNote('reasoning ids only (o-series, gpt-5*)')),
     streaming: ok(),
     vision: ok('test', 'user-turn images only'),
     native_search: nativeSearch('openai'),
@@ -226,7 +226,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok(),
-    thinking_with_tools: degraded(RESPONSES_REASONING_NOTE),
+    thinking_with_tools: ok('test', responsesReasoningNote('grok-4.5 and grok-4.7; other grok ids re-reason each step')),
     streaming: ok(),
     vision: ok('test', 'user-turn images only'),
     native_search: nativeSearch('xai'),
