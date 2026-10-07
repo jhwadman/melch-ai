@@ -52,7 +52,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 |---|---|---|---|---|
 | `imports` | extracted | A imports B | 365 | a static import edge between source files |
 | `derives_from` | extracted | A derives from B | 302 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 244 | a resolved markdown link between documents |
+| `links_to` | extracted | A links to B | 245 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 159 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |
@@ -66,7 +66,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
 | `depends_on` | inferred | A depends on B | 5 | the first cannot do its job unless the second holds |
-| `constrains` | inferred | A constrains B | 4 | a decision or doctrine limits what the target may do |
+| `constrains` | inferred | A constrains B | 5 | a decision or doctrine limits what the target may do |
 | `explains` | inferred | A explains B | 2 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 1 | replaces an earlier decision or document |
 | `alternative_to` | inferred | A is an alternative to B | 0 | two ways of reaching the same capability |

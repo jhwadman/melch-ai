@@ -23,6 +23,10 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-07] relate | /decisions/0047-provider-neutral-reasoning-key.md —constrains→ /operations/agent-skills.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /memory/architecture.md —explains→ script:fixtures:sessions:check
 
 by claude-code/claude-opus-5-5

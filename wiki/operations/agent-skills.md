@@ -7,8 +7,8 @@ tags:
   - skills
   - packaging
 generated:
-  by: claude-code/claude-fable-5-1
-  at: 2026-09-24
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-07
 sources:
   - resource: skills/README.md
   - resource: lib/skills.ts
@@ -23,10 +23,10 @@ sources:
 | Skill | Teaches |
 |---|---|
 | `melchizedek` | the entry point: where syndicate files are found (project root, `examples/`, the package), what each starter-pack file does and costs, `melchizedek-doctor`, running one interactively or one shot, and delegating a user's task to a syndicate from inside a coding agent |
-| `melchizedek-author` | the syndicate YAML: layout, keys, instruction anatomy, tools by name, the two constraints that break a file, offline validation; ships `assets/minimal.yaml` |
+| `melchizedek-author` | the syndicate YAML: layout, keys (`reasoning:` among them), instruction anatomy, tools by name, the two constraints that break a file, offline validation; ships `assets/minimal.yaml` |
 | `melchizedek-serve` | the [A2A server](/protocols/a2a.md), securing and calling it, [MCP](/protocols/mcp.md) tools for a subagent, serving your own tools over MCP |
 | `melchizedek-memory` | [long-term memory](/memory/architecture.md): modes, the [schema](/memory/schema.md), tools, extraction rules, inspection, erasure |
-| `melchizedek-models` | [provider routing](/models/provider-routing.md), keys, keyless Ollama, the gateway fallback, per-agent settings, the errors |
+| `melchizedek-models` | [provider routing](/models/provider-routing.md), keys, keyless Ollama, the gateway fallback, per-agent settings (what `reasoning:` becomes on each provider, and `thinkingConfig` / `reasoningEffort` as its older spelling; [ADR 0047](/decisions/0047-provider-neutral-reasoning-key.md)), the errors |
 | `melchizedek-scribe` | writing documents from a brief with [the Scribe](/agents/scribe.md); ships `assets/brief.md` |
 
 ## Installing
