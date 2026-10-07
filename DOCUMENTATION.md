@@ -441,8 +441,9 @@ omission. Providers without keys are skipped, never fatal.
 Reasoning/thinking: scratchpads from every provider are surfaced as
 dimmed THINKING output and kept out of session history. On Claude,
 `generateContentConfig.thinkingConfig.thinkingBudget` enables
-Anthropic extended thinking (thinking + tool use on the same Claude
-agent is not supported yet).
+Anthropic extended thinking, tools included: the signed thinking blocks
+ride on the response's parts as `providerState` and are replayed
+verbatim within the turn's tool loop (ADR 0046).
 
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it

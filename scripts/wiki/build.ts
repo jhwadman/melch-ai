@@ -617,7 +617,7 @@ function providerSpec(): DocSpec {
       {
         kind: 'prose',
         markdown:
-          '## What each path can do\n\nAny provider may run any role, orchestrators included ([ADR 0019](/decisions/0019-multi-model-parity-matrix.md)). The matrix below is what each adapter sends, on the path a model id actually resolves to: a direct provider, or the gateway when that provider\'s key is absent. `npm run doctor -- --matrix` prints it, and the doctor flags any agent whose YAML needs a capability its path only partly gives (thinking with tools on Claude, an `outputSchema` on Ollama).',
+          '## What each path can do\n\nAny provider may run any role, orchestrators included ([ADR 0019](/decisions/0019-multi-model-parity-matrix.md)). The matrix below is what each adapter sends, on the path a model id actually resolves to: a direct provider, or the gateway when that provider\'s key is absent. `npm run doctor -- --matrix` prints it, and the doctor flags any agent whose YAML needs a capability its path only partly gives (an `outputSchema` on Ollama, `web_search` through a gateway).',
       },
       {
         kind: 'generated',

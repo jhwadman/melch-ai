@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "relations": [
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Decision, Storage: \"trimEventForStorage and the session services keep the field whole; the transcript projection drops it with the rest of a past turn.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    }
+  ]
+}

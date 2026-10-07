@@ -2,28 +2,28 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-06"
+    "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 641,
-    "edges": 1481,
+    "nodes": 644,
+    "edges": 1489,
     "byKind": {
-      "doc": 96,
+      "doc": 97,
       "provider": 6,
       "env": 101,
       "model": 8,
       "tool": 34,
-      "file": 85,
+      "file": 86,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 122,
+      "module": 123,
       "script": 45,
       "external": 2
     },
     "byRelation": {
-      "links_to": 226,
+      "links_to": 227,
       "requires_env": 156,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,14 +33,15 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 348,
+      "imports": 349,
       "reads_table": 28,
       "runs": 66,
-      "derives_from": 273
+      "derives_from": 277,
+      "constrains": 2
     },
     "byTier": {
-      "extracted": 1481,
-      "inferred": 0
+      "extracted": 1487,
+      "inferred": 2
     },
     "isolated": 4
   },
@@ -934,6 +935,18 @@
       }
     },
     {
+      "id": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "kind": "doc",
+      "label": "ADR 0046: Provider reasoning state rides on the content part it belongs before",
+      "source": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 799
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1014,7 +1027,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1695
+        "words": 2088
       }
     },
     {
@@ -3291,6 +3304,12 @@
       "source": "tests/readiness.test.ts"
     },
     {
+      "id": "file:tests/reasoningState.test.ts",
+      "kind": "file",
+      "label": "reasoningState.test.ts",
+      "source": "tests/reasoningState.test.ts"
+    },
+    {
       "id": "file:tests/redirects.test.ts",
       "kind": "file",
       "label": "redirects.test.ts",
@@ -3629,7 +3648,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 384
+        "lines": 385
       }
     },
     {
@@ -3638,7 +3657,7 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 448
+        "lines": 517
       }
     },
     {
@@ -3729,6 +3748,15 @@
       "source": "lib/models/providerMap.ts",
       "attrs": {
         "lines": 62
+      }
+    },
+    {
+      "id": "module:lib/models/providerState.ts",
+      "kind": "module",
+      "label": "lib/models/providerState.ts",
+      "source": "lib/models/providerState.ts",
+      "attrs": {
+        "lines": 60
       }
     },
     {
@@ -3917,7 +3945,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 392
+        "lines": 399
       }
     },
     {
@@ -7959,6 +7987,34 @@
       "evidence": "/decisions/0044-fallback-model-and-circuit-breaker.md frontmatter"
     },
     {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "file:tests/reasoningState.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0046-provider-reasoning-state-on-the-part.md frontmatter"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0046-provider-reasoning-state-on-the-part.md frontmatter"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0046-provider-reasoning-state-on-the-part.md frontmatter"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0046-provider-reasoning-state-on-the-part.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8439,7 +8495,14 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:98"
+      "evidence": "/models/provider-routing.md:111"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:99"
     },
     {
       "from": "/models/provider-routing.md",
@@ -11594,6 +11657,13 @@
     {
       "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/providerState.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"

@@ -174,7 +174,14 @@ function withDelegationTools(row: AdapterRow): LlmRequest {
   return req;
 }
 
-/** A thinking agent mid tool loop: a prior model turn with thought + call, then the result. */
+/** The signed block Claude returned before its tool call, as the adapter stores it (ADR 0046). */
+const SIGNED_THINKING = { type: 'thinking', thinking: 'I should ask Scout.', signature: 'sig-fixture-0123' };
+
+/**
+ * A thinking agent mid tool loop: a prior model turn with thought + call, then
+ * the result. The call carries Anthropic's signed block as providerState;
+ * every other adapter must ignore it.
+ */
 function thinkingToolLoop(row: AdapterRow): LlmRequest {
   const req = withDelegationTools(row);
   req.config = { thinkingConfig: { thinkingBudget: 2048 }, reasoningEffort: 'low' } as any;
@@ -184,7 +191,10 @@ function thinkingToolLoop(row: AdapterRow): LlmRequest {
       role: 'model',
       parts: [
         { text: 'I should ask Scout.', thought: true } as any,
-        { functionCall: { id: 'call_1', name: 'Scout', args: { request: 'find it' } } },
+        {
+          functionCall: { id: 'call_1', name: 'Scout', args: { request: 'find it' } },
+          providerState: { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] },
+        } as any,
       ],
     },
     { role: 'user', parts: [{ functionResponse: { id: 'call_1', name: 'Scout', response: { result: 'found' } } }] },
@@ -229,9 +239,11 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
     const body = await capture(row, thinkingToolLoop(row));
     switch (DIALECT[row]) {
       case 'anthropic': {
-        // Anthropic needs the signed thinking block replayed before the tool_use.
+        // Anthropic needs the signed thinking block replayed, verbatim, at the
+        // start of the assistant message that holds the tool_use.
         const assistant = (body.messages ?? []).find((m: any) => m.role === 'assistant');
-        const replayed = (assistant?.content ?? []).some((b: any) => b.type === 'thinking' || b.type === 'redacted_thinking');
+        const [first, second] = assistant?.content ?? [];
+        const replayed = JSON.stringify(first) === JSON.stringify(SIGNED_THINKING) && second?.type === 'tool_use';
         if (!body.thinking) return 'unsupported';
         return replayed ? 'supported' : 'unsupported';
       }
@@ -324,11 +336,12 @@ test('capabilityGaps resolves the path first: a gateway-served id gets the gatew
     delete process.env.MODEL_GATEWAY;
     delete process.env.MODEL_GATEWAY_API_KEY;
     assert.equal(capabilityOf('claude-sonnet-4-6', 'vision').row, 'anthropic');
+    // Thinking with tools is supported on Claude's own path (ADR 0046).
     assert.deepEqual(
       capabilityGaps('claude-sonnet-4-6', { tools: ['web_extract'], generateContentConfig: { thinkingConfig: { thinkingBudget: 2048 } } }).map(
         (g) => `${g.capability}:${g.support}`,
       ),
-      ['thinking_with_tools:unsupported'],
+      [],
     );
 
     delete process.env.ANTHROPIC_API_KEY;

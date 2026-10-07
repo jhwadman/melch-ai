@@ -25,12 +25,12 @@
  *   - web_search: declaring the `web_search` tool in YAML enables Anthropic's
  *     native web_search server tool — searches run on Anthropic's side.
  *   - Extended thinking: generateContentConfig.thinkingConfig.thinkingBudget
- *     maps to Anthropic's thinking parameter. Thinking blocks are surfaced
- *     as { text, thought: true } parts (display-only; kept out of session
- *     history). NOTE: thinking + tool use in the same agent is NOT supported
- *     this pass — Anthropic requires signed thinking blocks to be replayed
- *     on tool loops; the raw blocks are stashed in customMetadata
- *     ['anthropic.thinking'] for a future upgrade.
+ *     maps to Anthropic's thinking parameter. Thinking text is surfaced as
+ *     { text, thought: true } partials (display-only; never sent back). The
+ *     raw signed `thinking` / `redacted_thinking` blocks ride on the part
+ *     they preceded as providerState (lib/models/providerState.ts, ADR 0046)
+ *     and are replayed verbatim before that part within the current turn's
+ *     tool loop, which Anthropic requires for thinking with tool use.
  *   - Token usage: response.usage is mapped to LlmResponse.usageMetadata, so
  *     traceAgentRun / llm.request spans count Claude tokens like Gemini's.
  *
@@ -62,6 +62,7 @@ import { providerRequestOptions } from '../runtime/turnControl.ts';
 import { toLowercaseJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
 import { claudeClientSpec, endpointFromEnv, instantiateClient, nativeSearchOn, platformModel, SdkMissingError } from './endpoints.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
+import { providerStateOf, withProviderState } from './providerState.ts';
 
 // ── Type aliases to avoid @anthropic-ai/sdk import errors when not installed ─
 // We use dynamic import inside the methods so the rest of the framework still
@@ -75,13 +76,49 @@ type AnthropicMessage = {
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; input: unknown }
-  | { type: 'tool_result'; tool_use_id: string; content: string };
+  | { type: 'tool_result'; tool_use_id: string; content: string }
+  | SignedThinkingBlock;
 
-/** Anthropic's minimum extended-thinking budget. */
+/** A `thinking` or `redacted_thinking` block exactly as the API returned it. */
+type SignedThinkingBlock = { type: 'thinking' | 'redacted_thinking' } & Record<string, unknown>;
+
 /** Name of the synthetic tool that carries an ADK outputSchema answer. */
 const STRUCTURED_OUTPUT_TOOL = 'structured_output';
 
+/** Anthropic's minimum extended-thinking budget. */
 const MIN_THINKING_BUDGET = 1024;
+
+/** The providerState kind this adapter writes: the signed blocks that preceded a part. */
+export const THINKING_STATE_KIND = 'thinking_blocks';
+
+const isSignedThinking = (b: any): b is SignedThinkingBlock =>
+  !!b && typeof b === 'object' && (b.type === 'thinking' || b.type === 'redacted_thinking');
+
+/**
+ * Where the current turn starts in `contents`: the last user content that is
+ * not purely tool results. Everything after it is this turn's tool loop.
+ */
+function currentTurnStart(contents: LlmRequest['contents']): number {
+  for (let i = contents.length - 1; i >= 0; i--) {
+    const c = contents[i];
+    if (c.role === 'user' && (c.parts ?? []).some((p: any) => !p.functionResponse)) return i;
+  }
+  return 0;
+}
+
+/**
+ * True when the request answers tool calls whose assistant message does not
+ * open with a signed thinking block: with thinking on, Anthropic rejects it
+ * ("a final assistant message must start with a thinking block").
+ */
+function continuesUnsignedToolLoop(messages: AnthropicMessage[]): boolean {
+  const last = messages[messages.length - 1];
+  const prev = messages[messages.length - 2];
+  if (last?.role !== 'user' || prev?.role !== 'assistant') return false;
+  if (typeof last.content === 'string' || !last.content.some((b) => b.type === 'tool_result')) return false;
+  if (typeof prev.content === 'string' || !prev.content.some((b) => b.type === 'tool_use')) return false;
+  return !isSignedThinking(prev.content[0]);
+}
 
 // ── Request building (exported for offline tests) ────────────────────────────
 
@@ -191,8 +228,14 @@ export class ClaudeLlm extends BaseLlm {
     // ── Translate ADK Contents → Anthropic messages ──────────────────────────
     const systemParts: string[] = [];
     const messages: AnthropicMessage[] = [];
+    // Signed thinking is replayed only inside the current turn's tool loop,
+    // which is where Anthropic requires it. Earlier turns' blocks are left
+    // out: removing them from the front of the history is allowed, and their
+    // stored prefix may differ from what the model saw (tool payloads are
+    // elided before storage), which would invalidate them (ADR 0046).
+    const turnStart = currentTurnStart(llmRequest.contents);
 
-    for (const content of llmRequest.contents) {
+    for (const [index, content] of llmRequest.contents.entries()) {
       // System instruction lives in config.systemInstruction, not contents.
       // But ADK also injects it as a 'system' role content — extract it.
       if ((content as any).role === 'system') {
@@ -208,8 +251,16 @@ export class ClaudeLlm extends BaseLlm {
         content.role === 'model' ? 'assistant' : 'user';
 
       const blocks: AnthropicContentBlock[] = [];
+      const replay = role === 'assistant' && index > turnStart;
       for (const part of content.parts ?? []) {
         const p = part as any;
+        // The signed blocks that preceded this part, verbatim. Another
+        // provider's state, or another Claude model's (signed thinking is
+        // bound to the model that produced it), is skipped.
+        const state = replay ? providerStateOf(p, 'anthropic', THINKING_STATE_KIND, this.model) : undefined;
+        if (state && Array.isArray(state.payload)) {
+          blocks.push(...state.payload.filter(isSignedThinking));
+        }
         if (p.thought) {
           // Prior-turn scratchpad is display-only; never replay it as text.
           continue;
@@ -272,7 +323,14 @@ export class ClaudeLlm extends BaseLlm {
     let maxTokens: number = cfg.maxOutputTokens ?? 4096;
     let thinking: { type: 'enabled'; budget_tokens: number } | undefined;
     const requestedBudget = cfg.thinkingConfig?.thinkingBudget;
-    if (typeof requestedBudget === 'number' && requestedBudget > 0) {
+    const thinkingConfigured = typeof requestedBudget === 'number' && requestedBudget > 0;
+    if (thinkingConfigured && continuesUnsignedToolLoop(messages)) {
+      // The tool call this step answers carries no signed thinking (another
+      // provider or model made it, or its state was lost), and Anthropic
+      // rejects a thinking request whose tool loop does not start with one.
+      // This step runs without thinking instead of failing.
+      setLlmSpanAttribute('llm.thinking.omitted', 'unsigned_tool_loop');
+    } else if (thinkingConfigured) {
       const budget = Math.max(requestedBudget, MIN_THINKING_BUDGET);
       thinking = { type: 'enabled', budget_tokens: budget };
       // Anthropic requires max_tokens to exceed the thinking budget.
@@ -287,7 +345,8 @@ export class ClaudeLlm extends BaseLlm {
     // the output schema, with tool_choice forcing it, makes the API validate
     // the shape; finalResponse() turns the tool_use block back into text.
     // Forced tool_choice is incompatible with extended thinking, so with a
-    // thinking budget the tool is offered under 'auto' instead.
+    // thinking budget the tool is offered under 'auto' instead (also on a
+    // step that omits thinking, so the rule follows the agent's config).
     const structuredTool = cfg.responseSchema
       ? {
           name: STRUCTURED_OUTPUT_TOOL,
@@ -303,7 +362,7 @@ export class ClaudeLlm extends BaseLlm {
       system: systemParts.join('\n\n') || undefined,
       messages,
       tools: allTools.length > 0 ? allTools : undefined,
-      ...(structuredTool && !thinking ? { tool_choice: { type: 'tool', name: STRUCTURED_OUTPUT_TOOL } } : {}),
+      ...(structuredTool && !thinkingConfigured ? { tool_choice: { type: 'tool', name: STRUCTURED_OUTPUT_TOOL } } : {}),
       ...(thinking ? { thinking } : {}),
     };
 
@@ -371,24 +430,37 @@ export class ClaudeLlm extends BaseLlm {
     }
   }
 
-  /** Maps a complete Anthropic message → the final LlmResponse. */
+  /**
+   * Maps a complete Anthropic message → the final LlmResponse. Both the
+   * streamed and the non-streamed path end here, so both carry the signed
+   * thinking blocks: each run of them rides, verbatim, on the part that
+   * follows it (providerState, ADR 0046), which keeps their order relative
+   * to the text and tool_use blocks when they are replayed. Blocks with no
+   * part after them are not needed for a replay and are dropped.
+   */
   private finalResponse(response: any, includeText: boolean): LlmResponse {
     const parts: any[] = [];
-    const thinkingBlocks: any[] = [];
+    let signed: SignedThinkingBlock[] = [];
+    const emit = (part: Record<string, unknown>) => {
+      parts.push(
+        signed.length > 0
+          ? withProviderState(part, { provider: 'anthropic', kind: THINKING_STATE_KIND, model: this.model, payload: signed })
+          : part,
+      );
+      signed = [];
+    };
     for (const block of response.content ?? []) {
-      if (block.type === 'text' && includeText) {
-        parts.push({ text: block.text });
+      if (isSignedThinking(block)) {
+        signed.push(block);
+      } else if (block.type === 'text' && includeText && block.text) {
+        emit({ text: block.text });
       } else if (block.type === 'tool_use' && block.name === STRUCTURED_OUTPUT_TOOL) {
         // The schema-validated answer, as the JSON text every consumer expects.
-        parts.push({ text: JSON.stringify(block.input ?? {}) });
+        emit({ text: JSON.stringify(block.input ?? {}) });
       } else if (block.type === 'tool_use') {
-        parts.push({
+        emit({
           functionCall: { name: block.name, args: block.input, id: block.id },
         });
-      } else if (block.type === 'thinking') {
-        // Raw signed blocks, preserved for a future thinking+tools upgrade
-        // (Anthropic requires them replayed verbatim on tool loops).
-        thinkingBlocks.push(block);
       }
     }
 
@@ -411,9 +483,6 @@ export class ClaudeLlm extends BaseLlm {
                 : {}),
             },
           }
-        : {}),
-      ...(thinkingBlocks.length > 0
-        ? { customMetadata: { 'anthropic.thinking': thinkingBlocks } }
         : {}),
     };
   }

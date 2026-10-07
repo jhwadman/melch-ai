@@ -4,6 +4,20 @@ Consumers of the package read this file; it records changes to the
 **published API surface** (the exports map in `package.json`, the bins,
 the starter pack and the templates), not the repo's full history.
 
+## Unreleased
+
+- **Thinking with tool use works on Claude (ADR 0046).** The adapter writes
+  the signed `thinking` / `redacted_thinking` blocks into a `providerState`
+  field on the part they preceded and replays them verbatim within the
+  turn's tool loop, so a thinking Claude agent can use tools and delegate.
+  A step continuing another provider's or Claude model's tool call runs
+  without thinking.
+  New module `melchizedek-agents/models/providerState` (`ProviderState`,
+  `providerStateOf`, `withProviderState`): the convention every adapter
+  uses for provider-opaque reasoning state. The final event no longer
+  carries `customMetadata['anthropic.thinking']`; the same blocks are on
+  the part.
+
 ## 0.18.0 — 2026-10-06
 
 ### Breaking — read before upgrading

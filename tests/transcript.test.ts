@@ -205,6 +205,21 @@ test('conversation text is never trimmed', () => {
   assert.equal(trimEventForStorage(answer), answer);
 });
 
+test('provider reasoning state is stored whole beside a trimmed signature and payload (ADR 0046)', () => {
+  // Resuming an interrupted turn replays its stored events raw, and a Claude
+  // tool call continued with thinking on needs its signed blocks back.
+  const state = { provider: 'anthropic', kind: 'thinking_blocks', payload: [{ type: 'thinking', thinking: 'plan', signature: 'sig-1' }] };
+  const e = agent('Analyst', [
+    { functionCall: { id: 'c1', name: 'load_memory', args: {} }, thoughtSignature: 'B'.repeat(10_000), providerState: state },
+    { functionResponse: { id: 'c0', name: 'load_memory', response: { memories: 'x'.repeat(9_000) } }, providerState: state },
+  ]);
+  const parts = trimEventForStorage(e).content!.parts as any[];
+  assert.equal(parts[0].thoughtSignature, 'skip_thought_signature_validator');
+  assert.deepEqual(parts[0].providerState, state);
+  assert.match(JSON.stringify(parts[1].functionResponse), /chars dropped before storage/);
+  assert.deepEqual(parts[1].providerState, state);
+});
+
 test('trimming does not mutate the live event — the tool loop still reads it', () => {
   // The caller applies this to the serialized copy only. If it mutated the
   // in-memory event, the running agent would lose its own tool result

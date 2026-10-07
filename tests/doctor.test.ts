@@ -223,6 +223,11 @@ test('capability gaps: each agent row names what its path cannot fully do (ADR 0
         '      type: OBJECT',
         '      properties:',
         '        verdict: { type: STRING }',
+        '  - name: Searcher',
+        '    description: searches the web',
+        '    model: ollama/qwen3:8b',
+        '    instruction: x',
+        '    tools: [web_search]',
         '  - name: Elsewhere',
         '    description: a remote agent',
         '    a2a_agent_url: https://agents.example.com/',
@@ -234,15 +239,18 @@ test('capability gaps: each agent row names what its path cannot fully do (ADR 0
       assert.ok(!s.error, s.error);
       const byAgent = Object.fromEntries(s.rows.map((r) => [r.agent, r]));
 
-      // Claude delegating while thinking: the tool loop drops signed thinking.
-      assert.deepEqual(
-        byAgent.Lead.gaps.map((g) => `${g.capability}:${g.support}`),
-        ['thinking_with_tools:unsupported'],
-      );
+      // Claude delegating while thinking: signed thinking is replayed on the
+      // tool loop (ADR 0046), so the path has no gap.
+      assert.deepEqual(byAgent.Lead.gaps, []);
       // Ollama's JSON mode does not enforce the schema.
       assert.deepEqual(
         byAgent.Looker.gaps.map((g) => `${g.capability}:${g.support}`),
         ['structured_output:degraded'],
+      );
+      // A local model has no native search: the sentinel is dropped.
+      assert.deepEqual(
+        byAgent.Searcher.gaps.map((g) => `${g.capability}:${g.support}`),
+        ['native_search:unsupported'],
       );
       // The remote agent has no local model, so no row borrows the orchestrator's.
       assert.ok(!('Elsewhere' in byAgent));
@@ -250,7 +258,8 @@ test('capability gaps: each agent row names what its path cannot fully do (ADR 0
       assert.equal(s.verdict.state, 'ready');
 
       const text = renderDoctor(result);
-      assert.match(text, /thinking with tool use unsupported on anthropic/);
+      assert.doesNotMatch(text, /thinking with tool use/);
+      assert.match(text, /native web search unsupported on ollama/);
       assert.match(text, /structured output \(outputSchema\) degraded on ollama/);
     });
   } finally {

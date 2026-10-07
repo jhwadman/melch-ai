@@ -7,7 +7,7 @@ tags:
   - routing
 generated:
   by: process:wiki-build
-  at: 2026-10-03
+  at: 2026-10-07
 sources:
   - resource: lib/models/providerMap.ts
   - resource: lib/models/registry.ts
@@ -57,7 +57,7 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 | delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ◐3 | ✓4 |
-| thinking with tool use | ✓ | ✗5 | ◐6 | ◐7 | ◐8 | ◐9 | ◐10 |
+| thinking with tool use | ✓ | ✓5 | ◐6 | ◐7 | ◐8 | ◐9 | ◐10 |
 | token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | image input | ✓ | ✗11 | ✓12 | ✓13 | ✓14 | ✓15 | ✓16 |
 | native web search | ✓ | ✓ | ✓ | ✓ | ✗17 | ✗18 | ✗19 |
@@ -68,7 +68,7 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 2. Moonshot Kimi · structured output (outputSchema): strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf).
 3. Ollama (local) · structured output (outputSchema): JSON mode only (json_object): the output is JSON but the schema is not enforced.
 4. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
-5. Anthropic Claude · thinking with tool use: signed thinking blocks are not replayed on tool loops, which Anthropic requires; give a thinking Claude agent no tools.
+5. Anthropic Claude · thinking with tool use: signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046); a step answering another model's tool call runs without thinking.
 6. OpenAI GPT · thinking with tool use: reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step.
 7. xAI Grok · thinking with tool use: reasoning is requested, but reasoning items are not carried across tool calls, so the model re-reasons each step.
 8. Moonshot Kimi · thinking with tool use: reasoning_content is not replayed across tool calls, which Moonshot asks for on kimi-k3, so the model re-reasons each step; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
@@ -94,5 +94,18 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 | OpenAI GPT on Azure OpenAI | native web search: ✗ not sent on Azure OpenAI; the web_search sentinel is dropped (use web_extract) |
 <!-- /wiki:generated -->
 
+## Reasoning state across tool steps
+
+Some providers want state back on the next request of a tool loop that only they can read: Anthropic's signed `thinking` and `redacted_thinking` blocks, OpenAI's and xAI's reasoning items, Moonshot's `reasoning_content`. Every adapter carries it the same way, as one field on a content part ([ADR 0046](/decisions/0046-provider-reasoning-state-on-the-part.md), `lib/models/providerState.ts`):
+
+```ts
+{ functionCall: { … }, providerState: { provider: 'anthropic', kind: 'thinking_blocks', model: 'claude-sonnet-4-6', payload: [ … ] } }
+```
+
+- **Write.** The adapter that produced the response sets `providerState` on a part the model produced (a `functionCall` or `text` part), with `provider` set to its id from `lib/models/providerMap.ts` (`anthropic`, `openai`, `xai`, `moonshot`), a `kind` of its own naming, a JSON-serializable `payload`, and `model` when the provider binds the state to the model that produced it. `withProviderState(part, state)` returns the copy. Never a part of its own: `@google/genai` serializes parts field by field, so a state-only part reaches Gemini as an empty part.
+- **Replay.** Only an adapter of the same provider reads it, through `providerStateOf(part, provider, kind, model?)`, which also skips another model's state when `model` is set, and sends the payload back verbatim. Every other adapter ignores the field, so a model switch between steps (a fallback model, a test that alternates models) drops the state instead of misreading it.
+- **Keep.** ADK deep-clones `event.content` into the next `LlmRequest.contents`, so the field reaches the next step unchanged. The session services store it with the event, and `trimEventForStorage` keeps it whole; the plan-dispatch projection (`lib/session/transcript.ts`) drops it with the rest of a past turn.
+
+Claude uses `kind: 'thinking_blocks'` and sets `model`, since signed thinking is bound to the model that produced it. It writes the state on the streamed and the non-streamed path alike: each run of signed blocks rides on the part that follows it in the response and is replayed immediately before that part, within the current turn's tool loop only (the assistant messages after the last user message that is not purely tool results). Display-only `{ text, thought: true }` parts are never sent back. With a thinking budget, a step whose pending tool call carries no signed block, because another provider or another Claude model made it, is sent without thinking (`llm.thinking.omitted` on the span), since Anthropic rejects a thinking request whose tool loop does not open with one.
 
 An agent may name a `fallback_model` (`lib/models/fallback.ts`, [ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). Its model is then wrapped: a provider-side failure (what `lib/models/retry.ts` classifies retryable, after the adapter's own retries) is answered by the fallback if nothing was produced yet, and a per-provider circuit opens after `MODEL_BREAKER_THRESHOLD` consecutive failures (default 5) so those agents skip the provider for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx, a cancellation, and a stream that already yielded text are thrown as they are. Agents without a fallback are not wrapped.
