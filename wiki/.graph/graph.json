@@ -5,25 +5,25 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 656,
-    "edges": 1538,
+    "nodes": 660,
+    "edges": 1553,
     "byKind": {
-      "doc": 100,
+      "doc": 101,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 91,
+      "file": 93,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 124,
+      "module": 125,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 234,
+      "links_to": 238,
       "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,18 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 363,
+      "imports": 366,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 295,
-      "supersedes": 1,
+      "derives_from": 300,
+      "supersedes": 2,
       "constrains": 3,
-      "depends_on": 2,
+      "depends_on": 3,
+      "mitigates": 1,
       "explains": 2
     },
     "byTier": {
-      "extracted": 1530,
-      "inferred": 8
+      "extracted": 1542,
+      "inferred": 11
     },
     "isolated": 4
   },
@@ -974,6 +975,18 @@
       }
     },
     {
+      "id": "/decisions/0049-claude-requests-by-model-generation.md",
+      "kind": "doc",
+      "label": "ADR 0049: Claude requests follow the model generation",
+      "source": "/decisions/0049-claude-requests-by-model-generation.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 2274
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1054,7 +1067,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2469
+        "words": 3083
       }
     },
     {
@@ -3281,6 +3294,18 @@
       "source": "tests/auditTrail.test.ts"
     },
     {
+      "id": "file:tests/capabilityMatrix.test.ts",
+      "kind": "file",
+      "label": "capabilityMatrix.test.ts",
+      "source": "tests/capabilityMatrix.test.ts"
+    },
+    {
+      "id": "file:tests/claudeCurrentApi.test.ts",
+      "kind": "file",
+      "label": "claudeCurrentApi.test.ts",
+      "source": "tests/claudeCurrentApi.test.ts"
+    },
+    {
       "id": "file:tests/execution.test.ts",
       "kind": "file",
       "label": "execution.test.ts",
@@ -3724,7 +3749,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 391
+        "lines": 399
       }
     },
     {
@@ -3733,7 +3758,16 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 566
+        "lines": 683
+      }
+    },
+    {
+      "id": "module:lib/models/claudeModels.ts",
+      "kind": "module",
+      "label": "lib/models/claudeModels.ts",
+      "source": "lib/models/claudeModels.ts",
+      "attrs": {
+        "lines": 253
       }
     },
     {
@@ -8202,6 +8236,62 @@
       "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
     },
     {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "file:tests/claudeCurrentApi.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md:35"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md:33"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md:55"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8689,7 +8779,7 @@
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:50"
+      "evidence": "/models/provider-routing.md:59"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8703,14 +8793,14 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:119"
+      "evidence": "/models/provider-routing.md:130"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:107"
+      "evidence": "/models/provider-routing.md:116"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8718,6 +8808,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:46"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8731,7 +8828,7 @@
       "to": "/operations/parity-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:54"
+      "evidence": "/models/provider-routing.md:63"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8745,7 +8842,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:56"
+      "evidence": "/models/provider-routing.md:65"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -11934,6 +12031,13 @@
     },
     {
       "from": "module:lib/models/capabilities.ts",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/capabilities.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -11952,6 +12056,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
@@ -12001,6 +12112,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeModels.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeModels.ts"
     },
     {
       "from": "module:lib/models/endpoints.ts",

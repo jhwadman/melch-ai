@@ -68,8 +68,13 @@ const MODEL: Record<AdapterRow, string> = {
   gateway: 'claude-sonnet-4-6',
 };
 
-function adapterFor(row: AdapterRow) {
-  const model = MODEL[row];
+/**
+ * The anthropic row's per-generation cells (ADR 0049) are checked on a second
+ * id too: one that takes adaptive thinking, structured outputs and drop_block.
+ */
+const ANTHROPIC_CURRENT = 'claude-opus-5-5';
+
+function adapterFor(row: AdapterRow, model = MODEL[row]) {
   switch (row) {
     case 'anthropic':
       return new ClaudeLlm({ model });
@@ -97,8 +102,8 @@ function request(row: AdapterRow, overrides: Partial<LlmRequest> = {}): LlmReque
   } as LlmRequest;
 }
 
-/** Sends one request through the adapter and returns the JSON body it posted. */
-async function capture(row: AdapterRow, req: LlmRequest, stream = false): Promise<any> {
+/** Sends one request through the adapter (for `model`, default the row's) and returns the JSON body it posted. */
+async function capture(row: AdapterRow, req: LlmRequest, stream = false, model?: string): Promise<any> {
   const saved = Object.fromEntries(ALL_ENV.map((k) => [k, process.env[k]]));
   for (const k of ALL_ENV) delete process.env[k];
   Object.assign(process.env, FAKE_ENV[row]);
@@ -113,7 +118,7 @@ async function capture(row: AdapterRow, req: LlmRequest, stream = false): Promis
     );
   }) as any;
   try {
-    const llm = adapterFor(row);
+    const llm = adapterFor(row, model);
     const gen = llm.generateContentAsync(req, stream) as AsyncGenerator<LlmResponse, void>;
     for await (const _ of gen) {
       // drain; the 400 surfaces as an error response, which is expected
@@ -224,12 +229,18 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
   },
 
   async structured_output(row) {
-    const body = await capture(row, request(row, { config: { responseSchema: SCHEMA, responseMimeType: 'application/json' } as any }));
+    const structured = () => request(row, { config: { responseSchema: SCHEMA, responseMimeType: 'application/json' } as any });
+    const body = await capture(row, structured());
     switch (DIALECT[row]) {
       case 'anthropic': {
+        // Claude 4.6 and earlier: a forced tool whose input_schema is the schema.
         const forced = body.tool_choice?.type === 'tool';
         const declared = (body.tools ?? []).some((t: any) => t.name === body.tool_choice?.name && t.input_schema?.properties?.verdict);
-        return forced && declared ? 'supported' : 'unsupported';
+        // Current models: output_config.format, strict, and no tool_choice (ADR 0049).
+        const current = await capture(row, structured(), false, ANTHROPIC_CURRENT);
+        const f = current.output_config?.format;
+        const formatted = f?.type === 'json_schema' && f.schema?.properties?.verdict && f.schema.additionalProperties === false && !current.tool_choice;
+        return forced && declared && formatted ? 'supported' : 'unsupported';
       }
       case 'responses':
         return body.text?.format?.type === 'json_schema' && body.text.format.schema?.properties?.verdict ? 'supported' : 'unsupported';
@@ -247,11 +258,20 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
       case 'anthropic': {
         // Anthropic needs the signed thinking block replayed, verbatim, at the
         // start of the assistant message that holds the tool_use.
-        const assistant = (body.messages ?? []).find((m: any) => m.role === 'assistant');
-        const [first, second] = assistant?.content ?? [];
-        const replayed = JSON.stringify(first) === JSON.stringify(SIGNED_THINKING) && second?.type === 'tool_use';
-        if (!body.thinking) return 'unsupported';
-        return replayed ? 'supported' : 'unsupported';
+        const replayed = (b: any) => {
+          const assistant = (b.messages ?? []).find((m: any) => m.role === 'assistant');
+          const [first, second] = assistant?.content ?? [];
+          return JSON.stringify(first) === JSON.stringify(SIGNED_THINKING) && second?.type === 'tool_use';
+        };
+        // Claude 4.6 and earlier: a thinking budget.
+        const budget = body.thinking?.type === 'enabled' && body.thinking.budget_tokens === 2048;
+        // Current models: adaptive thinking at the agent's effort, the replay under drop_block (ADR 0049).
+        const current = await capture(row, thinkingToolLoop(row), false, ANTHROPIC_CURRENT);
+        const adaptive =
+          current.thinking?.type === 'adaptive' &&
+          current.thinking.block_binding?.prefix_mismatch_behavior === 'drop_block' &&
+          current.output_config?.effort === 'low';
+        return budget && adaptive && replayed(body) && replayed(current) ? 'supported' : 'unsupported';
       }
       case 'responses': {
         const reasons = !!body.reasoning;

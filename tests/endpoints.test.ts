@@ -126,6 +126,8 @@ test('Claude on Bedrock: the Bedrock client, the mapped id, web_search not sent'
         return { content: [{ type: 'text', text: 'hi from bedrock' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } };
       },
     };
+    // An id the generation table does not know takes drop_block's beta (ADR 0049).
+    beta = { messages: this.messages };
     constructor(o: any) {
       options = o;
     }

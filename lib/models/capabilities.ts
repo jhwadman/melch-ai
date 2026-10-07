@@ -24,6 +24,7 @@ import { planTransport } from './gateway.ts';
 import type { TransportPlan } from './gateway.ts';
 import { nativeSearchOn, PLATFORMS_FOR, platformFromEnv } from './endpoints.ts';
 import type { Platform } from './endpoints.ts';
+import { claudeUrlImagesOn } from './claudeModels.ts';
 import type { ReasoningSetting } from '../loadSyndicate.ts';
 
 /** The platform a direct path uses (ADR 0023); a misconfigured one reads as direct here, the doctor reports it. */
@@ -204,10 +205,13 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
   anthropic: {
     delegation: ok(),
     memory_tools: ok(),
-    structured_output: ok('test', 'sent as a forced tool call; with a thinking budget the tool is offered under tool_choice auto'),
+    structured_output: ok(
+      'test',
+      'output_config.format (json_schema) from Opus 4.8, Sonnet 5 and Haiku 5.5 on; a forced tool call on Claude 4.6 and earlier and Opus 4.7, offered under tool_choice auto when thinking is on (ADR 0049)',
+    ),
     thinking_with_tools: ok(
       'test',
-      "signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046); a step answering another model's tool call runs without thinking",
+      "a thinking budget on Claude 4.6 and earlier, adaptive thinking with output_config.effort after (ADR 0049); signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046), and where the model binds them to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5) under drop_block, so a block whose history changed is dropped rather than rejected; with a budget, a step answering another model's tool call runs without thinking",
     ),
     streaming: ok(),
     vision: ok('test', 'user-turn images only'),
@@ -333,12 +337,16 @@ export function capabilityGaps(
 // On Vertex AI, Bedrock and Azure OpenAI the adapter sends the same request
 // as on the provider's own API (the vendor SDK's platform client speaks the
 // same dialect), so every cell is the provider's row, except where the
-// adapter deliberately sends less. Native search is the one such cell today.
+// adapter deliberately sends less: native search, and Claude's URL images
+// on Bedrock and Vertex AI, which take base64 images only (ADR 0049).
 
 /** The cell that differs from the provider's row on a platform, or undefined. */
 export function platformCell(provider: ProviderId, platform: Platform, capability: Capability): CapabilityCell | undefined {
-  if (platform === 'direct' || capability !== 'native_search') return undefined;
-  if (nativeSearchOn(provider, platform)) return undefined;
+  if (platform === 'direct') return undefined;
+  if (capability === 'vision' && provider === 'anthropic' && !claudeUrlImagesOn(platform)) {
+    return degraded(`user-turn images inline (base64) only; an image given by URL is dropped, since ${PLATFORM_LABEL[platform]} takes no URL image source`);
+  }
+  if (capability !== 'native_search' || nativeSearchOn(provider, platform)) return undefined;
   return unsupported(`not sent on ${PLATFORM_LABEL[platform]}; the web_search sentinel is dropped (use web_extract)`);
 }
 
