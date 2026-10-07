@@ -148,11 +148,44 @@
                 }
               },
               "additionalProperties": {},
-              "description": "Gemini thinking controls (generateContentConfig.thinkingConfig)."
+              "description": "Older spelling of `reasoning` for Gemini and Claude (thinkingLevel or thinkingBudget). Cannot be combined with `reasoning`."
+            },
+            "reasoningEffort": {
+              "description": "Older spelling of `reasoning` for the chat-completions and Responses providers. Cannot be combined with `reasoning`.",
+              "type": "string"
             }
           },
           "additionalProperties": {},
           "description": "Model generation config (@google/genai GenerateContentConfig). Do not set tools here."
+        },
+        "reasoning": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "none",
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "budget_tokens": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Thinking tokens; 0 = none. Effort-only providers take the nearest level at or above it."
+                }
+              },
+              "required": [
+                "budget_tokens"
+              ],
+              "additionalProperties": false
+            }
+          ],
+          "description": "How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047)."
         },
         "outputSchema": {
           "description": "JSON Schema for structured output. Cannot be combined with AgentTool delegation.",
@@ -517,11 +550,44 @@
                   }
                 },
                 "additionalProperties": {},
-                "description": "Gemini thinking controls (generateContentConfig.thinkingConfig)."
+                "description": "Older spelling of `reasoning` for Gemini and Claude (thinkingLevel or thinkingBudget). Cannot be combined with `reasoning`."
+              },
+              "reasoningEffort": {
+                "description": "Older spelling of `reasoning` for the chat-completions and Responses providers. Cannot be combined with `reasoning`.",
+                "type": "string"
               }
             },
             "additionalProperties": {},
             "description": "Model generation config (@google/genai GenerateContentConfig). Do not set tools here."
+          },
+          "reasoning": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "budget_tokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "Thinking tokens; 0 = none. Effort-only providers take the nearest level at or above it."
+                  }
+                },
+                "required": [
+                  "budget_tokens"
+                ],
+                "additionalProperties": false
+              }
+            ],
+            "description": "How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047)."
           },
           "outputSchema": {
             "description": "JSON Schema for structured output. Cannot be combined with AgentTool delegation.",

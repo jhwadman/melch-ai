@@ -5,15 +5,15 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 650,
-    "edges": 1514,
+    "nodes": 652,
+    "edges": 1527,
     "byKind": {
-      "doc": 98,
+      "doc": 99,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 89,
+      "file": 90,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 231,
+      "links_to": 232,
       "requires_env": 159,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,16 +33,17 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 358,
+      "imports": 362,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 285,
+      "derives_from": 291,
       "supersedes": 1,
-      "explains": 1
+      "explains": 1,
+      "depends_on": 2
     },
     "byTier": {
-      "extracted": 1512,
-      "inferred": 2
+      "extracted": 1523,
+      "inferred": 4
     },
     "isolated": 4
   },
@@ -948,6 +949,18 @@
       }
     },
     {
+      "id": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "kind": "doc",
+      "label": "ADR 0047: One provider-neutral reasoning key, mapped per provider by the compiler",
+      "source": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1252
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1028,7 +1041,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1734
+        "words": 1927
       }
     },
     {
@@ -3341,6 +3354,12 @@
       "source": "tests/readiness.test.ts"
     },
     {
+      "id": "file:tests/reasoningKey.test.ts",
+      "kind": "file",
+      "label": "reasoningKey.test.ts",
+      "source": "tests/reasoningKey.test.ts"
+    },
+    {
       "id": "file:tests/redirects.test.ts",
       "kind": "file",
       "label": "redirects.test.ts",
@@ -3551,7 +3570,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 463
+        "lines": 551
       }
     },
     {
@@ -3578,7 +3597,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 684
+        "lines": 685
       }
     },
     {
@@ -3632,7 +3651,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 692
+        "lines": 710
       }
     },
     {
@@ -3686,7 +3705,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 384
+        "lines": 390
       }
     },
     {
@@ -3740,7 +3759,7 @@
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 734
+        "lines": 738
       }
     },
     {
@@ -3749,7 +3768,7 @@
       "label": "lib/models/grokLlm.ts",
       "source": "lib/models/grokLlm.ts",
       "attrs": {
-        "lines": 116
+        "lines": 120
       }
     },
     {
@@ -4064,7 +4083,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 918
+        "lines": 969
       }
     },
     {
@@ -4442,7 +4461,7 @@
       "label": "scripts/demo_model_optionality.ts",
       "source": "scripts/demo_model_optionality.ts",
       "attrs": {
-        "lines": 217
+        "lines": 220
       }
     },
     {
@@ -8076,6 +8095,48 @@
       "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:24"
     },
     {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "file:tests/reasoningKey.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/grokLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0047-provider-neutral-reasoning-key.md frontmatter"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8563,7 +8624,7 @@
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:46"
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8577,7 +8638,14 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:98"
+      "evidence": "/models/provider-routing.md:102"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:46"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8591,7 +8659,7 @@
       "to": "/operations/parity-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:50"
+      "evidence": "/models/provider-routing.md:54"
     },
     {
       "from": "/models/provider-routing.md",
@@ -8605,7 +8673,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:52"
+      "evidence": "/models/provider-routing.md:56"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -11241,7 +11309,21 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
+      "to": "module:lib/syndicateSchema.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compile.ts"
@@ -11763,6 +11845,13 @@
       "rel": "reads_table",
       "tier": "extracted",
       "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/models/capabilities.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/capabilities.ts"
     },
     {
       "from": "module:lib/models/capabilities.ts",
@@ -13996,6 +14085,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/demo_mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/demo_model_optionality.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/demo_model_optionality.ts"
     },
     {
       "from": "module:scripts/demo_model_optionality.ts",

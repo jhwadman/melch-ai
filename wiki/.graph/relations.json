@@ -17,6 +17,22 @@
       "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0047 maps reasoning: none on Ollama to reasoning_effort \"none\", the one value ADR 0027 found Ollama's /v1 endpoint honours; the model zoo's qwen_local relies on it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "depends_on",
+      "evidence": "ADR 0047: \"high stops at 16,384 because the Claude adapter raises max_tokens to at least the budget plus 2,048\", keeping a non-streaming request under the Anthropic SDK ceiling.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }

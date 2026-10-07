@@ -29,6 +29,15 @@ export interface ThinkingConfig {
   includeThoughts?: boolean;
 }
 
+/**
+ * How hard an agent reasons, on any provider (ADR 0047): a level, or a token
+ * budget. The compiler maps it to the field the agent's provider reads
+ * (lib/compile.ts reasoningConfig); `thinkingConfig` and `reasoningEffort`
+ * inside generateContentConfig are the older, provider-specific spelling.
+ */
+export type ReasoningLevel = 'none' | 'low' | 'medium' | 'high';
+export type ReasoningSetting = ReasoningLevel | { budget_tokens: number };
+
 export interface SafetySetting {
   category: string;
   threshold: string;
@@ -52,7 +61,10 @@ export interface GenerateContentConfig {
   seed?: number;
   responseMimeType?: string;
   safetySettings?: SafetySetting[];
+  /** Older spelling of `reasoning` for Gemini and Claude (ADR 0047). */
   thinkingConfig?: ThinkingConfig;
+  /** Older spelling of `reasoning` for the chat-completions providers (ADR 0047). */
+  reasoningEffort?: string;
 }
 
 /**
@@ -103,6 +115,12 @@ export interface AgentYamlConfig {
    * Maps to LlmAgentConfig.generateContentConfig.
    */
   generateContentConfig?: GenerateContentConfig;
+  /**
+   * How hard the agent reasons: none | low | medium | high, or
+   * { budget_tokens }. Cannot be combined with generateContentConfig's
+   * thinkingConfig or reasoningEffort (ADR 0047).
+   */
+  reasoning?: ReasoningSetting;
   /**
    * Output schema for structured JSON responses.
    * Maps to LlmAgentConfig.outputSchema.

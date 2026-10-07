@@ -373,12 +373,16 @@ export class GptLlm extends BaseLlm {
   }
 
   /** Responses API `reasoning` request param, or undefined to omit it.
-   *  Base: reasoning summaries for OpenAI's reasoning-capable ids.
-   *  Subclasses override per vendor (GrokLlm pins grok-4.5 to a reasoning
-   *  effort). A 400 from a model that rejects the param is retried once
-   *  without it — see createWithRetry. */
-  protected reasoningParam(): Record<string, unknown> | undefined {
-    return isReasoningModel(this.model) ? { summary: 'auto' } : undefined;
+   *  Base: reasoning summaries for OpenAI's reasoning-capable ids, plus the
+   *  effort the agent set (generateContentConfig.reasoningEffort, which the
+   *  YAML `reasoning:` key compiles to — ADR 0047). Subclasses override per
+   *  vendor (GrokLlm pins grok-4.5 to a reasoning effort). A 400 from a
+   *  model that rejects the param is retried once without it — see
+   *  createWithRetry. */
+  protected reasoningParam(llmRequest?: LlmRequest): Record<string, unknown> | undefined {
+    if (!isReasoningModel(this.model)) return undefined;
+    const effort = (llmRequest?.config as any)?.reasoningEffort;
+    return { summary: 'auto', ...(effort !== undefined ? { effort } : {}) };
   }
 
   /** Extra options for the OpenAI SDK client constructor. Subclasses
@@ -468,7 +472,7 @@ export class GptLlm extends BaseLlm {
     }
 
     const cfg = (llmRequest.config as any) ?? {};
-    const reasoning = this.reasoningParam();
+    const reasoning = this.reasoningParam(llmRequest);
     const request: Record<string, unknown> = {
       model: platformModel(endpoint, this.model),
       input,

@@ -15,6 +15,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentTool, LlmAgent } from '@google/adk';
 import { compileGraph, compileSubagent } from '../lib/compile.ts';
+import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { isDispatchSyndicate } from '../lib/dispatch.ts';
 import { compileWorkflow, isWorkflowSyndicate } from '../lib/workflow.ts';
@@ -147,6 +148,40 @@ test('documented LlmAgent fields reach the compiled agent', async () => {
   const sub = (await compileSubagent(config.subagents[0])) as any;
   assert.strictEqual(sub.includeContents, 'none');
   assert.strictEqual(sub.disallowTransferToPeers, true);
+});
+
+test('reasoning compiles to the field each provider reads; an agent without it compiles as before (ADR 0047)', async () => {
+  const toolConfig = { includeServerSideToolInvocations: true };
+  const config = {
+    syndicate_name: 'Reasoning',
+    orchestrator: { name: 'Root', model: 'gemini-3.8-flash', instruction: 'x', reasoning: 'low', generateContentConfig: { maxOutputTokens: 512 } },
+    subagents: [
+      { name: 'Claude', description: 'c', model: 'claude-sonnet-4-6', instruction: 'y', reasoning: 'high' },
+      { name: 'Older', description: 'o', model: 'gemini-3.8-flash', instruction: 'y', generateContentConfig: { thinkingConfig: { thinkingLevel: 'MEDIUM', includeThoughts: false } } },
+      { name: 'Plain', description: 'p', model: 'gpt-5-mini', instruction: 'y' },
+    ],
+  } as any;
+  const root = (await compileGraph(config)) as any;
+  assert.deepStrictEqual(root.generateContentConfig, { maxOutputTokens: 512, reasoningEffort: 'low', thinkingConfig: { thinkingLevel: 'LOW' }, toolConfig });
+  const compiled = async (i: number) => ((await compileSubagent(config.subagents[i])) as any).generateContentConfig;
+  assert.deepStrictEqual(await compiled(0), { reasoningEffort: 'high', thinkingConfig: { thinkingBudget: 16384 }, toolConfig });
+  // Neither key, or only the older spelling: exactly what compiled before.
+  assert.deepStrictEqual(await compiled(1), { thinkingConfig: { thinkingLevel: 'MEDIUM', includeThoughts: false }, toolConfig });
+  assert.deepStrictEqual(await compiled(2), { toolConfig });
+});
+
+test('reasoning maps for the model the resolver picks, and refuses the older spelling beside it', async () => {
+  // A subagent with no model runs on whatever the resolver returns (on the server, a BYOK adapter).
+  const inherit = { name: 'Inherit', description: 'i', instruction: 'y', reasoning: 'medium' } as any;
+  const viaInstance = (await compileSubagent(inherit, { resolveModel: () => new ClaudeLlm({ model: 'claude-sonnet-4-6' }) })) as any;
+  assert.deepStrictEqual(viaInstance.generateContentConfig.thinkingConfig, { thinkingBudget: 8192 });
+  const viaString = (await compileSubagent(inherit, { resolveModel: () => 'kimi-k3' })) as any;
+  assert.strictEqual(viaString.generateContentConfig.reasoningEffort, 'high');
+  assert.ok(!('thinkingConfig' in viaString.generateContentConfig));
+
+  // A config built in code skips the loader; the compiler refuses the clash itself.
+  const both = { name: 'Both', description: 'b', model: 'gpt-5-mini', instruction: 'y', reasoning: 'low', generateContentConfig: { reasoningEffort: 'high' } } as any;
+  await assert.rejects(compileSubagent(both), /Both: reasoning cannot be combined with generateContentConfig\.reasoningEffort/);
 });
 
 test('the intake template is stateless as its header promises', async () => {

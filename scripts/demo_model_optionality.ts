@@ -34,6 +34,7 @@ import { randomUUID } from 'node:crypto';
 
 import { loadEnv } from '../lib/loadEnv.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
+import { withReasoning } from '../lib/compile.ts';
 import {
   registerAvailableProviders,
   providerForModel,
@@ -124,13 +125,15 @@ async function main(): Promise<void> {
     }
 
     const spanCountBefore = llmSpans.length;
+    // The YAML `reasoning:` key, mapped for this provider (ADR 0047).
+    const generateContentConfig = withReasoning(sub, model);
     const agent = new LlmAgent({
       name: sub.name,
       description: sub.description,
       model, // ← the YAML string; the LLMRegistry routes it to the adapter
       instruction: sub.instruction,
-      ...(sub.generateContentConfig
-        ? { generateContentConfig: sub.generateContentConfig as any }
+      ...(generateContentConfig
+        ? { generateContentConfig: generateContentConfig as any }
         : {}),
       ...(withSearch ? { tools: [WEB_SEARCH] } : {}),
     });
