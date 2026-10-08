@@ -55,3 +55,5 @@ ADR 0053 recorded, as a consequence, that the adapters moving onto the contract 
 - `adk_turns.tool_calls` keeps counting their server-side searches.
 - The registry ticket (WS1-3) registers `GptLlm` and `GrokLlm`, not a bare `adkShimClass` around their adapters, or this is lost.
 - The chat-completions adapters face the same choice when they move behind the shim; the hook serves them too.
+
+> **Note (2026-10-08):** The owner decided that every provider's answers show their web sources. GptLlm and GrokLlm now pass the mapping's `groundingMetadata` through to the event, so the A2A server lists the pages a search used, as it does for Gemini. The rest of this record is unchanged.

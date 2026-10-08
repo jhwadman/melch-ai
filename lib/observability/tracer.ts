@@ -703,7 +703,7 @@ function refineErrorCode(code: string, message: string): string {
  * span — one span per model call, for EVERY provider. Records provider,
  * model, input/output/thinking token counts, latency, and a truncated
  * thinking summary as a span event. Adapters call this around their own
- * generator; TracedGemini (lib/models/registry.ts) does the same for Gemini,
+ * generator; TracedGemini (lib/models/tracedGemini.ts) does the same for Gemini,
  * so per-request telemetry is uniform across the fleet, and the ADK shim
  * (lib/models/adkShim.ts) does it for an adapter on the model contract,
  * which opens no span of its own (ADR 0053). The request it records is a

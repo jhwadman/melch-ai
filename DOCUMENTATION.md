@@ -477,11 +477,19 @@ shim around `GptAdapter` (`melchizedek-agents/models/gptAdapter`) and
 `GrokAdapter` (`melchizedek-agents/models/grokAdapter`), and keep the token
 counts and server-side tool record the ledger has always had for them
 (ADR 0056).
-Gemini has two adapters on the contract, neither registered yet:
+Gemini has two adapters on the contract:
 `melchizedek-agents/models/geminiAdapter` (`GeminiAdapter`, on
 `@google/genai` with no ADK) and, until that one passes its live parity
 run, `melchizedek-agents/models/adkGeminiAdapter` (`AdkGeminiAdapter`,
-a temporary wrapper that runs the request through `TracedGemini`).
+a temporary wrapper that runs the request through `TracedGemini`, now in
+`melchizedek-agents/models/tracedGemini`).
+`resolveAdapter(modelId, { apiKey, keyProvider, endpoint, gemini })` in
+`melchizedek-agents/models/registry` returns any id's contract adapter
+from the same prefix table, gateway rule, BYOK scoping and endpoints as
+`resolveModel`, with no ADK registry (ADR 0060). A Gemini id gets
+`AdkGeminiAdapter` unless `GEMINI_ADAPTER=engine` (or `gemini: 'engine'`)
+asks for `GeminiAdapter`. `resolveAdapterWithFallback` wraps an agent's
+model and `fallback_model` in a `FallbackAdapter`.
 
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it

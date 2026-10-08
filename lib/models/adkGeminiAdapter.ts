@@ -1,7 +1,7 @@
 /**
  * lib/models/adkGeminiAdapter.ts — TEMPORARY: Gemini as a contract
  * ModelAdapter (ADR 0048) over ADK's own Gemini, the TracedGemini path of
- * lib/models/registry.ts, through the genai mapping (lib/models/genaiMapping.ts).
+ * lib/models/tracedGemini.ts, through the genai mapping (lib/models/genaiMapping.ts).
  *
  * WHY this file exists:
  *   The native loop (ADR 0045) calls ModelAdapters only. The engine's own
@@ -11,7 +11,7 @@
  *   here, so every provider has a contract adapter before gate G1. Delete
  *   this file once G3 is signed and GeminiAdapter serves every Gemini id
  *   (the plan's G3 risk: "The WS1-8 wrapper over ADK's Gemini stays until
- *   the cells pass"). Nothing registers it: the registry ticket (WS1-3) does.
+ *   the cells pass"). resolveAdapter (lib/models/registry.ts) returns it for Gemini ids.
  *
  * THE CALL:
  *   1. The ModelRequest becomes an LlmRequest (modelRequestToLlmRequest),
@@ -85,7 +85,7 @@ import type { ProviderEndpoint } from './endpoints.ts';
 import { errorText } from './errorResponse.ts';
 import { GEMINI_PROVIDER } from './geminiState.ts';
 import { llmResponseToModelResponse, modelRequestToLlmRequest, nativeToolsWithoutGeminiTool } from './genaiMapping.ts';
-import { TracedGemini } from './registry.ts';
+import { TracedGemini } from './tracedGemini.ts';
 import { classifyError, errorStatus } from './retry.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
 

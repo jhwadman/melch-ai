@@ -606,7 +606,7 @@ function providerSpec(): DocSpec {
       {
         kind: 'fill',
         id: 'overview',
-        hint: 'the two resolution paths (LLMRegistry string matching vs resolveModel instance factory) and why registration must happen before agent construction',
+        hint: 'the three resolution paths (LLMRegistry string matching, the resolveModel instance factory, and resolveAdapter for contract adapters) and why registration must happen before agent construction',
       },
       {
         kind: 'generated',
