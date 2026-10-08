@@ -350,7 +350,8 @@ export class SupabaseVectorMemoryService implements MemoryService, BaseMemorySer
 	/** The facts most relevant to the query, from the `<appName>/<userId>` silo only. */
 	async search(request: MemorySearchRequest): Promise<MemorySearchResult> {
 		const query = stripHarnessBlocks(request.query) || request.query;
-		console.log(`[MemoryService] Searching memory for: "${query}"`);
+		// The query is the user's own words: the log says only how long it is.
+		console.log(`[MemoryService] Searching memory (${query.length} chars)`);
 		const userKey = `${request.appName}/${request.userId}`;
 		return this.searchSupabase(userKey, query);
 	}

@@ -15,7 +15,9 @@ the starter pack and the templates), not the repo's full history.
     differences: a call without a string `query` returns the readable
     error instead of searching, and a failed call's error reads
     `Error in tool 'load_memory': …`, as every own tool's does.
-    `require_approval` can now gate `load_memory`.
+    `require_approval` can now gate `load_memory`. Neither the preload
+    tool nor the memory service's search logs the user's query any more;
+    the search logs only its length.
   - `melchizedek-agents/tools/tool`: `ToolContext` gains `userContent` and
     `searchMemory(query)`, which searches the run's own silo only.
     `createToolContext` takes `memory` and `userContent`. A `Tool` may have
