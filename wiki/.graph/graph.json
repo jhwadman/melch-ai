@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 795,
-    "edges": 2678,
+    "nodes": 799,
+    "edges": 2699,
     "byKind": {
-      "doc": 139,
+      "doc": 141,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 132,
+      "file": 133,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 178,
+      "module": 179,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 538,
+      "links_to": 543,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 697,
+      "imports": 700,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 600,
-      "constrains": 122,
+      "derives_from": 609,
+      "constrains": 123,
       "supersedes": 6,
-      "depends_on": 52,
-      "explains": 12,
+      "depends_on": 54,
+      "explains": 13,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2484,
-      "inferred": 194
+      "extracted": 2501,
+      "inferred": 198
     },
     "isolated": 4
   },
@@ -1336,6 +1336,18 @@
       }
     },
     {
+      "id": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "kind": "doc",
+      "label": "ADR 0082: The workflow graph is the engine's own model, mirrors the ADK compile, and carries its own copy of the block's rules",
+      "source": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 773
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1597,6 +1609,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 4481
+      }
+    },
+    {
+      "id": "/overview/workflow-graph.md",
+      "kind": "doc",
+      "label": "Workflow graph",
+      "source": "/overview/workflow-graph.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 834
       }
     },
     {
@@ -4217,6 +4241,13 @@
       "source": "tests/workflow.test.ts"
     },
     {
+      "id": "file:tests/workflowGraph.test.ts",
+      "kind": "file",
+      "label": "workflowGraph.test.ts",
+      "source": "tests/workflowGraph.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tsconfig.build.json",
       "kind": "file",
       "label": "tsconfig.build.json",
@@ -5698,6 +5729,15 @@
       "source": "lib/workflow.ts",
       "attrs": {
         "lines": 208
+      }
+    },
+    {
+      "id": "module:lib/workflow/graph.ts",
+      "kind": "module",
+      "label": "lib/workflow/graph.ts",
+      "source": "lib/workflow/graph.ts",
+      "attrs": {
+        "lines": 534
       }
     },
     {
@@ -11706,6 +11746,48 @@
       "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md:32"
     },
     {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "file:tests/workflowGraph.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md frontmatter"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md frontmatter"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md frontmatter"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md frontmatter"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md:24"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -14595,6 +14677,62 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:54"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "file:tests/workflowGraph.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:22"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:22"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:22"
     },
     {
       "from": "/protocols/a2a.md",
@@ -21588,6 +21726,27 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow/graph.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/graph.ts"
+    },
+    {
+      "from": "module:lib/workflow/graph.ts",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/graph.ts"
+    },
+    {
+      "from": "module:lib/workflow/graph.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/graph.ts"
     },
     {
       "from": "module:scripts/a2a_server.ts",
