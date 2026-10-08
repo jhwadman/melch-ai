@@ -7,6 +7,11 @@
  *      injectSessionState fills them with its workflowInstructionScope.
  *   2. A join and a map store the events ADK's JoinNode and ParallelWorker
  *      store, so fan-out, join and map cases compare on stored events.
+ *   3. Under concurrent fan-out the events land in ADK's order: three
+ *      branches (an agent calling a tool and routing on, a tool node, a map)
+ *      under delay profiles that keep any two finish times 20 ms apart, and
+ *      a node two branches trigger. Closer finishes race on both runtimes
+ *      and are not pinned.
  *
  * Parity cases run one workflow syndicate on ADK (runSyndicateTurn, runtime
  * adk) and on the scheduler with agentNodeRuntime, with the same scripted
@@ -21,10 +26,13 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { LogLevel, setLogLevel } from '@google/adk';
+import { z } from 'zod';
 
 import { createTurnEvent } from '../lib/runtime/events.ts';
 import { injectSessionState, predecessorOutputs } from '../lib/runtime/native/request.ts';
 import type { WorkflowInstructionScope } from '../lib/runtime/native/request.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
 import { mapNodeEvent, nodeOutputContent } from '../lib/workflow/nodeEvents.ts';
 import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
@@ -275,4 +283,105 @@ test('a map stopped from outside outputs nothing, so it stores no event, as ADK\
   );
   assert.deepEqual(ends, [undefined]);
   assert.equal(mapNodeEvent({ name: 'Each', path: 'Graph.Each', branch: undefined, invocationId: 'e-1', output: undefined }), undefined);
+});
+
+// ── 3. The order of stored events under concurrent fan-out ───────────────────
+
+/** The stub delays of one profile, in ms: agent A's calls, the tool, A2, B, Lister, the items p and q. */
+interface Profile {
+  a: number;
+  tool: number;
+  a2: number;
+  b: number;
+  lister: number;
+  p: number;
+  q: number;
+}
+
+let toolDelay = 0;
+registerTool(
+  'parity_slow_lookup',
+  defineTool({
+    name: 'parity_slow_lookup',
+    description: 'Look something up, slowly.',
+    schema: z.object({ q: z.string().optional() }),
+    execute: async ({ q }) => {
+      await sleep(toolDelay);
+      return `got ${q}`;
+    },
+  }),
+  { override: true },
+);
+
+/**
+ * Three branches at once off one node: an agent that calls a tool and then
+ * routes to A2; a tool node feeding B; a Lister feeding a map of two items.
+ * A join waits for all three. Every event lands at a time the profile sets.
+ */
+const FAN_OUT = workflowConfig(
+  {
+    edges: [
+      ['START', 'Lead', ['A', 'Look', 'Lister']],
+      ['A', { go: 'A2', default: 'A2' }],
+      ['Look', 'B'],
+      ['Lister', 'Each'],
+      [['A2', 'B', 'Each'], 'J', 'Last'],
+    ],
+    nodes: { Look: { tool: 'parity_slow_lookup' }, Each: { map: 'Summ', max_parallel: 2 }, J: { join: true } },
+  },
+  [agent('A', { tools: ['parity_slow_lookup'] }), agent('A2'), agent('B'), agent('Lister', { outputSchema: { type: 'ARRAY', items: { type: 'STRING' } } }), agent('Summ'), agent('Last')],
+  agent('Lead', { outputSchema: { type: 'OBJECT', properties: { q: { type: 'STRING' } } } }),
+);
+
+function fanOutScripts(d: Profile) {
+  return {
+    lead: () => answer('{"q":"x"}'),
+    a: async (_req: Req, n: number) => {
+      await sleep(d.a);
+      return n === 1 ? toolCall('parity_slow_lookup', { q: 'a' }, 'call-a') : answer('go');
+    },
+    a2: after(d.a2, () => 'a2'),
+    b: after(d.b, (req) => `b ${lastText(req)}`),
+    lister: after(d.lister, () => '["p","q"]'),
+    summ: async (req: Req) => {
+      const item = lastText(req);
+      await sleep(item === 'p' ? d.p : d.q);
+      return answer(`s ${item}`);
+    },
+    last: () => answer('last'),
+  };
+}
+
+/** Each event's finish time in a profile: no two closer than 20 ms, so the order is the timeline's on both runtimes. */
+function timeline(d: Profile): number[] {
+  const aCall = d.a;
+  const aAnswer = aCall + d.tool + d.a;
+  return [aCall, d.tool, aCall + d.tool, aAnswer, aAnswer + d.a2, d.tool + d.b, d.lister, d.lister + d.p, d.lister + d.q].sort((x, y) => x - y);
+}
+
+const PROFILES: Record<string, Profile> = {
+  'the agent branch first': { a: 20, tool: 50, a2: 60, b: 80, lister: 110, p: 80, q: 140 },
+  'the tool branch first, the map last': { a: 60, tool: 20, a2: 40, b: 20, lister: 100, p: 60, q: 120 },
+  'the map first': { a: 80, tool: 100, a2: 20, b: 60, lister: 20, p: 40, q: 20 },
+};
+
+for (const [name, profile] of Object.entries(PROFILES)) {
+  test(`concurrent fan-out stores its events in ADK's order: ${name}`, async () => {
+    const times = timeline(profile);
+    for (let i = 1; i < times.length; i++) assert.ok(times[i]! - times[i - 1]! >= 20, `the profile keeps finish times 20 ms apart: ${times.join(', ')}`);
+    toolDelay = profile.tool;
+    const { native } = await bothAgree(FAN_OUT, fanOutScripts(profile), 'go');
+    assert.equal(native.output, 'last');
+    assert.equal(native.events.filter((e) => e.nodeInfo?.path === 'Graph.Each').length, 1);
+  });
+}
+
+test('a node two branches trigger runs once per trigger, its events in ADK\'s order', async () => {
+  const cfg = workflowConfig({ edges: [['START', 'A', ['B', 'C']], [['B', 'C'], 'D']] }, [agent('B'), agent('C'), agent('D')], agent('A'));
+  const scripts = { a: () => answer('a'), b: after(60, () => 'b'), c: after(20, () => 'c'), d: (req: Req) => answer(`d ${lastText(req)}`) };
+  const { native } = await bothAgree(cfg, scripts, 'go');
+  assert.deepEqual(
+    native.events.filter((e) => e.author === 'D').map((e) => e.output),
+    ['d c', 'd b'],
+  );
 });
