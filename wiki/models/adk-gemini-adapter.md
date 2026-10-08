@@ -82,9 +82,8 @@ These are ADK's behaviours, kept, and they are what G3's swap to `GeminiAdapter`
 - **Replay.** Every Gemini signature in the history goes back on its part, as ADK sends a stored session's, whichever turn or model wrote it. `GeminiAdapter` replays only the current turn's, for its own model.
 - **A withheld answer.** A policy finish (`SAFETY` and the rest) is an error only where ADK makes it one: on a candidate with no parts, or at the end of a stream. A non-streamed answer with text keeps it, with `finishReason: 'content_filter'`. `GeminiAdapter` always reports the error.
 - **Messages.** genai does not carry a candidate's `finishMessage`, so an error ADK yields reads `The model call ended with <code>.`
-- **`includeServerSideToolInvocations`** is always sent; `GeminiAdapter` sends none.
-- **The turn's signal.** This adapter reads only `request.signal`; `GeminiAdapter` falls back to the turn's.
-- **Code execution and server-side tool parts** reach the final, carried whole; `GeminiAdapter` leaves them out until WS3-1b.
+- **`includeServerSideToolInvocations`** is always sent, on Vertex AI too, where `@google/genai` refuses it before any request. `GeminiAdapter` sends it only beside function declarations and native tools, and only on the Gemini API ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)).
+- **Code execution and server-side tool parts** reach the final as text, each carried whole as `genai_part` state on its own part. `GeminiAdapter` keeps them out of the final's text and carries the run of them on the next output part, as `carried_parts` state, which this adapter passes through unread.
 
 ## What the offline tests assert
 
