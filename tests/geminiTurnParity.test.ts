@@ -100,7 +100,7 @@ async function runTurn(runtime: RuntimeName, config: SyndicateYamlConfig, script
   const real = globalThis.fetch;
   const bodies: any[] = [];
   globalThis.fetch = (async (url: string | URL, init: RequestInit) => {
-    assert.match(String(url), /generativelanguage\.googleapis\.com/, 'only the Gemini API is called');
+    assert.equal(new URL(String(url)).host, 'generativelanguage.googleapis.com', 'only the Gemini API is called');
     const body = JSON.parse(String(init.body));
     bodies.push(body);
     return new Response(JSON.stringify(candidate(script(body, bodies.length))), { status: 200, headers: { 'content-type': 'application/json' } });
