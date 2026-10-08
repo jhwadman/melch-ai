@@ -2801,6 +2801,30 @@
       "evidence": "ADR 0102 Decision 2: \"@google/adk is an optional peer (peerDependenciesMeta)\"; Alternatives: a synchronous require \"would load the CommonJS copy beside the consumer's ESM copy, two ADK registries in one process, which ADR 0007 exists to prevent.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0102 Context: \"ADR 0045 moves the engine off Google ADK in stages: a native runtime behind the turn runner's flag, then the native default, then ADK's removal at 1.0.0.\" ADR 0102 is the second stage.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "explains",
+      "evidence": "ADR 0024 dated note (2026-10-08): \"Release 0.20.0 makes the engine's native runtime the default and @google/adk an optional peer (ADR 0102). ADK is no longer the runtime ... Item 1's seam stands, and both runtimes run behind it\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/overview/architecture.md",
+      "rel": "explains",
+      "evidence": "wiki/overview/architecture.md item 4: the runtime picked by MELCHIZEDEK_RUNTIME or the turn's runtime option (\"native by default since 0.20.0; adk needs the optional peer @google/adk ... ADR 0102\").",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

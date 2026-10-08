@@ -24,7 +24,7 @@ sources:
 
 `GptAdapter` in `lib/models/gptAdapter.ts` is GPT as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)) on OpenAI's Responses API, through the `openai` SDK. `GrokAdapter` in `lib/models/grokAdapter.ts` extends it for xAI, whose Agent Tools API speaks the same wire at `https://api.x.ai/v1`. `GptAdapter` loads nothing from ADK at runtime, so the native runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) can call it. `GrokAdapter` reads its tool configuration through the env readers in `lib/tools/*Tool.ts`, which load ADK.
 
-`GptLlm` and `GrokLlm` (`lib/models/gptLlm.ts`, `lib/models/grokLlm.ts`) are what the registry registers for `gpt-*`, `o<digit>*` and `grok-*`. Each is an [ADK shim](/models/adk-shim.md) subclass around its adapter, constructed as before (`{ model, apiKey?, endpoint? }`), so every GPT and Grok call already runs on the contract.
+`GptLlm` and `GrokLlm` (`lib/models/gptLlm.ts`, `lib/models/grokLlm.ts`) are what the adk runtime's registry registers for `gpt-*`, `o<digit>*` and `grok-*`. Each is an [ADK shim](/models/adk-shim.md) subclass around its adapter, constructed with `{ model, apiKey?, endpoint? }`, so every GPT and Grok call runs on the contract on both runtimes.
 
 The field-by-field mapping is the OpenAI Responses and xAI tables of the [model contract](/models/model-contract.md). This page records the choices made inside them.
 
@@ -90,7 +90,7 @@ Every call ends with exactly one final, and a failure is that final with `error`
 
 ## Telemetry
 
-The adapters open no span and charge no turn ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)); the shim does both. They set `llm.web_search.native`, `llm.web_search.omitted`, `llm.collections_search.native`, `llm.collections_search.omitted`, `llm.capability.dropped`, `llm.image.dropped`, `llm.retry_without_reasoning`, `llm.server_tools.*` and `llm.cost.vendor_usd_ticks` on the span open around them.
+The adapters open no span and charge no turn ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)); their caller does both: the native loop's model step, or the shim on the adk runtime. They set `llm.web_search.native`, `llm.web_search.omitted`, `llm.collections_search.native`, `llm.collections_search.omitted`, `llm.capability.dropped`, `llm.image.dropped`, `llm.retry_without_reasoning`, `llm.server_tools.*` and `llm.cost.vendor_usd_ticks` on the span open around them.
 
 ## What the ADK path keeps
 

@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 867,
-    "edges": 3398,
+    "edges": 3432,
     "byKind": {
       "doc": 167,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 710,
+      "links_to": 738,
       "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 840,
+      "imports": 841,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 849,
+      "derives_from": 851,
       "constrains": 198,
       "supersedes": 8,
-      "depends_on": 106,
-      "explains": 33,
+      "depends_on": 107,
+      "explains": 35,
       "mitigates": 2,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3049,
-      "inferred": 349
+      "extracted": 3080,
+      "inferred": 352
     },
     "isolated": 4
   },
@@ -697,7 +697,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 947
+        "words": 1018
       }
     },
     {
@@ -745,7 +745,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 703
+        "words": 770
       }
     },
     {
@@ -757,7 +757,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 988
+        "words": 1039
       }
     },
     {
@@ -769,7 +769,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1022
+        "words": 1071
       }
     },
     {
@@ -781,7 +781,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 530
+        "words": 587
       }
     },
     {
@@ -793,7 +793,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 589
+        "words": 642
       }
     },
     {
@@ -805,7 +805,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 527
+        "words": 587
       }
     },
     {
@@ -817,7 +817,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 483
+        "words": 539
       }
     },
     {
@@ -1717,7 +1717,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1583
+        "words": 1590
       }
     },
     {
@@ -1729,7 +1729,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1382
+        "words": 1415
       }
     },
     {
@@ -1741,7 +1741,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1360
+        "words": 1369
       }
     },
     {
@@ -1753,7 +1753,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1727
+        "words": 1731
       }
     },
     {
@@ -1765,7 +1765,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3516
+        "words": 3555
       }
     },
     {
@@ -1777,7 +1777,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8192
+        "words": 8208
       }
     },
     {
@@ -1789,7 +1789,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4840
+        "words": 4936
       }
     },
     {
@@ -1801,7 +1801,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1799
+        "words": 1814
       }
     },
     {
@@ -1825,7 +1825,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1253
+        "words": 1409
       }
     },
     {
@@ -1849,7 +1849,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1100
+        "words": 1112
       }
     },
     {
@@ -1873,7 +1873,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 515
+        "words": 521
       }
     },
     {
@@ -1885,7 +1885,7 @@
         "type": "overview",
         "status": "stable",
         "trust": "unverified",
-        "words": 263
+        "words": 289
       }
     },
     {
@@ -1921,7 +1921,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 907
+        "words": 914
       }
     },
     {
@@ -1933,7 +1933,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4135
+        "words": 4138
       }
     },
     {
@@ -1945,7 +1945,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2028
+        "words": 2077
       }
     },
     {
@@ -1957,7 +1957,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 594
+        "words": 602
       }
     },
     {
@@ -1969,7 +1969,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 340
+        "words": 356
       }
     },
     {
@@ -1993,7 +1993,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 692
+        "words": 699
       }
     },
     {
@@ -2005,7 +2005,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 1555
+        "words": 1556
       }
     },
     {
@@ -2017,7 +2017,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 458
+        "words": 463
       }
     },
     {
@@ -2029,7 +2029,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2501
+        "words": 2502
       }
     },
     {
@@ -6487,7 +6487,7 @@
       "label": "scripts/parity_check.ts",
       "source": "scripts/parity_check.ts",
       "attrs": {
-        "lines": 763
+        "lines": 764
       }
     },
     {
@@ -9294,6 +9294,13 @@
       "evidence": "/decisions/0024-adk-behind-the-runtime-seam.md:57"
     },
     {
+      "from": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0024-adk-behind-the-runtime-seam.md:59"
+    },
+    {
       "from": "/decisions/0025-built-in-authenticators.md",
       "to": "file:tests/identity.test.ts",
       "rel": "derives_from",
@@ -9477,6 +9484,27 @@
     },
     {
       "from": "/decisions/0028-approval-gates.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md:47"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md:47"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md:47"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -9540,10 +9568,24 @@
     },
     {
       "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md:50"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
       "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0029-skills-read-like-a-harness.md:48"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md:50"
     },
     {
       "from": "/decisions/0030-workflow-graphs.md",
@@ -9596,10 +9638,31 @@
     },
     {
       "from": "/decisions/0030-workflow-graphs.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md:44"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md:44"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0030-workflow-graphs.md:59"
+      "evidence": "/decisions/0030-workflow-graphs.md:61"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md:44"
     },
     {
       "from": "/decisions/0030-workflow-graphs.md",
@@ -9644,6 +9707,27 @@
       "evidence": "/decisions/0031-ask-user.md frontmatter"
     },
     {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md:37"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md:37"
+    },
+    {
+      "from": "/decisions/0031-ask-user.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0031-ask-user.md:37"
+    },
+    {
       "from": "/decisions/0032-openapi-tools.md",
       "to": "file:config/agents/examples/weather.yaml",
       "rel": "derives_from",
@@ -9686,6 +9770,34 @@
       "evidence": "/decisions/0032-openapi-tools.md frontmatter"
     },
     {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md:38"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md:38"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md:38"
+    },
+    {
+      "from": "/decisions/0032-openapi-tools.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0032-openapi-tools.md:38"
+    },
+    {
       "from": "/decisions/0033-context-task-code.md",
       "to": "file:tests/execution.test.ts",
       "rel": "derives_from",
@@ -9714,6 +9826,34 @@
       "evidence": "/decisions/0033-context-task-code.md:27"
     },
     {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md:31"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md:31"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md:31"
+    },
+    {
+      "from": "/decisions/0033-context-task-code.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0033-context-task-code.md:31"
+    },
+    {
       "from": "/decisions/0034-self-correction.md",
       "to": "file:tests/selfCorrection.test.ts",
       "rel": "derives_from",
@@ -9740,6 +9880,27 @@
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/decisions/0034-self-correction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md:37"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md:37"
+    },
+    {
+      "from": "/decisions/0034-self-correction.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0034-self-correction.md:37"
     },
     {
       "from": "/decisions/0035-moonshot-kimi-provider.md",
@@ -15259,6 +15420,13 @@
     },
     {
       "from": "/models/adk-shim.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:28"
+    },
+    {
+      "from": "/models/adk-shim.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -16106,13 +16274,6 @@
     },
     {
       "from": "/models/model-contract.md",
-      "to": "/models/provider-routing.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/models/model-contract.md:37"
-    },
-    {
-      "from": "/models/model-contract.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -16263,7 +16424,7 @@
       "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:157"
+      "evidence": "/models/provider-routing.md:20"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16582,6 +16743,13 @@
     },
     {
       "from": "/operations/failure-modes.md",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md frontmatter"
+    },
+    {
+      "from": "/operations/failure-modes.md",
       "to": "module:lib/compile.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -16624,45 +16792,66 @@
     },
     {
       "from": "/operations/failure-modes.md",
-      "to": "/models/provider-routing.md",
-      "rel": "links_to",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:58"
+      "evidence": "/operations/failure-modes.md frontmatter"
     },
     {
       "from": "/operations/failure-modes.md",
-      "to": "/operations/native-loop-security.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md:56"
+    },
+    {
+      "from": "/operations/failure-modes.md",
+      "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/failure-modes.md:66"
     },
     {
       "from": "/operations/failure-modes.md",
+      "to": "/operations/native-loop-security.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md:74"
+    },
+    {
+      "from": "/operations/failure-modes.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:38"
+      "evidence": "/operations/failure-modes.md:40"
+    },
+    {
+      "from": "/operations/failure-modes.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md:58"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:30"
+      "evidence": "/operations/failure-modes.md:32"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:76"
+      "evidence": "/operations/failure-modes.md:84"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:76"
+      "evidence": "/operations/failure-modes.md:84"
     },
     {
       "from": "/operations/native-loop-security.md",
@@ -16870,6 +17059,13 @@
     {
       "from": "/operations/parity-harness.md",
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md:74"
+    },
+    {
+      "from": "/operations/parity-harness.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/parity-harness.md:74"
@@ -17163,6 +17359,13 @@
     },
     {
       "from": "/overview/melchizedek.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/melchizedek.md:17"
+    },
+    {
+      "from": "/overview/melchizedek.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -17216,6 +17419,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/melchizedek.md:21"
+    },
+    {
+      "from": "/overview/melchizedek.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/melchizedek.md:17"
     },
     {
       "from": "/overview/melchizedek.md",
@@ -26915,6 +27125,13 @@
     {
       "from": "module:scripts/parity_check.ts",
       "to": "module:lib/runtime/logging.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/runtime/runtimeFlag.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/parity_check.ts"

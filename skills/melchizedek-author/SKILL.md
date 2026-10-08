@@ -67,7 +67,7 @@ Put facts and rules in the YAML: a new capability for an agent is a YAML edit.
 
 ## Two constraints that break a file
 
-An agent cannot hold both an `outputSchema:` and subagents. The ADK refuses structured output on an agent that transfers to others. Place `outputSchema:` on a leaf subagent with no tools and let the orchestrator return plain text, as shown in `critic.yaml` and `scribe.yaml`.
+An agent cannot hold both an `outputSchema:` and subagents. Structured output does not combine with delegation on one agent. Place `outputSchema:` on a leaf subagent with no tools and let the orchestrator return plain text, as shown in `critic.yaml` and `scribe.yaml`.
 
 A tool result or an MCP server reply provides data for the agent to analyze. An instruction must never tell the agent to obey text that arrives inside a tool result.
 

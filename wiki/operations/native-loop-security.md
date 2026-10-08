@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: Native loop security
-description: "The threat model of the native runtime's agent loop (lib/runtime/native/), the gate it passes before it becomes the default (ADR 0045, ADR 0099, ADR 0101): for model output, tool results, interrupt answers (approvals, questions, OAuth consent, workflow pauses), state deltas, delegation and nested workflows, compaction and resource limits, what can go wrong, what stops it, and the test that proves it; the findings fixed and the ones recorded with an owner decision; and the fuzz suite (tests/nativeFuzz.test.ts) that holds the loop to it."
+description: "The threat model of the native runtime's agent loop (lib/runtime/native/), the gate it passed to become the default runtime (ADR 0045, ADR 0099, ADR 0101, ADR 0102): for model output, tool results, interrupt answers (approvals, questions, OAuth consent, workflow pauses), state deltas, delegation and nested workflows, compaction and resource limits, what can go wrong, what stops it, and the test that proves it; the findings fixed and the ones recorded with an owner decision; and the fuzz suite (tests/nativeFuzz.test.ts) that holds the loop to it."
 tags:
   - operations
   - security

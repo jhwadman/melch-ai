@@ -1,7 +1,7 @@
 # melchizedek-agents — reference documentation
 
 The framework in one sentence: **a syndicate is a YAML file describing an
-agent graph; the runtime compiles it into live Google-ADK agents with
+agent graph; the engine compiles it into agents on its own loop, with
 tools, sessions, and memory attached.** This document is the reference
 for that file format and the machinery around it. For a guided first run,
 see [`QUICKSTART.md`](./QUICKSTART.md).
@@ -27,13 +27,14 @@ config/agents/            YOUR syndicate definitions (the engine's input)
 config/agents/examples/   the starter pack — shipped example syndicates
 lib/loadSyndicate.ts      YAML → validated config (+ variable binding)
 lib/dispatch.ts           plan-dispatch route resolution (§6)
-lib/toolRegistry.ts       tool name → live ADK tool instance
+lib/toolRegistry.ts       tool name → the engine's own Tool
 lib/models/claudeAdapter.ts  Claude on the engine's model contract
-lib/models/claudeLlm.ts   that adapter behind the ADK shim, in the ADK registry
 lib/models/ollamaLlm.ts   open-weight local adapter (Ollama, keyless)
 lib/models/chatCompletionsAdapter.ts  the chat-completions wire on the model contract
-lib/tools/mcpToolFactory.ts  MCP client: remote tools → live ADK tools
+lib/tools/mcpToolFactory.ts  MCP client: remote tools → the engine's own Tools
 scripts/demo_mcp_server.ts   demo MCP server (library catalog, SSE)
+lib/runtime/native/…      the native loop: steps, delegation, compaction, interrupts
+lib/workflow/…            the workflow scheduler for `workflow:` syndicates
 lib/session/…             Supabase-backed session service
 lib/memory/…              pgvector long-term memory service
 lib/observability/…       OpenTelemetry run tracing
@@ -48,32 +49,40 @@ tests/agents.test.ts      compiles every shipped syndicate; opt-in live check
 ```
 
 Execution flow: `loadSyndicate` reads and validates the YAML and binds
-`{{variables}}` → the runner builds an `LlmAgent` per agent, wiring
-subagents as `AgentTool`s and tool names through the registry → the ADK
-`Runner` executes the turn, persisting events to the session service →
-on session end, the memory service distills the transcript into tagged
-facts, embeds them (768-d), and stores them for future recall.
+`{{variables}}` → the compiler builds each agent on the engine's own
+loop, wiring subagents as delegation tools and tool names through the
+registry → the loop runs the turn, calling each agent's model through its
+adapter on the engine's model contract and persisting events to the
+session service → on session end, the memory service distills the
+transcript into tagged facts, embeds them (768-d), and stores them for
+future recall.
 
 The compiler (`lib/compile.ts`) first builds a runtime-neutral `AgentSpec`
-per agent; `lib/compileAdk.ts` turns it into the `LlmAgent`, and
-`lib/compileNative.ts` into the engine's own loop's agent. Since 0.20.0
-the native loop runs every turn by default
+per agent, and `lib/compileNative.ts` turns it into the native loop's
+agent. The native runtime is the default
 ([ADR 0102](./wiki/decisions/0102-native-default-and-optional-adk-peer.md)):
-`@google/adk` is an optional peer, needed only when
-`MELCHIZEDEK_RUNTIME=adk`, or `runtime: 'adk'` on `runSyndicateTurn`,
-selects ADK's Runner, which 1.0.0 removes; without it that choice fails
-before the session is touched, naming the package, and
-`npx melchizedek-doctor` prints the runtime in use and whether ADK is
-installed. The native loop runs a single-agent, delegating or
-plan-dispatch syndicate with the same result and the same stored events
-the ADK runtime writes, `context:` compaction and `mode: task` included
+it owns the loop, the model contract and its adapters, the tools, the
+sessions and the workflow scheduler, and runs a single-agent, delegating,
+plan-dispatch or `workflow:` syndicate, `context:` compaction
 ([ADR 0078](./wiki/decisions/0078-native-compaction-ports-adk-compactor.md)),
-and a `workflow:` syndicate on the engine's own scheduler, its pause and
-resume included
-([ADR 0095](./wiki/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md));
-what it does not run yet throws `UnsupportedOnRuntimeError` before any
-model call
+`mode: task`, and pause and resume included
+([ADR 0095](./wiki/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)).
+Two configurations it refuses with `UnsupportedOnRuntimeError` before any
+model call: a `transformAgent` hook (it transforms ADK agents), and an
+`ask_user` tool on a workflow node (use an `ask_user` node)
 ([ADR 0073](./wiki/decisions/0073-one-agent-spec-and-a-runtime-flag.md)).
+
+Google ADK is an optional runtime for this release, kept as a rollback
+and removed in 1.0.0
+([ADR 0045](./wiki/decisions/0045-own-runtime-behind-the-seam.md)).
+`MELCHIZEDEK_RUNTIME=adk`, or `runtime: 'adk'` on `runSyndicateTurn`,
+selects it, with `@google/adk@~2.2.0` installed beside the package;
+`lib/compileAdk.ts` then builds ADK's `LlmAgent` graph from the same
+`AgentSpec` and ADK's Runner executes the turn. Without the package that
+choice fails before the session is touched, naming the package. Both
+runtimes store the same events, so a conversation moves either way, and
+`npx melchizedek-doctor` prints the runtime in use, where the choice came
+from, and whether ADK is installed.
 
 ## 2. The syndicate YAML
 
@@ -120,18 +129,18 @@ Field reference:
 | `memory_retention_days` | root | Days a fact in this syndicate's namespace is kept; the server deletes older facts when it loads the syndicate and daily after. Requires `memory_namespace` (never applied to the shared default namespace). |
 | `dispatch` | root | Switches the syndicate from DELEGATE to PLAN-DISPATCH routing (§6). `default_route` (required) names the fail-static subagent; `route_key` / `reason_key` name the router's JSON properties (defaults `route` / `reason`). Honoured by every surface (the CLI, the server, the worker, evals). |
 | `workflow` | root | Switches the syndicate to a WORKFLOW (§6): a graph whose nodes are its agents plus declared `join`, `map`, `tool` and `ask_user` nodes, and whose `edges` say what runs after what and on which route. The orchestrator is a node like any other; nothing delegates. Cannot be combined with `dispatch`. Contract: `lib/workflow.ts`; worked example: `examples/pipeline.yaml`. |
-| `retries` | root | Self-correction, on by default ([ADR 0034](./wiki/decisions/0034-self-correction.md)): `model_errors` (default 2) retries a model reply ADK marks malformed (`MALFORMED_FUNCTION_CALL`) instead of failing the turn; `tool_errors` (default 3) answers a tool that threw with structured reflection guidance and caps its retries. `0` turns either off. Every retry is a model call under `max_steps`. |
+| `retries` | root | Self-correction, on by default ([ADR 0034](./wiki/decisions/0034-self-correction.md)): `model_errors` (default 2) retries a model reply marked malformed (`MALFORMED_FUNCTION_CALL`) instead of failing the turn; `tool_errors` (default 3) answers a tool that threw with structured reflection guidance and caps its retries. `0` turns either off. Every retry is a model call under `max_steps`. |
 | `guards` | root | Optional list of post-answer guard NAMES (`lib/guards/index.ts`). Each runs after the answering turn and before the reply publishes, receiving the final text plus every tool-result text of that turn, and rewrites in place rather than re-asking the model; its notes land in the `[STATUS]` stream. Guards declared by a syndicate reached through `yaml_reference:` count too — the server resolves the union via `collectGuards()`. Resolved by name, never by module path, so adding one is a deliberate act in code; **the published registry ships one, `science`** (citation checks for `research.yaml`); `registerGuard()` adds your own from code, and an unregistered name is warned about and skipped. |
 | `name` / `model` / `instruction` | agent | The agent triple. Any Gemini id, `claude-*`, or `ollama/*` for open-weight local models (see §5). |
 | `description` | subagent | **The delegation API.** The orchestrator reads this when deciding to hand off — write it like a function signature ("Use this subagent to…, pass it…"). |
 | `tools` | agent | Names resolved by the tool registry (§3). Long-term memory agents add `preload_memory` / `load_memory`. |
 | `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude 4.6 and earlier (2,048 / 8,192 / 16,384 tokens for low / medium / high), adaptive thinking with that effort on later Claude models ([ADR 0049](./wiki/decisions/0049-claude-requests-by-model-generation.md)), an effort word on GPT, Grok, Kimi, Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). Unset, each adapter keeps its own default. |
 | `generateContentConfig` | agent | Temperature, output caps. Its `thinkingConfig` and `reasoningEffort` are the older, provider-specific spelling of `reasoning`; setting either next to `reasoning` is a load error. |
-| `outputSchema` | agent | Structured-JSON contract. **Constraint:** an agent holding `outputSchema` cannot also hold transfer powers — the ADK deadlocks it. Keep schema-holders as leaf agents (see `critic.yaml`'s header comment for the war story). |
+| `outputSchema` | agent | Structured-JSON contract. **Constraint:** an agent holding `outputSchema` cannot also hold transfer powers — structured output does not combine with delegation on one agent. Keep schema-holders as leaf agents (see `critic.yaml`'s header comment for the war story). |
 | `yaml_reference` | subagent | Mount another syndicate file as a nested subagent. |
 | `a2a_agent_url` | subagent | A REMOTE agent over A2A (§6): the orchestrator delegates to it with one `request` argument; in plan-dispatch it can be a route. No `model`/`instruction` — the remote agent has its own. Credentials come from `A2A_AGENT_TOKENS`, never YAML. |
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
-| `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to ADK's LlmAgent. `includeContents: none` makes an agent see only the current message. |
+| `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to the agent on either runtime (the names are ADK's `LlmAgent` fields). `includeContents: none` makes an agent see only the current message. |
 | `fallback_model` | any agent | A model, ideally on another provider, that answers when this agent's model fails provider-side (5xx, 429, a connection reset, after its own retries) before producing any output, or while that provider's circuit is open: after `MODEL_BREAKER_THRESHOLD` consecutive provider failures (default 5; 0 disables) the provider is skipped for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx and a canceled turn are never redirected, and a stream that already produced text is never replayed elsewhere ([ADR 0044](./wiki/decisions/0044-fallback-model-and-circuit-breaker.md)). |
 | `mcp_tools` | subagent | The MCP server's tools this agent may use; any other tool the server lists is not exposed. On a dispatch route `require_approval` may name them ([ADR 0041](./wiki/decisions/0041-tool-vendors-get-least-privilege.md)). |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
@@ -139,7 +148,7 @@ Field reference:
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
 | `context` | orchestrator | Compacts a long conversation: when the last request's prompt passed `compact_after_tokens`, earlier turns become one summary (written by `summary_model`, default the agent's own) and the last `keep_recent_events` stay verbatim. The full history stays stored; only what the model reads shrinks. The orchestrator of a delegate syndicate only: a dispatch route already reads a bounded projection, a workflow node sees only its input. |
 | `mode` | workflow node | `"task"`: the agent works with its tools until it calls `finish_task`, whose arguments (matching its `outputSchema`) become the node's output. Workflow nodes only. |
-| `examples` | any agent | Few-shot exchanges, `[{ input, output }]` (up to 20), added to every request's instruction as a few-shot block, the one ADK's `ExampleTool` wrote (an Instruction tool, `lib/tools/examples.ts`); the model never calls it. Keeps worked examples out of the prose of `instruction`. |
+| `examples` | any agent | Few-shot exchanges, `[{ input, output }]` (up to 20), added to every request's instruction as a few-shot block, the one ADK's `ExampleTool` writes (an Instruction tool, `lib/tools/examples.ts`); the model never calls it. Keeps worked examples out of the prose of `instruction`. |
 | `skills` | any agent | Agent Skills (a directory of SKILL.md folders) the agent holds the way a coding harness does: every skill's name and description is appended to its instruction at compile time; `load_skill` reads one in full with the names of its files, `load_skill_resource` reads one file. `scripts: local` adds `run_skill_script`, which runs a skill's own scripts on this machine, each after a person approves (the `require_approval` pause), with PATH, HOME, the temp directory and the locale but none of the server's keys, plus the variable names listed under `env:` (or `secret_env:` for a secret-shaped name, ADR 0086), and stdout and stderr each cut at 20,000 characters; `tools:` names registry tools a skill's `allowed-tools` may unlock once loaded. Worked example: `examples/harness.yaml`; engine: `lib/tools/skillToolset.ts` over `lib/tools/skills/`, the same on both runtimes. |
 
 Validation happens at load: missing names, legacy option blocks, and
@@ -149,16 +158,16 @@ skipped with a warning at compile time.
 
 ## 3. Tools
 
-Registered in `lib/toolRegistry.ts` — one map from YAML name to ADK tool
-instance. A **Contract** is the engine's own Tool (`lib/tools/tool.ts`),
-defined once with `defineTool` and handed to the ADK runtime as a
-`FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`). An
-**Instruction tool** is the engine's own too: it declares no function and
-only writes into each request's instruction, reaching the ADK runtime
-through `toAdkInstructionTool`. A **server-side tool** is an own marker
+Registered in `lib/toolRegistry.ts` — one map from YAML name to tool. A
+**Contract** is the engine's own Tool (`lib/tools/tool.ts`), defined once
+with `defineTool`; the native loop runs it as it is. An **Instruction
+tool** is the engine's own too: it declares no function and only writes
+into each request's instruction. A **server-side tool** is an own marker
 (`lib/tools/nativeTools.ts`) that names the provider's tool and declares no
-function; the ADK runtime runs its sentinel (`toAdkNativeTool`), and every
-adapter recognises it by marker ([ADR 0062](./wiki/decisions/0062-server-side-tools-as-markers.md)):
+function, and every adapter recognises it by marker. On the optional `adk`
+runtime the same tools reach ADK through their wrappers in
+`lib/tools/adkTool.ts` (`toFunctionTool`, `toAdkInstructionTool`,
+`toAdkNativeTool`) ([ADR 0062](./wiki/decisions/0062-server-side-tools-as-markers.md)):
 
 | Name | Kind | Does |
 |---|---|---|
@@ -167,9 +176,9 @@ adapter recognises it by marker ([ADR 0062](./wiki/decisions/0062-server-side-to
 | `x_search` | xAI-only | Live search over X (Twitter) posts via xAI Agent Tools. Self-gates to `grok-*` agents; a silent no-op on every other provider, so mixed-provider YAMLs stay safe. Optional server-side constraints in `.env`: `XAI_X_SEARCH_FROM_DATE`/`_TO_DATE` (inclusive `YYYY-MM-DD`) and `_ALLOWED_HANDLES`/`_EXCLUDED_HANDLES` (max 20, mutually exclusive — allowlist wins). |
 | `collections_search` | xAI-only | Semantic search over xAI **Collections** — hosted document stores (PDFs/text/CSVs) uploaded at console.x.ai — server-side RAG with `collections://…` citations. Which collections: `XAI_COLLECTION_IDS` in `.env` (optional `XAI_COLLECTIONS_MAX_RESULTS`). Declared with no ids → omitted with a warning; non-xAI providers → silent no-op. |
 | `url_context` | Gemini built-in | Gemini reads the pages at URLs in the conversation, server-side (Google fetches them, not this host). On any other provider it is a no-op the doctor reports as dropped; use `web_extract` there. |
-| `google_search` | ADK built-in | Live web search — Gemini agents only (legacy alias; use `web_search`). |
+| `google_search` | Gemini built-in | Live web search — Gemini agents only (legacy alias; use `web_search`). |
 | `preload_memory` | Instruction tool | Silently injects similarity-matched facts into every request's instruction (ambient recall). The model never calls it. |
-| `load_memory` | Contract | Explicit tool call to search the fact store (deliberate recall). Both memory tools read the caller's own silo only and send the model what ADK's tools of the same names sent ([ADR 0059](./wiki/decisions/0059-memory-on-the-engines-own-interfaces.md)). |
+| `load_memory` | Contract | Explicit tool call to search the fact store (deliberate recall). Both memory tools read the caller's own silo only and send the model what ADK's tools of the same names send ([ADR 0059](./wiki/decisions/0059-memory-on-the-engines-own-interfaces.md)). |
 | `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive the AgentTool text boundary. |
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
@@ -179,8 +188,8 @@ adapter recognises it by marker ([ADR 0062](./wiki/decisions/0062-server-side-to
 **MCP tools** are the exception to the registry: a subagent with
 `mcp_server_url:` in its YAML gets its tools from a remote MCP server at
 load time. `lib/tools/mcpToolFactory.ts` dials the server over SSE,
-lists its tools, and makes each one an own Tool (`loadMcpTools`), which
-the ADK runtime runs as a `FunctionTool` (`createMcpTools`) — the
+lists its tools, and makes each one an own Tool (`loadMcpTools`; on the
+`adk` runtime, a `FunctionTool` through `createMcpTools`) — the
 agent's reach is decided by the server, not compiled in.
 `config/agents/examples/librarian.yaml` plus the demo catalog server
 (`npm run mcp:demo`, `scripts/demo_mcp_server.ts`) are the worked
@@ -234,8 +243,8 @@ example: `config/agents/examples/weather.yaml`, two keyless Open-Meteo specs
 in `examples/specs/`.
 
 > **Schema dialects, handled for you.** The factory emits Gemini-style
-> UPPERCASE schema types (`'OBJECT'`, `'STRING'`, …) because the ADK is
-> Gemini-native; every non-Gemini adapter normalizes them back to
+> UPPERCASE schema types (`'OBJECT'`, `'STRING'`, …), the `@google/genai`
+> dialect; every non-Gemini adapter normalizes them back to
 > standard lowercase JSON-Schema at request-build time
 > (`lib/models/schemaNormalize.ts`). MCP tools therefore work on any
 > provider's agents — Gemini, Claude, GPT, Grok, or Kimi.
@@ -346,13 +355,13 @@ accordingly — model optionality is a single YAML line per agent:
 
 | Model id | Provider | Adapter | Key | Native `web_search` |
 |---|---|---|---|---|
-| `gemini-*` | Google Gemini | ADK-native (`TracedGemini`) | `GOOGLE_GENAI_API_KEY` | ✅ grounding |
-| `claude-*` | Anthropic | `lib/models/claudeAdapter.ts` (Messages API; `ClaudeLlm` is its ADK shim) | `ANTHROPIC_API_KEY` | ✅ server tool |
-| `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` around `gptAdapter.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
-| `grok-*` | xAI | `lib/models/grokLlm.ts` around `grokAdapter.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
-| `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiLlm.ts` around `kimiAdapter.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
-| `ollama/*` | Local Ollama | `lib/models/ollamaLlm.ts` around `ollamaAdapter.ts` (chat completions) | none | ⚠ omitted + warning |
-| *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayLlm.ts` around `gatewayAdapter.ts` (chat completions) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
+| `gemini-*` | Google Gemini | `lib/models/geminiAdapter.ts` (`@google/genai`) | `GOOGLE_GENAI_API_KEY` | ✅ grounding |
+| `claude-*` | Anthropic | `lib/models/claudeAdapter.ts` (Messages API) | `ANTHROPIC_API_KEY` | ✅ server tool |
+| `gpt-*`, o-series | OpenAI | `lib/models/gptAdapter.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
+| `grok-*` | xAI | `lib/models/grokAdapter.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
+| `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiAdapter.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
+| `ollama/*` | Local Ollama | `lib/models/ollamaAdapter.ts` (chat completions) | none | ⚠ omitted + warning |
+| *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayAdapter.ts` (chat completions) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
 
 The xAI adapter carries the deepest capability surface: `grok-4.5`
 requests pin `reasoning.effort: "medium"` (`lib/config.ts`), SSE
@@ -362,9 +371,8 @@ structured outputs ride `outputSchema` → `text.format`, and two
 xAI-only tools — `x_search` and `collections_search` (§3) — turn on
 live X search and hosted-document RAG. All verified live on grok-4.5.
 
-**Moonshot AI (Kimi).** `kimi-*` ids route to `lib/models/kimiLlm.ts`, the
-ADK shim around `KimiAdapter` (`lib/models/kimiAdapter.ts`, on the
-chat-completions base), against `https://api.moonshot.ai/v1`
+**Moonshot AI (Kimi).** `kimi-*` ids route to `KimiAdapter`
+(`lib/models/kimiAdapter.ts`, on the chat-completions base), against `https://api.moonshot.ai/v1`
 (`MOONSHOT_BASE_URL` for a proxy). Get a key at platform.moonshot.ai; the
 `.cn` console serves mainland China. The family (USD per 1M tokens, October
 2026): `kimi-k3`, the flagship — 2.8T-parameter open-weight MoE, 1M context,
@@ -461,11 +469,13 @@ configured platform with its credential source and anything missing. These
 paths are tested against mocked SDK clients and have **not** been run against
 the live clouds from this repository.
 
-`lib/models/registry.ts` is the single routing seam:
-`registerAvailableProviders()` registers every adapter whose key is
-present (Ollama needs none) into the ADK's LLM registry, so the YAML
-string finds its provider; missing keys produce clear skip messages,
-and only the providers a syndicate actually declares are required.
+`lib/models/registry.ts` is the single routing seam: `resolveAdapter`
+turns the YAML's model string into its provider's adapter, and
+`registerAvailableProviders()` reports which providers have a key
+(Ollama needs none); missing keys produce clear skip messages, and only
+the providers a syndicate actually declares are required. With
+`@google/adk` installed it also registers each provider's ADK class in
+ADK's LLM registry, for the `adk` runtime.
 Mixed graphs are supported — each agent picks its own provider, one
 line each. `config/agents/examples/claude.yaml` is the minimal Claude example;
 `config/agents/examples/model_zoo.yaml` declares one lightweight agent per
@@ -475,9 +485,8 @@ prompt to every available provider, printing input, thinking (qwen3
 Grok reasoning, Kimi reasoning_content), output, and a per-request token/latency trace; add
 `-- --search` to watch four native web searches plus the local
 omission. Providers without keys are skipped, never fatal. Each agent
-runs as a one-agent syndicate through `runSyndicateTurn`, so
-`MELCHIZEDEK_RUNTIME=native npm run demo:models` runs the same demo on
-the engine's own loop.
+runs as a one-agent syndicate through `runSyndicateTurn`, on the
+default runtime.
 
 Reasoning/thinking: scratchpads from every provider are surfaced as
 dimmed THINKING output and kept out of session history. On Claude, any
@@ -494,30 +503,30 @@ response (ADR 0050).
 The engine's own model contract is `lib/models/contract.ts` (ADR 0048),
 importable as `melchizedek-agents/models/contract`. It defines the message
 format, request, response stream and adapter interface of the native
-runtime (ADR 0045), with no `@google/*` in its import graph, and the
-adapters move onto it in stages. `wiki/models/model-contract.md` gives
-each field's purpose and its mapping onto every provider's wire. While ADK
-runs the turn, an adapter on the contract runs behind `AdkShim`
-(`melchizedek-agents/models/adkShim`), an ADK `BaseLlm` that charges each
-call against `max_steps`, passes the turn's abort signal and opens the
-`llm.request` span, as the ADK-path adapters do (ADR 0053).
-GPT and Grok run on the contract already: `GptLlm` and `GrokLlm` are that
-shim around `GptAdapter` (`melchizedek-agents/models/gptAdapter`) and
-`GrokAdapter` (`melchizedek-agents/models/grokAdapter`), and keep the token
-counts and server-side tool record the ledger has always had for them
+runtime (ADR 0045), with no `@google/*` in its import graph, and every
+provider's adapter implements it. `wiki/models/model-contract.md` gives
+each field's purpose and its mapping onto every provider's wire. The
+native loop calls the adapters directly, charging each call against
+`max_steps`, passing the turn's abort signal and opening the
+`llm.request` span (ADR 0053). On the optional `adk` runtime an adapter
+runs behind `AdkShim` (`melchizedek-agents/models/adkShim`), an ADK
+`BaseLlm` that does the same; `ClaudeLlm`, `GptLlm`, `GrokLlm`, `KimiLlm`,
+`OllamaLlm` and `GatewayLlm` are that shim around each provider's adapter
 (ADR 0056).
 Gemini has two adapters on the contract:
 `melchizedek-agents/models/geminiAdapter` (`GeminiAdapter`, on
-`@google/genai` with no ADK) and, until that one passes its live parity
-run, `melchizedek-agents/models/adkGeminiAdapter` (`AdkGeminiAdapter`,
-a temporary wrapper that runs the request through `TracedGemini`, now in
-`melchizedek-agents/models/tracedGemini`).
+`@google/genai` with no ADK), the default
+([ADR 0100](./wiki/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)),
+and `melchizedek-agents/models/adkGeminiAdapter` (`AdkGeminiAdapter`, a
+wrapper that runs the request through ADK's Gemini as `TracedGemini`,
+in `melchizedek-agents/models/tracedGemini`), which needs `@google/adk`
+and is removed in 1.0.0.
 `resolveAdapter(modelId, { apiKey, keyProvider, endpoint, gemini })` in
 `melchizedek-agents/models/registry` returns any id's contract adapter
 from the same prefix table, gateway rule, BYOK scoping and endpoints as
 `resolveModel`, with no ADK registry (ADR 0060). A Gemini id gets
-`AdkGeminiAdapter` unless `GEMINI_ADAPTER=engine` (or `gemini: 'engine'`)
-asks for `GeminiAdapter`. `resolveAdapterWithFallback` wraps an agent's
+`GeminiAdapter` unless `GEMINI_ADAPTER=adk` (or `gemini: 'adk'`) asks for
+`AdkGeminiAdapter`. `resolveAdapterWithFallback` wraps an agent's
 model and `fallback_model` in a `FallbackAdapter`.
 
 `melchizedek-agents/model` is the model layer on its own, with no
@@ -530,7 +539,7 @@ helpers. A project that only calls models installs the package without ADK
 and imports from there. Its `resolveAdapter` gives a Gemini id
 `GeminiAdapter`; asking it for `adk` (`gemini: 'adk'` or
 `GEMINI_ADAPTER=adk`) throws and names `melchizedek-agents/models/registry`,
-whose `resolveAdapter` keeps the ADK default above. `AdkGeminiAdapter`, the
+whose `resolveAdapter` can return the ADK wrapper. `AdkGeminiAdapter`, the
 ADK shims, `TracedGemini` and `resolveModel` are not in it.
 
 Every model request also emits an `llm.request` OpenTelemetry span
@@ -552,24 +561,24 @@ kept by policy (`TELEMETRY_PAYLOADS=off|errors|sample|all`,
 `TELEMETRY_PAYLOAD_SAMPLE`, `TELEMETRY_PAYLOAD_TTL_DAYS`) and expired by
 `melchizedek_prune_telemetry()`. A row from a failed call's `llm.request`
 span holds the request in the model contract's shape (`model`, `system`,
-`messages`, `tools`, …), whichever adapter made the call; a row from ADK's
-own `call_llm` span holds ADK's request. On the native runtime the loop
-opens `agent.invoke <name>`, `model.call` and `tool.execute <name>` spans
-where ADK opens `invoke_agent`, `call_llm` and `execute_tool`, and the ledger
-reads both (ADR 0076); a clean call's row then comes from `model.call` and
-holds the request and the adapter's response in the contract's shapes. The view `adk_turns_production` excludes
+`messages`, `tools`, …), whichever adapter made the call. The native loop
+opens `agent.invoke <name>`, `model.call` and `tool.execute <name>` spans;
+a clean call's row comes from `model.call` and holds the request and the
+adapter's response in the contract's shapes. On the `adk` runtime ADK opens
+`invoke_agent`, `call_llm` and `execute_tool` instead, a `call_llm` row
+holds ADK's request, and the ledger reads both (ADR 0076). The view `adk_turns_production` excludes
 eval and classifier turns. Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).
 
 **Open-weight local models**: `ollama/*` ids (e.g. `ollama/qwen3:8b`)
-route through `lib/models/ollamaLlm.ts` to a local Ollama daemon over
+route through `lib/models/ollamaAdapter.ts` to a local Ollama daemon over
 its OpenAI-compatible API (`OLLAMA_BASE_URL`, default
 `http://localhost:11434/v1`). No key is required, and a syndicate whose
 *every* agent is `ollama/*` runs with no `.env` at all —
 `config/agents/examples/tutor.yaml` (single agent), `council.yaml` (council)
 and `assistant.yaml` (conversation, summaries, a task list, background jobs)
-are the worked examples. The adapter translates ADK content to
+are the worked examples. The adapter translates the contract's messages to
 OpenAI-style messages, including tool calls (so delegation works),
 image parts as data URIs (so `ollama/qwen3-vl:8b` can see), and JSON
 response mode; reasoning models' `<think>…</think>` scratchpads are
@@ -790,8 +799,8 @@ same conversation (same `contextId`; the same `taskId` works too) with the text
 `{ "approval": { "id": "<approval_id>", "approved": true } }`. Approved, the
 call runs with the arguments shown; rejected, the model is told and answers
 without it. A message that is not an answer gets the same request back,
-without a model call. ADK pins the call and its arguments, so an approval
-cannot run a different call.
+without a model call. The paused call and its arguments are pinned, so an
+approval cannot run a different call.
 
 Gates are allowed on the orchestrator and on the subagents of a
 plan-dispatch syndicate, which run as the turn's own agent, and on the
@@ -882,8 +891,8 @@ No token, code, client secret or verifier is written to a page, an event, a
 log line or the model's context. The pending flows live in the process: run
 one replica, or route the callback to the instance that paused the call. In
 code, `runSyndicateTurn({ …, toolCredentials })` returns
-`status: 'input-required'` with `consent`. On the ADK runtime an open consent
-request throws `UnsupportedOnRuntimeError`.
+`status: 'input-required'` with `consent`. On the optional `adk` runtime,
+resuming an open consent request throws `UnsupportedOnRuntimeError`.
 
 #### Limits
 
@@ -1097,9 +1106,9 @@ emitted the bare tool name in place of a 2,599-character answer.
 Plan-dispatch has no relay turn to fail, and the classifier's output
 shrinks from a whole relayed answer to ~15 tokens of JSON.
 
-**Why the classifier is tool-less.** ADK refuses to combine
-`outputSchema` with AgentTool delegation on one agent (see
-`config/agents/examples/critic.yaml` — an orchestrator holding both deadlocks).
+**Why the classifier is tool-less.** Structured output does not combine
+with delegation on one agent (see `config/agents/examples/critic.yaml`,
+whose header tells how an orchestrator holding both deadlocked on ADK).
 That constraint shapes the method: the classifier is a leaf, and the
 hand-off happens in code, where it can be logged, traced, and streamed
 to the user as progress.
@@ -1107,8 +1116,9 @@ to the user as progress.
 **Sessions.** Every *route* runs in the shared `<contextId>` session, so
 one transcript accumulates across routes and long-term memory ingests
 real answers instead of a relay copy of them. Sharing the session is
-necessary but not sufficient: ADK renders an event by comparing
-`event.author` against the agent now running, and under plan-dispatch
+necessary but not sufficient: a stored event is rendered by comparing
+`event.author` against the agent now running (ADK's rule, which the native
+loop keeps), and under plan-dispatch
 every route is its own root agent, so the whole history fails that
 comparison and `convertForeignEvent` rewrites it to `role: "user"`
 prefixed "For context:". A route reading the raw shared session
@@ -1135,8 +1145,8 @@ traffic before any prompt, and the memory service's `serializeEvents` walks
 ~90% of every byte stored (`thoughtSignature` alone 73.3%), so they are
 stripped from the SERIALIZED COPY — the live in-memory session keeps them,
 or the agent's own tool loop breaks mid-turn. An elided tool result keeps
-its `id` and `name` and gains a size marker, because ADK pairs calls to
-responses by id and throws on a widowed half. 21.72 MB → 4.88 MB; existing
+its `id` and `name` and gains a size marker, because both runtimes pair
+calls to responses by id and a widowed half breaks the history. 21.72 MB → 4.88 MB; existing
 rows shrink retroactively on their next write. Note the constraint this
 rests on: dropping the signature is safe only because stored events are
 never replayed to a model. The quadratic upload is untouched — `appendEvent`
@@ -1166,9 +1176,9 @@ contract lives in `lib/dispatch.ts`.
 specialist runs, so an A2A client can show a waiting user what is
 happening. The `reason` field is written for that reader, not for logs.
 
-Implemented in `scripts/a2a_server.ts`; like `yaml_reference`, it is
-A2A-only — the CLI runner (`scripts/syndicate_chat.ts`) still compiles
-every syndicate in DELEGATE mode.
+Implemented in `runSyndicateTurn`, so every surface honours it: the A2A
+server, the CLI runner (`scripts/syndicate_chat.ts`), the worker and the
+evals.
 
 ### Workflows (`workflow:`) — the third orchestration method
 
@@ -1240,10 +1250,10 @@ that node, and the graph with it: the turn ends `input-required` with
 `result.approval`, as any approval does, and the next message, the
 person's decision, resumes the node's own run, which runs or refuses the
 pinned call once and walks on. Any other message repeats the request and
-runs nothing. Gates on workflow nodes run on the native runtime only: on
-ADK, `runSyndicateTurn` refuses such a workflow with
-`UnsupportedOnRuntimeError` before any model call, because ADK's resume
-starts the node afresh and never runs the pinned call. The schema refuses
+runs nothing. On the optional `adk` runtime `runSyndicateTurn` refuses
+such a workflow with `UnsupportedOnRuntimeError` before any model call,
+because ADK's resume starts the node afresh and never runs the pinned
+call. The schema refuses
 a gate on an agent a `map` node runs.
 
 **As a subagent.** A DELEGATE syndicate's `yaml_reference` to a workflow
@@ -1258,12 +1268,12 @@ or a workflow node, a workflow syndicate is still its orchestrator alone.
 `a2a_agent_url` subagents are refused inside a workflow by the schema. An
 `ask_user` tool on a node agent is refused too: use an `ask_user` node. The records are [ADR 0030](./wiki/decisions/0030-workflow-graphs.md) and
 [ADR 0098](./wiki/decisions/0098-workflow-subagent-and-node-approvals.md);
-the contract is `lib/workflow.ts`, on ADK's `Workflow`, and on the native
-runtime `lib/workflow/turn.ts`, on the engine's own scheduler
-([ADR 0095](./wiki/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)).
-On native, a conversation paused inside an agent node on anything but an
-approval, or inside a map item (which only ADK resumes), fails the next
-turn with `RESUME_UNSUPPORTED`.
+the turn is `lib/workflow/turn.ts`, on the engine's own scheduler
+([ADR 0095](./wiki/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)),
+and `lib/workflow.ts` compiles the same graph onto ADK's `Workflow` for
+the `adk` runtime. A conversation paused inside an agent node on anything
+but an approval, or inside a map item, fails the next turn with
+`RESUME_UNSUPPORTED`.
 
 ## 7. Extending the framework
 
@@ -1293,10 +1303,10 @@ subagents, and how a tool signature can enforce an epistemic rule (the
 blind inventory).
 
 **Add a provider**: follow `claudeAdapter.ts` (SDK-based, key-gated, a
-`ModelAdapter` on the engine's model contract, run under ADK by its shim
-`claudeLlm.ts`) or, for a chat-completions API, `ollamaAdapter.ts`
-(fetch-based, keyless: a `ChatCompletionsAdapter` subclass, run under ADK
-by its shim `ollamaLlm.ts`), and register it behind a model-id prefix.
+`ModelAdapter` on the engine's model contract; its ADK shim `claudeLlm.ts`
+serves the optional `adk` runtime) or, for a chat-completions API,
+`ollamaAdapter.ts` (fetch-based, keyless: a `ChatCompletionsAdapter`
+subclass; shim `ollamaLlm.ts`), and register it behind a model-id prefix.
 
 **Point an agent at an MCP server**: set `mcp_server_url:` on a
 subagent. `scripts/demo_mcp_server.ts` is a complete server to copy —

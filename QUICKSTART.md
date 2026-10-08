@@ -82,9 +82,10 @@ after answering:
 npm run syndicate:critic -- "In two sentences, why did the Library of Alexandria decline?"
 ```
 
-The syndicate layer itself is optional. `scripts/direct_call.ts` launches
-a single ADK agent with no YAML at all — conventional, code-first agent
-calling, and the block to copy when embedding an agent in your own code:
+The syndicate layer itself is optional. `scripts/direct_call.ts` makes
+a single model call with no YAML at all — the engine's model contract on
+its own (`melchizedek-agents/model`), and the block to copy when embedding
+a model call in your own code:
 
 ```bash
 npm run demo:direct -- "In one sentence: what is an agent?"

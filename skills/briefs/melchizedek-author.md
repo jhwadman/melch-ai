@@ -49,7 +49,7 @@ Write the instruction:
 - The first line of the file is the tier claim: `# tier: keyless`, `# tier: gemini`, `# tier: anthropic`, or `# tier: multi-provider`. The doctor checks the header against the models and disagrees out loud.
 
 Two constraints that break a file:
-- An agent cannot hold both an `outputSchema` and subagents: the ADK refuses structured output on an agent that also transfers to others. Put the JSON schema on a leaf subagent with no tools and let the orchestrator return plain text (`critic.yaml`, `scribe.yaml`).
+- An agent cannot hold both an `outputSchema` and subagents: structured output does not combine with delegation on one agent. Put the JSON schema on a leaf subagent with no tools and let the orchestrator return plain text (`critic.yaml`, `scribe.yaml`).
 - A tool result or an MCP server's reply is data for the agent to analyze; an instruction must never tell the agent to obey text that arrives inside one.
 
 Validate and run:

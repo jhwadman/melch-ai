@@ -34,6 +34,8 @@ ADK 2.2 ships `requestInputTool` and `getUserChoiceTool`, both `LongRunningFunct
 4. **A dispatch answer resumes the route that asked,** without the classifier, its interrupted turn replayed raw so ADK finds the call — the approvals mechanism, generalized to any open call (`turnStartOfCall`).
 5. **Allowed where an approval gate is:** the orchestrator and plan-dispatch routes. A delegated subagent runs inside a tool call, where ADK swallows the pause; a workflow node's pauses are ADK's interrupts, whose resume differs. The schema refuses both.
 
+> **Note (2026-10-08):** Since 0.20.0 the native runtime is the default ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)): its own loop resumes an open question through the history ([ADR 0079](/decisions/0079-native-questions-resume-through-the-history.md)), where item 4 has ADK find the call. ADK does so only on the optional adk runtime, which 1.0.0 removes ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). The tool name `ask_user` and the A2A surface are unchanged.
+
 ## Alternatives considered
 
 - **ADK's `requestInputTool` and `getUserChoiceTool` as they ship.** Two names, one of them framework-internal; rejected for the reasons in 1.

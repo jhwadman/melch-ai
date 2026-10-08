@@ -26,7 +26,7 @@ sources:
 
 # Skill harness
 
-An agent whose YAML carries a `skills:` block holds a directory of Agent Skills (the open SKILL.md standard: one subdirectory per skill, named as its frontmatter names it, holding `SKILL.md` and optionally `references/`, `assets/` and `scripts/`) the way Claude Code, Codex or Gemini CLI hold theirs ([ADR 0029](/decisions/0029-skills-read-like-a-harness.md)). The harness is the engine's own: its parser, loader, executor and tools import nothing from ADK, the native loop runs them directly, and the ADK runtime runs them through the one tool adapter ([ADR 0083](/decisions/0083-skills-harness-on-the-own-tool-base.md)).
+An agent whose YAML carries a `skills:` block holds a directory of Agent Skills (the open SKILL.md standard: one subdirectory per skill, named as its frontmatter names it, holding `SKILL.md` and optionally `references/`, `assets/` and `scripts/`) the way Claude Code, Codex or Gemini CLI hold theirs ([ADR 0029](/decisions/0029-skills-read-like-a-harness.md)). The harness is the engine's own: its parser, loader, executor and tools import nothing from ADK, the native loop runs them directly, and the optional adk runtime runs them through the one tool adapter ([ADR 0083](/decisions/0083-skills-harness-on-the-own-tool-base.md)).
 
 ```yaml
 orchestrator:
@@ -61,7 +61,7 @@ orchestrator:
 | `lib/tools/skills/tools.ts` | `SkillToolset` and the four tools. |
 | `lib/tools/skillToolset.ts` | what `lib/compile.ts` calls: `buildSkillHarness`, `loadSkillSuite`, `skillSuiteProblems`, `skillsInstruction`, `HarnessSkillToolset`. |
 
-`SkillToolset` is an own **Toolset** (`lib/tools/tool.ts`): its `getTools(ctx)` lists the harness tools, then the permitted tools the agent's loaded skills name, read from the session state key `_adk_activated_skill_<agent>`. `lib/compile.ts` hands the ADK runtime its `toAdkToolset` form; `compileNative` reads the Toolset back (`toolsetOf`), and the native loop expands it before every request and when an approval resumes.
+`SkillToolset` is an own **Toolset** (`lib/tools/tool.ts`): its `getTools(ctx)` lists the harness tools, then the permitted tools the agent's loaded skills name, read from the session state key `_adk_activated_skill_<agent>`. `lib/compile.ts` hands the adk runtime its `toAdkToolset` form; `compileNative` reads the Toolset back (`toolsetOf`), and the native loop expands it before every request and when an approval resumes.
 
 ## Loading, and what is bounded
 

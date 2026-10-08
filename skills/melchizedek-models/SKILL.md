@@ -1,6 +1,6 @@
 ---
 name: melchizedek-models
-description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, Kimi, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent settings such as how hard an agent reasons. Use when the user changes a model line, adds a provider key, wants an agent to think more or less, sees Model not found or a gateway error, or asks which keys a syndicate needs."
+description: "Choose and wire a model for a Melchizedek agent: how a model id routes to Gemini, Claude, GPT, Grok, Kimi, or local Ollama, which environment variable each needs, the gateway fallback, the doctor, and per-agent settings such as how hard an agent reasons. Use when the user changes a model line, adds a provider key, wants an agent to think more or less, sees a missing-key error, Model not found or a gateway error, or asks which keys a syndicate needs."
 ---
 
 ## How a model id routes
@@ -14,7 +14,7 @@ The runtime reads the prefix of each `model:` string to select the provider:
 | `grok-*` | xAI |
 | `kimi-*` | Moonshot AI (Kimi) |
 | `ollama/<model>` | Local Ollama |
-| Everything else | Gemini (ADK-native default) |
+| Everything else | Gemini (the default, on the engine's own Gemini adapter) |
 
 The engine maintains no allowlist. You can specify any model id that the provider currently serves. You can add a newly released model with a one-line YAML change in your syndicate file. For syndicate authoring rules, see `melchizedek-author`.
 
@@ -44,7 +44,7 @@ Each provider requires a distinct environment variable in your `.env` file or pr
 - Moonshot AI (Kimi): `MOONSHOT_API_KEY`
 - Ollama: no key for `ollama/*`
 
-The runtime registers a provider only when its matching key is present. When you omit the key, the runtime logs the provider as disabled, and any agent on that provider halts with `Model not found`.
+A provider is available only when its matching key is present. When you omit the key, the doctor and the startup log report the provider as disabled, and any agent on that provider fails its turn with an error naming the key, such as `ANTHROPIC_API_KEY is not set in environment.` On the optional `adk` runtime the same agent fails with `Model not found`.
 
 The `# tier:` comment on the first line of every starter-pack file states its cost class: `keyless`, a single provider name, or `multi-provider`. The doctor command verifies this comment against the models declared in the file.
 
@@ -138,7 +138,7 @@ npm run demo:models
 
 This command sends one prompt through each agent.
 
-In code, import `registerAvailableProviders` from `melchizedek-agents`. This function registers every provider whose key is present in your environment, so a plain ADK `LlmAgent` can take any of these ids. To execute a single agent without a YAML file inside a clone, run:
+In code, import `registerAvailableProviders` from `melchizedek-agents`. This function reports which providers have a key in your environment; with the optional `@google/adk` installed, it also registers them for the `adk` runtime. To call any of these ids directly, use `resolveAdapter(modelId)` from `melchizedek-agents/model`, which needs no ADK. To make a single model call without a YAML file inside a clone, run:
 
 ```bash
 npm run demo:direct -- --model ollama/qwen3:8b hello
@@ -148,7 +148,7 @@ npm run demo:direct -- --model ollama/qwen3:8b hello
 
 When a model fails to run, consult the error message:
 
-- `Model not found`: The provider's key is unset for a `claude-*`, `gpt-*`, `grok-*`, or `kimi-*` id. Set the required provider key, or supply `MODEL_GATEWAY` and `MODEL_GATEWAY_API_KEY`.
+- `<KEY> is not set in environment.` (for example `OPENAI_API_KEY`), or `Model not found` on the optional `adk` runtime: The provider's key is unset for a `claude-*`, `gpt-*`, `grok-*`, or `kimi-*` id. Set the required provider key, or supply `MODEL_GATEWAY` and `MODEL_GATEWAY_API_KEY`.
 - `GATEWAY_HTTP_ERROR ... 404/400`: The gateway rejected the mapped id. Fix the name with `MODEL_GATEWAY_MODEL_MAP`.
 - `GATEWAY_KEY_MISSING`: You set `MODEL_GATEWAY` without `MODEL_GATEWAY_API_KEY`. Set `MODEL_GATEWAY_API_KEY` in your `.env` file.
 - `OLLAMA_UNREACHABLE`: Ollama is not running (`ollama serve`) or you have not pulled the requested model (`ollama list`).

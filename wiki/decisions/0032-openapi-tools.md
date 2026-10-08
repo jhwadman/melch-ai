@@ -35,6 +35,8 @@ What it does not decide is exposure: it exposes every operation, calls whatever 
 5. **Bounded results and readable failures.** A response over 20,000 characters is cut and marked; a network failure returns `{ error }` to the model instead of throwing into the runner.
 6. **Files, never URLs.** A spec fetched at compile would be a second outbound surface, and a spec that changes under a running agent changes its tools without review.
 
+> **Note (2026-10-08):** Since 0.20.0 the native runtime is the default ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)). OpenAPI tools are built on the engine's own types and caller ([ADR 0063](/decisions/0063-openapi-parser-on-the-engines-own-types.md), [ADR 0067](/decisions/0067-openapi-calls-on-the-engines-own-caller.md)), and item 2's confirmation interrupt is raised by the native loop; ADK takes part only on the optional adk runtime, which 1.0.0 removes ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
+
 ## Alternatives considered
 
 - **Expose every operation by default** (ADK's behaviour). Rejected: a spec's DELETE would reach the model the moment a file is pointed at.

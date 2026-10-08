@@ -44,6 +44,8 @@ Three facts constrain the design, each found by running ADK, not by reading it:
 6. **Resume runs the agent that asked.** A plan-dispatch resume skips classification and runs the route whose agent raised the request. The projection keeps the interrupted turn's events raw, so ADK finds the pinned call.
 7. **Storage keeps replay valid.** A stored function-call part's thought signature becomes Gemini's documented `skip_thought_signature_validator` value instead of being dropped. The model loses its private reasoning for that step, not the ability to continue.
 
+> **Note (2026-10-08):** On the native runtime, the default since 0.20.0 ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)), the engine's own loop raises and resumes the confirmation, pinned to the stored call and its arguments as ADK's gate pins it ([ADR 0077](/decisions/0077-native-approvals-port-the-confirmation-processor.md)); ADK's gate (items 2 and 6) does the work only on the optional adk runtime, which 1.0.0 removes ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). The interrupt name `adk_request_confirmation` and the A2A surface are unchanged.
+
 ## Alternatives considered
 
 - **Gate in the policy plug point** (`authorize` before every tool call). Rejected: it decides before the model's arguments are known to a person, and it has no way to wait for one.

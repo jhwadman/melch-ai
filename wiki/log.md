@@ -3,6 +3,18 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —explains→ /overview/architecture.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —explains→ /decisions/0024-adk-behind-the-runtime-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —explains→ /decisions/0007-engine-as-package.md
 
 by claude-code/claude-opus-5-5
