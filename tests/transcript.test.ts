@@ -15,8 +15,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { spawnSync } from 'node:child_process';
+import { InMemorySessionService } from '@google/adk';
 import type { Event } from '@google/adk';
-import { projectTranscript, renderTranscriptDigest, trimEventForStorage } from '../lib/session/transcript.ts';
+import { ProjectedSessionService, projectTranscript, renderTranscriptDigest, trimEventForStorage } from '../lib/session/transcript.ts';
+import { SupabaseSessionService } from '../lib/session/supabaseSessionService.ts';
+import { asSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { createTurnEvent } from '../lib/runtime/events.ts';
+import type { TurnEvent, TurnEventInit } from '../lib/runtime/events.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import type { SessionService } from '../lib/runtime/sessions.ts';
+import { fakeSupabase } from './helpers/fakeSupabase.ts';
 
 const user = (text: string): Event => ({ author: 'user', content: { role: 'user', parts: [{ text }] } } as Event);
 const agent = (author: string, parts: unknown[]): Event =>
@@ -286,4 +294,75 @@ test('the digest keeps only the newest maxTurns lines', () => {
 
 test('an empty session yields an empty digest, so the router sees no block at all', () => {
   assert.equal(renderTranscriptDigest([]), '');
+});
+
+// ── The projection as the engine's session store (ADR 0058) ───────────────
+
+const KEY = { appName: 'desk', userId: 'u1', sessionId: 'thread' };
+
+/** THREAD as stored events: ids, timestamps and actions, as a store holds them. */
+function storedThread(): TurnEvent[] {
+  return THREAD.map((e, i) => createTurnEvent({ ...(structuredClone(e) as unknown as TurnEventInit), id: `t${i}`, timestamp: 100 + i }));
+}
+
+/** Seeds KEY with THREAD through a store's engine face. */
+async function seeded(store: SessionService): Promise<void> {
+  const session = await store.create(KEY);
+  for (const event of storedThread()) await store.append(session, event);
+}
+
+for (const [name, make] of [
+  ['an engine store', () => new InProcessSessionService()],
+  ['an ADK store', () => new InMemorySessionService()],
+  ['a store with both faces', () => new SupabaseSessionService(fakeSupabase().client)],
+] as const) {
+  test(`the projection is an engine store over ${name}: get projects history, append lands in both views`, async () => {
+    const inner = make();
+    const store = asSessionService(inner);
+    await seeded(store);
+    const projected: SessionService = new ProjectedSessionService(inner, 'Conversationalist');
+
+    const view = (await projected.get(KEY))!;
+    assert.deepEqual(view.events.map((e) => e.author), ['user', 'Conversationalist', 'user'], 'tool traffic and thoughts are gone');
+    assert.match((view.events[1]!.content!.parts![0] as { text: string }).text, /^\[Analyst\] MU: accumulate/);
+
+    // The running agent's own tool call must stay visible to it, unprojected.
+    const inFlight = createTurnEvent({
+      id: 'c1',
+      timestamp: 200,
+      invocationId: 'e-2',
+      author: 'Conversationalist',
+      content: { role: 'model', parts: [{ functionCall: { id: 'call-1', name: 'load_memory', args: {} } }] },
+      actions: { stateDelta: { route: 'Conversationalist', 'temp:t': 1 } },
+    });
+    const stored = await projected.append(view, inFlight);
+    assert.deepEqual(stored.actions.stateDelta, { route: 'Conversationalist' });
+    assert.equal(view.events.at(-1)!.id, 'c1', 'the projected view holds the new event');
+    assert.equal(view.state.route, 'Conversationalist');
+
+    const real = (await store.get(KEY))!;
+    assert.deepEqual(real.events.map((e) => e.id), ['t0', 't1', 't2', 't3', 't4', 'c1'], 'the real session keeps every event, once');
+    assert.ok(JSON.stringify(real.events[1]).includes('My Micron Monday'), 'the durable record keeps the thought');
+    assert.equal(real.state.route, 'Conversationalist');
+    assert.equal(real.lastUpdateTime, 200);
+
+    // A partial event goes nowhere; create, list and delete reach the store.
+    assert.equal((await projected.append(view, { ...inFlight, id: 'p', partial: true })).partial, true);
+    assert.equal((await store.get(KEY))!.events.length, 6);
+    assert.equal((await projected.create(KEY)).events.length, 6, 'a second create keeps the conversation');
+    assert.deepEqual((await projected.list({ appName: KEY.appName })).sessions.map((s) => s.id), ['thread']);
+    await projected.delete(KEY);
+    assert.equal(await store.get(KEY), undefined);
+  });
+}
+
+test('the engine face replays the interrupted turn raw, as the ADK face does', async () => {
+  const store = new InProcessSessionService();
+  await seeded(store);
+  const projected = new ProjectedSessionService(store, 'Analyst', { rawFrom: () => 1 });
+  const viaEngine = (await projected.get(KEY))!;
+  const viaAdk = (await projected.getSession(KEY))!;
+  assert.equal(JSON.stringify(viaEngine.events), JSON.stringify(viaAdk.events));
+  assert.ok(JSON.stringify(viaEngine.events).includes('load_memory'), 'the raw tail keeps its tool call');
+  assert.equal(viaEngine.events[0]!.author, 'user');
 });

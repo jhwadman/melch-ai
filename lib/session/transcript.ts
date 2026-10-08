@@ -52,6 +52,19 @@ import type {
   Event,
 } from '@google/adk';
 
+import { AdkSessionServiceForEngine, asAdkSessionService, isAdkSessionService, isSessionService } from '../runtime/adkSessionBridge.ts';
+import type { TurnEvent } from '../runtime/events.ts';
+import { applyEvent } from '../runtime/sessions.ts';
+import type {
+  CreateSessionRequest as EngineCreateSessionRequest,
+  GetSessionOptions,
+  ListSessionsRequest as EngineListSessionsRequest,
+  ListSessionsResult,
+  Session as EngineSession,
+  SessionKey,
+  SessionService,
+} from '../runtime/sessions.ts';
+
 /** Tuning for {@link projectTranscript}. Defaults are the production values. */
 export interface ProjectionOptions {
   /**
@@ -357,17 +370,27 @@ export function renderTranscriptDigest(
  * one. Only history is projected; the current turn never is.
  *
  * Construct one per turn — it is bound to a single agent name.
+ *
+ * It has both faces of a session store (ADR 0058): ADK's BaseSessionService
+ * for the ADK runtime, and the engine's SessionService (`get`, `append`, …,
+ * lib/runtime/sessions.ts) for the native one. The store underneath may be
+ * either, or both; lib/runtime/adkSessionBridge.ts supplies a face it lacks.
  */
-export class ProjectedSessionService extends BaseSessionService {
+export class ProjectedSessionService extends BaseSessionService implements SessionService {
   private readonly inner: BaseSessionService;
+  private readonly own: SessionService;
   private readonly forAgent: string;
   private readonly options: ProjectionOptions;
-  /** Real sessions handed out by `getSession`, keyed by identity. */
-  private readonly stored = new Map<string, Session>();
+  /** Real sessions handed out by `getSession` and `get`, keyed by identity. */
+  private readonly stored = new Map<string, Session | EngineSession>();
 
-  constructor(inner: BaseSessionService, forAgent: string, options: ProjectionOptions = {}) {
+  constructor(inner: BaseSessionService | SessionService, forAgent: string, options: ProjectionOptions = {}) {
     super();
-    this.inner = inner;
+    // Anything that is not an engine-only store is taken as ADK's, as it
+    // always was, so the ADK face reaches the same object it did.
+    const engineOnly = isSessionService(inner) && !isAdkSessionService(inner);
+    this.inner = engineOnly ? asAdkSessionService(inner) : (inner as BaseSessionService);
+    this.own = isSessionService(inner) ? inner : new AdkSessionServiceForEngine(inner as BaseSessionService);
     this.forAgent = forAgent;
     this.options = options;
   }
@@ -375,6 +398,51 @@ export class ProjectedSessionService extends BaseSessionService {
   private key(appName: string, userId: string, sessionId: string): string {
     return `${appName}:${userId}:${sessionId}`;
   }
+
+  /** The projected history, with the interrupted turn raw when this read resumes one. */
+  private project(events: Event[]): Event[] {
+    const rawFrom = this.options.rawFrom?.(events);
+    return rawFrom === undefined
+      ? projectTranscript(events, this.forAgent, this.options)
+      : [...projectTranscript(events.slice(0, rawFrom), this.forAgent, this.options), ...events.slice(rawFrom)];
+  }
+
+  // ── The engine's interface ─────────────────────────────────────────────────
+
+  async create(request: EngineCreateSessionRequest): Promise<EngineSession> {
+    return this.own.create(request);
+  }
+
+  async list(request: EngineListSessionsRequest): Promise<ListSessionsResult> {
+    return this.own.list(request);
+  }
+
+  async delete(key: SessionKey): Promise<void> {
+    this.stored.delete(this.key(key.appName, key.userId, key.sessionId));
+    return this.own.delete(key);
+  }
+
+  async get(key: SessionKey, options?: GetSessionOptions): Promise<EngineSession | undefined> {
+    const real = await this.own.get(key, options);
+    if (!real) return undefined;
+    this.stored.set(this.key(key.appName, key.userId, key.sessionId), real);
+    return { ...real, events: this.project(real.events as unknown as Event[]) as unknown as TurnEvent[] };
+  }
+
+  /**
+   * The event lands in the projected session the runtime holds and, through
+   * the store, in the real one `get` read. A session `get` did not hand out
+   * is the real one, and the store alone applies the event to it.
+   */
+  async append(session: EngineSession, event: TurnEvent): Promise<TurnEvent> {
+    if (event.partial) return event;
+    const real = this.stored.get(this.key(session.appName, session.userId, session.id)) as EngineSession | undefined;
+    if (!real || real === session) return this.own.append(session, event);
+    applyEvent(session, event);
+    return this.own.append(real, event);
+  }
+
+  // ── ADK's BaseSessionService ───────────────────────────────────────────────
 
   async createSession(request: CreateSessionRequest): Promise<Session> {
     return this.inner.createSession(request);
@@ -393,12 +461,7 @@ export class ProjectedSessionService extends BaseSessionService {
     const real = await this.inner.getSession(request);
     if (!real) return undefined;
     this.stored.set(this.key(request.appName, request.userId, request.sessionId), real);
-    const rawFrom = this.options.rawFrom?.(real.events);
-    const events =
-      rawFrom === undefined
-        ? projectTranscript(real.events, this.forAgent, this.options)
-        : [...projectTranscript(real.events.slice(0, rawFrom), this.forAgent, this.options), ...real.events.slice(rawFrom)];
-    return { ...real, events };
+    return { ...real, events: this.project(real.events) };
   }
 
   async appendEvent(request: { session: Session; event: Event }): Promise<Event> {
@@ -409,7 +472,7 @@ export class ProjectedSessionService extends BaseSessionService {
     await super.appendEvent({ session, event });
 
     // The durable record (real), persisted by the wrapped service.
-    const real = this.stored.get(this.key(session.appName, session.userId, session.id));
+    const real = this.stored.get(this.key(session.appName, session.userId, session.id)) as Session | undefined;
     await this.inner.appendEvent({ session: real && real !== session ? real : session, event });
 
     return event;
