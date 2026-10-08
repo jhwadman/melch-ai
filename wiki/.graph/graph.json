@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 789,
-    "edges": 2627,
+    "nodes": 792,
+    "edges": 2651,
     "byKind": {
-      "doc": 138,
+      "doc": 139,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 130,
+      "file": 131,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 176,
+      "module": 177,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 528,
+      "links_to": 533,
       "requires_env": 168,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 675,
+      "imports": 682,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 586,
-      "constrains": 117,
+      "derives_from": 594,
+      "constrains": 119,
       "supersedes": 6,
-      "depends_on": 53,
-      "explains": 12,
+      "depends_on": 54,
+      "explains": 13,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2437,
-      "inferred": 190
+      "extracted": 2457,
+      "inferred": 194
     },
     "isolated": 4
   },
@@ -1300,6 +1300,18 @@
       }
     },
     {
+      "id": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "kind": "doc",
+      "label": "ADR 0077: The native loop resumes an approval before every step, as ADK's request-confirmation processor does, and throws a refusal",
+      "source": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 803
+      }
+    },
+    {
       "id": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "kind": "doc",
       "label": "ADR 0078: The native loop compacts with a port of ADK's token-based compactor, and its summary call is an llm.request under the agent span",
@@ -1584,7 +1596,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4441
+        "words": 4900
       }
     },
     {
@@ -3970,6 +3982,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nativeApprovals.test.ts",
+      "kind": "file",
+      "label": "nativeApprovals.test.ts",
+      "source": "tests/nativeApprovals.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/nativeDelegate.test.ts",
       "kind": "file",
       "label": "nativeDelegate.test.ts",
@@ -4974,7 +4993,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 658
+        "lines": 708
       }
     },
     {
@@ -5002,6 +5021,15 @@
       "source": "lib/runtime/native/history.ts",
       "attrs": {
         "lines": 324
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/interrupts.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/interrupts.ts",
+      "source": "lib/runtime/native/interrupts.ts",
+      "attrs": {
+        "lines": 207
       }
     },
     {
@@ -5064,7 +5092,7 @@
       "label": "lib/runtime/nativeTurn.ts",
       "source": "lib/runtime/nativeTurn.ts",
       "attrs": {
-        "lines": 132
+        "lines": 135
       }
     },
     {
@@ -5100,7 +5128,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1036
+        "lines": 1035
       }
     },
     {
@@ -11392,6 +11420,76 @@
       "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:32"
     },
     {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "file:tests/nativeApprovals.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "file:tests/nativeTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:26"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:28"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:28"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:51"
+    },
+    {
       "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "to": "file:tests/compaction.test.ts",
       "rel": "derives_from",
@@ -14123,6 +14221,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/nativeApprovals.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/nativeDelegate.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14193,6 +14298,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/native/request.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14252,140 +14364,147 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:149"
+      "evidence": "/overview/native-loop.md:153"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:222"
+      "evidence": "/overview/native-loop.md:218"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:44"
+      "evidence": "/overview/native-loop.md:46"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:175"
+      "evidence": "/overview/native-loop.md:179"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:128"
+      "evidence": "/overview/native-loop.md:132"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:37"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:90"
+      "evidence": "/overview/native-loop.md:93"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:210"
+      "evidence": "/overview/native-loop.md:214"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:37"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:175"
+      "evidence": "/overview/native-loop.md:179"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:253"
+      "evidence": "/overview/native-loop.md:279"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:220"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:155"
+      "evidence": "/overview/native-loop.md:159"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:203"
+      "evidence": "/overview/native-loop.md:207"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:105"
+      "evidence": "/overview/native-loop.md:108"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:71"
+      "evidence": "/overview/native-loop.md:74"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:54"
+      "evidence": "/overview/native-loop.md:57"
     },
     {
       "from": "/protocols/a2a.md",
@@ -19219,6 +19338,13 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/runtime/native/request.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -19370,6 +19496,48 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/history.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
     },
     {
       "from": "module:lib/runtime/native/request.ts",
