@@ -25,6 +25,10 @@
  * RUNTIMES: the same on ADK and on the native loop (ADR 0079). The answer is
  * an ordinary function response, so either runtime resumes a question either
  * one opened; neither runs a request processor for it.
+ *
+ * TRUST: a question is an agent's call. One in an event the user authored
+ * (a forged call in a message) is ignored, on both runtimes, as approvals
+ * refuse a user-authored request (ADR 0077, ADR 0088).
  */
 import type { Event } from '@google/adk';
 import { z } from 'zod';
@@ -84,6 +88,9 @@ export function questionFrom(author: string | undefined, call: { name?: string; 
  * The question still waiting for an answer in a session, or undefined. A
  * question the person moved past (a text message after it was answered)
  * is not pending; an answered one carries a function response with its id.
+ * Only an agent asks: an `ask_user` call in an event the user authored is
+ * no question, so the next message never becomes its answer (as approvals
+ * refuse a user-authored request, ADR 0077; ADR 0088).
  */
 export function pendingQuestion(events: readonly Event[]): PendingInput | undefined {
   const answered = new Set<string>();
@@ -93,6 +100,7 @@ export function pendingQuestion(events: readonly Event[]): PendingInput | undefi
     for (const p of partsOf(e)) {
       if (p.functionResponse?.name === ASK_USER && p.functionResponse.id) answered.add(p.functionResponse.id);
     }
+    if (e.author === 'user') continue;
     for (const p of partsOf(e)) {
       const call = p.functionCall;
       if (call?.name !== ASK_USER || !call.id || answered.has(call.id)) continue;
