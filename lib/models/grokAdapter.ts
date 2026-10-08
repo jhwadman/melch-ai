@@ -31,9 +31,12 @@ import type { ProviderEndpoint } from './endpoints.ts';
 import { GptAdapter } from './gptAdapter.ts';
 import type { GptAdapterOptions, NativeToolPlan } from './gptAdapter.ts';
 import { reasoningConfig } from './reasoning.ts';
-import { xaiWebSearchParamsFromEnv } from '../tools/webSearchTool.ts';
-import { xSearchParamsFromEnv } from '../tools/xSearchTool.ts';
-import { collectionIdsFromEnv, collectionsMaxResultsFromEnv } from '../tools/collectionsSearchTool.ts';
+import {
+  collectionIdsFromEnv,
+  collectionsMaxResultsFromEnv,
+  xaiWebSearchParamsFromEnv,
+  xSearchParamsFromEnv,
+} from '../tools/xaiSearchParams.ts';
 
 export const XAI_BASE_URL = 'https://api.x.ai/v1';
 

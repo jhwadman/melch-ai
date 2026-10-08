@@ -14,13 +14,15 @@ sources:
   - resource: tests/geminiAdapter.test.ts
   - resource: lib/models/contract.ts
   - resource: lib/models/geminiState.ts
+  - resource: lib/runtime/native/request.ts
+  - resource: tests/geminiNativeTools.test.ts
 ---
 
 # Gemini adapter
 
 `GeminiAdapter` in `lib/models/geminiAdapter.ts` is Gemini as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)). It calls `@google/genai` itself: `models.generateContent`, or `models.generateContentStream` when the request streams. ADK's `Gemini` class plays no part in it. It is the native runtime's Gemini ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
 
-On the ADK runtime every Gemini id is served by `TracedGemini`, ADK's `Gemini` wrapped in `lib/models/tracedGemini.ts`, as [provider routing](/models/provider-routing.md) describes. On the contract, `resolveAdapter` returns this adapter only when `GEMINI_ADAPTER=engine` or the option `{ gemini: 'engine' }` asks for it ([ADR 0060](/decisions/0060-engine-owned-registry.md)). Until it passes the live run at gate G3, Gemini on the contract is [the wrapper over ADK's Gemini](/models/adk-gemini-adapter.md) by default.
+On the ADK runtime every Gemini id is served by `TracedGemini`, ADK's `Gemini` wrapped in `lib/models/tracedGemini.ts`, as [provider routing](/models/provider-routing.md) describes. On the contract, the registry's `resolveAdapter` returns this adapter only when `GEMINI_ADAPTER=engine` or the option `{ gemini: 'engine' }` asks for it ([ADR 0060](/decisions/0060-engine-owned-registry.md)). Until it passes the live run at gate G3, Gemini on the registry's contract path is [the wrapper over ADK's Gemini](/models/adk-gemini-adapter.md) by default. The ADK-free entry `melchizedek-agents/model` has no wrapper, so its `resolveAdapter` returns this adapter for every Gemini id ([ADR 0068](/decisions/0068-model-entry-without-adk.md)).
 
 The field-by-field mapping is the Gemini table of the [model contract](/models/model-contract.md). This page records how the adapter reaches Gemini, the choices it makes inside that table, and what the offline tests cannot confirm.
 
@@ -110,6 +112,15 @@ Every call ends with exactly one final, and a failure is that final with `error`
 ## Telemetry
 
 The adapter sets attributes on the active span: `llm.retries`, `llm.http_status`, `llm.finish_reason`, `llm.web_search.native` and `llm.capability.dropped`. It opens no span of its own and does not charge the turn's step budget. Both stay with the caller ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)): on the ADK path, the [ADK shim](/models/adk-shim.md), through `traceLlmGeneration`. The [wrapper over ADK's Gemini](/models/adk-gemini-adapter.md) keeps the same rule.
+
+## From the native step
+
+On the native runtime the adapter receives the request the [native step](/overview/native-loop.md) builds (`buildModelRequest`, `lib/runtime/native/request.ts`). The step reads each tool by marker ([ADR 0062](/decisions/0062-server-side-tools-as-markers.md)):
+
+- **Server-side tools are request flags.** On a Gemini model, `web_search` and `google_search` reach the adapter as the `nativeTools` entry `web_search`, and `url_context` as `url_context`. None is declared as a function, and none is handed to the loop to run. The adapter sends them as `{ googleSearch: {} }` and `{ urlContext: {} }`. On another model, `url_context` adds no flag, and `google_search` is refused as the ADK runtime refuses it. The registry still hands the ADK runtime its own objects: the shared `WEB_SEARCH` and `URL_CONTEXT` sentinels, and ADK's `GOOGLE_SEARCH`.
+- **Memory tools** ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)). `load_memory` is a function declaration whose `parametersJsonSchema` is its lowercase schema as written. While the run has memory, its note and `preload_memory`'s `<PAST_CONVERSATIONS>` block go in `systemInstruction`, in the agent's tool order. Without memory, neither writes anything. The model's `load_memory` call goes back to Gemini as a `functionCall`, and the tool's result as the matching `functionResponse`, with the engine's minted call id kept off the wire.
+
+`tests/geminiNativeTools.test.ts` asserts all of this on the real `GoogleGenAI` client over a stubbed `fetch`. It runs a two-step session in which Gemini calls `load_memory` and answers from the result; the tool runs by hand there until the loop runs tools (WS2-5b). It also compiles the model zoo, the research example and Ares, builds each Gemini agent's native request from the compiled agent, and asserts the tools on the wire: the Zookeeper's six explainers, research's evidence tools and Triage's schema with no tools, Ares's `WarScribe` and `load_memory` with the preloaded facts, and `WarScribe`'s `googleSearch` alone. Running those syndicates end to end on the native runtime waits for the compile split (WS2-10) and the boundary suite on native (WS2-12).
 
 ## What the offline tests assert
 

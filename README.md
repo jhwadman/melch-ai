@@ -116,6 +116,44 @@ registerTool('myCustomTool', defineTool({ /* ... */ }));
 registerGuard(myGuardInstance);
 ```
 
+### The Model Adapters Alone
+
+`melchizedek-agents/model` is the engine's model layer on its own: one message format for every provider, an adapter per provider, `resolveAdapter` over the same model-id prefixes the YAML uses, and `FallbackAdapter`. It loads no `@google/adk`, so a project that only calls models can leave ADK out. npm 7 and later install peer dependencies by default; skip them with:
+
+```bash
+npm install melchizedek-agents --legacy-peer-deps
+```
+
+```typescript
+import { ClaudeAdapter, OllamaAdapter, resolveAdapter } from 'melchizedek-agents/model';
+import type { ModelAdapter, ModelRequest } from 'melchizedek-agents/model';
+
+async function ask(adapter: ModelAdapter, text: string): Promise<string> {
+  const request: ModelRequest = {
+    model: adapter.model,
+    system: 'Answer in one sentence.',
+    messages: [{ role: 'user', parts: [{ type: 'text', text }] }],
+  };
+  for await (const response of adapter.generate(request)) {
+    if (response.partial) continue; // deltas while the model writes
+    if (response.error) throw new Error(response.error.message);
+    return response.parts.map((p) => (p.type === 'text' ? p.text : '')).join('');
+  }
+  return '';
+}
+
+// Claude: the key comes from ANTHROPIC_API_KEY in the environment.
+console.log(await ask(new ClaudeAdapter({ model: 'claude-sonnet-4-6' }), 'What is A2A?'));
+
+// Ollama: a local model, no key (OLLAMA_BASE_URL, else http://localhost:11434/v1).
+console.log(await ask(new OllamaAdapter({ model: 'ollama/qwen3:8b' }), 'What is A2A?'));
+
+// Or by id, with the same routing as a syndicate's `model:` field.
+const adapter = resolveAdapter('ollama/qwen3:8b');
+```
+
+A Gemini id resolves to the engine's `GeminiAdapter` here. The ADK-backed Gemini adapter, the ADK shims and `resolveModel` stay under `melchizedek-agents/models/*`, which need ADK.
+
 ### CLI & Server Utilities
 
 - `npx melchizedek-chat --syndicate <name>`: Interactive CLI REPL for any syndicate.
