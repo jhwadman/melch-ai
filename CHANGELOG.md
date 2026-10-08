@@ -17,6 +17,18 @@ the starter pack and the templates), not the repo's full history.
   mode, sends nothing for it, as before. `OlderSpelling.jsonMode`
   (`models/chatCompletionsAdapter`, new in this release) is removed:
   the chat-completions adapters read `outputFormat` instead.
+- **The engine's own registry (ADR 0060).** `melchizedek-agents/models/registry`
+  adds `resolveAdapter(modelId, { apiKey, keyProvider, endpoint, gemini })`,
+  which returns any model id's `ModelAdapter` on the engine's contract from
+  the same prefix table, gateway fallback, BYOK scoping and endpoints as
+  `resolveModel`, with no ADK `LLMRegistry`; `resolveAdapterWithFallback`,
+  which wraps a model and its fallback in a `FallbackAdapter`;
+  `geminiAdapterChoice` and the types `ResolveAdapterOptions` and
+  `GeminiAdapterChoice`. A Gemini id gets `AdkGeminiAdapter` unless
+  `GEMINI_ADAPTER=engine` (or `gemini: 'engine'`) selects `GeminiAdapter`.
+  `TracedGemini` moves to the new module `melchizedek-agents/models/tracedGemini`;
+  `models/registry` still exports it. `registerAvailableProviders`,
+  `resolveModel`, `providerStatuses` and the doctor are unchanged.
 - **Base URLs lose their trailing slashes in one pass.** The Kimi
   adapter, the gateway, the endpoints module and the embeddings provider
   trimmed a base URL with a regular expression that backtracked
