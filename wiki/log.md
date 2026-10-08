@@ -23,6 +23,30 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md —explains→ /decisions/0077-native-approvals-port-the-confirmation-processor.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md —depends_on→ /decisions/0072-tool-credentials-sealed-per-user.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md —constrains→ module:lib/runtime/credentials.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md —constrains→ module:lib/tools/oauthConsent.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /tools/skill-harness.md —explains→ module:lib/tools/skills/executor.ts
 
 by claude-code/claude-opus-5-5
@@ -60,6 +84,7 @@ by claude-code/claude-opus-5-5
 by claude-code/claude-opus-5-5
 
 ## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —constrains→ module:lib/tools/skills/tools.ts
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/questions.ts
 
 by claude-code/claude-opus-5-5
