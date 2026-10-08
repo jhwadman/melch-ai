@@ -62,7 +62,7 @@ Put one shim around each leaf adapter. A fallback pair under ADK is `FallbackLlm
 Both are protected, and the genai mapping by default:
 
 - `toLlmResponse(response)` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)) keeps the response shape an ADK-path class yielded before its adapter moved behind the shim. It runs inside the span, so the tracer reads what it returns. `GptLlm` and `OpenAiCompatibleLlm` override it.
-- `toModelRequest(llmRequest, options)` ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)) carries what an adapter reads beside the contract. The span records the request it returns. `OpenAiCompatibleLlm` overrides it to carry the older `generateContentConfig` spelling the contract leaves out (Kimi K3's `max`, JSON mode without a schema).
+- `toModelRequest(llmRequest, options)` ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)) carries what an adapter reads beside the contract. The span records the request it returns. `OpenAiCompatibleLlm` overrides it to carry the older `generateContentConfig` spelling the contract leaves out (Kimi K3's `max`).
 
 ## What changes for an adapter behind it
 

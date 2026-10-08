@@ -181,6 +181,19 @@ test('text: one thinking partial, then one final with the text and usage; the re
   );
 });
 
+test("outputFormat 'json' is JSON mode on the wire: responseMimeType alone (ADR 0061)", async () => {
+  await withFetch(
+    () => json(candidate([{ text: '{"ok":true}' }])),
+    async (seen) => {
+      await run(adapter(), { messages: [user('hi')], outputFormat: 'json' });
+      await run(adapter(), { messages: [user('hi')] });
+      assert.equal(seen[0].body.generationConfig.responseMimeType, 'application/json');
+      assert.equal(seen[0].body.generationConfig.responseJsonSchema, undefined);
+      assert.equal(seen[1].body.generationConfig?.responseMimeType, undefined);
+    },
+  );
+});
+
 test('no reasoning sends no thinking config, and reasoning none sends no includeThoughts', async () => {
   await withFetch(
     () => json(candidate([{ text: 'ok' }])),

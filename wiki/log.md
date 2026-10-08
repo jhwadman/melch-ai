@@ -3,6 +3,34 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0061-json-mode-on-the-contract.md —supersedes→ /decisions/0048-engine-owned-model-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0061-json-mode-on-the-contract.md —supersedes→ /decisions/0057-chat-completions-shims-keep-the-adk-shape.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0061-json-mode-on-the-contract.md —constrains→ module:lib/models/claudeAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0061-json-mode-on-the-contract.md —constrains→ module:lib/models/chatCompletionsAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0061-json-mode-on-the-contract.md —constrains→ module:lib/models/gptAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0061-json-mode-on-the-contract.md —constrains→ module:lib/models/genaiMapping.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0061-json-mode-on-the-contract.md —constrains→ module:lib/models/contract.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0047-provider-neutral-reasoning-key.md —constrains→ module:lib/models/kimiAdapter.ts
 
 by claude-code/claude-opus-5-5

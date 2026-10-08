@@ -95,8 +95,6 @@ export interface OlderSpelling {
    * sent as `reasoning_effort` as written, in place of `reasoning`'s word.
    */
   reasoningEffort?: string;
-  /** `responseMimeType: application/json` with no schema: JSON mode, `response_format: { type: 'json_object' }`. */
-  jsonMode?: boolean;
 }
 
 /** A ModelRequest, plus what the ADK path carries beside the contract. */
@@ -541,12 +539,9 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
 
     setLlmSpanAttribute('llm.retry_without_thinking', held.error?.code ?? true);
     this.#warnOnce('retry', `⚠ ${model} thought without answering (${held.error?.code}); retrying once with thinking off.`);
-    const { olderSpelling, ...rest } = request;
-    const retry: ChatCompletionsRequest = {
-      ...rest,
-      reasoning: 'none',
-      ...(olderSpelling?.jsonMode ? { olderSpelling: { jsonMode: true } } : {}),
-    };
+    // The older spelling's effort word would ask for thinking again.
+    const { olderSpelling: _older, ...rest } = request;
+    const retry: ChatCompletionsRequest = { ...rest, reasoning: 'none' };
     for await (const response of this.#attempt(retry, model)) {
       if (response.partial) {
         yield response;
@@ -817,7 +812,8 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
   /**
    * Structured output: a strict json_schema response_format where the
    * endpoint takes it, else JSON mode (the schema is then not enforced).
-   * The older spelling's JSON mode without a schema rides on the ADK path.
+   * `outputFormat: 'json'` without a schema is JSON mode (ADR 0061); each
+   * of Ollama, Kimi and the gateway takes it.
    */
   #responseFormat(request: ChatCompletionsRequest): Record<string, unknown> {
     if (request.outputSchema) {
@@ -825,7 +821,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
         ? { response_format: { type: 'json_schema', json_schema: { name: 'response', strict: true, schema: toStrictJsonSchema(request.outputSchema) } } }
         : { response_format: { type: 'json_object' } };
     }
-    return request.olderSpelling?.jsonMode ? { response_format: { type: 'json_object' } } : {};
+    return request.outputFormat === 'json' ? { response_format: { type: 'json_object' } } : {};
   }
 
   /** web_search through the provider's own fields where it has them; every other native tool is dropped, and said so. */

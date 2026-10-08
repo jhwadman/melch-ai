@@ -33,7 +33,7 @@ The key and the endpoint resolve as `GeminiAdapter`'s do: `apiKey`, then the end
 
 ## The request
 
-`modelRequestToLlmRequest` ([model contract](/models/model-contract.md#the-reverse-directions)) builds the `LlmRequest`. The adapter then does what ADK's path does before its `Gemini` sees one:
+`modelRequestToLlmRequest` ([model contract](/models/model-contract.md#the-reverse-directions)) builds the `LlmRequest`, so `outputFormat: 'json'` reaches Gemini as `responseMimeType: 'application/json'` alone. The adapter then does what ADK's path does before its `Gemini` sees one:
 
 - **System messages** join the system prompt, in order, as `systemInstruction.parts`, since Gemini takes no `system` content.
 - **`adk-` call ids** come off calls and results, as ADK's flow strips its own ids before every model call. Ids the mapping minted are already off.
