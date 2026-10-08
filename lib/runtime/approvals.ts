@@ -35,14 +35,51 @@ function hasUserText(e: Event): boolean {
 }
 
 /**
+ * A workflow's pause record (lib/workflow/pause.ts workflowPauseEvent, ADK's
+ * recordInputForResume): no content, every interrupt the walk left open in
+ * `longRunningToolIds`, at the workflow's own path. Its ids, else undefined.
+ */
+function workflowPauseIds(e: Event): string[] | undefined {
+  if (e.author === 'user' || partsOf(e).length > 0) return undefined;
+  const path = (e as { nodeInfo?: { path?: unknown } }).nodeInfo?.path;
+  if (typeof path !== 'string' || !path || path.includes('.')) return undefined;
+  return e.longRunningToolIds?.length ? [...e.longRunningToolIds] : undefined;
+}
+
+const requestOf = (e: Event, call: Record<string, any>): PendingApproval => {
+  const original = call.args?.originalFunctionCall ?? {};
+  return {
+    id: call.id,
+    agent: e.author ?? '',
+    tool: String(original.name ?? ''),
+    args: (original.args ?? {}) as Record<string, unknown>,
+    ...(original.id ? { callId: String(original.id) } : {}),
+  };
+};
+
+/**
  * The approval request still waiting for an answer, or undefined. A request
  * the user moved on from (a new text message after it) is not pending: its
  * call never runs.
+ *
+ * In a workflow (ADR 0098) the walk stores each node's input as a user text
+ * turn, so a sibling node's input may follow a gated node's request. The
+ * walk's pause record, stored last, names every interrupt it left open: a
+ * request it names is pending whatever node turns came after it.
  */
 export function pendingApproval(events: readonly Event[]): PendingApproval | undefined {
   const answered = new Set<string>();
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]!;
+    const paused = workflowPauseIds(e);
+    if (paused) {
+      const open = new Set(paused.filter((id) => !answered.has(id)));
+      for (let j = i - 1; j >= 0 && open.size > 0; j--) {
+        const request = partsOf(events[j]!).find((p) => p.functionCall?.name === APPROVAL_REQUEST && open.has(p.functionCall.id));
+        if (request) return requestOf(events[j]!, request.functionCall);
+      }
+      return undefined;
+    }
     if (hasUserText(e)) return undefined;
     for (const p of partsOf(e)) {
       if (p.functionResponse?.name === APPROVAL_REQUEST && p.functionResponse.id) answered.add(p.functionResponse.id);
@@ -50,14 +87,7 @@ export function pendingApproval(events: readonly Event[]): PendingApproval | und
     for (const p of partsOf(e)) {
       const call = p.functionCall;
       if (call?.name !== APPROVAL_REQUEST || !call.id || answered.has(call.id)) continue;
-      const original = call.args?.originalFunctionCall ?? {};
-      return {
-        id: call.id,
-        agent: e.author ?? '',
-        tool: String(original.name ?? ''),
-        args: (original.args ?? {}) as Record<string, unknown>,
-        ...(original.id ? { callId: String(original.id) } : {}),
-      };
+      return requestOf(e, call);
     }
   }
   return undefined;

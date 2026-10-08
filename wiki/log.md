@@ -3,6 +3,54 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —constrains→ module:lib/workflow/agentNode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —depends_on→ /decisions/0028-approval-gates.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —depends_on→ /decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —depends_on→ /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —depends_on→ /decisions/0077-native-approvals-port-the-confirmation-processor.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —depends_on→ /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0098-workflow-subagent-and-node-approvals.md —supersedes→ /decisions/0030-workflow-graphs.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0097-reflection-tool-declared-where-adk-declares-it.md —explains→ /decisions/0065-gemini-carried-parts-and-server-side-invocations.md
 
 by claude-code/claude-opus-5-5

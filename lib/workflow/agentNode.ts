@@ -43,8 +43,25 @@
  *      error; a run that ends with one and no output returns it as the
  *      run's `error`, and the scheduler fails the attempt with
  *      NodeReportedError, ADK's message, retried or stopping the walk as
- *      ADK's does, and reported once (by the node's own event). A run the turn stopped throws. A run that pauses on a person
- *      (an ask_user tool, an approval) is an interrupt, not run here yet.
+ *      ADK's does, and reported once (by the node's own event). A run the turn stopped throws. A run that pauses on
+ *      an ask_user tool call is refused by name.
+ *   8. APPROVALS (ADR 0098). A run that pauses on approval requests (a tool
+ *      in the agent's `require_approval`) resolves with their ids as the
+ *      node's interrupts: the node waits and the walk ends paused, as an
+ *      ask_user node's does. The resumed walk reruns the node with
+ *      `resumedInterruptIds`: until every request has a decision among the
+ *      answers (a confirmation, never a plain-text message) it waits again
+ *      without running, its open requests raised again on one event of the
+ *      new run (`waitAgain`), so the run after still resumes them; then the
+ *      agent's run continues instead of starting afresh, unless it already
+ *      did on an earlier resume, whose stored output is then the node's
+ *      (`outputAfter`). No input turn is stored, so the person's answer stays the
+ *      latest user event, and the loop's approval resume
+ *      (lib/runtime/native/interrupts.ts, ADR 0077) runs or refuses the
+ *      pinned call before the next model step, which reads the node's turn
+ *      from its input on. ADK's runLlmAgentAsNode stores the input again and
+ *      starts the agent afresh, so the pinned call never runs there; ADK
+ *      turns refuse gates on workflow nodes instead.
  *
  * `agentNodeRuntime` puts it together for the scheduler: a `runNode` for
  * agent nodes and map items, and an `onEvent` that stores the event ADK
@@ -52,11 +69,12 @@
  * (lib/workflow/nodeEvents.ts), so a session the native walk writes holds
  * what ADK's holds, in the same order.
  *
- * NOT HERE: interrupts inside a node (an ask_user tool call, an approval),
+ * NOT HERE: an ask_user tool call inside a node, a pause inside a map item,
  * tool nodes (lib/workflow/toolNode.ts) and ask_user nodes
  * (lib/workflow/pause.ts). It imports nothing from ADK.
  */
 
+import { APPROVAL_REQUEST } from '../runtime/approvals.ts';
 import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
 import type { TurnContent, TurnEvent } from '../runtime/events.ts';
 import { runAgentLoop } from '../runtime/native/agentLoop.ts';
@@ -133,7 +151,7 @@ interface NodeStampState {
 }
 
 /** The stamp the loop applies to each event before it stores it (rules 4 and 5). */
-function nodeStamp(agent: NativeAgent, run: Pick<NodeRun, 'path' | 'branch'>, invocationId: string, state: NodeStampState): (event: TurnEvent) => void {
+function nodeStamp(agent: NativeAgent, run: Pick<NodeRun, 'input' | 'path' | 'branch'>, invocationId: string, state: NodeStampState): (event: TurnEvent) => void {
   const taskMode = agent.mode === 'task';
   return (event) => {
     if (!taskMode) {
@@ -144,9 +162,67 @@ function nodeStamp(agent: NativeAgent, run: Pick<NodeRun, 'path' | 'branch'>, in
       }
     }
     enrichNodeEvent(event, run, { invocationId });
+    // ADK's node runner (consume): an event that raises an interrupt records the node's input for the resume.
+    if (event.longRunningToolIds?.length) event.actions = { ...event.actions, agentState: { ...(event.actions?.agentState ?? {}), input: run.input } };
     if (event.output !== undefined) state.output = event.output;
     if (event.errorCode !== undefined) state.reported = { errorCode: event.errorCode, ...(event.errorMessage !== undefined ? { errorMessage: event.errorMessage } : {}) };
   };
+}
+
+/** Whether `event` carries the approval request `id` (an `adk_request_confirmation` call). */
+function isApprovalRequest(event: TurnEvent | undefined, id: string): boolean {
+  return !!event && getFunctionCalls(event).some((call) => call.id === id && call.name === APPROVAL_REQUEST);
+}
+
+/**
+ * Whether a resumed walk's answer to an approval request is a decision: a
+ * ToolConfirmation (`{ confirmed }`), or ADK's `{ response: <json> }` form.
+ * A plain-text message the resume read as the answer is not one, and the
+ * node keeps waiting.
+ */
+function isApprovalAnswer(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const answer = value as Record<string, unknown>;
+  return typeof answer.confirmed === 'boolean' || typeof answer.response === 'string';
+}
+
+/**
+ * Rule 8, a node whose decided requests an earlier resume already acted on
+ * (another node's approval was the one answered since): the output its run
+ * stored after the last of those requests, else undefined. The node does
+ * not run again.
+ */
+function outputAfter(events: readonly TurnEvent[], path: string, ids: readonly string[]): unknown {
+  const open = new Set(ids);
+  let start = -1;
+  events.forEach((event, i) => {
+    if (getFunctionCalls(event).some((call) => call.name === APPROVAL_REQUEST && call.id !== undefined && open.has(call.id))) start = i;
+  });
+  if (start === -1) return undefined;
+  for (let i = events.length - 1; i > start; i--) {
+    const event = events[i]!;
+    if (event.nodeInfo?.path === path && event.output !== undefined && !event.partial) return event.output;
+  }
+  return undefined;
+}
+
+/**
+ * Rule 8, a node still waiting: its open requests raised again, as one event
+ * of this run (a copy of each request call, stamped as the node's), so the
+ * next message's resume finds the walk paused in this invocation as in the
+ * one before; nothing runs. Resolves with the ids it waits on.
+ */
+async function waitAgain(agent: NativeAgent, run: Pick<NodeRun, 'input' | 'path' | 'branch'>, ctx: AgentNodeContext, waiting: string[]): Promise<NodeResult> {
+  const open = new Set(waiting);
+  const calls = ctx.session.events.flatMap((event) => getFunctionCalls(event).filter((call) => call.name === APPROVAL_REQUEST && call.id !== undefined && open.has(call.id)));
+  const seen = new Set<string>();
+  const parts = calls.filter((call) => !seen.has(call.id!) && seen.add(call.id!)).map((call) => ({ functionCall: structuredClone(call) }));
+  const event = createTurnEvent({ author: agent.name, invocationId: ctx.invocationId, content: { role: 'model', parts } });
+  event.longRunningToolIds = [...seen];
+  nodeStamp(agent, run, ctx.invocationId, { output: undefined })(event);
+  const stored = await (ctx.appendInput ?? ((e: TurnEvent) => ctx.sessions.append(ctx.session, e)))(event);
+  ctx.onEvent?.(stored);
+  return { interruptIds: [...seen] };
 }
 
 // ── One node ─────────────────────────────────────────────────────────────────
@@ -177,11 +253,23 @@ export interface AgentNodeContext {
  * one with no output. Throws NodeStoppedError when the turn stopped it, and
  * an Error when it paused on a person.
  */
-export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input' | 'path' | 'branch' | 'signal'>, ctx: AgentNodeContext): Promise<NodeResult> {
+export async function runAgentNode(
+  agent: NativeAgent,
+  run: Pick<NodeRun, 'input' | 'path' | 'branch' | 'signal' | 'resumeInputs' | 'resumedInterruptIds'>,
+  ctx: AgentNodeContext,
+): Promise<NodeResult> {
   const taskMode = agent.mode === 'task';
   const nodeAgent = asNodeAgent(agent);
   const { session, sessions, invocationId } = ctx;
-  if (!taskMode && run.input !== undefined && run.input !== null) {
+  // Rule 8: a node that waited on an approval resumes its own run once every request it raised is answered.
+  const resumed = run.resumedInterruptIds ?? [];
+  if (resumed.length > 0) {
+    const waiting = resumed.filter((id) => !isApprovalAnswer(run.resumeInputs?.[id]));
+    if (waiting.length > 0) return waitAgain(agent, run, ctx, waiting);
+    const finished = outputAfter(ctx.session.events, run.path, resumed);
+    if (finished !== undefined) return { output: finished };
+  }
+  if (resumed.length === 0 && !taskMode && run.input !== undefined && run.input !== null) {
     const userEvent = createTurnEvent({ author: 'user', invocationId, branch: run.branch, content: nodeInputContent(run.input) });
     const stored = await (ctx.appendInput ?? ((e: TurnEvent) => sessions.append(session, e)))(userEvent);
     ctx.onEvent?.(stored);
@@ -212,7 +300,10 @@ export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input
     else ctx.onEvent?.(next.value);
   }
   if (end.reason === 'paused') {
-    throw new Error(`Node '${agent.name}' paused on ${(end.pending ?? []).join(', ')}: a pause inside an agent node does not run on the native runtime yet.`);
+    // Rule 8: an approval request pauses the node, and the walk with it; any other pause (an ask_user call) is refused.
+    const pending = end.pending ?? [];
+    if (pending.length > 0 && pending.every((id) => isApprovalRequest(end.lastEvent, id))) return { interruptIds: [...pending] };
+    throw new Error(`Node '${agent.name}' paused on ${pending.join(', ')}: a pause inside an agent node other than an approval does not run on the native runtime yet.`);
   }
   if (end.reason === 'stopped') throw new NodeStoppedError(agent.name, end.stop);
   // ADK's failIfNodeReportedError: an error with an output is not the node's failure. Without one the error is

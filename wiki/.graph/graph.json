@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 848,
-    "edges": 3150,
+    "nodes": 851,
+    "edges": 3191,
     "byKind": {
-      "doc": 160,
+      "doc": 161,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 147,
+      "file": 149,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 648,
+      "links_to": 657,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 791,
+      "imports": 796,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 759,
-      "constrains": 171,
-      "supersedes": 7,
-      "depends_on": 93,
+      "derives_from": 774,
+      "constrains": 176,
+      "supersedes": 8,
+      "depends_on": 99,
       "explains": 29,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2847,
-      "inferred": 303
+      "extracted": 2876,
+      "inferred": 315
     },
     "isolated": 4
   },
@@ -769,7 +769,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 948
+        "words": 1022
       }
     },
     {
@@ -1553,6 +1553,18 @@
       }
     },
     {
+      "id": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "kind": "doc",
+      "label": "ADR 0098: A nested workflow syndicate runs its whole graph as the subagent tool, and an approval gate pauses a workflow node on the native walk",
+      "source": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1347
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1813,7 +1825,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6266
+        "words": 6351
       }
     },
     {
@@ -1825,7 +1837,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1506
+        "words": 1748
       }
     },
     {
@@ -1837,7 +1849,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 875
+        "words": 882
       }
     },
     {
@@ -1849,7 +1861,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3738
+        "words": 3996
       }
     },
     {
@@ -4534,6 +4546,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/workflowApprovals.test.ts",
+      "kind": "file",
+      "label": "workflowApprovals.test.ts",
+      "source": "tests/workflowApprovals.test.ts"
+    },
+    {
       "id": "file:tests/workflowGraph.test.ts",
       "kind": "file",
       "label": "workflowGraph.test.ts",
@@ -4567,6 +4585,12 @@
       "label": "workflowScheduler.test.ts",
       "source": "tests/workflowScheduler.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/workflowSubagent.test.ts",
+      "kind": "file",
+      "label": "workflowSubagent.test.ts",
+      "source": "tests/workflowSubagent.test.ts"
     },
     {
       "id": "file:tests/workflowToolNode.test.ts",
@@ -4724,7 +4748,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 527
+        "lines": 603
       }
     },
     {
@@ -4733,7 +4757,7 @@
       "label": "lib/compileAdk.ts",
       "source": "lib/compileAdk.ts",
       "attrs": {
-        "lines": 139
+        "lines": 147
       }
     },
     {
@@ -4742,7 +4766,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 218
+        "lines": 283
       }
     },
     {
@@ -5345,7 +5369,7 @@
       "label": "lib/runtime/approvals.ts",
       "source": "lib/runtime/approvals.ts",
       "attrs": {
-        "lines": 95
+        "lines": 125
       }
     },
     {
@@ -5390,7 +5414,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 828
+        "lines": 832
       }
     },
     {
@@ -5408,7 +5432,7 @@
       "label": "lib/runtime/native/delegate.ts",
       "source": "lib/runtime/native/delegate.ts",
       "attrs": {
-        "lines": 216
+        "lines": 330
       }
     },
     {
@@ -5525,7 +5549,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1181
+        "lines": 1188
       }
     },
     {
@@ -5651,7 +5675,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 991
+        "lines": 995
       }
     },
     {
@@ -6128,7 +6152,7 @@
       "label": "lib/workflow.ts",
       "source": "lib/workflow.ts",
       "attrs": {
-        "lines": 208
+        "lines": 234
       }
     },
     {
@@ -6137,7 +6161,7 @@
       "label": "lib/workflow/agentNode.ts",
       "source": "lib/workflow/agentNode.ts",
       "attrs": {
-        "lines": 330
+        "lines": 421
       }
     },
     {
@@ -6146,7 +6170,7 @@
       "label": "lib/workflow/graph.ts",
       "source": "lib/workflow/graph.ts",
       "attrs": {
-        "lines": 542
+        "lines": 543
       }
     },
     {
@@ -6173,7 +6197,7 @@
       "label": "lib/workflow/resume.ts",
       "source": "lib/workflow/resume.ts",
       "attrs": {
-        "lines": 473
+        "lines": 474
       }
     },
     {
@@ -6191,7 +6215,7 @@
       "label": "lib/workflow/scheduler.ts",
       "source": "lib/workflow/scheduler.ts",
       "attrs": {
-        "lines": 971
+        "lines": 993
       }
     },
     {
@@ -9423,6 +9447,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0030-workflow-graphs.md:42"
+    },
+    {
+      "from": "/decisions/0030-workflow-graphs.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0030-workflow-graphs.md:59"
     },
     {
       "from": "/decisions/0030-workflow-graphs.md",
@@ -13464,6 +13495,146 @@
       "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md:25"
     },
     {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "file:tests/workflowApprovals.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "file:tests/workflowSubagent.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/compileAdk.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md frontmatter"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md:36"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md:36"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md:36"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md:36"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md:36"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -16401,7 +16572,7 @@
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:313"
+      "evidence": "/overview/native-loop.md:315"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16436,7 +16607,7 @@
       "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:298"
+      "evidence": "/overview/native-loop.md:300"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16458,6 +16629,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:192"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:278"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16492,7 +16670,7 @@
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:296"
+      "evidence": "/overview/native-loop.md:278"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16584,6 +16762,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-agent-node.md:24"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:87"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -16815,6 +17000,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-scheduler.md:31"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:164"
     },
     {
       "from": "/overview/workflow-scheduler.md",
@@ -19463,6 +19655,13 @@
       "evidence": "lib/compile.ts"
     },
     {
+      "from": "module:lib/compile.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
       "from": "module:lib/compileAdk.ts",
       "to": "module:lib/a2a/remoteAgent.ts",
       "rel": "imports",
@@ -19500,6 +19699,13 @@
     {
       "from": "module:lib/compileAdk.ts",
       "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileAdk.ts"
+    },
+    {
+      "from": "module:lib/compileAdk.ts",
+      "to": "module:lib/workflow.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compileAdk.ts"
@@ -19570,6 +19776,20 @@
     {
       "from": "module:lib/compileNative.ts",
       "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/workflow/turn.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compileNative.ts"
@@ -22054,6 +22274,13 @@
     },
     {
       "from": "module:lib/runtime/native/delegate.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/delegate.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/delegate.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -22720,13 +22947,6 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/session/transcript.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/runtime/syndicateTurn.ts"
-    },
-    {
-      "from": "module:lib/runtime/syndicateTurn.ts",
-      "to": "module:lib/toolRegistry.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -24259,14 +24479,14 @@
     },
     {
       "from": "module:lib/workflow.ts",
-      "to": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/compileAdk.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow.ts"
     },
     {
       "from": "module:lib/workflow.ts",
-      "to": "module:lib/toolRegistry.ts",
+      "to": "module:lib/loadSyndicate.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow.ts"
@@ -24277,6 +24497,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
     },
     {
       "from": "module:lib/workflow/agentNode.ts",

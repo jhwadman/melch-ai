@@ -47,6 +47,17 @@
  * here like any subagent, and its own delegations open sessions under their
  * own names, as on ADK.
  *
+ * A NESTED WORKFLOW (ADR 0098): a `yaml_reference` to a workflow syndicate
+ * is a workflowSubagentTool, holding the whole graph as a WorkflowSubagent.
+ * A call runs as steps 1 to 6 say, with the walk in place of the loop: the
+ * graph's walk (lib/workflow/turn.ts, runNativeWorkflow, which
+ * lib/compileNative.ts hands over) stores the message itself and yields the
+ * events ADK's Runner yields for a Workflow root, node input turns aside;
+ * the answer is the last of them's text, as ADK's AgentTool reads it from a
+ * Workflow (never parsed: a Workflow has no output schema). A node that
+ * gave up fails the call with its error. The walk is not imported here, so
+ * this module stays below lib/workflow/ in the import graph.
+ *
  * The DELEGATE relay fallback (an orchestrator that echoes a tool name or
  * says nothing) stays in lib/runtime/syndicateTurn.ts: it reads the drained
  * run, whichever runtime produced it.
@@ -57,12 +68,13 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { ToolDeclaration } from '../../models/contract.ts';
+import type { ModelAdapter, ToolDeclaration } from '../../models/contract.ts';
+import { resolveAdapter } from '../../models/registry.ts';
 import type { Tool, ToolContext } from '../../tools/tool.ts';
 import type { TurnContent, TurnEvent } from '../events.ts';
 import { createTurnEvent } from '../events.ts';
 import { TEMP_STATE_PREFIX } from '../sessions.ts';
-import type { Session } from '../sessions.ts';
+import type { Session, SessionService } from '../sessions.ts';
 import type { AgentLoopContext, AgentLoopEnd } from './agentLoop.ts';
 import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
@@ -74,6 +86,9 @@ export const SUBAGENT: unique symbol = Symbol.for('melchizedek.subagent');
 
 /** ADK's own mark on an AgentTool (agent_tool.js). */
 const ADK_AGENT_TOOL = Symbol.for('google.adk.agentTool');
+
+/** Where a workflow subagent tool keeps the graph it runs. */
+export const WORKFLOW_SUBAGENT: unique symbol = Symbol.for('melchizedek.workflowSubagent');
 
 /** A subagent listed on its caller as a tool: the declaration ADK's AgentTool gives it, and the agent the call runs. */
 export interface SubagentTool extends Tool {
@@ -98,6 +113,58 @@ export function subagentTool(agent: NativeAgent): SubagentTool {
       throw new Error(`${agent.name}: a subagent tool runs only on the native loop (lib/runtime/native/agentLoop.ts)`);
     },
   };
+}
+
+/** One call's walk of a nested workflow, on the child session (WorkflowSubagent.walk). */
+export interface WorkflowSubagentRun {
+  sessions: SessionService;
+  appName: string;
+  userId: string;
+  sessionId: string;
+  /** The message's parts: the call's request as one text part. */
+  userParts: unknown[];
+  signal?: AbortSignal;
+  adapterFor: (model: string) => ModelAdapter;
+  memory?: AgentLoopContext['memory'];
+  log?: (message: string) => void;
+  selfCorrection: SelfCorrection;
+  credentials?: AgentLoopContext['credentials'];
+}
+
+/** A workflow syndicate delegated to as a subagent (ADR 0098): its name and description, and the walk one call runs. */
+export interface WorkflowSubagent {
+  name: string;
+  description?: string;
+  /** Stores the message on the child session and walks the whole graph, yielding each event ADK's Runner yields. Throws what a node gave up with. */
+  walk(run: WorkflowSubagentRun): AsyncGenerator<TurnEvent, unknown>;
+}
+
+/** A nested workflow listed on its caller as a tool: the declaration ADK's AgentTool gives a Workflow, and the graph the call walks. */
+export interface WorkflowSubagentTool extends Tool {
+  readonly [WORKFLOW_SUBAGENT]: WorkflowSubagent;
+}
+
+/** `workflow` as a tool its caller lists, as lib/compileAdk.ts lists a nested Workflow as an AgentTool: one string `request`. Only the native loop runs it. */
+export function workflowSubagentTool(workflow: WorkflowSubagent): WorkflowSubagentTool {
+  return {
+    name: workflow.name,
+    [WORKFLOW_SUBAGENT]: workflow,
+    declaration: (): ToolDeclaration => ({
+      name: workflow.name,
+      description: workflow.description ?? '',
+      parameters: { type: 'object', properties: { request: { type: 'string' } }, required: ['request'] },
+    }),
+    execute: async () => {
+      throw new Error(`${workflow.name}: a workflow subagent tool runs only on the native loop (lib/runtime/native/agentLoop.ts)`);
+    },
+  };
+}
+
+/** The nested workflow a delegated call walks: the one a workflow subagent tool holds, else undefined. */
+export function workflowSubagentOf(tool: unknown): WorkflowSubagent | undefined {
+  if (!tool || typeof tool !== 'object') return undefined;
+  const workflow = (tool as Record<PropertyKey, unknown>)[WORKFLOW_SUBAGENT];
+  return workflow && typeof workflow === 'object' ? (workflow as WorkflowSubagent) : undefined;
 }
 
 /**
@@ -148,8 +215,8 @@ function inTurn<T>(key: object, run: () => Promise<T>): Promise<T> {
   return mine;
 }
 
-/** ADK's AgentTool answer: the last event's non-thought text, joined by a newline. */
-function answerOf(agent: NativeAgent, last: TurnEvent | undefined): unknown {
+/** ADK's AgentTool answer: the last event's non-thought text, joined by a newline; parsed under an output schema. */
+function answerOf(agent: Pick<NativeAgent, 'outputSchema'>, last: TurnEvent | undefined): unknown {
   const parts = last?.content?.parts;
   if (!parts?.length) return '';
   const text = parts
@@ -158,6 +225,20 @@ function answerOf(agent: NativeAgent, last: TurnEvent | undefined): unknown {
     .filter((t) => t)
     .join('\n');
   return agent.outputSchema ? JSON.parse(text) : text;
+}
+
+/** The child's session, as ADK's AgentTool gets or creates it: under the subagent's name, from the caller's state the first time. */
+async function childSession(name: string, context: ToolContext, scope: DelegationScope): Promise<Session> {
+  const { sessions, session: parent } = scope.ctx;
+  const key = { appName: name, userId: parent.userId, sessionId: parent.id };
+  return (await sessions.get(key)) ?? (await sessions.create({ ...key, state: { ...scope.stateBase, ...context.stateDelta } }));
+}
+
+/** Step 5: an event's state writes, `temp:` keys aside, into the call's state delta. */
+function recordState(event: TurnEvent, context: ToolContext): void {
+  for (const [k, v] of Object.entries(event.actions?.stateDelta ?? {})) {
+    if (!k.startsWith(TEMP_STATE_PREFIX)) context.state.set(k, v);
+  }
 }
 
 /**
@@ -173,12 +254,9 @@ export function runSubagent(agent: NativeAgent, args: Record<string, unknown>, c
 async function runChild(agent: NativeAgent, args: Record<string, unknown>, context: ToolContext, scope: DelegationScope): Promise<unknown> {
   const { ctx, signal } = scope;
   const { sessions } = ctx;
-  const parent = ctx.session;
   const content: TurnContent = { role: 'user', parts: [{ text: args.request as string }] };
 
-  const key = { appName: agent.name, userId: parent.userId, sessionId: parent.id };
-  const session: Session =
-    (await sessions.get(key)) ?? (await sessions.create({ ...key, state: { ...scope.stateBase, ...context.stateDelta } }));
+  const session = await childSession(agent.name, context, scope);
   if (signal?.aborted) return '';
 
   const invocationId = `e-${randomUUID()}`;
@@ -206,10 +284,46 @@ async function runChild(agent: NativeAgent, args: Record<string, unknown>, conte
   for await (const event of loop) {
     // ADK's Runner stops yielding once the turn stopped: the answer is the last event it yielded.
     if (signal?.aborted) break;
-    for (const [k, v] of Object.entries(event.actions?.stateDelta ?? {})) {
-      if (!k.startsWith(TEMP_STATE_PREFIX)) context.state.set(k, v);
-    }
+    recordState(event, context);
     last = event;
   }
   return answerOf(agent, last);
+}
+
+/**
+ * Runs one delegated call to a nested workflow (ADR 0098): the whole graph
+ * walked on the child session with the call's `request` as its message,
+ * the walk's state writes recorded in `context`. Resolves to the last
+ * yielded event's text, '' for none. Throws what the walk throws.
+ */
+export function runWorkflowSubagent(workflow: WorkflowSubagent, args: Record<string, unknown>, context: ToolContext, scope: DelegationScope): Promise<unknown> {
+  return inTurn(scope.queue, () => walkChild(workflow, args, context, scope));
+}
+
+async function walkChild(workflow: WorkflowSubagent, args: Record<string, unknown>, context: ToolContext, scope: DelegationScope): Promise<unknown> {
+  const { ctx, signal } = scope;
+  const session = await childSession(workflow.name, context, scope);
+  if (signal?.aborted) return '';
+  const walk = workflow.walk({
+    sessions: ctx.sessions,
+    appName: session.appName,
+    userId: session.userId,
+    sessionId: session.id,
+    userParts: [{ text: args.request as string }],
+    adapterFor: ctx.adapterFor ?? resolveAdapter,
+    // As runChild: ADK's AgentTool runs its sub-runner without the reflect-and-retry plugins (ADR 0075).
+    selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
+    ...(ctx.signal ? { signal: ctx.signal } : {}),
+    ...(ctx.memory ? { memory: ctx.memory } : {}),
+    ...(ctx.log ? { log: ctx.log } : {}),
+    ...(ctx.credentials ? { credentials: ctx.credentials } : {}),
+  });
+  let last: TurnEvent | undefined;
+  for await (const event of walk) {
+    if (signal?.aborted) break;
+    if (event.partial) continue;
+    recordState(event, context);
+    last = event;
+  }
+  return answerOf({}, last);
 }

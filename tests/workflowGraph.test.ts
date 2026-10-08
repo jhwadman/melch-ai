@@ -207,7 +207,7 @@ const SCHEMA_CASES: Array<Record<string, unknown>> = [
   base({ edges: [['START', 'Lead']], nodes: { X: { join: true } } }),
   base({ edges: [['START', 'Lead', 'X']], nodes: { X: { tool: 't', schema: {} } } }),
   base({ edges: [['START', 'Lead']], nodes: { Lead__route: { join: true } } }),
-  base({ edges: [['START', 'Lead', 'Sub']] }, { orchestrator: { name: 'Lead', model: MODEL, instruction: 'x', tools: ['web_extract'], require_approval: ['web_extract'] } }),
+  base({ edges: [['START', 'Lead', 'Each']], nodes: { Each: { map: 'Sub' } } }, { subagents: [{ name: 'Sub', description: 'd', model: MODEL, instruction: 'y', tools: ['web_extract'], require_approval: ['web_extract'] }] }),
   base({ edges: [['START', 'Lead', 'Sub']] }, { subagents: [{ name: 'Sub', description: 'd', a2a_agent_url: 'https://x.test' }] }),
   // Not reached by the schema test.
   base({ edges: [['START', 'Lead', 'Sub']] }, { subagents: [{ name: 'Sub__route', description: 'd', model: MODEL, instruction: 'y' }] }),
@@ -242,7 +242,7 @@ const graphIssues = (r: Record<string, unknown>): string[] => {
  */
 const isWorkflowRule = (line: string) =>
   line.startsWith('workflow') ||
-  line.endsWith(' — approval gates are not supported inside a workflow yet') ||
+  line.endsWith(' — approval gates are not supported on an agent a map node runs: a map item cannot pause the walk') ||
   line.endsWith(' — skill scripts (an approval pause) are not supported inside a workflow yet') ||
   line.endsWith(' — a remote agent cannot be a workflow node yet');
 

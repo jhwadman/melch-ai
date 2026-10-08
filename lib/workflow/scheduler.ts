@@ -157,6 +157,12 @@ export interface NodeRun {
    * Absent in a walk that is not a resume.
    */
   resumeInputs?: Readonly<Record<string, unknown>>;
+  /**
+   * The interrupts this node's prior run paused on, when this run resumes it
+   * (a resumed walk's first activation of a node that waited). An agent node
+   * resumes its own run on them instead of starting afresh (ADR 0098).
+   */
+  resumedInterruptIds?: readonly string[];
 }
 
 /** An error a node reports instead of throwing, as an ADK event's errorCode and errorMessage. */
@@ -499,7 +505,10 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
 
   // ADK's startNodeTask on a resumed walk: each node's first activation takes its next prior run.
   const activated = new Set<string>();
-  const resumeStart = (name: string, node: GraphNode): { shortcut?: Settled; input?: unknown; resumeInputs?: Readonly<Record<string, unknown>> } => {
+  const resumeStart = (
+    name: string,
+    node: GraphNode,
+  ): { shortcut?: Settled; input?: unknown; resumeInputs?: Readonly<Record<string, unknown>>; resumedInterruptIds?: readonly string[] } => {
     const resume = options.resume;
     if (!resume) return {};
     const repeat = activated.has(name);
@@ -515,7 +524,12 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
       }
     }
     const resuming = prior !== undefined && prior.interruptIds.size > 0 && prior.input !== undefined;
-    return { ...(resuming ? { input: prior.input } : {}), resumeInputs: repeat ? {} : resume.resumeInputs };
+    const waited = prior !== undefined && prior.interruptIds.size > 0 && !repeat;
+    return {
+      ...(resuming ? { input: prior.input } : {}),
+      resumeInputs: repeat ? {} : resume.resumeInputs,
+      ...(waited ? { resumedInterruptIds: [...prior.interruptIds] } : {}),
+    };
   };
 
   // Seed: one trigger per START edge, each on its own branch when there are several.
@@ -547,7 +561,15 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
       const path = `${workflowPath}.${name}`;
       const input = start.input !== undefined ? start.input : trigger.input;
       emit({ type: 'node_start', node: name, kind: node.kind, runId, path, branch, input });
-      const ctx: RunContext = { input, runId, path, branch, signal: controller.signal, ...(start.resumeInputs ? { resumeInputs: start.resumeInputs } : {}) };
+      const ctx: RunContext = {
+        input,
+        runId,
+        path,
+        branch,
+        signal: controller.signal,
+        ...(start.resumeInputs ? { resumeInputs: start.resumeInputs } : {}),
+        ...(start.resumedInterruptIds ? { resumedInterruptIds: start.resumedInterruptIds } : {}),
+      };
       const traced: TracedNode = { name, kind: node.kind, path, runId, attempts: state.attempts };
       const run = walk.traceNode(traced, () => executeNode(node, ctx, walk, state.attempts)).then(
         (result): Settled => ({ name, result: { ...result, branch } }),
