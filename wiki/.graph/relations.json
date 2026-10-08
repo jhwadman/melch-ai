@@ -1177,6 +1177,46 @@
       "evidence": "wiki/overview/native-loop.md \"The loop\": \"runAgentLoop(agent, ctx) is an async generator …\" and each step's calls, approval request, outputKey and end reasons.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "/decisions/0034-self-correction.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0075 Context: \"ADR 0034 turns self-correction on by default: runSyndicateTurn installs ADK's ReflectAndRetryModelPlugin ... and ReflectAndRetryToolPlugin\"; the native loop ports what they do.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0075 Decision 3: \"The native loop runs a step's calls in parallel\" (ADR 0071), so each call's count waits for the calls before it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0075 Context: \"A session either runtime writes must be one the other continues (ADR 0045), with retries at their defaults.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0075 Decision 1-2: selfCorrection.ts ports both plugins, the texts, ids, counts and their quirks kept so both runtimes store the same events.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"Self-correction\": the model side, the tool side, call-order counting and the quirks kept.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

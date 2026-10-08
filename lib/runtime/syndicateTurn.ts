@@ -55,6 +55,7 @@ export { approvalResponsePart, describeApproval, pendingApproval } from './appro
 export type { PendingApproval } from './approvals.ts';
 import { RemoteA2AAgent, remoteContextId, remoteToolOutput } from '../a2a/remoteAgent.ts';
 import { createTurnControl, runWithTurnControl, stopCode, stopMessage } from './turnControl.ts';
+import { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './native/selfCorrection.ts';
 import type { TurnStopReason } from './turnControl.ts';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -218,8 +219,8 @@ const CLASSIFIER_PREAMBLE =
 
 // ── Self-correction (ADR 0034) ───────────────────────────────────────────────
 
-export const DEFAULT_MODEL_ERROR_RETRIES = 2;
-export const DEFAULT_TOOL_ERROR_RETRIES = 3;
+// The defaults live with the native loop's self-correction, so both runtimes read one pair.
+export { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './native/selfCorrection.ts';
 
 /**
  * ADK's reflect-and-retry plugins, on by default. The model plugin turns a

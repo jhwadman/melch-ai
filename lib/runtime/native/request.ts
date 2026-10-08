@@ -37,13 +37,15 @@
  *      where the ADK runtime sends it (web_search everywhere, url_context
  *      and google_search on Gemini, x_search and collections_search on
  *      xAI); `code_execution` first among Gemini's own tools; and the
- *      set_model_response tool when (2) asked for it.
+ *      set_model_response tool when (2) asked for it, then the caller's
+ *      `extraTools` (self-correction's reflection tool, as ADK's plugin adds
+ *      it to the toolsDict last).
  *   5. Tool choice, the output schema or JSON mode, reasoning and sampling,
  *      read from the config by the mapping's own readers.
  *
  * WHAT IT DOES NOT DO (later tickets): resume an approval or an input
  * request (ADK's confirmation and input processors run tools before the
- * request; WS2-7), compact the history (WS2-8), add transfer_to_agent
+ * request; WS2-7), compact the history (WS2-9), add transfer_to_agent
  * (compiled syndicates never set subAgents; delegation is WS2-6), task mode
  * and finish_task (WS3-5), workflow placeholders and artifacts in an
  * instruction (no runtime has an artifact service), and an ADK tool's own
@@ -138,6 +140,12 @@ export interface RequestContext {
   stream?: boolean;
   /** Aborts the call in flight: the turn's signal. */
   signal?: AbortSignal;
+  /**
+   * Tools declared after the agent's own, as a plugin's beforeModelCallback
+   * adds them to ADK's toolsDict last: self-correction's reflection tool
+   * (lib/runtime/native/selfCorrection.ts).
+   */
+  extraTools?: readonly unknown[];
 }
 
 /** A request, and the client-side tools it declares by name (what the loop runs and checks for long-running calls). */
@@ -459,6 +467,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   };
   const all: unknown[] = [...listed];
   if (schemaWithTools) all.push(setModelResponseTool(agent.outputSchema as Record<string, unknown>));
+  if (ctx.extraTools) all.push(...ctx.extraTools);
 
   // One entry per name, in first-listed order, the later object winning (ADK's toolsDict).
   const dict = new Map<string, { tool: unknown; declaration?: ToolDeclaration; native?: NativeTool }>();

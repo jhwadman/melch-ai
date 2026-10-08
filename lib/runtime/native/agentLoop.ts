@@ -27,6 +27,9 @@
  *        `{ error: "Function <name> is not found in the toolsDict." }`;
  *      - a tool that throws answers `{ error: "Error in tool '<name>': …" }`,
  *        the text ADK's FunctionTool writes (lib/tools/adkTool.ts);
+ *      - with self-correction's tool side on (retries.tool_errors, default
+ *        3), those two answer with reflection guidance instead, counted per
+ *        tool in call order (lib/runtime/native/selfCorrection.ts);
  *      - a tool that requires approval and has none asks for it, as
  *        FunctionTool's gate does: `{ error: APPROVAL_TEXTS.pending }`,
  *        `skipSummarization`, and the request under the call's id;
@@ -52,11 +55,16 @@
  *      model event lists the call in longRunningToolIds, and the run ends
  *      with no response to it, the call pending. Resuming it is WS2-7a.
  *
+ * SELF-CORRECTION (ADR 0034, ADR 0075) is ADK's reflect-and-retry plugins,
+ * ported to lib/runtime/native/selfCorrection.ts: the step declares the
+ * reflection tool and passes each response through its model side, and
+ * each call's error or answer goes through its tool side. On by default,
+ * as runSyndicateTurn installs the plugins by default.
+ *
  * NOT HERE (later tickets): delegation and transfer (WS2-6), resuming an
- * approval or a question (WS2-7a/7b), ADK's reflect-and-retry plugins
- * (WS2-8: here a throwing tool answers its error at once, as ADK does with
- * `retries.tool_errors: 0`), compaction (WS2-9), the runtime flag (WS2-10),
- * tool spans (WS2-11), and an auth request a tool raises (no own tool can).
+ * approval or a question (WS2-7a/7b), compaction (WS2-9), the runtime flag
+ * (WS2-10), tool spans (WS2-11), and an auth request a tool raises (no own
+ * tool can).
  *
  * ADK stays out of this file: an ADK tool an agent still lists during the
  * dual period (a registry FunctionTool, the skills toolset's tools) is run
@@ -78,6 +86,8 @@ import type { TurnContent, TurnEvent, TurnEventActions, TurnFunctionCall, TurnPa
 import type { MemoryService } from '../memoryService.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import type { NativeAgent } from './request.ts';
+import { SelfCorrection } from './selfCorrection.ts';
+import type { CallCorrection } from './selfCorrection.ts';
 import { runModelStep } from './step.ts';
 import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
 
@@ -88,11 +98,17 @@ import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
  * adapter. The session already holds the run's user event; every event the
  * loop stores is appended to it.
  */
-export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adapter' | 'onPartial' | 'model' | 'beforeAppend' | 'redirect'> {
+export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adapter' | 'onPartial' | 'model' | 'beforeAppend' | 'redirect' | 'correction'> {
   /** The leaf adapter for a model id: the agent's, and its fallback's. Default resolveAdapter (lib/models/registry.ts). */
   adapterFor?: (model: string) => ModelAdapter;
   /** Where the fallback's redirect notice goes. Default console.warn, as compile's. */
   log?: (message: string) => void;
+  /**
+   * Self-correction (ADR 0034, ADR 0075): the turn's one instance, built from
+   * the syndicate's `retries:`. Default: retries at their defaults, as
+   * runSyndicateTurn installs ADK's plugins by default.
+   */
+  selfCorrection?: SelfCorrection;
 }
 
 /** How the run ended. */
@@ -227,6 +243,7 @@ interface CallScope {
   ctx: AgentLoopContext;
   stateBase: Readonly<Record<string, unknown>>;
   signal?: AbortSignal;
+  selfCorrection?: SelfCorrection;
 }
 
 function callContext(scope: CallScope, functionCallId: string | undefined): CallContext {
@@ -318,15 +335,17 @@ async function runOwnTool(tool: Tool, args: Record<string, unknown>, context: Ca
   }
 }
 
-async function runCall(scope: CallScope, call: TurnFunctionCall, tools: Map<string, unknown>): Promise<CallOutcome> {
+async function runCall(scope: CallScope, call: TurnFunctionCall, tools: Map<string, unknown>, correction?: CallCorrection): Promise<CallOutcome> {
   const context = callContext(scope, call.id || undefined);
   const name = call.name ?? '';
   const tool = name && tools.has(name) ? tools.get(name) : undefined;
   const callable = isTool(tool) || isAdkShaped(tool);
   if (!callable) {
     const toolName = name || '<unnamed>';
+    const notFound = `Function ${toolName} is not found in the toolsDict.`;
+    const guided = await correction?.failed(toolName, call.args ?? {}, new Error(notFound));
     const part: TurnPart = {
-      functionResponse: { name: toolName, response: { error: `Function ${toolName} is not found in the toolsDict.` }, id: context.functionCallId },
+      functionResponse: { name: toolName, response: guided ?? { error: notFound }, id: context.functionCallId },
     };
     return { part, actions: context.actions };
   }
@@ -340,7 +359,11 @@ async function runCall(scope: CallScope, call: TurnFunctionCall, tools: Map<stri
     response = isTool(tool) ? await runOwnTool(tool, args, context) : await tool.runAsync({ args, toolContext: context });
   } catch (e) {
     failure = e instanceof Error ? e.message : e;
+    // Self-correction answers a thrown Error with reflection guidance in its place.
+    const guided = await correction?.failed(toolName, args, e);
+    if (guided) [response, failure] = [guided, undefined];
   }
+  if (failure === undefined) await correction?.answered(toolName, response);
   // As ADK: a long-running call with no response answers nothing, even when it threw.
   if (longRunning && (response === null || response === undefined)) {
     return isDefaultActions(context.actions) ? undefined : { actions: context.actions };
@@ -352,7 +375,10 @@ async function runCall(scope: CallScope, call: TurnFunctionCall, tools: Map<stri
 /** The step's calls run, in parallel, as the one response event ADK stores for them (not yet stored); undefined when none answered. */
 async function runCalls(scope: CallScope, modelEvent: TurnEvent, tools: Map<string, unknown>): Promise<TurnEvent | undefined> {
   const calls = getFunctionCalls(modelEvent);
-  const outcomes = (await Promise.all(calls.map((call) => runCall(scope, call, tools)))).filter((o): o is NonNullable<CallOutcome> => !!o);
+  const order = scope.selfCorrection?.forCalls(scope.ctx.invocationId, calls.length);
+  const outcomes = (
+    await Promise.all(calls.map((call, i) => runCall(scope, call, tools, order?.call(i)).finally(() => order?.release(i))))
+  ).filter((o): o is NonNullable<CallOutcome> => !!o);
   if (outcomes.length === 0) return undefined;
   const base = { invocationId: scope.ctx.invocationId, author: scope.agent.name };
   const contentOf = (parts: TurnPart[]): TurnContent => ({ role: 'user', parts });
@@ -507,13 +533,15 @@ export async function* runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): 
   };
   let steps = 0;
   let lastEvent: TurnEvent | undefined;
+  const selfCorrection = ctx.selfCorrection ?? new SelfCorrection();
+  const correction = selfCorrection.forModel(agent.name, ctx.invocationId);
 
   for (;;) {
     if (steps >= MAX_LLM_CALLS) {
       return { reason: 'stopped', steps, lastEvent, stop: { code: 'STEP_LIMIT', message: `Max number of llm calls limit of ${MAX_LLM_CALLS} exceeded` } };
     }
     steps += 1;
-    const step = yield* modelStep(agent, ctx, { ...ctx, agent, beforeAppend: (event) => saveOutput(agent, event) });
+    const step = yield* modelStep(agent, ctx, { ...ctx, agent, beforeAppend: (event) => saveOutput(agent, event), ...(correction ? { correction } : {}) });
     if (step.stopped) return { reason: 'stopped', steps, lastEvent, stop: step.stopped };
     const modelEvent = step.event;
     if (!modelEvent) return { reason: 'empty', steps, lastEvent };
@@ -523,7 +551,7 @@ export async function* runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): 
     let stepEnd = modelEvent;
     const hadCalls = getFunctionCalls(modelEvent).length > 0;
     if (hadCalls) {
-      const scope: CallScope = { agent, ctx, stateBase: session.state, ...(step.request.signal ? { signal: step.request.signal } : {}) };
+      const scope: CallScope = { agent, ctx, stateBase: session.state, selfCorrection, ...(step.request.signal ? { signal: step.request.signal } : {}) };
       const response = await runCalls(scope, modelEvent, step.tools);
       if (response) {
         const auth = authEvent(scope, response);
