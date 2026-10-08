@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-10-07
+  at: 2026-10-08
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -51,8 +51,8 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
 | `imports` | extracted | A imports B | 376 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 314 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 252 | a resolved markdown link between documents |
+| `derives_from` | extracted | A derives from B | 315 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 254 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 159 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |

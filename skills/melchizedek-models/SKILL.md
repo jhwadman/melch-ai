@@ -113,15 +113,16 @@ Set how hard an agent reasons with `reasoning:` on the agent block, beside `mode
 | --- | --- |
 | Gemini 3 and later | a thinking level: `none` is `MINIMAL`, then `LOW`, `MEDIUM`, `HIGH` |
 | Gemini 2.x, and Claude 4.6 or older | a thinking budget of 0, 2048, 8192 or 16384 tokens |
+| Every later Claude model | adaptive thinking at an effort of `low`, `medium` or `high`; `none` is the model's own off switch, sent at `low` effort |
 | Every other provider, and the gateway | an effort word; where the provider lacks that word, its nearest setting above |
 
-A `budget_tokens` value goes as written to Gemini and Claude, and as the smallest level that covers it everywhere else. Because the gateway can serve any cloud id, the effort word is always sent as well, and a direct provider ignores the field it does not read. Change the `model:` line and the setting carries over.
+A `budget_tokens` value goes as written to Gemini and to Claude 4.6 or older, and as the smallest level that covers it everywhere else, later Claude models included. Because the gateway can serve any cloud id, the effort word is always sent as well, and a direct provider ignores the field it does not read. Change the `model:` line and the setting carries over. Unset, a later Claude model keeps its own default: it thinks, except Opus 4.7 and 4.8, which think only when asked.
 
-Four limits apply. The Claude adapter raises a budget under 1024 to 1024, and a Claude budget above about 19000 fails a non-streaming turn in the Anthropic SDK, so stay at or under `high`. Gemini 2.5 Pro rejects a budget of 0, so `none` fails on it. On Claude Opus 4.7, 4.8, 5 and 5.5, Sonnet 5 and 5.5, Haiku 5.5, and Fable 5 and 5.1, leave `reasoning:` unset for now: those models think adaptively by default and refuse a thinking budget. The adapter will map `reasoning:` to their effort setting in a later release.
+Four limits apply. On Claude 4.6 or older, the adapter raises a budget under 1024 to 1024, the least Anthropic takes. On every Claude model, the Anthropic SDK refuses a non-streaming request whose output ceiling passes about 21000 tokens. The adapter sets that ceiling to at least the thinking budget plus 2048, so a `budget_tokens` above about 19000 fails a non-streaming turn. The levels stay under it. On Claude Opus 5 and 5.5, Fable and Mythos, `none` is adaptive thinking at `low` effort, so a little thinking remains: Opus 5.5, Fable and Mythos cannot turn thinking off, and Opus 5's off switch can write a tool call as text that never runs. Gemini 2.5 Pro rejects a budget of 0, so `none` fails on it.
 
 You can configure generation parameters under `generateContentConfig:` on any agent in the syndicate YAML:
 - `temperature`: controls randomness where the provider still exposes the parameter.
-- `maxOutputTokens`: caps total token generation. Thinking tokens count against it, so a reasoning agent with long output needs room. The Claude adapter raises its own ceiling to fit the thinking budget.
+- `maxOutputTokens`: caps total token generation. Thinking tokens count against it, so a reasoning agent with long output needs room. The Claude adapter raises its own ceiling to the thinking budget plus 2048 tokens, on every Claude model. A level counts as its budget (2048, 8192 or 16384), so `high`, or a later Claude model that thinks by default, gets at least 18432.
 
 `thinkingConfig` and `reasoningEffort` inside `generateContentConfig:` are the older, provider-specific spelling of `reasoning:`. They still load, but each reaches only the providers that read it: a `thinkingLevel` written for Gemini does nothing on Claude. An agent that sets either beside `reasoning:` fails to load. Keep `thinkingConfig` only for `includeThoughts: true`, which streams Gemini's thought trace and has no `reasoning:` form. Such an agent sets its level inside `thinkingConfig` too, with `thinkingLevel`, and leaves `reasoning:` out.
 

@@ -6,6 +6,13 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **The skills say what `reasoning:` does on each Claude generation (ADR 0049).**
+  `melchizedek-models`, `melchizedek-author`, their briefs, `DOCUMENTATION.md`
+  and `syndicateSchema.yaml` say that later Claude models take `reasoning:` as
+  adaptive thinking at an effort, with `none` as the model's off switch, or
+  `low` effort on Opus 5 and 5.5, Fable and Mythos. The 1,024 floor holds on
+  Claude 4.6 and earlier only, and the non-streaming limit on a
+  `budget_tokens` above about 19,000 holds on every Claude model.
 - **Claude requests follow the model generation (ADR 0049).** `ClaudeLlm`
   reads a per-generation table from the model id. Before, every `claude-*`
   id got a thinking budget and a forced tool, which the current models refuse
@@ -49,8 +56,7 @@ the starter pack and the templates), not the repo's full history.
   budget as `low`.
 - **The shipped skills teach `reasoning:`.** `melchizedek-author` and
   `melchizedek-models` (and their briefs) set reasoning with `reasoning:`, show
-  what each level becomes per provider (and the newer Claude models on which
-  to leave it unset until the adapter maps it to their effort setting), and
+  what each level becomes per provider and per Claude model generation, and
   describe `generateContentConfig.thinkingConfig` and `reasoningEffort` as the
   older spelling that still loads. The author skill's `assets/minimal.yaml` sets it.
 - `lib/compile.ts` exports `reasoningConfig`, `withReasoning` and
