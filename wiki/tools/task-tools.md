@@ -7,7 +7,7 @@ tags:
   - tasks
 generated:
   by: process:wiki-build
-  at: 2026-09-25
+  at: 2026-10-08
 sources:
   - resource: lib/tools/taskTools.ts
   - resource: scripts/assistant_worker.ts
@@ -22,7 +22,7 @@ One store holds two kinds of record: `todo` (the user's own tasks: open → done
 |---|---|---|
 | `task_add` | `title`, `notes?`, `due?` | Add a task to the user's own to-do list: something THEY need to do or remember. |
 | `task_queue` | `title`, `instruction` | Queue a background job: work that takes a while (reading several pages, a long draft, a comparison) and should not block the conversation. |
-| `task_list` | `status`, `kind` | List the user's tasks and background jobs, one line each with id, status, and title. |
+| `task_list` | `status?`, `kind?` | List the user's tasks and background jobs, one line each with id, status, and title. |
 | `task_get` | `id` | Read one task or background job in full, including a finished job's result. |
 | `task_update` | `id`, `status?`, `title?`, `notes?`, `due?` | Change a task: mark it done, cancel it, reopen it, or edit its title, notes, or due date. |
 <!-- /wiki:generated -->

@@ -3,6 +3,50 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0009-observability-ledger.md —constrains→ module:lib/observability/tracer.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/observability/tracer.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/models/adkGeminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/geminiState.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | module:lib/models/adkGeminiAdapter.ts —alternative_to→ module:lib/models/geminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/models/adkGeminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/adkGeminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —depends_on→ /decisions/0048-engine-owned-model-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —constrains→ module:lib/tools/toolContract.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —constrains→ module:lib/tools/adkTool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —constrains→ module:lib/tools/tool.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/models/adkShim.ts
 
 by claude-code/claude-opus-5-5

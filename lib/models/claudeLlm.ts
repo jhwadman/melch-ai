@@ -65,6 +65,7 @@ import {
   traceLlmGeneration,
   setLlmSpanAttribute,
 } from '../observability/tracer.ts';
+import { llmRequestToModelRequest } from './genaiMapping.ts';
 import {
   wantsWebSearch,
   isWebSearchSentinel,
@@ -268,7 +269,11 @@ export class ClaudeLlm extends BaseLlm {
     stream = false,
   ): AsyncGenerator<LlmResponse, void> {
     yield* traceLlmGeneration(
-      { provider: 'anthropic', model: this.model, llmRequest },
+      {
+        provider: 'anthropic',
+        model: this.model,
+        request: () => llmRequestToModelRequest(llmRequest, { model: llmRequest.model || this.model, stream }),
+      },
       this.generateInner(llmRequest, stream),
     );
   }

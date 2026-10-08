@@ -97,6 +97,44 @@
  * an LlmResponse has no field for them: `cacheWriteTokens`, a citation's
  * span and cited text, and which native tool ran a query.
  *
+ * THE REVERSE: a contract adapter over an ADK BaseLlm (lib/models/
+ * adkGeminiAdapter.ts, the wrapper over ADK's Gemini) maps the ModelRequest
+ * it is given to an LlmRequest, and each LlmResponse back.
+ *
+ *   modelRequestToLlmRequest builds the LlmRequest ADK's path builds for a
+ *   Gemini model: the system prompt as `systemInstruction`; the messages as
+ *   above; client tools as `functionDeclarations` with the lowercase schema
+ *   in `parametersJsonSchema`, and in `toolsDict` as declaration-only
+ *   entries, where llmRequestToModelRequest and the ADK-path adapters read
+ *   them; native tools as Gemini's tool objects, in the request's order;
+ *   toolChoice and strict as the function-calling mode, sent only beside
+ *   declarations; the output schema as `responseJsonSchema`; reasoning
+ *   through reasoningConfig (lib/models/reasoning.ts), as the compiler maps
+ *   it; sampling; the signal as `config.abortSignal`. What does not come
+ *   back the same through llmRequestToModelRequest: `google_search` reads as
+ *   `web_search`; `x_search` and `collections_search` are left out (Gemini
+ *   has no tool for them, and ADK adds their sentinels only for xAI); `auto`
+ *   reads as absent, and a choice without tools is not sent; one strict tool
+ *   makes every tool strict, and strict is lost beside a forced choice; a
+ *   level a model renders as a budget or another word reads back as that
+ *   rendering; `stream` is not an LlmRequest field. System messages stay
+ *   `system` contents, which Gemini refuses: the caller folds them into the
+ *   system prompt.
+ *
+ *   llmResponseToModelResponse reads one LlmResponse. A partial is its text
+ *   and thinking deltas. Anything else is a final: its parts as an assistant
+ *   message's, minus thinking, whose signature moves to the next part (or
+ *   stays with the last part when none follows); `model`, when given, on
+ *   every thought_signature state, as GeminiAdapter writes it; ids minted
+ *   from `index`, the answer's place in its conversation; `errorCode` as the
+ *   error, with the verdict read back from customMetadata and key-shaped text
+ *   scrubbed, except ADK's `STOP`, which is no error; Gemini's finish reason
+ *   as the contract's (`tool_call` whenever a call is there); usage under
+ *   the contract's meanings; grounding as the cited pages and the search
+ *   queries, attributed to `searchTool`. Not read back: citation spans and
+ *   cited text, `cacheWriteTokens`, and any thought text in a final, which is
+ *   display only (the caller yields it as a partial).
+ *
  * USAGE MEANINGS. usageToMetadata and usageFromMetadata use Gemini's: its
  * `candidatesTokenCount` excludes the thinking in `thoughtsTokenCount`. The
  * ADK-path GPT and chat-completions adapters write `candidatesTokenCount`
@@ -104,34 +142,54 @@
  * counts that reasoning twice in `outputTokens`.
  */
 
-import { FinishReason } from '@google/genai';
-import type { Content, ContentUnion, GenerateContentConfig, GenerateContentResponseUsageMetadata, GroundingMetadata, Part as GenaiPart } from '@google/genai';
-import type { LlmRequest, LlmResponse } from '@google/adk';
+import { FinishReason, FunctionCallingConfigMode } from '@google/genai';
+import type {
+  Content,
+  ContentUnion,
+  GenerateContentConfig,
+  GenerateContentResponseUsageMetadata,
+  GroundingMetadata,
+  Part as GenaiPart,
+  Tool,
+  ToolConfig,
+} from '@google/genai';
+import type { BaseTool, LlmRequest, LlmResponse } from '@google/adk';
 
 import type {
+  Citation,
+  FinalModelResponse,
   FinishReason as ContractFinishReason,
   Grounding,
   Message,
+  ModelError,
   ModelRequest,
   ModelResponse,
   NativeTool,
+  OutputPart,
   Part,
   ProviderState,
   ReasoningLevel,
   ReasoningSetting,
   Role,
   Sampling,
+  TextPart,
+  ThinkingPart,
   ToolChoice,
   ToolDeclaration,
   Usage,
 } from './contract.ts';
-import { withRetryVerdict } from './errorResponse.ts';
+import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, errorText, withRetryVerdict } from './errorResponse.ts';
+import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
+import { reasoningConfig } from './reasoning.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './schemaNormalize.ts';
 
-/** The provider id the mapping writes its own state under: only the Gemini adapter replays it. */
-export const GEMINI_PROVIDER = 'gemini';
-/** providerState kind for a Gemini `thoughtSignature`; the payload is the signature. */
-export const THOUGHT_SIGNATURE_KIND = 'thought_signature';
+/**
+ * The provider id the mapping writes its own state under (only a Gemini
+ * adapter replays it), and the providerState kind for a Gemini
+ * `thoughtSignature`, whose payload is the signature. Defined once in
+ * lib/models/geminiState.ts, so the Gemini adapter spells them the same.
+ */
+export { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND };
 /** providerState kind for a genai part the contract cannot hold exactly; the payload is the part. */
 export const GENAI_PART_KIND = 'genai_part';
 /** The prefix of an id the mapping made for a call or result that had none. */
@@ -659,4 +717,224 @@ export function modelResponseToLlmResponse(response: ModelResponse): LlmResponse
   if (!response.error) return llmResponse;
   const { retryable, status } = response.error;
   return withRetryVerdict(llmResponse, { retryable, ...(status !== undefined ? { status } : {}) });
+}
+
+// ── ModelRequest → LlmRequest ────────────────────────────────────────────────
+
+/** The Gemini tool object each native tool becomes. `x_search` and `collections_search` have none. */
+const GEMINI_NATIVE_TOOLS: Partial<Record<NativeTool, () => Tool>> = {
+  web_search: () => ({ googleSearch: {} }),
+  google_search: () => ({ googleSearch: {} }),
+  url_context: () => ({ urlContext: {} }),
+  code_execution: () => ({ codeExecution: {} }),
+};
+
+/** The native tools in `tools` that Gemini has no tool for, each once: modelRequestToLlmRequest leaves them out. */
+export function nativeToolsWithoutGeminiTool(tools: readonly NativeTool[] = []): NativeTool[] {
+  return [...new Set(tools)].filter((tool) => !GEMINI_NATIVE_TOOLS[tool]);
+}
+
+/**
+ * A toolsDict entry that only declares. `_getDeclaration()` gives the
+ * declaration with its lowercase schema as `parameters`, where
+ * llmRequestToModelRequest (contractToolDeclaration) and the ADK-path
+ * adapters (toolDeclarationFor) read it. It is never run: ADK's Gemini sends
+ * `config.tools`, and nothing calls a tool out of a request.
+ */
+function declaredTool({ name, description, parameters }: ToolDeclaration): BaseTool {
+  return { name, description, isLongRunning: false, _getDeclaration: () => ({ name, description, parameters }) } as unknown as BaseTool;
+}
+
+/** The function-calling mode for the request's tool choice and strict tools, sent only beside declarations. */
+function toolConfigOf(request: ModelRequest): ToolConfig | undefined {
+  if (!request.tools?.length) return undefined;
+  const choice = request.toolChoice;
+  if (typeof choice === 'object') {
+    return { functionCallingConfig: { mode: FunctionCallingConfigMode.ANY, allowedFunctionNames: [choice.name] } };
+  }
+  const mode =
+    choice === 'none'
+      ? FunctionCallingConfigMode.NONE
+      : choice === 'required'
+        ? FunctionCallingConfigMode.ANY
+        : request.tools.some((t) => t.strict)
+          ? FunctionCallingConfigMode.VALIDATED
+          : choice === 'auto'
+            ? FunctionCallingConfigMode.AUTO
+            : undefined;
+  return mode ? { functionCallingConfig: { mode } } : undefined;
+}
+
+/** A ModelRequest as the LlmRequest ADK's path builds for a Gemini model (see the header for what does not come back the same). */
+export function modelRequestToLlmRequest(request: ModelRequest): LlmRequest {
+  const config: GenerateContentConfig = {};
+  if (request.system) config.systemInstruction = request.system;
+
+  const declarations = request.tools ?? [];
+  const tools: Tool[] = [];
+  if (declarations.length > 0) {
+    tools.push({
+      functionDeclarations: declarations.map(({ name, description, parameters }) => ({ name, description, parametersJsonSchema: parameters })),
+    });
+  }
+  // In the request's order, so llmRequestToModelRequest reads them back in it.
+  let searching = false;
+  for (const native of new Set(request.nativeTools ?? [])) {
+    const tool = GEMINI_NATIVE_TOOLS[native];
+    if (!tool) continue;
+    if (native === 'web_search' || native === 'google_search') {
+      if (searching) continue;
+      searching = true;
+    }
+    tools.push(tool());
+  }
+  if (tools.length > 0) config.tools = tools;
+
+  const toolConfig = toolConfigOf(request);
+  if (toolConfig) config.toolConfig = toolConfig;
+  if (request.outputSchema) {
+    config.responseMimeType = 'application/json';
+    config.responseJsonSchema = request.outputSchema;
+  }
+  // The fields the compiler writes for the model (ADR 0047): a thinking
+  // level or budget on Gemini, and the effort word every other adapter reads.
+  if (request.reasoning !== undefined) Object.assign(config, reasoningConfig(request.model, request.reasoning));
+  const sampling = request.sampling;
+  if (sampling?.temperature !== undefined) config.temperature = sampling.temperature;
+  if (sampling?.topP !== undefined) config.topP = sampling.topP;
+  if (sampling?.maxOutputTokens !== undefined) config.maxOutputTokens = sampling.maxOutputTokens;
+  if (sampling?.stop?.length) config.stopSequences = [...sampling.stop];
+  if (request.signal) config.abortSignal = request.signal;
+
+  return {
+    model: request.model,
+    contents: messagesToContents({ messages: request.messages }).contents,
+    config,
+    liveConnectConfig: {},
+    toolsDict: Object.fromEntries(declarations.map((d) => [d.name, declaredTool(d)])),
+  };
+}
+
+// ── LlmResponse → ModelResponse ──────────────────────────────────────────────
+
+/** What an LlmResponse does not carry, for the response it maps to. */
+export interface ModelResponseOptions {
+  /**
+   * The model that answered. Set on every thought_signature state the final
+   * carries, as GeminiAdapter writes it, so a reader replays it for that
+   * model only (ADR 0046). Default none: genai records none.
+   */
+  model?: string;
+  /** The answer's index in its conversation, from which ids are minted for calls without one. Default 0. */
+  index?: number;
+  /** The native tool a grounded answer's search queries are attributed to. Default `web_search`. */
+  searchTool?: NativeTool;
+}
+
+/** Gemini's reasons for withholding an answer, or blocking a prompt, on policy grounds. */
+const POLICY_REASONS: ReadonlySet<string> = new Set(['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'MODEL_ARMOR', 'JAILBREAK']);
+
+function isPolicyReason(reason: string): boolean {
+  return POLICY_REASONS.has(reason) || reason.startsWith('IMAGE_');
+}
+
+/** Gemini's finish reason as the contract's (the Gemini table of wiki/models/model-contract.md). */
+function finishReasonOf(reason: string): ContractFinishReason {
+  if (reason === 'STOP') return 'stop';
+  if (reason === 'MAX_TOKENS') return 'max_tokens';
+  return isPolicyReason(reason) ? 'content_filter' : 'other';
+}
+
+function isSignatureState(state: ProviderState | undefined): state is ProviderState {
+  return state?.provider === GEMINI_PROVIDER && state.kind === THOUGHT_SIGNATURE_KIND;
+}
+
+/**
+ * An assistant message's parts as a final's: thinking left out, a signature
+ * it carried moved to the next part when that part has no state of its own,
+ * or kept by the last part when no part follows; `model` set on every
+ * signature that names none.
+ */
+function outputPartsOf(parts: readonly Part[], model: string | undefined): OutputPart[] {
+  const out: OutputPart[] = [];
+  let carried: ProviderState | undefined;
+  for (const part of parts) {
+    if (part.type === 'thinking') {
+      if (isSignatureState(part.providerState)) carried = part.providerState;
+      continue;
+    }
+    if (part.type === 'toolResult') continue; // an assistant message holds none
+    out.push(carried && part.providerState === undefined ? { ...part, providerState: carried } : part);
+    carried = undefined;
+  }
+  const last = out.at(-1);
+  if (carried && last && last.providerState === undefined) out[out.length - 1] = { ...last, providerState: carried };
+  if (model === undefined) return out;
+  return out.map((p) => (isSignatureState(p.providerState) && p.providerState.model === undefined ? { ...p, providerState: { ...p.providerState, model } } : p));
+}
+
+/** An ADK error code as the contract's error, with the verdict the adapter stamped (withRetryVerdict). `STOP` is no error. */
+function errorOf(response: LlmResponse): ModelError | undefined {
+  const code = response.errorCode;
+  if (!code || code === 'STOP') return undefined;
+  const status = response.customMetadata?.[ERROR_STATUS_KEY];
+  return {
+    code,
+    message: errorText(response.errorMessage || `The model call ended with ${code}.`),
+    retryable: response.customMetadata?.[ERROR_RETRYABLE_KEY] === true,
+    ...(typeof status === 'number' ? { status } : {}),
+  };
+}
+
+/** Each cited page once, with its title, and the queries run: what groundingToMetadata writes. Citation spans are not read. */
+function groundingOf(meta: GroundingMetadata | undefined, tool: NativeTool): Grounding | undefined {
+  if (!meta) return undefined;
+  const citations: Citation[] = [];
+  const seen = new Set<string>();
+  for (const chunk of meta.groundingChunks ?? []) {
+    const url = chunk.web?.uri;
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    citations.push(chunk.web?.title ? { url, title: chunk.web.title } : { url });
+  }
+  const searchQueries = (meta.webSearchQueries ?? []).filter((q) => typeof q === 'string' && q).map((query) => ({ tool, query }));
+  if (citations.length === 0 && searchQueries.length === 0) return undefined;
+  return { ...(citations.length > 0 ? { citations } : {}), ...(searchQueries.length > 0 ? { searchQueries } : {}) };
+}
+
+/** One LlmResponse as a ModelResponse (see the header). A caller folding a stream of them into one final keeps the thinking itself. */
+export function llmResponseToModelResponse(response: LlmResponse, options: ModelResponseOptions = {}): ModelResponse {
+  const raw = response.content?.parts ?? [];
+  if (response.partial === true) {
+    const parts: Array<TextPart | ThinkingPart> = [];
+    for (const p of raw as unknown[]) {
+      if (!isObject(p) || typeof p.text !== 'string' || p.text === '') continue;
+      parts.push(p.thought === true ? { type: 'thinking', text: p.text } : { type: 'text', text: p.text });
+    }
+    return { partial: true, parts };
+  }
+  const message = contentToMessage({ role: 'model', parts: raw }, options.index ?? 0);
+  const parts = outputPartsOf(message.parts as Part[], options.model);
+  const error = errorOf(response);
+  const reason = typeof response.finishReason === 'string' && response.finishReason ? response.finishReason : undefined;
+  const finishReason: ContractFinishReason = parts.some((p) => p.type === 'toolCall')
+    ? 'tool_call'
+    : reason
+      ? finishReasonOf(reason)
+      : error
+        ? isPolicyReason(error.code)
+          ? 'content_filter'
+          : 'error'
+        : 'stop';
+  const usage = usageFromMetadata(response.usageMetadata);
+  const grounding = groundingOf(response.groundingMetadata, options.searchTool ?? 'web_search');
+  const final: FinalModelResponse = {
+    partial: false,
+    parts,
+    finishReason,
+    ...(usage ? { usage } : {}),
+    ...(grounding ? { grounding } : {}),
+    ...(error ? { error } : {}),
+  };
+  return final;
 }

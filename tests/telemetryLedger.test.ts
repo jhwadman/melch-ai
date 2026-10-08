@@ -6,13 +6,31 @@
  * mapping, the input-text decoding, the payload policy (errors and
  * fallbacks always, a deterministic sample otherwise, off means off), the
  * exporter's wait-for-the-root buffering in both arrival orders, the
- * dead-letter spool on insert failure, and the provenance hashes.
+ * dead-letter spool on insert failure, and the provenance hashes. And the
+ * llm.request span itself: the contract wrapper over ADK's Gemini
+ * (AdkGeminiAdapter), behind the ADK shim that opens its span, records the
+ * attributes TracedGemini records for the same exchange, and a failed call's
+ * payload records its request as a ModelRequest (traceLlmGeneration,
+ * lib/observability/tracer.ts).
  */
+process.env.OTEL_CONSOLE_SPANS = 'false';
+
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { LogLevel, setLogLevel } from '@google/adk';
+import type { LlmResponse } from '@google/adk';
+
+import { AdkGeminiAdapter } from '../lib/models/adkGeminiAdapter.ts';
+import { adkShim } from '../lib/models/adkShim.ts';
+import type { ModelRequest } from '../lib/models/contract.ts';
+import { modelRequestToLlmRequest } from '../lib/models/genaiMapping.ts';
+import { TracedGemini } from '../lib/models/registry.ts';
+import { setRetryPolicyOverrides } from '../lib/models/retry.ts';
+import { onSpanEnd, traceLlmGeneration } from '../lib/observability/tracer.ts';
+import { ScriptedLlm } from './helpers/scriptedLlm.ts';
 
 import {
   SupabaseSpanExporter,
@@ -374,4 +392,193 @@ test('a failed call keeps its payload in adk_payloads only, never in the adk_tel
   assert.ok(stored.includes('llm.error_code'), 'the rest of the span is kept');
   const payload = toPayloadRow(failed, 'error', 30, undefined);
   assert.ok(payload && JSON.stringify(payload).includes('the whole prompt'), 'the payload tier still gets it');
+});
+
+// ── The llm.request span ─────────────────────────────────────────────────────
+
+const GEMINI_KEY = 'fixture-gemini-key-0123456789';
+const GEMINI_MODEL = 'gemini-3-flash';
+const GEMINI_ENV = ['GOOGLE_GENAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_PLATFORM', 'GOOGLE_GENAI_USE_VERTEXAI', 'GOOGLE_GENAI_USE_ENTERPRISE', 'GEMINI_MODEL_MAP', 'MODEL_RETRY_MAX_ATTEMPTS'];
+
+interface RecordedSpan {
+  attributes: Record<string, unknown>;
+  events: string[];
+}
+
+/** Runs `fn` with fetch answering `reply` and Gemini's environment cleared; returns the llm.request spans that ended. */
+async function geminiSpans(reply: () => Response, fn: () => Promise<void>): Promise<RecordedSpan[]> {
+  setLogLevel(LogLevel.ERROR);
+  const saved = Object.fromEntries(GEMINI_ENV.map((k) => [k, process.env[k]]));
+  for (const k of GEMINI_ENV) delete process.env[k];
+  const restoreRetries = setRetryPolicyOverrides({ baseDelayMs: 1, maxDelayMs: 2, maxRetryAfterMs: 50 });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => reply()) as typeof fetch;
+  const spans: RecordedSpan[] = [];
+  const off = onSpanEnd((s) => {
+    if (s.name === 'llm.request') spans.push({ attributes: { ...s.attributes }, events: s.events.map((e) => e.name) });
+  });
+  try {
+    await fn();
+  } finally {
+    off();
+    globalThis.fetch = realFetch;
+    restoreRetries();
+    for (const k of GEMINI_ENV) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  }
+  return spans;
+}
+
+const geminiJson = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+/**
+ * One exchange both ways under ADK: TracedGemini as it serves Gemini today,
+ * and the contract wrapper behind the ADK shim, which opens the span for it
+ * (ADR 0053), as the registry will run it.
+ */
+async function bothWays(
+  request: ModelRequest,
+  reply: () => Response,
+): Promise<{ traced: RecordedSpan[]; wrapped: RecordedSpan[]; threw: unknown; responses: LlmResponse[] }> {
+  let threw: unknown;
+  const traced = await geminiSpans(reply, async () => {
+    const gemini = new TracedGemini({ model: GEMINI_MODEL, apiKey: GEMINI_KEY, endpoint: { platform: 'direct' } });
+    try {
+      for await (const _ of gemini.generateContentAsync(modelRequestToLlmRequest(request), request.stream)) void _;
+    } catch (err) {
+      threw = err; // ADK's Gemini throws on a failed call
+    }
+  });
+  const responses: LlmResponse[] = [];
+  const wrapped = await geminiSpans(reply, async () => {
+    const shim = adkShim(new AdkGeminiAdapter({ model: GEMINI_MODEL, apiKey: GEMINI_KEY, endpoint: { platform: 'direct' } }));
+    for await (const r of shim.generateContentAsync(modelRequestToLlmRequest(request), request.stream)) responses.push(r);
+  });
+  return { traced, wrapped, threw, responses };
+}
+
+test("the contract wrapper behind the ADK shim records the llm.request span TracedGemini records", async () => {
+  const request: ModelRequest = {
+    model: GEMINI_MODEL,
+    system: 'Be brief.',
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'where is the vix?' }] }],
+    nativeTools: ['web_search'],
+    reasoning: 'high',
+    stream: false,
+  };
+  const { traced, wrapped } = await bothWays(request, () =>
+    geminiJson({
+      candidates: [
+        {
+          content: { role: 'model', parts: [{ text: 'Looking it up.', thought: true }, { text: 'The VIX is at 22.4.' }] },
+          finishReason: 'STOP',
+          groundingMetadata: { webSearchQueries: ['vix today'], groundingChunks: [{ web: { uri: 'https://a.example/vix', title: 'VIX' } }] },
+        },
+      ],
+      usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 4, thoughtsTokenCount: 3 },
+    }),
+  );
+  assert.strictEqual(traced.length, 1);
+  assert.deepStrictEqual(wrapped, traced, 'the same attributes, values and events');
+  assert.deepStrictEqual(traced[0].attributes, {
+    'llm.provider': 'gemini',
+    'llm.model': GEMINI_MODEL,
+    'gen_ai.system': 'gemini',
+    'gen_ai.request.model': GEMINI_MODEL,
+    'llm.web_search.native': true,
+    'llm.tokens.input': 12,
+    'llm.tokens.output': 4,
+    'llm.tokens.thinking': 3,
+    'gen_ai.usage.input_tokens': 12,
+    'gen_ai.usage.output_tokens': 4,
+  });
+  assert.deepStrictEqual(traced[0].events, ['llm.thinking']);
+});
+
+test('a failed Gemini call: the same attributes both ways, the code the contract names, the request a ModelRequest', async () => {
+  const request: ModelRequest = {
+    model: GEMINI_MODEL,
+    system: 'Be brief.',
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
+    stream: false,
+  };
+  const { traced, wrapped, threw, responses } = await bothWays(request, () =>
+    geminiJson({ error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } }, 503),
+  );
+  assert.ok(threw, 'TracedGemini throws, as ADK does');
+  assert.strictEqual(responses.length, 1, 'the wrapper answers with one error response instead');
+  assert.strictEqual(responses[0].errorCode, 'GEMINI_ERROR');
+  assert.strictEqual(traced.length, 1);
+  assert.strictEqual(wrapped.length, 1);
+
+  const before = traced[0].attributes;
+  const after = wrapped[0].attributes;
+  assert.deepStrictEqual(Object.keys(after).sort(), Object.keys(before).sort(), 'the same attribute names');
+  for (const key of Object.keys(before)) {
+    if (key === 'llm.error_code' || key === 'llm.payload.response') continue;
+    assert.deepStrictEqual(after[key], before[key], key);
+  }
+  // The failed call's code: genai's status, read out of the thrown body, on
+  // the ADK path; the contract's GEMINI_ERROR beside llm.http_status, as
+  // every other adapter's error reads (ADR 0048).
+  assert.strictEqual(before['llm.error_code'], '503');
+  assert.strictEqual(after['llm.error_code'], 'GEMINI_ERROR');
+  assert.strictEqual(after['llm.http_status'], 503);
+  assert.strictEqual(after['llm.retries'], 2);
+  assert.match(String(after['llm.error_message']), /overloaded/);
+  assert.deepStrictEqual(JSON.parse(String(after['llm.payload.request'])), {
+    model: GEMINI_MODEL,
+    system: 'Be brief.',
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
+    stream: false,
+  });
+  assert.strictEqual(JSON.parse(String(after['llm.payload.response'])).customMetadata['error.retryable'], true);
+  assert.deepStrictEqual(traced[0].events, ['exception'], 'the ADK path records the throw');
+  assert.deepStrictEqual(wrapped[0].events, [], 'the contract path throws nothing');
+  for (const attrs of [before, after]) assert.strictEqual(isPayloadSpan(span('llm.request', attrs)), true, 'a payload candidate');
+});
+
+test("an ADK adapter's failed call records its LlmRequest as a ModelRequest; a clean call records none", async () => {
+  const llmRequest = {
+    model: 'scripted/x',
+    contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+    config: { systemInstruction: 'Be brief.' },
+    toolsDict: {},
+    liveConnectConfig: {},
+  };
+  const spans: Array<Record<string, unknown>> = [];
+  const off = onSpanEnd((s) => {
+    if (s.name === 'llm.request') spans.push({ ...s.attributes });
+  });
+  try {
+    const failing = new ScriptedLlm('scripted/x', () => ({ errorCode: 'BOOM', errorMessage: 'no' }) as LlmResponse);
+    for await (const _ of failing.generateContentAsync(structuredClone(llmRequest) as any)) void _;
+    const clean = new ScriptedLlm('scripted/x', () => ({ content: { role: 'model', parts: [{ text: 'ok' }] } }) as LlmResponse);
+    for await (const _ of clean.generateContentAsync(structuredClone(llmRequest) as any)) void _;
+
+    // The older field still records what it is given; a mapping that throws records no request.
+    const errorOnce = async function* (): AsyncGenerator<LlmResponse, void> {
+      yield { errorCode: 'BOOM', errorMessage: 'no' };
+    };
+    for await (const _ of traceLlmGeneration({ provider: 'custom', model: 'm', llmRequest: { contents: 'as given' } }, errorOnce())) void _;
+    const throwing = () => {
+      throw new Error('cannot map');
+    };
+    for await (const _ of traceLlmGeneration({ provider: 'custom', model: 'm', request: throwing }, errorOnce())) void _;
+  } finally {
+    off();
+  }
+  assert.strictEqual(spans.length, 4);
+  assert.deepStrictEqual(JSON.parse(String(spans[0]['llm.payload.request'])), {
+    model: 'scripted/x',
+    system: 'Be brief.',
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
+  });
+  assert.strictEqual(spans[1]['llm.payload.request'], undefined, 'a clean call carries no payload');
+  assert.strictEqual(spans[1]['llm.payload.response'], undefined);
+  assert.deepStrictEqual(JSON.parse(String(spans[2]['llm.payload.request'])), { contents: 'as given' });
+  assert.strictEqual(spans[3]['llm.payload.request'], undefined);
+  assert.ok(spans[3]['llm.payload.response'], 'still a payload candidate, with its error');
 });
