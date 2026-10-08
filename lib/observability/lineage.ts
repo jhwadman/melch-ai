@@ -17,6 +17,10 @@
  *                   change can be pinned to a deploy.
  *
  * Both are deterministic and cheap; neither touches the network.
+ *
+ * It also names the spans each runtime opens around an agent, a model call
+ * and a tool call, which the tracer's span lineage and the exporter read
+ * (below, ADR 0076).
  */
 
 import { createHash } from 'node:crypto';
@@ -28,6 +32,39 @@ import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 
 /** Schema version stamped on every ledger row (adk_turns / adk_payloads). */
 export const TELEMETRY_SCHEMA_VERSION = 2;
+
+// ── Span lineage: the names each runtime gives its spans ─────────────────────
+// A turn's spans nest root → agent → model call → llm.request, with tool
+// calls under the agent. The ADK runtime opens `invoke_agent <name>`,
+// `call_llm` and `execute_tool <name>` (scope gcp.vertex.agent); the native
+// loop opens `agent.invoke <name>`, `model.call` and `tool.execute <name>`
+// (scope melchizedek.runtime, lib/runtime/native/telemetry.ts). The tracer's
+// lineage (which agent made a call, tool time) and the exporter's payload
+// tier read both schemes through these helpers (ADR 0076).
+
+/** ADK's tracer scope. */
+export const ADK_SPAN_SCOPE = 'gcp.vertex.agent';
+/** The native loop's tracer scope. */
+export const RUNTIME_SPAN_SCOPE = 'melchizedek.runtime';
+
+const AGENT_SPAN_PREFIXES = ['invoke_agent ', 'agent.invoke '] as const;
+const TOOL_SPAN_PREFIXES = ['execute_tool ', 'tool.execute '] as const;
+
+/** The agent an agent span names (`invoke_agent X`, `agent.invoke X`), else null. */
+export function agentOfSpanName(name: string): string | null {
+  for (const prefix of AGENT_SPAN_PREFIXES) if (name.startsWith(prefix)) return name.slice(prefix.length);
+  return null;
+}
+
+/** True for a tool call's span on either runtime. */
+export function isToolSpanName(name: string): boolean {
+  return TOOL_SPAN_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
+
+/** True for one agent step's model-call span: ADK's `call_llm`, the loop's `model.call`. */
+export function isModelCallSpan(name: string, scope: string): boolean {
+  return (name === 'call_llm' && scope === ADK_SPAN_SCOPE) || (name === 'model.call' && scope === RUNTIME_SPAN_SCOPE);
+}
 
 /** JSON with object keys sorted at every depth — stable across reloads. */
 export function stableStringify(value: unknown): string {

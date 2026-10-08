@@ -16,9 +16,11 @@
  *     adk_telemetry  one row per span — llm.request and root spans, raw.
  *     adk_payloads   full request/response per model call, captured by
  *                    POLICY and expiring. ADK's own call_llm spans carry the
- *                    assembled prompt and raw response; they are 10-100x a
- *                    turn row, so: errors and fallbacks always, a
- *                    deterministic sample of the rest, 30-day TTL.
+ *                    assembled prompt and raw response, and the native
+ *                    loop's model.call spans carry the request and response
+ *                    as the engine holds them (llm.payload.*, ADR 0076);
+ *                    they are 10-100x a turn row, so: errors and fallbacks
+ *                    always, a deterministic sample of the rest, 30-day TTL.
  *
  * DESIGN NOTES:
  *   - Never on the hot path: inserts are fire-and-forget behind a
@@ -43,7 +45,7 @@ import core from '@opentelemetry/core';
 const { ExportResultCode } = core;
 
 import { hasSupabaseCredentials } from '../persistence/supabaseProvider.ts';
-import { TELEMETRY_SCHEMA_VERSION } from './lineage.ts';
+import { TELEMETRY_SCHEMA_VERSION, isModelCallSpan } from './lineage.ts';
 import { redactRow, telemetryRedactor } from './redact.ts';
 
 // ── Row shapes ───────────────────────────────────────────────────────────────
@@ -195,7 +197,6 @@ export function payloadDecision(
 
 const ROOT_PREFIX = 'Syndicate Execution: ';
 const EXPORTED_SPAN_NAMES = /^(llm\.request$|Syndicate Execution: )/;
-const ADK_SCOPE = 'gcp.vertex.agent';
 
 function attrsOf(span: ReadableSpan): Record<string, unknown> {
   return span.attributes as Record<string, unknown>;
@@ -223,7 +224,10 @@ export function isRootSpan(span: ReadableSpan): boolean {
   return span.name.startsWith(ROOT_PREFIX);
 }
 export function isPayloadSpan(span: ReadableSpan): boolean {
-  if (span.name === 'call_llm' && scopeName(span) === ADK_SCOPE) return true;
+  // One step's model call: ADK's call_llm always carries its payload; the
+  // native loop's model.call carries it only for a call that did not fail
+  // (a failed call's payload is on its llm.request, below, on both runtimes).
+  if (isModelCallSpan(span.name, scopeName(span))) return span.name === 'call_llm' || !!attrsOf(span)['llm.payload.response'];
   // Errored calls: ADK's call_llm span is unreliable on error (its end() is
   // skipped when the consumer stops at the error event, and traceCallLlm
   // never ran for a thrown error), so traceLlmGeneration attaches the
@@ -380,7 +384,11 @@ export function turnFacts(span: ReadableSpan): TurnFacts {
   };
 }
 
-/** Map an ADK call_llm span into an adk_payloads row. */
+/**
+ * Map a payload span into an adk_payloads row: ADK's call_llm (its
+ * gcp.vertex.agent.* attributes), the native loop's model.call or a failed
+ * call's llm.request (llm.payload.*).
+ */
 export function toPayloadRow(
   span: ReadableSpan,
   reason: PayloadReason,
@@ -398,7 +406,7 @@ export function toPayloadRow(
     trace_id: span.spanContext().traceId,
     span_id: span.spanContext().spanId,
     session_id: turn?.sessionId ?? null,
-    invocation_id: str(attrs, 'gcp.vertex.agent.invocation_id') ?? turn?.invocationId ?? null,
+    invocation_id: str(attrs, 'gcp.vertex.agent.invocation_id') ?? str(attrs, 'adk.invocation_id') ?? turn?.invocationId ?? null,
     agent: str(attrs, 'llm.agent') ?? str(attrs, 'gen_ai.agent.name'),
     provider: str(attrs, 'gen_ai.system'),
     model: str(attrs, 'gen_ai.request.model'),

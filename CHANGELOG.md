@@ -32,6 +32,20 @@ the starter pack and the templates), not the repo's full history.
     `credential.revoke` and `credential.erase` (`AuditEventName`), with the
     provider and app and never a token.
 
+- **The ledger reads the native loop's spans (ADR 0076).** The native loop
+  (not yet selectable, WS2-10) opens `agent.invoke <name>`, `model.call` and
+  `tool.execute <name>` spans in scope `melchizedek.runtime`, and a native
+  run writes the same `adk_turns`, `adk_telemetry` and `adk_payloads` rows as
+  an ADK run. `melchizedek-agents/observability/lineage` exports
+  `ADK_SPAN_SCOPE`, `RUNTIME_SPAN_SCOPE`, `agentOfSpanName`,
+  `isToolSpanName` and `isModelCallSpan`. In `observability/tracer`,
+  `agentForSpan` also walks up to an `agent.invoke` span, tool time also
+  sums `tool.execute` spans, and the console exporter keeps the
+  `melchizedek.runtime` scope quiet as it keeps ADK's
+  (`OTEL_CONSOLE_ALL_SPANS=true` prints both). In
+  `observability/supabaseSpanExporter`, `isPayloadSpan` also takes a
+  `model.call` span that carries `llm.payload.*`, and `toPayloadRow` reads
+  `adk.invocation_id` before the turn's.
 - **New entry `melchizedek-agents/model`: the model layer without ADK
   (ADR 0068).** A new path in the `exports` map, so the version is 0.19.0.
   It exports the model contract's types, `ClaudeAdapter`, `GptAdapter`,

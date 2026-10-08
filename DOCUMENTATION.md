@@ -529,7 +529,11 @@ kept by policy (`TELEMETRY_PAYLOADS=off|errors|sample|all`,
 `melchizedek_prune_telemetry()`. A row from a failed call's `llm.request`
 span holds the request in the model contract's shape (`model`, `system`,
 `messages`, `tools`, …), whichever adapter made the call; a row from ADK's
-own `call_llm` span holds ADK's request. The view `adk_turns_production` excludes
+own `call_llm` span holds ADK's request. On the native runtime the loop
+opens `agent.invoke <name>`, `model.call` and `tool.execute <name>` spans
+where ADK opens `invoke_agent`, `call_llm` and `execute_tool`, and the ledger
+reads both (ADR 0076); a clean call's row then comes from `model.call` and
+holds the request and the adapter's response in the contract's shapes. The view `adk_turns_production` excludes
 eval and classifier turns. Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).
