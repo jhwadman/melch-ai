@@ -2209,6 +2209,14 @@
       "evidence": "wiki/overview/workflow-agent-node.md sections \"The instruction\" and \"Join and map events\" describe the placeholders and the join and map events as ADR 0093 decides them.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0093 Decision 3: \"agentNodeRuntime queues a node's input turn synchronously as the node starts ... and queues an event another runner hands to store one microtask later\"; Decision 1: runAgentNode builds the workflow scope.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

@@ -3,6 +3,10 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md —constrains→ module:lib/workflow/agentNode.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/workflow-agent-node.md —explains→ /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md
 
 by claude-code/claude-opus-5-5

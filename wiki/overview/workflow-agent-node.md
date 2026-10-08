@@ -48,7 +48,7 @@ The node's path is `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>` fo
 - `store(event)`: stores another runner's event on the same queue; the tool node runner's `onEvent` passes its event here;
 - `settled()`: resolves once every queued event is stored.
 
-A node's user turn and the events of route steps, joins and maps are stored through one queue, in the order the walk reaches them, so each lands before its successor's input, as on ADK. Under concurrent fan-out the events of the branches land in ADK's order whenever their finish times are apart; finishes in the same instant race on both runtimes. `onEvent` (the option) receives every stored event in order; fed through `drainAgentStream`, they print the progress lines ADK's do, which name declared nodes only, never the root or a route step.
+A node's user turn and the events of route steps, joins and maps are stored through one queue, in the order the walk reaches them, so each lands before its successor's input, as on ADK. A node's user turn is queued as the node starts, as ADK's `runLlmAgentAsNode` appends it straight to the session; an event another runner hands to `store` (a tool node's, an ask_user request) is queued a microtask later, as ADK's Runner stores what a node yields behind the turns of nodes started in the same pass, and still before the walk starts that node's successors. Under concurrent fan-out the events of the branches land in ADK's order whenever their finish times are apart; finishes in the same instant race on both runtimes. `onEvent` (the option) receives every stored event in order; fed through `drainAgentStream`, they print the progress lines ADK's do, which name declared nodes only, never the root or a route step.
 
 ## Route derivation
 

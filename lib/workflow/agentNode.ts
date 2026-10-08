@@ -175,7 +175,7 @@ export interface AgentNodeContext {
   loop?: AgentNodeLoopOptions;
   /** Each event as it is stored, in order. */
   onEvent?: (event: TurnEvent) => void;
-  /** Stores the node's user turn; default `sessions.append`. agentNodeRuntime passes its queue. */
+  /** Stores the node's user turn; default `sessions.append`. agentNodeRuntime passes its queue. Called synchronously, before the run's first await. */
   appendInput?: (event: TurnEvent) => Promise<TurnEvent>;
 }
 
@@ -286,15 +286,22 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
     ...(options.userContent ? { userContent: options.userContent } : {}),
     ...(options.loop ? { loop: options.loop } : {}),
     ...(options.onEvent ? { onEvent: options.onEvent } : {}),
-    appendInput: (event) => enqueue(event),
+    // An event queued before the input that failed to store stops the node before its agent runs.
+    appendInput: async (event) => {
+      const stored = await enqueue(event);
+      if (failure) throw failure.error;
+      return stored;
+    },
   };
   const agentNamed = (name: string): NativeAgent => {
     const agent = agents.get(name);
     if (!agent) throw new Error(`workflow: '${name}' is not a compiled agent of this syndicate`);
     return agent;
   };
+  // A node's user turn is queued as the node starts, in the same synchronous pass, as ADK's runLlmAgentAsNode appends it
+  // straight to the session; so it lands after every event queued before it (a route step's, a predecessor's) and
+  // before the events other runners hand over in that pass (`store`, below).
   const runNode: NodeRunner = async (run) => {
-    await tail;
     if (failure) throw failure.error;
     const target = run.target;
     if (target.kind === 'agent') return runAgentNode(agentNamed(target.name), run, ctx);
@@ -312,7 +319,9 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
   return {
     runNode,
     onEvent,
-    store: (event) => enqueue(event, options.onEvent),
+    // ADK's Runner stores what a node yields a few ticks after it is yielded, behind the user turns of nodes started in
+    // the same pass: queued one microtask later, which is still before the walk starts the node's successors.
+    store: (event) => Promise.resolve().then(() => enqueue(event, options.onEvent)),
     async settled() {
       await tail;
       if (failure) throw failure.error;

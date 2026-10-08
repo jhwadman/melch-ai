@@ -26,6 +26,7 @@ import { drainAgentStream, runSyndicateTurn } from '../../lib/runtime/syndicateT
 import { validateSyndicateConfig } from '../../lib/syndicateSchema.ts';
 import { resolveTools } from '../../lib/toolRegistry.ts';
 import { agentNodeRuntime } from '../../lib/workflow/agentNode.ts';
+import { askUserNodeRunner, workflowPauseEvent } from '../../lib/workflow/pause.ts';
 import { buildWorkflowGraph } from '../../lib/workflow/graph.ts';
 import { runWorkflowGraph } from '../../lib/workflow/scheduler.ts';
 import type { NodeRunner } from '../../lib/workflow/scheduler.ts';
@@ -120,15 +121,23 @@ export async function onNative(cfg: SyndicateYamlConfig, scripts: Scripts, text:
     loop: { adapterFor: (model) => models[model.replace(/^scripted\//, '')] as ModelAdapter, stream: false, log: () => {} },
     onEvent: (e) => yielded.push(e),
   });
-  // Tool nodes first, everything else to the agent runtime; the tool's event on the same queue.
-  const runNode: NodeRunner = toolNodeRunner(
-    { invocationId, appName: 'app', userId: 'u', sessionId: 's', userContent, resolveTool: (name) => resolveTools([name])[0], state: () => session.state, onEvent: (e) => void runtime.store(e) },
-    runtime.runNode,
+  // ask_user and tool nodes first, everything else to the agent runtime; their events on the same queue.
+  const runNode: NodeRunner = askUserNodeRunner(
+    { invocationId, onEvent: (e) => void runtime.store(e) },
+    toolNodeRunner(
+      { invocationId, appName: 'app', userId: 'u', sessionId: 's', userContent, resolveTool: (name) => resolveTools([name])[0], state: () => session.state, onEvent: (e) => void runtime.store(e) },
+      runtime.runNode,
+    ),
   );
   let status = 'completed';
   let error: string | undefined;
   try {
-    await runWorkflowGraph(buildWorkflowGraph(cfg), { input: userContent, runNode, onEvent: runtime.onEvent });
+    const run = await runWorkflowGraph(buildWorkflowGraph(cfg), { input: userContent, runNode, onEvent: runtime.onEvent });
+    // A paused walk: the workflow's own record, as ADK's Workflow writes it.
+    if (run.interruptIds.length > 0) {
+      await runtime.store(workflowPauseEvent({ name: cfg.syndicate_name, invocationId, input: text, interruptIds: run.interruptIds }));
+      status = 'input-required';
+    }
   } catch (e) {
     status = 'failed';
     error = (e as Error).message;
@@ -141,22 +150,22 @@ export async function onNative(cfg: SyndicateYamlConfig, scripts: Scripts, text:
 
 /**
  * The stored events without what differs per run: ids, times, the invocation
- * id, ADK's call ids, and a compaction's span, which must be the times of
- * stored events.
+ * id, ADK's call ids, each interrupt id (by its order of first appearance),
+ * and a compaction's span, which must be the times of stored events.
  */
 export const comparable = (events: TurnEvent[]): unknown => {
   const times = events.map((e) => e.timestamp);
-  return JSON.parse(
-    JSON.stringify(
+  const interrupts = [...new Set(events.flatMap((e) => e.longRunningToolIds ?? []))];
+  let json = JSON.stringify(
       events.map((e) => {
         const compacted = e as TurnEvent & { isCompacted?: boolean; startTime?: number; endTime?: number };
         if (!compacted.isCompacted) return { ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' };
         assert.ok(times.includes(compacted.startTime!) && times.includes(compacted.endTime!), "a compaction's startTime and endTime are stored events' times");
         return { ...e, id: '<id>', timestamp: 0, invocationId: '<inv>', startTime: 0, endTime: 0 };
       }),
-    ),
-    (_k, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v),
   );
+  interrupts.forEach((id, i) => (json = json.split(JSON.stringify(id)).join(JSON.stringify(`<interrupt ${i + 1}>`))));
+  return JSON.parse(json, (_k, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v));
 };
 
 /** Runs both sides and holds them equal: stored events, requests, routes, output, progress. */

@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 839,
-    "edges": 3034,
+    "edges": 3035,
     "byKind": {
       "doc": 156,
       "provider": 6,
@@ -37,7 +37,7 @@
       "reads_table": 28,
       "runs": 67,
       "derives_from": 727,
-      "constrains": 157,
+      "constrains": 158,
       "supersedes": 7,
       "depends_on": 82,
       "explains": 26,
@@ -47,7 +47,7 @@
     },
     "byTier": {
       "extracted": 2759,
-      "inferred": 275
+      "inferred": 276
     },
     "isolated": 4
   },
@@ -1501,7 +1501,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 855
+        "words": 1023
       }
     },
     {
@@ -1777,7 +1777,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1367
+        "words": 1431
       }
     },
     {
@@ -6068,7 +6068,7 @@
       "label": "lib/workflow/agentNode.ts",
       "source": "lib/workflow/agentNode.ts",
       "attrs": {
-        "lines": 322
+        "lines": 331
       }
     },
     {

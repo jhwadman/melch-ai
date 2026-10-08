@@ -10,8 +10,10 @@
  *   3. Under concurrent fan-out the events land in ADK's order: three
  *      branches (an agent calling a tool and routing on, a tool node, a map)
  *      under delay profiles that keep any two finish times 20 ms apart, and
- *      a node two branches trigger. Closer finishes race on both runtimes
- *      and are not pinned.
+ *      a node two branches trigger; and, with the pause, an agent node's
+ *      user turn stored ahead of an ask_user request started in the same
+ *      pass, as ADK appends the turn straight to the session. Closer
+ *      finishes race on both runtimes and are not pinned.
  *   4. A compaction event a node agent stores carries the node stamp
  *      (enrichNodeEvent), and outside task mode the summary as its output,
  *      as ADK's node runner and maybeSetOutput write it.
@@ -443,4 +445,20 @@ test("a task-mode node's compaction event carries the node's path and no output,
   assert.deepEqual(compacted.nodeInfo, { path: 'Graph.Worker' });
   assert.equal(compacted.output, undefined);
   assert.equal(native.output, 'l {"city":"Lyon"}');
+});
+
+// ── With the pause (WS4-4a) ──────────────────────────────────────────────────
+
+test('a join whose predecessor waits on a person does not start and stores no event; the walk ends paused, as on ADK', async () => {
+  const cfg = workflowConfig(
+    { edges: [['START', 'Triage', ['Confirm', 'Reader']], [['Confirm', 'Reader'], 'J', 'Last']], nodes: { Confirm: { ask_user: 'Publish?' }, J: { join: true } } },
+    [agent('Reader'), agent('Last')],
+  );
+  const scripts = { triage: () => answer('the draft'), reader: after(20, (req) => `read ${lastText(req)}`), last: () => answer('never') };
+  const { adk, native } = await bothAgree(cfg, scripts, 'go');
+  assert.equal(adk.status, 'input-required');
+  assert.equal(native.status, 'input-required');
+  assert.equal(native.models.last!.calls, 0);
+  assert.ok(!native.events.some((e) => e.author === 'J'), 'no join event');
+  assert.ok(native.events.some((e) => e.author === 'Graph' && (e.longRunningToolIds?.length ?? 0) > 0), "the workflow's pause record");
 });
