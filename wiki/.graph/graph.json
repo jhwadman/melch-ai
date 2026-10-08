@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 714,
-    "edges": 1944,
+    "nodes": 722,
+    "edges": 2045,
     "byKind": {
-      "doc": 116,
+      "doc": 119,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 109,
+      "file": 112,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 147,
+      "module": 149,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 348,
+      "links_to": 385,
       "requires_env": 165,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 476,
+      "imports": 495,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 403,
-      "constrains": 56,
+      "derives_from": 433,
+      "constrains": 67,
       "supersedes": 2,
-      "depends_on": 11,
+      "depends_on": 15,
       "explains": 2,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1871,
-      "inferred": 73
+      "extracted": 1957,
+      "inferred": 88
     },
     "isolated": 4
   },
@@ -1020,7 +1020,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1197
+        "words": 1225
       }
     },
     {
@@ -1032,7 +1032,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 882
+        "words": 904
       }
     },
     {
@@ -1045,6 +1045,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 816
+      }
+    },
+    {
+      "id": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "kind": "doc",
+      "label": "ADR 0055: Claude moves onto the contract and the ADK path keeps its request: the older reasoning spelling rides as an ADK-only extension, and tool results keep ADK's JSON",
+      "source": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1027
       }
     },
     {
@@ -1084,6 +1096,18 @@
       }
     },
     {
+      "id": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "kind": "doc",
+      "label": "ADR 0059: Memory and its tools are the engine's own: one service on both interfaces, recall through the tool context, and tools that write into the instruction",
+      "source": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1236
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1092,7 +1116,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1383
+        "words": 1586
       }
     },
     {
@@ -1116,7 +1140,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 2086
+        "words": 2196
       }
     },
     {
@@ -1188,7 +1212,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 953
+        "words": 1107
       }
     },
     {
@@ -1201,6 +1225,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 1153
+      }
+    },
+    {
+      "id": "/models/claude-adapter.md",
+      "kind": "doc",
+      "label": "Claude adapter",
+      "source": "/models/claude-adapter.md",
+      "attrs": {
+        "type": "model-provider",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1620
       }
     },
     {
@@ -1224,7 +1260,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7208
+        "words": 7522
       }
     },
     {
@@ -1236,7 +1272,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4117
+        "words": 4205
       }
     },
     {
@@ -1416,7 +1452,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 773
+        "words": 1147
       }
     },
     {
@@ -2536,7 +2572,7 @@
       "id": "env:ANTHROPIC_API_KEY",
       "kind": "env",
       "label": "ANTHROPIC_API_KEY",
-      "source": "lib/models/claudeLlm.ts",
+      "source": "lib/models/claudeAdapter.ts",
       "attrs": {}
     },
     {
@@ -3515,10 +3551,24 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/claudeAdapter.test.ts",
+      "kind": "file",
+      "label": "claudeAdapter.test.ts",
+      "source": "tests/claudeAdapter.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/claudeCurrentApi.test.ts",
       "kind": "file",
       "label": "claudeCurrentApi.test.ts",
-      "source": "tests/claudeCurrentApi.test.ts"
+      "source": "tests/claudeCurrentApi.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/claudeVision.test.ts",
+      "kind": "file",
+      "label": "claudeVision.test.ts",
+      "source": "tests/claudeVision.test.ts"
     },
     {
       "id": "file:tests/contractToolDeclarations.test.ts",
@@ -3600,6 +3650,13 @@
       "source": "tests/mcpTools.test.ts"
     },
     {
+      "id": "file:tests/memoryTools.test.ts",
+      "kind": "file",
+      "label": "memoryTools.test.ts",
+      "source": "tests/memoryTools.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/modelContract.test.ts",
       "kind": "file",
       "label": "modelContract.test.ts",
@@ -3666,7 +3723,8 @@
       "id": "file:tests/reasoningState.test.ts",
       "kind": "file",
       "label": "reasoningState.test.ts",
-      "source": "tests/reasoningState.test.ts"
+      "source": "tests/reasoningState.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/redirects.test.ts",
@@ -4005,7 +4063,7 @@
       "label": "lib/memory/namespace.ts",
       "source": "lib/memory/namespace.ts",
       "attrs": {
-        "lines": 96
+        "lines": 97
       }
     },
     {
@@ -4032,7 +4090,7 @@
       "label": "lib/memory/supabaseMemoryService.ts",
       "source": "lib/memory/supabaseMemoryService.ts",
       "attrs": {
-        "lines": 709
+        "lines": 759
       }
     },
     {
@@ -4050,7 +4108,7 @@
       "label": "lib/models/adkShim.ts",
       "source": "lib/models/adkShim.ts",
       "attrs": {
-        "lines": 169
+        "lines": 172
       }
     },
     {
@@ -4081,12 +4139,21 @@
       }
     },
     {
+      "id": "module:lib/models/claudeAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/claudeAdapter.ts",
+      "source": "lib/models/claudeAdapter.ts",
+      "attrs": {
+        "lines": 753
+      }
+    },
+    {
       "id": "module:lib/models/claudeLlm.ts",
       "kind": "module",
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 678
+        "lines": 115
       }
     },
     {
@@ -4095,7 +4162,7 @@
       "label": "lib/models/claudeModels.ts",
       "source": "lib/models/claudeModels.ts",
       "attrs": {
-        "lines": 253
+        "lines": 304
       }
     },
     {
@@ -4329,7 +4396,7 @@
       "label": "lib/models/schemaNormalize.ts",
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
-        "lines": 446
+        "lines": 447
       }
     },
     {
@@ -4473,7 +4540,7 @@
       "label": "lib/runtime/memoryService.ts",
       "source": "lib/runtime/memoryService.ts",
       "attrs": {
-        "lines": 78
+        "lines": 79
       }
     },
     {
@@ -4626,7 +4693,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 156
+        "lines": 161
       }
     },
     {
@@ -4635,7 +4702,7 @@
       "label": "lib/tools/adkTool.ts",
       "source": "lib/tools/adkTool.ts",
       "attrs": {
-        "lines": 133
+        "lines": 215
       }
     },
     {
@@ -4681,6 +4748,15 @@
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
         "lines": 207
+      }
+    },
+    {
+      "id": "module:lib/tools/memoryTools.ts",
+      "kind": "module",
+      "label": "lib/tools/memoryTools.ts",
+      "source": "lib/tools/memoryTools.ts",
+      "attrs": {
+        "lines": 129
       }
     },
     {
@@ -4779,7 +4855,7 @@
       "label": "lib/tools/tool.ts",
       "source": "lib/tools/tool.ts",
       "attrs": {
-        "lines": 302
+        "lines": 385
       }
     },
     {
@@ -4788,7 +4864,7 @@
       "label": "lib/tools/toolContract.ts",
       "source": "lib/tools/toolContract.ts",
       "attrs": {
-        "lines": 238
+        "lines": 240
       }
     },
     {
@@ -8922,6 +8998,13 @@
       "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md:24"
     },
     {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md:52"
+    },
+    {
       "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "to": "file:tests/events.test.ts",
       "rel": "derives_from",
@@ -8962,6 +9045,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md:24"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md:55"
     },
     {
       "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
@@ -9025,6 +9115,90 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:55"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "file:tests/claudeAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "file:tests/claudeCurrentApi.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:26"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:31"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:26"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:35"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:26"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:26"
     },
     {
       "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
@@ -9223,6 +9397,104 @@
       "evidence": "/decisions/0058-session-stores-with-both-faces.md:26"
     },
     {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "file:tests/memoryTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/memory/namespace.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/memory/supabaseMemoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:50"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:88"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0034-self-correction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:86"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:35"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:28"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:28"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -9273,6 +9545,13 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "module:lib/session/transcript.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9287,45 +9566,66 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:29"
+      "evidence": "/memory/architecture.md:31"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:47"
+      "evidence": "/memory/architecture.md:49"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:27"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:25"
+      "evidence": "/memory/architecture.md:27"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:51"
+      "evidence": "/memory/architecture.md:27"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:97"
+      "evidence": "/memory/architecture.md:104"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:97"
+      "evidence": "/memory/architecture.md:104"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:93"
     },
     {
       "from": "/memory/schema.md",
@@ -9469,6 +9769,20 @@
     },
     {
       "from": "/memory/sessions.md",
+      "to": "file:tests/memoryTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/memory/supabaseMemoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
       "to": "module:lib/runtime/adkSessionBridge.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9521,56 +9835,70 @@
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:135"
+      "evidence": "/memory/sessions.md:137"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0030-workflow-graphs.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:57"
+      "evidence": "/memory/sessions.md:59"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:27"
+      "evidence": "/memory/sessions.md:29"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:46"
+      "evidence": "/memory/sessions.md:48"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:27"
+      "evidence": "/memory/sessions.md:29"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0058-session-stores-with-both-faces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:113"
+      "evidence": "/memory/sessions.md:115"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:35"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:37"
+      "evidence": "/memory/sessions.md:39"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:37"
+      "evidence": "/memory/sessions.md:39"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:139"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -9945,6 +10273,13 @@
     },
     {
       "from": "/models/adk-shim.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9969,63 +10304,77 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:52"
+      "evidence": "/models/adk-shim.md:58"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:24"
+      "evidence": "/models/adk-shim.md:25"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:34"
+      "evidence": "/models/adk-shim.md:37"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:36"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:58"
+      "evidence": "/models/adk-shim.md:64"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:59"
+      "evidence": "/models/adk-shim.md:65"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:26"
+      "evidence": "/models/adk-shim.md:27"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/models/claude-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:27"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:24"
+      "evidence": "/models/adk-shim.md:25"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:26"
+      "evidence": "/models/adk-shim.md:27"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:26"
+      "evidence": "/models/adk-shim.md:27"
     },
     {
       "from": "/models/chat-completions-adapters.md",
@@ -10152,6 +10501,139 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/chat-completions-adapters.md:26"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "file:tests/claudeAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "file:tests/claudeCurrentApi.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "file:tests/claudeVision.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "file:tests/reasoningState.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:38"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:81"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:25"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:62"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:25"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:29"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:87"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:48"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:27"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:29"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:27"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -10302,6 +10784,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "module:lib/models/claudeModels.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -10368,49 +10857,49 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:79"
+      "evidence": "/models/model-contract.md:80"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:49"
+      "evidence": "/models/model-contract.md:50"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:96"
+      "evidence": "/models/model-contract.md:97"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:33"
+      "evidence": "/models/model-contract.md:34"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:33"
+      "evidence": "/models/model-contract.md:34"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:103"
+      "evidence": "/models/model-contract.md:104"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:33"
+      "evidence": "/models/model-contract.md:34"
     },
     {
       "from": "/models/model-contract.md",
@@ -10424,70 +10913,84 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:125"
+      "evidence": "/models/model-contract.md:126"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:202"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:368"
+      "evidence": "/models/model-contract.md:369"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:281"
+      "evidence": "/models/model-contract.md:282"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:370"
+      "evidence": "/models/model-contract.md:371"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:299"
+      "evidence": "/models/model-contract.md:300"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:35"
+      "evidence": "/models/model-contract.md:36"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:259"
+      "evidence": "/models/model-contract.md:260"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/claude-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:192"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:35"
+      "evidence": "/models/model-contract.md:36"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:255"
+      "evidence": "/models/model-contract.md:256"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:82"
+      "evidence": "/models/model-contract.md:83"
     },
     {
       "from": "/models/provider-routing.md",
@@ -10582,6 +11085,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:50"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -10592,7 +11102,7 @@
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:141"
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
@@ -10600,6 +11110,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:24"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/claude-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
@@ -10613,7 +11130,7 @@
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:139"
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
@@ -11772,6 +12289,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "file:tests/memoryTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "file:tests/toolContract.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -11787,6 +12311,13 @@
     {
       "from": "/tools/tool-contracts.md",
       "to": "module:lib/tools/adkTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/memoryTools.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md frontmatter"
@@ -11810,70 +12341,84 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:32"
+      "evidence": "/tools/tool-contracts.md:34"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:29"
+      "evidence": "/tools/tool-contracts.md:31"
     },
     {
       "from": "/tools/tool-contracts.md",
-      "to": "/models/model-contract.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:23"
-    },
-    {
-      "from": "/tools/tool-contracts.md",
-      "to": "/models/provider-routing.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:45"
-    },
-    {
-      "from": "/tools/tool-contracts.md",
-      "to": "/protocols/mcp.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:49"
-    },
-    {
-      "from": "/tools/tool-contracts.md",
-      "to": "/tools/ask-user.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:34"
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "/memory/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:58"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:25"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:48"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/protocols/mcp.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:52"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/tools/ask-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:37"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/web-tools.md",
@@ -13871,6 +14416,13 @@
       "evidence": "lib/loadSyndicate.ts"
     },
     {
+      "from": "module:lib/memory/namespace.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/namespace.ts"
+    },
+    {
       "from": "module:lib/memory/providers.ts",
       "to": "module:lib/config.ts",
       "rel": "imports",
@@ -13999,6 +14551,27 @@
     {
       "from": "module:lib/memory/supabaseMemoryService.ts",
       "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/memory/supabaseMemoryService.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/memory/supabaseMemoryService.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/memory/supabaseMemoryService.ts",
+      "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/memory/supabaseMemoryService.ts"
@@ -14221,6 +14794,83 @@
       "evidence": "lib/models/chatCompletionsAdapter.ts"
     },
     {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "env:ANTHROPIC_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
       "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/claudeModels.ts",
       "rel": "imports",
@@ -14229,14 +14879,14 @@
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/models/endpoints.ts",
+      "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/models/errorResponse.ts",
+      "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"
@@ -14249,50 +14899,22 @@
       "evidence": "lib/models/claudeLlm.ts"
     },
     {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/models/providerState.ts",
+      "from": "module:lib/models/claudeModels.ts",
+      "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/models/schemaNormalize.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/observability/tracer.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/runtime/turnControl.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/tools/webSearchTool.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "env:ANTHROPIC_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
+      "evidence": "lib/models/claudeModels.ts"
     },
     {
       "from": "module:lib/models/claudeModels.ts",
       "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeModels.ts"
+    },
+    {
+      "from": "module:lib/models/claudeModels.ts",
+      "to": "module:lib/models/reasoning.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeModels.ts"
@@ -15860,6 +16482,13 @@
     },
     {
       "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/tools/scienceTools.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -15920,6 +16549,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/tools/adkTool.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/adkTool.ts"
+    },
+    {
+      "from": "module:lib/tools/adkTool.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/adkTool.ts"
     },
     {
       "from": "module:lib/tools/adkTool.ts",
@@ -16074,6 +16717,27 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/memoryTools.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/memoryTools.ts"
+    },
+    {
+      "from": "module:lib/tools/memoryTools.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/memoryTools.ts"
+    },
+    {
+      "from": "module:lib/tools/memoryTools.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/memoryTools.ts"
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
@@ -16246,6 +16910,20 @@
     {
       "from": "module:lib/tools/tool.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/tool.ts"
+    },
+    {
+      "from": "module:lib/tools/tool.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/tool.ts"
+    },
+    {
+      "from": "module:lib/tools/tool.ts",
+      "to": "module:lib/runtime/memoryService.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/tool.ts"

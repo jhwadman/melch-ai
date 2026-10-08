@@ -10,7 +10,9 @@
  *   class between them: it maps the LlmRequest in and each ModelResponse out
  *   through lib/models/genaiMapping.ts, and does no translation of its own.
  *   The adapter tickets move one adapter at a time behind it, and ADK sees
- *   no change.
+ *   no change: ClaudeLlm (lib/models/claudeLlm.ts) is the shim around
+ *   ClaudeAdapter. A provider's ADK class may extend `toModelRequest` with
+ *   what its adapter reads on the ADK path only (ADR 0055).
  *
  * WHAT THE SHIM DOES ONCE, SO NO CONTRACT ADAPTER DOES IT (ADR 0053):
  *   - The turn's charge and the llm.request span. The call goes through
@@ -21,7 +23,7 @@
  *     failed call's payload). So the step budget, a stopped
  *     turn's refusal (STEP_LIMIT, DEADLINE_EXCEEDED, CANCELED, as the same
  *     LlmResponse), the token charge and the span's attributes are what
- *     ClaudeLlm, GptLlm and the chat-completions adapters produce. A refused
+ *     GptLlm and the chat-completions adapters produce. A refused
  *     call never reaches the adapter. The adapter decorates the open span
  *     with `setLlmSpanAttribute`, and never opens one of its own.
  *   - The abort signal. The request's `signal` aborts when the turn stops
@@ -111,11 +113,12 @@ export class AdkShim extends BaseLlm {
   }
 
   /**
-   * The ModelRequest the adapter receives for one LlmRequest: the genai
-   * mapping's. A subclass may extend it with what its own adapter reads
-   * beside the contract (an agent's older generateContentConfig spelling
-   * that the contract leaves out), so an agent keeps it on the ADK runtime
-   * (the chat-completions shims, ADR 0057). The span records what it returns.
+   * The ModelRequest one call hands the adapter: `llmRequestToModelRequest`.
+   * A provider's ADK class may extend it with what its adapter reads on the
+   * ADK path only, an agent setting the contract leaves out: ClaudeLlm's
+   * older reasoning spelling (ADR 0055), and the chat-completions shims'
+   * older generateContentConfig spelling (ADR 0057). It never removes or
+   * rewrites a contract field. The span records what it returns.
    */
   protected toModelRequest(llmRequest: LlmRequest, options: ModelRequestOptions): ModelRequest {
     return llmRequestToModelRequest(llmRequest, options);

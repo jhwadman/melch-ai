@@ -59,6 +59,59 @@ the starter pack and the templates), not the repo's full history.
   from `protected static createAdapter(options)`. Code that only constructs
   or registers `GptLlm` and `GrokLlm`, or imports their exported functions,
   is unaffected.
+- **Fix: a message could stall the server in the memory search.**
+  `stripHarnessBlocks` (run on every memory query and extraction
+  transcript) matched an unclosed `[System Context:` marker with a pattern
+  that rescanned the rest of the text once per marker, so a message of
+  many such markers took seconds per search (16 s for 800,000 characters).
+  The pattern now stops at any bracket and scans the text once.
+- **Memory and its tools are the engine's own (ADR 0059).** Additions
+  only; the `exports` map is unchanged.
+  - `load_memory` and `preload_memory` are the engine's own tools, in the
+    new module `melchizedek-agents/tools/memoryTools` (`loadMemoryTool`,
+    `preloadMemoryTool`). A model reads the same declaration, the same
+    memory note and the same recalled block as with ADK's tools. Two
+    differences: a call without a string `query` returns the readable
+    error instead of searching, and a failed call's error reads
+    `Error in tool 'load_memory': …`, as every own tool's does.
+    `require_approval` can now gate `load_memory`. Neither the preload
+    tool nor the memory service's search logs the user's query any more;
+    the search logs only its length.
+  - `melchizedek-agents/tools/tool`: `ToolContext` gains `userContent` and
+    `searchMemory(query)`, which searches the run's own silo only.
+    `createToolContext` takes `memory` and `userContent`. A `Tool` may have
+    `instruction(ctx)`, text for the system instruction of each request.
+    New: `InstructionTool` (a tool that only writes into the instruction),
+    `isInstructionTool` and `instructionToolOf`.
+  - `melchizedek-agents/tools/adkTool` gains `toAdkInstructionTool`, and
+    `registerTool` takes an `InstructionTool`.
+  - `SupabaseVectorMemoryService` implements the engine's `MemoryService`
+    (`ingest`, `search`) as well as ADK's `BaseMemoryService`, whose
+    methods behave as before. `namespacedMemoryService` takes either and
+    pins `search` and `ingest` too.
+- **Claude runs on the engine's model contract (ADR 0055).** New module
+  `melchizedek-agents/models/claudeAdapter`: `ClaudeAdapter`, a
+  `ModelAdapter` that reads a `ModelRequest` and yields `ModelResponse`s on
+  the Messages API (`anthropicTools`, `ClaudeModelRequest`,
+  `THINKING_STATE_KIND`, `STRUCTURED_OUTPUT_TOOL`, `ANTHROPIC_PROVIDER`).
+  `ClaudeLlm` keeps its name, options, `supportedModels`,
+  `registerClaudeLlm()`, `buildAnthropicTools()` and `THINKING_STATE_KIND`,
+  and is now that adapter behind the ADK shim, a subclass of `AdkShim`.
+  Request bodies are unchanged. What does change on a Claude call:
+  - its events carry `finishReason`. Claude's web-search grounding stays
+    on the adapter's response only: `ClaudeLlm` leaves `groundingMetadata`
+    off its events, as before and as `GptLlm` does, so the A2A server's
+    output for a Claude agent is unchanged;
+  - a failed tool's `tool_result` carries `is_error: true`;
+  - a setup error (`MISSING_API_KEY`, `ENDPOINT_MISCONFIGURED`,
+    `SDK_NOT_INSTALLED`) carries `customMetadata['error.retryable']: false`;
+  - tool schemas come from `contractToolDeclaration`: `nullable` becomes a
+    type that admits null, string integer bounds become integers, and
+    `$schema` is left out.
+  `AdkShim` gains a protected `toModelRequest(llmRequest, options)` hook.
+  `melchizedek-agents/models/claudeModels` adds `ClaudeReasoning`,
+  `claudeReasoningOf`, `claudeReasoningFromConfig` and
+  `adaptiveThinkingFor`. The `exports` map is unchanged.
 - **Breaking for one import path: `toFunctionTool` moves to
   `melchizedek-agents/tools/adkTool` (ADR 0051).**
   `melchizedek-agents/tools/toolContract` no longer exports it, so that

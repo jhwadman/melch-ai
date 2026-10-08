@@ -28,7 +28,8 @@ config/agents/examples/   the starter pack — shipped example syndicates
 lib/loadSyndicate.ts      YAML → validated config (+ variable binding)
 lib/dispatch.ts           plan-dispatch route resolution (§6)
 lib/toolRegistry.ts       tool name → live ADK tool instance
-lib/models/claudeLlm.ts   Claude adapter registered into the ADK registry
+lib/models/claudeAdapter.ts  Claude on the engine's model contract
+lib/models/claudeLlm.ts   that adapter behind the ADK shim, in the ADK registry
 lib/models/ollamaLlm.ts   open-weight local adapter (Ollama, keyless)
 lib/models/chatCompletionsAdapter.ts  the chat-completions wire on the model contract
 lib/tools/mcpToolFactory.ts  MCP client: remote tools → live ADK tools
@@ -130,7 +131,10 @@ skipped with a warning at compile time.
 Registered in `lib/toolRegistry.ts` — one map from YAML name to ADK tool
 instance. A **Contract** is the engine's own Tool (`lib/tools/tool.ts`),
 defined once with `defineTool` and handed to the ADK runtime as a
-`FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`):
+`FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`). An
+**Instruction tool** is the engine's own too: it declares no function and
+only writes into each request's instruction, reaching the ADK runtime
+through `toAdkInstructionTool`:
 
 | Name | Kind | Does |
 |---|---|---|
@@ -140,8 +144,8 @@ defined once with `defineTool` and handed to the ADK runtime as a
 | `collections_search` | xAI-only | Semantic search over xAI **Collections** — hosted document stores (PDFs/text/CSVs) uploaded at console.x.ai — server-side RAG with `collections://…` citations. Which collections: `XAI_COLLECTION_IDS` in `.env` (optional `XAI_COLLECTIONS_MAX_RESULTS`). Declared with no ids → omitted with a warning; non-xAI providers → silent no-op. |
 | `url_context` | Gemini built-in | Gemini reads the pages at URLs in the conversation, server-side (Google fetches them, not this host). On any other provider it is a no-op the doctor reports as dropped; use `web_extract` there. |
 | `google_search` | ADK built-in | Live web search — Gemini agents only (legacy alias; use `web_search`). |
-| `preload_memory` | ADK built-in | Silently injects similarity-matched facts into every request (ambient recall). |
-| `load_memory` | ADK built-in | Explicit tool call to search the fact store (deliberate recall). |
+| `preload_memory` | Instruction tool | Silently injects similarity-matched facts into every request's instruction (ambient recall). The model never calls it. |
+| `load_memory` | Contract | Explicit tool call to search the fact store (deliberate recall). Both memory tools read the caller's own silo only and send the model what ADK's tools of the same names sent ([ADR 0059](./wiki/decisions/0059-memory-on-the-engines-own-interfaces.md)). |
 | `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive the AgentTool text boundary. |
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
@@ -313,7 +317,7 @@ accordingly — model optionality is a single YAML line per agent:
 | Model id | Provider | Adapter | Key | Native `web_search` |
 |---|---|---|---|---|
 | `gemini-*` | Google Gemini | ADK-native (`TracedGemini`) | `GOOGLE_GENAI_API_KEY` | ✅ grounding |
-| `claude-*` | Anthropic | `lib/models/claudeLlm.ts` | `ANTHROPIC_API_KEY` | ✅ server tool |
+| `claude-*` | Anthropic | `lib/models/claudeAdapter.ts` (Messages API; `ClaudeLlm` is its ADK shim) | `ANTHROPIC_API_KEY` | ✅ server tool |
 | `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` around `gptAdapter.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
 | `grok-*` | xAI | `lib/models/grokLlm.ts` around `grokAdapter.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
 | `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiLlm.ts` around `kimiAdapter.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
@@ -1144,10 +1148,11 @@ examples — including why binary data forces function tools over
 subagents, and how a tool signature can enforce an epistemic rule (the
 blind inventory).
 
-**Add a provider**: follow `claudeLlm.ts` (SDK-based, key-gated), or,
-for a chat-completions API, `ollamaAdapter.ts` (fetch-based, keyless):
-a `ChatCompletionsAdapter` subclass on the model contract, run under
-ADK by its shim (`ollamaLlm.ts`) and registered behind a model-id prefix.
+**Add a provider**: follow `claudeAdapter.ts` (SDK-based, key-gated, a
+`ModelAdapter` on the engine's model contract, run under ADK by its shim
+`claudeLlm.ts`) or, for a chat-completions API, `ollamaAdapter.ts`
+(fetch-based, keyless: a `ChatCompletionsAdapter` subclass, run under ADK
+by its shim `ollamaLlm.ts`), and register it behind a model-id prefix.
 
 **Point an agent at an MCP server**: set `mcp_server_url:` on a
 subagent. `scripts/demo_mcp_server.ts` is a complete server to copy —

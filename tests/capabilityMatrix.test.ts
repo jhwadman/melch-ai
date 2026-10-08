@@ -14,7 +14,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { setLogLevel, LogLevel, LlmAgent, AgentTool, LOAD_MEMORY } from '@google/adk';
+import { setLogLevel, LogLevel, LlmAgent, AgentTool } from '@google/adk';
 import type { LlmRequest, LlmResponse } from '@google/adk';
 
 import {
@@ -33,6 +33,7 @@ import { KimiLlm } from '../lib/models/kimiLlm.ts';
 import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
 import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
 import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
+import { resolveTools } from '../lib/toolRegistry.ts';
 
 setLogLevel(LogLevel.ERROR);
 // The tracer prints every llm.request span to stdout unless told not to.
@@ -181,7 +182,8 @@ function withDelegationTools(row: AdapterRow): LlmRequest {
   const sub = new LlmAgent({ name: 'Scout', description: 'Finds things', model: 'gemini-3.5-flash-lite', instruction: 'x' });
   const req = request(row);
   req.toolsDict['Scout'] = new AgentTool({ agent: sub });
-  req.toolsDict['load_memory'] = LOAD_MEMORY as any;
+  // The registry's load_memory: what a syndicate that declares it sends.
+  req.toolsDict['load_memory'] = resolveTools(['load_memory'])[0];
   return req;
 }
 

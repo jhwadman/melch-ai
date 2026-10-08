@@ -12,8 +12,10 @@ sources:
   - resource: lib/tools/tool.ts
   - resource: lib/tools/toolContract.ts
   - resource: lib/tools/adkTool.ts
+  - resource: lib/tools/memoryTools.ts
   - resource: lib/models/schemaNormalize.ts
   - resource: tests/toolContract.test.ts
+  - resource: tests/memoryTools.test.ts
 ---
 
 # Tool contracts
@@ -29,12 +31,13 @@ A native tool can reach three surfaces: the native runtime, the ADK runtime (a `
 `lib/tools/tool.ts` defines what a tool is, independent of ADK ([ADR 0051](/decisions/0051-own-tool-base-behind-an-adk-wrapper.md)):
 
 - **`Tool`**: a `name`, a `declaration()` and `execute(args, ctx)`. `args` are model-chosen and untrusted; the tool validates them before it acts. The result is JSON-serializable data the model reads. A throw becomes the call's error, which the runtime reports to the model.
-- **`ToolContext`**: the invocation, agent, call, user, app and session ids; the session `state` as a view whose reads see this call's writes; `stateDelta`, the writes the runtime applies with the result; `actions.skipSummarization`; `requestConfirmation()` and `confirmation`, the approval gate ([ADR 0028](/decisions/0028-approval-gates.md)); and the turn's abort `signal`. `createToolContext()` builds one over plain data, for the native runtime and for calls made outside a run.
+- **`ToolContext`**: the invocation, agent, call, user, app and session ids; the session `state` as a view whose reads see this call's writes; `stateDelta`, the writes the runtime applies with the result; `actions.skipSummarization`; `requestConfirmation()` and `confirmation`, the approval gate ([ADR 0028](/decisions/0028-approval-gates.md)); the turn's abort `signal`; `userContent`, the message that started the run; and, when the run has long-term memory, `searchMemory(query)`, which searches the context's own `<appName>/<userId>` silo and no other ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)). `createToolContext()` builds one over plain data, for the native runtime and for calls made outside a run. Given the run's `memory`, its search refuses to run without an app name and user id.
+- **Writing into the instruction.** A Tool's optional `instruction(ctx)` returns text for the system instruction of each model request made for an agent that lists it. An **`InstructionTool`** has only a `name` and an `instruction(ctx)`: it declares no function and is never called (`isInstructionTool`). Both run before the request is sent, in the order the agent lists its tools, and read the context without writing to it.
 - **`requireApproval(tool)`** returns a copy whose first call requests confirmation and ends the step, and whose retry runs the tool or returns the refusal. Its texts are ADK's own, so a gated call stores the same interrupt and response on either runtime. The original stays ungated.
 - **The long-running marker.** A `longRunning` Tool's answer comes later ([ask the user](/tools/ask-user.md)). Its handler resolves to undefined while the answer is pending, and its description carries the note ADK's `LongRunningFunctionTool` appends, word for word.
 - **Result capping.** `capResult(result, max)` cuts a result and says so. `MAX_RESULT_CHARS` (20,000) is the one limit the OpenAPI and MCP tools already apply to their results. A contract caps its results only when it sets `maxResultChars`.
 
-`tool.ts` and `toolContract.ts` load nothing from `@google/*` at runtime, which `tests/toolContract.test.ts` asserts. `lib/tools/adkTool.ts` is the one module that turns a Tool into an ADK tool: the `FunctionTool` gets the Tool's declaration in Gemini's dialect and hands the Tool a `ToolContext` that reads through to ADK's `Context`, and it carries the Tool, which `toolOf()` reads back.
+`tool.ts` and `toolContract.ts` load nothing from `@google/*` at runtime, which `tests/toolContract.test.ts` asserts. `lib/tools/adkTool.ts` is the one module that turns a Tool into an ADK tool: the `FunctionTool` gets the Tool's declaration in Gemini's dialect and hands the Tool a `ToolContext` that reads through to ADK's `Context`, memory search included, and it carries the Tool, which `toolOf()` reads back. A Tool with an `instruction` becomes a `FunctionTool` subclass that appends the text in `processLlmRequest`, after declaring itself. An InstructionTool becomes a `BaseTool` that declares nothing and appends its text the same way (`toAdkInstructionTool`); `instructionToolOf()` reads it back. Both join the text as ADK's own `appendInstructions` does: after a blank line, or as the whole instruction when there is none.
 
 ## Validation
 
@@ -46,6 +49,15 @@ A defined Tool validates in its own `execute`. Arguments the schema refuses retu
 
 ## Exposure is deliberate
 
-Defining a contract publishes nothing. An agent sees a tool only when its name is registered — in `lib/toolRegistry.ts`, or by a package consumer's own call to `registerTool(name, tool)` with a contract, an own Tool or an ADK tool — **and** declared in the syndicate YAML; an MCP client sees it only when a server script lists it in the `contracts` it passes to `serveContracts()` (`lib/tools/mcpServe.ts`; see [MCP](/protocols/mcp.md)). Every widening of the surface is a line of code someone chose; YAML can name only what code registered, never load it. The registry is a null-prototype map, so a name like `constructor` resolves to nothing and gets the unknown-tool warning.
+Defining a contract publishes nothing. An agent sees a tool only when its name is registered — in `lib/toolRegistry.ts`, or by a package consumer's own call to `registerTool(name, tool)` with a contract, an own Tool, an InstructionTool or an ADK tool — **and** declared in the syndicate YAML; an MCP client sees it only when a server script lists it in the `contracts` it passes to `serveContracts()` (`lib/tools/mcpServe.ts`; see [MCP](/protocols/mcp.md)). Every widening of the surface is a line of code someone chose; YAML can name only what code registered, never load it. The registry is a null-prototype map, so a name like `constructor` resolves to nothing and gets the unknown-tool warning.
 
-Every client-side tool the registry holds is an own Tool behind its `FunctionTool`, except ADK's `load_memory`. The [wiki tools](/tools/wiki-tools.md), the [clinical-evidence tools](/tools/evidence-tools.md), the [task tools](/tools/task-tools.md), the [web tools](/tools/web-tools.md)' `web_extract` and `x_api_search`, `generate_image`, `inspect_image` and `ask_user` are contracts under this pattern. The server-side search sentinels and the memory tools are ADK objects.
+Every client-side tool the registry holds is an own Tool behind its `FunctionTool`. The [wiki tools](/tools/wiki-tools.md), the [clinical-evidence tools](/tools/evidence-tools.md), the [task tools](/tools/task-tools.md), the [web tools](/tools/web-tools.md)' `web_extract` and `x_api_search`, `generate_image`, `inspect_image`, `ask_user` and `load_memory` are contracts under this pattern. `preload_memory` is an own InstructionTool. The server-side search sentinels are ADK objects.
+
+## The memory tools
+
+`lib/tools/memoryTools.ts` holds long-term memory's two tools ([memory architecture](/memory/architecture.md), [ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)):
+
+- **`load_memory`** takes a `query` and returns `{ memories: [{ content, author, timestamp }] }`, each memory's text parts joined by a space. While the run has memory, its `instruction` adds a note saying that memory exists and that `load_memory` searches it. With no memory service a call fails with `Memory service is not initialized.`
+- **`preload_memory`** searches with the first text part of the message that started the run, and writes what it recalls into the instruction inside a `<PAST_CONVERSATIONS>` block: each memory's time on its own line, then its text after its author. It writes nothing when that part has no text, the run has no memory, nothing is recalled, or the search fails.
+
+Both search through `ctx.searchMemory`, so a model's query chooses what to recall and never whose. The declaration, the note, the result and the block are word for word what ADK's `LoadMemoryTool` and `PreloadMemoryTool` produced. `tests/memoryTools.test.ts` compares each with ADK's tool and runs one turn with each pair. A failed `load_memory` call on the ADK runtime reads `Error in tool 'load_memory': …`, as every own Tool's does. Neither tool logs the query.

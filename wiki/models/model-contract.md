@@ -22,6 +22,7 @@ sources:
   - resource: lib/models/geminiState.ts
   - resource: tests/genaiMapping.test.ts
   - resource: lib/models/adkShim.ts
+  - resource: lib/models/claudeAdapter.ts
   - resource: lib/models/gptAdapter.ts
   - resource: lib/models/grokAdapter.ts
   - resource: lib/models/chatCompletionsAdapter.ts
@@ -188,7 +189,7 @@ The Gemini API (`generateContent`, `streamGenerateContent`), on Google AI or Ver
 
 ## Anthropic
 
-The Messages API, on Anthropic's API or through Bedrock or Vertex AI (ADR 0023).
+The Messages API, on Anthropic's API or through Bedrock or Vertex AI (ADR 0023). `ClaudeAdapter` (`lib/models/claudeAdapter.ts`) implements it; the [Claude adapter](/models/claude-adapter.md) page records its choices.
 
 | Contract | Wire |
 |---|---|
@@ -198,20 +199,20 @@ The Messages API, on Anthropic's API or through Bedrock or Vertex AI (ADR 0023).
 | `TextPart` | `{ type: 'text', text }` |
 | `ThinkingPart` | not sent. Received from `thinking` blocks (summaries when `display: 'summarized'`). |
 | `ToolCallPart` | `{ type: 'tool_use', id, name, input: args }` |
-| `ToolResultPart` | `{ type: 'tool_result', tool_use_id: id, content: <JSON text>, is_error }` |
-| `BlobPart` | user turns: `{ type: 'image', source }` for JPEG, PNG, GIF and WebP, where `source` is `{ type: 'base64', media_type, data }` or, for an https URL, `{ type: 'url', url }`. Any other type, or a non-https URL, is dropped with `llm.image.dropped` on the span. |
+| `ToolResultPart` | `{ type: 'tool_result', tool_use_id: id, content, is_error: true }`, `is_error` only on a failure. `content` is the JSON text of the result in the shape the ADK path stores it: the result when it is an object, else `{ result }`, and `{ error: result }` for a failure ([ADR 0055](/decisions/0055-claude-adapter-keeps-the-adk-request.md)). |
+| `BlobPart` | user turns: `{ type: 'image', source }` for JPEG, PNG, GIF and WebP, where `source` is `{ type: 'base64', media_type, data }` or, for an https URL, `{ type: 'url', url }`. A blob typed `application/octet-stream` (the genai mapping's type for a part that names none) is untyped: inline data is sent as `image/png`, and a URL is typed by its extension. Any other type, or a non-https URL, is dropped with `llm.image.dropped` on the span; so is a URL on Bedrock and Vertex AI, which take base64 only. |
 | `providerState` | `{ provider: 'anthropic', kind: 'thinking_blocks', model, payload }`: the signed `thinking` and `redacted_thinking` blocks, emitted verbatim immediately before the part, on the current turn's assistant messages only (ADR 0046) |
-| `tools` | `{ name, description, input_schema: parameters, strict }` |
-| `nativeTools` | `web_search` → `{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }` on Claude 4.6 and later, `web_search_20250305` on earlier models; on Anthropic's own API only, never on Bedrock or Vertex AI (`nativeSearchOn`, `lib/models/endpoints.ts`). The rest dropped. |
-| `toolChoice` | `{ type: 'auto' }`, `{ type: 'none' }`, `{ type: 'any' }`, `{ type: 'tool', name }`. Weakened to `auto` on Fable 5.1, Opus 5.5 and Sonnet 5.5, and whenever thinking is on. |
-| `outputSchema` | `output_config.format: { type: 'json_schema', schema }`; the answer arrives as text |
-| `reasoning` | By model generation (`lib/models/claudeModels.ts`, [ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)). Claude 4.6 and earlier (Opus 4.6, Sonnet 4.6, Haiku 4.5 and older): `thinking: { type: 'enabled', budget_tokens }` from ADR 0047's table, at least 1,024, with `max_tokens` at least the budget plus 2,048; `none` sends no `thinking`. Later models: `thinking: { type: 'adaptive', display: 'summarized' }` with `output_config.effort` (`low`, `medium`, `high`; a budget becomes the level covering it), with `max_tokens` at least the level's budget, or the budget given, plus 2,048. `none` is the model's off switch at `effort: 'low'`: `{ type: 'disabled' }` on Opus 4.7 and 4.8, Sonnet 5 and Haiku 5.5, `{ type: 'between_tools' }` on Sonnet 5.5; adaptive thinking at `low` on Opus 5, Opus 5.5, Fable and Mythos. Absent: the model's default, which thinks on every later model but Opus 4.7 and 4.8. |
+| `tools` | `{ name, description, input_schema: parameters }`; a `strict` declaration sends the strict form of its schema (`toContractJsonSchema(parameters, { strict: true })`) and `strict: true` |
+| `nativeTools` | `web_search` → `{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }` on every model; on Anthropic's own API only, never on Bedrock or Vertex AI (`nativeSearchOn`, `lib/models/endpoints.ts`). The rest dropped, named in `llm.capability.dropped`. |
+| `toolChoice` | `auto` sends no `tool_choice` (the API's default); `none` → `{ type: 'none' }`; `required` → `{ type: 'any' }`; `{ name }` → `{ type: 'tool', name }`. Only when a tool is sent. A forced choice is weakened to `auto` on Fable 5.1, Opus 5.5 and Sonnet 5.5, and whenever the setting thinks, and the span carries `llm.tool_choice.weakened` (`required` or `named`). |
+| `outputSchema` | `output_config.format: { type: 'json_schema', schema }` on Opus 4.8 and later, Sonnet 5 and later, Haiku 5.5, Fable and Mythos; the answer arrives as text. Claude 4.6 and earlier, Opus 4.7, and a schema the SDK's transform refuses: a `structured_output` tool whose input schema is the schema, forced where the model takes forcing, the setting does not think and no other tool is sent, else offered under `auto`; its call comes back as the answer's text ([ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)). |
+| `reasoning` | By model generation (`lib/models/claudeModels.ts`, [ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)). Claude 4.6 and earlier (Opus 4.6, Sonnet 4.6, Haiku 4.5 and older): `thinking: { type: 'enabled', budget_tokens }` from ADR 0047's table, at least 1,024, with `max_tokens` at least the budget plus 2,048; `none` sends no `thinking`. Later models: `thinking: { type: 'adaptive', display: 'summarized' }` with `output_config.effort` (`low`, `medium`, `high`; a budget becomes the level covering it), with `max_tokens` at least the level's budget, or the budget given, plus 2,048. `none` is the model's off switch at `effort: 'low'`: `{ type: 'disabled' }` on Opus 4.7 and 4.8, Sonnet 5 and Haiku 5.5, `{ type: 'between_tools' }` on Sonnet 5.5; adaptive thinking at `low` on Opus 5, Opus 5.5, Fable and Mythos. Absent: the model's default, which thinks on every later model but Opus 4.7 and 4.8. On the ADK path `ClaudeLlm` also hands over `claudeReasoning`, the older spelling read as ADR 0049 reads it (`xhigh` and `max` pass through, `minimal` is `low`, the budget rows read the budget alone), which the adapter reads in place of `reasoning` ([ADR 0055](/decisions/0055-claude-adapter-keeps-the-adk-request.md)). |
 | `sampling` | `max_tokens` from `maxOutputTokens` (default 4,096), raised to fit thinking. No `temperature`, `top_p`, `top_k` or `stop_sequences` is sent on any generation ([ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)). |
 | `stream` | `messages.stream`: `text_delta` → text partial, `thinking_delta` → thinking partial; `finalMessage()` → the final |
-| `signal` | the SDK request option `signal` |
-| `usage` | input `input_tokens` + `cache_read_input_tokens` + `cache_creation_input_tokens`; output `output_tokens`; cache read and write the two cache fields; thinking not reported |
-| `finishReason` | `end_turn`, `stop_sequence` → `stop`; `tool_use` → `tool_call`; `max_tokens` → `max_tokens`; `refusal` → `content_filter`. On `pause_turn` the adapter sends the paused turn back and continues inside the same call, summing usage. |
-| `grounding` | `web_search_result_location` citations on text blocks → `citations` (`url`, `title`, `cited_text`, the block's span); `server_tool_use` inputs → `searchQueries` |
+| `signal` | the SDK request option `signal`; the adapter also ends the call at once when it aborts |
+| `usage` | input `input_tokens` + `cache_read_input_tokens` + `cache_creation_input_tokens`; output `output_tokens`; cache read and write the two cache fields, when above 0; thinking not reported. The adapter sends no `cache_control`, so Anthropic caches nothing and both are 0. |
+| `finishReason` | `tool_call` whenever the final carries a tool call; else `end_turn`, `stop_sequence` and a `tool_use` that was the structured-output answer → `stop`; `max_tokens`, `model_context_window_exceeded` → `max_tokens`; `refusal` → `content_filter`; `pause_turn` → `other`, with the paused turn's content so far, which the adapter does not continue. None of these is an error. |
+| `grounding` | `web_search_result_location` citations on text blocks → `citations` (`url`, `title`, `cited_text`, the block's span in the final's text); `server_tool_use` inputs → `searchQueries` |
 | errors | `MISSING_API_KEY`, `ENDPOINT_MISCONFIGURED`, `SDK_NOT_INSTALLED`, `ANTHROPIC_ERROR` |
 
 ## OpenAI Responses
@@ -403,4 +404,4 @@ Not read: citation spans and cited text, and the thought text of a final, which 
 
 ## What the contract leaves out
 
-These `generateContentConfig` fields have no contract field: `topK`, `seed`, `presencePenalty`, `frequencyPenalty`, `candidateCount`, `safetySettings`, `responseMimeType` without a schema (JSON mode), `includeThoughts`, and the effort words `xhigh` and `max`. The older spelling's `thinkingBudget` maps to `{ budget_tokens }`, its effort words that are levels map to the level, and `minimal` maps to `none`. An agent that sets any of the rest has it only on the ADK runtime; behind the shim, an adapter's shim class carries what its provider reads (the chat-completions shims carry `xhigh`, `max` and JSON mode as `olderSpelling`). Live bidirectional connections are outside the contract.
+These `generateContentConfig` fields have no contract field: `topK`, `seed`, `presencePenalty`, `frequencyPenalty`, `candidateCount`, `safetySettings`, `responseMimeType` without a schema (JSON mode), `includeThoughts`, and the effort words `xhigh` and `max`. The older spelling's `thinkingBudget` maps to `{ budget_tokens }`, its effort words that are levels map to the level, and `minimal` maps to `none`. An agent that sets any of the rest has it only on the ADK runtime; on Claude, `ClaudeLlm` carries `xhigh`, `max` and `minimal` to the adapter as `claudeReasoning` ([ADR 0055](/decisions/0055-claude-adapter-keeps-the-adk-request.md)); behind the shim, an adapter's shim class carries what its provider reads (the chat-completions shims carry `xhigh`, `max` and JSON mode as `olderSpelling`). Live bidirectional connections are outside the contract.

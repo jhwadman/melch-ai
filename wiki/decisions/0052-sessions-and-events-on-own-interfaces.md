@@ -51,6 +51,8 @@ ADK's services also disagree with the durable stores on what a read returns:
 ## Consequences
 
 - A store moving onto `SessionService` (WS2-2) applies events through `applyEvent` and pages through `listWindow` and `listPage`. The memory service moves onto `MemoryService` in WS2-3.
+
+> **Note (2026-10-07):** The memory service implements `MemoryService`, with ADK's two methods handing their arguments to `ingest` and `search`, see [ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md).
 - An ADK `Event` or `Session` assigns to `TurnEvent` or `Session` without a cast, and `tests/events.test.ts` type-checks that. The reverse needs a cast, because genai types some fields as enums where `TurnEvent` has a string.
 - Every session fixture parses and serializes back to its own bytes, in both stored forms, and replays through the in-process store unchanged. That is the read half of ADR 0045's first stop rule. The resume half needs the native loop.
 - No engine store shares `app:` or `user:` state across sessions, and no syndicate writes such a key. A syndicate that needs it is a change to this interface.

@@ -26,6 +26,8 @@ import type { PostgresStorage } from '../lib/storage/postgres/index.ts';
 import { persistedDelta } from '../lib/storage/postgres/sessionService.ts';
 import { createTurnEvent } from '../lib/runtime/events.ts';
 import type { Embedder, MemoryExtractor } from '../lib/memory/providers.ts';
+import { namespacedMemoryService } from '../lib/memory/namespace.ts';
+import type { MemoryService } from '../lib/runtime/memoryService.ts';
 import { ScriptedLlm, sentTexts, text } from './helpers/scriptedLlm.ts';
 
 setLogLevel(LogLevel.ERROR);
@@ -301,6 +303,46 @@ test('memory: facts are stored, deduplicated, recalled and superseded on the Pos
   const found = await mk('').searchMemory({ appName: 'mem.ns', userId: 'u1', query: 'The user now prefers black tea.' });
   assert.ok(found.memories.length >= 1);
   assert.match(JSON.stringify(found.memories[0]), /black tea/);
+});
+
+test("memory through the engine's MemoryService: ingest and search on the Postgres store, pinned and per user", { skip }, async () => {
+  const service = (lines: string) =>
+    postgresStorage({ pool, memory: { extractor: fakeExtractor(lines), embedder: fakeEmbedder } }).memoryService!;
+  // A DELEGATE subagent's own app name, pinned to the root namespace as the runtime pins it.
+  const engine = (lines: string) => namespacedMemoryService<MemoryService>(service(lines), 'eng.ns');
+  const session = (id: string) => ({
+    id,
+    appName: 'Scout',
+    userId: 'u1',
+    state: {},
+    lastUpdateTime: 1,
+    events: [{ id: 'e1', invocationId: 'i1', author: 'user', timestamp: 1, actions: {}, content: { role: 'user', parts: [{ text: 'stuff' }] } }],
+  });
+  const fact = '[PREFERENCE | date: 2026-10-01 | source: user | keys: coffee] The user takes coffee black.';
+
+  await engine(fact).ingest(session('n1'), { extractionRules: 'Keep drinks.' });
+  const stored = await pool.query("SELECT fact FROM adk_memory_facts WHERE user_key = 'eng.ns/u1'");
+  assert.deepEqual(stored.rows.map((r) => r.fact), [fact]);
+  assert.equal((await pool.query("SELECT 1 FROM adk_memory_facts WHERE user_key LIKE 'Scout/%'")).rowCount, 0, 'nothing under the subagent name');
+  const marker = await pool.query("SELECT events_ingested FROM melchizedek_memory_ingest WHERE user_key = 'eng.ns/u1' AND session_id = 'n1'");
+  assert.equal(marker.rows[0].events_ingested, 1, 'the marker committed with the fact');
+
+  // The same turns again: the stored marker says done, so nothing is extracted or stored.
+  await engine('[FACT | date: 2026-10-02 | source: user | keys: x] Something else entirely.').ingest(session('n1'));
+  assert.equal((await pool.query("SELECT 1 FROM adk_memory_facts WHERE user_key = 'eng.ns/u1'")).rowCount, 1);
+
+  const found = await engine('').search({ appName: 'Scout', userId: 'u1', query: 'The user takes coffee black.' });
+  assert.ok(found.memories.length >= 1);
+  assert.match(JSON.stringify(found.memories[0]), /coffee black/);
+  const other = await engine('').search({ appName: 'Scout', userId: 'u2', query: 'The user takes coffee black.' });
+  assert.deepEqual(other.memories, [], "another user's silo is empty");
+
+  // ADK's name reads the same silo the same way.
+  const viaAdk = await service('').searchMemory({ appName: 'eng.ns', userId: 'u1', query: 'The user takes coffee black.' });
+  assert.deepEqual(viaAdk, found);
+
+  assert.equal(await engine('').deleteUserMemory!('eng.ns/u1'), 1);
+  assert.deepEqual((await engine('').search({ appName: 'Scout', userId: 'u1', query: 'The user takes coffee black.' })).memories, []);
 });
 
 test('tasks: durable, owner-scoped, listed newest first with working page tokens', { skip }, async () => {
