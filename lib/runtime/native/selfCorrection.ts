@@ -27,6 +27,13 @@
  *     the retry's number counted per agent in the run. The loop runs that
  *     call like any other, and the tool answers with reflection guidance.
  *     Any other response resets the agent's count.
+ *   - ON A GEMINI MODEL the stored reflection call is signed (ADR 0103), where
+ *     ADK's plugin stores it unsigned: it carries the replaced response's
+ *     thoughtSignature, or on Gemini 3 Gemini's documented placeholder when
+ *     the response had none (a MALFORMED_FUNCTION_CALL has no parts). Gemini 3
+ *     rejects the next request with an unsigned current-turn call (400,
+ *     "missing a thought_signature"); ADK's runtime still does. This is the
+ *     one place the native loop stores what ADK would not (reflectionSigning).
  *   - Past the limit the step ends on ADK's error event for a callback that
  *     threw: UNKNOWN_ERROR, and the plugin manager's message.
  *
@@ -55,7 +62,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { LlmResponse } from '@google/adk';
 
-import { GEMINI_PROVIDER } from '../../models/geminiState.ts';
+import { GEMINI_PROVIDER, PLACEHOLDER_THOUGHT_SIGNATURE } from '../../models/geminiState.ts';
 import type { Tool } from '../../tools/tool.ts';
 
 // ── The settings ─────────────────────────────────────────────────────────────
@@ -115,6 +122,39 @@ export function standsForAdkGemini(adapter: { readonly provider: string }): bool
   return adapter.provider === GEMINI_PROVIDER && !SHIMMED_GEMINI.has(adapter);
 }
 
+// ── Signing the reflection call (ADR 0103) ──────────────────────────────────
+
+/** How the reflection call stored in a model's place is signed. */
+export interface ReflectionSigning {
+  /** The signature for a reflection call whose replaced response carried none; absent: left unsigned. */
+  placeholder?: string;
+}
+
+/**
+ * How self-correction signs the reflection call it stores in place of this
+ * adapter's response, or undefined to store it unsigned, as ADK's plugin
+ * does. A Gemini adapter's call carries the replaced response's signature;
+ * on a Gemini 3 model, whose API rejects an unsigned current-turn call, the
+ * placeholder stands in when there was none.
+ */
+export function reflectionSigning(adapter: { readonly provider: string }, model: string | undefined): ReflectionSigning | undefined {
+  if (adapter.provider !== GEMINI_PROVIDER) return undefined;
+  return isGemini3(model) ? { placeholder: PLACEHOLDER_THOUGHT_SIGNATURE } : {};
+}
+
+/** A Gemini 3 model id, bare or under a resource path (`models/…`, `publishers/google/models/…`). */
+function isGemini3(model: string | undefined): boolean {
+  if (!model) return false;
+  return model.slice(model.lastIndexOf('/') + 1).startsWith('gemini-3');
+}
+
+/** The signature the replaced response carried: its first call's, else its first signed part's. */
+function signatureOf(response: LlmResponse): string | undefined {
+  const parts = response.content?.parts ?? [];
+  const signed = (p: (typeof parts)[number]) => typeof p.thoughtSignature === 'string' && p.thoughtSignature.length > 0;
+  return (parts.find((p) => p.functionCall && signed(p)) ?? parts.find(signed))?.thoughtSignature;
+}
+
 // ── Counting, per run ────────────────────────────────────────────────────────
 
 /** ADK's ScopedFailureTracker: failures per name, within one run (invocation scope). */
@@ -151,8 +191,12 @@ export type CorrectedResponse =
 export interface ModelCorrection {
   /** After the agent's own tools: the reflection tool. Declared to the model only where ADK declares it (declaresReflectionTool). */
   readonly tools: readonly Tool[];
-  /** ADK's afterModelCallback, on every response the step reads. */
-  afterModel(response: LlmResponse): CorrectedResponse;
+  /**
+   * ADK's afterModelCallback, on every response the step reads. With
+   * `signing` (reflectionSigning), a reflection call put in the response's
+   * place is signed.
+   */
+  afterModel(response: LlmResponse, signing?: ReflectionSigning): CorrectedResponse;
 }
 
 /** The tool side, for one call (lib/runtime/native/agentLoop.ts). Each call makes exactly one of these. */
@@ -196,7 +240,7 @@ export class SelfCorrection {
     const max = this.modelErrors;
     const tracker = this.#models;
     const name = agentName || 'default_model';
-    const retry = (errorType: string, errorDetails: string, finishReason: string): CorrectedResponse => {
+    const retry = (errorType: string, errorDetails: string, finishReason: string, signature: string | undefined): CorrectedResponse => {
       const count = tracker.increment(invocationId, name);
       if (count > max) {
         const thrown = `The model has failed consecutively ${max} times and the retry limit has been exceeded.`;
@@ -204,22 +248,27 @@ export class SelfCorrection {
       }
       const args = { response_type: REFLECT_AND_RETRY_RESPONSE_TYPE, error_type: errorType, error_details: errorDetails, finish_reason: finishReason, retry_count: count };
       const response: LlmResponse = {
-        content: { role: 'model', parts: [{ functionCall: { id: `${ADK_HANDLE_MODEL_ERROR}_${randomUUID()}`, name: ADK_HANDLE_MODEL_ERROR, args } }] },
+        content: {
+          role: 'model',
+          parts: [{ functionCall: { id: `${ADK_HANDLE_MODEL_ERROR}_${randomUUID()}`, name: ADK_HANDLE_MODEL_ERROR, args }, ...(signature ? { thoughtSignature: signature } : {}) }],
+        },
       };
       return { response, replaced: true };
     };
     return {
       tools: [reflectionTool(max)],
-      afterModel(response) {
+      afterModel(response, signing) {
+        const signature = () => (signing ? (signatureOf(response) ?? signing.placeholder) : undefined);
         if (response.content?.parts?.some((p) => p.functionCall?.name === ADK_HANDLE_MODEL_ERROR)) {
           return retry(
             RESERVED_TOOL_CALL,
             `Model attempted to call reserved tool ${ADK_HANDLE_MODEL_ERROR} directly. This tool is reserved for framework use only. Do not call it.`,
             'OTHER',
+            signature(),
           );
         }
         if (response.finishReason && MODEL_ERRORS.includes(response.finishReason)) {
-          return retry(response.errorCode ?? 'MODEL_ERROR', response.errorMessage ?? 'Model error encountered.', response.finishReason);
+          return retry(response.errorCode ?? 'MODEL_ERROR', response.errorMessage ?? 'Model error encountered.', response.finishReason, signature());
         }
         tracker.reset(invocationId, name);
         return { response, replaced: false };

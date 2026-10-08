@@ -24,6 +24,25 @@ the starter pack and the templates), not the repo's full history.
   is the one the agent made, and a replayed grant runs nothing.
   `wiki/operations/native-loop-security.md` is the threat model;
   `tests/nativeFuzz.test.ts` fuzzes the loop.
+- **On the native runtime, self-correction's reflection call is signed on
+  Gemini (ADR 0103).** When a Gemini 3 model calls the reserved
+  `adk_handle_model_error` tool, or answers `MALFORMED_FUNCTION_CALL`, the
+  reflection call stored in its place now carries the replaced call's
+  `thoughtSignature`, or Gemini's documented placeholder
+  (`skip_thought_signature_validator`) when there was none, so the next
+  request no longer fails with Gemini's "missing a thought_signature" 400.
+  On Gemini 2.x only a carried signature is added. The ADK runtime is
+  unchanged: ADK's plugin still stores the call unsigned. The stored event
+  differs from ADK's by that one field. `PLACEHOLDER_THOUGHT_SIGNATURE` is
+  still exported from `melchizedek-agents/models/geminiAdapter`.
+
+- **A workflow node's `retry` takes `exceptions` and `jitter` (ADR 0103).**
+  `retry: { exceptions: [NodeTimeoutError] }` retries only a failure whose
+  error class or `name` is listed; `jitter` sets the backoff's randomness
+  (0 = none, default 1). Both runtimes honour them: the ADK runtime hands
+  them to ADK's `retryConfig`, the native scheduler applies them as ADK's
+  `retry_utils` does. `syndicate.schema.json` is regenerated; the `exports`
+  map is unchanged.
 
 - **The capability matrix's Gemini column is asserted on the engine's own
   Gemini adapter (WS3-6, ADR 0100).** Every Gemini cell is now evidence
@@ -79,6 +98,14 @@ unchanged.
 
 ### Breaking — read before upgrading
 
+- **Breaking: a workflow `map:` node refuses `retry` and `timeout`
+  (ADR 0103).** Neither runtime ever applied them: each item of a map runs
+  under the mapped agent's own node entry, as ADK runs it. A YAML that set
+  them on the map entry loaded and silently ignored them; it is now refused
+  at load with `workflow.nodes.<Map>.retry — retry on a map node is not
+  applied: each item runs under its agent's own retry; set it on
+  nodes.<Agent>` (and the same for `timeout`). Move the keys to the mapped
+  agent's entry. No shipped example or template sets them.
 - **Breaking: a skill script no longer inherits the server's environment
   (ADR 0086).** An approved `run_skill_script` starts from PATH,
   HOME/USERPROFILE, TMPDIR/TEMP/TMP, LANG, LC_*, TZ, the user's name and

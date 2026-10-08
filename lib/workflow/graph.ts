@@ -19,8 +19,8 @@
  *   1. The block's cross-field rules — every name an agent or a declared
  *      node, `START` opening a chain, a routing map after the node it
  *      routes, a declared node exactly one kind, the reserved `__route`
- *      suffix, `workflow` without `dispatch`, and the pauses and remotes a
- *      node cannot carry yet. Same paths and messages as the schema's
+ *      suffix, `workflow` without `dispatch`, `retry` and `timeout` refused on
+ *      a map entry, and the pauses and remotes a node cannot carry yet. Same paths and messages as the schema's
  *      (lib/syndicateSchema.ts, `workflowProblems`), thrown together as a
  *      `WorkflowGraphError`.
  *   2. The graph's own rules, on the built edges — no empty routing map,
@@ -86,8 +86,9 @@ export interface MapNode {
   /** Concurrency of the map; absent means the runtime's default (8). */
   maxParallel?: number;
   /**
-   * The map entry's own modifiers. ADK's compile does not hand them to its
-   * ParallelWorker, so neither runtime applies them; they are kept as written.
+   * The map entry's own modifiers: always empty, since the schema refuses
+   * `retry` and `timeout` on a map entry (ADR 0103). ADK's compile hands
+   * neither to its ParallelWorker.
    */
   settings: GraphNodeSettings;
   /** The mapped agent's own node modifiers (`nodes.<agent>`), which ADK applies to each item's run. */
@@ -356,6 +357,14 @@ export function workflowConfigProblems(raw: Record<string, unknown>, subs: unkno
     }
     if (kind !== 'map' && (entry as WorkflowNodeYaml).max_parallel !== undefined) {
       out.push({ path: ['workflow', 'nodes', name, 'max_parallel'], message: 'max_parallel applies to map only' });
+    }
+    // A map item runs under its agent's own modifiers, as on ADK (ADR 0089, ADR 0103): the map entry's would be applied by neither runtime.
+    if (kind === 'map') {
+      for (const key of ['retry', 'timeout'] as const) {
+        if ((entry as WorkflowNodeYaml)[key] === undefined) continue;
+        const target = (entry as WorkflowNodeYaml).map!;
+        out.push({ path: ['workflow', 'nodes', name, key], message: `${key} on a map node is not applied: each item runs under its agent's own ${key}; set it on nodes.${target}` });
+      }
     }
   }
   for (const name of agentNames) {

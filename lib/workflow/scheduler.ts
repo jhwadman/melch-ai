@@ -355,11 +355,11 @@ const isWaiting = (state: NodeState | undefined): state is NodeState => state?.s
 export const RETRY_DEFAULTS = { maxAttempts: 5, initialDelay: 1, maxDelay: 60, backoffFactor: 2, jitter: 1 } as const;
 
 /**
- * A node's retry: the YAML's fields, plus ADK's two the YAML does not spell
- * yet (`exceptions`: the error names that may be retried, all when absent;
- * `jitter`: the random spread, default 1).
+ * A node's retry, as the YAML spells it: ADK's fields, `exceptions` (the
+ * error names that may be retried, all when absent) and `jitter` (the
+ * random spread, default 1) included.
  */
-export type RetrySettings = RetryYaml & { exceptions?: string[]; jitter?: number };
+export type RetrySettings = RetryYaml;
 
 /** The names an error answers to: its class's and its `name`, as ADK matches `exceptions`. */
 export function errorNames(error: unknown): string[] {

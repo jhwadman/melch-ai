@@ -15,7 +15,11 @@
  *     Gemini, on a plain agent or a workflow node agent, since ADK's
  *     reflect-and-retry plugin adds it to the toolsDict alone;
  *   - a call Gemini makes to the reserved tool all the same is still
- *     replaced and answered with reflection guidance on both runtimes.
+ *     replaced and answered with reflection guidance on both runtimes;
+ *   - on native, the reflection call stored in a Gemini 3 model's place
+ *     carries the replaced call's signature, or Gemini's placeholder after a
+ *     MALFORMED_FUNCTION_CALL, so the next request passes Gemini 3's
+ *     signature check; ADK stores it unsigned and gets the 400 (ADR 0103).
  *
  * Each case runs native twice: on the wrapper over ADK's Gemini (the
  * default until gate G3) and on the engine's own GeminiAdapter
@@ -36,9 +40,9 @@ import { setRetryPolicyOverrides } from '../lib/models/retry.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import { nativeAdapterFor } from '../lib/compileNative.ts';
 import { adkShim } from '../lib/models/adkShim.ts';
-import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
+import { GeminiAdapter, PLACEHOLDER_THOUGHT_SIGNATURE } from '../lib/models/geminiAdapter.ts';
 import { TracedGemini } from '../lib/models/tracedGemini.ts';
-import { ADK_HANDLE_MODEL_ERROR, declaresReflectionTool, standsForAdkGemini } from '../lib/runtime/native/selfCorrection.ts';
+import { ADK_HANDLE_MODEL_ERROR, declaresReflectionTool, reflectionSigning, standsForAdkGemini } from '../lib/runtime/native/selfCorrection.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { RuntimeName } from '../lib/runtime/runtimeFlag.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
@@ -85,13 +89,26 @@ afterEach(() => {
 
 // ── The stubbed Gemini API ───────────────────────────────────────────────────
 
-/** One answer of the stubbed API: the candidate's parts, for the n-th call (from 1). */
-type Script = (body: any, n: number) => object[];
+/** One answer of the stubbed API for the n-th call (from 1): the candidate's parts, or its parts and finish reason. */
+type Answer = object[] | { parts: object[]; finishReason: string };
+type Script = (body: any, n: number) => Answer;
 
-const candidate = (parts: object[]) => ({
-  candidates: [{ content: { role: 'model', parts }, finishReason: 'STOP' }],
-  usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
-});
+const candidate = (answer: Answer) => {
+  const { parts, finishReason } = Array.isArray(answer) ? { parts: answer, finishReason: 'STOP' } : answer;
+  return {
+    candidates: [{ ...(parts.length ? { content: { role: 'model', parts } } : {}), finishReason }],
+    usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+  };
+};
+
+/**
+ * Gemini 3's signature check, as the stub plays it: a request whose contents
+ * hold a function call without a thoughtSignature gets the 400 Gemini sends.
+ */
+const unsignedCall = (body: any): boolean => (body.contents ?? []).some((c: any) => (c?.parts ?? []).some((p: any) => p.functionCall && !p.thoughtSignature));
+const MISSING_SIGNATURE = {
+  error: { code: 400, message: 'Function call is missing a thought_signature in functionCall parts.', status: 'INVALID_ARGUMENT' },
+};
 
 interface Side {
   status: string;
@@ -101,13 +118,14 @@ interface Side {
   events: TurnEvent[];
 }
 
-async function runTurn(runtime: RuntimeName, config: SyndicateYamlConfig, script: Script, text = 'Announce that the office is closed next Friday.'): Promise<Side> {
+async function runTurn(runtime: RuntimeName, config: SyndicateYamlConfig, script: Script, text = 'Announce that the office is closed next Friday.', strict = false): Promise<Side> {
   const real = globalThis.fetch;
   const bodies: any[] = [];
   globalThis.fetch = (async (url: string | URL, init: RequestInit) => {
     assert.equal(new URL(String(url)).host, 'generativelanguage.googleapis.com', 'only the Gemini API is called');
     const body = JSON.parse(String(init.body));
     bodies.push(body);
+    if (strict && unsignedCall(body)) return new Response(JSON.stringify(MISSING_SIGNATURE), { status: 400, headers: { 'content-type': 'application/json' } });
     return new Response(JSON.stringify(candidate(script(body, bodies.length))), { status: 200, headers: { 'content-type': 'application/json' } });
   }) as typeof fetch;
   try {
@@ -218,11 +236,12 @@ const solo = (orchestrator: Record<string, unknown> = {}): SyndicateYamlConfig =
 const NATIVE_GEMINI = ['adk', 'engine'] as const;
 type NativeGemini = (typeof NATIVE_GEMINI)[number];
 
-async function bothRuntimes(config: SyndicateYamlConfig, script: Script, gemini: NativeGemini = 'adk'): Promise<{ adk: Side; native: Side }> {
-  const adk = await runTurn('adk', config, script);
+async function bothRuntimes(config: SyndicateYamlConfig, script: Script, gemini: NativeGemini = 'adk', strict = false): Promise<{ adk: Side; native: Side }> {
+  const text = 'Announce that the office is closed next Friday.';
+  const adk = await runTurn('adk', config, script, text, strict);
   process.env.GEMINI_ADAPTER = gemini;
   try {
-    const native = await runTurn('native', config, script);
+    const native = await runTurn('native', config, script, text, strict);
     return { adk, native };
   } finally {
     delete process.env.GEMINI_ADAPTER;
@@ -230,6 +249,13 @@ async function bothRuntimes(config: SyndicateYamlConfig, script: Script, gemini:
 }
 
 // ── Thought signatures ───────────────────────────────────────────────────────
+
+/** A first answer that calls the reserved reflection tool, signed as Gemini 3 signs a call. */
+const reservedCall: Script = (_body, n) => (n === 1 ? [{ functionCall: { name: ADK_HANDLE_MODEL_ERROR, args: {} }, thoughtSignature: SIGNATURE }] : [{ text: 'Done.' }]);
+
+/** Events or request bodies with the reflection call's signature taken off: what ADK stores and sends. */
+const unsigned = <T>(value: T): T =>
+  JSON.parse(JSON.stringify(value, (_key, v) => (v && typeof v === 'object' && v.functionCall?.name === ADK_HANDLE_MODEL_ERROR ? (({ thoughtSignature: _s, ...rest }) => rest)(v) : v)));
 
 const signedCall: Script = (_body, n) =>
   n === 1 ? [{ functionCall: { name: 'gemini_parity_lookup', args: { key: 'friday' } }, thoughtSignature: SIGNATURE }] : [{ text: 'The office is closed next Friday.' }];
@@ -262,9 +288,8 @@ for (const gemini of NATIVE_GEMINI) {
     }
   });
 
-  test(`a Gemini call to the reserved tool is still replaced and answered with reflection guidance, as on ADK (native Gemini: ${gemini})`, async () => {
-    const reserved: Script = (_body, n) => (n === 1 ? [{ functionCall: { name: ADK_HANDLE_MODEL_ERROR, args: {} }, thoughtSignature: SIGNATURE }] : [{ text: 'Done.' }]);
-    const { adk, native } = await bothRuntimes(solo(), reserved, gemini);
+  test(`a Gemini call to the reserved tool is still replaced and answered with reflection guidance, as on ADK but signed (native Gemini: ${gemini})`, async () => {
+    const { adk, native } = await bothRuntimes(solo(), reservedCall, gemini);
     for (const side of [adk, native]) {
       assert.equal(side.status, 'completed', side.error);
       const answers = side.events.flatMap((e) => (e.content?.parts ?? []).filter((p: any) => p.functionResponse)).map((p: any) => p.functionResponse);
@@ -272,8 +297,32 @@ for (const gemini of NATIVE_GEMINI) {
       assert.equal(answers[0].name, ADK_HANDLE_MODEL_ERROR);
       assert.match(String(answers[0].response?.reflection_guidance), /The call to the model failed/, 'the reflection tool ran, though it was not declared');
     }
-    assert.deepEqual(comparable(native.events), comparable(adk.events));
-    assert.deepEqual(sameRequests(native.bodies, gemini), sameRequests(adk.bodies, gemini));
+    // The one difference (ADR 0103): native's reflection call carries the replaced call's signature, ADK's none.
+    assert.deepEqual(callPartsOf(native.events.map((e) => e.content)).map((p) => p.thoughtSignature), [SIGNATURE]);
+    assert.deepEqual(callPartsOf(adk.events.map((e) => e.content)).map((p) => p.thoughtSignature), [undefined]);
+    assert.deepEqual(comparable(unsigned(native.events)), comparable(adk.events), 'otherwise native stores what ADK stores');
+    assert.deepEqual(sameRequests(unsigned(native.bodies), gemini), sameRequests(adk.bodies, gemini), 'otherwise native sends what ADK sends');
+  });
+
+  test(`Gemini 3 checks signatures: native's reflection call carries the reserved call's, and the turn completes; ADK's gets the 400 (native Gemini: ${gemini})`, async () => {
+    const { adk, native } = await bothRuntimes(solo(), reservedCall, gemini, true);
+    assert.equal(native.status, 'completed', native.error);
+    assert.equal(native.bodies.length, 2);
+    assert.deepEqual(callPartsOf(native.bodies[1].contents).map((p) => [p.functionCall.name, p.thoughtSignature]), [[ADK_HANDLE_MODEL_ERROR, SIGNATURE]], 'the next request sends it signed');
+    // ADK's plugin stores the call unsigned: the gap ADR 0097 recorded, left as it is on the ADK runtime.
+    assert.notEqual(adk.status, 'completed');
+    assert.match(String(adk.error), /thought_signature/);
+  });
+
+  test(`Gemini 3 checks signatures: a MALFORMED_FUNCTION_CALL retry's reflection call carries Gemini's placeholder on native; ADK's gets the 400 (native Gemini: ${gemini})`, async () => {
+    const malformed: Script = (_body, n) => (n === 1 ? { parts: [], finishReason: 'MALFORMED_FUNCTION_CALL' } : [{ text: 'The office is closed next Friday.' }]);
+    const { adk, native } = await bothRuntimes(solo(), malformed, gemini, true);
+    assert.equal(native.status, 'completed', native.error);
+    const stored = callPartsOf(native.events.map((e) => e.content));
+    assert.deepEqual(stored.map((p) => [p.functionCall.name, p.functionCall.args?.finish_reason, p.thoughtSignature]), [[ADK_HANDLE_MODEL_ERROR, 'MALFORMED_FUNCTION_CALL', PLACEHOLDER_THOUGHT_SIGNATURE]]);
+    assert.deepEqual(callPartsOf(native.bodies[1].contents).map((p) => p.thoughtSignature), [PLACEHOLDER_THOUGHT_SIGNATURE], 'the next request sends the placeholder');
+    assert.notEqual(adk.status, 'completed');
+    assert.match(String(adk.error), /thought_signature/);
   });
 
   test(`a workflow node agent on Gemini: no reflection tool is declared, and native sends what ADK sends (native Gemini: ${gemini})`, async () => {
@@ -372,4 +421,13 @@ test('declaresReflectionTool: a Gemini adapter stands for ADK\'s Gemini unless a
   assert.equal(standsForAdkGemini(nativeAdapterFor({})(MODEL)), true);
   assert.equal(standsForAdkGemini(behindShim), false);
   assert.equal(standsForAdkGemini({ provider: 'anthropic' }), false);
+});
+
+test('reflectionSigning: a Gemini adapter signs the reflection call, with the placeholder on Gemini 3 only; any other provider stores it unsigned, as ADK does', () => {
+  const gemini = { provider: 'gemini' };
+  assert.deepEqual(reflectionSigning(gemini, MODEL), { placeholder: PLACEHOLDER_THOUGHT_SIGNATURE });
+  assert.deepEqual(reflectionSigning(gemini, 'publishers/google/models/gemini-3.5-flash-lite'), { placeholder: PLACEHOLDER_THOUGHT_SIGNATURE });
+  assert.deepEqual(reflectionSigning(gemini, 'gemini-2.5-flash'), {}, 'a carried signature only: Gemini 2.5 does not check');
+  assert.equal(reflectionSigning({ provider: 'anthropic' }, 'claude-sonnet-4-6'), undefined);
+  assert.equal(reflectionSigning({ provider: 'gateway' }, 'gemini-3.8-flash'), undefined, "a gateway model is the gateway's");
 });

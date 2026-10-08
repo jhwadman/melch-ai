@@ -1028,6 +1028,7 @@
                 "minLength": 1
               },
               "retry": {
+                "description": "Retry this node on failure. Not on a map node: each item runs under its agent's own retry.",
                 "type": "object",
                 "properties": {
                   "max_attempts": {
@@ -1048,13 +1049,26 @@
                   "backoff_factor": {
                     "type": "number",
                     "exclusiveMinimum": 0
+                  },
+                  "jitter": {
+                    "description": "Randomness of the backoff; 0 = none. ADK default 1.",
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "exceptions": {
+                    "description": "Error names to retry on (the error's class or its `name`); every error when absent.",
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z_$][\\w$]*$"
+                    }
                   }
                 },
-                "additionalProperties": false,
-                "description": "Retry a node on failure (lib/workflow.ts)."
+                "additionalProperties": false
               },
               "timeout": {
-                "description": "Seconds this node may run before it fails.",
+                "description": "Seconds this node may run before it fails. Not on a map node: each item runs under its agent's own timeout.",
                 "type": "number",
                 "exclusiveMinimum": 0
               }

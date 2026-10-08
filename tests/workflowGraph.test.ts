@@ -204,6 +204,7 @@ const SCHEMA_CASES: Array<Record<string, unknown>> = [
   base({ edges: [['START', 'Lead']], nodes: { Lead: { join: true } } }),
   base({ edges: [['START', 'Lead', 'Each', 'Sub']], nodes: { Each: { map: 'Sub' } } }),
   base({ edges: [['START', 'Lead', 'Each']], nodes: { Each: { map: 'Nope' } } }),
+  base({ edges: [['START', 'Lead', 'Each']], nodes: { Each: { map: 'Sub', retry: { max_attempts: 2 }, timeout: 30 } } }),
   base({ edges: [['START', 'Lead']], nodes: { X: { join: true } } }),
   base({ edges: [['START', 'Lead', 'X']], nodes: { X: { tool: 't', schema: {} } } }),
   base({ edges: [['START', 'Lead']], nodes: { Lead__route: { join: true } } }),

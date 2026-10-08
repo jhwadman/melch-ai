@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 861,
-    "edges": 3313,
+    "nodes": 862,
+    "edges": 3333,
     "byKind": {
-      "doc": 165,
+      "doc": 166,
       "provider": 6,
       "env": 106,
       "model": 8,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 690,
+      "links_to": 697,
       "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
@@ -36,18 +36,18 @@
       "imports": 810,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 824,
-      "constrains": 191,
+      "derives_from": 833,
+      "constrains": 194,
       "supersedes": 8,
       "depends_on": 106,
       "explains": 31,
-      "mitigates": 1,
+      "mitigates": 2,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2974,
-      "inferred": 339
+      "extracted": 2990,
+      "inferred": 343
     },
     "isolated": 4
   },
@@ -1601,6 +1601,18 @@
       }
     },
     {
+      "id": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "kind": "doc",
+      "label": "ADR 0103: A map entry refuses retry and timeout, a node's retry spells exceptions and jitter, and native signs the reflection call on Gemini",
+      "source": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 727
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1741,7 +1753,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3484
+        "words": 3508
       }
     },
     {
@@ -1873,7 +1885,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6625
+        "words": 6729
       }
     },
     {
@@ -1897,7 +1909,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 882
+        "words": 907
       }
     },
     {
@@ -1909,7 +1921,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4097
+        "words": 4135
       }
     },
     {
@@ -5139,7 +5151,7 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 985
+        "lines": 986
       }
     },
     {
@@ -5148,7 +5160,7 @@
       "label": "lib/models/geminiState.ts",
       "source": "lib/models/geminiState.ts",
       "attrs": {
-        "lines": 51
+        "lines": 58
       }
     },
     {
@@ -5544,7 +5556,7 @@
       "label": "lib/runtime/native/selfCorrection.ts",
       "source": "lib/runtime/native/selfCorrection.ts",
       "attrs": {
-        "lines": 358
+        "lines": 407
       }
     },
     {
@@ -5553,7 +5565,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 340
+        "lines": 346
       }
     },
     {
@@ -5760,7 +5772,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 995
+        "lines": 1012
       }
     },
     {
@@ -6255,7 +6267,7 @@
       "label": "lib/workflow/graph.ts",
       "source": "lib/workflow/graph.ts",
       "attrs": {
-        "lines": 543
+        "lines": 552
       }
     },
     {
@@ -6327,7 +6339,7 @@
       "label": "lib/workflowConfig.ts",
       "source": "lib/workflowConfig.ts",
       "attrs": {
-        "lines": 141
+        "lines": 147
       }
     },
     {
@@ -13974,6 +13986,90 @@
       "evidence": "/decisions/0101-native-loop-security-gate.md:27"
     },
     {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "file:tests/geminiTurnParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "file:tests/workflowScheduler.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md frontmatter"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md:30"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md:32"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md:44"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -15449,6 +15545,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/gemini-adapter.md:79"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:96"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -17114,14 +17217,14 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:233"
+      "evidence": "/overview/native-loop.md:234"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:267"
+      "evidence": "/overview/native-loop.md:268"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17163,7 +17266,7 @@
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:229"
+      "evidence": "/overview/native-loop.md:230"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17184,7 +17287,7 @@
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:255"
+      "evidence": "/overview/native-loop.md:256"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17212,14 +17315,14 @@
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:322"
+      "evidence": "/overview/native-loop.md:323"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:235"
+      "evidence": "/overview/native-loop.md:236"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17233,28 +17336,28 @@
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:269"
+      "evidence": "/overview/native-loop.md:270"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:222"
+      "evidence": "/overview/native-loop.md:223"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:307"
+      "evidence": "/overview/native-loop.md:308"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:255"
+      "evidence": "/overview/native-loop.md:256"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17275,7 +17378,7 @@
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:285"
+      "evidence": "/overview/native-loop.md:286"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17290,6 +17393,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:149"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:203"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17331,7 +17441,7 @@
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:285"
+      "evidence": "/overview/native-loop.md:286"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17517,6 +17627,13 @@
     },
     {
       "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:42"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -17675,6 +17792,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-scheduler.md:165"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:85"
     },
     {
       "from": "/overview/workflow-scheduler.md",

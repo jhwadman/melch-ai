@@ -28,6 +28,7 @@ import type { LlmAgent } from '@google/adk';
 import { compileWorkflow } from '../lib/workflow.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
+import { toRetryConfig } from '../lib/workflowConfig.ts';
 import { virtualClock } from './helpers/virtualClock.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import {
@@ -570,6 +571,29 @@ test('retry: a node that keeps throwing gives up after max_attempts; the walk re
   ]);
 });
 
+test('retry.exceptions from the YAML: only a named error is retried, on ADK (its retryConfig) and on the scheduler alike', async () => {
+  const typeError: Stubs = { Fixer: { output: () => { throw new TypeError('bad'); } } };
+  const named = await bothAgreeOn(retrying({ max_attempts: 3, jitter: 0, exceptions: ['TypeError'] }), typeError);
+  assert.equal(named.record.calls.filter((c) => c.startsWith('Fixer')).length, 3, 'a named error is retried');
+  const other = await bothAgreeOn(retrying({ max_attempts: 3, jitter: 0, exceptions: ['NodeTimeoutError'] }), typeError);
+  assert.equal(other.record.calls.filter((c) => c.startsWith('Fixer')).length, 1, 'an error not named is not');
+  assert.deepEqual(other.record.nodeErrors, ['R.Fixer@- Fixer [UNKNOWN_ERROR] bad (TypeError after 1)']);
+});
+
+test('retry.exceptions and retry.jitter: the schema takes them, the graph keeps them, and ADK gets them in its retryConfig', () => {
+  const cfg = retrying({ max_attempts: 2, jitter: 0, exceptions: ['TypeError', 'NodeTimeoutError'] });
+  const fixer = buildWorkflowGraph(cfg).nodes.get('Fixer') as { settings: { retry?: Record<string, unknown> } };
+  assert.deepEqual(fixer.settings.retry, { initial_delay: 0.001, max_attempts: 2, jitter: 0, exceptions: ['TypeError', 'NodeTimeoutError'] });
+  assert.deepEqual(toRetryConfig(fixer.settings.retry), { maxAttempts: 2, initialDelay: 0.001, jitter: 0, exceptions: ['TypeError', 'NodeTimeoutError'] });
+  for (const [retry, message] of [
+    [{ exceptions: [] }, /workflow\.nodes\.Fixer\.retry\.exceptions/],
+    [{ exceptions: ['not a name'] }, /an error name, such as TypeError/],
+    [{ jitter: -1 }, /workflow\.nodes\.Fixer\.retry\.jitter/],
+  ] as const) {
+    assert.throws(() => retrying(retry), message);
+  }
+});
+
 test('timeout: an attempt that runs past it is abandoned and retried; without a retry the walk fails with NodeTimeoutError', async () => {
   // Real time: the first attempt (300 ms) runs 200 ms past the 100 ms timeout, the second (0 ms) ends 100 ms inside it.
   const slowOnce: Stubs = { Fixer: { delay: (_i, call) => (call === 1 ? 300 : 0), realTime: true, output: () => 'fixed' } };
@@ -603,8 +627,8 @@ test('timeout: the runner\'s signal aborts with the timeout', async () => {
 
 const mapped = syndicate('M', ['Lead', 'Worker', 'Sum'], {
   edges: [['START', 'Lead', 'Fan', 'Sum']],
-  // The map entry's own timeout is not applied on ADK (its compile does not hand it to the worker), so here neither.
-  nodes: { Fan: { map: 'Worker', max_parallel: 1, timeout: 0.001 }, Worker: { retry: { max_attempts: 2, initial_delay: 0.001 } } },
+  // Each item runs under Worker's own modifiers; the schema refuses retry and timeout on the map entry (ADR 0103).
+  nodes: { Fan: { map: 'Worker', max_parallel: 1 }, Worker: { retry: { max_attempts: 2, initial_delay: 0.001 } } },
 });
 
 test('map: each item runs under its agent\'s retry; a reported item error names the item\'s path and branch', async () => {

@@ -91,6 +91,7 @@ import {
   GEMINI_PROVIDER,
   GENAI_PART_KIND,
   MINTED_CALL_ID_PREFIX,
+  PLACEHOLDER_THOUGHT_SIGNATURE,
   THOUGHT_SIGNATURE_KIND,
   isCarriedWirePart,
 } from './geminiState.ts';
@@ -138,7 +139,7 @@ export interface CarriedParts {
  * (default PLACEHOLDER_SIGNATURES_BY_DEFAULT, off) until the G3 live run
  * confirms it (ADR 0065).
  */
-export const PLACEHOLDER_THOUGHT_SIGNATURE = 'skip_thought_signature_validator';
+export { PLACEHOLDER_THOUGHT_SIGNATURE };
 
 /** Off: no placeholder signature is sent unless the adapter is built to send it. */
 export const PLACEHOLDER_SIGNATURES_BY_DEFAULT = false;

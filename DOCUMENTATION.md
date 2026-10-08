@@ -1200,7 +1200,11 @@ the list of results); `tool: <registry name>` (runs the tool with the
 node input as its arguments); `ask_user: "<question>"` (below). An entry
 named after an agent carries modifiers only: `route_key`, `retry`
 (`max_attempts`, `initial_delay`, `max_delay`, `backoff_factor`, in
-seconds) and `timeout` (seconds), which any node may carry.
+seconds; `jitter`, the backoff's randomness, 0 for none; `exceptions`,
+the error names to retry on, every error when absent) and `timeout`
+(seconds), which any node but a `map` may carry. A map's items run under
+the mapped agent's own `retry` and `timeout`, so a `map` entry refuses
+both and the load error names the agent's entry instead.
 
 **The pause.** An `ask_user` node ends the turn `input-required`
 (`result.input`: the node, the question, and what it was asked about).

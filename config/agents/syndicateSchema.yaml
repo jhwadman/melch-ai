@@ -154,6 +154,9 @@ dispatch:
 #     Each:    { map: "MySubagent", max_parallel: 4 }   # one run per list item
 #     Lookup:  { tool: "web_extract" }             # a registry tool as a node
 #     Review:  { retry: { max_attempts: 2, initial_delay: 1 }, timeout: 120 }
+#     # retry also takes max_delay, backoff_factor, jitter (0 = none) and
+#     # exceptions: [NodeTimeoutError] (retry only on these error names).
+#     # A map node takes neither retry nor timeout: set them on its agent.
 #     Confirm: { ask_user: "Publish? Reply yes, or say what to change." }
 #   max_concurrency: 4
 

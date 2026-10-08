@@ -333,12 +333,21 @@ const edgeElement = z.union([
     .describe('A routing map after a node: `{ <route>: <node or nodes>, default: <node> }`, matched against that node\'s output.'),
 ]);
 
+/** An error class name, as ADK matches `exceptions` against one: an identifier. */
+const ERROR_NAME = /^[A-Za-z_$][\w$]*$/;
+
 const retrySchema = z
   .strictObject({
     max_attempts: z.number().int().positive().optional().describe('Attempts including the first; 1 = no retry. ADK default 5.'),
     initial_delay: z.number().nonnegative().optional().describe('Seconds before the first retry.'),
     max_delay: z.number().nonnegative().optional(),
     backoff_factor: z.number().positive().optional(),
+    jitter: z.number().nonnegative().optional().describe('Randomness of the backoff; 0 = none. ADK default 1.'),
+    exceptions: z
+      .array(z.string().regex(ERROR_NAME, 'an error name, such as TypeError or NodeTimeoutError'))
+      .min(1)
+      .optional()
+      .describe('Error names to retry on (the error\'s class or its `name`); every error when absent.'),
   })
   .describe('Retry a node on failure (lib/workflow.ts).');
 
@@ -351,8 +360,8 @@ const workflowNodeSchema = z
     max_parallel: z.number().int().positive().optional().describe('Concurrency of map. Default 8.'),
     tool: z.string().min(1).optional().describe('Run this registry tool with the node input as its arguments.'),
     route_key: z.string().min(1).optional().describe('Property of a JSON output holding the route. Default "route".'),
-    retry: retrySchema.optional(),
-    timeout: z.number().positive().optional().describe('Seconds this node may run before it fails.'),
+    retry: retrySchema.optional().describe('Retry this node on failure. Not on a map node: each item runs under its agent\'s own retry.'),
+    timeout: z.number().positive().optional().describe('Seconds this node may run before it fails. Not on a map node: each item runs under its agent\'s own timeout.'),
   })
   .describe('A declared node (exactly one of ask_user, join, map, tool) or modifiers for an agent node (retry, timeout, route_key).');
 
@@ -831,6 +840,14 @@ function workflowProblems(raw: Record<string, unknown>, subs: unknown[]): Proble
     }
     if (kind !== 'map' && (entry as WorkflowNodeYaml).max_parallel !== undefined) {
       out.push({ path: ['workflow', 'nodes', name, 'max_parallel'], message: 'max_parallel applies to map only' });
+    }
+    // A map item runs under its agent's own modifiers, as on ADK (ADR 0089, ADR 0103): the map entry's would be applied by neither runtime.
+    if (kind === 'map') {
+      for (const key of ['retry', 'timeout'] as const) {
+        if ((entry as WorkflowNodeYaml)[key] === undefined) continue;
+        const target = (entry as WorkflowNodeYaml).map!;
+        out.push({ path: ['workflow', 'nodes', name, key], message: `${key} on a map node is not applied: each item runs under its agent's own ${key}; set it on nodes.${target}` });
+      }
     }
   }
   for (const name of agentNames) {
