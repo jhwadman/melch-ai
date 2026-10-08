@@ -10,16 +10,30 @@
  * the ADK path too.
  *
  * Offline: globalThis.fetch is replaced by a stub that records the request
- * and answers 400, so no provider is called and no SDK retries. Keys are
+ * and answers 400, so no provider is called and no SDK retries, or answers
+ * with Gemini's JSON where a Gemini cell's claim covers the answer. Keys are
  * fixture values set for the duration of each capture.
+ *
+ * The Gemini row's inputs (the end of this file) go through the engine's own
+ * GeminiAdapter on the real @google/genai client (ADR 0100).
  */
 
 import assert from 'node:assert';
 import { AgentTool, LlmAgent } from '@google/adk';
 
 import type { MatrixRow } from '../../lib/models/capabilities.ts';
-import type { Message, ModelAdapter, ModelRequest, ProviderState, ToolDeclaration } from '../../lib/models/contract.ts';
+import type {
+  FinalModelResponse,
+  Message,
+  ModelAdapter,
+  ModelRequest,
+  ModelResponse,
+  ProviderState,
+  ToolDeclaration,
+} from '../../lib/models/contract.ts';
 import { ClaudeAdapter } from '../../lib/models/claudeAdapter.ts';
+import { GeminiAdapter } from '../../lib/models/geminiAdapter.ts';
+import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from '../../lib/models/geminiState.ts';
 import { GptAdapter } from '../../lib/models/gptAdapter.ts';
 import { GrokAdapter } from '../../lib/models/grokAdapter.ts';
 import { KimiAdapter } from '../../lib/models/kimiAdapter.ts';
@@ -95,32 +109,54 @@ export function adapterFor(row: AdapterRow, model = MODEL[row]): ModelAdapter {
   }
 }
 
-/** Gemini's fixture key, for the ADK path's Gemini (tests/shimBodies.test.ts); the matrix's Gemini cells are ADK's. */
+/**
+ * Gemini's fixture key, for both Gemini paths: the engine's GeminiAdapter,
+ * which the matrix's Gemini row is asserted on (ADR 0100), and the ADK path's
+ * Gemini (tests/shimBodies.test.ts).
+ */
 export const GEMINI_ENV = { GOOGLE_GENAI_API_KEY: 'fixture-genai-0123456789abcdef' }; // gitleaks:allow (test fixture)
+
+/** One request an adapter posted: where it went and its JSON body. */
+export interface PostedRequest {
+  url: string;
+  body: any;
+}
+
+/** The fetch reply to the request at `index` among a capture's requests. */
+export type Reply = (index: number, url: string) => Response;
+
+/** The default reply: a 400, which every adapter reports as an error final and no SDK retries. */
+const rejected: Reply = () =>
+  new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'captured' } }), {
+    status: 400,
+    headers: { 'content-type': 'application/json' },
+  });
 
 /**
  * Runs `send` with the row's fixture env (every other key cleared) and fetch
- * stubbed to answer 400; returns the first JSON body posted. A call that
- * throws on the 400 (ADK's Gemini does) is drained like one that yields it.
+ * stubbed to answer with `reply` (default a 400); returns every request
+ * posted and everything `send` yielded. A call that throws (ADK's Gemini
+ * throws the 400) is drained like one that yields its error.
  */
-export async function captureBody(row: AdapterRow | 'gemini', send: () => AsyncIterable<unknown>): Promise<any> {
+export async function captureExchange<T>(
+  row: AdapterRow | 'gemini',
+  send: () => AsyncIterable<T>,
+  reply: Reply = rejected,
+): Promise<{ requests: PostedRequest[]; yielded: T[] }> {
   const saved = Object.fromEntries(ALL_ENV.map((k) => [k, process.env[k]]));
   for (const k of ALL_ENV) delete process.env[k];
   Object.assign(process.env, row === 'gemini' ? GEMINI_ENV : FAKE_ENV[row]);
   const originalFetch = globalThis.fetch;
-  let body: any;
+  const requests: PostedRequest[] = [];
+  const yielded: T[] = [];
   globalThis.fetch = (async (input: any, init: any) => {
     const raw = init?.body ?? (input instanceof Request ? await input.text() : undefined);
-    if (body === undefined && typeof raw === 'string') body = JSON.parse(raw);
-    return new Response(
-      JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'captured' } }),
-      { status: 400, headers: { 'content-type': 'application/json' } },
-    );
+    const url = input instanceof Request ? input.url : String(input);
+    if (typeof raw === 'string') requests.push({ url, body: JSON.parse(raw) });
+    return reply(requests.length - 1, url);
   }) as any;
   try {
-    for await (const _ of send()) {
-      // drain; the 400 surfaces as an error final, which is expected
-    }
+    for await (const value of send()) yielded.push(value);
   } catch {
     // ADK's Gemini throws the 400; the body is what is asserted
   } finally {
@@ -130,8 +166,14 @@ export async function captureBody(row: AdapterRow | 'gemini', send: () => AsyncI
       else process.env[k] = saved[k];
     }
   }
-  assert.ok(body, `${row}: the adapter sent no request`);
-  return body;
+  return { requests, yielded };
+}
+
+/** Runs `send` against a 400 (captureExchange) and returns the first JSON body it posted. */
+export async function captureBody(row: AdapterRow | 'gemini', send: () => AsyncIterable<unknown>): Promise<any> {
+  const { requests } = await captureExchange(row, send);
+  assert.ok(requests[0], `${row}: the adapter sent no request`);
+  return requests[0].body;
 }
 
 /** Sends one request through the row's contract adapter (for `model`, default the row's) and returns the JSON body it posted. */
@@ -242,4 +284,95 @@ export function visionRequest(row: AdapterRow): ModelRequest {
       },
     ],
   });
+}
+
+// ── Gemini (ADR 0100) ────────────────────────────────────────────────────────
+//
+// The matrix's Gemini row is asserted on the engine's own GeminiAdapter
+// (lib/models/geminiAdapter.ts), on the real @google/genai client over the
+// stubbed fetch, so the body is the JSON that would reach the Gemini API.
+// Where a cell's claim is about the answer too (grounding, carried parts,
+// signatures, usage), the stub answers with Gemini's JSON and the final the
+// adapter makes of it is asserted.
+
+/** The Gemini 3 id the row is checked with; reasoning maps to a thinkingLevel on it. */
+export const GEMINI_MODEL = 'gemini-3.5-flash';
+
+/** A Gemini 2.x id, which takes a thinking budget only. */
+export const GEMINI_BUDGET_MODEL = 'gemini-2.5-flash';
+
+/** The thought signature Gemini returned on a call, as the adapter stores it (ADR 0046). */
+export const GEMINI_SIGNATURE = 'c2lnLWZpeHR1cmU=';
+
+export function geminiRequest(overrides: Partial<ModelRequest> = {}): ModelRequest {
+  return { model: GEMINI_MODEL, messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }], ...overrides };
+}
+
+/** One Gemini response: a candidate with `parts`, its finish reason, any other candidate field (grounding), and usage. */
+export function geminiCandidate(parts: object[], extra: { finishReason?: string; usageMetadata?: object; [k: string]: unknown } = {}): object {
+  const { finishReason = 'STOP', usageMetadata, ...candidate } = extra;
+  return {
+    candidates: [{ content: { role: 'model', parts }, ...(finishReason ? { finishReason } : {}), ...candidate }],
+    ...(usageMetadata ? { usageMetadata } : {}),
+  };
+}
+
+/** Gemini's JSON answer for the request at each index (the last repeats), or one SSE stream of all of them when `stream` is set. */
+export function geminiReply(responses: object | object[], stream = false): Reply {
+  const list = Array.isArray(responses) ? responses : [responses];
+  return (index) => {
+    if (stream) {
+      const sse = list.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join('');
+      return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    }
+    return new Response(JSON.stringify(list[Math.min(index, list.length - 1)]), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+}
+
+/** What one GeminiAdapter call posted and yielded. */
+export interface GeminiExchange {
+  url: string;
+  body: any;
+  partials: ModelResponse[];
+  final: FinalModelResponse;
+}
+
+/**
+ * Sends `req` through a GeminiAdapter on the real client (the fixture key,
+ * the Gemini API) and returns the request it posted and what it yielded.
+ * Without `responses` the stub answers 400 and only the request matters.
+ */
+export async function geminiExchange(req: ModelRequest, responses?: object | object[]): Promise<GeminiExchange> {
+  const reply = responses === undefined ? undefined : geminiReply(responses, req.stream === true);
+  const { requests, yielded } = await captureExchange('gemini', () => new GeminiAdapter({ model: req.model }).generate(req), reply);
+  assert.equal(requests.length, 1, 'gemini: one request per call');
+  const final = yielded.at(-1);
+  assert.ok(final && !final.partial, 'gemini: the call ends on one final');
+  return { url: requests[0].url, body: requests[0].body, partials: yielded.filter((r) => r.partial), final };
+}
+
+/** The Gemini function declaration named `name` in a request body. */
+export function geminiDeclaration(body: any, name: string): any {
+  return (body.tools ?? []).flatMap((t: any) => t.functionDeclarations ?? []).find((d: any) => d.name === name);
+}
+
+/**
+ * A thinking Gemini agent mid tool loop: Scout was called with the signature
+ * Gemini returned on the call, and answered. The call id is the engine's, so
+ * it stays off the wire.
+ */
+export function geminiThinkingToolLoop(reasoning: ModelRequest['reasoning'] = 'low', model = GEMINI_MODEL): ModelRequest {
+  const signed: ProviderState = { provider: GEMINI_PROVIDER, kind: THOUGHT_SIGNATURE_KIND, model, payload: GEMINI_SIGNATURE };
+  const messages: Message[] = [
+    { role: 'user', parts: [{ type: 'text', text: 'look it up' }] },
+    {
+      role: 'assistant',
+      parts: [
+        { type: 'thinking', text: 'I should ask Scout.' },
+        { type: 'toolCall', id: 'adk-1-0-Scout', name: 'Scout', args: { request: 'find it' }, providerState: signed },
+      ],
+    },
+    { role: 'tool', parts: [{ type: 'toolResult', id: 'adk-1-0-Scout', name: 'Scout', result: { result: 'found' } }] },
+  ];
+  return { model, tools: delegationTools(), messages, reasoning };
 }

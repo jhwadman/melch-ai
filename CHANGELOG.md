@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **The capability matrix's Gemini column is asserted on the engine's own
+  Gemini adapter (WS3-6, ADR 0100).** Every Gemini cell is now evidence
+  `test`, checked against the request `GeminiAdapter` sends through the
+  real `@google/genai` client, as every other column is; `npm run doctor --
+  --matrix` says so. On the native runtime a Gemini agent's stored events no
+  longer carry `turnComplete`, as the ADK runtime's never have; nothing reads
+  the field. `scripts/gemini_engine_check.ts` is the live check gate G3 runs:
+  grounding, code execution, a function tool beside server-side tools, and a
+  two-turn session, with `GeminiAdapter` on both runtimes. Defaults are
+  unchanged: Gemini on native still goes through ADK's Gemini unless
+  `GEMINI_ADAPTER=engine`.
+
 - **A workflow syndicate can be a subagent, and a workflow node can carry
   an approval gate (WS4-7, ADR 0098).** A DELEGATE syndicate's
   `yaml_reference` to a `workflow:` syndicate now runs the whole graph as

@@ -141,8 +141,11 @@ export function capabilitySummary(agentName: string, r: CapabilityReport): strin
 //
 // `evidence: 'test'` cells are asserted against the real outgoing request body
 // in tests/capabilityMatrix.test.ts, so changing an adapter without changing
-// its row fails a test. `evidence: 'adk'` cells are ADK's own Gemini adapter,
-// which this repo does not build requests for.
+// its row fails a test. Every cell is `test`. The Gemini row is the engine's
+// own GeminiAdapter (lib/models/geminiAdapter.ts), asserted on the real
+// @google/genai client over a stubbed fetch (gate G3, ADR 0100). `'adk'`
+// (a cell taken on trust from ADK's own Gemini) stays in the type because the
+// type is published (`melchizedek-agents/models/*`); no cell uses it.
 
 export const CAPABILITIES = [
   'delegation',
@@ -184,7 +187,7 @@ const unsupported = (note: string): CapabilityCell => ({ support: 'unsupported',
 
 const nativeSearch = (row: ProviderId): CapabilityCell =>
   SERVER_SIDE_TOOLS.web_search.includes(row)
-    ? ok(row === 'gemini' ? 'adk' : 'test')
+    ? ok()
     : unsupported('no native search on this path; the web_search sentinel is dropped (use web_extract)');
 
 const responsesReasoningNote = (ids: string): string =>
@@ -194,12 +197,12 @@ const CHAT_THINKING_NOTE =
 
 export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityCell>> = {
   gemini: {
-    delegation: ok('adk'),
-    memory_tools: ok('adk'),
-    structured_output: ok('adk'),
-    thinking_with_tools: ok('adk'),
-    streaming: ok('adk'),
-    vision: ok('adk'),
+    delegation: ok(),
+    memory_tools: ok(),
+    structured_output: ok(),
+    thinking_with_tools: ok(),
+    streaming: ok(),
+    vision: ok(),
     native_search: nativeSearch('gemini'),
   },
   anthropic: {
@@ -378,7 +381,7 @@ export function renderCapabilityMatrix(): string {
     lines.push(`| ${CAPABILITY_LABELS[cap]} | ${cells.join(' | ')} |`);
   }
   lines.push('');
-  lines.push('✓ supported · ◐ degraded · ✗ unsupported. Gemini cells are ADK\'s own adapter; every other cell is asserted against the request the adapter sends.');
+  lines.push('✓ supported · ◐ degraded · ✗ unsupported. Every cell is asserted against the request the adapter sends; the Gemini column is the engine\'s own Gemini adapter.');
   lines.push('');
   notes.forEach((n, i) => lines.push(`${i + 1}. ${n}`));
   lines.push('');

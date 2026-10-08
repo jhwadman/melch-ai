@@ -109,7 +109,8 @@ Each response becomes ADK's event for it. The base event is created before the c
 - a tool call with no id gets `adk-<uuid>`;
 - a call to a long-running tool (`ask_user`) is listed in `longRunningToolIds`;
 - a `set_model_response` call becomes its arguments as JSON text, with `skipSummarization`;
-- an answer with no parts, no error and no usage makes no event.
+- an answer with no parts, no error and no usage makes no event;
+- a Gemini adapter that stands for ADK's own Gemini (`standsForAdkGemini`, the same test `declaresReflectionTool` reads) gets no `turnComplete` on its events, since ADK's Gemini writes none. The events of both Gemini adapters (`GEMINI_ADAPTER=adk` or `engine`) are then the ADK runtime's, field for field ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)).
 
 With a `correction`, each response, partials included, passes through self-correction's model side first, after the fallback's redirect check. A retry may stand in its place, or the step may end on an `UNKNOWN_ERROR` event (see [Self-correction](#self-correction)).
 

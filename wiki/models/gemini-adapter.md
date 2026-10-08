@@ -16,6 +16,11 @@ sources:
   - resource: lib/models/geminiState.ts
   - resource: lib/runtime/native/request.ts
   - resource: tests/geminiNativeTools.test.ts
+  - resource: tests/capabilityMatrix.test.ts
+  - resource: tests/helpers/capabilityInputs.ts
+  - resource: tests/geminiTurnParity.test.ts
+  - resource: scripts/gemini_engine_check.ts
+  - resource: tests/geminiEngineCheck.test.ts
 ---
 
 # Gemini adapter
@@ -122,6 +127,41 @@ On the native runtime the adapter receives the request the [native step](/overvi
 
 `tests/geminiNativeTools.test.ts` asserts all of this on the real `GoogleGenAI` client over a stubbed `fetch`. It runs a two-step session in which Gemini calls `load_memory` and answers from the result; the tool runs by hand there until the loop runs tools (WS2-5b). It also compiles the model zoo, the research example and Ares, builds each Gemini agent's native request from the agent `compileNative` builds (`lib/compileNative.ts`), and asserts the tools on the wire: the Zookeeper's six explainers, research's evidence tools and Triage's schema with no tools, Ares's `WarScribe` and `load_memory` with the preloaded facts, and `WarScribe`'s `googleSearch` alone. A delegating root's subagents are handed over there as the `AgentTool`s the ADK runtime compiles, since delegation does not run on the native loop yet (WS2-6). Running those syndicates end to end on the native runtime waits for delegation and the boundary suite on native (WS2-12).
 
+## Where it differs from ADK's Gemini on the wire
+
+For the same agent, the request differs from the one ADK's `Gemini` (`TracedGemini`) sends in three places. Each is a choice that changes nothing Gemini does, and nothing stored depends on any of them ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)):
+
+- **Schemas** are JSON Schema in `parametersJsonSchema` and `responseJsonSchema`, where ADK sends Gemini's `Schema` in `parameters` and `responseSchema`, with upper-case types. A YAML schema written in Gemini's dialect (`type: OBJECT`) reaches this adapter lowercased.
+- **The system instruction** carries no `role`. ADK's sets `role: 'user'` on it.
+- **`includeServerSideToolInvocations`** goes only beside native tools and function declarations together, on the Gemini API. ADK's path sets it on every Gemini agent ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)).
+
+`tests/geminiTurnParity.test.ts` runs a Gemini agent and a workflow node through `runSyndicateTurn` on both runtimes, with this adapter serving native (`GEMINI_ADAPTER=engine`), and holds the requests to ADK's apart from these three, and the stored events to ADK's in full.
+
+## The capability matrix
+
+The matrix's Gemini column ([ADR 0019](/decisions/0019-multi-model-parity-matrix.md)) is this adapter's request. `tests/capabilityMatrix.test.ts` asserts every cell on the real `GoogleGenAI` client over a stubbed `fetch`, with the inputs in `tests/helpers/capabilityInputs.ts`:
+
+| Cell | What the test asserts |
+|---|---|
+| delegation | a subagent tool's declaration in `parametersJsonSchema`, with no `parameters` beside it |
+| memory tools | `load_memory` declared, and its call and result sent back as `functionCall` and `functionResponse` with the engine's id left off |
+| structured output | `responseMimeType` and `responseJsonSchema` as written, no `responseSchema`; JSON mode as the MIME type alone; a schema beside tools |
+| thinking with tools | `thinkingLevel` for each level on a Gemini 3 id, a budget on request and on Gemini 2.x, `includeThoughts` unless `none`; the call's signature replayed on the call, another model's not; a response's thought as a partial and its call's signature written as `providerState` |
+| streaming | the `streamGenerateContent?alt=sse` endpoint, thinking and text partials, one final with the joined text and usage (tool-use prompt, thoughts and cached tokens counted); `generateContent` when not streaming |
+| image input | an inline image as `inlineData`, a URL image as `fileData` |
+| native search | `googleSearch` and `urlContext`, grounding on the final (spanned citation, retrieved page, queries attributed to `web_search` or `google_search`); `codeExecution` and `includeServerSideToolInvocations` beside function declarations; code execution's parts carried on the next part, replayed within the turn and not after it |
+
+## The live check
+
+`scripts/gemini_engine_check.ts` is the live run gate G3 asks for. It runs four cases through `runSyndicateTurn` with this adapter on both runtimes: behind the ADK shim on `adk` (through `CompileOptions.resolveModel`), and with `GEMINI_ADAPTER=engine` on `native`.
+
+- **grounding**: `web_search` and `url_context`; it passes on an answer with grounding metadata on a stored event.
+- **code**: `code_execution: gemini`; Gemini runs Python and answers with its result.
+- **mixed**: a function tool beside `code_execution` and `web_search`, at reasoning `low`, so server-side invocations come back beside a signed call.
+- **session**: two turns on one session, a tool call in each, at reasoning `low`.
+
+`--model` picks the Gemini id (default `gemini-3.8-flash`), `--cases` and `--runtimes` narrow the run, and `--gemini adk` runs ADK's Gemini on the same cases as a baseline. It prints case names, runtimes, outcomes, counts and timings only; an error message is printed scrubbed of key-shaped strings. `tests/geminiEngineCheck.test.ts` runs it offline against a stubbed Gemini API.
+
 ## What the offline tests assert
 
 `tests/geminiAdapter.test.ts` runs against a fake client injected through `clientFactory`. It asserts the request object for every mapping above, both response paths, the id made for a call without one, a signature carried across two steps of a tool loop, abort, and every failure row. Against the fake it also asserts streamed text split around carried parts, server-side invocations carried, a trailing run of carried parts, another Gemini model's carried parts sent unsigned, and the flag never sent to Vertex AI.
@@ -143,7 +183,7 @@ They also cover the SSE stream, genai's `ApiError` status, and the SDK's fetch s
 
 ## Confirmed only against documentation
 
-These need the live Gemini run at [ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)'s gate G3:
+These need the live Gemini run at [ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)'s gate G3 ([the live check](#the-live-check) covers the first, fourth, fifth and sixth on Gemini 3):
 
 - **Signature validation.** Gemini 3 accepts the replayed signatures on function calls as sent. It rejects a current-turn call that lacks one (a fallback from another provider or model mid-turn). Signatures are bound to the model that wrote them.
 - **The placeholder.** `skip_thought_signature_validator` is accepted in place of a missing signature on Gemini 3, so `placeholderSignatures` can be turned on.

@@ -49,7 +49,7 @@ The fields the engine reads:
 | `content` | `{ role, parts }`. A part holds `text` (with `thought: true` for reasoning), `functionCall` `{ id, name, args }`, `functionResponse` `{ id, name, response }`, `inlineData`, `fileData`, `executableCode` or `codeExecutionResult`. It may also carry Gemini's `thoughtSignature` and another provider's `providerState` ([ADR 0046](/decisions/0046-provider-reasoning-state-on-the-part.md)). Absent on an event that only carries actions. |
 | `actions` | `stateDelta`, `artifactDelta`, `requestedAuthConfigs`, `requestedToolConfirmations` (the four dictionaries ADK writes on every event), and `skipSummarization`, `transferToAgent`, `escalate`, `agentState`, `endOfAgent`. |
 | `partial` | A streaming fragment: shown, never stored. |
-| `turnComplete` | The model finished this response. |
+| `turnComplete` | The model finished this response. Written by the ADK shim's mapping; absent on a Gemini model's events where ADK's own Gemini serves it, and on the native runtime's events for the same model ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)). Nothing reads it. |
 | `timestamp` | Milliseconds since the epoch. |
 | `customMetadata` | Labels an adapter attaches, JSON only. |
 | `longRunningToolIds` | This event's calls that wait for a person. |

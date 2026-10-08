@@ -5,26 +5,26 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 853,
-    "edges": 3200,
+    "nodes": 856,
+    "edges": 3251,
     "byKind": {
-      "doc": 162,
+      "doc": 163,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 150,
+      "file": 151,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 195,
+      "module": 196,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 660,
-      "requires_env": 169,
+      "links_to": 674,
+      "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
       "documents": 56,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 796,
+      "imports": 808,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 777,
-      "constrains": 177,
+      "derives_from": 792,
+      "constrains": 182,
       "supersedes": 8,
-      "depends_on": 101,
+      "depends_on": 105,
       "explains": 29,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2882,
-      "inferred": 318
+      "extracted": 2924,
+      "inferred": 327
     },
     "isolated": 4
   },
@@ -1577,6 +1577,18 @@
       }
     },
     {
+      "id": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "kind": "doc",
+      "label": "ADR 0100: The capability matrix's Gemini row is asserted on the engine's GeminiAdapter, which keeps JSON Schema; native stores no turnComplete for ADK's Gemini; GeminiAdapter becomes the default with native",
+      "source": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 978
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1609,7 +1621,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 2325
+        "words": 2358
       }
     },
     {
@@ -1669,7 +1681,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1417
+        "words": 1579
       }
     },
     {
@@ -1717,7 +1729,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2761
+        "words": 3328
       }
     },
     {
@@ -1741,7 +1753,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4808
+        "words": 4839
       }
     },
     {
@@ -1837,7 +1849,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6351
+        "words": 6397
       }
     },
     {
@@ -3163,7 +3175,8 @@
       "id": "env:GEMINI_ADAPTER",
       "kind": "env",
       "label": "GEMINI_ADAPTER",
-      "source": "lib/models/adapterResolver.ts"
+      "source": "scripts/gemini_engine_check.ts",
+      "attrs": {}
     },
     {
       "id": "env:GEMINI_API_KEY",
@@ -4186,6 +4199,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/geminiEngineCheck.test.ts",
+      "kind": "file",
+      "label": "geminiEngineCheck.test.ts",
+      "source": "tests/geminiEngineCheck.test.ts"
+    },
+    {
       "id": "file:tests/geminiNativeTools.test.ts",
       "kind": "file",
       "label": "geminiNativeTools.test.ts",
@@ -4196,7 +4215,8 @@
       "id": "file:tests/geminiTurnParity.test.ts",
       "kind": "file",
       "label": "geminiTurnParity.test.ts",
-      "source": "tests/geminiTurnParity.test.ts"
+      "source": "tests/geminiTurnParity.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/genaiMapping.test.ts",
@@ -4215,7 +4235,8 @@
       "id": "file:tests/helpers/capabilityInputs.ts",
       "kind": "file",
       "label": "capabilityInputs.ts",
-      "source": "tests/helpers/capabilityInputs.ts"
+      "source": "tests/helpers/capabilityInputs.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/helpers/importGraph.ts",
@@ -4955,7 +4976,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 400
+        "lines": 403
       }
     },
     {
@@ -5486,7 +5507,7 @@
       "label": "lib/runtime/native/selfCorrection.ts",
       "source": "lib/runtime/native/selfCorrection.ts",
       "attrs": {
-        "lines": 347
+        "lines": 358
       }
     },
     {
@@ -5495,7 +5516,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 333
+        "lines": 338
       }
     },
     {
@@ -6324,6 +6345,15 @@
       "source": "scripts/doctor.ts",
       "attrs": {
         "lines": 102
+      }
+    },
+    {
+      "id": "module:scripts/gemini_engine_check.ts",
+      "kind": "module",
+      "label": "scripts/gemini_engine_check.ts",
+      "source": "scripts/gemini_engine_check.ts",
+      "attrs": {
+        "lines": 277
       }
     },
     {
@@ -13695,6 +13725,125 @@
       "evidence": "/decisions/0099-native-default-moves-to-0-20-0.md:25"
     },
     {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "file:tests/geminiTurnParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "file:tests/helpers/capabilityInputs.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "module:lib/models/adkGeminiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "module:scripts/gemini_engine_check.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md frontmatter"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:31"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:31"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:40"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:35"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:31"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "/models/adk-gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:33"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "/models/gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:33"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -14130,6 +14279,13 @@
     },
     {
       "from": "/memory/sessions.md",
+      "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:52"
+    },
+    {
+      "from": "/memory/sessions.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -14491,6 +14647,20 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/adk-gemini-adapter.md:85"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:90"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:90"
     },
     {
       "from": "/models/adk-gemini-adapter.md",
@@ -14977,6 +15147,13 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "file:tests/geminiAdapter.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14984,7 +15161,28 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "file:tests/geminiEngineCheck.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "file:tests/geminiNativeTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "file:tests/geminiTurnParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "file:tests/helpers/capabilityInputs.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/models/gemini-adapter.md frontmatter"
@@ -15019,122 +15217,143 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "module:scripts/gemini_engine_check.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:142"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:35"
+      "evidence": "/models/gemini-adapter.md:40"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:23"
+      "evidence": "/models/gemini-adapter.md:28"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:84"
+      "evidence": "/models/gemini-adapter.md:89"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:57"
+      "evidence": "/models/gemini-adapter.md:62"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:23"
+      "evidence": "/models/gemini-adapter.md:28"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:66"
+      "evidence": "/models/gemini-adapter.md:71"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:121"
+      "evidence": "/models/gemini-adapter.md:126"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0060-engine-owned-registry.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:25"
+      "evidence": "/models/gemini-adapter.md:30"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0061-json-mode-on-the-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:53"
+      "evidence": "/models/gemini-adapter.md:58"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0062-server-side-tools-as-markers.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:118"
+      "evidence": "/models/gemini-adapter.md:123"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:55"
+      "evidence": "/models/gemini-adapter.md:60"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:25"
+      "evidence": "/models/gemini-adapter.md:30"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:132"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:25"
+      "evidence": "/models/gemini-adapter.md:30"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:66"
+      "evidence": "/models/gemini-adapter.md:71"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:27"
+      "evidence": "/models/gemini-adapter.md:32"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:25"
+      "evidence": "/models/gemini-adapter.md:30"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:118"
+      "evidence": "/models/gemini-adapter.md:123"
     },
     {
       "from": "/models/model-contract.md",
@@ -15565,6 +15784,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:171"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -15596,7 +15822,7 @@
       "to": "/models/gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:157"
+      "evidence": "/models/provider-routing.md:113"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16527,21 +16753,21 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:162"
+      "evidence": "/overview/native-loop.md:163"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:226"
+      "evidence": "/overview/native-loop.md:227"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:260"
+      "evidence": "/overview/native-loop.md:261"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16555,14 +16781,14 @@
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:188"
+      "evidence": "/overview/native-loop.md:189"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:140"
+      "evidence": "/overview/native-loop.md:141"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16583,7 +16809,7 @@
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:222"
+      "evidence": "/overview/native-loop.md:223"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16604,7 +16830,7 @@
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:248"
+      "evidence": "/overview/native-loop.md:249"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16625,84 +16851,91 @@
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:188"
+      "evidence": "/overview/native-loop.md:189"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:315"
+      "evidence": "/overview/native-loop.md:316"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:228"
+      "evidence": "/overview/native-loop.md:229"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:168"
+      "evidence": "/overview/native-loop.md:169"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:262"
+      "evidence": "/overview/native-loop.md:263"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:215"
+      "evidence": "/overview/native-loop.md:216"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:300"
+      "evidence": "/overview/native-loop.md:301"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:248"
+      "evidence": "/overview/native-loop.md:249"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:195"
+      "evidence": "/overview/native-loop.md:196"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:192"
+      "evidence": "/overview/native-loop.md:193"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:278"
+      "evidence": "/overview/native-loop.md:279"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:113"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:116"
+      "evidence": "/overview/native-loop.md:117"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16730,7 +16963,7 @@
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:278"
+      "evidence": "/overview/native-loop.md:279"
     },
     {
       "from": "/overview/native-loop.md",
@@ -25523,6 +25756,97 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/doctor.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/loadEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/runtime/logging.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
+    },
+    {
+      "from": "module:scripts/gemini_engine_check.ts",
+      "to": "env:GEMINI_ADAPTER",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/gemini_engine_check.ts"
     },
     {
       "from": "module:scripts/gen_syndicate_schema.ts",

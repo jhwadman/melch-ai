@@ -101,7 +101,18 @@ export function servedThroughShim<T extends object>(adapter: T): T {
  * handed it over behind the shim (servedThroughShim).
  */
 export function declaresReflectionTool(adapter: { readonly provider: string }): boolean {
-  return adapter.provider !== GEMINI_PROVIDER || SHIMMED_GEMINI.has(adapter);
+  return !standsForAdkGemini(adapter);
+}
+
+/**
+ * Whether this adapter stands, on the native runtime, for ADK's own Gemini
+ * (TracedGemini) on the ADK runtime: a Gemini adapter no caller handed over
+ * behind the shim. The step declares no reflection tool to it (ADR 0097) and
+ * stores no `turnComplete` on its events, as ADK's Gemini writes none
+ * (ADR 0100).
+ */
+export function standsForAdkGemini(adapter: { readonly provider: string }): boolean {
+  return adapter.provider === GEMINI_PROVIDER && !SHIMMED_GEMINI.has(adapter);
 }
 
 // ── Counting, per run ────────────────────────────────────────────────────────
