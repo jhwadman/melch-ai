@@ -45,7 +45,11 @@ export class TracedGemini extends Gemini {
         ? { ...rest, model, apiKey: e.apiKey, vertexai: true, project: e.project, location: e.location }
         : { ...rest, model, ...(e.apiKey && !rest.apiKey ? { apiKey: e.apiKey } : {}) },
     );
+    this.#vertex = e.platform === 'vertex';
   }
+
+  /** True when the client runs on Vertex AI (ADR 0023). */
+  readonly #vertex: boolean;
 
   async *generateContentAsync(
     llmRequest: LlmRequest,
@@ -76,6 +80,16 @@ export class TracedGemini extends Gemini {
     stream?: boolean,
     abortSignal?: AbortSignal,
   ): AsyncGenerator<LlmResponse, void> {
+    // The compiler asks every agent's config for includeServerSideToolInvocations
+    // (lib/compile.ts), which the Gemini API needs beside function
+    // declarations. @google/genai refuses it on Vertex AI before any request
+    // is sent ("only supported in Gemini Developer API mode"), so on Vertex
+    // it is left off, and the call goes out as it did before the flag.
+    const toolConfig = llmRequest.config?.toolConfig as Record<string, unknown> | undefined;
+    if (this.#vertex && toolConfig && 'includeServerSideToolInvocations' in toolConfig) {
+      const { includeServerSideToolInvocations: _vertexRefuses, ...kept } = toolConfig;
+      llmRequest.config = { ...llmRequest.config, toolConfig: kept };
+    }
     const hasGrounding = (llmRequest.config?.tools ?? []).some(
       (t: any) => t && (t.googleSearch || t.googleSearchRetrieval),
     );
