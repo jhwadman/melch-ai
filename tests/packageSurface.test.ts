@@ -142,7 +142,7 @@ test('every path in the exports map resolves after the build', () => {
     const built = path.join(out, target.slice('./dist/'.length));
     if (built.includes('*')) {
       const dir = path.dirname(built);
-      const suffix = path.basename(built).replace('*', '');
+      const suffix = path.basename(built).replaceAll('*', '');
       const matches = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(suffix)) : [];
       if (matches.length === 0) missing.push(`${key} → ${target}`);
     } else {
