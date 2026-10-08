@@ -1881,6 +1881,38 @@
       "evidence": "ADR 0086 Context: it answers ADR 0083's open questions on the executor it ported.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0087 Decision 1-4: the scheduler is ADK 2.2's Workflow loop step for step (triggers buffered per node, Promise.race over pending runs in start order, a join only when every predecessor completed, ADK's branches and paths), matches routes in ADK's spelling, runs start/join/route/map itself and hands agent, tool and ask_user nodes and map items to an injected runner; tests/workflowScheduler.test.ts holds it to ADK.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0087 Context: \"ADR 0082 gave the engine its own model of a workflow: block, WorkflowGraph\"; Decision 2 replaces ADR 0082's expectation that the native scheduler compare a route with the key as written, while the model keeps the key as written (ADR 0082 decision 3).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0087 Context: \"Gate G4 of ADR 0045 needs the workflow suite to pass under native. The first piece of that is a scheduler that walks the graph (WS4-2a).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-scheduler.md describes runWorkflowGraph's interface, the walk (triggers, Promise.race in start order, joins, routes in ADK's spelling, branches, the map pool), what WS4-2b adds, and the parity suite.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

@@ -11,8 +11,8 @@
  * It is the same graph `compileWorkflow` (lib/workflow.ts) hands ADK's
  * `Workflow`: the same node names in the same order, the same edges in the
  * same order with the same routes (tests/workflowGraph.test.ts holds the
- * two together on every workflow fixture). Nothing runs this graph yet; the
- * native scheduler does (ADR 0045, WS4).
+ * two together on every workflow fixture). The engine's own scheduler,
+ * lib/workflow/scheduler.ts, runs it (ADR 0087).
  *
  * ── Validation ────────────────────────────────────────────────────────────
  * Two passes, each raising the message today's path raises:
@@ -434,10 +434,12 @@ const ADK_DEFAULT_ROUTE = '__DEFAULT__';
 /**
  * A routing-map key as the ADK compile stores it and prints it: an integer
  * spelling becomes a number and `true`/`false` a boolean, compared as
- * strings, so `01` and `1` name the same route there. Used only for the
- * duplicate-edge rule and its message; the graph keeps the key verbatim.
+ * strings, so `01` and `1` name the same route there. Used for the
+ * duplicate-edge rule and its message, and by the scheduler
+ * (lib/workflow/scheduler.ts) to match an emitted route as ADK matches it
+ * (ADR 0087); the graph keeps the key verbatim.
  */
-function adkRouteString(route: EdgeRoute): string | null {
+export function adkRouteString(route: EdgeRoute): string | null {
   if (route.kind === 'always') return null;
   if (route.kind === 'default') return ADK_DEFAULT_ROUTE;
   if (/^-?\d+$/.test(route.key)) return String(Number(route.key));
