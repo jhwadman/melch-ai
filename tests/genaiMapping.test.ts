@@ -42,6 +42,7 @@ import {
   usageToMetadata,
 } from '../lib/models/genaiMapping.ts';
 import type { Message, Part, ToolCallPart, ToolResultPart } from '../lib/models/contract.ts';
+import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, isRetryableErrorResponse } from '../lib/models/errorResponse.ts';
 import type { ProviderState } from '../lib/models/providerState.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
@@ -524,15 +525,6 @@ test('ModelResponse: a partial streams its deltas, and a failure is an error cod
     content: { role: 'model', parts: [{ text: 'hmm', thought: true }, { text: 'MU' }] },
     partial: true,
   });
-  assert.deepEqual(
-    modelResponseToLlmResponse({
-      partial: false,
-      parts: [],
-      finishReason: 'error',
-      error: { code: 'ANTHROPIC_ERROR', message: '529 overloaded', retryable: true, status: 529 },
-    }),
-    { errorCode: 'ANTHROPIC_ERROR', errorMessage: '529 overloaded', turnComplete: true },
-  );
   const cut = modelResponseToLlmResponse({
     partial: false,
     parts: [],
@@ -544,8 +536,37 @@ test('ModelResponse: a partial streams its deltas, and a failure is an error cod
   assert.equal(cut.errorCode, 'OLLAMA_MAX_TOKENS');
   assert.equal(cut.usageMetadata?.candidatesTokenCount, 0);
   for (const [reason, genai] of [['stop', 'STOP'], ['content_filter', 'SAFETY'], ['other', 'OTHER']] as const) {
-    assert.equal(modelResponseToLlmResponse({ partial: false, parts: [{ type: 'text', text: 'x' }], finishReason: reason }).finishReason, genai);
+    const ok = modelResponseToLlmResponse({ partial: false, parts: [{ type: 'text', text: 'x' }], finishReason: reason });
+    assert.equal(ok.finishReason, genai);
+    assert.equal(ok.customMetadata, undefined, 'a response that did not fail carries no verdict');
   }
+});
+
+test('ModelResponse: an error carries the retry verdict FallbackLlm reads (ADR 0044)', () => {
+  const failed = (error: { code: string; message: string; retryable: boolean; status?: number }) =>
+    modelResponseToLlmResponse({ partial: false, parts: [], finishReason: 'error', error });
+
+  const overloaded = failed({ code: 'ANTHROPIC_ERROR', message: '529 overloaded', retryable: true, status: 529 });
+  assert.deepEqual(overloaded, {
+    errorCode: 'ANTHROPIC_ERROR',
+    errorMessage: '529 overloaded',
+    turnComplete: true,
+    customMetadata: { [ERROR_RETRYABLE_KEY]: true, [ERROR_STATUS_KEY]: 529 },
+  });
+  assert.equal(isRetryableErrorResponse(overloaded), true, 'a fallback model answers it');
+
+  const bad = failed({ code: 'ANTHROPIC_ERROR', message: '400 invalid_request_error', retryable: false, status: 400 });
+  assert.deepEqual(bad.customMetadata, { [ERROR_RETRYABLE_KEY]: false, [ERROR_STATUS_KEY]: 400 });
+  assert.equal(isRetryableErrorResponse(bad), false, 'the request is at fault: passed on');
+
+  const unreachable = failed({ code: 'OLLAMA_UNREACHABLE', message: 'connection refused', retryable: true });
+  assert.deepEqual(unreachable.customMetadata, { [ERROR_RETRYABLE_KEY]: true });
+  assert.equal(ERROR_STATUS_KEY in unreachable.customMetadata!, false, 'no status, no error.status key');
+  assert.equal(isRetryableErrorResponse(unreachable), true);
+
+  // The message leaves the mapping with key-shaped text scrubbed, as every adapter's error does.
+  const leaked = failed({ code: 'OPENAI_ERROR', message: 'bad key sk-proj-abcdefghijklmnopqrstuvwxyz0123456789', retryable: false, status: 401 });
+  assert.doesNotMatch(leaked.errorMessage ?? '', /sk-proj-abcdefghijklmnopqrstuvwxyz0123456789/);
 });
 
 test('usage: Gemini usageMetadata reads under the contract meanings', () => {

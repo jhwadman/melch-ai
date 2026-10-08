@@ -5,20 +5,20 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 670,
-    "edges": 1614,
+    "nodes": 672,
+    "edges": 1622,
     "byKind": {
       "doc": 104,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 96,
+      "file": 97,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 129,
+      "module": 130,
       "script": 47,
       "external": 2
     },
@@ -33,19 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 382,
+      "imports": 385,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 314,
-      "constrains": 16,
+      "derives_from": 316,
+      "constrains": 19,
       "supersedes": 2,
       "depends_on": 7,
       "explains": 2,
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1586,
-      "inferred": 28
+      "extracted": 1591,
+      "inferred": 31
     },
     "isolated": 4
   },
@@ -1091,7 +1091,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 4607
+        "words": 5873
       }
     },
     {
@@ -3372,6 +3372,12 @@
       "source": "tests/fixtures/sessions/generate.ts"
     },
     {
+      "id": "file:tests/genaiMapping.test.ts",
+      "kind": "file",
+      "label": "genaiMapping.test.ts",
+      "source": "tests/genaiMapping.test.ts"
+    },
+    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -3895,6 +3901,15 @@
       "source": "lib/models/gatewayLlm.ts",
       "attrs": {
         "lines": 131
+      }
+    },
+    {
+      "id": "module:lib/models/genaiMapping.ts",
+      "kind": "module",
+      "label": "lib/models/genaiMapping.ts",
+      "source": "lib/models/genaiMapping.ts",
+      "attrs": {
+        "lines": 663
       }
     },
     {
@@ -8930,6 +8945,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "file:tests/genaiMapping.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "file:tests/modelContract.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8945,6 +8967,13 @@
     {
       "from": "/models/model-contract.md",
       "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/genaiMapping.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/models/model-contract.md frontmatter"
@@ -8968,56 +8997,56 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:69"
+      "evidence": "/models/model-contract.md:71"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:39"
+      "evidence": "/models/model-contract.md:41"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:86"
+      "evidence": "/models/model-contract.md:88"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:23"
+      "evidence": "/models/model-contract.md:25"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:23"
+      "evidence": "/models/model-contract.md:25"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:93"
+      "evidence": "/models/model-contract.md:95"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:23"
+      "evidence": "/models/model-contract.md:25"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:25"
+      "evidence": "/models/model-contract.md:27"
     },
     {
       "from": "/models/provider-routing.md",
@@ -12616,6 +12645,27 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gatewayLlm.ts"
+    },
+    {
+      "from": "module:lib/models/genaiMapping.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/genaiMapping.ts"
+    },
+    {
+      "from": "module:lib/models/genaiMapping.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/genaiMapping.ts"
+    },
+    {
+      "from": "module:lib/models/genaiMapping.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/genaiMapping.ts"
     },
     {
       "from": "module:lib/models/gptLlm.ts",

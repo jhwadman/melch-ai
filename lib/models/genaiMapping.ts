@@ -88,12 +88,14 @@
  * THE RESPONSE (modelResponseToLlmResponse). Parts back to a `model`
  * content; a partial as `partial: true`, the final with `turnComplete:
  * true`; usage in Gemini's meanings (usageToMetadata); error as `errorCode`
- * and `errorMessage`; finishReason as Gemini's; grounding as the
- * `webSearchQueries` and `groundingChunks[].web` that lib/grounding.ts
- * reads. Not carried, since an LlmResponse has no field for them:
- * `retryable` and `status` (the ADK path's fallback answers only throws),
- * `cacheWriteTokens`, a citation's span and cited text, and which native
- * tool ran a query.
+ * and `errorMessage`, key-shaped text scrubbed, with `retryable` and
+ * `status` as customMetadata['error.retryable'] and ['error.status']
+ * (withRetryVerdict, lib/models/errorResponse.ts), the only place
+ * FallbackLlm reads whether a fallback may answer; finishReason as
+ * Gemini's; grounding as the `webSearchQueries` and
+ * `groundingChunks[].web` that lib/grounding.ts reads. Not carried, since
+ * an LlmResponse has no field for them: `cacheWriteTokens`, a citation's
+ * span and cited text, and which native tool ran a query.
  *
  * USAGE MEANINGS. usageToMetadata and usageFromMetadata use Gemini's: its
  * `candidatesTokenCount` excludes the thinking in `thoughtsTokenCount`. The
@@ -123,6 +125,7 @@ import type {
   ToolDeclaration,
   Usage,
 } from './contract.ts';
+import { withRetryVerdict } from './errorResponse.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './schemaNormalize.ts';
 
 /** The provider id the mapping writes its own state under: only the Gemini adapter replays it. */
@@ -643,7 +646,7 @@ export function modelResponseToLlmResponse(response: ModelResponse): LlmResponse
   if (response.partial) return { content: { role: 'model', parts }, partial: true };
   const finishReason = FINISH_REASONS[response.finishReason];
   const groundingMetadata = response.grounding ? groundingToMetadata(response.grounding) : undefined;
-  return {
+  const llmResponse: LlmResponse = {
     ...(parts.length > 0 ? { content: { role: 'model', parts } } : {}),
     ...(response.error ? { errorCode: response.error.code, errorMessage: response.error.message } : {}),
     ...(finishReason !== undefined ? { finishReason } : {}),
@@ -651,4 +654,9 @@ export function modelResponseToLlmResponse(response: ModelResponse): LlmResponse
     ...(groundingMetadata ? { groundingMetadata } : {}),
     turnComplete: true,
   };
+  // FallbackLlm reads the verdict from customMetadata alone (ADR 0044): an
+  // error without it would be passed on, never answered by the fallback.
+  if (!response.error) return llmResponse;
+  const { retryable, status } = response.error;
+  return withRetryVerdict(llmResponse, { retryable, ...(status !== undefined ? { status } : {}) });
 }

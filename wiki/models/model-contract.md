@@ -344,11 +344,11 @@ The compiler writes the effort word beside `thinkingConfig` from one setting, so
 | a partial's parts | `content` with `role: 'model'`, and `partial: true` |
 | the final's parts | `content`, absent when there are none, and `turnComplete: true` |
 | `usage` | `usageMetadata` in Gemini's meanings: `promptTokenCount` is input, `candidatesTokenCount` output less thinking, `thoughtsTokenCount` thinking, `cachedContentTokenCount` cache reads, `totalTokenCount` input plus output |
-| `error` | `errorCode` and `errorMessage` |
+| `error` | `errorCode`, and `errorMessage` with key-shaped text scrubbed; `retryable` as `customMetadata['error.retryable']` and `status`, when there is one, as `customMetadata['error.status']` (`withRetryVerdict`, `lib/models/errorResponse.ts`). FallbackLlm reads only that verdict, so a retryable failure from an adapter on the contract is answered by the fallback model ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). |
 | `finishReason` | `stop` and `tool_call` are `STOP`, `max_tokens` is `MAX_TOKENS`, `content_filter` is `SAFETY`, `other` is `OTHER`; `error` sets none |
 | `grounding` | `groundingMetadata`: `webSearchQueries` holds every query, and `groundingChunks[].web` each cited URL once with its title, which is what `lib/grounding.ts` reads |
 
-An LlmResponse has no field for `retryable` and `status` (on the ADK path the fallback model answers only a throw), `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. The ADK-path GPT and chat-completions adapters write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
+An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. The ADK-path GPT and chat-completions adapters write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
 
 The stored Event JSON keeps its shape ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
 

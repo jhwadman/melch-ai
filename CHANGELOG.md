@@ -104,7 +104,9 @@ the starter pack and the templates), not the repo's full history.
   `providerState` of kind `thought_signature`, a call without an id gets a
   `genai-noid-` id that is left off again on the way back, and a part the
   contract cannot hold (Gemini code execution, ADK's confirmation request)
-  rides whole as `providerState` of kind `genai_part`. Nothing calls it yet;
+  rides whole as `providerState` of kind `genai_part`. A failed final keeps
+  its retry verdict as `customMetadata['error.retryable']` and
+  `['error.status']`, which is what `FallbackLlm` reads. Nothing calls it yet;
   no adapter or stored shape changes.
 - **Thinking with tool use works on GPT and Grok (ADR 0050).** On
   reasoning ids (o-series, `gpt-5*`, `grok-4.5`, `grok-4.7`), the Responses
