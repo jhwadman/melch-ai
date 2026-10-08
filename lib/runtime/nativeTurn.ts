@@ -17,9 +17,10 @@
  *
  * WHAT NATIVE REFUSES, before any model call, with a message naming the
  * feature and the runtime (UnsupportedOnRuntimeError): a workflow syndicate,
- * compaction and task mode (lib/compileNative.ts), a caller's ADK agent
+ * task mode (lib/compileNative.ts), a caller's ADK agent
  * transform, and a message that answers a question (WS2-7b). An answer to
- * an approval resumes on native (lib/runtime/native/interrupts.ts).
+ * an approval resumes on native (lib/runtime/native/interrupts.ts), and
+ * `context:` compacts on native (lib/runtime/native/compaction.ts).
  * Later tickets lift each.
  */
 
@@ -44,8 +45,8 @@ import { unsupportedOnNative } from './runtimeFlag.ts';
 
 /**
  * Throws UnsupportedOnRuntimeError for a syndicate or a call the native
- * runtime does not run yet. Delegation, compaction and task mode are
- * refused per agent by compileNative.
+ * runtime does not run yet. Task mode is refused per agent by
+ * compileNative.
  */
 export function refuseOnNative(
   config: SyndicateYamlConfig,

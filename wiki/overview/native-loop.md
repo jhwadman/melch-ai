@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Native loop
-description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final, a subagent tool running the subagent as its own child loop. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, how a subagent runs, what a stopped or paused run records, how an answered approval resumes, and what the loop returns. runSyndicateTurn runs a turn on it under MELCHIZEDEK_RUNTIME=native or the turn's runtime option, with agents compileNative builds from the same AgentSpec as ADK's, and refuses what it does not run yet before any model call."
+description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final, a subagent tool running the subagent as its own child loop, and with `context:` compacting the history before a step as ADK does. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, how a subagent runs, what a stopped or paused run records, how an answered approval resumes, and what the loop returns. runSyndicateTurn runs a turn on it under MELCHIZEDEK_RUNTIME=native or the turn's runtime option, with agents compileNative builds from the same AgentSpec as ADK's, and refuses what it does not run yet before any model call."
 tags:
   - runtime
   - models
@@ -28,6 +28,8 @@ sources:
   - resource: tests/nativeLedger.test.ts
   - resource: lib/runtime/native/interrupts.ts
   - resource: tests/nativeApprovals.test.ts
+  - resource: lib/runtime/native/compaction.ts
+  - resource: tests/compaction.test.ts
 ---
 
 # Native loop
@@ -44,7 +46,7 @@ Every piece matches the ADK runtime, so a session either runtime wrote is one th
 
 ## The agent
 
-`NativeAgent` (`lib/runtime/native/request.ts`) is what a compiled agent gives a model request, in the YAML's spelling: name, description, model id, instruction, `globalInstruction`, tools in list order, output schema, `generateContentConfig` (with `reasoning:` mapped in, as `withReasoning` maps it), `includeContents`, `codeExecution` and the transfer flags. A tool may be:
+`NativeAgent` (`lib/runtime/native/request.ts`) is what a compiled agent gives a model request, in the YAML's spelling: name, description, model id, instruction, `globalInstruction`, tools in list order, output schema, `generateContentConfig` (with `reasoning:` mapped in, as `withReasoning` maps it), `includeContents`, `codeExecution`, `context` (compaction, see [Compaction](#compaction)) and the transfer flags. A tool may be:
 
 - an own Tool or a `defineTool` contract;
 - a subagent tool (`subagentTool(agent)`, `lib/runtime/native/delegate.ts`), which runs another `NativeAgent`;
@@ -81,7 +83,7 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
    - self-correction's reflection tool, `adk_handle_model_error`, comes last when the step has a `correction` (see [Self-correction](#self-correction)).
 5. **The rest.** Tool choice, the output schema or JSON mode, reasoning and sampling, each read by the shim mapping's own reader. `stream` is `false` unless the caller streams, and `signal` is the turn's.
 
-Not done by the step: resuming an input request (WS2-7b), compaction (WS2-9), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), task mode (WS3-5), and an ADK tool's own request edits beyond its declaration.
+Not done by the step: resuming an input request (WS2-7b), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), task mode (WS3-5), and an ADK tool's own request edits beyond its declaration.
 
 ## The call
 
@@ -121,7 +123,7 @@ A caller may also send the request under another model id (`model`): a fallback 
 
 `runAgentLoop(agent, ctx)` is an async generator. `ctx` is what the step takes besides the agent and its adapter (session, store, run id, user content, branch, memory, `stream`, signal), plus `adapterFor`, the leaf adapter for a model id (default `resolveAdapter`), `log` for the fallback's notice, and `selfCorrection`, the turn's self-correction (default: retries at their defaults). The session already holds the run's user event. The loop yields each partial as it arrives, never stored, then each event as the store returned it, so `drainAgentStream` reads it as it reads ADK's stream: streamed text reaches `onTextDelta`, and narration before a tool call is withdrawn with `onTextReset`.
 
-Each step:
+Each step, after any compaction the agent's `context:` calls for (see [Compaction](#compaction)):
 
 0. **An answered approval.** Before the model step, the loop runs the pinned calls the latest user message approves or refuses, and stores their response (see [Approvals](#approvals)).
 1. **The model step.** With `fallback_model`, the step runs once per leaf adapter, by FallbackLlm's rules ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). A retryable failure counts against the primary's circuit. When nothing was produced before it, the failure is not stored, and the fallback answers the same request under its own model id. An open circuit goes straight to the fallback.
@@ -148,6 +150,26 @@ The generator returns an `AgentLoopEnd`:
 | `error` | the last event carries a failed call's error, among them a model that thinks but never answers ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)) | `lastEvent` |
 | `stopped` | the turn stopped a step (cancel, deadline, `max_steps`); nothing was stored for it | `stop`, the turn's code and message |
 | `empty` | the model answered nothing | |
+
+## Compaction
+
+An agent with `context: { compact_after_tokens, keep_recent_events?, summary_model? }` ([ADR 0033](/decisions/0033-context-task-code.md)) compacts on the native loop as ADK's `TokenBasedContextCompactor` and `LlmSummarizer` do. `lib/runtime/native/compaction.ts` is a rule-for-rule port, and the loop calls `compactBeforeStep` before every step ([ADR 0078](/decisions/0078-native-compaction-ports-adk-compactor.md)).
+
+1. **When.** The active events are the latest compaction and what follows it, in the run's isolation scope. Three things must hold:
+   - they hold more raw events than `keep_recent_events` (default 6);
+   - the cut leaves something to summarize. It starts `keep_recent_events` from the end, and moves back while it would separate a call from its answer;
+   - the prompt size passes `compact_after_tokens`. The size is the latest active event's `usageMetadata.promptTokenCount`. When no active event carries one, it is the agent's projected history (text, and each call and answer as JSON) in characters, divided by 4 and rounded up.
+2. **What.** The raw events before the cut, after the active compaction when there is one, so a later summary folds the earlier one in.
+3. **The call.** One user message: ADK's default summary prompt, then `[Event i - Author: <author>]` and the event's text, thoughts aside, per event. There is no system prompt and there are no tools, and the call is not streamed. It goes to `summary_model`, or the agent's own model, through `adapterFor` with no fallback. Like the step, it runs through `traceLlmGeneration`: it counts toward `max_steps`, charges the turn, and opens an `llm.request` under `agent.invoke`, outside any `model.call`, where ADK's sits under `invoke_agent`, outside `call_llm`. A first response with no text throws `LLM failed to return a valid summary.`, and the turn fails, as on ADK.
+4. **The event.** ADK's compacted event, field for field:
+   - author `system`, no invocation id;
+   - content `{ role: 'model', parts: [{ text }] }`;
+   - `isCompacted: true`, `startTime` and `endTime` (the first and last summarized events' times), and `compactedContent`;
+   - the run's isolation scope.
+
+   The loop stores it and yields it before the step, so the step's request already reads `[Previous Context Summary]:` in place of the events up to `endTime`. The full history stays stored. A turn that stopped during the summary stores nothing. The event is not the run's `lastEvent`.
+
+`tests/compaction.test.ts` runs ADR 0033's cases on both runtimes and requires the same stored events and the same request to every adapter: directly on the loop, and through `runSyndicateTurn` with `runtime: 'native'`. It continues a session compacted on one runtime on the other, and compares the ledger rows of a compacting turn.
 
 ## Self-correction
 
@@ -211,7 +233,7 @@ A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`
 
 Calls to subagents in one step run one after another, in call order, as ADK runs them. A pause inside a subagent (an `ask_user` call, an approval request) cannot reach the caller ([ADR 0028](/decisions/0028-approval-gates.md)): the child run ends paused, the call answers `''`, and the gated tool never runs. The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run from either runtime.
 
-Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), resuming a question (WS2-7b), compaction (WS2-9), and an auth request a tool raises.
+Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), resuming a question (WS2-7b), and an auth request a tool raises.
 
 A `temp:` key a tool writes is visible to the rest of the run, as ADK's live session state makes it: the next step's instruction placeholders, its toolsets, and the next step's calls read it. The loop reads each event's `temp:` keys just before the store drops them, and lays them over the session's state when it builds a request or a call's context (`lib/runtime/native/tempState.ts`). They are never written into the session object, since a store that saves the whole session would keep them.
 
@@ -233,7 +255,6 @@ What native does not run yet fails before any model call, with an `UnsupportedOn
 
 | Refused | where | until |
 |---|---|---|
-| `context:` compaction | `compileNative` | WS2-9 |
 | `mode: task` | `compileNative` | WS3-5 |
 | a `workflow:` syndicate | `refuseOnNative` | the workflow engine (WS4) |
 | a caller's `transformAgent` (it transforms ADK agents) | `refuseOnNative` | none planned |

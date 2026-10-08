@@ -377,7 +377,7 @@ test('a traced native turn has the turn runner’s root span over the loop’s a
 
 // ── What native refuses, before any model call ───────────────────────────────
 
-test('native refuses a workflow, compaction and a transform at compile time, naming the feature', async () => {
+test('native refuses a workflow and a transform at compile time, naming the feature', async () => {
   const boss = new ScriptedModel('scripted/boss', () => answer('never'));
   const scout = new ScriptedModel('scripted/scout', () => answer('never'));
   const run = (config: SyndicateYamlConfig, extra: Record<string, unknown> = {}) =>
@@ -396,7 +396,6 @@ test('native refuses a workflow, compaction and a transform at compile time, nam
   const refused = (pattern: RegExp) => (e: unknown) => e instanceof UnsupportedOnRuntimeError && pattern.test(e.message) && /native runtime/.test(e.message);
 
   await assert.rejects(run(syndicate({}), { transformAgent: (a: unknown) => a }), refused(/transformAgent/));
-  await assert.rejects(run(syndicate({ context: { compact_after_tokens: 1000 } })), refused(/context compaction/));
   const workflow = {
     syndicate_name: APP,
     orchestrator: { name: 'Lead', model: 'scripted/boss', instruction: 'Lead.' },

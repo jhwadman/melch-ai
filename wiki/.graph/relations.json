@@ -1443,6 +1443,54 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0078 Context: ADR 0033 gives a delegate orchestrator a `context:` block, which the native loop now runs as ADK runs it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0078 Decision 2: \"The loop stores the summary before the step\" — the hook sits in the native loop of ADR 0071.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0078 Decision 3: the summary call is an llm.request under agent.invoke, outside any model.call, so the ledger rows match (ADR 0076).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0078 Decision 1: \"A port, in lib/runtime/native/compaction.ts\" of ADK's TokenBasedContextCompactor and LlmSummarizer, importing nothing from ADK at runtime.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0078 Consequences: \"compileNative hands context: to the loop instead of refusing it.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"Compaction\": when, what, the call and the event, as ADK compacts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "to": "module:lib/runtime/native/interrupts.ts",
       "rel": "constrains",

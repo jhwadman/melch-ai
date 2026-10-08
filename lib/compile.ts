@@ -129,17 +129,10 @@ function modelIdOf(yamlModel: string | undefined, resolved: unknown): string | u
   return yamlModel ?? (typeof resolved === 'string' ? resolved : resolved instanceof BaseLlm ? resolved.model : undefined);
 }
 
-/** An agent's `context:` block: compact a long conversation into a summary (ADR 0033). */
-export interface ContextConfig {
-  /** Compact when the last request's prompt passed this many tokens. */
-  compact_after_tokens: number;
-  /** Events kept verbatim after the summary. Default 6. */
-  keep_recent_events?: number;
-  /** The model that writes the summary. Default: the agent's own. */
-  summary_model?: string;
-}
-
-export { DEFAULT_KEEP_RECENT_EVENTS } from './compileAdk.ts';
+/** An agent's `context:` block and its default, owned by the native compactor (ADR 0033); compileAdk hands the same values to ADK's. */
+export type { ContextConfig } from './runtime/native/compaction.ts';
+import type { ContextConfig } from './runtime/native/compaction.ts';
+export { DEFAULT_KEEP_RECENT_EVENTS } from './runtime/native/compaction.ts';
 
 /**
  * Says, once per compiled agent, what its resolved path cannot honour — a

@@ -45,7 +45,7 @@
  *
  * WHAT IT DOES NOT DO (later tickets): resume an approval or an input
  * request (ADK's confirmation and input processors run tools before the
- * request; WS2-7), compact the history (WS2-9), add transfer_to_agent
+ * request; WS2-7), add transfer_to_agent
  * (compiled syndicates never set subAgents; they delegate through subagent tools, delegate.ts), task mode
  * and finish_task (WS3-5), workflow placeholders and artifacts in an
  * instruction (no runtime has an artifact service), and an ADK tool's own
@@ -69,6 +69,7 @@ import type { TurnContent } from '../events.ts';
 import type { Session } from '../sessions.ts';
 import { createToolContext, instructionToolOf, isTool, toolOf } from '../../tools/tool.ts';
 import type { InstructionTool, Tool, ToolContext } from '../../tools/tool.ts';
+import type { ContextConfig } from './compaction.ts';
 import { convertCodeExecutionParts, projectHistory } from './history.ts';
 import { withStateOverlay } from './tempState.ts';
 
@@ -113,6 +114,8 @@ export interface NativeAgent {
   outputKey?: string;
   /** `fallback_model:`: answers a provider-side failure of the agent's model (ADR 0044). The loop calls it as its own leaf adapter. */
   fallbackModel?: string;
+  /** `context:` (ADR 0033): compact the history into a summary past a token threshold. The loop runs it before each step (compaction.ts). */
+  context?: ContextConfig;
 }
 
 /** What an instruction function reads. */

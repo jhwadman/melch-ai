@@ -70,9 +70,13 @@
  * each call's error or answer goes through its tool side. On by default,
  * as runSyndicateTurn installs the plugins by default.
  *
+ * COMPACTION (ADR 0033): with the agent's `context:`, each step may first
+ * store ADK's compacted event, written by the summary model
+ * (lib/runtime/native/compaction.ts). It is yielded like any stored event
+ * and is not the run's `lastEvent`.
+ *
  * NOT HERE (later tickets): transfer_to_agent (no compiled syndicate sets
- * subAgents), resuming a question (WS2-7b), compaction
- * (WS2-9), and an auth request a tool raises
+ * subAgents), resuming a question (WS2-7b), and an auth request a tool raises
  * (no own tool can). The run's spans (agent.invoke, model.call,
  * tool.execute) are lib/runtime/native/telemetry.ts.
  *
@@ -94,6 +98,8 @@ import type { Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from
 import { createEventActions, createTurnEvent, getFunctionCalls, getFunctionResponses, isFinal } from '../events.ts';
 import type { TurnContent, TurnEvent, TurnEventActions, TurnFunctionCall, TurnPart } from '../events.ts';
 import type { MemoryService } from '../memoryService.ts';
+import { currentTurnSignal } from '../turnControl.ts';
+import { compactBeforeStep } from './compaction.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import { runSubagent, subagentOf } from './delegate.ts';
 import { approvedCalls } from './interrupts.ts';
@@ -104,7 +110,6 @@ import { eitherSignal, runModelStep, stopOf } from './step.ts';
 import { createRunTempState, withStateOverlay } from './tempState.ts';
 import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
 import { traceAgentInvocation, traceModelCall, traceToolCall } from './telemetry.ts';
-import { currentTurnSignal } from '../turnControl.ts';
 
 // ── The loop's surface ───────────────────────────────────────────────────────
 
@@ -610,17 +615,32 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
   const correction = selfCorrection.forModel(agent.name, ctx.invocationId);
 
   for (;;) {
-    if (steps >= MAX_LLM_CALLS) {
-      return { reason: 'stopped', steps, lastEvent, stop: { code: 'STEP_LIMIT', message: `Max number of llm calls limit of ${MAX_LLM_CALLS} exceeded` } };
-    }
-    steps += 1;
-    // Interrupts hook (WS2-7a, interrupts.ts): an answered approval runs its pinned call before the step, as ADK's request-confirmation processor does.
+    // Interrupts hook (WS2-7a, interrupts.ts): an answered approval runs its pinned call before the step, as ADK's request-confirmation processor does; it runs
+    // first, then compaction (ADK inserts its compactor before the contents processor), both before the step budget.
     const resumed = await resumeApprovals(agent, ctx, withStateOverlay(session.state, runTemp.values()), selfCorrection);
     if (resumed === 'stopped') return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
     if (resumed) {
       lastEvent = await store(resumed);
       yield lastEvent;
     }
+    // Compaction hook (WS2-9, lib/runtime/native/compaction.ts): with `context:`, the summary is stored before the step reads the history,
+    // before the step budget, as ADK's request processors run before its call count.
+    const compacted = await compactBeforeStep(agent, {
+      session,
+      adapterFor: ctx.adapterFor ?? resolveAdapter,
+      ...(ctx.branch !== undefined ? { branch: ctx.branch } : {}),
+      ...(ctx.isolationScope !== undefined ? { isolationScope: ctx.isolationScope } : {}),
+      ...(currentTurnSignal() ? { signal: currentTurnSignal() } : {}),
+    });
+    if (compacted) {
+      // As ADK's Runner: a turn that stopped during the summary stores nothing and makes no step.
+      if (ctx.signal?.aborted || currentTurnSignal()?.aborted) return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
+      yield await sessions.append(session, compacted);
+    }
+    if (steps >= MAX_LLM_CALLS) {
+      return { reason: 'stopped', steps, lastEvent, stop: { code: 'STEP_LIMIT', message: `Max number of llm calls limit of ${MAX_LLM_CALLS} exceeded` } };
+    }
+    steps += 1;
     // Telemetry hook: each step is a model.call span.
     const step = yield* traceModelCall(agent, ctx, (traced) =>
       modelStep(agent, traced, { ...traced, agent, beforeAppend: beforeStore, stateOverlay: runTemp.values(), ...(correction ? { correction } : {}) }),

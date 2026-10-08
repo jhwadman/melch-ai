@@ -20,8 +20,9 @@
  * Tool the ADK runtime's FunctionTool wraps (lib/a2a/remoteAgent.ts).
  *
  * WHAT THE NATIVE RUNTIME DOES NOT RUN YET fails here, at compile time,
- * with a message naming the feature and the runtime: `context:` compaction
- * (WS2-9) and `mode: task` (WS3-5). Workflows, resuming an approval or a
+ * with a message naming the feature and the runtime: `mode: task` (WS3-5).
+ * `context:` is handed to the loop, which compacts as ADK does
+ * (lib/runtime/native/compaction.ts, WS2-9). Workflows, resuming an approval or a
  * question, and a caller's agent transform are refused by the turn runner
  * (lib/runtime/nativeTurn.ts), which owns those choices.
  */
@@ -54,7 +55,6 @@ export function compileNative(spec: AgentSpec): NativeAgent {
     else if (entry.kind === 'remote') tools.push(remoteAgentOwnTool({ name: entry.name, description: entry.description, url: entry.url }));
     else tools.push(nativeTool(entry.tool));
   }
-  if (spec.context) throw unsupportedOnNative('context compaction (context:, WS2-9)', spec.name);
   if (spec.mode === 'task') throw unsupportedOnNative('task mode (mode: task, WS3-5)', spec.name);
   if (!spec.modelId) throw new Error(`${spec.name}: no model id to run on (the YAML names none and the resolver returned none).`);
 
@@ -74,6 +74,7 @@ export function compileNative(spec: AgentSpec): NativeAgent {
   if (spec.codeExecution) agent.codeExecution = spec.codeExecution;
   if (spec.outputKey !== undefined) agent.outputKey = spec.outputKey;
   if (spec.fallbackModel) agent.fallbackModel = spec.fallbackModel;
+  if (spec.context) agent.context = spec.context;
   return agent;
 }
 

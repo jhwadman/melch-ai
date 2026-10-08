@@ -59,14 +59,19 @@ export interface HistoryScope {
   isolationScope?: string;
 }
 
-/** A compaction ADK stored: a summary in place of the events up to `endTime`. */
-interface CompactedEvent extends TurnEvent {
+/**
+ * A compaction as ADK stores it (and as lib/runtime/native/compaction.ts
+ * writes it): a summary in place of the events from `startTime` to `endTime`.
+ */
+export interface CompactedEvent extends TurnEvent {
   isCompacted: true;
   compactedContent?: string;
+  startTime?: number;
   endTime?: number;
+  isScratchpad?: boolean;
 }
 
-function isCompacted(event: TurnEvent): event is CompactedEvent {
+export function isCompacted(event: TurnEvent): event is CompactedEvent {
   return (event as { isCompacted?: unknown }).isCompacted === true;
 }
 
@@ -74,8 +79,8 @@ function isVisible(event: TurnEvent, scope: string | undefined): boolean {
   return event.isolationScope === undefined || event.isolationScope === scope;
 }
 
-/** The latest compaction and what follows it, or every visible event when there is none. */
-function activeEvents(events: readonly TurnEvent[], scope: string | undefined): TurnEvent[] {
+/** The latest compaction and what follows it, or every visible event when there is none (ADK's getActiveEvents). */
+export function activeEvents(events: readonly TurnEvent[], scope: string | undefined): TurnEvent[] {
   const visible = events.filter((e) => isVisible(e, scope));
   const latest = visible.filter(isCompacted).pop();
   if (!latest) return visible;
@@ -237,8 +242,8 @@ function stripAdkCallIds(content: TurnContent | undefined): void {
   }
 }
 
-/** The contents of every visible event, projected for `agentName` (ADK's getContents). */
-function contentsOf(events: readonly TurnEvent[], agentName: string, branch: string | undefined, scope: string | undefined): TurnContent[] {
+/** The contents of every visible event, projected for `agentName` (ADK's getContents). The compactor's estimate reads it too. */
+export function contentsOf(events: readonly TurnEvent[], agentName: string, branch: string | undefined, scope: string | undefined): TurnContent[] {
   const kept: TurnEvent[] = [];
   for (const event of events) {
     if (!isVisible(event, scope)) continue;
