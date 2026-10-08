@@ -244,14 +244,19 @@ function isDefaultActions(a: TurnEventActions): boolean {
   );
 }
 
+/** Copies `from`'s own keys onto `to` as own keys: Object.assign would re-parent `to` for a key `__proto__` (a model-chosen call id). */
+function assignOwn(to: object, from: object): void {
+  for (const [k, v] of Object.entries(from)) setOwn(to as Record<string, unknown>, k, v);
+}
+
 /** ADK's mergeEventActions: dictionaries merged in order, the later flag winning. */
 function mergeActions(sources: TurnEventActions[]): TurnEventActions {
   const out = createEventActions();
   for (const s of sources) {
-    if (s.stateDelta) for (const [k, v] of Object.entries(s.stateDelta)) setOwn(out.stateDelta as Record<string, unknown>, k, v);
-    if (s.artifactDelta) Object.assign(out.artifactDelta as object, s.artifactDelta);
-    if (s.requestedAuthConfigs) Object.assign(out.requestedAuthConfigs as object, s.requestedAuthConfigs);
-    if (s.requestedToolConfirmations) Object.assign(out.requestedToolConfirmations as object, s.requestedToolConfirmations);
+    if (s.stateDelta) assignOwn(out.stateDelta as object, s.stateDelta);
+    if (s.artifactDelta) assignOwn(out.artifactDelta as object, s.artifactDelta);
+    if (s.requestedAuthConfigs) assignOwn(out.requestedAuthConfigs as object, s.requestedAuthConfigs);
+    if (s.requestedToolConfirmations) assignOwn(out.requestedToolConfirmations as object, s.requestedToolConfirmations);
     if (s.skipSummarization !== undefined) out.skipSummarization = s.skipSummarization;
     if (s.transferToAgent !== undefined) out.transferToAgent = s.transferToAgent;
     if (s.escalate !== undefined) out.escalate = s.escalate;
@@ -344,7 +349,8 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
     consent && functionCallId
       ? async (provider: string): Promise<void> => {
           const request = await consent.begin({ appName: session.appName, userId: session.userId, sessionId: session.id, functionCallId, provider });
-          (actions.requestedAuthConfigs as Record<string, unknown>)[functionCallId] = request.authConfig;
+          // An own key, as every delta: a call id such as `__proto__` names a request, never a prototype.
+          setOwn(actions.requestedAuthConfigs as Record<string, unknown>, functionCallId, request.authConfig);
         }
       : undefined;
   const credentials = ctx.credentials;
@@ -376,7 +382,7 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
     // ADK's Context.requestConfirmation: the request, keyed by the call's id.
     requestConfirmation: ({ hint, payload }: { hint?: string; payload?: unknown } = {}) => {
       if (!functionCallId) throw new Error('functionCallId is not set.');
-      (actions.requestedToolConfirmations as Record<string, unknown>)[functionCallId] = { hint: hint ?? '', confirmed: false, payload };
+      setOwn(actions.requestedToolConfirmations as Record<string, unknown>, functionCallId, { hint: hint ?? '', confirmed: false, payload });
     },
     // The person's answer, when this call is the pinned call an approval resumes (interrupts.ts).
     confirmation,

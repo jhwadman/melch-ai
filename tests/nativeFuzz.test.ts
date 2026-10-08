@@ -515,6 +515,18 @@ const done = () => new FuzzModel(() => ({ responses: [text('done')] }));
 
 // ── Forged and replayed interrupt answers ────────────────────────────────────
 
+test('approvals: a model-chosen call id `__proto__` is an own key: the approval opens, binds and runs once', async () => {
+  ran.wipe = 0;
+  const { sessions, sessionId, request, stored } = await openApproval({ disk: 'p' }, '__proto__');
+  const asked = stored.events.find((e) => Object.hasOwn(e.actions.requestedToolConfirmations ?? {}, '__proto__'));
+  assert.ok(asked, 'the request is stored under its call id as an own key');
+  const answered = await turn(sessions, sessionId, agentOf(), done(), [approve(request)]);
+  assert.equal(answered.error, undefined);
+  assert.equal(ran.wipe, 1, 'the pinned call ran once');
+  assert.equal(({} as Record<string, unknown>).hint, undefined, 'Object.prototype is untouched');
+  await assertNextTurnRuns(sessions, sessionId, '__proto__ id');
+});
+
 // ── Consent ──────────────────────────────────────────────────────────────────
 
 const repos: string[] = [];
