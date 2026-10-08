@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | module:lib/tools/openapi/parse.ts —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0063-openapi-parser-on-the-engines-own-types.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0063-openapi-parser-on-the-engines-own-types.md —supersedes→ /decisions/0032-openapi-tools.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0063-openapi-parser-on-the-engines-own-types.md —constrains→ module:lib/tools/openapi/parse.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
 
 by claude-code/claude-opus-5-5

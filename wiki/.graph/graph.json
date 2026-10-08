@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 732,
-    "edges": 2162,
+    "nodes": 734,
+    "edges": 2177,
     "byKind": {
-      "doc": 122,
+      "doc": 123,
       "provider": 6,
       "env": 104,
       "model": 8,
@@ -18,12 +18,12 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 153,
+      "module": 154,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 414,
+      "links_to": 418,
       "requires_env": 166,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 531,
+      "imports": 534,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 467,
-      "constrains": 80,
-      "supersedes": 4,
-      "depends_on": 16,
+      "derives_from": 471,
+      "constrains": 81,
+      "supersedes": 5,
+      "depends_on": 18,
       "explains": 3,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2057,
-      "inferred": 105
+      "extracted": 2068,
+      "inferred": 109
     },
     "isolated": 4
   },
@@ -1144,6 +1144,18 @@
       }
     },
     {
+      "id": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "kind": "doc",
+      "label": "ADR 0063: The engine parses OpenAPI specs itself, by ADK's rules, with bounds",
+      "source": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 881
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1452,7 +1464,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 321
+        "words": 468
       }
     },
     {
@@ -4853,12 +4865,21 @@
       }
     },
     {
+      "id": "module:lib/tools/openapi/parse.ts",
+      "kind": "module",
+      "label": "lib/tools/openapi/parse.ts",
+      "source": "lib/tools/openapi/parse.ts",
+      "attrs": {
+        "lines": 584
+      }
+    },
+    {
       "id": "module:lib/tools/openapiTools.ts",
       "kind": "module",
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 247
+        "lines": 270
       }
     },
     {
@@ -9896,6 +9917,48 @@
       "evidence": "/decisions/0062-server-side-tools-as-markers.md:34"
     },
     {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md frontmatter"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md frontmatter"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md frontmatter"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md:22"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md:22"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md:22"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -12620,6 +12683,13 @@
     },
     {
       "from": "/tools/openapi-tools.md",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
       "to": "module:lib/tools/openapiTools.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -12630,28 +12700,35 @@
       "to": "/agents/weather.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:19"
+      "evidence": "/tools/openapi-tools.md:29"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:21"
+      "evidence": "/tools/openapi-tools.md:31"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:21"
+      "evidence": "/tools/openapi-tools.md:31"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:21"
+      "evidence": "/tools/openapi-tools.md:31"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:20"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -17491,6 +17568,20 @@
       "evidence": "lib/tools/nativeTools.ts"
     },
     {
+      "from": "module:lib/tools/openapi/parse.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/parse.ts"
+    },
+    {
+      "from": "module:lib/tools/openapi/parse.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/parse.ts"
+    },
+    {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/net/addressGuard.ts",
       "rel": "imports",
@@ -17500,6 +17591,13 @@
     {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/net/redirects.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/tools/openapi/parse.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"

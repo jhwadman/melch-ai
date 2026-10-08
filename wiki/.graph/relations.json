@@ -847,6 +847,39 @@
       "evidence": "ADR 0062 Context: ADR 0051 \"made every registry tool that declares a function an own Tool\"; the server-side sentinels were left as ADK objects \"until their own ticket\" (ADR 0051 item 6).",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0063 Decision 1: \"The parser reproduces ADK 2.2's rules exactly\" and Decision 3: \"A spec is bounded.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0063 Decision 2: \"buildOpenApiTools parses with the engine ... and builds each tool with ADK's createRestApiTool from the parsed parameters.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "In part: only the parsing that ADR 0032 gave to ADK's OpenAPIToolset. Exposure, credentials, the SSRF guard and bounded results stand."
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0063 Context: \"ADR 0045 has the engine own its runtime in stages ... The native runtime needs an OpenAPI operation as the engine's own types.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "module:lib/tools/openapi/parse.ts",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "lib/tools/openapi/parse.ts header: \"The native runtime owns its tools (ADR 0051), so it owns this step too.\" Each operation carries a ToolDeclaration.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

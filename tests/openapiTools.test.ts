@@ -3,7 +3,9 @@
  * (lib/tools/openapiTools.ts): GET-only by default, named operations, auth
  * from the environment, the SSRF guard, bounded results, a turn that calls an
  * operation, a write that waits for approval, spec paths beside the YAML, and
- * the schema. A real HTTP server on 127.0.0.1; scripted models.
+ * the schema; and the parser (lib/tools/openapi/parse.ts): the example specs'
+ * declarations pinned, ADK's parse as the reference for its rules, and
+ * hostile specs bounded. A real HTTP server on 127.0.0.1; scripted models.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -11,13 +13,17 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
+import { InMemorySessionService, OpenAPIToolset, setLogLevel, LogLevel } from '@google/adk';
 
 import { MAX_RESULT_CHARS, buildOpenApiTools, credentialEnvProblem, toSnake } from '../lib/tools/openapiTools.ts';
 import { readFileSync as readText } from 'node:fs';
+import { MAX_SPEC_BYTES, adkSnake, operationNamed, parseOpenApiDocument, parseOpenApiSpec } from '../lib/tools/openapi/parse.ts';
+import type { OpenApiOperation } from '../lib/tools/openapi/parse.ts';
+import { contractToolDeclaration } from '../lib/models/schemaNormalize.ts';
+import type { ToolDeclaration } from '../lib/models/contract.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { approvalResponsePart } from '../lib/runtime/approvals.ts';
@@ -281,4 +287,255 @@ test('a relative spec path resolves beside the syndicate file, whatever the work
   );
   const cfg = loadSyndicate('keeper.yaml', { agentsDir: agents });
   assert.equal(cfg.orchestrator.openapi?.[0]?.spec, join(agents, 'specs', 'pets.yaml'));
+});
+
+// ── The parser (lib/tools/openapi/parse.ts, ADR 0063) ───────────────────────
+
+const EXAMPLE_SPECS = join(import.meta.dirname, '..', 'config', 'agents', 'examples', 'specs');
+
+/**
+ * What the model received for every example spec before the engine owned the
+ * parser (contractToolDeclaration of ADK's OpenAPIToolset tools, captured on
+ * main). The parser must keep declaring exactly this.
+ */
+const PINNED_DECLARATIONS: Record<string, ToolDeclaration[]> = {
+  'open-meteo-forecast.json': [
+    {
+      name: 'get_forecast',
+      description: 'The weather now and the daily forecast for a latitude and longitude.',
+      parameters: {
+        type: 'object',
+        properties: {
+          latitude: { type: 'number' },
+          longitude: { type: 'number' },
+          current: { type: 'string' },
+          daily: { type: 'string' },
+          forecast_days: { type: 'integer' },
+          timezone: { type: 'string' },
+        },
+        required: ['latitude', 'longitude'],
+      },
+    },
+  ],
+  'open-meteo-geocoding.json': [
+    {
+      name: 'find_place',
+      description: 'Find a place by name. Returns matching places with their latitude, longitude, country and timezone; the first result is the most likely.',
+      parameters: {
+        type: 'object',
+        properties: { name: { type: 'string' }, count: { type: 'integer' }, language: { type: 'string' } },
+        required: ['name'],
+      },
+    },
+  ],
+};
+
+test('every example spec declares exactly what the model received before (pinned)', async () => {
+  const specs = readdirSync(EXAMPLE_SPECS).sort();
+  assert.deepEqual(specs, Object.keys(PINNED_DECLARATIONS).sort(), 'a new example spec needs its declarations pinned here');
+  for (const file of specs) {
+    const parsed = parseOpenApiSpec(readText(join(EXAMPLE_SPECS, file), 'utf-8'), 'json');
+    assert.deepEqual(parsed.map((o) => o.declaration), PINNED_DECLARATIONS[file], file);
+    const tools = await buildOpenApiTools({ spec: file }, EXAMPLE_SPECS);
+    assert.deepEqual(tools.map((t) => contractToolDeclaration(t)), PINNED_DECLARATIONS[file], `${file}: the built tools`);
+    const prefixed = await buildOpenApiTools({ spec: file, prefix: 'om' }, EXAMPLE_SPECS);
+    assert.deepEqual(names(prefixed), PINNED_DECLARATIONS[file]!.map((d) => `om_${d.name}`).sort());
+  }
+});
+
+/** A spec that exercises the parser's rules: refs and a cycle, every body shape, odd types, keywords, dedupe, server variables, security. */
+const SINK = `openapi: 3.0.3
+info: { title: Sink, version: "1" }
+servers: [{ url: "https://{region}.api.example.com/v1", variables: { region: { default: eu } } }]
+security: [{ key: [] }]
+components:
+  securitySchemes:
+    key: { type: apiKey, in: header, name: X-Key }
+  schemas:
+    Pet:
+      type: object
+      title: Pet
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 40, format: uuid, default: x, example: Rex, description: The pet's name }
+        tags: { type: array, items: { type: string, enum: [a, b] } }
+        owner: { $ref: '#/components/schemas/Owner' }
+        nickname: { type: string, nullable: true }
+        kind: { type: [string, "null"] }
+        weird: { type: Text }
+        extra: { type: object, additionalProperties: { type: string } }
+        meta: { type: object }
+        choice: { anyOf: [{ type: string }, { type: integer }] }
+        either: { oneOf: [{ type: string }, { type: integer }] }
+        tuple: { type: array, items: [{ type: string }] }
+        born: { type: string, example: 2024-01-01 }
+        max_items_snake: { type: array, max_items: 3, MinItems: 1, items: { type: string } }
+    Owner:
+      type: object
+      properties:
+        pets: { type: array, items: { $ref: '#/components/schemas/Pet' } }
+    Node:
+      type: object
+      properties:
+        label: { type: string }
+        child: { $ref: '#/components/schemas/Node' }
+paths:
+  /pets:
+    parameters: [{ name: X-Trace, in: header, schema: { type: string } }]
+    get:
+      operationId: listPets
+      summary: List
+      description: List all the pets
+      parameters:
+        - { name: limit, in: query, description: How many, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: class, in: query, schema: { type: string } }
+        - { name: pageToken, in: query, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/Missing' }
+    post:
+      operationId: createPet
+      security: [{ bearer: [] }]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/Pet' } } } }
+  /pets/{petId}:
+    get: { parameters: [{ name: petId, in: path, required: true, schema: { type: string } }] }
+    put:
+      operationId: getHTTPStatusForPet
+      parameters: [{ name: petId, in: path, required: true, schema: { type: string } }, { name: pet_id, in: query, schema: { type: string } }]
+      requestBody: { content: { application/json: { schema: { type: array, items: { type: integer } } } } }
+    delete: { operationId: deletePet }
+    patch:
+      operationId: patchPet
+      requestBody: { description: raw, content: { text/plain: { schema: { type: string } } } }
+  /things:
+    post:
+      operationId: makeThing
+      requestBody: { content: { application/json: { schema: { type: object } } } }
+    head:
+      operationId: import
+      parameters: [{ name: in, in: query, schema: { type: boolean } }, { name: "a.b", in: query, schema: { type: number } }]
+  /trees:
+    post:
+      operationId: plantAVeryLongOperationIdThatGoesOnAndOnPastTheSixtyCharacterLimitOfAToolName
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/Node' } } } }
+`;
+
+/** ADK's own parse of a spec, the reference the engine's parser reproduces (until ADK leaves, ADR 0045). */
+async function adkReference(text: string, specType: 'json' | 'yaml', prefix?: string) {
+  const toolset = new OpenAPIToolset({ specStr: text, specType, ...(prefix ? { prefix } : {}) });
+  return ((await toolset.getTools()) as any[]).map((t) => ({
+    name: t.name,
+    operationId: t.operation.operationId,
+    method: t.endpoint.method,
+    path: t.endpoint.path,
+    baseUrl: t.endpoint.baseUrl,
+    authScheme: t.authScheme,
+    parameters: t.operationParser.getParameters().map((p: any) => ({ name: p.name, originalName: p.originalName, location: p.paramLocation, required: p.required, schema: p.paramSchema })),
+    declaration: contractToolDeclaration(t),
+  }));
+}
+const ours = (ops: OpenApiOperation[]) =>
+  ops.map((o) => ({
+    name: o.name,
+    operationId: o.operationId,
+    method: o.method,
+    path: o.path,
+    baseUrl: o.baseUrl,
+    authScheme: o.authScheme,
+    parameters: o.parameters.map((p) => ({ name: p.name, originalName: p.originalName, location: p.location, required: p.required, schema: p.schema })),
+    declaration: o.declaration,
+  }));
+
+function sinkDir(): string {
+  const d = mkdtempSync(join(tmpdir(), 'melch-openapi-sink-'));
+  writeFileSync(join(d, 'sink.yaml'), SINK);
+  return d;
+}
+
+test('the parser names, splits and declares every operation as ADK did', async () => {
+  const cases: Array<[string, string, 'json' | 'yaml', string?]> = [
+    ['sink', SINK, 'yaml'],
+    ['sink, prefixed', SINK, 'yaml', 'zoo'],
+    ['pets', spec('https://pets.example.com'), 'yaml'],
+    ...readdirSync(EXAMPLE_SPECS).map((f) => [f, readText(join(EXAMPLE_SPECS, f), 'utf-8'), 'json'] as [string, string, 'json']),
+  ];
+  for (const [label, text, format, prefix] of cases) {
+    const expected = await adkReference(text, format, prefix);
+    const actual = ours(parseOpenApiSpec(text, format, prefix ? { prefix } : {}));
+    assert.deepEqual(JSON.parse(JSON.stringify(actual)), JSON.parse(JSON.stringify(expected)), label);
+  }
+  const sink = parseOpenApiSpec(SINK, 'yaml');
+  assert.deepEqual(sink.map((o) => o.name), [
+    'list_pets', 'create_pet', 'pets_pet_id_get', 'get_http_status_for_pet', 'delete_pet', 'patch_pet', 'make_thing', 'param_import',
+    'plant_a_very_long_operation_id_that_goes_on_and_on_past_the_',
+  ]);
+  // The built tools are ADK RestApiTools over the parse, so the declaration a model reads on the ADK path is the parser's.
+  const built = await buildOpenApiTools({ spec: 'sink.yaml', operations: sink.map((o) => o.operationId) }, sinkDir());
+  assert.deepEqual(built.map((t) => contractToolDeclaration(t)), sink.map((o) => o.declaration));
+});
+
+test('operations are named by operationId, tool name or snake_case, with or without the prefix', () => {
+  const [op] = parseOpenApiSpec(SINK, 'yaml', { prefix: 'zoo' }).filter((o) => o.operationId === 'getHTTPStatusForPet');
+  for (const configured of ['getHTTPStatusForPet', 'zoo_get_http_status_for_pet', 'get_http_status_for_pet']) assert.ok(operationNamed(configured, op!, 'zoo'), configured);
+  assert.ok(!operationNamed('listPets', op!, 'zoo'));
+});
+
+test('the snake_case helpers match the regular expressions they replace, in linear time', () => {
+  const oldToSnake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
+  const oldAdkSnake = (s: string) =>
+    s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2').toLowerCase().replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+  const alphabet = ['a', 'b', 'Z', 'Q', '9', '0', '_', '-', '.', ' ', '{', 'é'];
+  let seed = 7;
+  const rand = (n: number) => ((seed = (seed * 1103515245 + 12345) % 2147483648), seed % n);
+  const samples = ['getHTTPStatus', 'HTTPServer2Go', 'ABc', 'aBC', '__x__', 'pets/{petId}_get', 'XMLHttpRequest', 'A', ''];
+  for (let i = 0; i < 5000; i++) samples.push(Array.from({ length: 1 + rand(12) }, () => alphabet[rand(alphabet.length)]).join(''));
+  for (const s of samples) {
+    assert.equal(toSnake(s), oldToSnake(s), `toSnake(${JSON.stringify(s)})`);
+    assert.equal(adkSnake(s), oldAdkSnake(s), `adkSnake(${JSON.stringify(s)})`);
+  }
+  const hostile = 'A'.repeat(200_000) + '1' + '_'.repeat(200_000) + 'x';
+  const started = Date.now();
+  adkSnake(hostile);
+  toSnake(hostile);
+  assert.ok(Date.now() - started < 1000, 'linear on a hostile name');
+});
+
+test('a hostile spec is refused with a readable error, never a hang or a crash', () => {
+  // Too large.
+  assert.throws(() => parseOpenApiSpec(' '.repeat(MAX_SPEC_BYTES + 1), 'json', { source: 'big.json' }), /openapi big\.json: the spec is larger than/);
+  // A YAML alias bomb.
+  const letter = (i: number) => String.fromCharCode(97 + i);
+  const bomb = [`a: &a [${Array(10).fill('"x"').join(',')}]`, ...Array.from({ length: 9 }, (_, i) => `${letter(i + 1)}: &${letter(i + 1)} [${Array(10).fill(`*${letter(i)}`).join(',')}]`)].join('\n');
+  assert.throws(() => parseOpenApiSpec(`${bomb}\npaths: {}\n`, 'yaml'), /not valid YAML: Excessive alias count/);
+  // A $ref expansion bomb: each level uses the one below twice.
+  const schemas: Record<string, unknown> = { s0: { type: 'string' } };
+  for (let i = 1; i <= 25; i++) schemas[`s${i}`] = { type: 'object', properties: { l: { $ref: `#/components/schemas/s${i - 1}` }, r: { $ref: `#/components/schemas/s${i - 1}` } } };
+  const refBomb = {
+    openapi: '3.0.0',
+    paths: { '/x': { post: { operationId: 'x', requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/s25' } } } } } } },
+    components: { schemas },
+  };
+  assert.throws(() => parseOpenApiDocument(refBomb, { source: 'bomb.json' }), /more than 1000000 values/);
+  // Deep nesting.
+  let deep: Record<string, unknown> = { type: 'string' };
+  for (let i = 0; i < 300; i++) deep = { type: 'object', properties: { n: deep } };
+  assert.throws(() => parseOpenApiDocument({ paths: { '/d': { post: { operationId: 'd', requestBody: { content: { 'application/json': { schema: deep } } } } } } }), /deeper than 128/);
+  // A long chain of refs.
+  // Listed from the far end, so resolving the first one walks the whole chain.
+  const chain: Record<string, unknown> = {};
+  for (let i = 500; i >= 1; i--) chain[`c${i}`] = { $ref: `#/c${i - 1}` };
+  chain.c0 = { type: 'string' };
+  assert.throws(() => parseOpenApiDocument({ ...chain, paths: { '/c': { get: { operationId: 'c', parameters: [{ name: 'q', in: 'query', schema: { $ref: '#/c500' } }] } } } }), /deeper than 128/);
+  // An external ref, and a document that is not one.
+  assert.throws(() => parseOpenApiDocument({ paths: { '/e': { get: { operationId: 'e', parameters: [{ $ref: 'other.yaml#/p' }] } } } }), /external references are not supported/);
+  assert.throws(() => parseOpenApiSpec('"just a string"', 'json'), /not an OpenAPI document/);
+  assert.throws(() => parseOpenApiSpec('{', 'json', { source: 'bad.json' }), /openapi bad\.json: the spec is not valid JSON/);
+});
+
+test('a ref cycle ends where it closes, and a __proto__ key stays a key', () => {
+  const [plant] = parseOpenApiSpec(SINK, 'yaml').filter((o) => o.path === '/trees');
+  const child = (plant!.declaration.parameters as any).properties.child;
+  // Node was resolved where components lists it, so its self-reference is already cut: an empty object.
+  assert.deepEqual(child, { type: 'object', properties: { dummy_DO_NOT_GENERATE: { type: 'string' } } });
+  const [op] = parseOpenApiSpec('{"paths":{"/p":{"post":{"operationId":"p","requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"__proto__":{"type":"string","polluted":true}}}}}}}}}}', 'json');
+  assert.equal(({} as any).polluted, undefined);
+  assert.deepEqual(op!.parameters.map((p) => p.name), ['proto']);
 });
