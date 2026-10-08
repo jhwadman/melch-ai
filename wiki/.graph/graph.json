@@ -5,26 +5,26 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 779,
-    "edges": 2518,
+    "nodes": 787,
+    "edges": 2597,
     "byKind": {
-      "doc": 136,
+      "doc": 137,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 128,
+      "file": 130,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 170,
+      "module": 175,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 508,
-      "requires_env": 167,
+      "links_to": 521,
+      "requires_env": 168,
       "routes_to": 8,
       "defined_in": 77,
       "documents": 56,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 628,
+      "imports": 665,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 564,
-      "constrains": 110,
+      "derives_from": 580,
+      "constrains": 115,
       "supersedes": 6,
-      "depends_on": 43,
-      "explains": 10,
+      "depends_on": 49,
+      "explains": 11,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2347,
-      "inferred": 171
+      "extracted": 2414,
+      "inferred": 183
     },
     "isolated": 4
   },
@@ -1252,6 +1252,18 @@
       }
     },
     {
+      "id": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "kind": "doc",
+      "label": "ADR 0073: One AgentSpec for both runtimes, a runtime flag on the turn, and refusals at compile time",
+      "source": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1056
+      }
+    },
+    {
       "id": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "kind": "doc",
       "label": "ADR 0074: Native delegation runs a subagent as a child loop in its own session, as ADK's AgentTool does",
@@ -1296,7 +1308,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 725
+        "words": 803
       }
     },
     {
@@ -1440,7 +1452,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2736
+        "words": 2761
       }
     },
     {
@@ -1536,7 +1548,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 436
+        "words": 468
       }
     },
     {
@@ -1560,7 +1572,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3488
+        "words": 4067
       }
     },
     {
@@ -2974,7 +2986,8 @@
       "id": "env:MELCHIZEDEK_RUNTIME",
       "kind": "env",
       "label": "MELCHIZEDEK_RUNTIME",
-      "source": "scripts/parity_check.ts"
+      "source": "scripts/parity_check.ts",
+      "attrs": {}
     },
     {
       "id": "env:MELCHIZEDEK_TASKS_FILE",
@@ -3795,6 +3808,12 @@
       "source": "tests/claudeVision.test.ts"
     },
     {
+      "id": "file:tests/compile.test.ts",
+      "kind": "file",
+      "label": "compile.test.ts",
+      "source": "tests/compile.test.ts"
+    },
+    {
       "id": "file:tests/contractToolDeclarations.test.ts",
       "kind": "file",
       "label": "contractToolDeclarations.test.ts",
@@ -3963,6 +3982,13 @@
       "kind": "file",
       "label": "nativeStep.test.ts",
       "source": "tests/nativeStep.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/nativeTurn.test.ts",
+      "kind": "file",
+      "label": "nativeTurn.test.ts",
+      "source": "tests/nativeTurn.test.ts",
       "attrs": {}
     },
     {
@@ -4296,7 +4322,25 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 498
+        "lines": 533
+      }
+    },
+    {
+      "id": "module:lib/compileAdk.ts",
+      "kind": "module",
+      "label": "lib/compileAdk.ts",
+      "source": "lib/compileAdk.ts",
+      "attrs": {
+        "lines": 124
+      }
+    },
+    {
+      "id": "module:lib/compileNative.ts",
+      "kind": "module",
+      "label": "lib/compileNative.ts",
+      "source": "lib/compileNative.ts",
+      "attrs": {
+        "lines": 132
       }
     },
     {
@@ -4917,7 +4961,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 655
+        "lines": 670
       }
     },
     {
@@ -4953,7 +4997,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 545
+        "lines": 551
       }
     },
     {
@@ -4971,7 +5015,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 264
+        "lines": 267
       }
     },
     {
@@ -4984,12 +5028,39 @@
       }
     },
     {
+      "id": "module:lib/runtime/native/tempState.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/tempState.ts",
+      "source": "lib/runtime/native/tempState.ts",
+      "attrs": {
+        "lines": 65
+      }
+    },
+    {
+      "id": "module:lib/runtime/nativeTurn.ts",
+      "kind": "module",
+      "label": "lib/runtime/nativeTurn.ts",
+      "source": "lib/runtime/nativeTurn.ts",
+      "attrs": {
+        "lines": 134
+      }
+    },
+    {
       "id": "module:lib/runtime/questions.ts",
       "kind": "module",
       "label": "lib/runtime/questions.ts",
       "source": "lib/runtime/questions.ts",
       "attrs": {
         "lines": 115
+      }
+    },
+    {
+      "id": "module:lib/runtime/runtimeFlag.ts",
+      "kind": "module",
+      "label": "lib/runtime/runtimeFlag.ts",
+      "source": "lib/runtime/runtimeFlag.ts",
+      "attrs": {
+        "lines": 59
       }
     },
     {
@@ -5007,7 +5078,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 969
+        "lines": 1035
       }
     },
     {
@@ -5448,7 +5519,7 @@
       "label": "lib/wiki/agentRun.ts",
       "source": "lib/wiki/agentRun.ts",
       "attrs": {
-        "lines": 107
+        "lines": 158
       }
     },
     {
@@ -10977,6 +11048,132 @@
       "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md:47"
     },
     {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "file:tests/compile.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "file:tests/nativeTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/compileAdk.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/runtime/native/tempState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/runtime/nativeTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md frontmatter"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:66"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:31"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:28"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:38"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:28"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:28"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:33"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:33"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md:33"
+    },
+    {
       "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "to": "file:tests/nativeDelegate.test.ts",
       "rel": "derives_from",
@@ -11181,6 +11378,13 @@
     },
     {
       "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "file:tests/nativeTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "to": "module:lib/runtime/approvals.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -11202,24 +11406,38 @@
     },
     {
       "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:24"
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:26"
     },
     {
       "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:26"
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:28"
     },
     {
       "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:26"
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:28"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0077-native-approvals-port-the-confirmation-processor.md:51"
     },
     {
       "from": "/memory/architecture.md",
@@ -13666,6 +13884,13 @@
     },
     {
       "from": "/overview/architecture.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
+      "from": "/overview/architecture.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -13684,6 +13909,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/architecture.md:26"
+    },
+    {
+      "from": "/overview/architecture.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
     },
     {
       "from": "/overview/architecture.md",
@@ -13834,6 +14066,20 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/nativeTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/native/agentLoop.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -13890,115 +14136,143 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/tempState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/nativeTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:141"
+      "evidence": "/overview/native-loop.md:148"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:175"
+      "evidence": "/overview/native-loop.md:182"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:147"
+      "evidence": "/overview/native-loop.md:154"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:120"
+      "evidence": "/overview/native-loop.md:127"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:30"
+      "evidence": "/overview/native-loop.md:35"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:81"
+      "evidence": "/overview/native-loop.md:88"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:32"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:32"
+      "evidence": "/overview/native-loop.md:37"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:35"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:32"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:147"
+      "evidence": "/overview/native-loop.md:154"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:211"
+      "evidence": "/overview/native-loop.md:245"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:177"
+      "evidence": "/overview/native-loop.md:184"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:96"
+      "evidence": "/overview/native-loop.md:103"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:32"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:62"
+      "evidence": "/overview/native-loop.md:69"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:47"
+      "evidence": "/overview/native-loop.md:52"
     },
     {
       "from": "/protocols/a2a.md",
@@ -16305,7 +16579,7 @@
     },
     {
       "from": "module:lib/compile.ts",
-      "to": "module:lib/a2a/remoteAgent.ts",
+      "to": "module:lib/compileAdk.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compile.ts"
@@ -16333,28 +16607,7 @@
     },
     {
       "from": "module:lib/compile.ts",
-      "to": "module:lib/models/fallback.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/compile.ts"
-    },
-    {
-      "from": "module:lib/compile.ts",
-      "to": "module:lib/models/providerMap.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/compile.ts"
-    },
-    {
-      "from": "module:lib/compile.ts",
       "to": "module:lib/models/reasoning.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/compile.ts"
-    },
-    {
-      "from": "module:lib/compile.ts",
-      "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compile.ts"
@@ -16407,6 +16660,97 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compileAdk.ts",
+      "to": "module:lib/a2a/remoteAgent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileAdk.ts"
+    },
+    {
+      "from": "module:lib/compileAdk.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileAdk.ts"
+    },
+    {
+      "from": "module:lib/compileAdk.ts",
+      "to": "module:lib/models/fallback.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileAdk.ts"
+    },
+    {
+      "from": "module:lib/compileAdk.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileAdk.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/a2a/remoteAgent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
     },
     {
       "from": "module:lib/config.ts",
@@ -18776,6 +19120,13 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/tempState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/runtime/turnControl.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -18931,6 +19282,13 @@
     {
       "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/native/tempState.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/request.ts"
@@ -19111,6 +19469,90 @@
       "evidence": "lib/runtime/native/telemetry.ts"
     },
     {
+      "from": "module:lib/runtime/native/tempState.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/tempState.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/tempState.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/tempState.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
       "from": "module:lib/runtime/questions.ts",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "imports",
@@ -19123,6 +19565,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/questions.ts"
+    },
+    {
+      "from": "module:lib/runtime/runtimeFlag.ts",
+      "to": "env:MELCHIZEDEK_RUNTIME",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/runtime/runtimeFlag.ts"
     },
     {
       "from": "module:lib/runtime/sessions.ts",
@@ -19141,6 +19590,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/compileNative.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -19182,6 +19638,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -19203,6 +19666,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/native/selfCorrection.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -19210,7 +19680,21 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/nativeTurn.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/questions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/runtimeFlag.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -20386,7 +20870,63 @@
     },
     {
       "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
       "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/runtime/nativeTurn.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/tools/tool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/wiki/agentRun.ts"

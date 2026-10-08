@@ -6,6 +6,31 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **An approval resumes on the native runtime (ADR 0077).** On
+  `runtime: 'native'`, a message carrying `approvalResponsePart(id, …)` runs
+  or refuses the pinned call before the agent's next step, as on ADK, and
+  stores the same events: an approval opened on either runtime resumes on
+  the other. An answer whose pinned call does not bind (changed arguments,
+  a request the user authored) throws ADK's `IntentMismatchError` text on
+  both runtimes. No change to the `exports` map.
+- **A turn can run on the native runtime (ADR 0073).** `runSyndicateTurn`
+  takes an optional `runtime` (`'adk'` or `'native'`). Without it,
+  `MELCHIZEDEK_RUNTIME` decides (`adk` or `native`), and without that, `adk`,
+  so nothing changes unless you ask. On `native` a single-agent, DELEGATE
+  or plan-dispatch syndicate runs on the engine's own loop, with
+  self-correction from `retries:` and the same root span, and returns the
+  same result shape; what native does not run yet (compaction, workflows,
+  task mode, `transformAgent`, answering a question) throws `UnsupportedOnRuntimeError` before any model call. Additions under the existing `exports` map:
+  - `melchizedek-agents/runtime` exports `RuntimeName`, `RUNTIMES`,
+    `DEFAULT_RUNTIME`, `chooseRuntime`, `runtimeSetting` and
+    `UnsupportedOnRuntimeError`.
+  - `melchizedek-agents/compile` exports `AgentSpec`, `SpecTool`,
+    `compileSpec` and `compileSubagentSpec`, the runtime-neutral half of the
+    compiler. `compileGraph` and `compileSubagent` build the same `LlmAgent`
+    as before.
+  - `melchizedek-agents/wiki/agentRun`: `runWikiAgent` follows the same
+    flag, and takes `runtime` and (native only) `adapterFor`.
+  - `.env.example` lists `MELCHIZEDEK_RUNTIME` and `GEMINI_ADAPTER`.
 - **Third-party tokens for tools, sealed per end user (ADR 0072).** Apply
   migration `0013_tool_credentials.sql` (`npx melchizedek-db apply`, or
   `print` into the SQL editor) before using it. New, all under the existing

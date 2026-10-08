@@ -24,11 +24,15 @@ import { afterEach, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { AgentTool, GOOGLE_SEARCH, LlmAgent, LogLevel, setLogLevel } from '@google/adk';
+import { AgentTool, GOOGLE_SEARCH, LogLevel, setLogLevel } from '@google/adk';
 import { GoogleGenAI } from '@google/genai';
 import type { GoogleGenAIOptions } from '@google/genai';
 
-import { compileGraph, compileSubagent } from '../lib/compile.ts';
+import { remoteAgentTool } from '../lib/a2a/remoteAgent.ts';
+import { compileSpec, compileSubagentSpec } from '../lib/compile.ts';
+import type { AgentSpec, SpecTool } from '../lib/compile.ts';
+import { compileAdk } from '../lib/compileAdk.ts';
+import { compileNative } from '../lib/compileNative.ts';
 import { isDispatchSyndicate } from '../lib/dispatch.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { FinalModelResponse, ModelRequest } from '../lib/models/contract.ts';
@@ -315,37 +319,30 @@ test('a scripted session: Gemini calls load_memory, the result goes back as its 
 // ── The shipped syndicates' Gemini agents ────────────────────────────────────
 
 /**
- * A compiled LlmAgent as a NativeAgent: its fields read back as compiled
- * (instruction, tools, config, output schema, code executor). The compile
- * split (WS2-10) will build NativeAgents directly; this reads what ADK runs.
+ * A syndicate's root as the native step builds its request: the compile
+ * split's NativeAgent (lib/compileNative.ts). Delegation does not run on
+ * the native loop yet (WS2-6), so compileNative refuses a DELEGATE root;
+ * here each delegated subagent is handed over as the AgentTool the ADK
+ * runtime compiles it to, so the root's request declares it as ADK's does.
  */
-function nativeAgentOf(agent: LlmAgent, model: string): NativeAgent {
-  assert.equal(typeof agent.instruction, 'string', `${agent.name}: a compiled instruction is a string`);
-  return {
-    name: agent.name,
-    ...(agent.description ? { description: agent.description } : {}),
-    model,
-    instruction: agent.instruction as string,
-    tools: (agent.tools ?? []).map(own),
-    ...(agent.outputSchema ? { outputSchema: agent.outputSchema as unknown as Record<string, unknown> } : {}),
-    generateContentConfig: (agent.generateContentConfig ?? {}) as Record<string, unknown>,
-    includeContents: agent.includeContents,
-    disallowTransferToParent: agent.disallowTransferToParent,
-    disallowTransferToPeers: agent.disallowTransferToPeers,
-    ...(agent.codeExecutor ? { codeExecution: 'gemini' as const } : {}),
-  };
+function nativeRootOf(spec: AgentSpec): NativeAgent {
+  const tools: SpecTool[] = spec.tools.map((entry) => {
+    if (entry.kind === 'agent') return { kind: 'tool', tool: new AgentTool({ agent: compileAdk(entry.agent) }) };
+    if (entry.kind === 'remote') return { kind: 'tool', tool: remoteAgentTool(entry) };
+    return entry;
+  });
+  return compileNative({ ...spec, tools });
 }
 
-/** Every agent of a shipped syndicate, compiled, with its YAML model id. */
-async function compiledAgents(file: string): Promise<Array<{ agent: LlmAgent; model: string }>> {
+/** Every agent of a shipped syndicate as the native step runs it. */
+async function nativeAgents(file: string): Promise<NativeAgent[]> {
   const config = loadSyndicate(path.join(EXAMPLES, file));
-  const root = await compileGraph(config, { log: () => {} });
-  const out = [{ agent: root, model: config.orchestrator.model as string }];
+  const root = await compileSpec(config, { log: () => {} });
+  const out = [nativeRootOf(root)];
   for (const sub of config.subagents ?? []) {
-    // compileGraph wraps this same compileSubagent in an AgentTool (delegate) or leaves it to the dispatcher.
-    const compiled = await compileSubagent(sub, { log: () => {} });
-    if (!isDispatchSyndicate(config)) assert.ok(root.tools.some((t) => t instanceof AgentTool && t.name === sub.name), `${file}: ${sub.name} is the root's AgentTool`);
-    out.push({ agent: compiled, model: sub.model as string });
+    // The root delegates to this same subagent spec (delegate), or the dispatcher runs it.
+    if (!isDispatchSyndicate(config)) assert.ok(root.tools.some((t) => t.kind === 'agent' && t.agent.name === sub.name), `${file}: ${sub.name} is the root's delegation`);
+    out.push(compileNative(await compileSubagentSpec(sub, { log: () => {} })));
   }
   return out;
 }
@@ -353,10 +350,10 @@ async function compiledAgents(file: string): Promise<Array<{ agent: LlmAgent; mo
 /** Each Gemini agent's native request on the wire, by agent name. */
 async function geminiBodies(file: string, memory?: ReturnType<typeof memoryOf>): Promise<Map<string, any>> {
   const bodies = new Map<string, any>();
-  for (const { agent, model } of await compiledAgents(file)) {
-    if (!model.startsWith('gemini-')) continue;
+  for (const agent of await nativeAgents(file)) {
+    if (!agent.model.startsWith('gemini-')) continue;
     const { session } = await sessionWith('What is a confidence interval?');
-    const { request } = await buildModelRequest(nativeAgentOf(agent, model), {
+    const { request } = await buildModelRequest(agent, {
       session,
       invocationId: 'e-1',
       userContent: userContent('What is a confidence interval?'),

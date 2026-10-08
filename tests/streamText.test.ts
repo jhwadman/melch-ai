@@ -152,7 +152,8 @@ test('a syndicate with guards never streams; the guarded text arrives whole', as
 });
 
 // ── The native loop's half (lib/runtime/native/agentLoop.ts, WS2-5b) ────────
-// The A2A surface runs the native loop from WS2-10. Here the loop is driven
+// The A2A surface runs the native loop under MELCHIZEDEK_RUNTIME=native (ADR 0073;
+// tests/nativeTurn.test.ts compares the deltas through runSyndicateTurn). Here the loop is driven
 // directly and its events drained as the turn runner drains them: the same
 // deltas, the same reset when a tool call follows narration, the answer whole.
 

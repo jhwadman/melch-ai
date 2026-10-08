@@ -101,7 +101,7 @@ const result = await runSyndicateTurn({
 console.log(result.status, result.text);
 ```
 
-`runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`.
+`runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. It runs on Google ADK by default; `runtime: 'native'` (or `MELCHIZEDEK_RUNTIME=native`) runs a single-agent, delegating or plan-dispatch syndicate on the engine's own loop instead. To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`.
 
 The example syndicates ship inside the package at `node_modules/melchizedek-agents/config/agents/examples/`; copy one out as a starting point.
 

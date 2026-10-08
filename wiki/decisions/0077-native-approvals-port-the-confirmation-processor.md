@@ -15,6 +15,8 @@ sources:
   - resource: lib/runtime/native/agentLoop.ts
   - resource: lib/runtime/approvals.ts
   - resource: tests/nativeApprovals.test.ts
+  - resource: tests/nativeTurn.test.ts
+  - resource: lib/runtime/syndicateTurn.ts
 ---
 
 # ADR 0077: The native loop resumes an approval before every step, as ADK's request-confirmation processor does, and throws a refusal
@@ -46,6 +48,7 @@ The native loop ([ADR 0071](/decisions/0071-native-loop-runs-calls-as-adk-stores
 ## Consequences
 
 - `tests/nativeApprovals.test.ts` runs the approval conversations both ways: approve, refuse, an answer as JSON under `response`, changed pinned arguments, a parallel batch with one gated call, and a confirmed call that throws (a first failure for self-correction). The stores hold the same events. On the loop alone, it covers the confirmed call's tool span, an answer naming no open request, and a request the user authored. Session fixture 03, an approval ADK opened, resumes on the loop, runs the pinned call once, and stores what ADK stores.
+- `runSyndicateTurn` on `runtime: 'native'` resumes an approval, which [ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md) refused until now; answering a question stays refused until WS2-7b. The turn runner's own checks are unchanged on both runtimes: an answer naming no open request fails `NO_PENDING_APPROVAL`, and a dispatch turn replays the interrupted turn raw (`interruptedTurnStart`) to the route that asked. `tests/nativeTurn.test.ts` runs approve, refuse and a dispatch resume through `runSyndicateTurn` on both runtimes, and an approval opened on each runtime resumed on the other.
 - `isDeepStrictEqual` stands in for lodash's `isEqual`. The two agree on the JSON values stored arguments hold.
 - ADK's plain-text answers (`plainTextToolConfirmation`) and its refusal of answers a remote peer delivered (`remoteDelivered`) are not ported: no surface turns either on.
 - Resuming `ask_user` is WS2-7b. It follows the same pattern: a port of ADK's input-request processor beside this one in `interrupts.ts`.
