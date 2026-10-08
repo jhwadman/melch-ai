@@ -6,6 +6,11 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Web sources for Claude, GPT and Grok.** When one of these models
+  searches the web, its events now carry `groundingMetadata`, so a turn's
+  grounding and the A2A server's web-sources lines list the pages it used,
+  as they already did for Gemini. Before, only Gemini's answers showed
+  their sources.
 - **JSON mode without a schema is on the model contract (ADR 0061).**
   `ModelRequest` (`melchizedek-agents/models/contract`) gains
   `outputFormat?: 'json'`. An agent with
@@ -115,10 +120,8 @@ the starter pack and the templates), not the repo's full history.
   `registerClaudeLlm()`, `buildAnthropicTools()` and `THINKING_STATE_KIND`,
   and is now that adapter behind the ADK shim, a subclass of `AdkShim`.
   Request bodies are unchanged. What does change on a Claude call:
-  - its events carry `finishReason`. Claude's web-search grounding stays
-    on the adapter's response only: `ClaudeLlm` leaves `groundingMetadata`
-    off its events, as before and as `GptLlm` does, so the A2A server's
-    output for a Claude agent is unchanged;
+  - its events carry `finishReason`, and `groundingMetadata` when Claude
+    searched the web (see the web-sources entry above);
   - a failed tool's `tool_result` carries `is_error: true`;
   - a setup error (`MISSING_API_KEY`, `ENDPOINT_MISCONFIGURED`,
     `SDK_NOT_INSTALLED`) carries `customMetadata['error.retryable']: false`;

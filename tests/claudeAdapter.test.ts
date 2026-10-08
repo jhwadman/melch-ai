@@ -777,10 +777,10 @@ test('web search grounding: the queries that ran and the cited pages, with the s
     searchQueries: [{ tool: 'web_search', query: 'tallest tower' }],
   });
   assert.deepEqual(c.llm.at(-1)?.groundingMetadata, { webSearchQueries: ['tallest tower'], groundingChunks: [{ web: { uri: 'https://example.test/tower', title: 'Tower' } }] });
-  // ClaudeLlm, the shim the registry serves, leaves groundingMetadata off on
-  // the ADK path, as before and as GptLlm does (ADR 0056).
+  // ClaudeLlm, the shim the registry serves, carries it too, so the A2A
+  // server lists Claude's web sources as it does Gemini's.
   const viaClaudeLlm = (new ClaudeLlm({ model: 'claude-opus-5-5' }) as unknown as { toLlmResponse(r: ModelResponse): LlmResponse }).toLlmResponse(finalOf(c));
-  assert.equal(viaClaudeLlm.groundingMetadata, undefined);
+  assert.deepEqual(viaClaudeLlm.groundingMetadata, c.llm.at(-1)?.groundingMetadata);
   assert.equal(viaClaudeLlm.turnComplete, true, 'the rest of the final is kept');
 });
 

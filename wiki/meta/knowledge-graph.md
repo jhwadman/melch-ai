@@ -50,7 +50,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `imports` | extracted | A imports B | 499 | a static import edge between source files |
+| `imports` | extracted | A imports B | 498 | a static import edge between source files |
 | `derives_from` | extracted | A derives from B | 443 | declared in the document’s `sources:` frontmatter |
 | `links_to` | extracted | A links to B | 394 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 165 | this environment variable must be set for the node to work |
