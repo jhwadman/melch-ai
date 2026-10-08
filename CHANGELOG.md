@@ -6,6 +6,28 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Claude requests follow the model generation (ADR 0049).** `ClaudeLlm`
+  reads a per-generation table from the model id. Before, every `claude-*`
+  id got a thinking budget and a forced tool, which the current models refuse
+  with a 400. Now:
+  - Claude 4.6 and earlier keep the thinking budget.
+  - Later models get adaptive thinking with `output_config.effort` from
+    `reasoning:` (or `reasoningEffort`), and a summarized thinking display.
+    `none` becomes each model's own off switch at `low` effort, or `low`
+    effort where the model has none.
+  - Structured output is `output_config.format` from Opus 4.8, Sonnet 5 and
+    Haiku 5.5 on. Forced tool use is a 400 on Fable 5.1, Opus 5.5 and
+    Sonnet 5.5.
+  - Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 5.5 bind thinking to the
+    conversation. Their requests set `drop_block` under the
+    `thinking-binding-controls-2026-08-01` beta, so a turn resumed from
+    storage no longer fails on a history that changed in storage.
+  - An image URL that names no type is typed by its extension. Claude on
+    Bedrock and Vertex AI drops URL images, since those platforms take base64
+    only, and the capability matrix says so.
+  - `melchizedek-agents/models/claudeModels` exports `claudeGeneration`,
+    `adaptiveThinking`, `requestedEffort`, `claudeUrlImagesOn` and
+    `THINKING_BINDING_BETA`.
 - **`reasoning:` sets how hard an agent reasons, on any provider (ADR 0047).**
   Write `none`, `low`, `medium` or `high`, or `{ budget_tokens: <int> }`, on
   the orchestrator or a subagent. The compiler sends each provider the field
