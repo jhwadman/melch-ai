@@ -40,6 +40,27 @@ by claude-code/claude-opus-5-5
 by claude-code/claude-opus-5-5
 
 ## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —constrains→ module:lib/tools/skills/tools.ts
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/questions.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0079-native-questions-resume-through-the-history.md —contradicts→ /decisions/0077-native-approvals-port-the-confirmation-processor.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0079-native-questions-resume-through-the-history.md —depends_on→ /decisions/0031-ask-user.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0079-native-questions-resume-through-the-history.md —depends_on→ module:lib/runtime/native/history.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0079-native-questions-resume-through-the-history.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0079-native-questions-resume-through-the-history.md —constrains→ module:lib/runtime/syndicateTurn.ts
 
 by claude-code/claude-opus-5-5
 

@@ -7,7 +7,7 @@
  * native turn calls the shim's own adapter), and requires the same result
  * (status, text, usage, route, pause) and the same stored events, ids and
  * times aside. Then what native refuses before any model call, an approval
- * opened on one runtime resumed on the other, the run's temp: state, and the
+ * opened on one runtime resumed on the other, a question answered on native, the run's temp: state, and the
  * wiki agent runner on the flag. Offline: scripted adapters only.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -288,15 +288,14 @@ test('parity: dispatch resumes the route that asked on native, the classifier sk
   assert.deepEqual(sent, ['pr@acme.test', 'pr@acme.test'], 'once per runtime');
 });
 
-test('parity: an ask_user call pauses the turn with the question; answering it on native is refused', async () => {
+test('parity: an ask_user call pauses the turn with the question, and the answer resumes it on native as on ADK (WS2-7b)', async () => {
   const config = syndicate({ instruction: 'Ask when unsure.', tools: ['ask_user'] });
-  const { native } = await assertParity(config, { boss: () => toolCall('ask_user', { question: 'Which year?' }, 'call-ask') });
+  const script: ModelScript = (req, n) => (n === 1 ? toolCall('ask_user', { question: 'Which year?' }, 'call-ask') : answer(`in ${lastToolResult(req)?.result}`));
+  const { native } = await assertParity(config, { boss: script }, [{}, { parts: [{ text: '1999' }] }]);
   assert.equal(native.results[0]?.status, 'input-required');
   assert.equal(native.results[0]?.input?.message, 'Which year?');
-  await assert.rejects(
-    converse('native', config, { boss: () => toolCall('ask_user', { question: 'Which year?' }, 'call-ask') }, [{}, { parts: [{ text: '1999' }] }]),
-    (e: unknown) => e instanceof UnsupportedOnRuntimeError && /answering Solo's question/.test(e.message),
-  );
+  assert.equal(native.results[1]?.status, 'completed', native.results[1]?.error?.message);
+  assert.equal(native.results[1]?.text, 'in 1999');
 });
 
 test('parity: a temp: key a tool writes reaches the next step’s instruction, and no store keeps it', async () => {

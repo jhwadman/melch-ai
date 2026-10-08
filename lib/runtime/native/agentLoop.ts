@@ -59,7 +59,11 @@
  *      isFinalResponse), the turn stopped the step, or the step stored
  *      nothing. A model call that waits on a person (ask_user) is final: its
  *      model event lists the call in longRunningToolIds, and the run ends
- *      with no response to it, the call pending. Resuming it is WS2-7b.
+ *      with no response to it, the call pending. The answer resumes it: the
+ *      turn runner stores the person's next message as the call's function
+ *      response, and the next run's first step reads the call and its answer
+ *      from the history (history.ts), as ADK's content processor does. No
+ *      request processor acts on it (ADR 0079).
  *
  * DELEGATION: a call to a subagent tool runs the subagent as its own child
  * loop, as ADK's AgentTool runs it (lib/runtime/native/delegate.ts, ADR 0074).
@@ -80,7 +84,7 @@
  * (lib/runtime/native/taskMode.ts).
  *
  * NOT HERE (later tickets): transfer_to_agent (no compiled syndicate sets
- * subAgents), resuming a question (WS2-7b), and an auth request a tool raises
+ * subAgents), and an auth request a tool raises
  * (no own tool can). The run's spans (agent.invoke, model.call,
  * tool.execute) are lib/runtime/native/telemetry.ts.
  *
@@ -633,7 +637,8 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
 
   for (;;) {
     // Interrupts hook (WS2-7a, interrupts.ts): an answered approval runs its pinned call before the step, as ADK's request-confirmation processor does; it runs
-    // first, then compaction (ADK inserts its compactor before the contents processor), both before the step budget.
+    // first, then compaction (ADK inserts its compactor before the contents processor), both before the step budget. ADK's request-input processor sits
+    // between them and resumes node-tool calls only, which no native agent lists; an answered ask_user needs none (interrupts.ts, ADR 0079).
     const resumed = await resumeApprovals(agent, ctx, withStateOverlay(session.state, runTemp.values()), selfCorrection);
     if (resumed === 'stopped') return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
     if (resumed) {

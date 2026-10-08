@@ -21,6 +21,10 @@
  * plan-dispatch route), as with approval gates: inside a delegated
  * subagent ADK swallows the pause. Not inside a workflow node yet. The
  * schema refuses both.
+ *
+ * RUNTIMES: the same on ADK and on the native loop (ADR 0079). The answer is
+ * an ordinary function response, so either runtime resumes a question either
+ * one opened; neither runs a request processor for it.
  */
 import type { Event } from '@google/adk';
 import { z } from 'zod';

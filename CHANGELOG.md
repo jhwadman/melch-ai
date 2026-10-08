@@ -22,6 +22,14 @@ the starter pack and the templates), not the repo's full history.
   file over 8 MiB are not loaded. `lib/tools/tool.ts` adds `Toolset`,
   `ToolsetContext`, `isOwnToolset`, `toolsetOf` and an optional
   `Tool.contents` hook. The `exports` map is unchanged.
+- **A question is answered on the native runtime (ADR 0079).** On
+  `runtime: 'native'` (or `MELCHIZEDEK_RUNTIME=native`), a plain-text
+  message that answers an open `ask_user` call no longer throws
+  `UnsupportedOnRuntimeError`: it becomes the call's response and the agent
+  that asked resumes, in plan-dispatch the route, as on ADK. Both runtimes
+  store the same events, so a question opened on either is answered on the
+  other; `result.input` and the A2A `input_request` part are unchanged. No
+  change to the `exports` map.
 - **`mode: task` runs on the native runtime (ADR 0081).** It no longer
   throws `UnsupportedOnRuntimeError`: the agent's requests declare
   `finish_task` as ADK's do, and its answers are stored as ADK stores them.

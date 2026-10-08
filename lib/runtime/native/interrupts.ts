@@ -39,7 +39,19 @@
  *
  * Not here: a plain-text "yes" as an answer (ADK's plainTextToolConfirmation,
  * which no surface turns on), and answers delivered by a remote peer (ADK's
- * remoteDelivered, which no surface sets). ask_user's resume is WS2-7b.
+ * remoteDelivered, which no surface sets).
+ *
+ * QUESTIONS (ask_user, WS2-7b, ADR 0079) need no processor here. ADK runs its
+ * request-input processor (REQUEST_INPUT_LLM_REQUEST_PROCESSOR) next, before
+ * compaction, but it only re-runs a node tool (a workflow run as a tool) that
+ * paused on an `adk_request_input` call; for an agent that lists no node tool
+ * it returns before doing anything, and no native agent lists one (native
+ * refuses workflows). An `ask_user` call is an ordinary long-running call:
+ * the turn runner stores the person's next message as its function response
+ * (lib/runtime/questions.ts questionAnswerPart), and the step reads the call
+ * and the answer side by side from the history (history.ts), as ADK's
+ * content processor does. When workflows run natively (WS4), the node-tool
+ * resume is ported beside approvedCalls, in the same place in the order.
  *
  * ADK stays out of this file: an ADK tool an agent still lists is asked
  * whether it gates through its own checkRequireConfirmation, by shape.
