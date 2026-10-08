@@ -16,6 +16,11 @@ sources:
   - resource: lib/models/geminiState.ts
   - resource: lib/runtime/native/request.ts
   - resource: tests/geminiNativeTools.test.ts
+  - resource: tests/capabilityMatrix.test.ts
+  - resource: tests/helpers/capabilityInputs.ts
+  - resource: tests/geminiTurnParity.test.ts
+  - resource: scripts/gemini_engine_check.ts
+  - resource: tests/geminiEngineCheck.test.ts
 ---
 
 # Gemini adapter
@@ -71,7 +76,7 @@ The contract's Gemini table holds, with these choices inside it:
 - **Non-streaming.** The adapter yields one thinking partial (when the model thought) before the final, and no text partials.
 - **Tool calls.** `functionCall` becomes a `toolCall`. A call that comes without an id gets `adk-<conversation length>-<call index>-<name>`, so the same response always gets the same ids.
 - **Blobs.** `inlineData` and `fileData` parts become blob parts.
-- **Carried parts.** `executableCode`, `codeExecutionResult` and server-side `toolCall` and `toolResponse` parts have no contract type. Each is kept whole, as Gemini sent it, and the run of them rides on the next output part as `providerState` of kind `carried_parts` ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)). They are not streamed, and the final's text does not show them. A run with no output part after it rides on an empty text part of its own.
+- **Carried parts.** `executableCode`, `codeExecutionResult` and server-side `toolCall` and `toolResponse` parts have no contract type. Each is kept whole, as Gemini sent it, and the run of them rides on the next output part as `providerState` of kind `carried_parts` ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)). They are not streamed, and the final's text does not show them. A run with no output part after it rides on an empty text part of its own. When the final becomes an event, the genai mapping writes the run back out as the parts Gemini sent, before the part that carried them, so a stored session holds `executableCode` and `codeExecutionResult` parts as ADK's Gemini stores them; an empty text part that only carried them is not stored ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)).
 - **Usage.** Input is `promptTokenCount` plus `toolUsePromptTokenCount`, and output is `candidatesTokenCount` plus `thoughtsTokenCount`. Thinking is `thoughtsTokenCount` and cache read is `cachedContentTokenCount`, each when reported. The usage is that of the last chunk that carried it.
 - **Grounding.** The final's `grounding` holds:
   - **Search queries.** `webSearchQueries`, attributed to `web_search`, or to `google_search` when the request named only that.
@@ -85,7 +90,7 @@ The adapter writes a part's `thoughtSignature` as `providerState: { provider: 'g
 
 - **A signature on a thought part moves forward** to the next part Gemini sent, an output part or a carried part. When that part has a signature of its own, its own wins. A trailing signature with no part after it stays with the last part, if that part has none of its own.
 - **An empty text part carrying a signature** closes the text before it. That is how a streamed answer's signature usually arrives.
-- **On replay**, a signature goes back on the same part, and carried parts go back immediately before the part that holds them, with their own signatures. Both happen only on assistant messages of the current turn: those after the last user message (`currentTurnStart`). Earlier turns' signatures and carried parts are left out.
+- **On replay**, a signature goes back on the same part, and carried parts go back immediately before the part that holds them, with their own signatures. A carried part read back from a stored event (the mapping's `genai_part` state holding `executableCode`, `codeExecutionResult`, `toolCall` or `toolResponse`) goes back as that part, verbatim, in its place. All of this happens only on assistant messages of the current turn: those after the last user message (`currentTurnStart`). Earlier turns' signatures and carried parts are left out; ADK's Gemini sends an earlier turn's stored parts as they are.
 - **Model-bound.** Only this model's signatures, or ones that name no model, are replayed. Another provider's state, or another Gemini model's signature, is ignored. Another Gemini model's carried parts go back without their signatures.
 - **A signature stored on a thinking part** goes on the next part sent from that message.
 - **The placeholder.** Gemini 3 rejects a current-turn step whose first function call has no signature, as after a mid-turn fallback from another provider or model. With `placeholderSignatures: true`, that call gets `PLACEHOLDER_THOUGHT_SIGNATURE` (`skip_thought_signature_validator`, Gemini's documented value). It is off by default until the G3 live run.
@@ -122,6 +127,43 @@ On the native runtime the adapter receives the request the [native step](/overvi
 
 `tests/geminiNativeTools.test.ts` asserts all of this on the real `GoogleGenAI` client over a stubbed `fetch`. It runs a two-step session in which Gemini calls `load_memory` and answers from the result; the tool runs by hand there until the loop runs tools (WS2-5b). It also compiles the model zoo, the research example and Ares, builds each Gemini agent's native request from the agent `compileNative` builds (`lib/compileNative.ts`), and asserts the tools on the wire: the Zookeeper's six explainers, research's evidence tools and Triage's schema with no tools, Ares's `WarScribe` and `load_memory` with the preloaded facts, and `WarScribe`'s `googleSearch` alone. A delegating root's subagents are handed over there as the `AgentTool`s the ADK runtime compiles, since delegation does not run on the native loop yet (WS2-6). Running those syndicates end to end on the native runtime waits for delegation and the boundary suite on native (WS2-12).
 
+## Where it differs from ADK's Gemini on the wire
+
+For the same agent, the request differs from the one ADK's `Gemini` (`TracedGemini`) sends in three places. Each is a choice that changes nothing Gemini does, and nothing stored depends on any of them ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)):
+
+- **Schemas** are JSON Schema in `parametersJsonSchema` and `responseJsonSchema`, where ADK sends Gemini's `Schema` in `parameters` and `responseSchema`, with upper-case types. A YAML schema written in Gemini's dialect (`type: OBJECT`) reaches this adapter lowercased.
+- **The system instruction** carries no `role`. ADK's sets `role: 'user'` on it.
+- **`includeServerSideToolInvocations`** goes only beside native tools and function declarations together, on the Gemini API. ADK's path sets it on every Gemini agent ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)).
+
+Two more differences show only on some requests: the tools' order (ADK's code executor puts `codeExecution` first, this adapter puts function declarations first; Gemini reads them as a set), and an earlier turn's code execution parts, which ADK's Gemini sends as stored and this adapter leaves out (ADR 0065).
+
+`tests/geminiTurnParity.test.ts` runs a Gemini agent, a workflow node, code execution, and code execution beside a function tool through `runSyndicateTurn` on both runtimes, with this adapter serving native (`GEMINI_ADAPTER=engine`), and holds the requests to ADK's apart from these differences, and the stored events to ADK's in full, the `executableCode` and `codeExecutionResult` parts included.
+
+## The capability matrix
+
+The matrix's Gemini column ([ADR 0019](/decisions/0019-multi-model-parity-matrix.md)) is this adapter's request. `tests/capabilityMatrix.test.ts` asserts every cell on the real `GoogleGenAI` client over a stubbed `fetch`, with the inputs in `tests/helpers/capabilityInputs.ts`:
+
+| Cell | What the test asserts |
+|---|---|
+| delegation | a subagent tool's declaration in `parametersJsonSchema`, with no `parameters` beside it |
+| memory tools | `load_memory` declared, and its call and result sent back as `functionCall` and `functionResponse` with the engine's id left off |
+| structured output | `responseMimeType` and `responseJsonSchema` as written, no `responseSchema`; JSON mode as the MIME type alone; a schema beside tools |
+| thinking with tools | `thinkingLevel` for each level on a Gemini 3 id, a budget on request and on Gemini 2.x, `includeThoughts` unless `none`; the call's signature replayed on the call, another model's not; a response's thought as a partial and its call's signature written as `providerState` |
+| streaming | the `streamGenerateContent?alt=sse` endpoint, thinking and text partials, one final with the joined text and usage (tool-use prompt, thoughts and cached tokens counted); `generateContent` when not streaming |
+| image input | an inline image as `inlineData`, a URL image as `fileData` |
+| native search | `googleSearch` and `urlContext`, grounding on the final (spanned citation, retrieved page, queries attributed to `web_search` or `google_search`); `codeExecution` and `includeServerSideToolInvocations` beside function declarations; code execution's parts carried on the next part, replayed within the turn and not after it |
+
+## The live check
+
+`scripts/gemini_engine_check.ts` is the live run gate G3 asks for. It runs four cases through `runSyndicateTurn` with this adapter on both runtimes: behind the ADK shim on `adk` (through `CompileOptions.resolveModel`), and with `GEMINI_ADAPTER=engine` on `native`.
+
+- **grounding**: `web_search` and `url_context`; it passes on an answer with grounding metadata on a stored event.
+- **code**: `code_execution: gemini`; Gemini runs Python and answers with its result.
+- **mixed**: a function tool beside `code_execution` and `web_search`, at reasoning `low`, so server-side invocations come back beside a signed call.
+- **session**: two turns on one session, a tool call in each, at reasoning `low`.
+
+`--model` picks the Gemini id (default `gemini-3.8-flash`), `--cases` and `--runtimes` narrow the run, and `--gemini adk` runs ADK's Gemini on the same cases as a baseline. It prints case names, runtimes, outcomes, counts and timings only; an error message is printed scrubbed of key-shaped strings. `tests/geminiEngineCheck.test.ts` runs it offline against a stubbed Gemini API.
+
 ## What the offline tests assert
 
 `tests/geminiAdapter.test.ts` runs against a fake client injected through `clientFactory`. It asserts the request object for every mapping above, both response paths, the id made for a call without one, a signature carried across two steps of a tool loop, abort, and every failure row. Against the fake it also asserts streamed text split around carried parts, server-side invocations carried, a trailing run of carried parts, another Gemini model's carried parts sent unsigned, and the flag never sent to Vertex AI.
@@ -143,7 +185,7 @@ They also cover the SSE stream, genai's `ApiError` status, and the SDK's fetch s
 
 ## Confirmed only against documentation
 
-These need the live Gemini run at [ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)'s gate G3:
+These need the live Gemini run at [ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)'s gate G3 ([the live check](#the-live-check) covers the first, fourth, fifth and sixth on Gemini 3):
 
 - **Signature validation.** Gemini 3 accepts the replayed signatures on function calls as sent. It rejects a current-turn call that lacks one (a fallback from another provider or model mid-turn). Signatures are bound to the model that wrote them.
 - **The placeholder.** `skip_thought_signature_validator` is accepted in place of a missing signature on Gemini 3, so `placeholderSignatures` can be turned on.

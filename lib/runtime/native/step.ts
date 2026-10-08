@@ -23,7 +23,9 @@
  *   - THE EVENT. Each response becomes ADK's event for it: created before
  *     the call with the run's id, the agent as author and the branch, and
  *     merged with the response as the shim maps it (modelResponseToLlmResponse),
- *     a fresh id for every response after the first. A tool call with no id
+ *     a fresh id for every response after the first. For a Gemini adapter
+ *     that stands for ADK's own Gemini (standsForAdkGemini), the event has no
+ *     turnComplete, since ADK's Gemini writes none (ADR 0100). A tool call with no id
  *     gets ADK's `adk-<uuid>`; a call to a long-running tool is listed in
  *     longRunningToolIds; a set_model_response call becomes its arguments as
  *     JSON text, ending the step (skipSummarization). An answer with no
@@ -73,7 +75,7 @@ import { toolOf } from '../../tools/tool.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import { SET_MODEL_RESPONSE, buildModelRequest } from './request.ts';
 import type { NativeAgent, WorkflowInstructionScope } from './request.ts';
-import { declaresReflectionTool } from './selfCorrection.ts';
+import { declaresReflectionTool, standsForAdkGemini } from './selfCorrection.ts';
 import type { ModelCorrection } from './selfCorrection.ts';
 
 export interface ModelStepOptions {
@@ -237,12 +239,15 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
   const sources = new WeakMap<LlmResponse, ModelResponse>();
   // What the adapter itself threw, as opposed to the store or a callback.
   let thrown: { error: unknown } | undefined;
+  // ADK's own Gemini writes no turnComplete, so its stand-in's events carry none (ADR 0100).
+  const adkGemini = standsForAdkGemini(adapter);
   async function* inner(): AsyncGenerator<LlmResponse, void> {
     try {
       for await (const unchecked of adapter.generate(request)) {
         // The answer held to the contract, as the shim's mapping holds it (contractModelResponse): the step reads and stores the same parts.
         const response = contractModelResponse(unchecked);
         const mapped = modelResponseToLlmResponse(response);
+        if (adkGemini) delete mapped.turnComplete;
         sources.set(mapped, response);
         yield mapped;
       }
