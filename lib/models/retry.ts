@@ -14,7 +14,8 @@
  * THE POLICY:
  *   - Bounded: MODEL_RETRY_MAX_ATTEMPTS total attempts (default 3, clamped
  *     1..10; 1 disables retries). Matches the vendor SDKs' 1 + 2 retries.
- *   - Retried: HTTP 408/409/425/429/500/502/503/504, and connection-level
+ *   - Retried: HTTP 408/409/425/429/500/502/503/504/529 (Anthropic's
+ *     "overloaded"), and connection-level
  *     failures that say nothing about the request (ECONNRESET, ETIMEDOUT,
  *     EPIPE, ECONNABORTED, EAI_AGAIN, undici socket/connect-timeout). Every
  *     other 4xx is the request's own fault and is never repeated.
@@ -52,7 +53,7 @@
  */
 
 export const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([
-  408, 409, 425, 429, 500, 502, 503, 504,
+  408, 409, 425, 429, 500, 502, 503, 504, 529,
 ]);
 
 export const RETRYABLE_NETWORK_CODES: ReadonlySet<string> = new Set([

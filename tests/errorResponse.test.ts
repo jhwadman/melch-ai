@@ -5,6 +5,9 @@
  * response instead of a throw (ADR 0044).
  *
  * Proved here, offline against a stubbed `globalThis.fetch`:
+ *   - ClaudeLlm (the real Anthropic SDK, its own retries spent) marks a 529
+ *     retryable with 'error.status' 529, and a 400 not retryable, keeping
+ *     ANTHROPIC_ERROR;
  *   - GptLlm (the real openai SDK, its own retries spent) and OllamaLlm (a
  *     chat-completions subclass) attach customMetadata['error.retryable']
  *     true and 'error.status' 503 on a 503, false and 400 on a 400, with
@@ -21,6 +24,7 @@ import assert from 'node:assert/strict';
 import { setLogLevel, LogLevel } from '@google/adk';
 import type { LlmRequest, LlmResponse } from '@google/adk';
 
+import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
 import { GptLlm } from '../lib/models/gptLlm.ts';
 import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
 import { setRetryPolicyOverrides } from '../lib/models/retry.ts';
@@ -29,6 +33,7 @@ import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, isRetryableErrorResponse, provid
 setLogLevel(LogLevel.ERROR);
 
 const OPENAI_KEY = 'fixture-openai-0123456789abcdef'; // gitleaks:allow (test fixture)
+const ANTHROPIC_KEY = 'fixture-anthropic-0123456789abcdef'; // gitleaks:allow (test fixture)
 const FAST = { baseDelayMs: 1, maxDelayMs: 2, maxRetryAfterMs: 50 };
 
 function request(model: string): LlmRequest {
@@ -64,6 +69,58 @@ const status = (code: number) => () =>
   });
 
 const verdict = (r: LlmResponse) => [r.customMetadata?.[ERROR_RETRYABLE_KEY], r.customMetadata?.[ERROR_STATUS_KEY]];
+
+// ── ClaudeLlm (Messages API, the Anthropic SDK) ──────────────────────────────
+
+const ANTHROPIC_ENV = ['ANTHROPIC_API_KEY', 'ANTHROPIC_PLATFORM', 'ANTHROPIC_BASE_URL', 'AWS_REGION', 'ANTHROPIC_MODEL_MAP'];
+
+/** Runs `run` with only a fixture Anthropic key set, restoring the environment after. */
+async function withAnthropicEnv<T>(run: () => Promise<T>): Promise<T> {
+  const saved = Object.fromEntries(ANTHROPIC_ENV.map((k) => [k, process.env[k]]));
+  for (const k of ANTHROPIC_ENV) delete process.env[k];
+  process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
+  try {
+    return await run();
+  } finally {
+    for (const k of ANTHROPIC_ENV) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  }
+}
+
+// The Anthropic SDK's error body; `retry-after-ms: 1` keeps its retries fast.
+const anthropicStatus = (code: number, type: string) => () =>
+  new Response(JSON.stringify({ type: 'error', error: { type, message: `status ${code}` } }), {
+    status: code,
+    headers: { 'content-type': 'application/json', 'retry-after-ms': '1' },
+  });
+
+test('ClaudeLlm marks an overloaded 529 retryable once the SDK has spent its retries', async () => {
+  const { responses, calls } = await withAnthropicEnv(() =>
+    withFetch(anthropicStatus(529, 'overloaded_error'), () =>
+      collect(new ClaudeLlm({ model: 'claude-opus-5-5' }).generateContentAsync(request('claude-opus-5-5'))),
+    ),
+  );
+  assert.equal(calls, 3, 'the SDK made its first attempt and two retries');
+  assert.equal(responses.length, 1);
+  assert.equal(responses[0].errorCode, 'ANTHROPIC_ERROR', 'the error code is unchanged');
+  assert.deepEqual(verdict(responses[0]), [true, 529]);
+  assert.equal(isRetryableErrorResponse(responses[0]), true);
+});
+
+test('ClaudeLlm marks a 400 not retryable', async () => {
+  const { responses, calls } = await withAnthropicEnv(() =>
+    withFetch(anthropicStatus(400, 'invalid_request_error'), () =>
+      collect(new ClaudeLlm({ model: 'claude-opus-5-5' }).generateContentAsync(request('claude-opus-5-5'))),
+    ),
+  );
+  assert.equal(calls, 1);
+  assert.equal(responses[0].errorCode, 'ANTHROPIC_ERROR');
+  assert.match(responses[0].errorMessage ?? '', /status 400/, 'the SDK wording is kept');
+  assert.deepEqual(verdict(responses[0]), [false, 400]);
+  assert.equal(isRetryableErrorResponse(responses[0]), false);
+});
 
 // ── GptLlm (Responses API, the openai SDK) ───────────────────────────────────
 

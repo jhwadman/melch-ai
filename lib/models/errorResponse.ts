@@ -7,8 +7,8 @@
  * (lib/models/fallback.ts, ADR 0044) must tell a provider-side failure from
  * the request's own error without parsing a message, so an adapter's catch
  * site builds that response here, with the retry policy's verdict in its
- * customMetadata (GPT and Grok, and the chat-completions base for Kimi,
- * Ollama and the gateway; Claude once its adapter does the same). A
+ * customMetadata (Claude, GPT and Grok, and the chat-completions base for
+ * Kimi, Ollama and the gateway). A
  * response without the verdict is read as not retryable: passed on, never
  * redirected.
  *
