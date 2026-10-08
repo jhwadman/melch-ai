@@ -71,7 +71,7 @@ The live models are not deterministic. A failure detail separates the two causes
 
 ## The runtime flag
 
-`MELCHIZEDEK_RUNTIME` (`adk` or `native`, default `adk`; anything else is a usage error) picks the runtime: every turn passes it to `runSyndicateTurn` as the `runtime` option ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). The report records it as `runtime.requested` and `runtime.ran`, and the table's first line names it. The script sets the engine's log level (`lib/runtime/logging.ts`), never ADK's.
+`MELCHIZEDEK_RUNTIME` (`adk` or `native`; unset means the library's `DEFAULT_RUNTIME`, `native`; anything else is a usage error) picks the runtime; `adk` needs the optional `@google/adk` peer ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)): every turn passes it to `runSyndicateTurn` as the `runtime` option ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). The report records it as `runtime.requested` and `runtime.ran`, and the table's first line names it. The script sets the engine's log level (`lib/runtime/logging.ts`), never ADK's.
 
 ## The self-test
 

@@ -34,6 +34,8 @@ The last items of the owner's ADK audit, the small quality-of-life ones. Each wa
 2. **`url_context`** is a registry tool built the way `web_search` is: on a Gemini model it adds `{ urlContext: {} }` to the request; on any other it does nothing, and the capability matrix reports it dropped. Google fetches the pages, not this host, so it opens no path into the deployment's network.
 3. **`examples: [{ input, output }]`** on any agent becomes ADK's `ExampleTool`.
 
+> **Note (2026-10-08):** Since 0.20.0 the native runtime is the default ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)); its loop does what ADK's reflect-and-retry plugins do, with the same defaults and stored events ([ADR 0075](/decisions/0075-native-self-correction-ports-adk-plugins.md)), and the plugins run only on the optional adk runtime, which 1.0.0 removes ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). `url_context` and `examples` are the engine's own tools on both runtimes.
+
 ## Alternatives considered
 
 - **Retries off by default, opt-in per syndicate.** Rejected: a malformed function call failing a whole turn is a defect no author would choose, and the owner asked for it on by default. The cost is a behaviour change for existing syndicates, stated in the CHANGELOG with the line that restores the old behaviour.

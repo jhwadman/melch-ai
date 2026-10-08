@@ -20,7 +20,7 @@ sources:
 
 An agent's `openapi:` list points at OpenAPI 3 spec files, and each operation in them becomes a tool. The engine's parser, `lib/tools/openapi/parse.ts`, reads the spec into its own types ([ADR 0063](/decisions/0063-openapi-parser-on-the-engines-own-types.md)). Each operation gets a name, from its `operationId` in snake_case (`getForecast` → `get_forecast`, `<prefix>_` in front when the entry sets one, at most 60 characters). Its parameters and request body become the tool's arguments. Its `description`, or else its `summary`, is the text the model reads. Its `ToolDeclaration` is in lowercase JSON Schema. The parser follows ADK's OpenAPIToolset rules exactly, so the declarations match it, and the example specs' declarations are pinned in the tests.
 
-Each operation is an own Tool (`buildOpenApiOwnTools`), which the ADK runtime runs through `toFunctionTool` (`buildOpenApiTools`). The engine's caller, `lib/tools/openapi/call.ts`, makes the call ([ADR 0067](/decisions/0067-openapi-calls-on-the-engines-own-caller.md)). It builds the request by ADK's RestApiTool rules, and a differential test holds the two equal:
+Each operation is an own Tool (`buildOpenApiOwnTools`), which the native loop runs directly and the optional adk runtime runs through `toFunctionTool` (`buildOpenApiTools`). The engine's caller, `lib/tools/openapi/call.ts`, makes the call ([ADR 0067](/decisions/0067-openapi-calls-on-the-engines-own-caller.md)). It builds the request by ADK's RestApiTool rules, and a differential test holds the two equal:
 
 - a path argument is URL-encoded whole, and `.` or `..` is refused, so the model chooses a segment, never the path;
 - a query argument that is empty is left out;

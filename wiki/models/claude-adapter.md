@@ -24,7 +24,7 @@ sources:
 
 `ClaudeAdapter` in `lib/models/claudeAdapter.ts` is Claude as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)). It reads a `ModelRequest`, calls the Messages API through the Anthropic SDK, and yields `ModelResponse`s. No ADK type is in its path, so the native runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls it as it is.
 
-`ClaudeLlm` in `lib/models/claudeLlm.ts` is the same adapter behind the [ADK shim](/models/adk-shim.md): a subclass of `AdkShim` that keeps its name, its constructor options, its static `supportedModels` and `registerClaudeLlm()`. The registry constructs it for every `claude-*` id as [provider routing](/models/provider-routing.md) describes, so every Claude call on the ADK path goes through this adapter.
+`ClaudeLlm` in `lib/models/claudeLlm.ts` is the same adapter behind the [ADK shim](/models/adk-shim.md): a subclass of `AdkShim` that keeps its name, its constructor options, its static `supportedModels` and `registerClaudeLlm()`. The adk runtime's registry constructs it for every `claude-*` id as [provider routing](/models/provider-routing.md) describes, so every Claude call on that runtime goes through this adapter too.
 
 The field-by-field mapping is the Anthropic table of the [model contract](/models/model-contract.md). The request surface per model generation is [ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)'s table (`lib/models/claudeModels.ts`). This page records how the adapter reaches Anthropic, the choices it makes inside the mapping, and what the ADK path adds.
 
@@ -84,7 +84,7 @@ Retries are the Anthropic SDK's own two, before anything is yielded. A stream th
 
 ## Telemetry
 
-The adapter sets attributes on the active span and opens none: `llm.image.dropped`, `llm.web_search.native`, `llm.web_search.omitted`, `llm.capability.dropped`, `llm.thinking.omitted`, `llm.thinking.dropped`, `llm.structured_output` and `llm.tool_choice.weakened`. The caller opens the `llm.request` span and charges the turn ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)); on the ADK path that is the shim, so `ClaudeLlm`'s spans carry the attributes they always did. Mapped through the shim, a Claude event carries `finishReason` as a Gemini event does, and `groundingMetadata` when Claude searched.
+The adapter sets attributes on the active span and opens none: `llm.image.dropped`, `llm.web_search.native`, `llm.web_search.omitted`, `llm.capability.dropped`, `llm.thinking.omitted`, `llm.thinking.dropped`, `llm.structured_output` and `llm.tool_choice.weakened`. The caller opens the `llm.request` span and charges the turn ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)): the native loop's model step, or on the adk runtime the shim, so `ClaudeLlm`'s spans carry the same attributes. Mapped through the shim, a Claude event carries `finishReason` as a Gemini event does, and `groundingMetadata` when Claude searched.
 
 ## What the offline tests assert
 

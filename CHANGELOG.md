@@ -6,6 +6,16 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Docs: the shipped documentation describes the native default (WS5-3).**
+  `README.md`, `QUICKSTART.md`, `DOCUMENTATION.md`, `AGENT_SETUP.md` and the
+  agent skills under `skills/` describe the engine as 0.20.0 runs it: the
+  native runtime owns the loop, the model contract, the tools, the sessions
+  and the workflow scheduler, and `@google/adk` is an optional peer for the
+  `adk` runtime, which 1.0.0 removes. The skills no longer tell a reader
+  that ADK is a required peer, that Gemini is "ADK-native", or that
+  `registerAvailableProviders` is how a plain ADK `LlmAgent` gets a model.
+  No code or API change.
+
 ## 0.20.0 — 2026-10-08
 
 Release 0.20.0: the native runtime is the default, and `@google/adk` is an

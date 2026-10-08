@@ -1,8 +1,8 @@
 # melchizedek-agents
 
-A multi-model, multi-agent orchestration framework built on the Google Agent Development Kit (ADK). Agent hierarchies, prompts, models, tools, and delegation rules are declared in YAML files called **Syndicates**; the engine in `lib/` runs whatever you put in `config/agents/`.
+A multi-model, multi-agent orchestration framework with its own agent loop, model contract, tools, sessions and workflow engine. Agent hierarchies, prompts, models, tools, and delegation rules are declared in YAML files called **Syndicates**; the engine in `lib/` runs whatever you put in `config/agents/`.
 
-Gemini runs natively, Claude runs via a bundled adapter, GPT, Grok, and Kimi route to their providers, and open-weight models run locally through Ollama with no API key. A subagent can also pick up tools at runtime from a Model Context Protocol (MCP) server.
+Gemini, Claude, GPT, Grok, and Kimi each run on the engine's own adapter for their provider's API, and open-weight models run locally through Ollama with no API key. A subagent can also pick up tools at runtime from a Model Context Protocol (MCP) server.
 
 > Companion repository for the curriculum at [lyceumagents.com/curriculum](https://lyceumagents.com/curriculum/). The framework works standalone or alongside the course.
 
@@ -60,7 +60,7 @@ Test the providers you have keys for:
 
 ```bash
 npm run demo:models     # one prompt to every available provider, with token/latency traces
-npm run demo:direct     # a single ADK call without syndicate orchestration
+npm run demo:direct     # a single model call without syndicate orchestration
 ```
 
 ---
@@ -149,7 +149,7 @@ console.log(await ask(new OllamaAdapter({ model: 'ollama/qwen3:8b' }), 'What is 
 const adapter = resolveAdapter('ollama/qwen3:8b');
 ```
 
-A Gemini id resolves to the engine's `GeminiAdapter` here. The ADK-backed Gemini adapter, the ADK shims and `resolveModel` stay under `melchizedek-agents/models/*`, which need ADK.
+A Gemini id resolves to the engine's `GeminiAdapter` here. The ADK-backed Gemini adapter, the ADK shims and `resolveModel` stay under `melchizedek-agents/models/*` for the optional `adk` runtime, and need `@google/adk`.
 
 ### CLI & Server Utilities
 

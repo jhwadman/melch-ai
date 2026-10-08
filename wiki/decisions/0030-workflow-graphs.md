@@ -41,6 +41,8 @@ Three facts, found by running ADK rather than reading it, shaped the design:
 6. **A node's error is not the turn's.** The drain gains an error policy: in a workflow, an event carrying an error is recorded (`answer.nodeErrors`) and reading continues, because a node with `retry` emits its failed attempt and tries again; a node that gives up ends the stream, and the turn fails `NODE_FAILED` naming it.
 7. **Pauses the graph cannot carry yet are refused by the schema**: `require_approval`, `skills.scripts: local` and remote `a2a_agent_url` subagents inside a workflow. A gated call would pause a node through ADK's interrupt path, whose resume is not the one [ADR 0028](/decisions/0028-approval-gates.md) built; a remote agent is reachable only as a tool. A `yaml_reference` to a workflow syndicate compiles its orchestrator alone, since ADK cannot yet make a `Workflow` a subagent.
 
+> **Note (2026-10-08):** Since 0.20.0 a `workflow:` syndicate runs on the engine's own scheduler on the default native runtime ([ADR 0095](/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md), [ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)), with the same events ADK's `Workflow` stores. `compileWorkflow` and ADK's `Workflow` (items 2 and 3) serve only the optional adk runtime, which 1.0.0 removes ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
+
 ## Alternatives considered
 
 - **Sequential, Parallel and Loop agents.** ADK marks all three deprecated in favour of `Workflow`. Building on them would have shipped a surface its runtime is removing.

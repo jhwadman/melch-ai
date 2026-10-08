@@ -47,6 +47,8 @@ The third shape.
 
 > **Note (2026-10-08):** The harness no longer builds on ADK's toolset, loader or executor. Its parser, loader, executor and tools are the engine's own (`lib/tools/skills/`), with the same tool names, descriptions, parameters, results and error texts on both runtimes, see [ADR 0083](/decisions/0083-skills-harness-on-the-own-tool-base.md). ADR 0083 records the differences: frontmatter YAML is read by the engine's parser (timestamps stay strings, no `<<` merge keys), a field that fails its check is named in readable words in the compile log, a prototype key such as `constructor` is not found, temp directory names differ, and SKILL.md and resource sizes are bounded.
 
+> **Note (2026-10-08):** Since 0.20.0 the native runtime is the default ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)); the harness runs on the engine's own tool base on it, and ADK's toolset, executor and activation list (items 3 to 5) apply on neither runtime ([ADR 0083](/decisions/0083-skills-harness-on-the-own-tool-base.md)). The optional adk runtime is removed at 1.0.0 ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
+
 ## Consequences
 
 - No new tool contracts and no registry entries: the capability is one toolset built per compile, and an agent without `skills:` is unchanged.

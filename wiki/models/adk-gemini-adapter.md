@@ -1,7 +1,7 @@
 ---
 type: model-provider
 title: Gemini wrapper over ADK
-description: "AdkGeminiAdapter (lib/models/adkGeminiAdapter.ts): a temporary contract ModelAdapter that serves Gemini through ADK's own Gemini (TracedGemini) and the genai mapping, until GeminiAdapter passes its live parity run at gate G3. How the request is shaped, the span recorded around it, how ADK's responses fold into the contract's stream, its failures, and where it differs from GeminiAdapter."
+description: "AdkGeminiAdapter (lib/models/adkGeminiAdapter.ts): a contract ModelAdapter that serves Gemini through ADK's own Gemini (TracedGemini) and the genai mapping, selected only by GEMINI_ADAPTER=adk with @google/adk installed; GeminiAdapter is the default, and this wrapper is kept one release as a rollback. How the request is shaped, the span recorded around it, how ADK's responses fold into the contract's stream, its failures, and where it differs from GeminiAdapter."
 tags:
   - models
   - gemini
@@ -46,9 +46,9 @@ Parts are copied where ADK writes to them (it clears a blob's display name in pl
 
 ## The span
 
-The adapter opens no `llm.request` span and never charges the turn's step budget: its caller does both ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), under ADK the [ADK shim](/models/adk-shim.md), through `traceLlmGeneration` with the `ModelRequest` it hands the adapter. A spent or stopped turn is refused there and never reaches the adapter. The adapter honours `request.signal`, which the shim aborts when the turn stops, and reads no turn state itself.
+The adapter opens no `llm.request` span and never charges the turn's step budget: its caller does both ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), the native loop's model step or, on the adk runtime, the [ADK shim](/models/adk-shim.md), through `traceLlmGeneration` with the `ModelRequest` it hands the adapter. A spent or stopped turn is refused there and never reaches the adapter. The adapter honours `request.signal`, which its caller aborts when the turn stops, and reads no turn state itself.
 
-Inside the open span, `TracedGemini.generateWithRetries` runs ADK's `Gemini` with the shared retries (`lib/models/retry.ts`) and tags it: `llm.web_search.native` for grounding, `llm.retries` and `llm.http_status`. `TracedGemini.generateContentAsync` is the same call inside a span of its own. So behind the shim one exchange records the `llm.request` span `TracedGemini` records today: the same attribute names, and for an answer the same values and events. `tests/telemetryLedger.test.ts` asserts it. A failed call differs in its code: `GEMINI_ERROR` beside `llm.http_status`, as every other adapter's error reads, where the ADK path reads genai's status out of the thrown body (`503`) and records the throw as an `exception` event. The adapter also adds `llm.capability.dropped` for `x_search` and `collections_search`, which Gemini has no tool for, with one warning per tool.
+Inside the open span, `TracedGemini.generateWithRetries` runs ADK's `Gemini` with the shared retries (`lib/models/retry.ts`) and tags it: `llm.web_search.native` for grounding, `llm.retries` and `llm.http_status`. `TracedGemini.generateContentAsync` is the same call inside a span of its own. So behind the shim one exchange records the `llm.request` span `TracedGemini` records: the same attribute names, and for an answer the same values and events. `tests/telemetryLedger.test.ts` asserts it. A failed call differs in its code: `GEMINI_ERROR` beside `llm.http_status`, as every other adapter's error reads, where the ADK path reads genai's status out of the thrown body (`503`) and records the throw as an `exception` event. The adapter also adds `llm.capability.dropped` for `x_search` and `collections_search`, which Gemini has no tool for, with one warning per tool.
 
 ## The response
 
@@ -77,7 +77,7 @@ ADK's `STOP` for an empty candidate is no error: a final with no parts and `fini
 
 ## Where it differs from GeminiAdapter
 
-These are ADK's behaviours, kept, and they are what G3's swap to `GeminiAdapter` changes:
+These are ADK's behaviours, kept, and they are what `GeminiAdapter`, the default, does differently:
 
 - **Replay.** Every Gemini signature in the history goes back on its part, as ADK sends a stored session's, whichever turn or model wrote it. `GeminiAdapter` replays only the current turn's, for its own model.
 - **A withheld answer.** A policy finish (`SAFETY` and the rest) is an error only where ADK makes it one: on a candidate with no parts, or at the end of a stream. A non-streamed answer with text keeps it, with `finishReason: 'content_filter'`. `GeminiAdapter` always reports the error.
@@ -87,7 +87,7 @@ These are ADK's behaviours, kept, and they are what G3's swap to `GeminiAdapter`
 
 ## Retiring it
 
-[ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md) sets the order. Once the owner signs G3 on a live run of `scripts/gemini_engine_check.ts`, the registry's `resolveAdapter` defaults Gemini ids to `GeminiAdapter`, in the release that makes `native` the default runtime (0.20.0, [ADR 0099](/decisions/0099-native-default-moves-to-0-20-0.md)), and `GEMINI_ADAPTER=adk` keeps this wrapper selectable for that release. The ADK runtime keeps `TracedGemini` until ADK leaves at 1.0.0. Deleting this module needs, in one change:
+[ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md) sets the order. G3 is signed on a live run of `scripts/gemini_engine_check.ts`, so the registry's `resolveAdapter` defaults Gemini ids to `GeminiAdapter` in the release that makes `native` the default runtime (0.20.0, [ADR 0099](/decisions/0099-native-default-moves-to-0-20-0.md)), and `GEMINI_ADAPTER=adk` keeps this wrapper selectable for that release. The adk runtime keeps `TracedGemini` until it is removed at 1.0.0. Deleting this module needs, in one change:
 
 - the default unchanged for one release with no Gemini incident on `native` that `GEMINI_ADAPTER=adk` fixed;
 - `GEMINI_ADAPTER=adk` and `{ gemini: 'adk' }` refused with a message naming `engine`, and the factory parameter of `adapterResolver` (`lib/models/adapterResolver.ts`) and its use in `lib/models/registry.ts` removed;

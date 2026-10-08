@@ -1,7 +1,7 @@
 ---
 type: overview
 title: Melchizedek
-description: A pure Google ADK multi-agent orchestration framework — YAML-defined syndicates, five-provider model optionality, Supabase persistence and memory, MCP and A2A interop.
+description: A headless multi-agent orchestration framework on its own agent loop — YAML-defined syndicates, five-provider model optionality, Supabase persistence and memory, MCP and A2A interop.
 tags:
   - overview
 generated:
@@ -14,7 +14,7 @@ sources:
 
 # Melchizedek
 
-Melchizedek is a headless agent-orchestration framework built directly on `@google/adk`. An agent team — a **syndicate** — is one YAML file: an orchestrator, its subagents, their models, tools, and instructions. The framework loads that file, resolves every declared capability, and runs the team in a terminal REPL, behind an HTTP API, or inside another application.
+Melchizedek is a headless agent-orchestration framework that runs its agents on its own [native loop](/overview/native-loop.md); Google ADK (`@google/adk`) is an optional peer, needed only for the `adk` runtime kept as a rollback until 1.0.0 ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)). An agent team — a **syndicate** — is one YAML file: an orchestrator, its subagents, their models, tools, and instructions. The framework loads that file, resolves every declared capability, and runs the team in a terminal REPL, behind an HTTP API, or inside another application.
 
 Its parts, each documented in this bundle:
 

@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: Failure modes
-description: The named errors newcomers actually hit — model-tier 503s, the gemini-2.5-flash tool-context 400, stale-orchestrator synthesis, the two A2A auth rejections, a thinking model that fills Ollama's context window, and a turn that fails on malformed or forged input (an approval answer that does not bind, a response to a call no agent made, a nested syndicate that reaches itself) — with their fixes.
+description: The named errors newcomers actually hit — model-tier 503s, the gemini-2.5-flash tool-context 400, stale-orchestrator synthesis, the two A2A auth rejections, a thinking model that fills Ollama's context window, an ADK-only path without the optional @google/adk peer or a feature one runtime refuses, and a turn that fails on malformed or forged input (an approval answer that does not bind, a response to a call no agent made, a nested syndicate that reaches itself) — with their fixes.
 tags:
   - operations
   - troubleshooting
@@ -19,6 +19,8 @@ sources:
   - resource: lib/a2a/executor.ts
   - resource: lib/runtime/native/interrupts.ts
   - resource: lib/compile.ts
+  - resource: lib/adkPeer.ts
+  - resource: lib/runtime/runtimeFlag.ts
 ---
 
 # Failure modes
@@ -48,6 +50,12 @@ The request carries no bearer, or one the configured `A2A_AUTH` does not accept:
 ## `STEP_LIMIT`, `DEADLINE_EXCEEDED`, `CANCELED`
 
 A turn stopped by its controls: the YAML's `max_steps` counts model calls across every agent the turn reaches, `A2A_TASK_TIMEOUT_MS` bounds wall-clock time, and `tasks/cancel` stops it. The provider call in flight is aborted, not left running.
+
+## `AdkNotInstalledError` / `UnsupportedOnRuntimeError`
+
+`<feature> needs @google/adk, which is not installed`: something asked for an ADK-only path in a process without the optional `@google/adk` peer ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)) — the `adk` runtime (`MELCHIZEDEK_RUNTIME=adk` or a turn's `runtime: 'adk'`), `compileGraph`/`compileSubagent`, `compileWorkflow`, the retry plugins or `GEMINI_ADAPTER=adk`. It fails before any model call. Fix: unset `MELCHIZEDEK_RUNTIME` (or set it to `native`, the default), or install `@google/adk@~2.2.0` beside the package. The `adk` runtime and the peer leave at 1.0.0.
+
+`<where>: <feature> is not supported on the <runtime> runtime yet`: a feature that runtime refuses, also before any model call ([native loop](/overview/native-loop.md#the-runtime-flag)). Native refuses a caller's `transformAgent`, an `ask_user` tool on a workflow node's agent (use an `ask_user` node), and an ADK model class from `resolveModel` with no contract adapter behind it (wrap the adapter in `adkShim`). The `adk` runtime refuses approval gates on workflow nodes and resuming an OAuth consent. The message names the other runtime to run it on.
 
 ## `Unknown agent '<id>'` (404) and `is unavailable` (503)
 
