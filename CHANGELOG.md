@@ -97,6 +97,23 @@ the starter pack and the templates), not the repo's full history.
   depth, and the strict form reaches every nested object. Nothing calls
   them yet; `toolDeclarationFor`, `toLowercaseJsonSchema` and
   `toStrictJsonSchema` are unchanged.
+- **genai `Content` maps to and from the model contract (ADR 0048).** New
+  module `melchizedek-agents/models/genaiMapping`: `contentsToMessages` and
+  `messagesToContents`, `contentToMessage` and `messageToContent`,
+  `partToGenai`, `llmRequestToModelRequest`, `modelResponseToLlmResponse`,
+  `reasoningOf`, `systemText`, `usageToMetadata`, `usageFromMetadata` and
+  `isMintedCallId`, the constants `GEMINI_PROVIDER`,
+  `THOUGHT_SIGNATURE_KIND`, `GENAI_PART_KIND` and `MINTED_CALL_ID_PREFIX`,
+  and the types `ContractHistory`, `GenaiHistory` and
+  `ModelRequestOptions`. A stored event's
+  content round-trips to the same JSON: a Gemini `thoughtSignature` becomes
+  `providerState` of kind `thought_signature`, a call without an id gets a
+  `genai-noid-` id that is left off again on the way back, and a part the
+  contract cannot hold (Gemini code execution, ADK's confirmation request)
+  rides whole as `providerState` of kind `genai_part`. A failed final keeps
+  its retry verdict as `customMetadata['error.retryable']` and
+  `['error.status']`, which is what `FallbackLlm` reads. Nothing calls it yet;
+  no adapter or stored shape changes.
 - **Thinking with tool use works on GPT and Grok (ADR 0050).** On
   reasoning ids (o-series, `gpt-5*`, `grok-4.5`, `grok-4.7`), the Responses
   adapters write each run of encrypted reasoning items on the part after it

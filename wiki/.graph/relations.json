@@ -251,6 +251,30 @@
       "evidence": "ADR 0048 Decision 4: \"Exactly one final, which never holds thinking, ends every call. A failure is a final with error set, never a throw.\" Consequences: \"Gemini receives the lowercase form as parametersJsonSchema and responseJsonSchema.\" /models/gemini-adapter.md: \"GeminiAdapter ... is Gemini as a contract ModelAdapter\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 8: \"genai Content becomes a mapping. Stored sessions and the ADK path keep Content. The mapping between it and the contract is one-to-one, and the stored Event JSON keeps its shape.\" Consequences: \"the genai mapping (WS1-2) is a pure function both ways\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Decision: \"Only an adapter of the same provider replays it, and only the kind it wrote; every other adapter ignores the field\". genaiMapping.ts passes every providerState through and writes its own (thought_signature, genai_part) under provider gemini.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0045 Decision 4: \"the stored Event JSON in adk_sessions.events and adk_session_events\" never changes without an ADR, and stop rule 1 needs every ADK-written fixture to resume under native; tests/genaiMapping.test.ts round-trips every fixture byte-equal.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }
