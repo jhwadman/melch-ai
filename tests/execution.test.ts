@@ -37,12 +37,13 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
 import { ScriptedModel, answer, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
 const contents = (req: any): string[] => (req.contents ?? []).map((c: any) => (c.parts ?? []).map((p: any) => p.text ?? '').join(''));
 
-test('context: past the threshold, earlier turns become one summary and the recent ones stay verbatim', async () => {
+forEachRuntime('context: past the threshold, earlier turns become one summary and the recent ones stay verbatim', async () => {
   const config = validateSyndicateConfig(
     {
       syndicate_name: 'Chat',
@@ -55,7 +56,11 @@ test('context: past the threshold, earlier turns become one summary and the rece
   const chat = new ScriptedLlm('scripted/chat', () => ({ content: { role: 'model', parts: [{ text: `answer ${++n}` }] }, usageMetadata: { promptTokenCount: n * 400 }, turnComplete: true }) as any);
   const sum = new ScriptedLlm('scripted/sum', () => text('SUMMARY: the person asked three questions about trains.'));
   const sessionService = new InMemorySessionService();
-  const turn = (t: string) => runSyndicateTurn({ config, parts: [{ text: t }], appName: 'a', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ chat, sum }) }, trace: false });
+  // A summary hides the events up to its endTime, a millisecond timestamp, on
+  // both runtimes (ADK's getActiveEvents). Scripted turns are fast enough to
+  // store the last summarized event and the next message in one millisecond,
+  // which no person typing can; each turn waits one out.
+  const turn = async (t: string) => (await new Promise((resolve) => setTimeout(resolve, 2)), runSyndicateTurn({ ...runtimeOption(), config, parts: [{ text: t }], appName: 'a', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ chat, sum }) }, trace: false }));
 
   for (let i = 1; i <= 3; i++) await turn(`question ${i}`);
   assert.equal(sum.calls, 0, 'under the threshold nothing is summarized');
@@ -75,7 +80,7 @@ test('context: past the threshold, earlier turns become one summary and the rece
   assert.equal((trimEventForStorage(compacted) as any).isCompacted, true, 'the storage trim keeps the marker');
 });
 
-test('mode: task — a workflow node works with its tools, then its finish_task arguments are its output', async () => {
+forEachRuntime('mode: task — a workflow node works with its tools, then its finish_task arguments are its output', async () => {
   const config = validateSyndicateConfig(
     {
       syndicate_name: 'Desk',
@@ -98,10 +103,10 @@ test('mode: task — a workflow node works with its tools, then its finish_task 
   const lead = new ScriptedLlm('scripted/lead', () => text('two nights in Lyon please'));
   const extractor = new ScriptedLlm('scripted/extractor', (_req, n) => (n === 1 ? call('finish_task', { city: 'Lyon', nights: 2 }) : text('done')));
   const booker = new ScriptedLlm('scripted/booker', (req) => text(`booked ${contents(req).at(-1)}`));
-  const r = await runSyndicateTurn({ config, parts: [{ text: 'go' }], appName: 'a', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: scriptedResolver({ lead, extractor, booker }) }, trace: false });
+  const r = await runSyndicateTurn({ ...runtimeOption(), config, parts: [{ text: 'go' }], appName: 'a', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: scriptedResolver({ lead, extractor, booker }) }, trace: false });
   assert.equal(r.status, 'completed', r.error?.message);
   assert.deepEqual(JSON.parse(r.text.replace(/^booked /, '')), { city: 'Lyon', nights: 2 });
-});
+}, { notOn: { native: { reason: 'a workflow syndicate is refused on native (ADR 0073)', ticket: 'WS4' } } });
 
 test('code_execution: gemini compiles to Gemini\'s server-side executor', async () => {
   const config = validateSyndicateConfig(
@@ -282,7 +287,8 @@ test("native: a task-mode node ends on finish_task's answer, which carries the o
     booker: new ScriptedModel('scripted/booker', () => answer('booked')),
   };
   const adkSessions = new InMemorySessionService();
-  const r = await runSyndicateTurn({ config, parts: [{ text: 'go' }], appName: 'x', userId: 'u', sessionId: 's', sessionService: adkSessions, compile: { resolveModel: shimResolver(adkModels), log: () => {} }, trace: false });
+  // The reference: ADK's workflow runs the node (a workflow runs on ADK until WS4).
+  const r = await runSyndicateTurn({ config, parts: [{ text: 'go' }], appName: 'x', userId: 'u', sessionId: 's', sessionService: adkSessions, compile: { resolveModel: shimResolver(adkModels), log: () => {} }, trace: false, runtime: 'adk' });
   assert.equal(r.status, 'completed', r.error?.message);
   const adkEvents = JSON.parse(JSON.stringify((await adkSessions.getSession({ appName: 'x', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
   const adkNode = adkEvents.filter((e) => e.author === 'Extractor');

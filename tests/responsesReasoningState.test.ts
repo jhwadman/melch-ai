@@ -38,6 +38,7 @@ import { REASONING_CONTENT_KIND } from '../lib/models/openAiCompatibleLlm.ts';
 import { currentTurnStart, withProviderState } from '../lib/models/providerState.ts';
 import type { ProviderState } from '../lib/models/providerState.ts';
 import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -156,6 +157,16 @@ function turn(models: Record<string, BaseLlm>, sessions = new InMemorySessionSer
   });
 }
 
+/**
+ * A resolver that returns an ADK model class which is neither the shim nor
+ * Gemini (StepSwitch here) is not run by the native runtime: it resolves the
+ * id through the registry instead (ADR 0073, decision 6). Open question in
+ * the WS2-12 PR; these cases run on ADK until it is decided.
+ */
+const ADK_MODEL_CLASS = {
+  notOn: { native: { reason: 'a resolver returning an ADK model class that is not a shim is resolved by id on native (ADR 0073)', ticket: 'WS2-12 open question 2' } },
+};
+
 /** One model per step, in order: a model switch between steps, as a fallback makes one. */
 class StepSwitch extends BaseLlm {
   private calls = 0;
@@ -265,7 +276,7 @@ test('grok: the same loop replays under the xai provider id', async () => {
 
 // ── A model switch between steps drops the state ─────────────────────────────
 
-test('model switch: another GPT model, or Grok, gets the call without the reasoning item', async () => {
+forEachRuntime('model switch: another GPT model, or Grok, gets the call without the reasoning item', async () => {
   for (const [label, next, host] of [
     ['gpt-5-mini → gpt-5', gpt('gpt-5'), 'api.openai.com'],
     ['gpt-5-mini → grok-4.7', grok('grok-4.7'), 'api.x.ai'],
@@ -285,7 +296,7 @@ test('model switch: another GPT model, or Grok, gets the call without the reason
       },
     );
   }
-});
+}, ADK_MODEL_CLASS);
 
 test('a non-reasoning id neither replays nor writes reasoning state', async () => {
   // Another provider's state in the history is ignored, and a reasoning item

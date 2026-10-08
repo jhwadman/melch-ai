@@ -3,7 +3,9 @@
  * default (a malformed model reply is retried instead of failing the turn; a
  * tool that throws gets structured guidance), `retries: 0` turning each off,
  * `url_context` native on Gemini and a no-op elsewhere, and `examples:` in the
- * instruction. Scripted models, in-memory sessions, no network.
+ * instruction. Scripted models, in-memory sessions, no network. The turn
+ * cases run on both runtimes (tests/helpers/runtime.ts); the malformed retry
+ * is a known open difference on native, run as a todo.
  *
  * The native loop's self-correction (lib/runtime/native/selfCorrection.ts,
  * ADR 0075) is held to the same stored events as these plugins in
@@ -25,6 +27,7 @@ import { describeCapabilities } from '../lib/models/capabilities.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -52,27 +55,36 @@ function config(extra: Record<string, unknown> = {}, orchestrator: Record<string
   ) as SyndicateYamlConfig;
 }
 const turn = (cfg: SyndicateYamlConfig, boss: ScriptedLlm) =>
-  runSyndicateTurn({ config: cfg, parts: [{ text: 'go' }], appName: 'a', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: scriptedResolver({ boss }) }, trace: false });
+  runSyndicateTurn({ ...runtimeOption(), config: cfg, parts: [{ text: 'go' }], appName: 'a', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: scriptedResolver({ boss }) }, trace: false });
 const malformedOnce = () => {
   let n = 0;
   return new ScriptedLlm('scripted/boss', () => (++n === 1 ? ({ errorCode: 'MALFORMED_FUNCTION_CALL', finishReason: 'MALFORMED_FUNCTION_CALL', errorMessage: 'bad call' } as any) : text('recovered')));
 };
 
-test('by default a malformed model reply is retried, not a failed turn', async () => {
-  const boss = malformedOnce();
-  const r = await turn(config(), boss);
-  assert.equal(r.status, 'completed', r.error?.message);
-  assert.equal(r.text, 'recovered');
-  assert.equal(boss.calls, 2);
-});
+forEachRuntime(
+  'by default a malformed model reply is retried, not a failed turn',
+  async () => {
+    const boss = malformedOnce();
+    const r = await turn(config(), boss);
+    assert.equal(r.status, 'completed', r.error?.message);
+    assert.equal(r.text, 'recovered');
+    assert.equal(boss.calls, 2);
+  },
+  {
+    differsOn: {
+      native:
+        'a MALFORMED_FUNCTION_CALL finish reaches the native loop through the model contract as an error code with finish reason OTHER, so the ported model plugin never retries it (ADR 0075); open question in the WS2-12 PR',
+    },
+  },
+);
 
-test('retries.model_errors: 0 lets the malformed reply fail the turn', async () => {
+forEachRuntime('retries.model_errors: 0 lets the malformed reply fail the turn', async () => {
   const r = await turn(config({ retries: { model_errors: 0 } }), malformedOnce());
   assert.equal(r.status, 'failed');
   assert.match(String(r.error?.code), /MALFORMED_FUNCTION_CALL/);
 });
 
-test('a tool that throws comes back with reflection guidance; tool_errors: 0 gives the plain error', async () => {
+forEachRuntime('a tool that throws comes back with reflection guidance; tool_errors: 0 gives the plain error', async () => {
   const script = () => new ScriptedLlm('scripted/boss', (req, n) => (n <= 2 ? call('self_correction_flaky', { q: 'x' }) : text(`final ${lastResponse(req)}`)));
   let seen = '';
   attempts = 0;
@@ -103,7 +115,7 @@ test('url_context is native on Gemini, a no-op elsewhere, and reported as droppe
   assert.ok(describeCapabilities('claude-sonnet-4-6', ['url_context']).dropped.includes('url_context'));
 });
 
-test('examples reach every request\'s instruction', async () => {
+forEachRuntime('examples reach every request\'s instruction', async () => {
   let instruction = '';
   const boss = new ScriptedLlm('scripted/boss', (req: any) => ((instruction = JSON.stringify(req.config?.systemInstruction ?? '')), text('ok')));
   await turn(config({}, { examples: [{ input: 'Capital of France?', output: 'Paris.' }] }), boss);

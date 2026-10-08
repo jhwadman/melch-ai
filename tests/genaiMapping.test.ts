@@ -346,6 +346,8 @@ async function secondRequest(boss: ScriptedLlm, config: SyndicateYamlConfig): Pr
     sessionService: new InMemorySessionService(),
     compile: { resolveModel: scriptedResolver({ boss, scout, claude: boss }) },
     trace: false,
+    // The LlmRequest a real ADK LlmAgent built is the subject here: always ADK's runtime.
+    runtime: 'adk',
   });
   assert.equal(result.status, 'completed');
   assert.equal(boss.requests.length, 2);

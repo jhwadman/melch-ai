@@ -2,6 +2,8 @@
  * tests/approvals.test.ts — approval gates (ADR 0028): a tool listed in an
  * agent's require_approval runs only after the next message approves the
  * exact call. Scripted models, in-memory sessions, no provider calls.
+ * Each turn-level case runs on both runtimes (tests/helpers/runtime.ts);
+ * tests/nativeTurn.test.ts resumes an approval across them.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -18,6 +20,7 @@ import { SKIP_SIGNATURE, trimEventForStorage } from '../lib/session/transcript.t
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -56,6 +59,7 @@ function runner(config: SyndicateYamlConfig, models: Record<string, ScriptedLlm>
   const sessionService = new InMemorySessionService();
   return (parts: any[]) =>
     runSyndicateTurn({
+      ...runtimeOption(),
       config,
       parts,
       appName: 'app',
@@ -67,7 +71,7 @@ function runner(config: SyndicateYamlConfig, models: Record<string, ScriptedLlm>
     });
 }
 
-test('delegate: the gated call waits, then runs once approved', async () => {
+forEachRuntime('delegate: the gated call waits, then runs once approved', async () => {
   sent.length = 0;
   const boss = new ScriptedLlm('scripted/boss', (req, n) => (n === 1 ? call('approval_test_send', { to: 'ops@acme.test' }) : text(`done ${lastResponse(req)}`)));
   const turn = runner(delegateConfig(), { boss });
@@ -86,7 +90,7 @@ test('delegate: the gated call waits, then runs once approved', async () => {
   assert.match(second.text, /done \{"result":"sent to ops@acme.test"\}/);
 });
 
-test('delegate: a refusal never runs the call and the model is told', async () => {
+forEachRuntime('delegate: a refusal never runs the call and the model is told', async () => {
   sent.length = 0;
   const boss = new ScriptedLlm('scripted/boss', (req, n) => (n === 1 ? call('approval_test_send', { to: 'x@acme.test' }) : text(`saw ${lastResponse(req)}`)));
   const turn = runner(delegateConfig(), { boss });
@@ -97,7 +101,7 @@ test('delegate: a refusal never runs the call and the model is told', async () =
   assert.match(second.text, /rejected/);
 });
 
-test('an answer that names no open request fails without running anything', async () => {
+forEachRuntime('an answer that names no open request fails without running anything', async () => {
   const boss = new ScriptedLlm('scripted/boss', () => text('hi'));
   const r = await runner(delegateConfig(), { boss })([approvalResponsePart('adk-nope', true)]);
   assert.equal(r.status, 'failed');
@@ -105,7 +109,7 @@ test('an answer that names no open request fails without running anything', asyn
   assert.equal(boss.calls ?? 0, 0);
 });
 
-test('dispatch: the resume skips the classifier and runs the route that asked', async () => {
+forEachRuntime('dispatch: the resume skips the classifier and runs the route that asked', async () => {
   sent.length = 0;
   const config = {
     syndicate_name: 'Desk',

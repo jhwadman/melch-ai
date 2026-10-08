@@ -7,6 +7,9 @@
  * key-hash silo reaches the same conversations the shared secret did, so a
  * deployment moves to per-caller tokens without moving any data, and model
  * key rotation stops mattering.
+ *
+ * The cases that run a turn run on both runtimes, through
+ * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -35,6 +38,7 @@ import {
   trustedHeader,
 } from '../lib/a2a/identity.ts';
 import { ScriptedLlm, sentTexts, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -214,7 +218,7 @@ async function erasedScope(url: string, headers: Record<string, string>) {
   return erased[0];
 }
 
-test('a caller token on the old silo reaches the conversation the shared secret started', async () => {
+forEachRuntime('a caller token on the old silo reaches the conversation the shared secret started', async () => {
   const callers = parseCallers(`alpha:${hashCallerToken(ALPHA)}:${SILO}; beta:${hashCallerToken(BETA)}`);
   const { srv, url } = await serve({ keyMode: 'byok', ...firstOf(callerTokens(callers), sharedSecret({ secret: SECRET, keyMode: 'byok' })) });
   try {
@@ -245,7 +249,7 @@ test('a caller token on the old silo reaches the conversation the shared secret 
   }
 });
 
-test('byok billing holds under an authenticator: no X-API-Key, no task', async () => {
+forEachRuntime('byok billing holds under an authenticator: no X-API-Key, no task', async () => {
   const { srv, url } = await serve({ keyMode: 'byok', ...callerTokens(parseCallers(`alpha:${hashCallerToken(ALPHA)}`)) });
   try {
     assert.equal((await send(url, { Authorization: `Bearer ${ALPHA}` }, 'hi', 'c1')).status, 401);
@@ -260,7 +264,7 @@ test('byok billing holds under an authenticator: no X-API-Key, no task', async (
   }
 });
 
-test('a JWT caller runs in server key mode with the token as the user', async () => {
+forEachRuntime('a JWT caller runs in server key mode with the token as the user', async () => {
   const auth = jwtIdentity({ secret: JWT_SECRET, issuer: 'https://idp.example', audience: 'melchizedek' });
   const { srv, url } = await serve({ keyMode: 'server', ...auth });
   try {
@@ -278,7 +282,7 @@ test('a JWT caller runs in server key mode with the token as the user', async ()
   }
 });
 
-test('a trusted header needs the server secret, and is read only behind it', async () => {
+forEachRuntime('a trusted header needs the server secret, and is read only behind it', async () => {
   await assert.rejects(() => serve({ ...trustedHeader({ header: 'X-Authenticated-User' }) }), /serverSecret/);
   const { srv, url } = await serve({ serverSecret: SECRET, ...trustedHeader({ header: 'X-Authenticated-User' }) });
   try {
@@ -293,7 +297,7 @@ test('a trusted header needs the server secret, and is read only behind it', asy
   }
 });
 
-test('plain secret mode: the secret is an operator credential; no secret, no operator', async () => {
+forEachRuntime('plain secret mode: the secret is an operator credential; no secret, no operator', async () => {
   const xp = (url: string, h: Record<string, string>) =>
     fetch(`${url}/v1/operator-only`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...h }, body: '{}' }).then((r) => r.status);
   const gated = await serve({ serverSecret: SECRET, keyMode: 'server' });

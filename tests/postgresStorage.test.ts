@@ -3,7 +3,10 @@
  * Postgres with pgvector (ADR 0021): migrations, sessions under concurrent
  * appends, memory on the shared store, owner-scoped A2A tasks, erase, a
  * full ADK turn persisted and resumed, and the ADK runtime and the engine's
- * session interface on the same rows (ADR 0058).
+ * session interface on the same rows (ADR 0058). A conversation run through
+ * runSyndicateTurn persists and resumes on both runtimes, and one written
+ * on either runtime resumes on the other from the rows alone
+ * (tests/helpers/runtime.ts, WS2-12).
  *
  * Runs only when TEST_DATABASE_URL points at a Postgres server where the
  * connecting role may create databases, e.g.
@@ -29,6 +32,14 @@ import type { Embedder, MemoryExtractor } from '../lib/memory/providers.ts';
 import { namespacedMemoryService } from '../lib/memory/namespace.ts';
 import type { MemoryService } from '../lib/runtime/memoryService.ts';
 import { ScriptedLlm, sentTexts, text } from './helpers/scriptedLlm.ts';
+import { z } from 'zod';
+import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
+import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
+import { acrossRuntimes, forEachRuntime, runtimeOption } from './helpers/runtime.ts';
+import type { RuntimeName } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -186,6 +197,64 @@ test('a full ADK turn persists to Postgres and the next turn resumes it', { skip
   ]);
   assert.equal(stored.rows[0].n, 4, 'two user messages and two answers');
 });
+
+registerTool(
+  'pg_runtime_lookup',
+  defineTool({ name: 'pg_runtime_lookup', description: 'Look a preference up.', schema: z.object({ key: z.string() }), execute: async ({ key }) => `green ${key}` }),
+  { override: true },
+);
+
+const PG_DESK = { syndicate_name: 'Desk', orchestrator: { name: 'Desk', model: 'scripted/pg', instruction: 'Answer briefly.', tools: ['pg_runtime_lookup'] }, subagents: [] } as unknown as SyndicateYamlConfig;
+
+/**
+ * Three turns through runSyndicateTurn on the Postgres store, turn i on
+ * `on(i)` (undefined: the case's own runtime): the answers, the rows as
+ * stored (ids and times aside) and the history each request carried.
+ */
+async function pgConversation(on: (turn: number) => RuntimeName | undefined) {
+  const userId = `rt-${randomUUID()}`;
+  const desk = new ScriptedModel('scripted/pg', (req, n) => {
+    if (n === 1) return toolCall('pg_runtime_lookup', { key: 'tea' }, 'call-tea');
+    if (n === 2) return answer(`Noted: ${lastToolResult(req)?.result}.`);
+    return answer(`You said: ${requestTexts(req).filter((t) => t.startsWith('Noted')).join(' / ')}`);
+  });
+  const texts: string[] = [];
+  for (const [i, message] of ['I like tea.', 'What do I like?', 'And again?'].entries()) {
+    const runtime = on(i);
+    const r = await runSyndicateTurn({
+      ...(runtime ? { runtime } : runtimeOption()),
+      config: PG_DESK,
+      parts: [{ text: message }],
+      appName: 'rt.ns',
+      userId,
+      sessionId: 'conv',
+      sessionService: storage.sessionService,
+      compile: { resolveModel: shimResolver({ pg: desk }), log: () => {} },
+      trace: false,
+    });
+    assert.equal(r.status, 'completed', r.error?.message);
+    texts.push(r.text);
+  }
+  const rows = await pool.query('SELECT event FROM adk_session_events WHERE session_id = $1 ORDER BY seq', [`rt.ns:${userId}:conv`]);
+  const events = rows.rows.map((r) => ({ ...r.event, id: '<id>', timestamp: 0, invocationId: '<inv>' }));
+  return { texts, events, history: desk.requests.map((r) => r.messages) };
+}
+
+forEachRuntime('a conversation through runSyndicateTurn persists to Postgres and the next turn resumes it from the rows', async () => {
+  const run = await pgConversation(() => undefined);
+  assert.deepEqual(run.texts, ['Noted: green tea.', 'You said: Noted: green tea.', 'You said: Noted: green tea.']);
+  assert.equal(run.events.length, 8, 'per turn: the message and the answer, and the first turn\'s call and result');
+  const reference = await pgConversation(() => 'adk');
+  assert.deepEqual(run.events, reference.events, 'the rows match what the ADK runtime stores');
+}, { skip });
+
+acrossRuntimes('a conversation written on one runtime resumes on the other from the Postgres rows alone', async (writer, reader) => {
+  const reference = await pgConversation(() => 'adk');
+  const run = await pgConversation((i) => (i === 0 ? writer : reader));
+  assert.deepEqual(run.texts, reference.texts);
+  assert.deepEqual(run.events, reference.events, 'the rows');
+  assert.deepEqual(run.history, reference.history, 'every request carried the same history');
+}, { skip });
 
 test('sessions (done-when): the ADK runtime and the engine’s interface read and write the same rows', { skip }, async () => {
   const s = storage.sessionService;

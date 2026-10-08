@@ -3,7 +3,9 @@
  * with scripted models and in-memory persistence. No network beyond
  * localhost and no provider calls. Covers the contract a client depends on:
  * health routes, auth, agent cards, a blocking send, session resumption by
- * message.contextId, cancellation, refused parts and unknown agents.
+ * message.contextId, cancellation, refused parts and unknown agents. The
+ * cases that run a turn run on both runtimes, through MELCHIZEDEK_RUNTIME
+ * (tests/helpers/runtime.ts).
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -21,6 +23,7 @@ import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { createA2AApp } from '../lib/a2a/app.ts';
 import type { A2AApp } from '../lib/a2a/app.ts';
 import { ScriptedLlm, hangUntilAborted, sentTexts, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -132,7 +135,7 @@ test('a per-agent card advertises that agent’s own endpoint', async () => {
   assert.match(card.url, /\/slow\/a2a\/jsonrpc$/);
 });
 
-test('message/send returns the answer, and message.contextId resumes the session', async () => {
+forEachRuntime('message/send returns the answer, and message.contextId resumes the session', async () => {
   const contextId = `ctx-${crypto.randomUUID()}`;
   const first = await rpc('/a2a/jsonrpc', 'message/send', message('hello there', contextId));
   assert.equal(first.status, 200);
@@ -148,7 +151,7 @@ test('a file part is refused rather than silently blanked', async () => {
   assert.equal(r.body.result.status.state, 'rejected');
 });
 
-test('tasks/cancel stops a running task', async () => {
+forEachRuntime('tasks/cancel stops a running task', async () => {
   const sent = await rpc('/slow/a2a/jsonrpc', 'message/send', { ...message('wait'), configuration: { blocking: false } });
   const taskId = sent.body.result.id;
   assert.ok(taskId);
@@ -191,7 +194,7 @@ async function send(url: string, headers: Record<string, string>, text: string, 
   return { status: res.status, body: (await res.json()) as any };
 }
 
-test('server key mode needs no X-API-Key, and X-User-Id scopes the conversation', async () => {
+forEachRuntime('server key mode needs no X-API-Key, and X-User-Id scopes the conversation', async () => {
   const { srv, url } = await serve({ keyMode: 'server' });
   try {
     const ctx = `ctx-${crypto.randomUUID()}`;
@@ -207,7 +210,7 @@ test('server key mode needs no X-API-Key, and X-User-Id scopes the conversation'
   }
 });
 
-test('resolveRequest supplies the scope key and can refuse a request', async () => {
+forEachRuntime('resolveRequest supplies the scope key and can refuse a request', async () => {
   const { srv, url } = await serve({
     resolveRequest: (req: any) => (req.headers['x-test-token'] === 'ok' ? { scopeKey: 'tenant-7/user-1' } : undefined),
   });
@@ -249,7 +252,7 @@ test('registry:<id> without a registry is a clean not-found, never a file substi
   }
 });
 
-test('an A2A 1.0 client gets the 1.0 card and can send with SendMessage', async () => {
+forEachRuntime('an A2A 1.0 client gets the 1.0 card and can send with SendMessage', async () => {
   const v1 = { ...auth, 'A2A-Version': '1.0', 'Content-Type': 'application/json', 'X-API-Key': 'caller-key' };
   const card = (await (await fetch(`${base}/.well-known/agent-card.json`, { headers: v1 })).json()) as any;
   assert.ok(Array.isArray(card.supportedInterfaces), '1.0 cards list supportedInterfaces');
@@ -272,7 +275,7 @@ test('an A2A 1.0 client gets the 1.0 card and can send with SendMessage', async 
   assert.match(JSON.stringify(task.status.message), /hello from 1\.0/);
 });
 
-test('a task belongs to the caller that created it', async () => {
+forEachRuntime('a task belongs to the caller that created it', async () => {
   const { srv, url } = await serve({ keyMode: 'server' });
   const rpcAs = async (user: string, method: string, params: unknown) => {
     const res = await fetch(`${url}/slow/a2a/jsonrpc`, {

@@ -46,6 +46,8 @@ import {
 } from '../lib/tools/memoryTools.ts';
 import { createToolContext, instructionToolOf, isInstructionTool, toolOf } from '../lib/tools/tool.ts';
 import { ROOT, runtimeImportsOf } from './helpers/importGraph.ts';
+import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
+import type { RuntimeName } from './helpers/runtime.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
 
 setLogLevel(LogLevel.ERROR);
@@ -233,7 +235,7 @@ test("preload_memory writes ADK's PreloadMemoryTool's block, word for word, in e
   );
 });
 
-// ── A whole turn on the ADK runtime, with ADK's tools and with ours ─────────
+// ── A whole turn, with ADK's tools and with ours, and on both runtimes ──────
 
 /** A long-term syndicate whose one agent preloads, then calls load_memory once. */
 const MEMORY_CONFIG = {
@@ -244,7 +246,7 @@ const MEMORY_CONFIG = {
 } as unknown as SyndicateYamlConfig;
 
 /** One turn: what the model was sent on each call, what was searched, and what the session stored. */
-async function memoryTurn() {
+async function memoryTurn(runtime?: RuntimeName) {
   const sent: Array<{ system: unknown; tools: unknown }> = [];
   const desk = new ScriptedLlm('scripted/desk', (req, n) => {
     sent.push({ system: req.config?.systemInstruction, tools: structuredClone(req.config?.tools) });
@@ -253,6 +255,7 @@ async function memoryTurn() {
   const memory = recordingAdkMemory();
   const sessionService = new InMemorySessionService();
   const result = await runSyndicateTurn({
+    ...(runtime ? { runtime } : runtimeOption()),
     config: MEMORY_CONFIG,
     parts: [{ text: 'what tea do I like?' }],
     appName: 'desk.a1',
@@ -272,7 +275,8 @@ async function memoryTurn() {
 }
 
 test("a turn on the ADK runtime runs the same with the engine's memory tools as with ADK's", async () => {
-  const ours = await memoryTurn();
+  // ADK's own LoadMemoryTool and PreloadMemoryTool run on the ADK runtime only: this case compares on it.
+  const ours = await memoryTurn('adk');
   assert.equal(ours.status, 'completed');
   assert.equal(ours.sent.length, 2);
   assert.match(String(ours.sent[0].system), /<PAST_CONVERSATIONS>[\s\S]*green tea[\s\S]*<\/PAST_CONVERSATIONS>/);
@@ -285,7 +289,7 @@ test("a turn on the ADK runtime runs the same with the engine's memory tools as 
   registerTool('load_memory', LOAD_MEMORY, { override: true });
   registerTool('preload_memory', PRELOAD_MEMORY, { override: true });
   try {
-    const theirs = await memoryTurn();
+    const theirs = await memoryTurn('adk');
     assert.deepEqual(ours, theirs);
   } finally {
     registerTool('load_memory', loadMemoryTool, { override: true });
@@ -295,12 +299,23 @@ test("a turn on the ADK runtime runs the same with the engine's memory tools as 
   assert.equal(instructionToolOf(resolveTools(['preload_memory'])[0]), preloadMemoryTool);
 });
 
-test('require_approval gates load_memory as it gates any registry function tool', async () => {
+forEachRuntime("a turn recalls with the engine's memory tools on each runtime as on ADK: the block, the search, the result", async () => {
+  const reference = await memoryTurn('adk');
+  const run = await memoryTurn();
+  assert.equal(run.status, 'completed');
+  assert.equal(run.text, reference.text);
+  assert.deepEqual(run.sent.map((s) => s.system), reference.sent.map((s) => s.system), 'the instruction, preloaded block and memory note');
+  assert.deepEqual(run.searches, reference.searches);
+  assert.deepEqual(run.responses, reference.responses);
+});
+
+forEachRuntime('require_approval gates load_memory as it gates any registry function tool', async () => {
   const desk = new ScriptedLlm('scripted/desk', (_req, n) => (n === 1 ? call('load_memory', { query: 'tea' }) : text('x')));
   const memory = recordingAdkMemory();
   const config = structuredClone(MEMORY_CONFIG) as any;
   config.orchestrator.require_approval = ['load_memory'];
   const r = await runSyndicateTurn({
+    ...runtimeOption(),
     config,
     parts: [{ text: 'what tea do I like?' }],
     appName: 'desk.a1',

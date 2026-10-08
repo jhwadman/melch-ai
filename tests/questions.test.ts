@@ -30,11 +30,12 @@ import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { RUNTIMES } from './helpers/runtime.ts';
+import type { RuntimeName } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
-type Runtime = 'adk' | 'native';
-const RUNTIMES: Runtime[] = ['adk', 'native'];
+type Runtime = RuntimeName;
 
 registerTool(
   'questions_lookup',

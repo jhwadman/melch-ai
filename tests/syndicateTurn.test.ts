@@ -5,6 +5,12 @@
  * the boundary between this framework and ADK: if an ADK upgrade or a
  * replacement of the loop changes delegation, the step cap, cancellation,
  * session history or plan-dispatch, a test here fails.
+ *
+ * Every case runs on both runtimes (tests/helpers/runtime.ts, WS2-12): the
+ * ADK Runner and the engine's own loop must both pass it (ADR 0045, G2).
+ * The last cases write a conversation on one runtime and continue it on the
+ * other, both ways: a session native wrote resumes under adk, the rollback
+ * path until 1.0.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -34,6 +40,8 @@ import {
   toolCall,
   untilAborted,
 } from './helpers/scriptedModel.ts';
+import { acrossRuntimes, forEachRuntime, runtimeOption } from './helpers/runtime.ts';
+import type { RuntimeName } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -51,6 +59,7 @@ function delegateConfig(extra: Partial<SyndicateYamlConfig> = {}): SyndicateYaml
 
 function turn(config: SyndicateYamlConfig, models: Record<string, ScriptedLlm>, overrides: Record<string, unknown> = {}) {
   return runSyndicateTurn({
+    ...runtimeOption(),
     config,
     parts: [{ text: 'find the thing' }],
     appName: APP,
@@ -63,7 +72,7 @@ function turn(config: SyndicateYamlConfig, models: Record<string, ScriptedLlm>, 
   });
 }
 
-test('delegate: the subagent receives the request argument and the relay ships', async () => {
+forEachRuntime('delegate: the subagent receives the request argument and the relay ships', async () => {
   let scoutInput = '';
   const boss = new ScriptedLlm('scripted/boss', (_req, n) =>
     n === 1 ? call('Scout', { request: 'look in the attic' }) : text('Scout says: it is in the attic'),
@@ -81,7 +90,7 @@ test('delegate: the subagent receives the request argument and the relay ships',
   assert.equal(r.llmCalls, 3);
 });
 
-test('delegate: a relay that returns no text falls back to the last tool result', async () => {
+forEachRuntime('delegate: a relay that returns no text falls back to the last tool result', async () => {
   const boss = new ScriptedLlm('scripted/boss', (_req, n) => (n === 1 ? call('Scout', { request: 'go' }) : text('')));
   const scout = new ScriptedLlm('scripted/scout', () => text('the full specialist report'));
   const r = await turn(delegateConfig(), { boss, scout });
@@ -90,7 +99,7 @@ test('delegate: a relay that returns no text falls back to the last tool result'
   assert.equal(r.relayFallback, true);
 });
 
-test('max_steps caps model calls across the whole turn, subagents included', async () => {
+forEachRuntime('max_steps caps model calls across the whole turn, subagents included', async () => {
   // The orchestrator delegates forever; every delegation also costs the
   // subagent a call. ADK's own per-Runner ceiling is 500 and resets inside
   // each AgentTool, so without the turn budget this would run ~1000 calls.
@@ -104,7 +113,7 @@ test('max_steps caps model calls across the whole turn, subagents included', asy
   assert.equal(r.llmCalls, 5);
 });
 
-test('without max_steps, a turn stops at DEFAULT_MAX_STEPS (50) model calls', async () => {
+forEachRuntime('without max_steps, a turn stops at DEFAULT_MAX_STEPS (50) model calls', async () => {
   const boss = new ScriptedLlm('scripted/boss', () => call('Scout', { request: 'again' }));
   const scout = new ScriptedLlm('scripted/scout', () => text('still nothing'));
   const config = delegateConfig();
@@ -114,7 +123,7 @@ test('without max_steps, a turn stops at DEFAULT_MAX_STEPS (50) model calls', as
   assert.equal(r.llmCalls, 50);
 });
 
-test('cancel: aborting the signal stops a hung provider call', async () => {
+forEachRuntime('cancel: aborting the signal stops a hung provider call', async () => {
   const controller = new AbortController();
   const boss = new ScriptedLlm('scripted/boss', (_req, _n, signal) => hangUntilAborted(signal));
   const scout = new ScriptedLlm('scripted/scout', () => text('x'));
@@ -124,7 +133,7 @@ test('cancel: aborting the signal stops a hung provider call', async () => {
   assert.equal(r.error?.code, 'CANCELED');
 });
 
-test('deadline: a turn that exceeds its time budget fails with DEADLINE_EXCEEDED', async () => {
+forEachRuntime('deadline: a turn that exceeds its time budget fails with DEADLINE_EXCEEDED', async () => {
   const boss = new ScriptedLlm('scripted/boss', (_req, _n, signal) => hangUntilAborted(signal));
   const scout = new ScriptedLlm('scripted/scout', () => text('x'));
   const started = Date.now();
@@ -134,12 +143,13 @@ test('deadline: a turn that exceeds its time budget fails with DEADLINE_EXCEEDED
   assert.ok(Date.now() - started < 2000);
 });
 
-test('session: the second turn sees the first turn in its history', async () => {
+forEachRuntime('session: the second turn sees the first turn in its history', async () => {
   const sessions = new InMemorySessionService();
   const boss = new ScriptedLlm('scripted/boss', (_req, n) => text(n === 1 ? 'first answer' : 'second answer'));
   const config = { syndicate_name: 'Solo', orchestrator: { name: 'Solo', model: 'scripted/boss', instruction: 'x' }, subagents: [] } as any;
   const run = (msg: string) =>
     runSyndicateTurn({
+      ...runtimeOption(),
       config,
       parts: [{ text: msg }],
       appName: APP,
@@ -174,7 +184,7 @@ function dispatchConfig(): SyndicateYamlConfig {
   } as unknown as SyndicateYamlConfig;
 }
 
-test('dispatch: the classifier picks the route and the route answers directly', async () => {
+forEachRuntime('dispatch: the classifier picks the route and the route answers directly', async () => {
   const router = new ScriptedLlm('scripted/router', () => text('{"route":"Research","reason":"needs sources"}'));
   const chat = new ScriptedLlm('scripted/chat', () => text('chat answer'));
   const research = new ScriptedLlm('scripted/research', () => text('research answer'));
@@ -188,7 +198,7 @@ test('dispatch: the classifier picks the route and the route answers directly', 
   assert.ok(progress.some((p) => p.startsWith('Routed to Research')));
 });
 
-test('dispatch: an override pins the route without calling the classifier', async () => {
+forEachRuntime('dispatch: an override pins the route without calling the classifier', async () => {
   const router = new ScriptedLlm('scripted/router', () => text('{"route":"Chat"}'));
   const chat = new ScriptedLlm('scripted/chat', () => text('chat'));
   const research = new ScriptedLlm('scripted/research', () => text('research'));
@@ -198,7 +208,7 @@ test('dispatch: an override pins the route without calling the classifier', asyn
   assert.equal(router.calls, 0);
 });
 
-test('dispatch: a failing classifier falls back to default_route and still answers', async () => {
+forEachRuntime('dispatch: a failing classifier falls back to default_route and still answers', async () => {
   const router = new ScriptedLlm('scripted/router', () => ({ errorCode: '503', errorMessage: 'overloaded' }) as any);
   const chat = new ScriptedLlm('scripted/chat', () => text('default answer'));
   const research = new ScriptedLlm('scripted/research', () => text('research'));
@@ -209,7 +219,7 @@ test('dispatch: a failing classifier falls back to default_route and still answe
   assert.equal(r.text, 'default answer');
 });
 
-test('a model error fails the turn and names the stage', async () => {
+forEachRuntime('a model error fails the turn and names the stage', async () => {
   const boss = new ScriptedLlm('scripted/boss', () => ({ errorCode: '429', errorMessage: 'rate limited' }) as any);
   const scout = new ScriptedLlm('scripted/scout', () => text('x'));
   const r = await turn(delegateConfig(), { boss, scout });
@@ -218,7 +228,7 @@ test('a model error fails the turn and names the stage', async () => {
   assert.equal(r.error?.code, '429');
 });
 
-test('includeContents: none keeps earlier turns out of the model request', async () => {
+forEachRuntime('includeContents: none keeps earlier turns out of the model request', async () => {
   const sessions = new InMemorySessionService();
   const boss = new ScriptedLlm('scripted/boss', (_req, n) => text(`answer ${n}`));
   const config = {
@@ -228,6 +238,7 @@ test('includeContents: none keeps earlier turns out of the model request', async
   } as any;
   const run = (msg: string) =>
     runSyndicateTurn({
+      ...runtimeOption(),
       config,
       parts: [{ text: msg }],
       appName: APP,
@@ -244,12 +255,13 @@ test('includeContents: none keeps earlier turns out of the model request', async
   assert.match(history, /second document/);
 });
 
-test('a caller with no model resolver still gets the framework adapters (step cap, cancel)', async () => {
+forEachRuntime('a caller with no model resolver still gets the framework adapters (step cap, cancel)', async () => {
   const { LLMRegistry } = await import('@google/adk');
   const { TracedGemini } = await import('../lib/models/registry.ts');
   const aborted = new AbortController();
   aborted.abort();
   const r = await runSyndicateTurn({
+    ...runtimeOption(),
     config: {
       syndicate_name: 'Plain',
       memory_system: 'internal-only',
@@ -303,6 +315,7 @@ function conversation(config: SyndicateYamlConfig, resolveModel: (id: string | u
   return {
     turn: (parts: any[] = [{ text: 'find the thing' }], overrides: Record<string, unknown> = {}) =>
       runSyndicateTurn({
+        ...runtimeOption(),
         config,
         parts,
         appName: APP,
@@ -324,7 +337,7 @@ function conversation(config: SyndicateYamlConfig, resolveModel: (id: string | u
 const soloConfig = (): SyndicateYamlConfig =>
   ({ syndicate_name: 'Solo', orchestrator: { name: 'Solo', model: 'scripted/boss', instruction: 'Answer briefly.' }, subagents: [] }) as any;
 
-test('shim: a plain answer is the same turn, and the adapter is sent the instruction and the message', async () => {
+forEachRuntime('shim: a plain answer is the same turn, and the adapter is sent the instruction and the message', async () => {
   const adk = conversation(soloConfig(), scriptedResolver({ boss: new ScriptedLlm('scripted/boss', () => text('the answer')) }));
   const boss = new ScriptedModel('scripted/boss', () => answer('the answer'));
   const shim = conversation(soloConfig(), shimResolver({ boss }));
@@ -342,7 +355,7 @@ test('shim: a plain answer is the same turn, and the adapter is sent the instruc
   assert.deepEqual(requestTexts(req), ['find the thing']);
 });
 
-test('shim: the second turn sees the first in its history', async () => {
+forEachRuntime('shim: the second turn sees the first in its history', async () => {
   const adk = conversation(soloConfig(), scriptedResolver({ boss: new ScriptedLlm('scripted/boss', (_r, n) => text(n === 1 ? 'first answer' : 'second answer')) }));
   const boss = new ScriptedModel('scripted/boss', (_r, n) => answer(n === 1 ? 'first answer' : 'second answer'));
   const shim = conversation(soloConfig(), shimResolver({ boss }));
@@ -355,7 +368,7 @@ test('shim: the second turn sees the first in its history', async () => {
   assert.deepEqual(requestTexts(boss.requests[1]), ['hello', 'first answer', 'again']);
 });
 
-test('shim: a tool call and its result (delegation) is the same turn', async () => {
+forEachRuntime('shim: a tool call and its result (delegation) is the same turn', async () => {
   const adk = conversation(
     delegateConfig(),
     scriptedResolver({
@@ -388,7 +401,7 @@ test('shim: a tool call and its result (delegation) is the same turn', async () 
   assert.ok(second.tools?.some((t) => t.name === 'Scout'), 'the subagent is declared as a tool');
 });
 
-test('shim: streamed partials reach the caller as the same deltas, and the whole text is stored once', async () => {
+forEachRuntime('shim: streamed partials reach the caller as the same deltas, and the whole text is stored once', async () => {
   const adk = conversation(soloConfig(), scriptedResolver({ boss: new ScriptedLlm('scripted/boss', () => streamed('Hello', ', ', 'world.')) }));
   const boss = new ScriptedModel('scripted/boss', () => streamedAnswer('Hello', ', ', 'world.'));
   const shim = conversation(soloConfig(), shimResolver({ boss }));
@@ -412,7 +425,7 @@ const fallbackConfig = (): SyndicateYamlConfig =>
   }) as any;
 const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
 
-test('shim: FallbackLlm answers a retryable error from the fallback, and passes a non-retryable one on', async () => {
+forEachRuntime('shim: FallbackLlm answers a retryable error from the fallback, and passes a non-retryable one on', async () => {
   for (const status of [503, 400]) {
     resetCircuits();
     const adkPrimary = new ScriptedLlm('scripted/primary', () => providerErrorResponse(httpError(status), 'SCRIPTED_ERROR'));
@@ -440,7 +453,7 @@ test('shim: FallbackLlm answers a retryable error from the fallback, and passes 
   resetCircuits();
 });
 
-test('shim: a model error with no fallback fails the turn and names the stage', async () => {
+forEachRuntime('shim: a model error with no fallback fails the turn and names the stage', async () => {
   const a = await conversation(
     delegateConfig(),
     scriptedResolver({
@@ -456,7 +469,7 @@ test('shim: a model error with no fallback fails the turn and names the stage', 
   assert.deepEqual(outcome(s), outcome(a));
 });
 
-test('shim: cancel aborts the signal the adapter was given, and the turn is canceled', async () => {
+forEachRuntime('shim: cancel aborts the signal the adapter was given, and the turn is canceled', async () => {
   const run = async (resolveModel: (id: string | undefined) => BaseLlm) => {
     const controller = new AbortController();
     setTimeout(() => controller.abort(), 30);
@@ -478,7 +491,7 @@ test('shim: cancel aborts the signal the adapter was given, and the turn is canc
   assert.deepEqual(outcome(s), outcome(a));
 });
 
-test('shim: max_steps refuses the call past the budget before it reaches the adapter', async () => {
+forEachRuntime('shim: max_steps refuses the call past the budget before it reaches the adapter', async () => {
   const adkBoss = new ScriptedLlm('scripted/boss', () => call('Scout', { request: 'again' }));
   const adkScout = new ScriptedLlm('scripted/scout', () => text('still nothing'));
   const a = await conversation(delegateConfig({ max_steps: 5 }), scriptedResolver({ boss: adkBoss, scout: adkScout })).turn();
@@ -520,7 +533,7 @@ const gatedConfig = (): SyndicateYamlConfig =>
 const lastFunctionResponse = (req: LlmRequest) =>
   (req.contents ?? []).flatMap((c) => c.parts ?? []).reverse().find((p) => p.functionResponse)?.functionResponse?.response as any;
 
-test('shim: an approval pauses the turn, and the approval resumes it', async () => {
+forEachRuntime('shim: an approval pauses the turn, and the approval resumes it', async () => {
   shimSent.length = 0;
   const adk = conversation(
     gatedConfig(),
@@ -549,4 +562,65 @@ test('shim: an approval pauses the turn, and the approval resumes it', async () 
   assert.deepEqual(outcome(s1), outcome(a1));
   assert.deepEqual(outcome(s2), outcome(a2));
   assert.deepEqual(await shim.history(), await adk.history());
+});
+
+// ── Written on one runtime, continued on the other ───────────────────────────
+
+registerTool(
+  'cross_runtime_lookup',
+  new FunctionTool({
+    name: 'cross_runtime_lookup',
+    description: 'Look a key up.',
+    parameters: z.object({ key: z.string() }),
+    execute: async ({ key }) => `value of ${key}`,
+  }),
+  { override: true },
+);
+
+/** Three turns of a DELEGATE syndicate with a tool, each on the runtime `on(i)` names; one store, fresh models. */
+async function crossConversation(on: (turn: number) => RuntimeName) {
+  resetCircuits();
+  const config = delegateConfig({ orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Delegate to Scout.', tools: ['cross_runtime_lookup'] } } as any);
+  const boss = new ScriptedModel('scripted/boss', (req, n) => {
+    if (n === 1) return toolCall('cross_runtime_lookup', { key: 'attic' }, 'call-look');
+    if (n === 2) return toolCall('Scout', { request: `search ${lastToolResult(req)?.result}` }, 'call-scout');
+    if (n === 3) return answer(`Scout says: ${lastToolResult(req)?.result}`);
+    return answer(`turn ${n}: I remember ${requestTexts(req).filter((t) => t.startsWith('Scout says')).join('; ')}`);
+  });
+  const scout = new ScriptedModel('scripted/scout', (req) => answer(`found it (${requestTexts(req).at(-1)})`));
+  const sessionService = new InMemorySessionService();
+  const results: SyndicateTurnResult[] = [];
+  for (const [i, message] of ['find the thing', 'what did Scout say?', 'and now?'].entries()) {
+    results.push(
+      await runSyndicateTurn({
+        config,
+        parts: [{ text: message }],
+        appName: APP,
+        userId: USER,
+        sessionId: 'cross',
+        sessionService,
+        compile: { resolveModel: shimResolver({ boss, scout }), log: () => {} },
+        trace: false,
+        runtime: on(i),
+      }),
+    );
+  }
+  const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 'cross' });
+  const events = (session?.events ?? []).map((e) => withoutIds({ ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' }));
+  return { results, events, boss, scout };
+}
+
+acrossRuntimes('a conversation written on one runtime continues on the other: the results, the stored events and the history match', async (writer, reader) => {
+  const reference = await crossConversation(() => 'adk');
+  // The first turn (a tool call and a delegation) is written by `writer`; the next two read it on `reader`, then back.
+  const run = await crossConversation((i) => (i === 1 ? reader : writer));
+  assert.deepEqual(run.results.map(outcome), reference.results.map(outcome), 'the results');
+  assert.deepEqual(run.events, reference.events, 'the stored events');
+  assert.equal(run.boss.calls, reference.boss.calls);
+  assert.deepEqual(
+    run.boss.requests.map((r) => withoutIds(r.messages)),
+    reference.boss.requests.map((r) => withoutIds(r.messages)),
+    'every request saw the same history',
+  );
+  assert.equal(run.results[1]?.text, 'turn 4: I remember Scout says: found it (search value of attic)');
 });

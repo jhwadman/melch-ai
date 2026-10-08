@@ -3,6 +3,7 @@
  * (ADR 0041): `mcp_tools` exposes only the named ones, `require_approval` can
  * gate them on a dispatch route, and a server's descriptions and results are
  * bounded. Offline: an MCP SSE server in this process, scripted models.
+ * The turn case runs on both runtimes (tests/helpers/runtime.ts).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -21,6 +22,7 @@ import { approvalResponsePart } from '../lib/runtime/approvals.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -90,7 +92,7 @@ test('schema: mcp_tools needs mcp_server_url, and require_approval may name an M
   validateSyndicateConfig({ ...base, subagents: [{ name: 'Ops', model: 'gemini-x', instruction: 'o', description: 'd', mcp_server_url: url, mcp_tools: ['lookup', 'delete_all'], require_approval: ['delete_all'] }] }, 't');
 });
 
-test('a route sees only its mcp_tools, and a gated MCP tool waits for a person', async () => {
+forEachRuntime('a route sees only its mcp_tools, and a gated MCP tool waits for a person', async () => {
   calls.length = 0;
   const config = {
     syndicate_name: 'Desk',
@@ -110,7 +112,7 @@ test('a route sees only its mcp_tools, and a gated MCP tool waits for a person',
   });
   const sessionService = new InMemorySessionService();
   const turn = (parts: any[]) =>
-    runSyndicateTurn({ config, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ router, chat, ops }) }, trace: false });
+    runSyndicateTurn({ ...runtimeOption(), config, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ router, chat, ops }) }, trace: false });
 
   const first = await turn([{ text: 'clean up' }]);
   assert.ok(offered.includes('lookup') && offered.includes('delete_all'), `offered: ${offered.join(', ')}`);
