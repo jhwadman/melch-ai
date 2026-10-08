@@ -11,12 +11,29 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
-import type { LlmRequest } from '@google/adk';
+import { FunctionTool, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
+import type { BaseLlm, LlmRequest, LlmResponse } from '@google/adk';
+import { z } from 'zod';
 
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
+import { approvalResponsePart } from '../lib/runtime/approvals.ts';
+import { providerErrorResponse } from '../lib/models/errorResponse.ts';
+import { resetCircuits } from '../lib/models/fallback.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import { ScriptedLlm, call, hangUntilAborted, scriptedResolver, sentTexts, text } from './helpers/scriptedLlm.ts';
+import { ScriptedLlm, call, hangUntilAborted, scriptedResolver, sentTexts, streamed, text } from './helpers/scriptedLlm.ts';
+import {
+  ScriptedModel,
+  answer,
+  failure,
+  lastToolResult,
+  requestTexts,
+  shimResolver,
+  streamedAnswer,
+  toolCall,
+  untilAborted,
+} from './helpers/scriptedModel.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -250,4 +267,286 @@ test('a caller with no model resolver still gets the framework adapters (step ca
   assert.equal(LLMRegistry.resolve('gemini-3.5-flash-lite'), TracedGemini);
   assert.notEqual(r.status, 'completed');
   assert.equal(r.llmCalls, 0);
+});
+
+// ── The ADK shim (lib/models/adkShim.ts, ADR 0053) ───────────────────────────
+// A ModelAdapter on the engine's own contract, behind the shim, runs each
+// turn below under ADK. Every case runs twice: once with the scripted ADK
+// model above, once with the scripted contract model, and the two turns must
+// come out the same, down to the history stored in the session.
+
+/** What a turn amounted to, for comparing two runs of it (call ids aside, see withoutIds). */
+function outcome(r: SyndicateTurnResult) {
+  return withoutIds({
+    status: r.status,
+    text: r.text,
+    error: r.error?.code,
+    failedStage: r.failedStage,
+    stopReason: r.stopReason,
+    llmCalls: r.llmCalls,
+    approval: r.approval ? { agent: r.approval.agent, tool: r.approval.tool, args: r.approval.args } : undefined,
+    delegations: r.answer?.delegations,
+    toolCalls: r.answer?.toolCalls,
+    relayFallback: r.relayFallback,
+  });
+}
+
+/** Ids are minted per run (by the scripts, and by ADK); everything else must match. */
+const CALL_ID_KEYS = new Set(['id', 'functionCallId']);
+const withoutIds = (value: unknown): unknown =>
+  JSON.parse(JSON.stringify(value ?? null, (key, v) => (CALL_ID_KEYS.has(key) && typeof v === 'string' ? '<id>' : v)));
+
+/** One conversation: its own session store, the given models, any number of turns. */
+function conversation(config: SyndicateYamlConfig, resolveModel: (id: string | undefined) => BaseLlm) {
+  const sessionService = new InMemorySessionService();
+  const sessionId = 'shim-parity';
+  return {
+    turn: (parts: any[] = [{ text: 'find the thing' }], overrides: Record<string, unknown> = {}) =>
+      runSyndicateTurn({
+        config,
+        parts,
+        appName: APP,
+        userId: USER,
+        sessionId,
+        sessionService,
+        compile: { resolveModel, log: () => {} },
+        trace: false,
+        ...overrides,
+      }),
+    /** The stored events, as author and content. */
+    history: async () => {
+      const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId });
+      return (session?.events ?? []).map((e) => withoutIds({ author: e.author, content: e.content }));
+    },
+  };
+}
+
+const soloConfig = (): SyndicateYamlConfig =>
+  ({ syndicate_name: 'Solo', orchestrator: { name: 'Solo', model: 'scripted/boss', instruction: 'Answer briefly.' }, subagents: [] }) as any;
+
+test('shim: a plain answer is the same turn, and the adapter is sent the instruction and the message', async () => {
+  const adk = conversation(soloConfig(), scriptedResolver({ boss: new ScriptedLlm('scripted/boss', () => text('the answer')) }));
+  const boss = new ScriptedModel('scripted/boss', () => answer('the answer'));
+  const shim = conversation(soloConfig(), shimResolver({ boss }));
+
+  const [a, s] = [await adk.turn(), await shim.turn()];
+  assert.equal(s.status, 'completed');
+  assert.equal(s.text, 'the answer');
+  assert.deepEqual(outcome(s), outcome(a));
+  assert.deepEqual(await shim.history(), await adk.history());
+
+  const req = boss.requests[0];
+  assert.equal(req.model, 'scripted/boss');
+  assert.equal(req.stream, false);
+  assert.match(req.system ?? '', /Answer briefly\./);
+  assert.deepEqual(requestTexts(req), ['find the thing']);
+});
+
+test('shim: the second turn sees the first in its history', async () => {
+  const adk = conversation(soloConfig(), scriptedResolver({ boss: new ScriptedLlm('scripted/boss', (_r, n) => text(n === 1 ? 'first answer' : 'second answer')) }));
+  const boss = new ScriptedModel('scripted/boss', (_r, n) => answer(n === 1 ? 'first answer' : 'second answer'));
+  const shim = conversation(soloConfig(), shimResolver({ boss }));
+
+  for (const msg of ['hello', 'again']) {
+    const [a, s] = [await adk.turn([{ text: msg }]), await shim.turn([{ text: msg }])];
+    assert.deepEqual(outcome(s), outcome(a));
+  }
+  assert.deepEqual(await shim.history(), await adk.history());
+  assert.deepEqual(requestTexts(boss.requests[1]), ['hello', 'first answer', 'again']);
+});
+
+test('shim: a tool call and its result (delegation) is the same turn', async () => {
+  const adk = conversation(
+    delegateConfig(),
+    scriptedResolver({
+      boss: new ScriptedLlm('scripted/boss', (_req, n) => (n === 1 ? call('Scout', { request: 'look in the attic' }) : text('Scout says: it is in the attic'))),
+      scout: new ScriptedLlm('scripted/scout', () => text('it is in the attic')),
+    }),
+  );
+  const boss = new ScriptedModel('scripted/boss', (req, n) => {
+    if (n === 1) return toolCall('Scout', { request: 'look in the attic' });
+    const result = lastToolResult(req);
+    return answer(`Scout says: ${result?.name === 'Scout' ? String(result.result) : '?'}`);
+  });
+  const scout = new ScriptedModel('scripted/scout', () => answer('it is in the attic'));
+  const shim = conversation(delegateConfig(), shimResolver({ boss, scout }));
+
+  const [a, s] = [await adk.turn(), await shim.turn()];
+  assert.equal(s.status, 'completed');
+  assert.equal(s.text, 'Scout says: it is in the attic');
+  assert.deepEqual(s.answer?.delegations, ['Scout']);
+  assert.equal(s.llmCalls, 3);
+  assert.deepEqual(outcome(s), outcome(a));
+  assert.deepEqual(await shim.history(), await adk.history());
+
+  // The subagent was sent the request; the orchestrator's second call carried the call and its result.
+  assert.match(requestTexts(scout.requests[0]).join(' '), /look in the attic/);
+  const second = boss.requests[1];
+  const asked = second.messages.find((m) => m.role === 'assistant')?.parts[0];
+  assert.equal(asked?.type, 'toolCall');
+  assert.deepEqual(lastToolResult(second)?.result, 'it is in the attic');
+  assert.ok(second.tools?.some((t) => t.name === 'Scout'), 'the subagent is declared as a tool');
+});
+
+test('shim: streamed partials reach the caller as the same deltas, and the whole text is stored once', async () => {
+  const adk = conversation(soloConfig(), scriptedResolver({ boss: new ScriptedLlm('scripted/boss', () => streamed('Hello', ', ', 'world.')) }));
+  const boss = new ScriptedModel('scripted/boss', () => streamedAnswer('Hello', ', ', 'world.'));
+  const shim = conversation(soloConfig(), shimResolver({ boss }));
+
+  const deltas = { adk: [] as string[], shim: [] as string[] };
+  const a = await adk.turn(undefined, { streaming: true, events: { onTextDelta: (d: string) => deltas.adk.push(d) } });
+  const s = await shim.turn(undefined, { streaming: true, events: { onTextDelta: (d: string) => deltas.shim.push(d) } });
+  assert.equal(s.text, 'Hello, world.');
+  assert.deepEqual(deltas.shim, ['Hello', ', ', 'world.']);
+  assert.deepEqual(deltas.shim, deltas.adk);
+  assert.deepEqual(outcome(s), outcome(a));
+  assert.deepEqual(await shim.history(), await adk.history());
+  assert.equal(boss.requests[0].stream, true);
+});
+
+const fallbackConfig = (): SyndicateYamlConfig =>
+  ({
+    syndicate_name: 'S',
+    orchestrator: { name: 'Main', model: 'scripted/primary', fallback_model: 'scripted/backup', instruction: 'Answer.' },
+    subagents: [],
+  }) as any;
+const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
+
+test('shim: FallbackLlm answers a retryable error from the fallback, and passes a non-retryable one on', async () => {
+  for (const status of [503, 400]) {
+    resetCircuits();
+    const adkPrimary = new ScriptedLlm('scripted/primary', () => providerErrorResponse(httpError(status), 'SCRIPTED_ERROR'));
+    const adkBackup = new ScriptedLlm('scripted/backup', () => text('from the backup'));
+    const a = await conversation(fallbackConfig(), scriptedResolver({ primary: adkPrimary, backup: adkBackup })).turn();
+
+    resetCircuits();
+    const retryable = status === 503;
+    const primary = new ScriptedModel('scripted/primary', () => failure({ code: 'SCRIPTED_ERROR', message: `HTTP ${status}`, retryable, status }));
+    const backup = new ScriptedModel('scripted/backup', () => answer('from the backup'));
+    const s = await conversation(fallbackConfig(), shimResolver({ primary, backup })).turn();
+
+    assert.deepEqual(outcome(s), outcome(a), `HTTP ${status}`);
+    assert.deepEqual([primary.calls, backup.calls], [adkPrimary.calls, adkBackup.calls]);
+    if (retryable) {
+      assert.equal(s.status, 'completed');
+      assert.equal(s.text, 'from the backup');
+      assert.equal(backup.requests[0].model, 'scripted/backup', 'the fallback gets its own model id');
+    } else {
+      assert.equal(s.status, 'failed');
+      assert.equal(s.error?.code, 'SCRIPTED_ERROR');
+      assert.equal(backup.calls, 0, 'a 400 is never redirected');
+    }
+  }
+  resetCircuits();
+});
+
+test('shim: a model error with no fallback fails the turn and names the stage', async () => {
+  const a = await conversation(
+    delegateConfig(),
+    scriptedResolver({
+      boss: new ScriptedLlm('scripted/boss', () => ({ errorCode: '429', errorMessage: 'rate limited' }) as LlmResponse),
+      scout: new ScriptedLlm('scripted/scout', () => text('x')),
+    }),
+  ).turn();
+  const boss = new ScriptedModel('scripted/boss', () => failure({ code: '429', message: 'rate limited' }));
+  const s = await conversation(delegateConfig(), shimResolver({ boss, scout: new ScriptedModel('scripted/scout', () => answer('x')) })).turn();
+  assert.equal(s.status, 'failed');
+  assert.equal(s.failedStage, 'delegate');
+  assert.equal(s.error?.code, '429');
+  assert.deepEqual(outcome(s), outcome(a));
+});
+
+test('shim: cancel aborts the signal the adapter was given, and the turn is canceled', async () => {
+  const run = async (resolveModel: (id: string | undefined) => BaseLlm) => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 30);
+    return conversation(delegateConfig(), resolveModel).turn(undefined, { signal: controller.signal });
+  };
+  const a = await run(
+    scriptedResolver({
+      boss: new ScriptedLlm('scripted/boss', (_req, _n, signal) => hangUntilAborted(signal)),
+      scout: new ScriptedLlm('scripted/scout', () => text('x')),
+    }),
+  );
+  let seen: AbortSignal | undefined;
+  const boss = new ScriptedModel('scripted/boss', (_req, _n, signal) => ((seen = signal), untilAborted(signal)));
+  const s = await run(shimResolver({ boss, scout: new ScriptedModel('scripted/scout', () => answer('x')) }));
+
+  assert.equal(s.status, 'canceled');
+  assert.equal(s.error?.code, 'CANCELED');
+  assert.equal(seen?.aborted, true, 'the request carried the turn signal');
+  assert.deepEqual(outcome(s), outcome(a));
+});
+
+test('shim: max_steps refuses the call past the budget before it reaches the adapter', async () => {
+  const adkBoss = new ScriptedLlm('scripted/boss', () => call('Scout', { request: 'again' }));
+  const adkScout = new ScriptedLlm('scripted/scout', () => text('still nothing'));
+  const a = await conversation(delegateConfig({ max_steps: 5 }), scriptedResolver({ boss: adkBoss, scout: adkScout })).turn();
+
+  const boss = new ScriptedModel('scripted/boss', () => toolCall('Scout', { request: 'again' }));
+  const scout = new ScriptedModel('scripted/scout', () => answer('still nothing'));
+  const s = await conversation(delegateConfig({ max_steps: 5 }), shimResolver({ boss, scout })).turn();
+
+  assert.equal(s.status, 'failed');
+  assert.equal(s.error?.code, 'STEP_LIMIT');
+  assert.equal(s.stopReason, 'step_limit');
+  assert.equal(s.llmCalls, 5);
+  assert.equal(boss.calls + scout.calls, 5, 'the refused sixth call never reached an adapter');
+  assert.deepEqual([boss.calls, scout.calls], [adkBoss.calls, adkScout.calls]);
+  assert.deepEqual(outcome(s), outcome(a));
+});
+
+// A gated tool for the approval case (ADR 0028).
+const shimSent: string[] = [];
+registerTool(
+  'shim_test_send',
+  new FunctionTool({
+    name: 'shim_test_send',
+    description: 'Send a note.',
+    parameters: z.object({ to: z.string() }),
+    execute: async ({ to }) => {
+      shimSent.push(to);
+      return `sent to ${to}`;
+    },
+  }),
+  { override: true },
+);
+const gatedConfig = (): SyndicateYamlConfig =>
+  ({
+    syndicate_name: 'Mailer',
+    orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Send notes.', tools: ['shim_test_send'], require_approval: ['shim_test_send'] },
+    subagents: [],
+  }) as any;
+const lastFunctionResponse = (req: LlmRequest) =>
+  (req.contents ?? []).flatMap((c) => c.parts ?? []).reverse().find((p) => p.functionResponse)?.functionResponse?.response as any;
+
+test('shim: an approval pauses the turn, and the approval resumes it', async () => {
+  shimSent.length = 0;
+  const adk = conversation(
+    gatedConfig(),
+    scriptedResolver({
+      boss: new ScriptedLlm('scripted/boss', (req, n) => (n === 1 ? call('shim_test_send', { to: 'ops@acme.test' }) : text(`done: ${lastFunctionResponse(req)?.result}`))),
+    }),
+  );
+  const a1 = await adk.turn([{ text: 'tell ops' }]);
+  const a2 = await adk.turn([approvalResponsePart(a1.approval!.id, true)]);
+  assert.deepEqual(shimSent, ['ops@acme.test']);
+
+  shimSent.length = 0;
+  const boss = new ScriptedModel('scripted/boss', (req, n) => (n === 1 ? toolCall('shim_test_send', { to: 'ops@acme.test' }) : answer(`done: ${lastToolResult(req)?.result}`)));
+  const shim = conversation(gatedConfig(), shimResolver({ boss }));
+  const s1 = await shim.turn([{ text: 'tell ops' }]);
+  assert.equal(s1.status, 'input-required');
+  assert.equal(s1.approval?.tool, 'shim_test_send');
+  assert.deepEqual(s1.approval?.args, { to: 'ops@acme.test' });
+  assert.deepEqual(shimSent, [], 'nothing ran before the approval');
+
+  const s2 = await shim.turn([approvalResponsePart(s1.approval!.id, true)]);
+  assert.equal(s2.status, 'completed', s2.error?.message);
+  assert.equal(s2.text, 'done: sent to ops@acme.test');
+  assert.deepEqual(shimSent, ['ops@acme.test']);
+
+  assert.deepEqual(outcome(s1), outcome(a1));
+  assert.deepEqual(outcome(s2), outcome(a2));
+  assert.deepEqual(await shim.history(), await adk.history());
 });

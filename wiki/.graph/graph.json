@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 677,
-    "edges": 1648,
+    "nodes": 682,
+    "edges": 1681,
     "byKind": {
-      "doc": 105,
+      "doc": 107,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 98,
+      "file": 100,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 132,
+      "module": 133,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 259,
+      "links_to": 272,
       "requires_env": 162,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,19 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 395,
+      "imports": 399,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 319,
-      "constrains": 22,
+      "derives_from": 330,
+      "constrains": 27,
       "supersedes": 2,
       "depends_on": 7,
       "explains": 2,
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1614,
-      "inferred": 34
+      "extracted": 1642,
+      "inferred": 39
     },
     "isolated": 4
   },
@@ -1011,6 +1011,18 @@
       }
     },
     {
+      "id": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "kind": "doc",
+      "label": "ADR 0053: The caller of a contract adapter charges the turn and opens its llm.request span; on the ADK path that caller is the shim",
+      "source": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 739
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1083,6 +1095,18 @@
       }
     },
     {
+      "id": "/models/adk-shim.md",
+      "kind": "doc",
+      "label": "ADK shim",
+      "source": "/models/adk-shim.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 697
+      }
+    },
+    {
       "id": "/models/gemini-adapter.md",
       "kind": "doc",
       "label": "Gemini adapter",
@@ -1091,7 +1115,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1670
+        "words": 1674
       }
     },
     {
@@ -1103,7 +1127,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 5875
+        "words": 5907
       }
     },
     {
@@ -3336,6 +3360,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/adkShim.test.ts",
+      "kind": "file",
+      "label": "adkShim.test.ts",
+      "source": "tests/adkShim.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/agents.test.ts",
       "kind": "file",
       "label": "agents.test.ts",
@@ -3406,6 +3437,12 @@
       "kind": "file",
       "label": "governance.test.ts",
       "source": "tests/governance.test.ts"
+    },
+    {
+      "id": "file:tests/helpers/scriptedModel.ts",
+      "kind": "file",
+      "label": "scriptedModel.ts",
+      "source": "tests/helpers/scriptedModel.ts"
     },
     {
       "id": "file:tests/identity.test.ts",
@@ -3826,6 +3863,15 @@
       "source": "lib/memory/supabaseMemoryService.ts",
       "attrs": {
         "lines": 709
+      }
+    },
+    {
+      "id": "module:lib/models/adkShim.ts",
+      "kind": "module",
+      "label": "lib/models/adkShim.ts",
+      "source": "lib/models/adkShim.ts",
+      "attrs": {
+        "lines": 141
       }
     },
     {
@@ -8524,6 +8570,69 @@
       "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md:28"
     },
     {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "file:tests/adkShim.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "file:tests/syndicateTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:40"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:25"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:25"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:53"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8979,6 +9088,76 @@
       "evidence": "/meta/wiki-system.md:34"
     },
     {
+      "from": "/models/adk-shim.md",
+      "to": "file:tests/adkShim.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "file:tests/helpers/scriptedModel.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "file:tests/syndicateTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:50"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:22"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:28"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:22"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:24"
+    },
+    {
       "from": "/models/gemini-adapter.md",
       "to": "file:tests/geminiAdapter.test.ts",
       "rel": "derives_from",
@@ -9036,6 +9215,20 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:101"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:101"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -9065,6 +9258,13 @@
     {
       "from": "/models/model-contract.md",
       "to": "file:tests/modelContract.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/adkShim.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/models/model-contract.md frontmatter"
@@ -9109,56 +9309,70 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:71"
+      "evidence": "/models/model-contract.md:72"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:41"
+      "evidence": "/models/model-contract.md:42"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:88"
+      "evidence": "/models/model-contract.md:89"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:25"
+      "evidence": "/models/model-contract.md:26"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:25"
+      "evidence": "/models/model-contract.md:26"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:95"
+      "evidence": "/models/model-contract.md:96"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:25"
+      "evidence": "/models/model-contract.md:26"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:118"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:28"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:27"
+      "evidence": "/models/model-contract.md:28"
     },
     {
       "from": "/models/provider-routing.md",
@@ -12463,6 +12677,34 @@
       "rel": "reads_table",
       "tier": "extracted",
       "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/models/adkShim.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkShim.ts"
+    },
+    {
+      "from": "module:lib/models/adkShim.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkShim.ts"
+    },
+    {
+      "from": "module:lib/models/adkShim.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkShim.ts"
+    },
+    {
+      "from": "module:lib/models/adkShim.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkShim.ts"
     },
     {
       "from": "module:lib/models/capabilities.ts",

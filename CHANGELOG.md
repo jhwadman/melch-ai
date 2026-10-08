@@ -142,6 +142,17 @@ the starter pack and the templates), not the repo's full history.
   tripped on one path is skipped on the other. `models/fallback` still
   exports `circuitOpen` and `resetCircuits`, and `FallbackLlm` behaves as
   before.
+- **Any adapter on the model contract runs under ADK (ADR 0053).** New module
+  `melchizedek-agents/models/adkShim`: `AdkShim`, an ADK `BaseLlm` that
+  wraps one `ModelAdapter` and maps ADK's request and responses through
+  `models/genaiMapping`; `adkShim(adapter, model?)`; `adkShimClass(supportedModels,
+  createAdapter)`, a class ADK's `LLMRegistry` can register; and the types
+  `AdkShimOptions` and `ModelAdapterFactory`. The shim charges each call
+  against the turn's `max_steps`, refuses a call on a spent or stopped turn
+  with the same response the ADK-path adapters give, hands the adapter the
+  turn's abort signal, and opens the `llm.request` span, so an adapter on
+  the contract does none of these itself. `connect()` is refused. Nothing
+  registers it yet; no adapter or stored shape changes.
 - **An elided tool result's size is stored the same on every server.**
   `trimEventForStorage` writes it with en-US digit grouping (`2,563 chars
   dropped before storage — …`), where it followed the server's locale

@@ -454,7 +454,11 @@ importable as `melchizedek-agents/models/contract`. It defines the message
 format, request, response stream and adapter interface of the native
 runtime (ADR 0045), with no `@google/*` in its import graph, and the
 adapters move onto it in stages. `wiki/models/model-contract.md` gives
-each field's purpose and its mapping onto every provider's wire.
+each field's purpose and its mapping onto every provider's wire. While ADK
+runs the turn, an adapter on the contract runs behind `AdkShim`
+(`melchizedek-agents/models/adkShim`), an ADK `BaseLlm` that charges each
+call against `max_steps`, passes the turn's abort signal and opens the
+`llm.request` span, as the ADK-path adapters do (ADR 0053).
 
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it
