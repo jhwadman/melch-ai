@@ -607,8 +607,9 @@ async function* modelStep(
  *
  * Never throws for a failed model call or a failing tool: the first is the
  * last event, stored with its error, the second the call's error response.
- * Throws where the ADK runtime throws: a request that cannot be built, an
- * adapter or a store that throws.
+ * An adapter that throws an Error ends the step on ADK's error event for
+ * it (lib/runtime/native/step.ts). Throws where the ADK runtime throws: a
+ * request that cannot be built, a store that throws.
  */
 export function runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGenerator<TurnEvent, AgentLoopEnd> {
   // Telemetry hook (WS2-11, lib/runtime/native/telemetry.ts): the run is an agent.invoke span.
