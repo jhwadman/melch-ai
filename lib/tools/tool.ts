@@ -22,17 +22,29 @@
  *     `stateDelta`, the writes the runtime applies with the tool's result;
  *   - `actions.skipSummarization`, which ends the agent's step on this result;
  *   - `requestConfirmation` and `confirmation`, the approval gate (ADR 0028);
- *   - the turn's abort signal.
+ *   - the turn's abort signal;
+ *   - the message that started the run (`userContent`), and `searchMemory`,
+ *     long-term recall for this user alone, when the run has memory
+ *     (ADR 0059).
  *
- * A LEAF: types and plain functions. Its one import is a type from the model
- * contract; nothing in its import graph names @google/*, which
- * tests/toolContract.test.ts asserts.
+ * WRITING INTO THE INSTRUCTION (ADR 0059): a Tool may also add text to the
+ * system instruction of each model request made for an agent that lists it
+ * (`instruction`), as load_memory says that memory exists. An InstructionTool
+ * does only that and declares no function: preload_memory, which writes the
+ * user's recalled facts into the instruction. Both run before the request
+ * is sent, in the order the agent lists its tools.
+ *
+ * A LEAF: types and plain functions. Its imports are types from the model
+ * contract and the runtime's event and memory interfaces; nothing in its
+ * import graph names @google/*, which tests/toolContract.test.ts asserts.
  *
  * Tool results and model output are data, never instructions: a tool returns
  * what it found, and nothing here reads a result to decide what runs next.
  */
 
 import type { ToolDeclaration } from '../models/contract.ts';
+import type { TurnContent } from '../runtime/events.ts';
+import type { MemorySearchResult, MemoryService } from '../runtime/memoryService.ts';
 
 // ── The context a call receives ──────────────────────────────────────────────
 
@@ -83,6 +95,17 @@ export interface ToolContext {
   readonly confirmation?: ToolConfirmation;
   /** Aborts with the turn (lib/runtime/turnControl.ts). */
   readonly signal?: AbortSignal;
+  /**
+   * The message that started this run: what the person asked, or for a
+   * delegated subagent the request its orchestrator sent.
+   */
+  readonly userContent?: TurnContent;
+  /**
+   * Long-term memory's facts for the query, from this context's own
+   * `<appName>/<userId>` silo: a tool cannot name another user's. Present
+   * only when the run has a memory service (ADR 0020, ADR 0059).
+   */
+  readonly searchMemory?: (query: string) => Promise<MemorySearchResult>;
 }
 
 // ── The tool ─────────────────────────────────────────────────────────────────
@@ -107,6 +130,29 @@ export interface Tool {
   readonly longRunning?: boolean;
   /** Each call waits for a person's approval (requireApproval). */
   readonly requiresApproval?: boolean;
+  /**
+   * Text added to the system instruction of each model request made for an
+   * agent that lists this tool, or undefined to add nothing. It reads the
+   * context and writes nothing to it.
+   */
+  instruction?(ctx: ToolContext): Promise<string | undefined>;
+}
+
+/**
+ * Listed under an agent's `tools:` like a Tool, but declares no function and
+ * is never called: it only adds text to the system instruction of each model
+ * request, as `Tool.instruction` does (preload_memory).
+ */
+export interface InstructionTool {
+  readonly name: string;
+  instruction(ctx: ToolContext): Promise<string | undefined>;
+}
+
+/** True for an InstructionTool: an instruction and no declaration (and not an ADK tool, which has runAsync). */
+export function isInstructionTool(value: unknown): value is InstructionTool {
+  if (!value || typeof value !== 'object') return false;
+  const t = value as Record<string, unknown>;
+  return typeof t.name === 'string' && typeof t.instruction === 'function' && !('declaration' in t) && !('runAsync' in t);
 }
 
 /**
@@ -211,6 +257,14 @@ export interface ToolContextInit {
   state?: Readonly<Record<string, unknown>>;
   confirmation?: ToolConfirmation;
   signal?: AbortSignal;
+  /** The message that started the run. */
+  userContent?: TurnContent;
+  /**
+   * The run's long-term memory, already pinned to the root syndicate's
+   * namespace (namespacedMemoryService). The context searches it under its
+   * own `appName` and `userId` only.
+   */
+  memory?: Pick<MemoryService, 'search'>;
 }
 
 /** A context the caller built, with what the call asked for readable afterwards. */
@@ -257,6 +311,23 @@ export function createToolContext(init: ToolContextInit = {}): StandaloneToolCon
     },
     confirmation: init.confirmation,
     signal: init.signal,
+    userContent: init.userContent,
+    searchMemory: init.memory ? memorySearch(init.memory, init.appName, init.userId) : undefined,
+  };
+}
+
+/**
+ * Search bound to one silo. A context that does not know whose silo it is
+ * refuses, rather than search a key nobody writes to.
+ */
+function memorySearch(
+  memory: Pick<MemoryService, 'search'>,
+  appName: string | undefined,
+  userId: string | undefined,
+): (query: string) => Promise<MemorySearchResult> {
+  return async (query: string) => {
+    if (!appName || !userId) throw new Error('Memory search needs the app name and user id of the run.');
+    return memory.search({ appName, userId, query });
   };
 }
 
@@ -288,7 +359,7 @@ export const OWN_TOOL: unique symbol = Symbol.for('melchizedek.tool');
 /**
  * The Tool behind `value`: the value itself when it is a Tool, the Tool an
  * ADK tool was made from by toFunctionTool, else undefined (a server-side
- * sentinel, a memory tool, an MCP or subagent tool). An ADK tool that was
+ * sentinel, an InstructionTool, an MCP or subagent tool). An ADK tool that was
  * gated afterwards (lib/compile.ts sets `requireConfirmation`) yields the
  * gated Tool, so the gate survives the trip back.
  */
@@ -298,4 +369,16 @@ export function toolOf(value: unknown): Tool | undefined {
   const own = (value as Record<PropertyKey, unknown>)[OWN_TOOL];
   if (!isTool(own)) return undefined;
   return (value as { requireConfirmation?: unknown }).requireConfirmation === true ? requireApproval(own) : own;
+}
+
+/**
+ * The InstructionTool behind `value`: the value itself, or the one an ADK
+ * tool was made from by toAdkInstructionTool (lib/tools/adkTool.ts), else
+ * undefined.
+ */
+export function instructionToolOf(value: unknown): InstructionTool | undefined {
+  if (isInstructionTool(value)) return value;
+  if (!value || typeof value !== 'object') return undefined;
+  const own = (value as Record<PropertyKey, unknown>)[OWN_TOOL];
+  return isInstructionTool(own) ? own : undefined;
 }

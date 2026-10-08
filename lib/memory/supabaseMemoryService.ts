@@ -1,12 +1,34 @@
+/**
+ * lib/memory/supabaseMemoryService.ts — long-term memory over pgvector
+ * (ADR 0020), on the engine's own interface and on ADK's.
+ *
+ * The class implements the engine's MemoryService (lib/runtime/memoryService.ts:
+ * `ingest`, `search`, and the optional `deleteUserMemory`, `pruneExpired`
+ * and `verifyEmbeddingDimensions`, ADR 0052), which the native runtime and
+ * the engine's own memory tools (lib/tools/memoryTools.ts) call. It also
+ * implements ADK's BaseMemoryService, whose `addSessionToMemory` and
+ * `searchMemory` the ADK runtime's Runner, the turn runner's ingestion
+ * (ingestTurnMemory) and the A2A server call: each is one line that hands
+ * its arguments to `ingest` or `search`, so both runtimes reach the same
+ * logic and the same silos (ADR 0059).
+ */
+
 import type {
 	BaseMemoryService,
 	SearchMemoryRequest,
 	SearchMemoryResponse,
-	MemoryEntry,
-	Session,
+	Session as AdkSession,
 } from '@google/adk';
-import type { Content } from '@google/genai';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { TurnEvent } from '../runtime/events.ts';
+import type {
+	MemoryEntry,
+	MemoryIngestOptions,
+	MemorySearchRequest,
+	MemorySearchResult,
+	MemoryService,
+} from '../runtime/memoryService.ts';
+import type { Session } from '../runtime/sessions.ts';
 import { memoryProvidersFromEnv, modelExtractor } from './providers.ts';
 import { providerForModel } from '../models/providerMap.ts';
 import { isSupabaseClient, supabaseMemoryStore } from './store.ts';
@@ -25,7 +47,9 @@ import type { Embedder, MemoryExtractor } from './providers.ts';
  */
 export function stripHarnessBlocks(text: string): string {
 	return text
-		.replace(/\[System Context:[^\]]*\]\s*/g, '')
+		// `[^[\]]` stops at any bracket, so a run of unclosed markers is
+		// scanned once, not once per marker (CodeQL js/polynomial-redos).
+		.replace(/\[System Context:[^[\]]*\]\s*/g, '')
 		// A data block a calling surface attaches: a bracketed label ending in
 		// "Payload" or "Sheet" (e.g. `[Account Payload]`), then a fenced block.
 		.replace(/\[[A-Za-z][A-Za-z ]{0,60}(?:Payload|Sheet)\]\s*```[\s\S]*?```\s*/g, '')
@@ -140,7 +164,7 @@ const MONTH_NAMES = [
 	'july', 'august', 'september', 'october', 'november', 'december',
 ];
 
-export class SupabaseVectorMemoryService implements BaseMemoryService {
+export class SupabaseVectorMemoryService implements MemoryService, BaseMemoryService {
 	private extractor: MemoryExtractor;
 	private embedder: Embedder;
 	private store: MemoryStore;
@@ -197,6 +221,8 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 	}
 
 	/**
+	 * ADK's name for `ingest`, which the ADK runtime and the A2A server call.
+	 *
 	 * @param extractionRules Optional domain rules appended to the shared
 	 *   extraction prompt for THIS consumer only. The prompt is global (the
 	 *   patient advocate uses the same one), so anything domain-specific —
@@ -204,10 +230,23 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 	 *   into it. Declared as `memory_extraction_rules` on the served syndicate.
 	 */
 	async addSessionToMemory(
-		session: Session,
+		session: AdkSession,
 		extractionRules?: string,
 		options: { extractionModel?: string } = {},
 	): Promise<void> {
+		return this.ingest(session, { extractionRules, extractionModel: options.extractionModel });
+	}
+
+	/**
+	 * Distils the session's events not yet ingested into facts filed under
+	 * `<appName>/<userId>`. Throws when a step fails, leaving those events
+	 * pending for the next ingestion (ADR 0020 item 6).
+	 *
+	 * @param options.extractionRules The syndicate's `memory_extraction_rules`.
+	 * @param options.extractionModel The syndicate's `memory_extraction_model`.
+	 */
+	async ingest(session: Session, options: MemoryIngestOptions = {}): Promise<void> {
+		const { extractionRules } = options;
 		const userKey = `${session.appName}/${session.userId}`;
 		const watermarkKey = `${userKey}::${session.id}`;
 		let alreadyIngested = this.ingestedEventCount.get(watermarkKey) ?? 0;
@@ -301,9 +340,20 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 		return count;
 	}
 
+	/**
+	 * ADK's name for `search`, which ADK's Context.searchMemory calls. The
+	 * entries are the same JSON as ADK's MemoryEntry; only genai's types name
+	 * a few part fields as enums, hence the cast.
+	 */
 	async searchMemory(request: SearchMemoryRequest): Promise<SearchMemoryResponse> {
+		return (await this.search(request)) as unknown as SearchMemoryResponse;
+	}
+
+	/** The facts most relevant to the query, from the `<appName>/<userId>` silo only. */
+	async search(request: MemorySearchRequest): Promise<MemorySearchResult> {
 		const query = stripHarnessBlocks(request.query) || request.query;
-		console.log(`[MemoryService] Searching memory for: "${query}"`);
+		// The query is the user's own words: the log says only how long it is.
+		console.log(`[MemoryService] Searching memory (${query.length} chars)`);
 		const userKey = `${request.appName}/${request.userId}`;
 		return this.searchSupabase(userKey, query);
 	}
@@ -413,7 +463,7 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 		}
 	}
 
-	private serializeEvents(events: Session['events']): string {
+	private serializeEvents(events: TurnEvent[]): string {
 		const lines: string[] = [];
 		for (const event of events) {
 			if (!event.content?.parts) continue;
@@ -639,7 +689,7 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 	private async searchSupabase(
 		userKey: string,
 		query: string
-	): Promise<SearchMemoryResponse> {
+	): Promise<MemorySearchResult> {
 		const queryEmbeddings = await this.embedTexts([query]);
 		const queryVec = queryEmbeddings[0];
 
@@ -692,7 +742,7 @@ export class SupabaseVectorMemoryService implements BaseMemoryService {
 						: `[SUPERSEDED by a later correction] ${text}`;
 				}
 				return {
-					content: { role: 'user', parts: [{ text }] } as Content,
+					content: { role: 'user', parts: [{ text }] },
 					author: 'memory_service',
 					timestamp: row.created_at || new Date().toISOString()
 				};

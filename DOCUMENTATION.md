@@ -129,7 +129,10 @@ skipped with a warning at compile time.
 Registered in `lib/toolRegistry.ts` — one map from YAML name to ADK tool
 instance. A **Contract** is the engine's own Tool (`lib/tools/tool.ts`),
 defined once with `defineTool` and handed to the ADK runtime as a
-`FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`):
+`FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`). An
+**Instruction tool** is the engine's own too: it declares no function and
+only writes into each request's instruction, reaching the ADK runtime
+through `toAdkInstructionTool`:
 
 | Name | Kind | Does |
 |---|---|---|
@@ -139,8 +142,8 @@ defined once with `defineTool` and handed to the ADK runtime as a
 | `collections_search` | xAI-only | Semantic search over xAI **Collections** — hosted document stores (PDFs/text/CSVs) uploaded at console.x.ai — server-side RAG with `collections://…` citations. Which collections: `XAI_COLLECTION_IDS` in `.env` (optional `XAI_COLLECTIONS_MAX_RESULTS`). Declared with no ids → omitted with a warning; non-xAI providers → silent no-op. |
 | `url_context` | Gemini built-in | Gemini reads the pages at URLs in the conversation, server-side (Google fetches them, not this host). On any other provider it is a no-op the doctor reports as dropped; use `web_extract` there. |
 | `google_search` | ADK built-in | Live web search — Gemini agents only (legacy alias; use `web_search`). |
-| `preload_memory` | ADK built-in | Silently injects similarity-matched facts into every request (ambient recall). |
-| `load_memory` | ADK built-in | Explicit tool call to search the fact store (deliberate recall). |
+| `preload_memory` | Instruction tool | Silently injects similarity-matched facts into every request's instruction (ambient recall). The model never calls it. |
+| `load_memory` | Contract | Explicit tool call to search the fact store (deliberate recall). Both memory tools read the caller's own silo only and send the model what ADK's tools of the same names sent ([ADR 0059](./wiki/decisions/0059-memory-on-the-engines-own-interfaces.md)). |
 | `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive the AgentTool text boundary. |
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |

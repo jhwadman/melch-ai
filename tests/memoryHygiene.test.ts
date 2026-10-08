@@ -106,6 +106,15 @@ test('one duplicate among several near misses is enough to skip', () => {
 	);
 });
 
+test('stripping harness blocks stays linear on a run of unclosed markers (CodeQL js/polynomial-redos)', () => {
+  const hostile = '[System Context:'.repeat(50_000) + ' what is my plan';
+  const started = performance.now();
+  const out = stripHarnessBlocks(hostile);
+  assert.ok(performance.now() - started < 1_000, 'a quadratic scan of 800,000 characters takes far longer');
+  assert.ok(out.endsWith('what is my plan'), 'an unclosed marker is not stripped, and the question survives');
+  assert.strictEqual(stripHarnessBlocks('[System Context: Current Date is August 18, 2026]\nhi'), 'hi');
+});
+
 test('harness blocks never reach the memory query or the extraction transcript', () => {
   const msg = '[System Context: Current Date is August 18, 2026]\n'
     + '[Account Payload]\n```json\n{"account":{"equity_usd":1},"positions":{"NKE":{"total_qty":10}}}\n```\n'

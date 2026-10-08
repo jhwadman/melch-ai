@@ -3,14 +3,15 @@
  * (ADR 0045, ADR 0052).
  *
  * WHY this file exists:
- *   Long-term memory (lib/memory/supabaseMemoryService.ts) implements ADK's
- *   BaseMemoryService, which the ADK runtime calls through its load_memory
- *   and preload_memory tools. The native runtime calls this interface
- *   instead; the service moves onto it, with those tools as the engine's
- *   own, in WS2-3. The shapes match what the service does today, extras
- *   included: per-syndicate extraction rules and model, erasure, retention
- *   and the boot-time dimension check, which the A2A server reaches by
- *   name (lib/a2a/app.ts).
+ *   The native runtime asks long-term memory for what it needs through this
+ *   interface, never through ADK's BaseMemoryService. The engine's service
+ *   (lib/memory/supabaseMemoryService.ts) implements it, and also ADK's
+ *   interface, whose methods hand their arguments to this one's, so the ADK
+ *   runtime reaches the same logic (ADR 0059). The shapes include the
+ *   extras: per-syndicate extraction rules and model, erasure, retention and
+ *   the boot-time dimension check, which the A2A server reaches by name
+ *   (lib/a2a/app.ts). The memory tools reach `search` through the tool
+ *   context's `searchMemory` (lib/tools/tool.ts, lib/tools/memoryTools.ts).
  *
  * SILOS: every fact is filed under `<appName>/<userId>`, and a search reads
  * that key alone. `appName` is the memory namespace, not the agent that

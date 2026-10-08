@@ -19,16 +19,25 @@
  *     (undefined) result is the null response ADK waits on;
  *   - a Tool that requires approval sets FunctionTool's own gate, which
  *     raises `adk_request_confirmation` as lib/compile.ts's gate does;
- *   - a Tool that throws becomes ADK's `Error in tool '<name>': …` response.
+ *   - a Tool that throws becomes ADK's `Error in tool '<name>': …` response;
+ *   - a Tool's `instruction`, and an InstructionTool's, are appended to the
+ *     request's system instruction in the tool's processLlmRequest, joined
+ *     as ADK's own appendInstructions joins them, at the tool's place in the
+ *     agent's list: where ADK's load_memory and preload_memory wrote theirs
+ *     (ADR 0059);
+ *   - the context reaches the run's memory through ADK's own
+ *     `Context.searchMemory`, so a search reads the silo ADK's tools read.
  */
 
-import { FunctionTool } from '@google/adk';
-import type { Context } from '@google/adk';
+import { BaseTool, FunctionTool } from '@google/adk';
+import type { Context, LlmRequest, ToolOptions, ToolProcessLlmRequest } from '@google/adk';
 import type { Schema } from '@google/genai';
 
+import type { TurnContent } from '../runtime/events.ts';
+import type { MemorySearchResult } from '../runtime/memoryService.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 import { OWN_TOOL, createToolContext } from './tool.ts';
-import type { Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from './tool.ts';
+import type { InstructionTool, Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from './tool.ts';
 import { asTool, toGeminiSchema, toolCallContextFrom } from './toolContract.ts';
 import type { ToolContract } from './toolContract.ts';
 
@@ -94,6 +103,19 @@ class AdkToolContext implements ToolContext {
   get signal(): AbortSignal | undefined {
     return this.#adk.abortSignal ?? currentTurnSignal();
   }
+
+  get userContent(): TurnContent | undefined {
+    return (this.#adk.invocationContext as { userContent?: TurnContent } | undefined)?.userContent;
+  }
+
+  /**
+   * ADK's own search: the run's memory service, under the session's app name
+   * and user id. Absent when the run has no memory service.
+   */
+  get searchMemory(): ((query: string) => Promise<MemorySearchResult>) | undefined {
+    if (!(this.#adk.invocationContext as { memoryService?: unknown } | undefined)?.memoryService) return undefined;
+    return (query: string) => this.#adk.searchMemory(query) as Promise<MemorySearchResult>;
+  }
 }
 
 /** The ToolContext for one ADK call; a standalone one outside a run. */
@@ -118,7 +140,7 @@ export function toFunctionTool(tool: Tool): FunctionTool;
 export function toFunctionTool(tool: Tool | ToolContract<any>): FunctionTool {
   const own = asTool(tool);
   const declaration = own.declaration();
-  const adkTool = new FunctionTool({
+  const options: ToolOptions<Schema> = {
     name: own.name,
     description: declaration.description,
     parameters: toGeminiSchema(declaration.parameters) as unknown as Schema,
@@ -126,7 +148,67 @@ export function toFunctionTool(tool: Tool | ToolContract<any>): FunctionTool {
       own.execute((args ?? {}) as Record<string, unknown>, adkToolContext(adkContext)),
     isLongRunning: own.longRunning === true,
     requireConfirmation: own.requiresApproval === true,
-  });
+  };
+  // Only a Tool that writes into the instruction needs more than FunctionTool.
+  const adkTool = typeof own.instruction === 'function' ? new InstructingFunctionTool(options) : new FunctionTool(options);
   Object.defineProperty(adkTool, OWN_TOOL, { value: own });
+  return adkTool;
+}
+
+// ── Writing into the instruction (ADR 0059) ──────────────────────────────────
+
+/**
+ * Appends to the request's system instruction exactly as ADK's own
+ * appendInstructions (models/llm_request.js, not exported) does: the texts
+ * joined by a blank line, after a blank line when there is one already.
+ */
+function appendInstruction(llmRequest: LlmRequest, text: string): void {
+  llmRequest.config ??= {};
+  const config = llmRequest.config as { systemInstruction?: unknown };
+  config.systemInstruction = config.systemInstruction ? `${config.systemInstruction as string}\n\n${text}` : text;
+}
+
+/**
+ * The own tool an ADK tool carries. Read through `this`, not a private
+ * field, so the copy lib/compile.ts makes with Object.create to gate a tool
+ * still finds it.
+ */
+function carried<T>(adkTool: object): T {
+  return (adkTool as Record<PropertyKey, unknown>)[OWN_TOOL] as T;
+}
+
+/** A FunctionTool that also appends its Tool's instruction, after declaring itself. */
+class InstructingFunctionTool extends FunctionTool<Schema> {
+  override async processLlmRequest(request: ToolProcessLlmRequest): Promise<void> {
+    await super.processLlmRequest(request);
+    const text = await carried<Tool>(this).instruction?.(adkToolContext(request.toolContext));
+    if (text) appendInstruction(request.llmRequest, text);
+  }
+}
+
+/** The ADK tool for an InstructionTool: declares nothing, and appends its instruction. */
+class InstructionOnlyTool extends BaseTool {
+  override async runAsync(): Promise<unknown> {
+    throw new Error(`${this.name} only writes into the instruction and is never called by a model`);
+  }
+
+  override async processLlmRequest(request: ToolProcessLlmRequest): Promise<void> {
+    await super.processLlmRequest(request);
+    const text = await carried<InstructionTool>(this).instruction(adkToolContext(request.toolContext));
+    if (text) appendInstruction(request.llmRequest, text);
+  }
+}
+
+/**
+ * ADK surface for an InstructionTool: a BaseTool that declares no function,
+ * so it never enters the request's tools, and appends the InstructionTool's
+ * text in processLlmRequest, where ADK's PreloadMemoryTool appended its own.
+ * instructionToolOf (lib/tools/tool.ts) reads the InstructionTool back.
+ */
+export function toAdkInstructionTool(tool: InstructionTool): BaseTool {
+  // ADK reads neither name nor description from a tool that declares
+  // nothing; ADK's PreloadMemoryTool used its name for both.
+  const adkTool = new InstructionOnlyTool({ name: tool.name, description: tool.name });
+  Object.defineProperty(adkTool, OWN_TOOL, { value: tool });
   return adkTool;
 }
