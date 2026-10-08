@@ -29,7 +29,7 @@ import { z } from 'zod';
 
 import type { JsonSchema, NativeTool, ToolDeclaration } from './contract.ts';
 import type { ToolContract } from '../tools/toolContract.ts';
-import { isInstructionTool, isTool } from '../tools/tool.ts';
+import { isInstructionTool, isTool, nativeToolMarkerOf } from '../tools/tool.ts';
 
 /**
  * Standard JSON Schema for what a caller may send a zod schema: its input
@@ -109,7 +109,7 @@ export function toolDeclarationFor(tool: unknown): {
   description: string;
   parameters: Record<string, unknown>;
 } | undefined {
-  if (!tool || typeof tool !== 'object') return undefined;
+  if (!tool || typeof tool !== 'object' || nativeToolMarkerOf(tool)) return undefined;
   const t = tool as Record<string, any>;
   let decl: Record<string, any> | undefined;
   if (typeof t._getDeclaration === 'function') {
@@ -193,10 +193,8 @@ function dropZodOnlyKeywords(node: Record<string, unknown>): void {
   if (typeof node.additionalProperties === 'boolean') delete node.additionalProperties;
 }
 
-/** The tools a provider runs on its own side, as the contract names them. */
-const NATIVE_TOOLS: readonly NativeTool[] = [
-  'web_search', 'google_search', 'url_context', 'x_search', 'collections_search', 'code_execution',
-];
+/** ADK's built-ins that a model runs itself, by the NativeTool their name is. */
+const ADK_IN_MODEL_NATIVE_TOOLS: readonly NativeTool[] = ['google_search', 'url_context'];
 
 /**
  * ADK's markers, read through the global symbol registry so this module
@@ -375,7 +373,7 @@ function isToolContract(tool: Record<string, unknown>): tool is Record<string, u
  * instruction, as itself or as its ADK tool) and for one with no name.
  */
 export function contractToolDeclaration(tool: unknown, options: { strict?: boolean } = {}): ToolDeclaration | undefined {
-  if (!isPlainObject(tool) || isInstructionTool(tool)) return undefined;
+  if (!isPlainObject(tool) || isInstructionTool(tool) || nativeToolMarkerOf(tool)) return undefined;
   const strict = options.strict === true;
   let name: unknown;
   let description: unknown;
@@ -416,31 +414,29 @@ export function contractToolDeclaration(tool: unknown, options: { strict?: boole
 
 /**
  * The NativeTool a tool object stands for, or undefined for any other tool.
- * Recognised by marker and name, never by class, so a second copy of a
- * module (or of ADK) still matches:
- *   - Gemini code execution: ADK's built-in code executor, by its marker
- *     (the agent's `codeExecutor`, from `code_execution: gemini`).
- *   - A tool named web_search, google_search, url_context, x_search or
- *     collections_search that declares no function: ADK marks its own
- *     built-ins (GOOGLE_SEARCH, URL_CONTEXT) as run by the model, and the
- *     engine's sentinels (lib/tools/*Tool.ts) return no declaration.
- * A client-side tool registered under one of those names declares itself,
- * so it stays a client-side tool. ADK's other in-model tools (Vertex AI
- * Search, enterprise web search, Maps grounding, RAG retrieval) have no
- * NativeTool: they are undefined here and declare nothing, so a caller
- * building a request reports them as dropped.
+ * Recognised by marker, never by class or by shape, and every marker lives
+ * in the global symbol registry, so a second copy of a module (or of ADK)
+ * still matches (ADR 0062):
+ *   - the engine's own marker (lib/tools/tool.ts, NATIVE_TOOL): a
+ *     NativeToolMarker (lib/tools/nativeTools.ts) and the ADK sentinel made
+ *     from it (lib/tools/webSearchTool.ts and its siblings);
+ *   - Gemini code execution: ADK's built-in code executor, by ADK's marker
+ *     (the agent's `codeExecutor`, from `code_execution: gemini`);
+ *   - ADK's own GOOGLE_SEARCH and URL_CONTEXT, by ADK's marker for a tool
+ *     the model runs, and their name.
+ * A client-side tool registered under one of those names carries no marker,
+ * so it stays a client-side tool, as does a tool that merely declares
+ * nothing. ADK's other in-model tools (Vertex AI Search, enterprise web
+ * search, Maps grounding, RAG retrieval) have no NativeTool: they are
+ * undefined here and declare nothing, so a caller building a request
+ * reports them as dropped.
  */
 export function nativeToolOf(tool: unknown): NativeTool | undefined {
   if (!tool || typeof tool !== 'object') return undefined;
+  const own = nativeToolMarkerOf(tool);
+  if (own) return own;
   const t = tool as Record<PropertyKey, unknown>;
   if (t[ADK_BUILT_IN_CODE_EXECUTOR] === true) return 'code_execution';
-  const name = NATIVE_TOOLS.find((n) => n === t.name);
-  if (!name) return undefined;
-  if (t[ADK_IN_MODEL_TOOL] === true) return name;
-  if (typeof t._getDeclaration !== 'function') return undefined;
-  try {
-    return (t._getDeclaration as () => unknown)() ? undefined : name;
-  } catch {
-    return undefined;
-  }
+  if (t[ADK_IN_MODEL_TOOL] !== true) return undefined;
+  return ADK_IN_MODEL_NATIVE_TOOLS.find((n) => n === t.name);
 }

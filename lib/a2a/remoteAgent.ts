@@ -12,7 +12,9 @@
  *
  * Built on the official A2A SDK client with its v0.3 compatibility layer on,
  * so a remote agent may speak A2A 1.0 (e.g. Microsoft Foundry) or 0.3 (most
- * other platforms today); the card decides. It does not depend on ADK.
+ * other platforms today); the card decides. The client does not depend on
+ * ADK, and the tool is the engine's own (remoteAgentOwnTool); the ADK
+ * runtime receives it through toFunctionTool (remoteAgentTool).
  *
  * Security:
  *   - Every URL — the card and the endpoint the card names — passes the
@@ -31,11 +33,13 @@ import { Role, TaskState } from '@a2a-js/sdk';
 import type { AgentCard, Message, Part, Task } from '@a2a-js/sdk';
 import { ClientFactory, DefaultAgentCardResolver, JsonRpcTransportFactory, RestTransportFactory } from '@a2a-js/sdk/client';
 import type { Client } from '@a2a-js/sdk/client';
-import { FunctionTool } from '@google/adk';
-import type { Schema } from '@google/genai';
+import type { FunctionTool } from '@google/adk';
 
+import type { ToolDeclaration } from '../models/contract.ts';
 import { checkHost } from '../net/addressGuard.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
+import { toFunctionTool } from '../tools/adkTool.ts';
+import type { Tool, ToolContext } from '../tools/tool.ts';
 
 const FETCH_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 1_500;
@@ -238,34 +242,57 @@ export function remoteToolOutput(name: string, answer: RemoteAnswer): string {
   return `Error: remote agent ${name} ended in state '${answer.state}'${answer.text ? ` — ${answer.text}` : ''}.`;
 }
 
+/** What a remote agent tool is built from: the subagent's name and description, and where it is served. */
+export interface RemoteAgentToolParams {
+  name: string;
+  description: string;
+  url: string;
+}
+
 /**
- * The subagent as a tool with AgentTool's contract (one `request` string), so
- * an orchestrator delegates to it exactly as to a local subagent. Failures
- * come back as readable text, never as a throw into the runner.
+ * The subagent as an own Tool (lib/tools/tool.ts, ADR 0062) with AgentTool's
+ * contract (one `request` string), so an orchestrator delegates to it
+ * exactly as to a local subagent, on either runtime. The remote
+ * conversation is keyed by the local session (`ctx.sessionId`), and the call
+ * aborts with the turn (`ctx.signal`). Failures come back as readable text,
+ * never as a throw into the runner.
  */
-export function remoteAgentTool(params: { name: string; description: string; url: string }): FunctionTool {
+export function remoteAgentOwnTool(params: RemoteAgentToolParams): Tool {
   const client = new RemoteA2AAgent(params.url);
-  return new FunctionTool({
+  const declaration: ToolDeclaration = {
     name: params.name,
     description: params.description || `Remote agent ${params.name}`,
     parameters: {
-      type: 'OBJECT',
-      properties: { request: { type: 'STRING', description: `What to ask ${params.name}.` } },
+      type: 'object',
+      properties: { request: { type: 'string', description: `What to ask ${params.name}.` } },
       required: ['request'],
-    } as unknown as Schema,
-    execute: async (input: unknown, toolContext?: any) => {
-      const args = (input ?? {}) as { request?: string };
+    },
+  };
+  return {
+    name: params.name,
+    declaration: () => declaration,
+    execute: async (args: Record<string, unknown>, ctx: ToolContext) => {
       const request = String(args?.request ?? '').trim();
       if (!request) return `Error: ${params.name} needs a request.`;
       try {
         const answer = await client.send(request, {
-          contextId: remoteContextId(toolContext?.invocationContext?.session?.id, params.name),
-          signal: currentTurnSignal(),
+          contextId: remoteContextId(ctx?.sessionId, params.name),
+          signal: ctx?.signal ?? currentTurnSignal(),
         });
         return remoteToolOutput(params.name, answer);
       } catch (err: unknown) {
         return `Error: remote agent ${params.name} could not be reached (${err instanceof Error ? err.message : String(err)}).`;
       }
     },
-  });
+  };
+}
+
+/**
+ * The remote agent tool as the ADK runtime runs it: the FunctionTool
+ * toFunctionTool (lib/tools/adkTool.ts) makes of remoteAgentOwnTool, which
+ * declares the same parameters the hand-built FunctionTool declared and
+ * carries the own Tool for toolOf().
+ */
+export function remoteAgentTool(params: RemoteAgentToolParams): FunctionTool {
+  return toFunctionTool(remoteAgentOwnTool(params));
 }

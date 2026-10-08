@@ -413,9 +413,11 @@ test('the server-side tools map to their NativeTool', () => {
   for (const [tool, expected] of cases) assert.equal(nativeToolOf(tool), expected, expected);
 });
 
-test('NativeTool is recognised by marker and name, not by class', () => {
-  // A second copy of a sentinel module: same name, no declaration, another class.
-  assert.equal(nativeToolOf({ name: 'x_search', _getDeclaration: () => undefined }), 'x_search');
+test('NativeTool is recognised by marker, not by class or shape (ADR 0062)', () => {
+  // A second copy of a sentinel module: another class, the same global marker.
+  assert.equal(nativeToolOf({ name: 'x_search', _getDeclaration: () => undefined, [Symbol.for('melchizedek.nativeTool')]: 'x_search' }), 'x_search');
+  // The shape alone (a name and no declaration) is no longer enough.
+  assert.equal(nativeToolOf({ name: 'x_search', _getDeclaration: () => undefined }), undefined);
   // ADK's markers live in the global symbol registry.
   assert.equal(nativeToolOf({ name: 'google_search', [Symbol.for('google.adk.inModelTool')]: true }), 'google_search');
   assert.equal(nativeToolOf({ [Symbol.for('google.adk.builtInCodeExecutor')]: true }), 'code_execution');

@@ -35,18 +35,17 @@ import { BaseTool } from '@google/adk';
 import type { LlmRequest } from '@google/adk';
 
 import { providerForModel } from '../models/providerMap.ts';
+import { COLLECTIONS_SEARCH_MARKER } from './nativeTools.ts';
+import { NATIVE_TOOL, nativeToolMarkerOf } from './tool.ts';
 
 export const COLLECTIONS_SEARCH_TOOL_NAME = 'collections_search';
 
+/** The ADK runtime's form of COLLECTIONS_SEARCH_MARKER (lib/tools/nativeTools.ts), carrying its marker. */
 export class CollectionsSearchTool extends BaseTool {
+  readonly [NATIVE_TOOL] = COLLECTIONS_SEARCH_MARKER[NATIVE_TOOL];
+
   constructor() {
-    super({
-      name: COLLECTIONS_SEARCH_TOOL_NAME,
-      description:
-        'Semantic search over xAI Collections (hosted document stores) via ' +
-        'Agent Tools — grok-* models only; a no-op sentinel on every other ' +
-        'provider. Collections are selected by XAI_COLLECTION_IDS.',
-    });
+    super({ name: COLLECTIONS_SEARCH_TOOL_NAME, description: COLLECTIONS_SEARCH_MARKER.description });
   }
 
   /** Never a client-side function tool — xAI runs retrieval server-side. */
@@ -69,17 +68,14 @@ export class CollectionsSearchTool extends BaseTool {
 /** Shared instance, mirroring WEB_SEARCH / X_SEARCH. */
 export const COLLECTIONS_SEARCH = new CollectionsSearchTool();
 
-/** True when the agent requested collections search (xAI sentinel path). */
+/** True when the agent requested collections search (xAI sentinel path), by marker. */
 export function wantsCollectionsSearch(llmRequest: LlmRequest): boolean {
-  return (
-    llmRequest.toolsDict?.[COLLECTIONS_SEARCH_TOOL_NAME] instanceof
-    CollectionsSearchTool
-  );
+  return isCollectionsSearchSentinel(llmRequest.toolsDict?.[COLLECTIONS_SEARCH_TOOL_NAME]);
 }
 
-/** Sentinel test used by the request builder to skip function-tool emission. */
+/** Sentinel test used by the request builder to skip function-tool emission: the collections_search marker, on either form. */
 export function isCollectionsSearchSentinel(tool: unknown): boolean {
-  return tool instanceof CollectionsSearchTool;
+  return nativeToolMarkerOf(tool) === 'collections_search';
 }
 
 /** Collection ids from XAI_COLLECTION_IDS (comma-separated, trimmed). */

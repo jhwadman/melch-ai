@@ -1,11 +1,31 @@
-import { FunctionTool } from '@google/adk';
-import type { Schema } from '@google/genai';
+/**
+ * lib/tools/mcpToolFactory.ts — a remote MCP server's tools, as the
+ * engine's own Tools (lib/tools/tool.ts, ADR 0062).
+ *
+ * An agent's `mcp_server_url:` connects here over SSE; every tool the
+ * server lists becomes an own Tool whose declaration is the server's
+ * description (bounded) and input schema, and whose execute calls the
+ * server and returns its text (bounded). loadMcpTools returns them for the
+ * native runtime; createMcpTools hands the ADK runtime the FunctionTool
+ * toFunctionTool (lib/tools/adkTool.ts) makes of each, so both runtimes
+ * declare the same parameters and run the same call.
+ *
+ * The server is an untrusted tool vendor (ADR 0041): its URL passes the
+ * SSRF guard, a credential goes only to its exact host, and its
+ * descriptions and results are cut to a bound.
+ */
+import type { FunctionTool } from '@google/adk';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import type { ToolDeclaration } from '../models/contract.ts';
+import { toContractJsonSchema } from '../models/schemaNormalize.ts';
 import { checkHost } from '../net/addressGuard.ts';
 import { fetchWithRedirectPolicy } from '../net/redirects.ts';
 import type { RedirectPolicy } from '../net/redirects.ts';
+import { toFunctionTool } from './adkTool.ts';
 import { MAX_RESULT_CHARS } from './tool.ts';
+import type { Tool } from './tool.ts';
+import { toGeminiSchema } from './toolContract.ts';
 
 // Security (SSRF): mcp_server_url can arrive from a registry-stored syndicate
 // config. Only http(s), and the host must pass lib/net/addressGuard.ts (the
@@ -108,7 +128,29 @@ export async function closeMcpConnections(): Promise<void> {
   await Promise.all(all.map((t) => t.close().catch(() => {})));
 }
 
-export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool[]> {
+/**
+ * The parameters an MCP tool declares: the server's input schema, each
+ * top-level property given a type (string when the server names none) and a
+ * description, in the contract's lowercase dialect. They pass through
+ * Gemini's dialect first (toGeminiSchema), so the declaration is exactly
+ * what the ADK runtime's FunctionTool declares: `default`, `propertyNames`,
+ * `$schema` and a boolean `additionalProperties` are left out on both.
+ */
+export function mcpToolParameters(inputSchema: { properties?: Record<string, unknown>; required?: string[] } | undefined): ToolDeclaration['parameters'] {
+  const properties: Record<string, unknown> = {};
+  for (const [key, prop] of Object.entries<any>(inputSchema?.properties ?? {})) {
+    properties[key] = { ...prop, type: prop?.type ?? 'string', description: prop?.description || '' };
+  }
+  const required = Array.isArray(inputSchema?.required) ? inputSchema.required : [];
+  return toContractJsonSchema(toGeminiSchema({ type: 'object', properties, required }));
+}
+
+/**
+ * The tools a remote MCP server offers, as own Tools, or none when the
+ * server cannot be reached or refuses (logged, never thrown). The
+ * connection stays open for the tools' calls; closeMcpConnections ends it.
+ */
+export async function loadMcpTools(mcpServerUrl: string): Promise<Tool[]> {
   let transport: SSEClientTransport | undefined;
   try {
     const url = await assertSafeMcpUrl(mcpServerUrl);
@@ -125,58 +167,26 @@ export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool
 
     await client.connect(transport);
     openTransports.add(transport);
-    
+
     // Fetch available tools from the MCP server
     const toolsResponse = await client.listTools();
-    
-    // MCP servers describe tools in standard lowercase JSON Schema; the ADK
-    // is Gemini-native and expects UPPERCASE type names. Uppercase deeply,
-    // preserving enum/description/required and nested properties/items —
-    // non-Gemini adapters normalize back to lowercase at request-build time
-    // via lib/models/schemaNormalize.ts.
-    const toGeminiSchema = (node: any): any => {
-      if (Array.isArray(node)) return node.map(toGeminiSchema);
-      if (!node || typeof node !== 'object') return node;
-      const out: Record<string, any> = {};
-      for (const [key, value] of Object.entries(node)) {
-        if (key === 'type') {
-          out[key] = typeof value === 'string' ? value.toUpperCase() : value;
-        } else if (key === 'enum' || key === 'required') {
-          out[key] = value; // value lists, not schema nodes
-        } else {
-          out[key] = toGeminiSchema(value);
-        }
-      }
-      return out;
-    };
 
-    return toolsResponse.tools.map(tool => {
-      const properties: Record<string, any> = {};
-      const required: string[] = tool.inputSchema?.required || [];
-
-      if (tool.inputSchema?.properties) {
-        for (const [key, prop] of Object.entries<any>(tool.inputSchema.properties)) {
-          properties[key] = toGeminiSchema({
-            ...prop,
-            type: prop.type ?? 'string',
-            description: prop.description || ''
-          });
-        }
-      }
-
-      return new FunctionTool({
+    return toolsResponse.tools.map((tool): Tool => {
+      // MCP servers describe tools in standard lowercase JSON Schema, which
+      // is the contract's dialect; toFunctionTool derives Gemini's.
+      const declaration: ToolDeclaration = {
         name: tool.name,
         description: bounded(tool.description || `MCP Tool: ${tool.name}`, MAX_MCP_DESCRIPTION_CHARS, 'description'),
-        parameters: {
-          type: 'OBJECT',
-          properties,
-          required
-        } as unknown as Schema,
-        execute: async (input: unknown): Promise<string> => {
+        parameters: mcpToolParameters(tool.inputSchema),
+      };
+      return {
+        name: tool.name,
+        declaration: () => declaration,
+        execute: async (input: Record<string, unknown>): Promise<string> => {
           try {
             const result = await client.callTool({
               name: tool.name,
-              arguments: input as Record<string, unknown>
+              arguments: input
             });
             // MCP callTool returns { content: [{ type: 'text', text: '...' }] }
             interface McpCallToolResult {
@@ -192,8 +202,8 @@ export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool
           } catch (error: any) {
             return `[MCP ERROR] Tool ${tool.name} failed: ${error.message}`;
           }
-        }
-      });
+        },
+      };
     });
   } catch (error) {
     console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, error);
@@ -203,4 +213,12 @@ export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool
     await transport?.close().catch(() => {});
     return [];
   }
+}
+
+/**
+ * The server's tools as the ADK runtime runs them: the FunctionTool
+ * toFunctionTool makes of each own Tool, carrying it for toolOf().
+ */
+export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool[]> {
+  return (await loadMcpTools(mcpServerUrl)).map((tool) => toFunctionTool(tool));
 }

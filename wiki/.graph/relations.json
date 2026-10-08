@@ -769,6 +769,119 @@
       "note": "In part: JSON mode without a schema leaves ADR 0048's list of fields the contract leaves out. The contract stands."
     },
     {
+      "from": "/decisions/0060-engine-owned-registry.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0060: resolveAdapter and resolveModel share one routing step (routeFor) and one table per path keyed by provider; apiKey authenticates keyProvider's models only; a Gemini id gets AdkGeminiAdapter unless GEMINI_ADAPTER=engine or { gemini: 'engine' }.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0060-engine-owned-registry.md",
+      "to": "module:lib/models/tracedGemini.ts",
+      "rel": "explains",
+      "evidence": "ADR 0060 decision 5: TracedGemini moves to lib/models/tracedGemini.ts because AdkGeminiAdapter imports it and registry.ts builds AdkGeminiAdapter, which would be an import cycle.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0060 alternatives: registering adkShimClass(patterns, resolveAdapter) would lose GptLlm's toLlmResponse override (ADR 0056), so registerAvailableProviders registers the providers' own classes (ADK_LLM table in registry.ts).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "constrains",
+      "evidence": "registry.ts resolveAdapterWithFallback header: the ADK path's pair stays FallbackLlm(shim(primary), shim(fallback)) (ADR 0053); the contract path gets a FallbackAdapter around resolveAdapter's adapters.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §2: \"Every reader detects the marker, never the class or the shape.\" nativeToolOf \"reads it first, then ADK's own markers\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §3: \"toAdkNativeTool(marker) returns the shared sentinel\" and \"toAdkTool() picks the wrapper for a Tool, a contract, an InstructionTool or a marker\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §5: \"MCP tools are own Tools.\" The parameters \"pass through Gemini's dialect once (mcpToolParameters), so the native and ADK runtimes declare the same schema.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/a2a/remoteAgent.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §6: \"The remote agent tool is an own Tool (remoteAgentOwnTool)\" and remoteAgentTool \"still declares exactly what the hand-built one declared.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/tools/examples.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §7: \"An agent's examples are an InstructionTool\" that \"writes ExampleTool's block for text examples word for word\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0062 Context: ADR 0051 \"made every registry tool that declares a function an own Tool\"; the server-side sentinels were left as ADK objects \"until their own ticket\" (ADR 0051 item 6).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0063 Decision 1: \"The parser reproduces ADK 2.2's rules exactly\" and Decision 3: \"A spec is bounded.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0063 Decision 2: \"buildOpenApiTools parses with the engine ... and builds each tool with ADK's createRestApiTool from the parsed parameters.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "In part: only the parsing that ADR 0032 gave to ADK's OpenAPIToolset. Exposure, credentials, the SSRF guard and bounded results stand."
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0063 Context: \"ADR 0045 has the engine own its runtime in stages ... The native runtime needs an OpenAPI operation as the engine's own types.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "module:lib/tools/openapi/parse.ts",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "lib/tools/openapi/parse.ts header: \"The native runtime owns its tools (ADR 0051), so it owns this step too.\" Each operation carries a ToolDeclaration.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "to": "module:lib/models/geminiAdapter.ts",
       "rel": "constrains",

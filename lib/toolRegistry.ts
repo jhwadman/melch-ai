@@ -12,24 +12,28 @@
  * (lib/tools/adkTool.ts) makes of it; toolOf() reads the Tool back from it.
  * preload_memory is an own InstructionTool, which the ADK runtime receives
  * through toAdkInstructionTool; instructionToolOf() reads it back. The
- * server-side sentinels are ADK objects still.
+ * server-side tools are own NativeToolMarkers (lib/tools/nativeTools.ts),
+ * which the ADK runtime receives as the sentinels toAdkNativeTool names;
+ * nativeToolMarkerOf() reads the NativeTool back from either (ADR 0062).
  */
 
-import { GOOGLE_SEARCH } from '@google/adk';
-import { COLLECTIONS_SEARCH } from './tools/collectionsSearchTool.ts';
 import { generateImageTool } from './tools/generateImageTool.ts';
 import { inspectImageTool } from './tools/inspectImageTool.ts';
-import { toAdkInstructionTool, toFunctionTool } from './tools/adkTool.ts';
+import { toAdkInstructionTool, toAdkTool, toFunctionTool } from './tools/adkTool.ts';
 import { loadMemoryTool, preloadMemoryTool } from './tools/memoryTools.ts';
-import { isInstructionTool, isTool } from './tools/tool.ts';
-import { WEB_SEARCH } from './tools/webSearchTool.ts';
+import {
+  COLLECTIONS_SEARCH_MARKER,
+  GOOGLE_SEARCH_MARKER,
+  URL_CONTEXT_MARKER,
+  WEB_SEARCH_MARKER,
+  X_SEARCH_MARKER,
+} from './tools/nativeTools.ts';
+import { isInstructionTool, isNativeToolMarker, isTool } from './tools/tool.ts';
 import { webExtractTool } from './tools/webExtractTool.ts';
 import { WIKI_AGENT_TOOL_CONTRACTS } from './tools/wikiTools.ts';
 import { SCIENCE_TOOL_CONTRACTS } from './tools/scienceTools.ts';
 import { TASK_TOOL_CONTRACTS } from './tools/taskTools.ts';
-import { X_SEARCH } from './tools/xSearchTool.ts';
 import { askUserTool } from './runtime/questions.ts';
-import { URL_CONTEXT } from './tools/urlContextTool.ts';
 import { xApiSearchTool } from './tools/xApiSearchTool.ts';
 
 // Knowledge-bundle tools, derived from their contracts so the YAML names
@@ -69,22 +73,22 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   // Provider-agnostic web search: routes to the model's NATIVE search
   // (Gemini grounding / Anthropic / OpenAI / xAI); omitted with a warning
   // for local models. Prefer this in new YAMLs.
-  web_search: WEB_SEARCH,
+  web_search: toAdkTool(WEB_SEARCH_MARKER),
   // Deterministic complement to web_search: client-side URL → clean-text
   // reading (keyless — works on every provider, including local Ollama).
   // augustin.yaml and librarian-style research agents declare it.
   web_extract: webExtractTool,
   // Gemini reads URLs in the conversation server-side; a no-op (reported as
   // dropped by the doctor) on other providers. lib/tools/urlContextTool.ts.
-  url_context: URL_CONTEXT,
-  x_search: X_SEARCH,
+  url_context: toAdkTool(URL_CONTEXT_MARKER),
+  x_search: toAdkTool(X_SEARCH_MARKER),
   // X API v2 recent search as a client-side contract, photos transcribed
   // inline — runs on every provider; needs X_BEARER_TOKEN in the server env.
   x_api_search: xApiSearchTool,
   // xAI-only: semantic search over hosted Collections (XAI_COLLECTION_IDS).
-  collections_search: COLLECTIONS_SEARCH,
+  collections_search: toAdkTool(COLLECTIONS_SEARCH_MARKER),
   // Gemini-only ADK grounding tool, kept for backward compatibility.
-  google_search: GOOGLE_SEARCH,
+  google_search: toAdkTool(GOOGLE_SEARCH_MARKER),
   generate_image: generateImageTool,
   inspect_image: inspectImageTool,
   // Ask the person mid-turn (lib/runtime/questions.ts): a long-running call
@@ -131,10 +135,11 @@ export function resolveTools(
  * node_modules is not an option. Registering is the same deliberate act of
  * exposure as listing a tool above — it happens in your code, where a
  * reviewer reads it. Pass a `defineTool` contract (lib/tools/toolContract.ts),
- * any own Tool or InstructionTool (lib/tools/tool.ts), or a ready ADK tool.
- * A contract or Tool reaches the ADK runtime through toFunctionTool, an
- * InstructionTool through toAdkInstructionTool. Replacing a built-in
- * requires `{ override: true }`.
+ * any own Tool, InstructionTool or NativeToolMarker (lib/tools/tool.ts), or
+ * a ready ADK tool. A contract or Tool reaches the ADK runtime through
+ * toFunctionTool, an InstructionTool through toAdkInstructionTool, a
+ * NativeToolMarker as its sentinel (toAdkTool, lib/tools/adkTool.ts).
+ * Replacing a built-in requires `{ override: true }`.
  */
 export function registerTool(
   name: string,
@@ -149,9 +154,9 @@ export function registerTool(
   }
   const t = tool as Record<string, unknown>;
   const isContract = !!t && typeof t === 'object' && 'schema' in t && typeof t.execute === 'function' && !('runAsync' in t);
-  TOOL_MAP[name] = isContract || isTool(tool)
-    ? toFunctionTool(tool as any)
-    : isInstructionTool(tool) ? toAdkInstructionTool(tool) : tool;
+  TOOL_MAP[name] = isContract || isTool(tool) || isInstructionTool(tool) || isNativeToolMarker(tool)
+    ? toAdkTool(tool as any)
+    : tool;
 }
 
 /** Names a YAML can declare under `tools:` right now. */

@@ -7,8 +7,8 @@ the starter pack and the templates), not the repo's full history.
 ## Unreleased
 
 - **`GeminiAdapter` covers Gemini's own features (ADR 0065).** In
-  `melchizedek-agents/models/geminiAdapter` (not registered yet; ADK's
-  Gemini still serves every Gemini id):
+  `melchizedek-agents/models/geminiAdapter` (which `resolveAdapter`
+  returns only with `GEMINI_ADAPTER=engine` until gate G3):
   - Code execution (`executableCode`, `codeExecutionResult`) and
     server-side `toolCall` / `toolResponse` parts ride whole on the next
     output part as `providerState` of the new kind `CARRIED_PARTS_KIND`
@@ -27,6 +27,45 @@ the starter pack and the templates), not the repo's full history.
     `PLACEHOLDER_SIGNATURES_BY_DEFAULT`, false) sends Gemini's documented
     placeholder `PLACEHOLDER_THOUGHT_SIGNATURE` on an unsigned current-turn
     call.
+- **Web sources for Claude, GPT and Grok.** When one of these models
+  searches the web, its events now carry `groundingMetadata`, so a turn's
+  grounding and the A2A server's web-sources lines list the pages it used,
+  as they already did for Gemini. Before, only Gemini's answers showed
+  their sources.
+- **Server-side tools are markers, and MCP, remote-agent and examples tools
+  are the engine's own (ADR 0062).** All additions, under the existing
+  `exports` map:
+  - `melchizedek-agents/tools/tool` gains `NativeToolMarker`,
+    `nativeToolMarker`, `nativeToolMarkerOf`, `isNativeToolMarker` and the
+    `NATIVE_TOOL` symbol. The new module `tools/nativeTools` holds the
+    markers for `web_search`, `x_search`, `url_context`,
+    `collections_search` and `google_search`;
+  - `tools/adkTool` gains `toAdkNativeTool` and `toAdkTool`, and
+    `registerTool` takes a marker;
+  - `tools/mcpToolFactory` gains `loadMcpTools` (own Tools) and
+    `mcpToolParameters`;
+  - `a2a/remote` gains `remoteAgentOwnTool`;
+  - the new module `tools/examples` holds an agent's `examples:` as an
+    InstructionTool that writes ADK's ExampleTool block word for word.
+
+  `nativeToolOf`, `wantsWebSearch` and the other sentinel checks now read
+  the marker, not the class. A tool that only declares nothing under a
+  server-side name is no longer treated as that tool. An MCP tool's nested
+  schemas no longer carry `default`, `propertyNames`, `$schema` or a boolean
+  `additionalProperties`. `propertyNames` was refused by the Gemini API.
+
+- **The engine parses OpenAPI specs itself (ADR 0063).** A new module,
+  `melchizedek-agents/tools/openapi/parse` (through the existing
+  `./tools/*` pattern), exports `parseOpenApiSpec` and
+  `parseOpenApiDocument`. They read an OpenAPI 3 spec into
+  `OpenApiOperation`s, each with its arguments and the `ToolDeclaration`
+  the model receives. `openapi:` tools keep their names and declarations:
+  the parser follows ADK's rules, and `buildOpenApiTools` builds the
+  same ADK tools from it. A spec is now bounded. A file over 4 MiB, more
+  than 100 YAML aliases, more than a million values once its `$ref`s are
+  resolved, or nesting deeper than 128 levels fails the compile with a
+  readable error, as does a spec that is not an object. `toSnake` and
+  `namesTool` are still exported from `tools/openapiTools`.
 - **JSON mode without a schema is on the model contract (ADR 0061).**
   `ModelRequest` (`melchizedek-agents/models/contract`) gains
   `outputFormat?: 'json'`. An agent with
@@ -38,6 +77,18 @@ the starter pack and the templates), not the repo's full history.
   mode, sends nothing for it, as before. `OlderSpelling.jsonMode`
   (`models/chatCompletionsAdapter`, new in this release) is removed:
   the chat-completions adapters read `outputFormat` instead.
+- **The engine's own registry (ADR 0060).** `melchizedek-agents/models/registry`
+  adds `resolveAdapter(modelId, { apiKey, keyProvider, endpoint, gemini })`,
+  which returns any model id's `ModelAdapter` on the engine's contract from
+  the same prefix table, gateway fallback, BYOK scoping and endpoints as
+  `resolveModel`, with no ADK `LLMRegistry`; `resolveAdapterWithFallback`,
+  which wraps a model and its fallback in a `FallbackAdapter`;
+  `geminiAdapterChoice` and the types `ResolveAdapterOptions` and
+  `GeminiAdapterChoice`. A Gemini id gets `AdkGeminiAdapter` unless
+  `GEMINI_ADAPTER=engine` (or `gemini: 'engine'`) selects `GeminiAdapter`.
+  `TracedGemini` moves to the new module `melchizedek-agents/models/tracedGemini`;
+  `models/registry` still exports it. `registerAvailableProviders`,
+  `resolveModel`, `providerStatuses` and the doctor are unchanged.
 - **Base URLs lose their trailing slashes in one pass.** The Kimi
   adapter, the gateway, the endpoints module and the embeddings provider
   trimmed a base URL with a regular expression that backtracked
@@ -136,10 +187,8 @@ the starter pack and the templates), not the repo's full history.
   `registerClaudeLlm()`, `buildAnthropicTools()` and `THINKING_STATE_KIND`,
   and is now that adapter behind the ADK shim, a subclass of `AdkShim`.
   Request bodies are unchanged. What does change on a Claude call:
-  - its events carry `finishReason`. Claude's web-search grounding stays
-    on the adapter's response only: `ClaudeLlm` leaves `groundingMetadata`
-    off its events, as before and as `GptLlm` does, so the A2A server's
-    output for a Claude agent is unchanged;
+  - its events carry `finishReason`, and `groundingMetadata` when Claude
+    searched the web (see the web-sources entry above);
   - a failed tool's `tool_result` carries `is_error: true`;
   - a setup error (`MISSING_API_KEY`, `ENDPOINT_MISCONFIGURED`,
     `SDK_NOT_INSTALLED`) carries `customMetadata['error.retryable']: false`;
