@@ -36,7 +36,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 
-import { RUNTIMES } from '../../lib/runtime/runtimeFlag.ts';
+import assert from 'node:assert/strict';
+
+import { RUNTIMES, UnsupportedOnRuntimeError } from '../../lib/runtime/runtimeFlag.ts';
 import type { RuntimeName } from '../../lib/runtime/runtimeFlag.ts';
 
 export type { RuntimeName };
@@ -138,4 +140,18 @@ export function acrossRuntimes(
     const caseOptions: RuntimeCaseOptions = { ...(options.timeout !== undefined ? { timeout: options.timeout } : {}), ...(options.skip ? { skip: options.skip } : {}), ...(blockedOn ? { notOn: { [blockedOn]: options.notOn![blockedOn]! } } : {}) };
     register(`${name} [${writer} → ${reader}]`, blockedOn ?? writer, caseOptions, (t) => keepingRuntimeEnv(() => fn(writer, reader, t)));
   }
+}
+
+/**
+ * Asserts that `turn` is refused on native because the resolver returned an
+ * ADK model class with no contract adapter behind it (lib/compileNative.ts,
+ * ADR 0088): UnsupportedOnRuntimeError naming the class and adkShim. The
+ * caller checks no provider was called.
+ */
+export async function assertRefusesModelClass(turn: Promise<unknown>, className: string): Promise<void> {
+  await assert.rejects(
+    turn,
+    (e: unknown) =>
+      e instanceof UnsupportedOnRuntimeError && e.runtime === 'native' && e.message.includes(`ADK model class ${className}`) && e.message.includes('adkShim(adapter)'),
+  );
 }

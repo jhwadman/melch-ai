@@ -1913,6 +1913,54 @@
       "evidence": "wiki/overview/workflow-scheduler.md describes runWorkflowGraph's interface, the walk (triggers, Promise.race in start order, joins, routes in ADK's spelling, branches, the map pool), what WS4-2b adds, and the parity suite.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0088 Decision 1 settles ADR 0075's open point: a MALFORMED_FUNCTION_CALL from a contract adapter is retried on both runtimes through the genai mapping, and the kept quirk that no adapter response is retried for it is gone.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0088 Decision 2 refuses on native, with ADR 0073's UnsupportedOnRuntimeError before any model call, the ADK model class decision 6 resolved by id.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0088 Decision 3: pendingQuestion ignores a user-authored ask_user call, as approvals refuse a user-authored request (untrusted_request).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0088 Decision 1: modelResponseToLlmResponse sets finishReason to an error code that is one of Gemini's finish reasons.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0088 Decision 2: compileNative and nativeAdapterFor refuse an ADK model class that is neither a shim nor ADK's Gemini, before any model call.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0088 Decision 3: pendingQuestion skips the calls in an event whose author is user.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

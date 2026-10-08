@@ -27,6 +27,16 @@
  * native does not run yet (workflows, resuming an approval or a
  * question, a caller's agent transform) is refused by the turn runner
  * (lib/runtime/nativeTurn.ts), which owns those choices.
+ *
+ * THE MODEL: the loop calls a model through its contract adapter. A
+ * resolver may return an id, a contract adapter, an ADK shim (which carries
+ * one) or ADK's Gemini (TracedGemini), whose key reaches the registry's
+ * Gemini adapter. Any other ADK model class has no adapter behind it, so
+ * compileNative and nativeAdapterFor refuse it with UnsupportedOnRuntimeError
+ * before any model call, naming adkShim as the way to run it on native,
+ * rather than run the registry's model for that id in its place (ADR 0088).
+ * ADK classes are told apart by ADK's own Symbol.for marks, so this file
+ * imports nothing from ADK.
  */
 
 import { remoteAgentOwnTool } from './a2a/remoteAgent.ts';
@@ -37,6 +47,7 @@ import type { ModelAdapter } from './models/contract.ts';
 import { providerForModel, resolveAdapter } from './models/registry.ts';
 import { subagentTool } from './runtime/native/delegate.ts';
 import type { NativeAgent } from './runtime/native/request.ts';
+import { unsupportedOnNative } from './runtime/runtimeFlag.ts';
 export { UnsupportedOnRuntimeError, unsupportedOnNative } from './runtime/runtimeFlag.ts';
 import { instructionToolOf, toolOf, toolsetOf } from './tools/tool.ts';
 
@@ -45,10 +56,42 @@ function nativeTool(tool: unknown): unknown {
   return toolOf(tool) ?? instructionToolOf(tool) ?? toolsetOf(tool) ?? tool;
 }
 
+/** ADK's own marks on its model classes (BaseLlm, Gemini), registered with Symbol.for so they hold across copies of ADK. */
+const ADK_BASE_MODEL = Symbol.for('google.adk.baseModel');
+const ADK_GEMINI_MODEL = Symbol.for('google.adk.geminiModel');
+
+const marked = (value: unknown, mark: symbol): boolean => !!value && typeof value === 'object' && (value as Record<symbol, unknown>)[mark] === true;
+
 /**
- * The NativeAgent for `spec`. Throws when no model id is known.
+ * The class name of an ADK model the native runtime cannot run, else
+ * undefined: an ADK BaseLlm that is neither ADK's Gemini (TracedGemini
+ * included) nor a shim carrying a contract adapter (lib/models/adkShim.ts).
+ */
+export function unrunnableModelClass(resolved: unknown): string | undefined {
+  if (!marked(resolved, ADK_BASE_MODEL) || marked(resolved, ADK_GEMINI_MODEL)) return undefined;
+  if (isModelAdapter((resolved as { adapter?: unknown }).adapter)) return undefined;
+  const name = (resolved as { constructor?: { name?: unknown } }).constructor?.name;
+  return typeof name === 'string' && name ? name : 'BaseLlm';
+}
+
+/** Throws UnsupportedOnRuntimeError when `resolved` is an ADK model class native cannot run (see the header). */
+function refuseModelClass(resolved: unknown, modelId: string | undefined, where: string): void {
+  const name = unrunnableModelClass(resolved);
+  if (!name) return;
+  throw unsupportedOnNative(
+    `the ADK model class ${name} that resolveModel returned${modelId ? ` for '${modelId}'` : ''}, which has no contract adapter behind it ` +
+      `(return the ModelAdapter itself, or adkShim(adapter) from melchizedek-agents/models/adkShim, to run it on native)`,
+    where,
+  );
+}
+
+/**
+ * The NativeAgent for `spec`. Throws when no model id is known, and
+ * UnsupportedOnRuntimeError when the resolver returned an ADK model class
+ * the loop cannot call (see the header).
  */
 export function compileNative(spec: AgentSpec): NativeAgent {
+  refuseModelClass(spec.resolvedModel, spec.model ?? spec.modelId, spec.name);
   const tools: unknown[] = [];
   for (const entry of spec.tools) {
     if (entry.kind === 'agent') tools.push(subagentTool(compileNative(entry.agent)));
@@ -105,6 +148,9 @@ export async function compileNativeSubagent(subCfg: SubagentYamlConfig, opts: Co
   return compileNative(await compileSubagentSpec(subCfg, opts));
 }
 
+/** What nativeAdapterFor reads from a spec: its model resolution, the other ids it calls, and its delegated subagents. */
+type NativeModelSpec = Pick<AgentSpec, 'modelId' | 'resolvedModel'> & Partial<Pick<AgentSpec, 'name' | 'fallbackModel' | 'context' | 'tools'>>;
+
 function isModelAdapter(value: unknown): value is ModelAdapter {
   return !!value && typeof value === 'object' && typeof (value as ModelAdapter).generate === 'function' && typeof (value as ModelAdapter).model === 'string';
 }
@@ -117,6 +163,7 @@ function isModelAdapter(value: unknown): value is ModelAdapter {
  */
 function adapterOf(resolved: unknown, model: string): ModelAdapter {
   if (isModelAdapter(resolved)) return resolved;
+  refuseModelClass(resolved, model, 'the native runtime');
   if (typeof resolved === 'string') return resolveAdapter(resolved || model);
   if (!resolved || typeof resolved !== 'object') return resolveAdapter(model);
   const held = resolved as { adapter?: unknown; apiKey?: unknown; vertexai?: unknown };
@@ -134,15 +181,24 @@ function adapterOf(resolved: unknown, model: string): ModelAdapter {
  * (an ADK shim carries its contract adapter, so a caller's BYOK key on a
  * shimmed provider reaches the call), else resolveAdapter for the id
  * (lib/models/registry.ts). The spec's own resolution, and each delegated
- * subagent's, is reused for the id its agent runs under (wireModelOf);
- * each other id (a fallback) is resolved once and kept.
+ * subagent's, is reused for the id its agent runs under (wireModelOf).
+ * Each agent's `fallback_model:` and compaction `summary_model` are
+ * resolved here, as compileAdk resolves them at compile time, so a model
+ * class native cannot run is refused before any model call; any other id
+ * is resolved when first asked for. Each is kept.
  */
-export function nativeAdapterFor(opts: CompileOptions = {}, spec?: Pick<AgentSpec, 'modelId' | 'resolvedModel'> & { tools?: AgentSpec['tools'] }): (model: string) => ModelAdapter {
+export function nativeAdapterFor(opts: CompileOptions = {}, spec?: NativeModelSpec): (model: string) => ModelAdapter {
   const cache = new Map<string, ModelAdapter>();
   const known = new Map<string, unknown>();
-  const learn = (s: Pick<AgentSpec, 'modelId' | 'resolvedModel'> & { tools?: AgentSpec['tools'] }): void => {
+  const learn = (s: NativeModelSpec): void => {
     if (s.resolvedModel !== undefined) {
       for (const id of [wireModelOf(s), s.modelId]) if (id && !known.has(id)) known.set(id, s.resolvedModel);
+    }
+    for (const id of [s.fallbackModel, s.context?.summary_model]) {
+      if (!id || known.has(id) || !opts.resolveModel) continue;
+      const resolved = opts.resolveModel(id);
+      refuseModelClass(resolved, id, s.name ?? 'the native runtime');
+      known.set(id, resolved);
     }
     for (const entry of s.tools ?? []) if (entry.kind === 'agent') learn(entry.agent);
   };

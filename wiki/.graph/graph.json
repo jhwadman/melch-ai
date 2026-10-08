@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 823,
-    "edges": 2896,
+    "nodes": 824,
+    "edges": 2920,
     "byKind": {
-      "doc": 149,
+      "doc": 150,
       "provider": 6,
       "env": 106,
       "model": 8,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 590,
+      "links_to": 599,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -36,18 +36,18 @@
       "imports": 736,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 683,
-      "constrains": 142,
-      "supersedes": 6,
-      "depends_on": 66,
+      "derives_from": 692,
+      "constrains": 145,
+      "supersedes": 7,
+      "depends_on": 68,
       "explains": 21,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2658,
-      "inferred": 238
+      "extracted": 2676,
+      "inferred": 244
     },
     "isolated": 4
   },
@@ -949,7 +949,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1453
+        "words": 1527
       }
     },
     {
@@ -1433,6 +1433,18 @@
       }
     },
     {
+      "id": "/decisions/0088-native-parity-followups.md",
+      "kind": "doc",
+      "label": "ADR 0088: A Gemini finish reason carried as an error code is the finish reason again, a custom ADK model class is refused on native, and a user-authored ask_user call is no question",
+      "source": "/decisions/0088-native-parity-followups.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1053
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1585,7 +1597,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7902
+        "words": 7940
       }
     },
     {
@@ -1693,7 +1705,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 5900
+        "words": 5995
       }
     },
     {
@@ -1753,7 +1765,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 309
+        "words": 340
       }
     },
     {
@@ -4561,7 +4573,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 159
+        "lines": 215
       }
     },
     {
@@ -4876,7 +4888,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 952
+        "lines": 966
       }
     },
     {
@@ -5317,7 +5329,7 @@
       "label": "lib/runtime/questions.ts",
       "source": "lib/runtime/questions.ts",
       "attrs": {
-        "lines": 119
+        "lines": 127
       }
     },
     {
@@ -12548,6 +12560,111 @@
       "evidence": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md:24"
     },
     {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "file:tests/genaiMapping.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "file:tests/nativeLoop.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "file:tests/nativeTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "file:tests/questions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "file:tests/reasoningState.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "file:tests/selfCorrection.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md frontmatter"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md:30"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md:33"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md:32"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md:35"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md:30"
+    },
+    {
+      "from": "/decisions/0088-native-parity-followups.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0088-native-parity-followups.md:39"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -14215,6 +14332,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "/decisions/0088-native-parity-followups.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:372"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -15366,14 +15490,14 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:227"
+      "evidence": "/overview/native-loop.md:226"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:261"
+      "evidence": "/overview/native-loop.md:260"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15415,7 +15539,7 @@
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:223"
+      "evidence": "/overview/native-loop.md:222"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15436,7 +15560,7 @@
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:249"
+      "evidence": "/overview/native-loop.md:248"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15464,14 +15588,14 @@
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:310"
+      "evidence": "/overview/native-loop.md:312"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:229"
+      "evidence": "/overview/native-loop.md:228"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15485,28 +15609,35 @@
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:263"
+      "evidence": "/overview/native-loop.md:262"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:216"
+      "evidence": "/overview/native-loop.md:215"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:297"
+      "evidence": "/overview/native-loop.md:298"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:249"
+      "evidence": "/overview/native-loop.md:248"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0088-native-parity-followups.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:195"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15934,6 +16065,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/ask-user.md:26"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0088-native-parity-followups.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:24"
     },
     {
       "from": "/tools/ask-user.md",

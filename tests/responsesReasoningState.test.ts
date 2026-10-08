@@ -38,7 +38,7 @@ import { REASONING_CONTENT_KIND } from '../lib/models/openAiCompatibleLlm.ts';
 import { currentTurnStart, withProviderState } from '../lib/models/providerState.ts';
 import type { ProviderState } from '../lib/models/providerState.ts';
 import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
-import { forEachRuntime } from './helpers/runtime.ts';
+import { assertRefusesModelClass, forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -159,14 +159,9 @@ function turn(models: Record<string, BaseLlm>, sessions = new InMemorySessionSer
 
 /**
  * A resolver that returns an ADK model class which is neither the shim nor
- * Gemini (StepSwitch here) is not run by the native runtime: it resolves the
- * id through the registry instead (ADR 0073, decision 6). Open question in
- * the WS2-12 PR; these cases run on ADK until it is decided.
+ * Gemini (StepSwitch here) is refused on native before any model call
+ * (ADR 0088): these cases run on ADK, and on native assert the refusal.
  */
-const ADK_MODEL_CLASS = {
-  notOn: { native: { reason: 'a resolver returning an ADK model class that is not a shim is resolved by id on native (ADR 0073)', ticket: 'WS2-12 open question 2' } },
-};
-
 /** One model per step, in order: a model switch between steps, as a fallback makes one. */
 class StepSwitch extends BaseLlm {
   private calls = 0;
@@ -276,7 +271,7 @@ test('grok: the same loop replays under the xai provider id', async () => {
 
 // ── A model switch between steps drops the state ─────────────────────────────
 
-forEachRuntime('model switch: another GPT model, or Grok, gets the call without the reasoning item', async () => {
+forEachRuntime('model switch: another GPT model, or Grok, gets the call without the reasoning item', async (runtime) => {
   for (const [label, next, host] of [
     ['gpt-5-mini → gpt-5', gpt('gpt-5'), 'api.openai.com'],
     ['gpt-5-mini → grok-4.7', grok('grok-4.7'), 'api.x.ai'],
@@ -284,7 +279,13 @@ forEachRuntime('model switch: another GPT model, or Grok, gets the call without 
     await withResponses(
       [responseOf([R1, functionCall('call_1')]), responseOf([outputMessage('Scout says: it is in the attic')])],
       async (sent) => {
-        const r = await turn({ boss: new StepSwitch([gpt('gpt-5-mini'), next]), scout: scout() });
+        const boss = new StepSwitch([gpt('gpt-5-mini'), next]);
+        if (runtime === 'native') {
+          await assertRefusesModelClass(turn({ boss, scout: scout() }), 'StepSwitch');
+          assert.equal(sent.length, 0, `${label}: no model was called`);
+          return;
+        }
+        const r = await turn({ boss, scout: scout() });
         assert.equal(r.status, 'completed', `${label}: ${JSON.stringify(r.error)}`);
         assert.equal(sent[1].host, host, label);
         const second = sent[1].body;
@@ -296,7 +297,7 @@ forEachRuntime('model switch: another GPT model, or Grok, gets the call without 
       },
     );
   }
-}, ADK_MODEL_CLASS);
+});
 
 test('a non-reasoning id neither replays nor writes reasoning state', async () => {
   // Another provider's state in the history is ignored, and a reasoning item

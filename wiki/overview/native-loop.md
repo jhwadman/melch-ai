@@ -192,7 +192,7 @@ An agent with `context: { compact_after_tokens, keep_recent_events?, summary_mod
 - Every request declares `adk_handle_model_error` ("A tool that triggers reflection. …", no parameters) after the agent's tools.
 - Two kinds of response are replaced by ADK's reflection call, with id `adk_handle_model_error_<uuid>` and the arguments `response_type`, `error_type`, `error_details`, `finish_reason` and `retry_count`:
   - a response that calls that tool itself (`RESERVED_TOOL_CALL`);
-  - a response whose finish reason is `MALFORMED_FUNCTION_CALL`.
+  - a response whose finish reason is `MALFORMED_FUNCTION_CALL`. A Gemini adapter on the contract reports it as the error's code, which the genai mapping reads back as the finish reason, as ADK's Gemini reports both ([ADR 0088](/decisions/0088-native-parity-followups.md)), so a malformed call is retried on both runtimes.
 - The loop runs the call like any other, and the tool answers with reflection guidance.
 - The count is per agent, and any other response resets it, a streamed partial included.
 - Past the limit, the step stores ADK's event for a callback that threw: `UNKNOWN_ERROR`, "Error in plugin 'reflect_retry_model_plugin' during 'afterModelCallback' callback: …". The run ends with `error`.
@@ -207,8 +207,7 @@ An agent with `context: { compact_after_tokens, keep_recent_events?, summary_mod
 ADK's quirks are kept on purpose, so both runtimes match:
 
 - the reflection tool's guidance always says "attempt 1";
-- a partial resets the model count;
-- through the model contract a malformed Gemini call is an error code, not a finish reason, so no adapter's response is retried for it on either runtime.
+- a partial resets the model count.
 
 
 ## Task mode
@@ -262,6 +261,8 @@ An `ask_user` call ([ADR 0031](/decisions/0031-ask-user.md)) is a long-running c
 
 The loop needs no resume of its own for it ([ADR 0079](/decisions/0079-native-questions-resume-through-the-history.md)). The first step's history holds the call and the answer side by side (the answer is moved next to its call, as ADK's content processor moves it), so the model reads the answer as the call's result and the agent continues its tool loop. ADK's request-input processor, which runs between the request-confirmation processor and compaction, re-runs only a node tool (a workflow run as a tool) paused on an `adk_request_input` call; it returns before doing anything for an agent that lists no node tool, and no native agent lists one. When workflows run natively, that resume belongs in `interrupts.ts`, in the same place in the order.
 
+Only an agent asks. An `ask_user` call in an event the user authored is no question, so a forged call never takes the next message as its answer, on either runtime, as approvals refuse a user-authored request ([ADR 0088](/decisions/0088-native-parity-followups.md)).
+
 A question opened on either runtime is answered on the other. `tests/questions.test.ts` and `tests/questionsA2a.test.ts` run every conversation on ADK, on native, and with the runtime switched between the question and the answer, and require the same results and stored events; `tests/nativeQuestions.test.ts` runs the conversation directly on `runAgentLoop`, and answers the question session fixture 04 holds, which ADK stored.
 
 ## Delegation
@@ -292,9 +293,9 @@ On `native`, `runSyndicateTurn` keeps its own logic (routing, guards, the relay 
 
 The turn runner wraps the stream in `traceAgentRun` with the same metadata on either runtime, so the turn's root span sits over the loop's [spans](#the-spans).
 
-The turn runner drains the events through `drainAgentStream`, so the result has the same shape: text, grounding, usage, a pending approval or question, errors. The adapter for each model id is the one behind what `CompileOptions.resolveModel` returns: an ADK shim's own adapter, or, for `TracedGemini`, `resolveAdapter` under the key the instance carries, so a caller's BYOK key pays on either runtime. Anything else gets `resolveAdapter` for the id (`nativeAdapterFor`). The request goes out under the id ADK's `LlmAgent` sends it under: the resolved model object's own id, else the id the resolver returned, else the YAML's (`wireModelOf` in `lib/compileNative.ts`). A resolver that answers `scripted/boss` with a model under `claude-sonnet-4-6` therefore has the adapter, the span and the circuit breaker see `claude-sonnet-4-6` on both runtimes; `nativeAdapterFor` maps that id, for the agent and each delegated subagent, back to what the resolver returned. A per-request Vertex AI endpoint does not reach a native call yet. Memory search goes to the engine's `MemoryService`, or to an ADK-only service's `searchMemory`. A single agent, a DELEGATE syndicate (each subagent a `subagentTool` holding its own compiled agent, a remote one the A2A tool ADK's runtime runs too) and a plan-dispatch syndicate (the classifier and a local route) run on native. `tests/nativeTurn.test.ts` runs conversations both ways and requires the same results and the same stored events.
+The turn runner drains the events through `drainAgentStream`, so the result has the same shape: text, grounding, usage, a pending approval or question, errors. The adapter for each model id is the one behind what `CompileOptions.resolveModel` returns: a contract adapter itself, an ADK shim's own adapter, or, for `TracedGemini`, `resolveAdapter` under the key the instance carries, so a caller's BYOK key pays on either runtime. An id gets `resolveAdapter` for the id (`nativeAdapterFor`). Any other ADK model class has no adapter behind it and is refused (below). `nativeAdapterFor` resolves each agent's `fallback_model` and compaction `summary_model` when it is built, as `compileAdk` does at compile time. The request goes out under the id ADK's `LlmAgent` sends it under: the resolved model object's own id, else the id the resolver returned, else the YAML's (`wireModelOf` in `lib/compileNative.ts`). A resolver that answers `scripted/boss` with a model under `claude-sonnet-4-6` therefore has the adapter, the span and the circuit breaker see `claude-sonnet-4-6` on both runtimes; `nativeAdapterFor` maps that id, for the agent and each delegated subagent, back to what the resolver returned. A per-request Vertex AI endpoint does not reach a native call yet. Memory search goes to the engine's `MemoryService`, or to an ADK-only service's `searchMemory`. A single agent, a DELEGATE syndicate (each subagent a `subagentTool` holding its own compiled agent, a remote one the A2A tool ADK's runtime runs too) and a plan-dispatch syndicate (the classifier and a local route) run on native. `tests/nativeTurn.test.ts` runs conversations both ways and requires the same results and the same stored events.
 
-The turn-level suites run every case on both runtimes in every `npm test` through `tests/helpers/runtime.ts` ([ADR 0084](/decisions/0084-dual-runtime-suites-in-every-test-run.md)), and CI runs the offline suite a second time with `MELCHIZEDEK_RUNTIME=native`, so every other suite runs on native too. A case native cannot run yet is skipped with its reason and ticket (a workflow syndicate: WS4). Two differences stay open: a `MALFORMED_FUNCTION_CALL` finish is retried on ADK's Gemini class but not through the contract on native (ADR 0075's open point; the self-correction case runs as a todo on native), and a resolver that returns an ADK model class that is neither a shim nor Gemini is resolved by id on native, not run (decision 6 of ADR 0073).
+The turn-level suites run every case on both runtimes in every `npm test` through `tests/helpers/runtime.ts` ([ADR 0084](/decisions/0084-dual-runtime-suites-in-every-test-run.md)), and CI runs the offline suite a second time with `MELCHIZEDEK_RUNTIME=native`, so every other suite runs on native too. A case native cannot run yet is skipped with its reason and ticket: a workflow syndicate (WS4) is the only one. A case native refuses by design asserts the refusal on native (the model-switch cases, whose resolver returns a custom ADK class).
 
 What native does not run yet fails before any model call, with an `UnsupportedOnRuntimeError` that names the feature and the runtime:
 
@@ -302,6 +303,7 @@ What native does not run yet fails before any model call, with an `UnsupportedOn
 |---|---|---|
 | a `workflow:` syndicate | `refuseOnNative` | the workflow engine (WS4) |
 | a caller's `transformAgent` (it transforms ADK agents) | `refuseOnNative` | none planned |
+| an ADK model class from `resolveModel` that is neither a shim nor ADK's Gemini (an agent's model, a subagent's, `fallback_model`, `summary_model`); the message names `adkShim(adapter)` as the way to run it ([ADR 0088](/decisions/0088-native-parity-followups.md)) | `compileNative`, `nativeAdapterFor` | none planned: wrap an adapter in the shim |
 
 A turn that paused on either runtime (an approval request, an `ask_user` call) stored ADK's own events, and resumes on either runtime: an approval as [Approvals](#approvals) describes, a question as [Questions](#questions) describes.
 

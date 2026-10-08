@@ -93,7 +93,11 @@
  * `status` as customMetadata['error.retryable'] and ['error.status']
  * (withRetryVerdict, lib/models/errorResponse.ts), the only place
  * FallbackLlm reads whether a fallback may answer; finishReason as
- * Gemini's; grounding as the `webSearchQueries` and
+ * Gemini's, except that an error whose code is one of Gemini's finish
+ * reasons (the Gemini adapters keep it verbatim: MALFORMED_FUNCTION_CALL,
+ * RECITATION, ...) gets that reason itself, as ADK's Gemini reports both, so
+ * self-correction retries a malformed call and the stored event reads the
+ * same on either runtime (ADR 0088); grounding as the `webSearchQueries` and
  * `groundingChunks[].web` that lib/grounding.ts reads. Not carried, since
  * an LlmResponse has no field for them: `cacheWriteTokens`, a citation's
  * span and cited text, and which native tool ran a query.
@@ -707,11 +711,21 @@ function groundingToMetadata(grounding: Grounding): GroundingMetadata | undefine
   };
 }
 
+/** Gemini's finish reasons that end a call short of an answer: every one but STOP and the unspecified one. */
+const GEMINI_FINISH_REASONS: ReadonlySet<string> = new Set(
+  Object.values(FinishReason).filter((r) => r !== FinishReason.STOP && r !== FinishReason.FINISH_REASON_UNSPECIFIED),
+);
+
+/** An error code that is one of Gemini's finish reasons, as the finish reason ADK's Gemini reports beside it (ADR 0088). */
+function finishReasonOfCode(code: string | undefined): FinishReason | undefined {
+  return code !== undefined && GEMINI_FINISH_REASONS.has(code) ? (code as FinishReason) : undefined;
+}
+
 /** A ModelResponse as the LlmResponse ADK expects from a model (see the header). */
 export function modelResponseToLlmResponse(response: ModelResponse): LlmResponse {
   const parts = (response.parts as Part[]).map(partToGenai);
   if (response.partial) return { content: { role: 'model', parts }, partial: true };
-  const finishReason = FINISH_REASONS[response.finishReason];
+  const finishReason = finishReasonOfCode(response.error?.code) ?? FINISH_REASONS[response.finishReason];
   const groundingMetadata = response.grounding ? groundingToMetadata(response.grounding) : undefined;
   const llmResponse: LlmResponse = {
     ...(parts.length > 0 ? { content: { role: 'model', parts } } : {}),

@@ -592,6 +592,25 @@ test('ModelResponse: an error carries the retry verdict FallbackLlm reads (ADR 0
   assert.doesNotMatch(leaked.errorMessage ?? '', /sk-proj-abcdefghijklmnopqrstuvwxyz0123456789/);
 });
 
+test('ModelResponse: an error code that is a Gemini finish reason is the finish reason too, as ADK\'s Gemini reports it (ADR 0088)', () => {
+  const failed = (code: string, finishReason: 'other' | 'content_filter' | 'error' = 'other') =>
+    modelResponseToLlmResponse({ partial: false, parts: [], finishReason, error: { code, message: `Gemini stopped without an answer (${code}).`, retryable: false } });
+  const malformed = failed('MALFORMED_FUNCTION_CALL');
+  assert.equal(malformed.finishReason, 'MALFORMED_FUNCTION_CALL', 'the reflect-and-retry plugin reads it here');
+  assert.equal(malformed.errorCode, 'MALFORMED_FUNCTION_CALL');
+  assert.equal(failed('RECITATION', 'content_filter').finishReason, 'RECITATION', 'not flattened to SAFETY');
+  assert.equal(failed('UNEXPECTED_TOOL_CALL').finishReason, 'UNEXPECTED_TOOL_CALL');
+  // Any other code keeps the contract's finish reason.
+  assert.equal(failed('ANTHROPIC_ERROR', 'error').finishReason, undefined);
+  assert.equal(failed('GEMINI_ERROR', 'error').finishReason, undefined);
+  assert.equal(failed('UNKNOWN_ERROR', 'error').finishReason, undefined);
+  assert.equal(failed('STOP').finishReason, 'OTHER', 'STOP is never an error\'s finish reason');
+  // And back: the contract reads the same error and finish reason it started from.
+  const back = llmResponseToModelResponse(malformed);
+  assert.equal(back.partial, false);
+  assert.deepEqual(back.partial === false && [back.finishReason, back.error?.code], ['other', 'MALFORMED_FUNCTION_CALL']);
+});
+
 test('usage: Gemini usageMetadata reads under the contract meanings', () => {
   assert.deepEqual(
     usageFromMetadata({ promptTokenCount: 900, toolUsePromptTokenCount: 100, candidatesTokenCount: 50, thoughtsTokenCount: 25, cachedContentTokenCount: 300 }),

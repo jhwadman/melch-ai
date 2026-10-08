@@ -35,7 +35,7 @@ import { projectTranscript, trimEventForStorage } from '../lib/session/transcrip
 import { SupabaseSessionService } from '../lib/session/supabaseSessionService.ts';
 import { PostgresSessionService } from '../lib/storage/postgres/sessionService.ts';
 import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
-import { forEachRuntime } from './helpers/runtime.ts';
+import { assertRefusesModelClass, forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -182,14 +182,9 @@ const claude = () => new ClaudeLlm({ model: 'claude-sonnet-4-6', apiKey: FIXTURE
 
 /**
  * A resolver that returns an ADK model class which is neither the shim nor
- * Gemini (StepSwitch here) is not run by the native runtime: it resolves the
- * id through the registry instead (ADR 0073, decision 6). Open question in
- * the WS2-12 PR; these cases run on ADK until it is decided.
+ * Gemini (StepSwitch here) is refused on native before any model call
+ * (ADR 0088): these cases run on ADK, and on native assert the refusal.
  */
-const ADK_MODEL_CLASS = {
-  notOn: { native: { reason: 'a resolver returning an ADK model class that is not a shim is resolved by id on native (ADR 0073)', ticket: 'WS2-12 open question 2' } },
-};
-
 /** One model per step, in order: a model switch between steps, as a fallback makes one. */
 class StepSwitch extends BaseLlm {
   private calls = 0;
@@ -457,12 +452,17 @@ test('claude: without a thinking budget, a stored state is still replayed and no
 
 // ── A model switch between steps drops the state ─────────────────────────────
 
-forEachRuntime('model switch: Claude then a chat-completions model — the signed blocks never reach the other provider', async () => {
+forEachRuntime('model switch: Claude then a chat-completions model — the signed blocks never reach the other provider', async (runtime) => {
   const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
   await withProviders(
     [message([THINKING, { type: 'tool_use', id: 'toolu_01', name: 'Scout', input: { request: 'look' } }], 'tool_use')],
     async (sent) => {
       const boss = new StepSwitch([claude(), new OllamaLlm({ model: 'ollama/qwen3:8b' })]);
+      if (runtime === 'native') {
+        await assertRefusesModelClass(turn(delegateConfig({ thinking: true }), { boss, scout }), 'StepSwitch');
+        assert.equal(sent.anthropic.length + sent.other.length, 0, 'no model was called');
+        return;
+      }
       const r = await turn(delegateConfig({ thinking: true }), { boss, scout });
       assert.equal(r.status, 'completed', JSON.stringify(r.error));
       assert.equal(r.text, 'Scout says: it is in the attic');
@@ -473,9 +473,9 @@ forEachRuntime('model switch: Claude then a chat-completions model — the signe
     },
     'Scout says: it is in the attic',
   );
-}, ADK_MODEL_CLASS);
+});
 
-forEachRuntime('model switch: another provider then Claude — Claude replays nothing foreign and runs the step without thinking', async () => {
+forEachRuntime('model switch: another provider then Claude — Claude replays nothing foreign and runs the step without thinking', async (runtime) => {
   const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
   const gptLike = new ScriptedLlm('scripted/gpt', () => ({
     content: {
@@ -490,6 +490,11 @@ forEachRuntime('model switch: another provider then Claude — Claude replays no
   }) as LlmResponse);
   await withProviders([message([{ type: 'text', text: 'Scout says: it is in the attic' }])], async (sent) => {
     const boss = new StepSwitch([gptLike, claude()]);
+    if (runtime === 'native') {
+      await assertRefusesModelClass(turn(delegateConfig({ thinking: true }), { boss, scout }), 'StepSwitch');
+      assert.equal(gptLike.calls + sent.anthropic.length, 0, 'no model was called');
+      return;
+    }
     const r = await turn(delegateConfig({ thinking: true }), { boss, scout });
     assert.equal(r.status, 'completed', JSON.stringify(r.error));
     const body = sent.anthropic[0];
@@ -498,7 +503,7 @@ forEachRuntime('model switch: another provider then Claude — Claude replays no
     assert.ok(!JSON.stringify(body).includes('enc-openai-1'));
     assert.equal(body.thinking, undefined);
   });
-}, ADK_MODEL_CLASS);
+});
 
 test('other adapters ignore an anthropic state on the wire (Responses, chat-completions, Gemini)', async () => {
   const req = (model: string) =>

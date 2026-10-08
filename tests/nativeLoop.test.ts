@@ -627,10 +627,35 @@ test('self-correction: model_errors: 0 declares no reflection tool, and a call t
   assert.match(String(responses(native.events[2])[0]?.error_details), /^Function adk_handle_model_error is not found in the /);
 });
 
-test('self-correction: a MALFORMED_FUNCTION_CALL failure from an adapter is stored as the failure on both runtimes', async () => {
-  // The contract carries Gemini's MALFORMED_FUNCTION_CALL as an error code, not a finish reason, so the model plugin never sees it (PR open question).
+test('self-correction: a MALFORMED_FUNCTION_CALL failure from an adapter is retried with ADK’s reflection call on both runtimes', async () => {
+  // The contract carries Gemini's MALFORMED_FUNCTION_CALL as an error code; the genai mapping reads it back as the finish reason the model plugin checks (ADR 0088).
+  const { native } = await assertParity(solo(), {
+    boss: (_r, n) => (n === 1 ? failure({ code: 'MALFORMED_FUNCTION_CALL', message: 'bad call' }) : answer('Recovered.')),
+  });
+  assert.equal(native.models.boss?.calls, 2);
+  const retry = native.events[1]?.content?.parts?.[0]?.functionCall;
+  assert.match(String(retry?.id), /^adk_handle_model_error_[0-9a-f-]{36}$/);
+  assert.deepEqual(retry?.args, {
+    response_type: 'ERROR_HANDLED_BY_REFLECT_AND_RETRY_PLUGIN',
+    error_type: 'MALFORMED_FUNCTION_CALL',
+    error_details: 'bad call',
+    finish_reason: 'MALFORMED_FUNCTION_CALL',
+    retry_count: 1,
+  });
+  assert.equal(native.ends[0]?.reason, 'final');
+  assert.equal(native.events.at(-1)?.content?.parts?.[0]?.text, 'Recovered.');
+});
+
+test('self-correction: a MALFORMED_FUNCTION_CALL every time ends on ADK’s UNKNOWN_ERROR past model_errors, on both runtimes', async () => {
   const { native } = await assertParity(solo(), { boss: () => failure({ code: 'MALFORMED_FUNCTION_CALL', message: 'bad call' }) });
+  assert.equal(native.models.boss?.calls, 3);
+  assert.equal(native.ends[0]?.lastEvent?.errorCode, 'UNKNOWN_ERROR');
+});
+
+test('self-correction: with model_errors: 0 a MALFORMED_FUNCTION_CALL failure is stored as the failure on both runtimes', async () => {
+  const { native } = await assertParity(solo({}, { retries: { model_errors: 0 } }), { boss: () => failure({ code: 'MALFORMED_FUNCTION_CALL', message: 'bad call' }) });
   assert.equal(native.ends[0]?.lastEvent?.errorCode, 'MALFORMED_FUNCTION_CALL');
+  assert.equal(native.ends[0]?.lastEvent?.finishReason, 'MALFORMED_FUNCTION_CALL');
   assert.equal(native.models.boss?.calls, 1);
 });
 
