@@ -6,6 +6,25 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **The native loop's security gate (WS5-5, ADR 0101).** A model's answer is
+  now held to the model contract before either runtime stores it:
+  `modelResponseToLlmResponse` in `melchizedek-agents/models/genaiMapping`
+  drops a part the contract does not allow (an unknown kind, `null`, a text
+  part whose text is not a string, a tool result) and coerces a tool call's
+  name, id and arguments (`{}` for none, `{ raw }` otherwise); the new
+  `contractModelResponse` export is that check. A call's arguments or a
+  tool's result nested deeper than 64 levels is replaced by a short note
+  (`TOO_DEEP_ARGUMENTS`; on the native runtime `TOO_DEEP_RESULT`), where it
+  used to fail that turn and every later one on the session. A
+  `yaml_reference` chain that reaches itself, or goes past 16 levels, now
+  fails the compile with an Error naming the chain, on both runtimes; it
+  used to overflow the stack and stop the process. On the native runtime a
+  call id `__proto__` opens its approval as any id does, a credential
+  request in an event the user wrote is not pending, a resumed OAuth call
+  is the one the agent made, and a replayed grant runs nothing.
+  `wiki/operations/native-loop-security.md` is the threat model;
+  `tests/nativeFuzz.test.ts` fuzzes the loop.
+
 - **The capability matrix's Gemini column is asserted on the engine's own
   Gemini adapter (WS3-6, ADR 0100).** Every Gemini cell is now evidence
   `test`, checked against the request `GeminiAdapter` sends through the
