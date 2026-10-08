@@ -152,7 +152,10 @@ the starter pack and the templates), not the repo's full history.
   the part as `providerState` and are replayed within the turn. Every
   failure is a final response. A `clientFactory` option takes an injected
   client. Nothing registers the adapter yet: Gemini ids are still served by
-  `TracedGemini`, unchanged.
+  `TracedGemini`, unchanged. `REASONING_BUDGETS` and `reasoningConfig` move
+  to the new module `melchizedek-agents/models/reasoning`, so the adapter
+  maps `reasoning:` without importing the compiler or ADK;
+  `melchizedek-agents/compile` still exports both.
 
 ## 0.18.0 — 2026-10-06
 

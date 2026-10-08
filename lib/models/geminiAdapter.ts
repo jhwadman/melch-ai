@@ -77,7 +77,7 @@ import { endpointFromEnv, endpointProblems, platformModel } from './endpoints.ts
 import type { ProviderEndpoint } from './endpoints.ts';
 import { currentTurnStart, providerStateOf } from './providerState.ts';
 import { classifyError, errorStatus, retryUntilFirstYield } from './retry.ts';
-import { reasoningConfig } from '../compile.ts';
+import { reasoningConfig } from './reasoning.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 
