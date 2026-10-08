@@ -12,7 +12,7 @@
  * working.
  */
 
-import { Gemini } from '@google/adk';
+import { Gemini } from '../adkPeer.ts';
 import type { GeminiParams, LlmRequest, LlmResponse } from '@google/adk';
 
 import { endpointFromEnv, platformModel } from './endpoints.ts';

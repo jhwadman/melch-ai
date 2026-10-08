@@ -73,11 +73,12 @@ Install into your existing project:
 npm install melchizedek-agents
 ```
 
+`@google/adk` is an optional peer since 0.20.0: install it beside the package (`npm install @google/adk@~2.2.0`) only to run on the `adk` runtime.
+
 Define your agents in `./config/agents/mine.yaml`, then run turns programmatically:
 
 ```typescript
-import { InMemorySessionService } from '@google/adk';
-import { loadSyndicate, registerAvailableProviders, runSyndicateTurn } from 'melchizedek-agents';
+import { InProcessSessionService, asAdkSessionService, loadSyndicate, registerAvailableProviders, runSyndicateTurn } from 'melchizedek-agents';
 
 // 1. Register a provider for every key that is set
 registerAvailableProviders();
@@ -92,7 +93,7 @@ const result = await runSyndicateTurn({
   appName: 'my-app',
   userId: 'user-42',
   sessionId: 'conversation-7', // same id, same conversation
-  sessionService: new InMemorySessionService(),
+  sessionService: asAdkSessionService(new InProcessSessionService()),
   events: {
     onProgress: (line) => console.log('…', line)
   },
@@ -101,7 +102,7 @@ const result = await runSyndicateTurn({
 console.log(result.status, result.text);
 ```
 
-`runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. It runs on Google ADK by default; `runtime: 'native'` (or `MELCHIZEDEK_RUNTIME=native`) runs a single-agent, delegating, plan-dispatch or workflow syndicate on the engine's own loop and scheduler instead. To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`.
+`runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. Since 0.20.0 it runs every syndicate on the engine's own loop and scheduler (the `native` runtime) by default. `MELCHIZEDEK_RUNTIME=adk` (or `runtime: 'adk'`) runs it on Google ADK instead, with `@google/adk` installed, until 1.0.0 removes that runtime; `npx melchizedek-doctor` prints the runtime in use and whether ADK is installed ([ADR 0102](./wiki/decisions/0102-native-default-and-optional-adk-peer.md)). To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`.
 
 The example syndicates ship inside the package at `node_modules/melchizedek-agents/config/agents/examples/`; copy one out as a starting point.
 
@@ -118,11 +119,7 @@ registerGuard(myGuardInstance);
 
 ### The Model Adapters Alone
 
-`melchizedek-agents/model` is the engine's model layer on its own: one message format for every provider, an adapter per provider, `resolveAdapter` over the same model-id prefixes the YAML uses, and `FallbackAdapter`. It loads no `@google/adk`, so a project that only calls models can leave ADK out. npm 7 and later install peer dependencies by default; skip them with:
-
-```bash
-npm install melchizedek-agents --legacy-peer-deps
-```
+`melchizedek-agents/model` is the engine's model layer on its own: one message format for every provider, an adapter per provider, `resolveAdapter` over the same model-id prefixes the YAML uses, and `FallbackAdapter`. It loads no `@google/adk`. Since 0.20.0 ADK is an optional peer, so `npm install melchizedek-agents` leaves it out; the other peers (redis, the cloud SDKs) are optional too.
 
 ```typescript
 import { ClaudeAdapter, OllamaAdapter, resolveAdapter } from 'melchizedek-agents/model';

@@ -17,7 +17,7 @@
  * in for (see gatewayClassFor below, and its use in registry.ts).
  */
 
-import { LLMRegistry } from '@google/adk';
+import { requireAdk } from '../adkPeer.ts';
 
 import { GatewayAdapter } from './gatewayAdapter.ts';
 import { OpenAiCompatibleLlm } from './openAiCompatibleLlm.ts';
@@ -46,5 +46,5 @@ export function gatewayClassFor(patterns: Array<string | RegExp>): typeof Gatewa
 
 /** Registers a gateway stand-in for the given patterns. */
 export function registerGatewayLlm(patterns: Array<string | RegExp>): void {
-  LLMRegistry.register(gatewayClassFor(patterns));
+  requireAdk("Registering a model class with ADK's LLMRegistry").LLMRegistry.register(gatewayClassFor(patterns));
 }

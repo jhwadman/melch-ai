@@ -16,7 +16,7 @@
  *   K3, which the contract has no level for.
  */
 
-import { LLMRegistry } from '@google/adk';
+import { requireAdk } from '../adkPeer.ts';
 
 import { KimiAdapter } from './kimiAdapter.ts';
 import { OpenAiCompatibleLlm } from './openAiCompatibleLlm.ts';
@@ -39,5 +39,5 @@ export class KimiLlm extends OpenAiCompatibleLlm {
 
 /** Registers KimiLlm with the ADK LLMRegistry (called when MOONSHOT_API_KEY is set). */
 export function registerKimiLlm(): void {
-  LLMRegistry.register(KimiLlm);
+  requireAdk("Registering a model class with ADK's LLMRegistry").LLMRegistry.register(KimiLlm);
 }

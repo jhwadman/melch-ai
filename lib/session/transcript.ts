@@ -41,7 +41,7 @@
  * long-term memory ingestion reads.
  */
 
-import { BaseSessionService } from '@google/adk';
+import { BaseSessionService } from '../adkPeer.ts';
 import type {
   CreateSessionRequest,
   GetSessionRequest,
@@ -52,7 +52,7 @@ import type {
   Event,
 } from '@google/adk';
 
-import { AdkSessionServiceForEngine, asAdkSessionService, isAdkSessionService, isSessionService } from '../runtime/adkSessionBridge.ts';
+import { asAdkSessionService, asSessionService, isAdkSessionService, isSessionService } from '../runtime/adkSessionBridge.ts';
 import type { TurnEvent } from '../runtime/events.ts';
 import { applyEvent } from '../runtime/sessions.ts';
 import type {
@@ -390,7 +390,9 @@ export class ProjectedSessionService extends BaseSessionService implements Sessi
     // always was, so the ADK face reaches the same object it did.
     const engineOnly = isSessionService(inner) && !isAdkSessionService(inner);
     this.inner = engineOnly ? asAdkSessionService(inner) : (inner as BaseSessionService);
-    this.own = isSessionService(inner) ? inner : new AdkSessionServiceForEngine(inner as BaseSessionService);
+    // A bridge is unwrapped to the store it wraps, so the engine face of an
+    // engine store never goes through ADK's base service (ADR 0102).
+    this.own = asSessionService(inner);
     this.forAgent = forAgent;
     this.options = options;
   }

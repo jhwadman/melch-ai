@@ -565,5 +565,6 @@ test('memoryTools.ts loads nothing from @google/* at runtime', () => {
   const graph = runtimeGraph('lib/tools/memoryTools.ts');
   const packages = [...new Set([...graph.values()].flat().filter((s) => !s.startsWith('.')))].sort();
   assert.deepEqual(packages, ['zod']);
-  assert.ok(runtimeImportsOf('lib/tools/adkTool.ts').some((s) => s.includes('@google/adk')), 'control: the boundary module does');
+  assert.ok(![...graph.keys()].some((f) => f.endsWith('lib/adkPeer.ts')), 'nor the module that loads ADK');
+  assert.ok(runtimeImportsOf('lib/tools/adkTool.ts').some((s) => s.includes('adkPeer.ts')), 'control: the boundary module does, through lib/adkPeer.ts');
 });

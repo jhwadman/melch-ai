@@ -34,7 +34,7 @@
  * described in its header and in wiki/models/claude-adapter.md.
  */
 
-import { LLMRegistry } from '@google/adk';
+import { requireAdk } from '../adkPeer.ts';
 import type { LlmRequest } from '@google/adk';
 
 import { AdkShim } from './adkShim.ts';
@@ -97,5 +97,5 @@ export class ClaudeLlm extends AdkShim {
  *   message about which provider is active.
  */
 export function registerClaudeLlm(): void {
-  LLMRegistry.register(ClaudeLlm);
+  requireAdk("Registering a model class with ADK's LLMRegistry").LLMRegistry.register(ClaudeLlm);
 }

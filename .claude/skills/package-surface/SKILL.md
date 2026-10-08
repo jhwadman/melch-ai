@@ -28,7 +28,14 @@ written in the same change. Breaking changes go first in the entry, under
 
 ## The peer dependency is deliberate
 
-`@google/adk` is a **peer**, not a dependency: the consumer's app owns the ADK
+Since 0.20.0 `@google/adk` is an **optional** peer (ADR 0102): the native
+runtime, the default, loads none of it, and `lib/adkPeer.ts` is the one
+module that tries to. Never import a value from `@google/adk` anywhere else
+(a type-only import is fine); reach ADK through `adkPeer.ts`'s exports or
+`requireAdk(feature)`. `tests/optionalAdk.test.ts` fails when a path the
+native runtime needs loads it.
+
+It is a **peer**, not a dependency: the consumer's app owns the ADK
 instance so the model registry stays a singleton. Two ADK copies in one
 process means a registry that does not see half its own models. Moving it to
 `dependencies` would be a silent breaking change for every consumer

@@ -38,7 +38,7 @@
  * MELCHIZEDEK_RUNTIME or its `runtime` option.
  */
 
-import { BaseLlm, FunctionTool } from '@google/adk';
+import { BaseLlm, FunctionTool } from './adkPeer.ts';
 import type { BaseTool, Context, LlmAgent, RunAsyncToolRequest } from '@google/adk';
 import { relative } from 'node:path';
 

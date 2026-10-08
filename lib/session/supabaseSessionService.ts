@@ -26,7 +26,7 @@
  *     of the process that made the event, just before the append.
  */
 
-import { BaseSessionService } from '@google/adk';
+import { BaseSessionService } from '../adkPeer.ts';
 import type {
   CreateSessionRequest as AdkCreateSessionRequest,
   DeleteSessionRequest as AdkDeleteSessionRequest,

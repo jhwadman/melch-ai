@@ -585,6 +585,7 @@ test('the three modules load nothing at run time, and nothing they reach names @
     assert.deepEqual([...graph.values()].flat().filter((s) => !s.startsWith('.')), [], `${entry}: names no package`);
   }
   // Control: the scan sees a real runtime import and a type-only one.
-  assert.ok(runtimeImportsOf('lib/session/supabaseSessionService.ts').some((s) => s.includes('@google/adk')));
+  // ADK's values come through lib/adkPeer.ts, the one module that loads it (ADR 0102).
+  assert.ok(runtimeImportsOf('lib/session/supabaseSessionService.ts').some((s) => s.includes('adkPeer.ts')));
   assert.ok(!runtimeImportsOf('lib/runtime/approvals.ts').some((s) => s.includes('@google/adk')), 'approvals.ts imports ADK as a type only');
 });

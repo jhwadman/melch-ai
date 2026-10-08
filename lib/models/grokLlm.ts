@@ -35,7 +35,7 @@
  * rejected with "Model not found".
  */
 
-import { LLMRegistry } from '@google/adk';
+import { requireAdk } from '../adkPeer.ts';
 
 import { GptLlm } from './gptLlm.ts';
 import type { GptLlmOptions } from './gptLlm.ts';
@@ -61,5 +61,5 @@ export class GrokLlm extends GptLlm {
  * registerAvailableProviders() when XAI_API_KEY is present.
  */
 export function registerGrokLlm(): void {
-  LLMRegistry.register(GrokLlm);
+  requireAdk("Registering a model class with ADK's LLMRegistry").LLMRegistry.register(GrokLlm);
 }

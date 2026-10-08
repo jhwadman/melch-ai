@@ -26,16 +26,17 @@
  * time, and an outer AbortSignal cancels it. All three abort the provider
  * request in flight, not just the loop around it.
  *
- * ── Runtimes (ADR 0045, ADR 0073) ─────────────────────────────────────────
- * Each agent of a turn runs on ADK's Runner (the default) or on the
- * engine's own agent loop: the turn's `runtime` option, else
+ * ── Runtimes (ADR 0045, ADR 0073, ADR 0102) ───────────────────────────────
+ * Each agent of a turn runs on the engine's own agent loop (the default
+ * since 0.20.0) or on ADK's Runner: the turn's `runtime` option, else
  * MELCHIZEDEK_RUNTIME. Both compile the same AgentSpec (lib/compile.ts),
  * store the same events and drain through drainAgentStream, so everything
  * else here is shared. What native does not run yet fails before any model
- * call, naming the feature (lib/runtime/nativeTurn.ts).
+ * call, naming the feature (lib/runtime/nativeTurn.ts). The adk runtime
+ * needs @google/adk installed; without it, a turn asked to run there fails
+ * before the session is touched, naming the package (lib/adkPeer.ts).
  */
 
-import { InMemorySessionService, ReflectAndRetryModelPlugin, ReflectAndRetryToolPlugin, Runner, StreamingMode, getFunctionCalls, getFunctionResponses } from '@google/adk';
 import type { BasePlugin } from '@google/adk';
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
@@ -46,7 +47,11 @@ import { compileNative, compileNativeWorkflow, nativeAdapterFor } from '../compi
 import type { ModelAdapter } from '../models/contract.ts';
 import type { NativeAgent } from './native/request.ts';
 import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
-import { asSessionService } from './adkSessionBridge.ts';
+import { asAdkSessionService, asSessionService } from './adkSessionBridge.ts';
+import { requireAdk } from '../adkPeer.ts';
+import { getFunctionCalls, getFunctionResponses } from './events.ts';
+import type { TurnEvent } from './events.ts';
+import { InProcessSessionService } from './sessions.ts';
 import type { WorkflowGraph } from '../workflow/graph.ts';
 import { UnsupportedWorkflowResumeError } from '../workflow/resume.ts';
 import { runNativeWorkflow } from '../workflow/turn.ts';
@@ -60,8 +65,12 @@ import type { PendingConsent } from './credentials.ts';
 export { CREDENTIAL_REQUEST, credentialResponsePart, describeConsent, pendingConsent } from './credentials.ts';
 export type { PendingConsent } from './credentials.ts';
 export type { ToolCredentials } from '../tools/oauthConsent.ts';
-export { chooseRuntime, runtimeSetting, DEFAULT_RUNTIME, RUNTIMES, UnsupportedOnRuntimeError } from './runtimeFlag.ts';
-export type { RuntimeName } from './runtimeFlag.ts';
+export { chooseRuntime, describeRuntime, runtimeSetting, DEFAULT_RUNTIME, RUNTIMES, UnsupportedOnRuntimeError } from './runtimeFlag.ts';
+export type { RuntimeName, RuntimeSource } from './runtimeFlag.ts';
+export { AdkNotInstalledError, adkInstalled } from '../adkPeer.ts';
+// A turn's session store with no ADK: runSyndicateTurn takes it as asAdkSessionService(new InProcessSessionService()) (ADR 0102).
+export { InProcessSessionService } from './sessions.ts';
+export { asAdkSessionService, asSessionService } from './adkSessionBridge.ts';
 import { ROUTE_STEP_SUFFIX, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
 import type { PendingInput } from '../workflow.ts';
 export { describeInput } from '../workflow.ts';
@@ -144,10 +153,10 @@ export interface SyndicateTurnOptions {
   /** Applied to every compiled agent before it runs (eval tool replay). ADK runtime only. */
   transformAgent?: (agent: LlmAgent) => LlmAgent;
   /**
-   * The runtime that runs the turn's agents: `adk` (Google ADK's Runner) or
-   * `native` (the engine's own loop). Default: MELCHIZEDEK_RUNTIME, else
-   * `adk`. A feature native does not run yet throws UnsupportedOnRuntimeError
-   * before any model call.
+   * The runtime that runs the turn's agents: `native` (the engine's own
+   * loop) or `adk` (Google ADK's Runner, which needs @google/adk installed).
+   * Default: MELCHIZEDEK_RUNTIME, else `native`. A feature native does not
+   * run yet throws UnsupportedOnRuntimeError before any model call.
    */
   runtime?: RuntimeName;
   /** Plan-dispatch only: skip the classifier and run this route. Overrides
@@ -284,6 +293,8 @@ export function retryPlugins(retries: { model_errors?: number; tool_errors?: num
   const model = retries?.model_errors ?? DEFAULT_MODEL_ERROR_RETRIES;
   const tool = retries?.tool_errors ?? DEFAULT_TOOL_ERROR_RETRIES;
   const plugins: BasePlugin[] = [];
+  if (model <= 0 && tool <= 0) return plugins;
+  const { ReflectAndRetryModelPlugin, ReflectAndRetryToolPlugin } = requireAdk("ADK's retry plugins (retryPlugins)");
   if (model > 0) plugins.push(new ReflectAndRetryModelPlugin({ maxRetries: model }));
   if (tool > 0) plugins.push(new ReflectAndRetryToolPlugin({ maxRetries: tool, throwExceptionIfRetryExceeded: false }));
   return plugins;
@@ -393,7 +404,7 @@ export async function drainAgentStream(
       d.tokens.thinking += e.usageMetadata.thoughtsTokenCount ?? 0;
     }
 
-    const calls = getFunctionCalls(event) ?? [];
+    const calls = getFunctionCalls(event as unknown as TurnEvent);
     // Text streamed before a tool call was narration, not the answer.
     if (streamed && calls.length) {
       ev.onTextReset?.();
@@ -424,7 +435,7 @@ export async function drainAgentStream(
       if (opts.publishToolStatus) ev.onProgress?.(`Invoking tool: ${name}`);
     }
 
-    for (const resp of getFunctionResponses(event) ?? []) {
+    for (const resp of getFunctionResponses(event as unknown as TurnEvent)) {
       const r = resp as any;
       const name: string = r.name ?? r.functionResponse?.name ?? '';
       const content = r.response ?? r.functionResponse?.response ?? {};
@@ -500,6 +511,8 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
   // class, which bypasses traceLlmGeneration: no max_steps, no cancel. A
   // caller that resolves models itself (the A2A server) is left alone.
   const runtime = chooseRuntime(opts.runtime);
+  // The adk runtime without @google/adk installed fails here, naming the package (ADR 0102).
+  if (runtime === 'adk') requireAdk("The adk runtime (MELCHIZEDEK_RUNTIME=adk, or the turn's runtime option)");
   if (!opts.compile?.resolveModel) registerAvailableProviders();
   const control = createTurnControl({
     maxLlmCalls: opts.maxLlmCalls ?? config.max_steps ?? DEFAULT_MAX_STEPS,
@@ -777,6 +790,7 @@ async function runTurnInner(
         ...(compileOpts.log ? { log: compileOpts.log } : {}),
       }) as unknown as AsyncIterable<Event>;
     } else {
+      const { Runner, StreamingMode } = requireAdk('The adk runtime');
       const runner = new Runner({
         agent: params.agent.agent,
         appName,
@@ -865,7 +879,10 @@ async function runTurnInner(
       // conversation the next specialist reads.
       const routerAgent = await compileRoot();
       const routerSid = `${sessionId}::route`;
-      const routerSessions = new InMemorySessionService();
+      // ADK's in-memory store on adk; the engine's on native, which needs no ADK.
+      const routerSessions: BaseSessionService = native
+        ? asAdkSessionService(new InProcessSessionService())
+        : new (requireAdk('The adk runtime').InMemorySessionService)();
       await routerSessions.createSession({ appName, userId, sessionId: routerSid });
       const shared = await sessionService.getSession({ appName, userId, sessionId });
       const digest = renderTranscriptDigest(shared?.events ?? []);

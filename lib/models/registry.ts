@@ -41,8 +41,8 @@
  * resolution (LRU), so late registration can be masked by stale cache hits.
  */
 
-import { Gemini, LLMRegistry } from '@google/adk';
 import type { BaseLlm } from '@google/adk';
+import { Gemini, adkInstalled, requireAdk } from '../adkPeer.ts';
 import { endpointFromEnv, endpointProblems, providerReady } from './endpoints.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
 
@@ -147,7 +147,7 @@ export function providerStatuses(): ProviderStatus[] {
 }
 
 const REGISTRARS: Record<ProviderId, () => void> = {
-  gemini: () => LLMRegistry.register(TracedGemini),
+  gemini: () => requireAdk("Registering a model class with ADK's LLMRegistry").LLMRegistry.register(TracedGemini),
   anthropic: registerClaudeLlm,
   openai: registerGptLlm,
   xai: registerGrokLlm,
@@ -163,13 +163,13 @@ const REGISTRARS: Record<ProviderId, () => void> = {
  * are registered at import time — replacing them is how TracedGemini works
  * too.
  */
-const PATTERNS: Record<Exclude<ProviderId, 'ollama'>, Array<string | RegExp>> = {
+const PATTERNS = (): Record<Exclude<ProviderId, 'ollama'>, Array<string | RegExp>> => ({
   gemini: Gemini.supportedModels,
   anthropic: ClaudeLlm.supportedModels,
   openai: GptLlm.supportedModels,
   xai: GrokLlm.supportedModels,
   moonshot: KimiLlm.supportedModels,
-};
+});
 
 let providersRegistered = false;
 
@@ -181,16 +181,20 @@ let providersRegistered = false;
  * provider whose direct key is ABSENT is served by the gateway stand-in
  * instead (lib/models/gateway.ts — the fallback rule). Returns the
  * per-provider statuses so entrypoints can log which models are routable.
+ *
+ * Without @google/adk installed there is no LLMRegistry to register into:
+ * the native runtime resolves every id through resolveAdapter, so nothing is
+ * registered and the statuses are returned as they are (ADR 0102).
  */
 export function registerAvailableProviders(
   log?: (msg: string) => void,
 ): ProviderStatus[] {
   const statuses = providerStatuses();
-  if (!providersRegistered) {
+  if (!providersRegistered && adkInstalled()) {
     providersRegistered = true;
     for (const status of statuses) {
       if (status.transport === 'gateway' && status.provider !== 'ollama') {
-        registerGatewayLlm(PATTERNS[status.provider]);
+        registerGatewayLlm(PATTERNS()[status.provider]);
       } else if (status.available || status.provider === 'gemini') {
         REGISTRARS[status.provider]();
       }
@@ -297,17 +301,18 @@ export function resolveModel(
 
 // ── Contract adapters (the native runtime) ───────────────────────────────────
 
-/** GEMINI_ADAPTER (`adk`, the default here, or `engine`). Any other value is a configuration error. */
+/** GEMINI_ADAPTER (`engine`, the default, or `adk`). Any other value is a configuration error. */
 export function geminiAdapterChoice(env: NodeJS.ProcessEnv = process.env): GeminiAdapterChoice {
-  return geminiAdapterSetting(env) ?? 'adk';
+  return geminiAdapterSetting(env) ?? 'engine';
 }
 
 /**
  * The contract resolver with the temporary AdkGeminiAdapter (ADR 0060): a
- * Gemini id gets it until gate G3, or the engine's GeminiAdapter when
- * GEMINI_ADAPTER=engine or `{ gemini: 'engine' }` asks for it. The
- * ADK-free resolver in lib/models/adapterResolver.ts, which
- * `melchizedek-agents/model` exports, defaults to GeminiAdapter (ADR 0068).
+ * Gemini id gets the engine's GeminiAdapter (the default since 0.20.0, ADR
+ * 0100), or AdkGeminiAdapter when GEMINI_ADAPTER=adk or `{ gemini: 'adk' }`
+ * asks for it, for one release, which needs @google/adk. The ADK-free
+ * resolver in lib/models/adapterResolver.ts, which `melchizedek-agents/model`
+ * exports, refuses `adk` (ADR 0068).
  */
 const WITH_ADK_GEMINI = adapterResolver((r) => new AdkGeminiAdapter(r));
 

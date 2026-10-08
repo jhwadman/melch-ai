@@ -1,7 +1,9 @@
 /**
  * tests/packageSurface.test.ts — the published package surface (WS1-12,
- * ADR 0068): the `melchizedek-agents/model` entry loads no @google/adk, and
- * every path in the exports map resolves after the package build.
+ * ADR 0068, ADR 0102): the `melchizedek-agents/model` entry loads no
+ * @google/adk, every path in the exports map resolves after the package
+ * build, and the build serves every shipped syndicate on the default
+ * (native) runtime with @google/adk not installed.
  *
  * Three proofs for ./model, each stronger than the last:
  *   1. the source's runtime import graph (static imports that are not
@@ -19,12 +21,13 @@
 
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { ROOT, runtimeImportsOf } from './helpers/importGraph.ts';
+import { everyExampleTurnScript, lastJson, runWithoutAdk } from './helpers/withoutAdk.ts';
 import { GeminiAdapter, OllamaAdapter, ClaudeAdapter, resolveAdapter, resolveAdapterWithFallback, FallbackAdapter } from '../lib/model.ts';
 
 const PKG = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {
@@ -60,7 +63,7 @@ test('./model: no module in its runtime import graph names @google/adk', () => {
   const adk = [...graph].flatMap(([file, specs]) => specs.filter(isAdk).map((s) => `${path.relative(ROOT, file)} → ${s}`));
   assert.deepEqual(adk, []);
   const files = new Set([...graph.keys()].map((f) => path.relative(ROOT, f)));
-  for (const unwanted of ['lib/compile.ts', 'lib/models/registry.ts', 'lib/models/adkGeminiAdapter.ts', 'lib/models/adkShim.ts', 'lib/tools/webSearchTool.ts']) {
+  for (const unwanted of ['lib/compile.ts', 'lib/models/registry.ts', 'lib/models/adkGeminiAdapter.ts', 'lib/models/adkShim.ts', 'lib/tools/webSearchTool.ts', 'lib/adkPeer.ts']) {
     assert.ok(!files.has(unwanted), `${unwanted} is reached from lib/model.ts`);
   }
   for (const wanted of ['lib/models/claudeAdapter.ts', 'lib/models/grokAdapter.ts', 'lib/models/geminiAdapter.ts', 'lib/models/fallbackAdapter.ts', 'lib/tools/xaiSearchParams.ts']) {
@@ -69,9 +72,11 @@ test('./model: no module in its runtime import graph names @google/adk', () => {
 });
 
 test('the graph walk sees ADK where it is (control)', () => {
-  const adk = [...runtimeGraph('lib/models/registry.ts')].some(([, specs]) => specs.some(isAdk));
-  assert.ok(adk, 'registry.ts imports @google/adk');
-  assert.ok(runtimeImportsOf('lib/tools/webSearchTool.ts').map(specifierOf).some(isAdk));
+  // ADK's values come through lib/adkPeer.ts, the one module that loads it (ADR 0102).
+  const files = [...runtimeGraph('lib/models/registry.ts').keys()].map((f) => path.relative(ROOT, f));
+  assert.ok(files.includes('lib/adkPeer.ts'), 'registry.ts reaches the module that loads @google/adk');
+  assert.ok(runtimeImportsOf('lib/tools/webSearchTool.ts').map(specifierOf).includes('../adkPeer.ts'));
+  assert.match(fs.readFileSync(path.join(ROOT, 'lib', 'adkPeer.ts'), 'utf8'), /await import\('@google\/adk'\)/);
 });
 
 // ── The Gemini choice through ./model ────────────────────────────────────────
@@ -177,20 +182,8 @@ function typeImportsOf(file: string): string[] {
   return code.match(/^\s*(?:import|export)\s+type\b[^;]*?\bfrom\s*['"][^'"]+['"]/gm) ?? [];
 }
 
-/**
- * Runs `script` in a child Node process where resolving @google/adk throws,
- * so any load of it, direct or transitive, fails the import.
- */
-function runWithoutAdk(script: string): { status: number | null; stdout: string; stderr: string } {
-  const hook = "export async function resolve(s, c, n) { if (s === '@google/adk' || s.startsWith('@google/adk/')) throw new Error('blocked: ' + s); return n(s, c); }";
-  const register = `import { register } from 'node:module'; register(${JSON.stringify('data:text/javascript,' + encodeURIComponent(hook))});`;
-  const result = spawnSync(
-    process.execPath,
-    ['--disable-warning=DEP0040', '--disable-warning=ExperimentalWarning', '--experimental-strip-types', '--import', 'data:text/javascript,' + encodeURIComponent(register), '--input-type=module', '-e', script],
-    { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: 'fixture-anthropic', MODEL_GATEWAY: '', GEMINI_ADAPTER: '' } },
-  );
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
-}
+/** The child process for ./model: @google/adk unresolvable, a fixture Anthropic key. */
+const withoutAdk = (script: string) => runWithoutAdk(script, { env: { ANTHROPIC_API_KEY: 'fixture-anthropic' } });
 
 /** Imports the entry, stubs fetch, and builds one Claude and one Ollama request through it. */
 function buildRequestsScript(entry: string): string {
@@ -228,19 +221,45 @@ function assertBuiltRequests(stdout: string): void {
 }
 
 test('./model loads and builds Claude and Ollama requests with @google/adk unresolvable (source)', () => {
-  const r = runWithoutAdk(buildRequestsScript(path.join(ROOT, 'lib', 'model.ts')));
+  const r = withoutAdk(buildRequestsScript(path.join(ROOT, 'lib', 'model.ts')));
   assert.equal(r.status, 0, r.stderr);
   assertBuiltRequests(r.stdout);
 });
 
 test('./model loads and builds Claude and Ollama requests with @google/adk unresolvable (build)', () => {
-  const r = runWithoutAdk(buildRequestsScript(path.join(out, 'lib', 'model.js')));
+  const r = withoutAdk(buildRequestsScript(path.join(out, 'lib', 'model.js')));
   assert.equal(r.status, 0, r.stderr);
   assertBuiltRequests(r.stdout);
 });
 
-test('the control: the ADK registry fails to load with @google/adk unresolvable', () => {
-  const r = runWithoutAdk(`await import(${JSON.stringify(pathToFileURL(path.join(ROOT, 'lib', 'models', 'registry.ts')).href)});`);
+// ── The build without @google/adk (ADR 0102) ────────────────────────────────
+
+/** Every syndicate the package ships, as loadSyndicate names it. */
+const SHIPPED = fs
+  .readdirSync(path.join(ROOT, 'config', 'agents'), { recursive: true })
+  .map(String)
+  .filter((f) => f.endsWith('.yaml') && !f.endsWith('syndicateSchema.yaml'))
+  .sort();
+
+test('the build serves every shipped syndicate on the default runtime with @google/adk not installed, and names the package for adk', () => {
+  assert.ok(SHIPPED.length >= 30, `${SHIPPED.length} syndicates`);
+  const r = runWithoutAdk(everyExampleTurnScript(out, '.js', SHIPPED));
+  assert.equal(r.status, 0, r.stderr.slice(-2000));
+  const got = lastJson<{ blocked: boolean; installed: boolean; defaultRuntime: string; calls: number; turns: Record<string, string>; adkError: string }>(r.stdout);
+  assert.equal(got.blocked, true, 'the hook makes @google/adk unresolvable');
+  assert.equal(got.installed, false);
+  assert.equal(got.defaultRuntime, 'native');
+  assert.deepEqual(Object.keys(got.turns), SHIPPED);
+  const notServed = Object.entries(got.turns).filter(([, status]) => status !== 'completed');
+  assert.deepEqual(notServed, [], 'every syndicate completes a turn');
+  assert.ok(got.calls >= SHIPPED.length, 'every turn called the scripted model');
+  assert.match(got.adkError, /^AdkNotInstalledError: The adk runtime .*needs @google\/adk, which is not installed/);
+});
+
+test('the control: an installed @google/adk that fails to load is an error, not an absent package', () => {
+  const r = runWithoutAdk(`await import(${JSON.stringify(pathToFileURL(path.join(ROOT, 'lib', 'models', 'registry.ts')).href)});`, {
+    failWith: 'adk is broken here',
+  });
   assert.notEqual(r.status, 0);
-  assert.match(r.stderr, /blocked: @google\/adk/);
+  assert.match(r.stderr, /adk is broken here/);
 });

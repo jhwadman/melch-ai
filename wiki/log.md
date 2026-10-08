@@ -3,6 +3,30 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —explains→ /decisions/0007-engine-as-package.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —explains→ /decisions/0099-native-default-moves-to-0-20-0.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —constrains→ module:lib/doctor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —constrains→ module:lib/models/adapterResolver.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —constrains→ module:lib/runtime/runtimeFlag.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —constrains→ module:lib/adkPeer.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md —mitigates→ /decisions/0097-reflection-tool-declared-where-adk-declares-it.md
 
 by claude-code/claude-opus-5-5

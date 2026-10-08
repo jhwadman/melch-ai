@@ -86,6 +86,7 @@ import { errorText } from './errorResponse.ts';
 import { GEMINI_PROVIDER } from './geminiState.ts';
 import { llmResponseToModelResponse, modelRequestToLlmRequest, nativeToolsWithoutGeminiTool } from './genaiMapping.ts';
 import { TracedGemini } from './tracedGemini.ts';
+import { requireAdk } from '../adkPeer.ts';
 import { classifyError, errorStatus } from './retry.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
 
@@ -124,6 +125,7 @@ export class AdkGeminiAdapter implements ModelAdapter {
   readonly #warned = new Set<string>();
 
   constructor(options: AdkGeminiAdapterOptions) {
+    requireAdk('GEMINI_ADAPTER=adk (AdkGeminiAdapter, which runs ADK\'s Gemini)');
     this.model = options.model;
     this.#apiKey = nonEmpty(options.apiKey);
     this.#endpoint = options.endpoint;

@@ -31,7 +31,7 @@ sources:
 
 # Native loop security
 
-The [native loop](/overview/native-loop.md) runs an agent's turn without ADK. Before it becomes the default runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), [ADR 0099](/decisions/0099-native-default-moves-to-0-20-0.md)) it passes this gate ([ADR 0101](/decisions/0101-native-loop-security-gate.md)): every way a hostile input reaches it is named below, with what stops it and the test that proves it.
+The [native loop](/overview/native-loop.md) runs an agent's turn without ADK, and is the default runtime since 0.20.0 ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), [ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)). Before it became the default it passed this gate ([ADR 0101](/decisions/0101-native-loop-security-gate.md)): every way a hostile input reaches it is named below, with what stops it and the test that proves it.
 
 ## Who supplies what
 

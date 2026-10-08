@@ -141,8 +141,8 @@ test('resolveAdapter returns each provider\'s contract adapter from the one pref
       ['grok-4.7', GrokAdapter, 'xai'],
       ['kimi-k3', KimiAdapter, 'moonshot'],
       ['ollama/qwen3:8b', OllamaAdapter, 'ollama'],
-      ['gemini-3.5-flash-lite', AdkGeminiAdapter, 'gemini'],
-      ['some-unknown-id', AdkGeminiAdapter, 'gemini'],
+      ['gemini-3.5-flash-lite', GeminiAdapter, 'gemini'],
+      ['some-unknown-id', GeminiAdapter, 'gemini'],
     ];
     for (const [id, cls, provider] of cases) {
       const adapter = resolveAdapter(id);
@@ -154,15 +154,16 @@ test('resolveAdapter returns each provider\'s contract adapter from the one pref
   });
 });
 
-test('Gemini: the ADK wrapper by default; the engine adapter by GEMINI_ADAPTER=engine or the option', async () => {
+test('Gemini: the engine adapter by default (ADR 0100); the ADK wrapper by GEMINI_ADAPTER=adk or the option', async () => {
   await withEnv({ GOOGLE_GENAI_API_KEY: ENV_GEMINI }, () => {
+    assert.equal(geminiAdapterChoice(), 'engine');
+    assert.ok(resolveAdapter('gemini-x') instanceof GeminiAdapter);
+    assert.ok(resolveAdapter('gemini-x', { gemini: 'adk' }) instanceof AdkGeminiAdapter);
+  });
+  await withEnv({ GOOGLE_GENAI_API_KEY: ENV_GEMINI, GEMINI_ADAPTER: 'ADK' }, () => {
     assert.equal(geminiAdapterChoice(), 'adk');
     assert.ok(resolveAdapter('gemini-x') instanceof AdkGeminiAdapter);
-    assert.ok(resolveAdapter('gemini-x', { gemini: 'engine' }) instanceof GeminiAdapter);
-  });
-  await withEnv({ GOOGLE_GENAI_API_KEY: ENV_GEMINI, GEMINI_ADAPTER: 'Engine' }, () => {
-    assert.ok(resolveAdapter('gemini-x') instanceof GeminiAdapter);
-    assert.ok(resolveAdapter('gemini-x', { gemini: 'adk' }) instanceof AdkGeminiAdapter, 'the option wins over the environment');
+    assert.ok(resolveAdapter('gemini-x', { gemini: 'engine' }) instanceof GeminiAdapter, 'the option wins over the environment');
   });
   await withEnv({ ...ALL_KEYS, GEMINI_ADAPTER: 'genai' }, () => {
     assert.throws(() => resolveAdapter('gemini-x'), /GEMINI_ADAPTER must be "adk" or "engine"/);

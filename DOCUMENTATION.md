@@ -56,11 +56,17 @@ facts, embeds them (768-d), and stores them for future recall.
 
 The compiler (`lib/compile.ts`) first builds a runtime-neutral `AgentSpec`
 per agent; `lib/compileAdk.ts` turns it into the `LlmAgent`, and
-`lib/compileNative.ts` into the engine's own loop's agent. ADK runs every
-turn by default. `MELCHIZEDEK_RUNTIME=native`, or `runtime: 'native'` on
-`runSyndicateTurn`, runs a single-agent, delegating or plan-dispatch
-syndicate on the native loop with the same result and the same stored
-events, `context:` compaction and `mode: task` included
+`lib/compileNative.ts` into the engine's own loop's agent. Since 0.20.0
+the native loop runs every turn by default
+([ADR 0102](./wiki/decisions/0102-native-default-and-optional-adk-peer.md)):
+`@google/adk` is an optional peer, needed only when
+`MELCHIZEDEK_RUNTIME=adk`, or `runtime: 'adk'` on `runSyndicateTurn`,
+selects ADK's Runner, which 1.0.0 removes; without it that choice fails
+before the session is touched, naming the package, and
+`npx melchizedek-doctor` prints the runtime in use and whether ADK is
+installed. The native loop runs a single-agent, delegating or
+plan-dispatch syndicate with the same result and the same stored events
+the ADK runtime writes, `context:` compaction and `mode: task` included
 ([ADR 0078](./wiki/decisions/0078-native-compaction-ports-adk-compactor.md)),
 and a `workflow:` syndicate on the engine's own scheduler, its pause and
 resume included

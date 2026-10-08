@@ -180,14 +180,13 @@ Everything above runs inside a clone. When your syndicates deserve their
 own repo, the same engine is a typed dependency:
 
 ```bash
-npm install melchizedek-agents @google/adk@2.2.0
+npm install melchizedek-agents               # @google/adk only for MELCHIZEDEK_RUNTIME=adk
 npx melchizedek-init                         # config/agents/conversational.yaml + .env; --list for others
 npx melchizedek-doctor                       # which keys it needs, and whether it is ready
 ```
 
 ```typescript
-import { InMemorySessionService } from '@google/adk';
-import { loadSyndicate, registerAvailableProviders, runSyndicateTurn } from 'melchizedek-agents';
+import { InProcessSessionService, asAdkSessionService, loadSyndicate, registerAvailableProviders, runSyndicateTurn } from 'melchizedek-agents';
 
 registerAvailableProviders();                 // registers every model whose key is present
 const config = loadSyndicate('mine.yaml');    // reads <your-repo>/config/agents/mine.yaml
@@ -196,7 +195,7 @@ const result = await runSyndicateTurn({
   config,
   parts: [{ text: 'Hello' }],
   appName: 'my-app', userId: 'u1', sessionId: 'c1',
-  sessionService: new InMemorySessionService(),
+  sessionService: asAdkSessionService(new InProcessSessionService()),
 });
 console.log(result.text);
 ```
@@ -222,8 +221,12 @@ console.log(result.text);
   `config/agents/`.
 - Deeper imports are available as subpaths — `melchizedek-agents/models/registry`,
   `melchizedek-agents/tools/webExtractTool`, `melchizedek-agents/memory`,
-  and friends — all typed. `@google/adk` installs alongside as a peer:
-  your app owns the ADK version.
+  and friends — all typed.
+- **Native by default; ADK optional.** Since 0.20.0 every turn runs on the
+  engine's own loop. `@google/adk` is an optional peer: install it
+  (`npm install @google/adk@~2.2.0`) and set `MELCHIZEDEK_RUNTIME=adk` to
+  run on ADK, which 1.0.0 removes; your app then owns the ADK version.
+  `npx melchizedek-doctor` prints which runtime is in use.
 - **Your coding agent can learn all of this.** The package ships a
   six-skill suite (`skills/`, the open SKILL.md standard) covering the
   catalog, authoring, serving, memory, models, and the Scribe:
