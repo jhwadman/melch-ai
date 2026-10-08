@@ -126,6 +126,7 @@ export function consentCallback(
     resolveRequest?: A2AAppOptions['resolveRequest'];
     /** The server's bearer secret, when it has one: the authenticator is consulted only behind it. */
     serverSecret?: string;
+    /** Refuse a callback whose request the authenticator does not accept. Default true (ADR 0085). */
     requireCallerIdentity?: boolean;
     log?: (m: string) => void;
     warn?: (m: string) => void;
@@ -152,7 +153,7 @@ export function consentCallback(
         callerUserId = undefined;
       }
     }
-    if (opts.requireCallerIdentity && callerUserId === undefined) {
+    if (opts.requireCallerIdentity !== false && callerUserId === undefined) {
       opts.warn?.('Consent callback refused: no authenticated caller.');
       res.status(401).type('html').send(consentPage('Authorization not completed', 'Sign in, then open the authorization link again.'));
       return;
@@ -303,9 +304,13 @@ export interface A2AAppOptions {
     /** Callback requests per window per client IP. Default 30 per 15 minutes. */
     callbackLimit?: { windowMs: number; max: number };
     /**
-     * Refuse a callback whose request the authenticator does not accept
-     * (a deployment whose browsers carry the identity, behind a gateway).
-     * Default false: the state nonce alone binds the flow to its user.
+     * Refuse a callback whose request the authenticator does not accept.
+     * Default true: the browser that completes the grant must carry the
+     * flow's user's identity (a session cookie or a gateway header that
+     * resolveRequest reads), so a forwarded authorization link cannot link
+     * someone else's account (ADR 0085). false lets the state nonce alone
+     * bind the flow to its user, for a deployment whose browsers carry no
+     * identity and that accepts that risk.
      */
     requireCallerIdentity?: boolean;
   };
@@ -886,7 +891,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       consentCallback(consent, {
         resolveRequest: options.resolveRequest,
         ...(options.serverSecret ? { serverSecret: options.serverSecret } : {}),
-        requireCallerIdentity: options.toolCredentials?.requireCallerIdentity === true,
+        requireCallerIdentity: options.toolCredentials?.requireCallerIdentity !== false,
         log,
         warn,
       }),

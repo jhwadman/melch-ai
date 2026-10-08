@@ -20,7 +20,8 @@ the starter pack and the templates), not the repo's full history.
   - The person's next message, after the grant is stored, runs the paused
     call again. Until then, a message repeats the request and runs nothing.
   - `createA2AApp` takes the same `toolCredentials` (plus `callbackLimit`
-    and `requireCallerIdentity`). It publishes a `consent_request` data part
+    and `requireCallerIdentity`, default true: the callback refuses a
+    browser that does not carry the flow's user's identity). It publishes a `consent_request` data part
     beside `approval_request` and `input_request`, and mounts the consent
     callback at the path of the redirect URI. The callback completes the
     authorization-code flow with PKCE S256 and stores the grant.

@@ -295,7 +295,10 @@ test('a call without a grant pauses; the callback completes the flow with PKCE; 
   const back = await consentAtProvider(request.authorization_url);
   assert.equal(back.origin + back.pathname, `${base}/oauth/callback`);
   back.searchParams.set('redirect_uri', 'https://evil.example/steal');
-  const done = await callback(back);
+  // By default the browser must carry the flow's user's identity: a forwarded link is refused, and the state is not spent.
+  const anonymous = await callback(back);
+  assert.equal(anonymous.status, 401);
+  const done = await callback(back, 'tok-alice');
   assert.equal(done.status, 200, done.page);
   assert.match(done.page, /Authorization complete/);
   assert.equal(done.headers.get('cache-control'), 'no-store');
@@ -358,7 +361,7 @@ test('a call without a grant pauses; the callback completes the flow with PKCE; 
   assert.ok(audits.some((a) => a.event === 'credential.put'));
 
   // Replayed: the same callback again is refused, and stores nothing new.
-  const replay = await callback(back);
+  const replay = await callback(back, 'tok-alice');
   assert.equal(replay.status, 400);
   assert.match(replay.page, /not valid, or was already used/);
   assert.equal(rows.all().length, 1);
@@ -375,12 +378,12 @@ test('a tampered state, a cross-user callback and a declined consent are refused
   // Tampered: one character changed.
   const tampered = new URL(back);
   tampered.searchParams.set('state', `${state.slice(0, -1)}${state.endsWith('A') ? 'B' : 'A'}`);
-  const t = await callback(tampered);
+  const t = await callback(tampered, 'tok-alice');
   assert.equal(t.status, 400);
   assert.match(t.page, /not valid/);
   // Malformed parameters.
-  assert.equal((await callback(`${base}/oauth/callback?state=short&code=x`)).status, 400);
-  assert.equal((await callback(`${base}/oauth/callback`)).status, 400);
+  assert.equal((await callback(`${base}/oauth/callback?state=short&code=x`, 'tok-alice')).status, 400);
+  assert.equal((await callback(`${base}/oauth/callback`, 'tok-alice')).status, 400);
 
   // Cross-user: mallory's browser carries mallory's credential.
   const cross = await callback(back, 'tok-mallory');
@@ -395,7 +398,7 @@ test('a tampered state, a cross-user callback and a declined consent are refused
   const declined = new URL(`${base}/oauth/callback`);
   declined.searchParams.set('state', second.request.state);
   declined.searchParams.set('error', 'access_denied');
-  const d = await callback(declined);
+  const d = await callback(declined, 'tok-alice');
   assert.equal(d.status, 400);
   assert.match(d.page, /declined/);
   assert.equal(rows.all().length, 0);
@@ -405,7 +408,7 @@ test('a tampered state, a cross-user callback and a declined consent are refused
   const bad = new URL(`${base}/oauth/callback`);
   bad.searchParams.set('state', third.request.state);
   bad.searchParams.set('code', 'fake-code-never-issued');
-  const b = await callback(bad);
+  const b = await callback(bad, 'tok-alice');
   assert.equal(b.status, 502);
   assert.ok(!b.page.includes('fake-code-never-issued'));
   assert.ok(!logs.some((l) => l.includes('fake-code-never-issued')));
@@ -458,7 +461,7 @@ test('an expired state is refused; a state is single-use; the configuration refu
   );
 });
 
-test('behind a server secret the callback asks the authenticator only once the bearer matches; requireCallerIdentity refuses without one', async () => {
+test('behind a server secret the callback asks the authenticator only once the bearer matches; by default a callback without one is refused', async () => {
   const seen: Array<string | undefined> = [];
   const stub = {
     complete: async (input: { callerUserId?: string }) => {
@@ -470,8 +473,8 @@ test('behind a server secret the callback asks the authenticator only once the b
   const resolveRequest = (req: any) => (req.headers['x-user'] ? { scopeKey: String(req.headers['x-user']) } : undefined);
   const secret = 'test-secret-0123456789abcdef'; // gitleaks:allow (test fixture)
   const app = express();
-  app.get('/cb', consentCallback(stub, { resolveRequest, serverSecret: secret }));
-  app.get('/strict', consentCallback(stub, { resolveRequest, serverSecret: secret, requireCallerIdentity: true }));
+  app.get('/cb', consentCallback(stub, { resolveRequest, serverSecret: secret, requireCallerIdentity: false }));
+  app.get('/strict', consentCallback(stub, { resolveRequest, serverSecret: secret }));
   const s: Server = await new Promise((resolve) => {
     const srv = app.listen(0, '127.0.0.1', () => resolve(srv));
   });
