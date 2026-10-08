@@ -14,6 +14,9 @@ sources:
   - resource: tests/adkShim.test.ts
   - resource: tests/syndicateTurn.test.ts
   - resource: tests/helpers/scriptedModel.ts
+  - resource: tests/helpers/scriptedLlm.ts
+  - resource: tests/shimBodies.test.ts
+  - resource: tests/llmRequestBoundary.test.ts
   - resource: lib/models/genaiMapping.ts
   - resource: lib/models/claudeLlm.ts
   - resource: lib/models/gptLlm.ts
@@ -38,6 +41,8 @@ Three families of ADK classes run behind it. `ClaudeLlm` (`lib/models/claudeLlm.
    - A turn that is spent or stopped refuses the call with `STEP_LIMIT`, `DEADLINE_EXCEEDED` or `CANCELED`. The refusal is the same `LlmResponse` `GptLlm` and the chat-completions adapters yield, and the adapter is never called.
    - One `llm.request` span covers the call, with the same attributes as on any ADK-path adapter. The adapter adds its own with `setLlmSpanAttribute`, and they land on that span.
    - The final's usage is charged to the turn.
+
+   The [native loop](/overview/native-loop.md)'s model step is the other caller, and makes the same `traceLlmGeneration` call with the same arguments, so a call is charged and traced alike on both runtimes ([ADR 0066](/decisions/0066-native-step-sends-the-adk-request.md)).
 3. **The responses.** Each `ModelResponse` the adapter yields goes back through `toLlmResponse`, in order, inside the span, so the tracer reads what it returns. By default it is `modelResponseToLlmResponse`: a partial is a `partial: true` response, and the final is `turnComplete: true` with Gemini's usage meanings and finish reason. A failed final carries `errorCode`, and its retry verdict in `customMetadata['error.retryable']`, which `FallbackLlm` reads. A subclass that stands in for an ADK-path adapter overrides `toLlmResponse` to keep what that adapter wrote beyond the contract.
 
 The shim does not repair an adapter that breaks the contract. A throw reaches ADK as a throw, as a Gemini failure does, and every response is mapped as it comes. `connect()` is refused, because live connections are outside the contract.
@@ -78,7 +83,10 @@ Mapped through the default seams, an adapter's events carry `finishReason` (`STO
   - `GeminiAdapter` over a fake client, running a delegation turn behind the shim.
 - `tests/chatCompletionsAdapter.test.ts` holds the chat shims to their seams: the older spelling on the wire, the final's shape, and the ledger's counts against the default shim's.
 - `tests/claudeAdapter.test.ts` runs `ClaudeAdapter` behind a shim whose `toModelRequest` hands it a fixed `ModelRequest`, so its span attributes land on a real `llm.request` span.
-- `tests/syndicateTurn.test.ts`, the boundary suite, runs each of its shim cases twice: with the scripted ADK model `ScriptedLlm`, and with `ScriptedModel` (`tests/helpers/scriptedModel.ts`, a scripted `ModelAdapter`) behind the shim. The two turns must give the same result and store the same history, call ids aside. The cases are:
+- `tests/shimBodies.test.ts` holds every provider's ADK class to its contract adapter: for each input the capability matrix is checked with, `ClaudeLlm`, `GptLlm`, `GrokLlm`, `KimiLlm`, `OllamaLlm` and `GatewayLlm` send, for the LlmRequest `modelRequestToLlmRequest` makes of the ModelRequest, the body their adapter sends for the ModelRequest itself. `TracedGemini` is held to `AdkGeminiAdapter` the same way. These are the thin ADK-path cases per provider; the model suites themselves (`tests/models.test.ts`, `capabilityMatrix.test.ts`, `endpoints.test.ts`, `gateway.test.ts`, `modelRetry.test.ts`) assert from ModelRequests through the contract adapters, so the native runtime inherits them ([ADR 0064](/decisions/0064-model-tests-on-the-contract.md)).
+- `tests/llmRequestBoundary.test.ts` keeps the list of tests that may build an LlmRequest: the shim's own, the per-provider shim cases, the ADK runtime that WS2 replaces, and the ADK-path provider suites whose contract twins assert the same bodies. A test outside the list that names `LlmRequest`, calls `modelRequestToLlmRequest` or writes `toolsDict` or `liveConnectConfig` fails it, and so does a listed file that no longer needs to.
+- `ScriptedLlm` (`tests/helpers/scriptedLlm.ts`), the scripted ADK model the runtime tests use, is a subclass of `AdkShim` around a `ScriptedModel` (`tests/helpers/scriptedModel.ts`, a scripted `ModelAdapter`). Its script is written in ADK's terms: it receives the LlmRequest the shim mapped and returns LlmResponses, which reach ADK exactly as written (its `toLlmResponse` returns them unmapped), while the model records the ModelRequests. Every call is charged and traced by the shim, as a production adapter's is.
+- `tests/syndicateTurn.test.ts`, the boundary suite, runs each of its shim cases twice: with `ScriptedLlm`, whose responses are written in ADK's shape, and with a `ScriptedModel` scripted in the contract's shape behind the plain shim. The two turns must give the same result and store the same history, call ids aside. The cases are:
   - a plain answer, and a second turn that sees the first;
   - a tool call and its result (a delegation);
   - streamed partials;

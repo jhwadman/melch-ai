@@ -914,6 +914,86 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/llmRequestBoundary.test.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0064 Decision 4: tests/llmRequestBoundary.test.ts \"fails a test file that names LlmRequest, calls modelRequestToLlmRequest, or writes toolsDict or liveConnectConfig, unless an explicit list names it with a reason\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/helpers/scriptedLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0064 Decision 3: \"ScriptedLlm is the shim around ScriptedModel\": it subclasses AdkShim and its LlmResponses \"reach ADK exactly as written, through the toLlmResponse seam\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/shimBodies.test.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0064 Decision 2: tests/shimBodies.test.ts \"sends each capability-matrix input through the provider's ADK class ... and requires the body the contract adapter sends for the ModelRequest itself\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0064 Decision 3 makes ScriptedLlm an AdkShim so \"the turn's charge, the abort and the llm.request span are the shim's\", the caller rule ADR 0053 sets for every contract adapter.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0066 Decision 1: \"The request is the ADK runtime's request. buildModelRequest (lib/runtime/native/request.ts) follows ADK's processors in their order, and every ADK rule listed above.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0066 Decision 1: the history is read with projectHistory (lib/runtime/native/history.ts), \"a port of ADK's content processor over TurnEvents\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0066 Decisions 2-4: the step charges and traces through traceLlmGeneration as the shim does, builds the event from the mapped response as ADK merges it, and \"A stopped turn makes no call and no event.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0066 Decision 2: \"The caller charges and traces as the shim does (ADR 0053).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0066 Context: ADR 0045 \"requires that a session one runtime wrote resumes on the other\"; the step matches the ADK runtime for that reason.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md: \"Its unit is one model step, runModelStep in lib/runtime/native/step.ts: build the request, call the adapter, record the answer.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0068-model-entry-without-adk.md",
       "to": "module:lib/model.ts",
       "rel": "constrains",

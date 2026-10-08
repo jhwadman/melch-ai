@@ -1,11 +1,14 @@
 /**
  * tests/capabilityMatrix.test.ts — every `evidence: 'test'` cell of
  * CAPABILITY_MATRIX (lib/models/capabilities.ts), asserted against the request
- * body the adapter actually sends.
+ * body the row's contract adapter (lib/models/contract.ts, ADR 0048) sends
+ * for a ModelRequest, so the native runtime inherits every cell.
  *
- * Offline: globalThis.fetch is replaced by a stub that records the request
- * and answers 400, so no provider is called and no SDK retries. Keys are
- * fake values set for the duration of each capture.
+ * The inputs and the capture harness are tests/helpers/capabilityInputs.ts:
+ * globalThis.fetch is a stub that records the request and answers 400, so no
+ * provider is called and no SDK retries; keys are fixtures. The ADK path's
+ * shim classes are held to the same bodies for the same inputs in
+ * tests/shimBodies.test.ts.
  *
  * The point is drift: change what an adapter sends without changing its row
  * in the matrix and one of these fails; change a row without the adapter and
@@ -14,8 +17,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { setLogLevel, LogLevel, LlmAgent, AgentTool } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
+import { setLogLevel, LogLevel } from '@google/adk';
 
 import {
   CAPABILITIES,
@@ -26,126 +28,29 @@ import {
   requiredCapabilities,
 } from '../lib/models/capabilities.ts';
 import type { Capability, MatrixRow } from '../lib/models/capabilities.ts';
-import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
-import { GptLlm } from '../lib/models/gptLlm.ts';
-import { GrokLlm } from '../lib/models/grokLlm.ts';
-import { KimiLlm } from '../lib/models/kimiLlm.ts';
-import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
-import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
+import {
+  ANTHROPIC_CURRENT,
+  DIALECT,
+  FAKE_ENV,
+  KIMI_REASONING,
+  REASONING_ITEM,
+  SCHEMA,
+  SIGNED_THINKING,
+  capture,
+  request,
+  thinkingToolLoop,
+  visionRequest,
+  withDelegationTools,
+} from './helpers/capabilityInputs.ts';
+import type { AdapterRow } from './helpers/capabilityInputs.ts';
+import { nativeToolOf } from '../lib/models/schemaNormalize.ts';
 import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
-import { resolveTools } from '../lib/toolRegistry.ts';
 
 setLogLevel(LogLevel.ERROR);
 // The tracer prints every llm.request span to stdout unless told not to.
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
-// ── Capture harness ──────────────────────────────────────────────────────────
-
-type AdapterRow = Exclude<MatrixRow, 'gemini'>;
-
-const FAKE_ENV: Record<AdapterRow, Record<string, string>> = {
-  anthropic: { ANTHROPIC_API_KEY: 'fixture-ant-test-0123456789abcdef' }, // gitleaks:allow (test fixture)
-  openai: { OPENAI_API_KEY: 'fixture-openai-0123456789abcdef' }, // gitleaks:allow (test fixture)
-  xai: { XAI_API_KEY: 'fixture-xai-0123456789abcdef' }, // gitleaks:allow (test fixture)
-  moonshot: { MOONSHOT_API_KEY: 'fixture-moonshot-0123456789abcdef' }, // gitleaks:allow (test fixture)
-  ollama: {},
-  gateway: { MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'fixture-gateway-0123456789abcdef' },
-};
-
-/** The env vars any capture touches, cleared so a developer's real keys never route a test. */
-const ALL_ENV = [
-  ...new Set(Object.values(FAKE_ENV).flatMap((e) => Object.keys(e))),
-  'MODEL_GATEWAY_BASE_URL',
-  'MODEL_GATEWAY_MODEL_MAP',
-];
-
-const MODEL: Record<AdapterRow, string> = {
-  anthropic: 'claude-sonnet-4-6',
-  openai: 'gpt-5-mini',
-  xai: 'grok-4.5',
-  moonshot: 'kimi-k3',
-  ollama: 'ollama/qwen3:8b',
-  // A provider whose direct key is absent, so the gateway serves it.
-  gateway: 'claude-sonnet-4-6',
-};
-
-/**
- * The anthropic row's per-generation cells (ADR 0049) are checked on a second
- * id too: one that takes adaptive thinking, structured outputs and drop_block.
- */
-const ANTHROPIC_CURRENT = 'claude-opus-5-5';
-
-function adapterFor(row: AdapterRow, model = MODEL[row]) {
-  switch (row) {
-    case 'anthropic':
-      return new ClaudeLlm({ model });
-    case 'openai':
-      return new GptLlm({ model });
-    case 'xai':
-      return new GrokLlm({ model });
-    case 'moonshot':
-      return new KimiLlm({ model });
-    case 'ollama':
-      return new OllamaLlm({ model });
-    case 'gateway':
-      return new GatewayLlm({ model });
-  }
-}
-
-function request(row: AdapterRow, overrides: Partial<LlmRequest> = {}): LlmRequest {
-  return {
-    model: MODEL[row],
-    contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
-    liveConnectConfig: {} as any,
-    toolsDict: {},
-    config: {},
-    ...overrides,
-  } as LlmRequest;
-}
-
-/** Sends one request through the adapter (for `model`, default the row's) and returns the JSON body it posted. */
-async function capture(row: AdapterRow, req: LlmRequest, stream = false, model?: string): Promise<any> {
-  const saved = Object.fromEntries(ALL_ENV.map((k) => [k, process.env[k]]));
-  for (const k of ALL_ENV) delete process.env[k];
-  Object.assign(process.env, FAKE_ENV[row]);
-  const originalFetch = globalThis.fetch;
-  let body: any;
-  globalThis.fetch = (async (input: any, init: any) => {
-    const raw = init?.body ?? (input instanceof Request ? await input.text() : undefined);
-    if (body === undefined && typeof raw === 'string') body = JSON.parse(raw);
-    return new Response(
-      JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'captured' } }),
-      { status: 400, headers: { 'content-type': 'application/json' } },
-    );
-  }) as any;
-  try {
-    const llm = adapterFor(row, model);
-    const gen = llm.generateContentAsync(req, stream) as AsyncGenerator<LlmResponse, void>;
-    for await (const _ of gen) {
-      // drain; the 400 surfaces as an error response, which is expected
-    }
-  } finally {
-    globalThis.fetch = originalFetch;
-    for (const k of ALL_ENV) {
-      if (saved[k] === undefined) delete process.env[k];
-      else process.env[k] = saved[k];
-    }
-  }
-  assert.ok(body, `${row}: the adapter sent no request`);
-  return body;
-}
-
 // ── Readers: one shape per wire dialect ──────────────────────────────────────
-
-type Dialect = 'anthropic' | 'responses' | 'chat';
-const DIALECT: Record<AdapterRow, Dialect> = {
-  anthropic: 'anthropic',
-  openai: 'responses',
-  xai: 'responses',
-  moonshot: 'chat',
-  ollama: 'chat',
-  gateway: 'chat',
-};
 
 function toolSchema(row: AdapterRow, body: any, name: string): any {
   const tools: any[] = body.tools ?? [];
@@ -170,72 +75,6 @@ function hasImage(row: AdapterRow, body: any): boolean {
   return /"type":"(image|input_image|image_url)"/.test(text);
 }
 
-// ── Inputs ───────────────────────────────────────────────────────────────────
-
-const SCHEMA = {
-  type: 'OBJECT',
-  properties: { verdict: { type: 'STRING' } },
-  required: ['verdict'],
-};
-
-function withDelegationTools(row: AdapterRow): LlmRequest {
-  const sub = new LlmAgent({ name: 'Scout', description: 'Finds things', model: 'gemini-3.5-flash-lite', instruction: 'x' });
-  const req = request(row);
-  req.toolsDict['Scout'] = new AgentTool({ agent: sub });
-  // The registry's load_memory: what a syndicate that declares it sends.
-  req.toolsDict['load_memory'] = resolveTools(['load_memory'])[0];
-  return req;
-}
-
-/** The signed block Claude returned before its tool call, as the adapter stores it (ADR 0046). */
-const SIGNED_THINKING = { type: 'thinking', thinking: 'I should ask Scout.', signature: 'sig-fixture-0123' };
-
-/** The reasoning item a Responses model returned before its function call (ADR 0046). */
-const REASONING_ITEM = {
-  type: 'reasoning',
-  id: 'rs_fixture_1',
-  summary: [{ type: 'summary_text', text: 'I should ask Scout.' }],
-  encrypted_content: 'enc-fixture-0123',
-};
-
-/** The reasoning_content Kimi returned before its tool call, as the adapter stores it (ADR 0046). */
-const KIMI_REASONING = 'Scout will know; ask it.';
-
-/**
- * The state the row's own adapter wrote on the call: reasoning items on the
- * Responses rows, reasoning_content on Moonshot, Anthropic's signed block
- * everywhere else (which the other chat-completions adapters must ignore).
- */
-function stateOnCall(row: AdapterRow) {
-  if (DIALECT[row] === 'responses') return { provider: row, kind: 'reasoning_items', model: MODEL[row], payload: [REASONING_ITEM] };
-  if (row === 'moonshot') return { provider: 'moonshot', kind: 'reasoning_content', model: MODEL.moonshot, payload: KIMI_REASONING };
-  return { provider: 'anthropic', kind: 'thinking_blocks', payload: [SIGNED_THINKING] };
-}
-
-/**
- * A thinking agent mid tool loop: a prior model turn with thought + call, then
- * the result. The call carries the reasoning state its step produced.
- */
-function thinkingToolLoop(row: AdapterRow): LlmRequest {
-  const req = withDelegationTools(row);
-  req.config = { thinkingConfig: { thinkingBudget: 2048 }, reasoningEffort: 'low' } as any;
-  req.contents = [
-    { role: 'user', parts: [{ text: 'look it up' }] },
-    {
-      role: 'model',
-      parts: [
-        { text: 'I should ask Scout.', thought: true } as any,
-        {
-          functionCall: { id: 'call_1', name: 'Scout', args: { request: 'find it' } },
-          providerState: stateOnCall(row),
-        } as any,
-      ],
-    },
-    { role: 'user', parts: [{ functionResponse: { id: 'call_1', name: 'Scout', response: { result: 'found' } } }] },
-  ];
-  return req;
-}
-
 // ── One check per capability; each returns the support the request shows ────
 
 type Observed = 'supported' | 'degraded' | 'unsupported';
@@ -252,7 +91,7 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
   },
 
   async structured_output(row) {
-    const structured = () => request(row, { config: { responseSchema: SCHEMA, responseMimeType: 'application/json' } as any });
+    const structured = () => request(row, { outputSchema: SCHEMA });
     const body = await capture(row, structured());
     switch (DIALECT[row]) {
       case 'anthropic': {
@@ -286,7 +125,7 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
           const [first, second] = assistant?.content ?? [];
           return JSON.stringify(first) === JSON.stringify(SIGNED_THINKING) && second?.type === 'tool_use';
         };
-        // Claude 4.6 and earlier: a thinking budget.
+        // Claude 4.6 and earlier: a thinking budget, the low level's.
         const budget = body.thinking?.type === 'enabled' && body.thinking.budget_tokens === 2048;
         // Current models: adaptive thinking at the agent's effort, the replay under drop_block (ADR 0049).
         const current = await capture(row, thinkingToolLoop(row), false, ANTHROPIC_CURRENT);
@@ -329,16 +168,11 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
   },
 
   async vision(row) {
-    const req = request(row, {
-      contents: [{ role: 'user', parts: [{ text: 'what is this?' }, { inlineData: { mimeType: 'image/png', data: 'iVBORw0KGgo=' } }] }],
-    });
-    return hasImage(row, await capture(row, req)) ? 'supported' : 'unsupported';
+    return hasImage(row, await capture(row, visionRequest(row))) ? 'supported' : 'unsupported';
   },
 
   async native_search(row) {
-    const req = request(row);
-    req.toolsDict['web_search'] = WEB_SEARCH as any;
-    const body = await capture(row, req);
+    const body = await capture(row, request(row, { nativeTools: ['web_search'] }));
     const text = JSON.stringify(body.tools ?? []) + JSON.stringify(body.web_search_options ?? '') + JSON.stringify(body.plugins ?? '');
     return /web_search/.test(text) ? 'supported' : 'unsupported';
   },
@@ -430,7 +264,7 @@ test('renderCapabilityMatrix covers every row and capability, with numbered note
 
 // ── Server-side tools by marker (ADR 0062) ───────────────────────────────────
 
-test('every adapter reads web_search by its marker: a foreign copy sends the same body as the sentinel', async () => {
+test('web_search is read by its marker: a foreign copy is the same NativeTool as the sentinel, and every adapter sends the same body', async () => {
   // A second copy of the sentinel module: no class in common, the same global marker.
   const foreign = {
     name: 'web_search',
@@ -439,11 +273,14 @@ test('every adapter reads web_search by its marker: a foreign copy sends the sam
     _getDeclaration: () => undefined,
     runAsync: async () => undefined,
   };
+  // A tool object reaches a request as the NativeTool its marker names
+  // (the genai mapping and the native runtime both read it with nativeToolOf);
+  // tests/shimBodies.test.ts sends the two objects through each ADK shim.
+  assert.equal(nativeToolOf(WEB_SEARCH), 'web_search');
+  assert.equal(nativeToolOf(foreign), 'web_search', 'the marker decides');
   for (const row of ADAPTER_ROWS) {
-    const withOriginal = request(row);
-    withOriginal.toolsDict['web_search'] = WEB_SEARCH as any;
-    const withForeign = request(row);
-    withForeign.toolsDict['web_search'] = foreign as any;
+    const withOriginal = request(row, { nativeTools: [nativeToolOf(WEB_SEARCH)!] });
+    const withForeign = request(row, { nativeTools: [nativeToolOf(foreign)!] });
     assert.deepEqual(await capture(row, withForeign), await capture(row, withOriginal), `${row}: the marker decides`);
   }
 });

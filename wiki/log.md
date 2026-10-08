@@ -19,6 +19,46 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/step.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0066-native-step-sends-the-adk-request.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0066-native-step-sends-the-adk-request.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0066-native-step-sends-the-adk-request.md —constrains→ module:lib/runtime/native/step.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0066-native-step-sends-the-adk-request.md —constrains→ module:lib/runtime/native/history.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0066-native-step-sends-the-adk-request.md —constrains→ module:lib/runtime/native/request.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/shimBodies.test.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/helpers/scriptedLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/llmRequestBoundary.test.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /models/gemini-adapter.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
 
 by claude-code/claude-opus-5-5
