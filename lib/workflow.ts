@@ -47,23 +47,32 @@
  * and description, and lib/compileAdk.ts wraps it in ADK's AgentTool, whose
  * answer is the graph's last event's text. A nested workflow with an
  * `ask_user` node is refused by name (lib/compile.ts compileWorkflowSpec): a
- * pause inside a tool call cannot reach the caller (ADR 0028). As a dispatch
- * route or a workflow node, a workflow syndicate is still its orchestrator
- * alone.
+ * pause inside a tool call cannot reach the caller (ADR 0028).
  *
- * ── Approval gates (ADR 0098) ────────────────────────────────────────────
- * A tool in a node agent's `require_approval` pauses the node on ADK's
+ * ── As a dispatch route or a workflow node (ADR 0106) ────────────────────
+ * A `yaml_reference` to a workflow syndicate runs its whole graph there too,
+ * on the child session filed under the entry's name, as a subagent does. A
+ * route runs on both runtimes (lib/runtime/syndicateTurn.ts hands this
+ * Workflow to ADK's Runner on that session); its answer is what the graph
+ * would answer as its own syndicate. A node runs on the native walk only
+ * (lib/workflow/turn.ts): ADK would run a nested Workflow inline in the
+ * caller's session, so assembleWorkflow refuses it by name. A map over one
+ * is refused (lib/compile.ts).
+ *
+ * ── Approval gates (ADR 0098, ADR 0106) ──────────────────────────────────
+ * A tool in a node agent's `require_approval`, and a skill script
+ * (`skills.scripts: local`, run_skill_script), pause the node on ADK's
  * `adk_request_confirmation`, and the walk with it. Only the native walk
  * resumes it (lib/workflow/agentNode.ts): ADK's runLlmAgentAsNode reruns the
  * node from its input and never runs the pinned call, so runSyndicateTurn
- * refuses a gated workflow on ADK. The schema refuses a gate on an agent a
- * map runs (an item cannot pause the walk).
+ * refuses a gated workflow on ADK, skill scripts by name. The schema refuses
+ * a gate or skill scripts on an agent a map runs (an item cannot pause the
+ * walk). A script runs with ADR 0086's minimal environment, as anywhere.
  *
  * ── Not in this version ───────────────────────────────────────────────────
- * Skill scripts (`skills.scripts: local`, an approval pause) and remote
- * `a2a_agent_url` subagents are refused inside a workflow by the schema; a
- * remote agent is reachable only as a tool. Both are open for a later
- * record.
+ * Remote `a2a_agent_url` subagents are refused inside a workflow by the
+ * schema; a remote agent is reachable only as a tool. It is open for a
+ * later record.
  */
 
 import type { BaseNode, BaseTool, EdgeItem, LlmAgent, Workflow } from '@google/adk';
@@ -73,6 +82,7 @@ import { requireAdk } from './adkPeer.ts';
 import { compileWorkflowSpec } from './compile.ts';
 import type { CompileOptions, WorkflowSpec } from './compile.ts';
 import { compileAdk } from './compileAdk.ts';
+import { UnsupportedOnRuntimeError } from './runtime/runtimeFlag.ts';
 import type { SyndicateYamlConfig } from './loadSyndicate.ts';
 import { DEFAULT_ROUTE_KEY, ROUTE_STEP_SUFFIX, START_NAME, isWorkflowSyndicate, nodeKind, nodeSettings, routeOf } from './workflowConfig.ts';
 export * from './workflowConfig.ts';
@@ -115,6 +125,9 @@ export function assembleWorkflow(
 ): CompiledWorkflow {
   const config = spec.config;
   if (!isWorkflowSyndicate(config)) throw new Error(`${config.syndicate_name}: no workflow block`);
+  // ADK would run a nested Workflow inline in the caller's session; the engine runs it on a child session (ADR 0106).
+  const nested = spec.workflows[0];
+  if (nested) throw new UnsupportedOnRuntimeError(`a workflow syndicate as a workflow node (${nested.yaml.name}, yaml_reference ${nested.yaml.yaml_reference})`, 'adk', spec.name);
   // ADK's Workflow is the adk runtime's; the native walk (lib/workflow/turn.ts) needs none of this (ADR 0102).
   const { DEFAULT_ROUTE, FunctionNode, JoinNode, ParallelWorker, RequestInput, ToolNode, Workflow, createEvent } = requireAdk(
     "ADK's Workflow (a workflow syndicate on the adk runtime, compileWorkflow)",

@@ -6,6 +6,31 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **A workflow syndicate runs its whole graph as a dispatch route or a
+  workflow node (ADR 0106).** A `yaml_reference` to a workflow syndicate
+  used to run its orchestrator alone there; it now runs the whole graph on
+  the child session filed under the entry's name, as a delegated subagent
+  already did (ADR 0098). As a plan-dispatch route it runs on both runtimes,
+  its last output is the turn's answer, and the conversation keeps the
+  message and that answer. As a workflow node it runs on the native runtime,
+  its last output the node's output; the `adk` runtime refuses it with
+  `UnsupportedOnRuntimeError` before the session is touched. A `map` over
+  one and an `ask_user` node inside one are refused by name. Each nested
+  walk has its own node-run ceiling (ADR 0105). **Breaking for a direct
+  caller:** `compileSubagent` and `compileSubagentSpec` refuse a workflow
+  reference by name instead of compiling its orchestrator; compile the entry
+  with `compileEntrySpec`. `melchizedek-agents/compile` adds
+  `compileEntrySpec`, `EntrySpec`, `workflowAgentSpecs`,
+  `workflowEntryNames` and `WorkflowSpec.workflows`; the exports map and the
+  barrel are unchanged.
+
+- **Skill scripts on a workflow node (ADR 0106).** `skills.scripts: local`
+  is allowed on a workflow node's agent: each `run_skill_script` call pauses
+  the node and the walk for a person's approval, as `require_approval` does,
+  and runs once after it, with the minimal script environment of ADR 0086.
+  Native runtime only; the `adk` runtime refuses it by name before any model
+  call. Still refused on an agent a `map` node runs.
+
 - **Docs: `config/agents/syndicateSchema.yaml` describes 0.20.0.** Its
   comments say that the native runtime runs every key by default and that
   `@google/adk` is an optional peer for the `adk` runtime until 1.0.0,

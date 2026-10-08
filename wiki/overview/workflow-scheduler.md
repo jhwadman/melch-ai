@@ -192,11 +192,20 @@ What the native turn refuses:
 - a session paused inside an agent node on anything but an approval, or inside a map item: `workflowResume` throws `UnsupportedWorkflowResumeError` after the message is stored, and the turn fails `RESUME_UNSUPPORTED` without walking afresh;
 - a pause raised inside an agent node during the walk other than an approval, by `runAgentNode` (an `ask_user` tool is refused by the schema first; a node agent gets no OAuth consent step).
 
-While a gated call waits, a message that is not its decision repeats the request: nothing is stored and nothing runs. On the adk runtime, `runSyndicateTurn` refuses a gated workflow before any model call ([ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)).
+While a gated call waits, a message that is not its decision repeats the request: nothing is stored and nothing runs. On the adk runtime, `runSyndicateTurn` refuses a gated workflow before any model call ([ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)). A skill script (`skills.scripts: local`) on a node's agent pauses the same way, each `run_skill_script` call on its own approval, and the adk runtime refuses it by name ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)).
 
 ### As a subagent
 
 A DELEGATE syndicate's `yaml_reference` to a workflow syndicate is the whole graph as one subagent tool, named and described as the entry ([ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)). `compileSpec` builds its `WorkflowSpec` (`compileWorkflowSpec`, `lib/compile.ts`), the same spec `compileWorkflow` builds at the root. On the adk runtime, `assembleWorkflow` builds the `Workflow` under the entry's name and ADK's `AgentTool` runs it. On native, `compileNative` lists a `workflowSubagentTool` (`lib/runtime/native/delegate.ts`) whose call opens the child session ADK's `AgentTool` opens and runs `runNativeWorkflow` on it with the call's request as the message. The answer is the last yielded event's text, and each event's state writes reach the caller's response. A node that gave up fails the call. A nested workflow with an `ask_user` node is refused by name on both runtimes: a pause inside a tool call cannot reach the caller. `tests/workflowSubagent.test.ts` holds both runtimes' caller and child sessions and requests equal.
+
+### As a route or a node
+
+A `yaml_reference` to a workflow syndicate is its whole graph wherever it appears ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)): `compileEntrySpec` (`lib/compile.ts`) compiles an entry as one agent or as a `WorkflowSpec`, and `compileSubagentSpec` refuses a workflow reference by name.
+
+- **A plan-dispatch route**, on both runtimes: `runSyndicateTurn` walks the graph on the child session `{ <route>, userId, sessionId }` (created from the conversation's state, `temp:` keys dropped, and kept), with ADK's `Runner` on the assembled `Workflow` or with `runNativeWorkflow`, and drains it through the workflow reader at the `dispatch` stage. The conversation stores the message and one event authored by the route with the answer and the walk's state writes. A node that gave up fails the turn `NODE_FAILED`, the ceiling `NODE_RUN_LIMIT`.
+- **A workflow node**, on native: `agentNodeRuntime` hands the node to `runWorkflowNode` (`lib/workflow/turn.ts`), which walks the nested graph on `{ <node>, userId, sessionId }` with the node's input as its message, and stores one event for the node in the caller's walk carrying the last yielded text as its output and the walk's state writes, so a resumed walk completes the node from it. The adk runtime, whose own `Workflow` node would run the graph inline in the caller's session, refuses it by name before the session is touched; `assembleWorkflow` refuses it too.
+
+Each walk keeps its own node-run ceiling ([ADR 0105](/decisions/0105-workflow-node-run-ceiling.md)): the root's, a route's and each nested node's are separate `runWorkflowGraph` calls, while every model call counts once against the turn's `max_steps`. A `map` over a nested workflow is refused by name, as is an `ask_user` node inside one. `tests/workflowNested.test.ts` holds the route's sessions and requests equal on both runtimes.
 
 ### The spans
 

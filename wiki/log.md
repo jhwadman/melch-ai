@@ -3,6 +3,18 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md —depends_on→ /decisions/0086-skill-scripts-get-a-minimal-environment.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md —explains→ /overview/workflow-scheduler.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md —depends_on→ /decisions/0098-workflow-subagent-and-node-approvals.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0105-workflow-node-run-ceiling.md —mitigates→ /operations/native-loop-security.md
 
 by claude-code/claude-opus-5-5

@@ -92,6 +92,10 @@ A gate on a workflow node's agent ([ADR 0098](/decisions/0098-workflow-subagent-
 
 ADK's `runLlmAgentAsNode` stores the input again on the rerun and starts the agent afresh, so the pinned call never runs there. `runSyndicateTurn` refuses a gated workflow on ADK.
 
+A skill script is the same pause: `run_skill_script` on a node agent with `skills.scripts: local` raises its `adk_request_confirmation` request, the node waits, and the decision runs the script once or refuses it, with ADR 0086's minimal environment ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)). The adk runtime refuses it by name, and the schema refuses it on an agent a map runs. `tests/workflowSkillScripts.test.ts` runs a real script on a node.
+
+An agent node that names a nested workflow syndicate is not an agent run: `agentNodeRuntime` hands it to `runWorkflowNode` ([Workflow scheduler](/overview/workflow-scheduler.md#as-a-route-or-a-node)).
+
 ## Not here yet
 
 - An `ask_user` tool call inside a node, and a pause inside a map item.

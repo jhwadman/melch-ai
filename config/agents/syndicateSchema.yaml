@@ -156,10 +156,13 @@ dispatch:
 #     unless its YAML sets includeContents, sees nothing else.
 #   - `ask_user` pauses the turn (input-required); the next message is
 #     the answer, and the node outputs { reply, input }.
-#   - require_approval on a node's agent pauses that node, and the walk,
-#     until a person decides (native runtime, ADR 0098); the adk runtime
-#     refuses a gated workflow. skills.scripts: local and a2a_agent_url
-#     are not supported inside a workflow yet.
+#   - require_approval, and skills.scripts: local (each script run), on a
+#     node's agent pause that node, and the walk, until a person decides
+#     (native runtime, ADR 0098, ADR 0106); the adk runtime refuses them by
+#     name, and neither is allowed on an agent a map runs. a2a_agent_url is
+#     not supported inside a workflow yet.
+#   - A yaml_reference to a workflow syndicate runs its whole graph as the
+#     node, on its own session (native runtime only, ADR 0106).
 #   - A route may lead back to an earlier node (a loop). max_steps bounds
 #     the model calls in it; on the native runtime a turn also starts at
 #     most 20 × max_steps node runs (at least 100), so a loop of tool nodes

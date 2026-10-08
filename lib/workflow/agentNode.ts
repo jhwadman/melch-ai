@@ -327,6 +327,12 @@ export interface AgentNodeRuntimeOptions extends Omit<AgentNodeContext, 'appendI
    * runners chain. Default: refuses them by name.
    */
   next?: NodeRunner;
+  /**
+   * The agent nodes that are a nested workflow syndicate (ADR 0106), by YAML
+   * name, and how one runs: lib/workflow/turn.ts walks the nested graph on
+   * its own child session. A name here is never looked up in `agents`.
+   */
+  workflowNodes?: { has(name: string): boolean; run(name: string, run: NodeRun): Promise<NodeResult> };
 }
 
 export interface AgentNodeRuntime {
@@ -394,6 +400,7 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
   const runNode: NodeRunner = async (run) => {
     if (failure) throw failure.error;
     const target = run.target;
+    if (target.kind === 'agent' && options.workflowNodes?.has(target.name)) return options.workflowNodes.run(target.name, run);
     if (target.kind === 'agent') return runAgentNode(agentNamed(target.name), run, ctx);
     if (target.kind === 'map_item') return runAgentNode(agentNamed(target.agent), run, ctx);
     if (options.next) return options.next(run);
