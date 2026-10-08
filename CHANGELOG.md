@@ -6,6 +6,13 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **An approval resumes on the native runtime (ADR 0077).** On
+  `runtime: 'native'`, a message carrying `approvalResponsePart(id, …)` runs
+  or refuses the pinned call before the agent's next step, as on ADK, and
+  stores the same events: an approval opened on either runtime resumes on
+  the other. An answer whose pinned call does not bind (changed arguments,
+  a request the user authored) throws ADK's `IntentMismatchError` text on
+  both runtimes. No change to the `exports` map.
 - **`context:` compaction runs on the native runtime (ADR 0078).** A
   syndicate whose orchestrator sets `context:` no longer throws
   `UnsupportedOnRuntimeError` under `runtime: 'native'`
@@ -22,8 +29,7 @@ the starter pack and the templates), not the repo's full history.
   or plan-dispatch syndicate runs on the engine's own loop, with
   self-correction from `retries:` and the same root span, and returns the
   same result shape; what native does not run yet (compaction, workflows,
-  task mode, `transformAgent`, resuming an approval or answering a
-  question) throws `UnsupportedOnRuntimeError` before any model call. Additions under the existing `exports` map:
+  task mode, `transformAgent`, answering a question) throws `UnsupportedOnRuntimeError` before any model call. Additions under the existing `exports` map:
   - `melchizedek-agents/runtime` exports `RuntimeName`, `RUNTIMES`,
     `DEFAULT_RUNTIME`, `chooseRuntime`, `runtimeSetting` and
     `UnsupportedOnRuntimeError`.

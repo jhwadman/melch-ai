@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0077-native-approvals-port-the-confirmation-processor.md —depends_on→ /decisions/0028-approval-gates.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0077-native-approvals-port-the-confirmation-processor.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0077-native-approvals-port-the-confirmation-processor.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/compaction.ts
 
 by claude-code/claude-opus-5-5
