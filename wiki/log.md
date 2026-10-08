@@ -19,6 +19,24 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/compileAdk.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/runtime/logging.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/runtime/adkMemoryBridge.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/a2a/executor.ts
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/interrupts.ts
 
 by claude-code/claude-opus-5-5
