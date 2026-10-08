@@ -1,7 +1,10 @@
 /**
  * tests/modelRetry.test.ts — the shared transient-failure policy
- * (lib/models/retry.ts) and the two adapters that use it directly: the
- * chat-completions base (Ollama, gateways) and TracedGemini.
+ * (lib/models/retry.ts) and the adapters that use it directly: the
+ * chat-completions base (Ollama, gateways) and Gemini's two contract
+ * adapters, AdkGeminiAdapter over TracedGemini's retries and the engine's
+ * own GeminiAdapter. Each is driven on the engine's contract: a ModelRequest
+ * in, the wire requests and the final out.
  *
  * Offline: every provider call hits a stubbed `globalThis.fetch`, and the
  * backoff delays are shrunk through setRetryPolicyOverrides so the suite
@@ -11,7 +14,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { setLogLevel, LogLevel } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
 
 import {
   DEFAULT_RETRY_POLICY,
@@ -28,30 +30,41 @@ import {
   setRetryPolicyOverrides,
   sleepUnlessAborted,
 } from '../lib/models/retry.ts';
-import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
-import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
-import { TracedGemini } from '../lib/models/registry.ts';
-import { DEFAULT_GROK_TIMEOUT_MS, grokTimeoutMs } from '../lib/models/grokLlm.ts';
+import type { FinalModelResponse, ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
+import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
+import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
+import { AdkGeminiAdapter } from '../lib/models/adkGeminiAdapter.ts';
+import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
+import { DEFAULT_GROK_TIMEOUT_MS, grokTimeoutMs } from '../lib/models/grokAdapter.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 
 setLogLevel(LogLevel.ERROR);
 
 const FAST = { baseDelayMs: 1, maxDelayMs: 2, maxRetryAfterMs: 50 };
 
-function makeRequest(model: string): LlmRequest {
+function makeRequest(model: string, signal?: AbortSignal): ModelRequest {
   return {
     model,
-    contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
-    liveConnectConfig: {} as any,
-    toolsDict: {},
-  } as LlmRequest;
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
+    ...(signal ? { signal } : {}),
+  };
 }
 
-async function collect(gen: AsyncGenerator<LlmResponse, void>): Promise<LlmResponse[]> {
-  const out: LlmResponse[] = [];
+async function collect(gen: AsyncIterable<ModelResponse>): Promise<ModelResponse[]> {
+  const out: ModelResponse[] = [];
   for await (const r of gen) out.push(r);
   return out;
 }
+
+/** The call's one final, last (contract rule 4). */
+function finalOf(responses: ModelResponse[]): FinalModelResponse {
+  const final = responses.at(-1);
+  assert.ok(final && !final.partial, 'the call ends on a final');
+  return final;
+}
+
+/** The final's text. */
+const textOf = (final: FinalModelResponse) => final.parts.map((p) => (p.type === 'text' ? p.text : '')).join('');
 
 /** Runs `fn` with fetch answering from `replies` in order; returns the call count. */
 async function withFetch(
@@ -289,75 +302,75 @@ const OK_COMPLETION = json(200, {
   usage: { prompt_tokens: 3, completion_tokens: 1, total_tokens: 4 },
 });
 
-test('OllamaLlm retries a 503 and then answers', async () => {
+test('OllamaAdapter retries a 503 and then answers', async () => {
   const restore = setRetryPolicyOverrides(FAST);
   try {
-    let responses: LlmResponse[] = [];
+    let responses: ModelResponse[] = [];
     const calls = await withFetch([json(503, { error: 'busy' }), OK_COMPLETION], async () => {
-      const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
-      responses = await collect(llm.generateContentAsync(makeRequest('ollama/qwen3:8b')));
+      const adapter = new OllamaAdapter({ model: 'ollama/qwen3:8b' });
+      responses = await collect(adapter.generate(makeRequest('ollama/qwen3:8b')));
     });
     assert.equal(calls, 2);
-    assert.ok(!responses.some((r) => r.errorCode));
-    const final = responses.find((r) => r.turnComplete)!;
-    assert.equal((final.content!.parts![0] as any).text, 'Recovered.');
+    const final = finalOf(responses);
+    assert.equal(final.error, undefined);
+    assert.equal(textOf(final), 'Recovered.');
   } finally {
     restore();
   }
 });
 
-test('OllamaLlm does not retry a 400, and the error carries status + retryable', async () => {
+test('OllamaAdapter does not retry a 400, and the error carries status + retryable', async () => {
   const restore = setRetryPolicyOverrides(FAST);
   try {
-    let responses: LlmResponse[] = [];
+    let responses: ModelResponse[] = [];
     const calls = await withFetch([json(400, { error: 'bad tool schema' }), OK_COMPLETION], async () => {
-      const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
-      responses = await collect(llm.generateContentAsync(makeRequest('ollama/qwen3:8b')));
+      const adapter = new OllamaAdapter({ model: 'ollama/qwen3:8b' });
+      responses = await collect(adapter.generate(makeRequest('ollama/qwen3:8b')));
     });
     assert.equal(calls, 1);
-    const err = responses[0] as any;
-    assert.equal(err.errorCode, 'OLLAMA_HTTP_ERROR'); // unchanged code
+    const err = finalOf(responses).error!;
+    assert.equal(err.code, 'OLLAMA_HTTP_ERROR'); // unchanged code
     assert.equal(err.status, 400);
     assert.equal(err.retryable, false);
-    assert.match(err.errorMessage, /returned 400/);
+    assert.match(err.message, /returned 400/);
   } finally {
     restore();
   }
 });
 
-test('OllamaLlm surfaces a persistent 503 as retryable after the attempts run out', async () => {
+test('OllamaAdapter surfaces a persistent 503 as retryable after the attempts run out', async () => {
   const restore = setRetryPolicyOverrides(FAST);
   try {
-    let responses: LlmResponse[] = [];
+    let responses: ModelResponse[] = [];
     const calls = await withFetch([json(503, { error: 'busy' })], async () => {
-      const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
-      responses = await collect(llm.generateContentAsync(makeRequest('ollama/qwen3:8b')));
+      const adapter = new OllamaAdapter({ model: 'ollama/qwen3:8b' });
+      responses = await collect(adapter.generate(makeRequest('ollama/qwen3:8b')));
     });
     assert.equal(calls, 3);
-    const err = responses[0] as any;
+    const err = finalOf(responses).error!;
     assert.equal(err.status, 503);
     assert.equal(err.retryable, true);
-    assert.match(err.errorMessage, /busy/, 'the final body is still read for the message');
+    assert.match(err.message, /busy/, 'the final body is still read for the message');
   } finally {
     restore();
   }
 });
 
-test('OllamaLlm does not retry a refused connection (Ollama not running)', async () => {
+test('OllamaAdapter does not retry a refused connection (Ollama not running)', async () => {
   const restore = setRetryPolicyOverrides(FAST);
   try {
-    let responses: LlmResponse[] = [];
+    let responses: ModelResponse[] = [];
     const refused = () => {
       const e = new TypeError('fetch failed');
       (e as any).cause = { code: 'ECONNREFUSED' };
       throw e;
     };
     const calls = await withFetch([refused], async () => {
-      const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
-      responses = await collect(llm.generateContentAsync(makeRequest('ollama/qwen3:8b')));
+      const adapter = new OllamaAdapter({ model: 'ollama/qwen3:8b' });
+      responses = await collect(adapter.generate(makeRequest('ollama/qwen3:8b')));
     });
     assert.equal(calls, 1);
-    assert.equal(responses[0].errorCode, 'OLLAMA_UNREACHABLE');
+    assert.equal(finalOf(responses).error?.code, 'OLLAMA_UNREACHABLE');
   } finally {
     restore();
   }
@@ -372,16 +385,19 @@ test('a canceled turn makes no retry on the chat-completions path', async () => 
   Math.random = () => 0.99;
   const control = createTurnControl();
   try {
-    let responses: LlmResponse[] = [];
+    let responses: ModelResponse[] = [];
     const calls = await withFetch([json(503, { error: 'busy' }), OK_COMPLETION], async () => {
-      const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
+      const adapter = new OllamaAdapter({ model: 'ollama/qwen3:8b' });
       setTimeout(() => control.stop('canceled'), 20);
+      // The caller hands the turn's signal on the request (ADR 0053).
       responses = await runWithTurnControl(control, () =>
-        collect(llm.generateContentAsync(makeRequest('ollama/qwen3:8b'))),
+        collect(adapter.generate(makeRequest('ollama/qwen3:8b', control.signal))),
       );
     });
     assert.equal(calls, 1);
-    assert.equal((responses[0] as any).status, 503);
+    const err = finalOf(responses).error!;
+    assert.equal(err.status, 503);
+    assert.equal(err.retryable, false, 'a call cut off by a cancelled turn is never retryable');
   } finally {
     Math.random = realRandom;
     control.dispose();
@@ -389,20 +405,20 @@ test('a canceled turn makes no retry on the chat-completions path', async () => 
   }
 });
 
-test('GatewayLlm keeps GATEWAY_HTTP_ERROR and gains the status', async () => {
+test('GatewayAdapter keeps GATEWAY_HTTP_ERROR and gains the status', async () => {
   const saved = { gw: process.env.MODEL_GATEWAY, key: process.env.MODEL_GATEWAY_API_KEY };
   process.env.MODEL_GATEWAY = 'openrouter';
   process.env.MODEL_GATEWAY_API_KEY = 'test-gateway-key';
   const restore = setRetryPolicyOverrides(FAST);
   try {
-    let responses: LlmResponse[] = [];
+    let responses: ModelResponse[] = [];
     const calls = await withFetch([json(429, { error: 'slow down' }), json(404, { error: 'no such model' })], async () => {
-      const llm = new GatewayLlm({ model: 'claude-sonnet-4-6' });
-      responses = await collect(llm.generateContentAsync(makeRequest('claude-sonnet-4-6')));
+      const adapter = new GatewayAdapter({ model: 'claude-sonnet-4-6' });
+      responses = await collect(adapter.generate(makeRequest('claude-sonnet-4-6')));
     });
     assert.equal(calls, 2, '429 retried, 404 not');
-    const err = responses[0] as any;
-    assert.equal(err.errorCode, 'GATEWAY_HTTP_ERROR');
+    const err = finalOf(responses).error!;
+    assert.equal(err.code, 'GATEWAY_HTTP_ERROR');
     assert.equal(err.status, 404);
     assert.equal(err.retryable, false);
   } finally {
@@ -412,7 +428,7 @@ test('GatewayLlm keeps GATEWAY_HTTP_ERROR and gains the status', async () => {
   }
 });
 
-// ── TracedGemini ─────────────────────────────────────────────────────────────
+// ── Gemini ───────────────────────────────────────────────────────────────────
 
 const GEMINI_OK = json(200, {
   candidates: [{ content: { role: 'model', parts: [{ text: 'Gemini recovered.' }] }, finishReason: 'STOP' }],
@@ -422,78 +438,89 @@ const GEMINI_503 = json(503, { error: { code: 503, message: 'The model is overlo
 const GEMINI_400 = json(400, { error: { code: 400, message: 'API key not valid.', status: 'INVALID_ARGUMENT' } });
 
 function withGeminiEnv<T>(fn: () => Promise<T>): Promise<T> {
-  const saved = process.env.GOOGLE_GENAI_USE_VERTEXAI;
+  const saved = { vertex: process.env.GOOGLE_GENAI_USE_VERTEXAI, platform: process.env.GEMINI_PLATFORM };
   delete process.env.GOOGLE_GENAI_USE_VERTEXAI;
+  delete process.env.GEMINI_PLATFORM;
   return fn().finally(() => {
-    if (saved !== undefined) process.env.GOOGLE_GENAI_USE_VERTEXAI = saved;
+    if (saved.vertex !== undefined) process.env.GOOGLE_GENAI_USE_VERTEXAI = saved.vertex;
+    if (saved.platform !== undefined) process.env.GEMINI_PLATFORM = saved.platform;
   });
 }
 
-test('TracedGemini retries a 503 "high demand" and then answers', async () => {
-  const restore = setRetryPolicyOverrides(FAST);
-  try {
-    await withGeminiEnv(async () => {
-      let responses: LlmResponse[] = [];
-      const calls = await withFetch([GEMINI_503, GEMINI_OK], async () => {
-        const llm = new TracedGemini({ model: 'gemini-test', apiKey: 'test-key' });
-        responses = await collect(llm.generateContentAsync(makeRequest('gemini-test')));
-      });
-      assert.equal(calls, 2);
-      const text = responses.flatMap((r) => r.content?.parts ?? []).map((p: any) => p.text).join('');
-      assert.equal(text, 'Gemini recovered.');
-    });
-  } finally {
-    restore();
-  }
-});
+/**
+ * Gemini's two contract adapters: AdkGeminiAdapter, the one the registry
+ * serves until gate G3, over TracedGemini's retries (lib/models/tracedGemini.ts);
+ * and the engine's GeminiAdapter on @google/genai.
+ */
+const GEMINI_ADAPTERS: Array<[string, (model: string) => ModelAdapter]> = [
+  ['AdkGeminiAdapter', (model) => new AdkGeminiAdapter({ model, apiKey: 'test-key' })],
+  ['GeminiAdapter', (model) => new GeminiAdapter({ model, apiKey: 'test-key' })],
+];
 
-test('TracedGemini does not retry a 400 and keeps genai\'s error body', async () => {
-  const restore = setRetryPolicyOverrides(FAST);
-  try {
-    await withGeminiEnv(async () => {
-      let thrown: any;
-      const calls = await withFetch([GEMINI_400, GEMINI_OK], async () => {
-        const llm = new TracedGemini({ model: 'gemini-test', apiKey: 'test-key' });
+for (const [name, gemini] of GEMINI_ADAPTERS) {
+  test(`${name} retries a 503 "high demand" and then answers`, async () => {
+    const restore = setRetryPolicyOverrides(FAST);
+    try {
+      await withGeminiEnv(async () => {
+        let responses: ModelResponse[] = [];
+        const calls = await withFetch([GEMINI_503, GEMINI_OK], async () => {
+          responses = await collect(gemini('gemini-test').generate(makeRequest('gemini-test')));
+        });
+        assert.equal(calls, 2);
+        const final = finalOf(responses);
+        assert.equal(final.error, undefined);
+        assert.equal(textOf(final), 'Gemini recovered.');
+      });
+    } finally {
+      restore();
+    }
+  });
+
+  test(`${name} does not retry a 400 and keeps genai's error body`, async () => {
+    const restore = setRetryPolicyOverrides(FAST);
+    try {
+      await withGeminiEnv(async () => {
+        let responses: ModelResponse[] = [];
+        const calls = await withFetch([GEMINI_400, GEMINI_OK], async () => {
+          responses = await collect(gemini('gemini-test').generate(makeRequest('gemini-test')));
+        });
+        assert.equal(calls, 1);
+        // A failed call is a final, never a throw (contract rule 4).
+        const err = finalOf(responses).error!;
+        assert.equal(err.code, 'GEMINI_ERROR');
+        assert.equal(err.status, 400);
+        assert.equal(err.retryable, false);
+        assert.match(err.message, /API key not valid/);
+      });
+    } finally {
+      restore();
+    }
+  });
+
+  test(`${name} re-sends the same request contents on a retry`, async () => {
+    const restore = setRetryPolicyOverrides(FAST);
+    try {
+      await withGeminiEnv(async () => {
+        const bodies: any[] = [];
+        const real = globalThis.fetch;
+        let calls = 0;
+        globalThis.fetch = (async (_url: any, init: any) => {
+          bodies.push(JSON.parse(init.body));
+          return (calls++ === 0 ? GEMINI_503 : GEMINI_OK)();
+        }) as any;
         try {
-          await collect(llm.generateContentAsync(makeRequest('gemini-test')));
-        } catch (e) {
-          thrown = e;
+          await collect(gemini('gemini-test').generate(makeRequest('gemini-test')));
+        } finally {
+          globalThis.fetch = real;
         }
+        assert.equal(bodies.length, 2);
+        assert.deepEqual(bodies[1].contents, bodies[0].contents);
       });
-      assert.equal(calls, 1);
-      assert.equal(thrown?.status, 400);
-      assert.equal(thrown?.retryable, false);
-      assert.match(String(thrown?.message), /API key not valid/);
-    });
-  } finally {
-    restore();
-  }
-});
-
-test('TracedGemini re-sends the same request contents on a retry', async () => {
-  const restore = setRetryPolicyOverrides(FAST);
-  try {
-    await withGeminiEnv(async () => {
-      const bodies: any[] = [];
-      const real = globalThis.fetch;
-      let calls = 0;
-      globalThis.fetch = (async (_url: any, init: any) => {
-        bodies.push(JSON.parse(init.body));
-        return (calls++ === 0 ? GEMINI_503 : GEMINI_OK)();
-      }) as any;
-      try {
-        const llm = new TracedGemini({ model: 'gemini-test', apiKey: 'test-key' });
-        await collect(llm.generateContentAsync(makeRequest('gemini-test')));
-      } finally {
-        globalThis.fetch = real;
-      }
-      assert.equal(bodies.length, 2);
-      assert.deepEqual(bodies[1].contents, bodies[0].contents);
-    });
-  } finally {
-    restore();
-  }
-});
+    } finally {
+      restore();
+    }
+  });
+}
 
 // ── Grok timeout ─────────────────────────────────────────────────────────────
 

@@ -1,52 +1,78 @@
 /**
- * tests/helpers/scriptedLlm.ts — a deterministic model for offline tests of
- * the turn runtime. It goes through the same `traceLlmGeneration` wrapper
- * every real adapter uses, so the step budget and cancellation in
- * lib/runtime/turnControl.ts apply to it exactly as they do in production.
+ * tests/helpers/scriptedLlm.ts — a deterministic ADK model for offline tests
+ * of the turn runtime: the ADK shim (lib/models/adkShim.ts) around a
+ * ScriptedModel (./scriptedModel.ts), so the step budget, cancellation and
+ * the llm.request span in lib/runtime/turnControl.ts apply to it exactly as
+ * they do to every adapter in production.
  *
- * A script is a function from (request, call number) to the response; it
- * may be async and may await the turn's abort signal to model a hung
- * provider.
+ * A script is written in ADK's terms, a function from (request, call
+ * number, signal) to the LlmResponses of that call; it may be async and may
+ * await the signal to model a hung provider. The shim hands the call to its
+ * ScriptedModel as a ModelRequest; the model runs the script on the
+ * LlmRequest that request was mapped from, and yields each LlmResponse as a
+ * ModelResponse (llmResponseToModelResponse). ADK then receives the response
+ * exactly as the script wrote it, not its round trip through the contract,
+ * so a test that compares this model with a contract script behind the shim
+ * (the boundary suite, tests/syndicateTurn.test.ts) still compares two
+ * different paths.
+ *
+ * `model` is the ScriptedModel: its `requests` are the ModelRequests the
+ * shim handed it. `requests` here are the LlmRequests ADK sent.
  */
 
-import { BaseLlm } from '@google/adk';
-import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
-import { llmRequestToModelRequest } from '../../lib/models/genaiMapping.ts';
-import { traceLlmGeneration } from '../../lib/observability/tracer.ts';
+import type { LlmRequest, LlmResponse } from '@google/adk';
+import type { ModelRequest, ModelResponse } from '../../lib/models/contract.ts';
+import { AdkShim } from '../../lib/models/adkShim.ts';
+import { llmResponseToModelResponse } from '../../lib/models/genaiMapping.ts';
+import type { ModelRequestOptions } from '../../lib/models/genaiMapping.ts';
+import { ScriptedModel } from './scriptedModel.ts';
 
 /** One response, or several in order (streaming chunks, then the full reply). */
 export type Script = (request: LlmRequest, call: number, signal?: AbortSignal) => LlmResponse | LlmResponse[] | Promise<LlmResponse | LlmResponse[]>;
 
-export class ScriptedLlm extends BaseLlm {
-  calls = 0;
-  readonly requests: LlmRequest[] = [];
-  private readonly script: Script;
+export class ScriptedLlm extends AdkShim {
+  declare readonly adapter: ScriptedModel;
+  /** The LlmRequest each ModelRequest the shim built was mapped from. */
+  readonly #sources: WeakMap<ModelRequest, LlmRequest>;
+  /** The LlmResponse the script wrote for each ModelResponse the model yielded. */
+  readonly #written: WeakMap<ModelResponse, LlmResponse>;
+  /** The LlmRequests ADK sent, one per call that reached the script. */
+  readonly requests: LlmRequest[];
 
   constructor(model: string, script: Script) {
-    super({ model });
-    this.script = script;
-  }
-
-  async *generateContentAsync(
-    llmRequest: LlmRequest,
-    stream?: boolean,
-    abortSignal?: AbortSignal,
-  ): AsyncGenerator<LlmResponse, void> {
-    yield* traceLlmGeneration(
-      { provider: 'scripted', model: this.model, request: () => llmRequestToModelRequest(llmRequest, { model: llmRequest.model || this.model, stream }) },
-      this.inner(llmRequest, abortSignal),
+    const sources = new WeakMap<ModelRequest, LlmRequest>();
+    const written = new WeakMap<ModelResponse, LlmResponse>();
+    const requests: LlmRequest[] = [];
+    super(
+      new ScriptedModel(model, async (request, call, signal) => {
+        const llmRequest = sources.get(request)!;
+        requests.push(llmRequest);
+        const out = await script(llmRequest, call, signal);
+        return (Array.isArray(out) ? out : [out]).map((response) => {
+          const mapped = llmResponseToModelResponse(response, { model });
+          written.set(mapped, response);
+          return mapped;
+        });
+      }),
     );
+    this.#sources = sources;
+    this.#written = written;
+    this.requests = requests;
   }
 
-  private async *inner(llmRequest: LlmRequest, abortSignal?: AbortSignal): AsyncGenerator<LlmResponse, void> {
-    this.calls += 1;
-    this.requests.push(llmRequest);
-    const out = await this.script(llmRequest, this.calls, abortSignal);
-    for (const response of Array.isArray(out) ? out : [out]) yield response;
+  /** The calls that reached the script; a call the turn refused never does. */
+  get calls(): number {
+    return this.adapter.calls;
   }
 
-  async connect(_req: LlmRequest): Promise<BaseLlmConnection> {
-    throw new Error('ScriptedLlm does not support live connections');
+  protected override toModelRequest(llmRequest: LlmRequest, options: ModelRequestOptions): ModelRequest {
+    const request = super.toModelRequest(llmRequest, options);
+    this.#sources.set(request, llmRequest);
+    return request;
+  }
+
+  protected override toLlmResponse(response: ModelResponse): LlmResponse {
+    return this.#written.get(response) ?? super.toLlmResponse(response);
   }
 }
 
