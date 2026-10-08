@@ -29,6 +29,9 @@
  *   - ClaudeLlm adds `claudeReasoning`, the older reasoning spelling read as
  *     ADR 0049 reads it, which this adapter reads in place of `reasoning`
  *     (ClaudeModelRequest, ADR 0055). The native runtime never sets it.
+ *   - `outputFormat: 'json'` sends nothing: the Messages API has no JSON
+ *     mode without a schema, and ClaudeLlm never sent one for
+ *     `responseMimeType` alone (ADR 0061). The prompt asks for the JSON.
  *
  * THE ADAPTER RULES (contract.ts header) as this adapter keeps them:
  *   - Errors are finals, never throws: MISSING_API_KEY,

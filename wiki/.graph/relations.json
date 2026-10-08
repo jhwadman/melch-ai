@@ -709,6 +709,64 @@
       "evidence": "ADR 0047 table, Kimi row: none, low, high, high, the level of n. KimiAdapter.reasoningFields maps the request's reasoning through reasoningConfig and sends none as low on K3, the K2.x thinking switch otherwise.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0061 Decision 1: \"ModelRequest.outputFormat?: 'json'. It asks for one JSON object as the answer, with no schema to hold it to ... outputSchema says more and wins when both are set.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0061 Decision 2: llmRequestToModelRequest sets outputFormat when responseMimeType is application/json and neither responseJsonSchema nor responseSchema is given; modelRequestToLlmRequest writes responseMimeType back for it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0061 Decision 3: \"GptAdapter and GrokAdapter: text.format: { type: 'json_object' }.\" tests/responsesAdapter.test.ts asserts it on both paths.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0061 Decision 3: \"ChatCompletionsAdapter (Ollama, Kimi, the gateway): response_format: { type: 'json_object' }, kept on Ollama's retry without thinking.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0061 Decision 4: \"Claude sends nothing for it ... the Messages API has no JSON mode, so ClaudeAdapter leaves the body as it is.\" tests/claudeAdapter.test.ts asserts the body unchanged.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0061 Decision 5: \"The chat shims stop carrying it beside the contract. OlderSpelling keeps only the effort word that is no level.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "In part: only JSON mode as olderSpelling. The shims, their response shape and the effort-word carriage stand."
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0061 Consequences: \"The fields the contract leaves out are now topK, seed, the penalties, candidateCount, safetySettings, includeThoughts, and the effort words xhigh and max (ADR 0048's list, less JSON mode).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "In part: JSON mode without a schema leaves ADR 0048's list of fields the contract leaves out. The contract stands."
     }
   ]
 }

@@ -52,7 +52,7 @@ Setup failures are finals: `MISSING_API_KEY` without a key on a direct endpoint,
   - GPT's reasoning ids (`o*`, `gpt-5*`) send `{ summary: 'auto' }` plus the effort in the model's own word: `none` is `minimal` on the first GPT-5 generation, `none` after, `low` on the o-series. Other GPT ids send nothing.
   - `grok-4.5`, `grok-4.6` and `grok-4.7` send `{ effort }`: `none` as `low`, and `DEFAULT_GROK_REASONING_EFFORT` (`medium`) when the request sets none. Other grok ids send nothing.
 - **Sampling.** `max_output_tokens` always; `temperature` and `top_p` except on OpenAI's reasoning ids, which refuse them; Grok takes them on every id. `stop` has no field.
-- **Structured output** is `text.format` with the schema in its strict form.
+- **Structured output** is `text.format` with the schema in its strict form. `outputFormat: 'json'` without a schema is JSON mode, `text.format: { type: 'json_object' }`, on both vendors ([ADR 0061](/decisions/0061-json-mode-on-the-contract.md)).
 - **The signal** goes to the SDK as the request option, and also ends the call at once: an aborted request, or a stream that stalls, never holds the caller.
 
 ## Reasoning across a tool loop
@@ -102,7 +102,6 @@ The adapters open no span and charge no turn ([ADR 0053](/decisions/0053-adapter
 
 The events gain `finishReason`, as every shimmed adapter's do. `buildResponsesInput` and `buildResponsesTools` (in `gptLlm.ts`) take an `LlmRequest`, map it to the contract and run the adapter's own builders. On the ADK path these differ from the earlier GPT and Grok adapters, because the contract carries them differently:
 
-- A request's `responseMimeType: 'application/json'` without a schema has no contract field, so JSON mode is not sent.
 - The effort words `xhigh` and `max` are not sent.
 - A call without an id gets one minted from its position, and its result the same one.
 - `fileData` images reach the model.
@@ -117,6 +116,7 @@ The events gain `finishReason`, as every shimmed adapter's do. `buildResponsesIn
 - the replay rules and the guarded retry;
 - both response paths, grounding and finish reasons;
 - every failure row, and a stalled stream aborted mid-way;
+- JSON mode without a schema, from `outputFormat` and, through `GptLlm` and `GrokLlm`, from `responseMimeType` alone;
 - the ADK path's usage meaning and server-side tool record.
 
 `tests/responsesReasoningState.test.ts` runs the reasoning replay through a real ADK runner. `tests/models.test.ts`, `tests/reasoningKey.test.ts`, `tests/capabilityMatrix.test.ts`, `tests/endpoints.test.ts` and `tests/errorResponse.test.ts` drive `GptLlm` and `GrokLlm` with `LlmRequest`s, unchanged.
