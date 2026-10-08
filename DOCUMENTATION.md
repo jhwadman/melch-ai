@@ -60,7 +60,9 @@ per agent; `lib/compileAdk.ts` turns it into the `LlmAgent`, and
 turn by default. `MELCHIZEDEK_RUNTIME=native`, or `runtime: 'native'` on
 `runSyndicateTurn`, runs a single-agent, delegating or plan-dispatch
 syndicate on the native loop with the same result and the same stored
-events; what it does not run yet (compaction, workflows) throws
+events, `context:` compaction included
+([ADR 0078](./wiki/decisions/0078-native-compaction-ports-adk-compactor.md));
+what it does not run yet (workflows, task mode) throws
 `UnsupportedOnRuntimeError` before any model call
 ([ADR 0073](./wiki/decisions/0073-one-agent-spec-and-a-runtime-flag.md)).
 

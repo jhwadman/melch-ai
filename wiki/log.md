@@ -20,6 +20,27 @@ by claude-code/claude-opus-5-5
 by claude-code/claude-opus-5-5
 
 ## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/a2a/executor.ts
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/compaction.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0078-native-compaction-ports-adk-compactor.md —constrains→ module:lib/compileNative.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0078-native-compaction-ports-adk-compactor.md —constrains→ module:lib/runtime/native/compaction.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0078-native-compaction-ports-adk-compactor.md —depends_on→ /decisions/0076-native-loop-spans-feed-the-same-ledger.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0078-native-compaction-ports-adk-compactor.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0078-native-compaction-ports-adk-compactor.md —depends_on→ /decisions/0033-context-task-code.md
 
 by claude-code/claude-opus-5-5
 

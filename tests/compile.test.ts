@@ -352,13 +352,14 @@ test('a delegation compiles both ways: an AgentTool on ADK, a subagentTool holdi
 
 test('a feature native does not run yet fails at compile time, naming the feature and the runtime', async () => {
   const base = { name: 'Solo', description: 'd', model: 'gemini-3.5-flash-lite', instruction: 'x' };
-  const compaction = await compileSubagentSpec({ ...base, context: { compact_after_tokens: 1000 } } as any);
-  assert.throws(
-    () => compileNative(compaction),
-    (e: unknown) => e instanceof UnsupportedOnRuntimeError && e.runtime === 'native' && /Solo: context compaction \(context:, WS2-9\) is not supported on the native runtime yet/.test(e.message),
-  );
   const task = await compileSubagentSpec({ ...base, mode: 'task' } as any);
-  assert.throws(() => compileNative(task), /task mode \(mode: task, WS3-5\) is not supported on the native runtime yet/);
+  assert.throws(
+    () => compileNative(task),
+    (e: unknown) => e instanceof UnsupportedOnRuntimeError && e.runtime === 'native' && /Solo: task mode \(mode: task, WS3-5\) is not supported on the native runtime yet/.test(e.message),
+  );
+  // context: compiles for the loop, which compacts as ADK does (WS2-9).
+  const compaction = await compileSubagentSpec({ ...base, context: { compact_after_tokens: 1000, keep_recent_events: 2 } } as any);
+  assert.deepStrictEqual(compileNative(compaction).context, { compact_after_tokens: 1000, keep_recent_events: 2 });
   // The same spec builds for ADK.
   assert.ok(compileAdk(task) instanceof LlmAgent);
 });

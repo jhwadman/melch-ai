@@ -26,6 +26,7 @@ import { FallbackLlm } from './models/fallback.ts';
 import { resolveModel as resolveRegistryModel } from './models/registry.ts';
 import { onLogLevel } from './runtime/logging.ts';
 import type { LogLevelName } from './runtime/logging.ts';
+import { DEFAULT_KEEP_RECENT_EVENTS } from './runtime/native/compaction.ts';
 
 /**
  * ADK's logger follows the engine's level (lib/runtime/logging.ts, ADR
@@ -39,8 +40,8 @@ const ADK_LOG_LEVELS: Record<LogLevelName, LogLevel> = {
 };
 onLogLevel((level) => setAdkLogLevel(ADK_LOG_LEVELS[level]));
 
-/** Events kept verbatim after a compaction summary when `context:` names none. */
-export const DEFAULT_KEEP_RECENT_EVENTS = 6;
+/** Events kept verbatim after a compaction summary when `context:` names none: the native compactor's default. */
+export { DEFAULT_KEEP_RECENT_EVENTS };
 
 /**
  * The LlmAgent fields a YAML agent may set beyond model, instruction, tools

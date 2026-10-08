@@ -18,6 +18,15 @@ the starter pack and the templates), not the repo's full history.
   returns, the same type as before. The `melchizedek-serve` bin no longer
   imports `@google/adk`; ADK's logger follows the level the engine sets.
   No change to the `exports` map, `runSyndicateTurn`, or the A2A surface.
+- **`context:` compaction runs on the native runtime (ADR 0078).** A
+  syndicate whose orchestrator sets `context:` no longer throws
+  `UnsupportedOnRuntimeError` under `runtime: 'native'`
+  (or `MELCHIZEDEK_RUNTIME=native`): the native loop compacts as the ADK
+  runtime does, stores the same compacted event, and charges and traces the
+  summary call the same way, so a compacted session continues on either
+  runtime. No change to the exports map; `ContextConfig` and
+  `DEFAULT_KEEP_RECENT_EVENTS` stay exported from
+  `melchizedek-agents/compile` under the same names.
 - **A turn can run on the native runtime (ADR 0073).** `runSyndicateTurn`
   takes an optional `runtime` (`'adk'` or `'native'`). Without it,
   `MELCHIZEDEK_RUNTIME` decides (`adk` or `native`), and without that, `adk`,
