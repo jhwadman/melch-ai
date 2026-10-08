@@ -1217,6 +1217,54 @@
       "evidence": "ADR 0072 Decision 4: a backend keeps ciphertext rows only, and a refresh writes only over the version it read.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0074 Decision 1: \"A subagent tool's call runs the subagent on runAgentLoop in the session { appName: <subagent>, userId, sessionId } of the caller's store.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0074 Decision 5: \"runCall asks subagentOf(tool) before the generic path\"; Consequences: the loop stores no response when the turn stopped while a step's calls ran.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0074 Context: \"The native loop (ADR 0071) ran a single agent\"; Decision 2 keeps ADR 0071 Decision 2 for other calls.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0074 Decision 3: \"A pause inside a subagent stays swallowed (ADR 0028).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0074 Context: \"A session either runtime wrote must be one the other continues (ADR 0045).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"Delegation\": subagentTool, the subagent's own session, the request as a message, the child loop, state out, the answer.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
