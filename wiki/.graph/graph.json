@@ -1548,7 +1548,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3099
+        "words": 3055
       }
     },
     {
@@ -13809,7 +13809,7 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:180"
+      "evidence": "/overview/native-loop.md:179"
     },
     {
       "from": "/overview/native-loop.md",
@@ -13872,7 +13872,7 @@
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:186"
+      "evidence": "/overview/native-loop.md:185"
     },
     {
       "from": "/overview/native-loop.md",

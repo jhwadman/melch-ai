@@ -165,7 +165,6 @@ ADK's quirks are kept on purpose, so both runtimes match:
 - a partial resets the model count;
 - through the model contract a malformed Gemini call is an error code, not a finish reason, so no adapter's response is retried for it on either runtime.
 
-Not done by the loop: delegation and transfer (WS2-6), resuming an approval or a question (WS2-7a, WS2-7b), compaction (WS2-9), tool spans (WS2-11), and an auth request a tool raises. A `temp:` key a tool writes is not visible to the next step's instruction placeholders.
 
 ## Delegation
 

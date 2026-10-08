@@ -30,6 +30,7 @@ import { SupabaseSpanExporter, isPayloadSpan } from '../lib/observability/supaba
 import type { PayloadPolicy } from '../lib/observability/supabaseSpanExporter.ts';
 import { onSpanEnd, traceAgentRun } from '../lib/observability/tracer.ts';
 import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
+import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
@@ -161,6 +162,7 @@ async function runNative(config: SyndicateYamlConfig, scripts: Models, parts: an
       const loop = runAgentLoop(agent, {
         session,
         sessions,
+        selfCorrection: new SelfCorrection(config.retries ?? {}),
         invocationId,
         userContent,
         adapterFor: (id) => models[id.replace(/^scripted\//, '')] as ModelAdapter,
@@ -417,6 +419,7 @@ test('a consumer that stops early still ends every span the loop opened', async 
       const loop = runAgentLoop(nativeAgentOf(config.orchestrator), {
         session,
         sessions,
+        selfCorrection: new SelfCorrection(config.retries ?? {}),
         invocationId: 'e-early',
         adapterFor: () => models.boss as ModelAdapter,
       });
