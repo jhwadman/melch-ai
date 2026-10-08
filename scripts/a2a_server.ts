@@ -72,7 +72,6 @@ import { randomBytes } from 'node:crypto';
 import { realpathSync, writeFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { pathToFileURL } from 'node:url';
-import { setLogLevel, LogLevel } from '@google/adk';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import {
@@ -95,6 +94,7 @@ import { dbSchema } from '../lib/storage/schema.ts';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import { isPlaceholderValue, loadEnv } from '../lib/loadEnv.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
+import { setLogLevel } from '../lib/runtime/logging.ts';
 
 // Re-exported for existing importers (tests/failNarration.test.ts).
 export { describeTurnError } from '../lib/a2a/executor.ts';
@@ -159,8 +159,9 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   // Conversation content stays out of stdout unless the operator opts in:
   // the root span carries the full user message and answer.
   if (process.env.OTEL_CONSOLE_SPANS === undefined) process.env.OTEL_CONSOLE_SPANS = 'false';
-  // ADK's INFO/DEBUG logs carry raw event JSON; keep them quiet.
-  setLogLevel(LogLevel.WARN);
+  // The engine's level, which ADK's logger follows: ADK's INFO/DEBUG logs
+  // carry raw event JSON, so keep them quiet.
+  setLogLevel('warn');
 
   const publicUrl = process.env.PUBLIC_URL?.trim() || undefined;
   const port = envInt('PORT', 4000);

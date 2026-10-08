@@ -13,6 +13,18 @@ the starter pack and the templates), not the repo's full history.
   the other. An answer whose pinned call does not bind (changed arguments,
   a request the user authored) throws ADK's `IntentMismatchError` text on
   both runtimes. No change to the `exports` map.
+- **`createA2AApp` takes the engine's own stores (ADR 0080).**
+  `A2AAppOptions.storage.sessionService` accepts the engine's
+  `SessionService` as well as ADK's `BaseSessionService`, and
+  `storage.memoryService` the engine's `MemoryService` as well as ADK's
+  `BaseMemoryService`; a store or service you pass today works unchanged.
+  Without durable storage, sessions live in the engine's
+  `InProcessSessionService` instead of ADK's `InMemorySessionService`, with
+  the durable stores' meaning (no `app:` or `user:` state shared across
+  sessions). `resolveModel` returns what `CompileOptions.resolveModel`
+  returns, the same type as before. The `melchizedek-serve` bin no longer
+  imports `@google/adk`; ADK's logger follows the level the engine sets.
+  No change to the `exports` map, `runSyndicateTurn`, or the A2A surface.
 - **`context:` compaction runs on the native runtime (ADR 0078).** A
   syndicate whose orchestrator sets `context:` no longer throws
   `UnsupportedOnRuntimeError` under `runtime: 'native'`
