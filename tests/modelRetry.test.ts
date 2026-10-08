@@ -84,8 +84,8 @@ const resetError = () => {
 
 // ── Classification ───────────────────────────────────────────────────────────
 
-test('classifyResponse retries exactly 408/409/425/429/500/502/503/504', () => {
-  for (const s of [408, 409, 425, 429, 500, 502, 503, 504]) {
+test('classifyResponse retries exactly 408/409/425/429/500/502/503/504/529', () => {
+  for (const s of [408, 409, 425, 429, 500, 502, 503, 504, 529]) {
     assert.equal(classifyResponse(new Response(null, { status: s })).retryable, true, `${s}`);
   }
   for (const s of [400, 401, 403, 404, 413, 422, 501]) {

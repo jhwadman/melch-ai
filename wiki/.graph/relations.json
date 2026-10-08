@@ -2,6 +2,38 @@
   "version": 1,
   "relations": [
     {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0044 Decision, The breaker: \"Per provider, shared by every wrapped agent in the process: MODEL_BREAKER_THRESHOLD consecutive failures (default 5; 0 disables) open it for MODEL_BREAKER_COOLDOWN_MS (default 30 s)\". circuitBreaker.ts holds that state for FallbackLlm and FallbackAdapter alike.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0044 Note (2026-10-07): adapters that yield an error response \"set customMetadata['error.retryable'] (and 'error.status') from retry.ts's classification (lib/models/errorResponse.ts)\", which is what decides whether a fallback answers.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/fallback.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0044 Decision: \"the compiler wraps the agent's model in FallbackLlm (lib/models/fallback.ts)\"; only a retryable provider-side failure before any output redirects; Note (2026-10-07): the rule holds for error responses as well as throws, and only a call that yielded content counts as a success.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/fallbackAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0044 Decision, What redirects: only a provider-side failure that retry.ts classifies retryable, \"redirected only if the primary had produced nothing yet\"; a 4xx, a canceled turn and a stream that failed midway are never redirected. FallbackAdapter applies these to a failed final's error.retryable and status.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
       "from": "/decisions/0045-own-runtime-behind-the-seam.md",
       "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
       "rel": "supersedes",
@@ -15,6 +47,22 @@
       "to": "module:lib/models/gptLlm.ts",
       "rel": "constrains",
       "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/kimiLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\" /models/provider-routing.md: \"Kimi turns the hook on for the ids Moonshot's thinking-model guide asks it of within a tool loop\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "constrains",
+      "evidence": "/models/provider-routing.md: \"The chat-completions base (lib/models/openAiCompatibleLlm.ts) carries reasoning_content behind one opt-in hook, replaysReasoningContent(), off by default ... sends it back as that assistant message's reasoning_content on the current turn's tool loop, for the same provider and model only.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -51,23 +99,6 @@
       "at": "2026-10-07"
     },
     {
-      "from": "/operations/parity-harness.md",
-      "to": "script:parity",
-      "rel": "explains",
-      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/memory/architecture.md",
-      "to": "script:fixtures:sessions:check",
-      "rel": "explains",
-      "evidence": "/memory/architecture.md, Stored event shape: \"With `--check` it exits 1 when a fixture no longer matches what the runtime writes, which is what a dependency bump that changes the stored shape looks like. `npm run fixtures:sessions:check` runs that check, and CI's test job runs it after the offline suite on both Node versions.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07",
-      "note": "The script runs tests/fixtures/sessions/generate.ts --check; the build links scripts only to source modules, so this edge is asserted."
-    },
-    {
       "from": "/decisions/0048-engine-owned-model-contract.md",
       "to": "module:lib/loadSyndicate.ts",
       "rel": "constrains",
@@ -80,6 +111,14 @@
       "to": "module:lib/models/contract.ts",
       "rel": "constrains",
       "evidence": "ADR 0048 Decision 2: \"The module is types only, its one import is ProviderState, and no module in its import graph names @google/*.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/fallbackAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 4: \"A failure is a final with error set, never a throw\" and \"a cancellation is never retryable\"; Decision 5: \"retryable decides whether a fallback answers\"; Decision 3: \"Each adapter maps the setting itself, so a fallback model gets its own mapping.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -132,42 +171,19 @@
       "at": "2026-10-07"
     },
     {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "module:lib/models/kimiLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\" /models/provider-routing.md: \"Kimi turns the hook on for the ids Moonshot's thinking-model guide asks it of within a tool loop\".",
+      "from": "/memory/architecture.md",
+      "to": "script:fixtures:sessions:check",
+      "rel": "explains",
+      "evidence": "/memory/architecture.md, Stored event shape: \"With `--check` it exits 1 when a fixture no longer matches what the runtime writes, which is what a dependency bump that changes the stored shape looks like. `npm run fixtures:sessions:check` runs that check, and CI's test job runs it after the offline suite on both Node versions.\"",
       "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
+      "at": "2026-10-07",
+      "note": "The script runs tests/fixtures/sessions/generate.ts --check; the build links scripts only to source modules, so this edge is asserted."
     },
     {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "module:lib/models/openAiCompatibleLlm.ts",
-      "rel": "constrains",
-      "evidence": "/models/provider-routing.md: \"The chat-completions base (lib/models/openAiCompatibleLlm.ts) carries reasoning_content behind one opt-in hook, replaysReasoningContent(), off by default ... sends it back as that assistant message's reasoning_content on the current turn's tool loop, for the same provider and model only.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
-      "to": "module:lib/models/circuitBreaker.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0044 Decision, The breaker: \"Per provider, shared by every wrapped agent in the process: MODEL_BREAKER_THRESHOLD consecutive failures (default 5; 0 disables) open it for MODEL_BREAKER_COOLDOWN_MS (default 30 s)\". circuitBreaker.ts holds that state for FallbackLlm and FallbackAdapter alike.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
-      "to": "module:lib/models/fallbackAdapter.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0044 Decision, What redirects: only a provider-side failure that retry.ts classifies retryable, \"redirected only if the primary had produced nothing yet\"; a 4xx, a canceled turn and a stream that failed midway are never redirected. FallbackAdapter applies these to a failed final's error.retryable and status.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0048-engine-owned-model-contract.md",
-      "to": "module:lib/models/fallbackAdapter.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0048 Decision 4: \"A failure is a final with error set, never a throw\" and \"a cancellation is never retryable\"; Decision 5: \"retryable decides whether a fallback answers\"; Decision 3: \"Each adapter maps the setting itself, so a fallback model gets its own mapping.\"",
+      "from": "/operations/parity-harness.md",
+      "to": "script:parity",
+      "rel": "explains",
+      "evidence": "/operations/parity-harness.md: \"`npm run parity` (`scripts/parity_check.ts`) answers one question per provider: does the engine's core work end to end on it? ... A runtime gate is a run of this script, not a manual check.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -211,6 +227,30 @@
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07",
       "note": "In part: only how the Claude adapter reads the reasoning fields. ADR 0047's key, levels and compiler mapping stand."
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "/models/model-contract.md Gemini table: \"{ provider: 'gemini', kind: 'thought_signature', model, payload } <-> the part's thoughtSignature, on the same part, replayed within the current turn.\" /models/gemini-adapter.md, Thought signatures: \"The adapter writes a part's thoughtSignature as providerState ... on the output part it arrived on.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 3: \"Each adapter maps the setting itself, so a fallback model gets its own mapping.\" /models/gemini-adapter.md: \"Reasoning maps through reasoningConfig in lib/compile.ts (ADR 0047) for the request's model id\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 4: \"Exactly one final, which never holds thinking, ends every call. A failure is a final with error set, never a throw.\" Consequences: \"Gemini receives the lowercase form as parametersJsonSchema and responseJsonSchema.\" /models/gemini-adapter.md: \"GeminiAdapter ... is Gemini as a contract ModelAdapter\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
     }
   ]
 }
