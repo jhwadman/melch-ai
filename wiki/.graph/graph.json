@@ -5,8 +5,8 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 722,
-    "edges": 2045,
+    "nodes": 723,
+    "edges": 2049,
     "byKind": {
       "doc": 119,
       "provider": 6,
@@ -18,7 +18,7 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 149,
+      "module": 150,
       "script": 47,
       "external": 2
     },
@@ -33,7 +33,7 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 495,
+      "imports": 499,
       "reads_table": 28,
       "runs": 67,
       "derives_from": 433,
@@ -45,7 +45,7 @@
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1957,
+      "extracted": 1961,
       "inferred": 88
     },
     "isolated": 4
@@ -4072,7 +4072,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 340
+        "lines": 341
       }
     },
     {
@@ -4180,7 +4180,7 @@
       "label": "lib/models/endpoints.ts",
       "source": "lib/models/endpoints.ts",
       "attrs": {
-        "lines": 322
+        "lines": 323
       }
     },
     {
@@ -4216,7 +4216,7 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 199
+        "lines": 200
       }
     },
     {
@@ -4306,7 +4306,7 @@
       "label": "lib/models/kimiAdapter.ts",
       "source": "lib/models/kimiAdapter.ts",
       "attrs": {
-        "lines": 197
+        "lines": 198
       }
     },
     {
@@ -4397,6 +4397,15 @@
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
         "lines": 447
+      }
+    },
+    {
+      "id": "module:lib/models/urls.ts",
+      "kind": "module",
+      "label": "lib/models/urls.ts",
+      "source": "lib/models/urls.ts",
+      "attrs": {
+        "lines": 17
       }
     },
     {
@@ -14452,6 +14461,13 @@
     },
     {
       "from": "module:lib/memory/providers.ts",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/providers.ts"
+    },
+    {
+      "from": "module:lib/memory/providers.ts",
       "to": "module:lib/observability/tracer.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -14935,6 +14951,13 @@
     },
     {
       "from": "module:lib/models/endpoints.ts",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
       "to": "env:ANTHROPIC_BASE_URL",
       "rel": "requires_env",
       "tier": "extracted",
@@ -15090,6 +15113,13 @@
     {
       "from": "module:lib/models/gateway.ts",
       "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gateway.ts"
+    },
+    {
+      "from": "module:lib/models/gateway.ts",
+      "to": "module:lib/models/urls.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gateway.ts"
@@ -15468,6 +15498,13 @@
     {
       "from": "module:lib/models/kimiAdapter.ts",
       "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/kimiAdapter.ts",
+      "to": "module:lib/models/urls.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/kimiAdapter.ts"
