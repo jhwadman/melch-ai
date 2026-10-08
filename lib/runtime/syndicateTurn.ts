@@ -59,6 +59,7 @@ import { InProcessSessionService, TEMP_STATE_PREFIX } from './sessions.ts';
 import type { WorkflowGraph } from '../workflow/graph.ts';
 import { UnsupportedWorkflowResumeError } from '../workflow/resume.ts';
 import { runNativeWorkflow } from '../workflow/turn.ts';
+import { NODE_RUN_LIMIT, NodeRunLimitError } from '../workflow/scheduler.ts';
 import { SelfCorrection } from './native/selfCorrection.ts';
 import { UnsupportedOnRuntimeError, chooseRuntime } from './runtimeFlag.ts';
 import type { RuntimeName } from './runtimeFlag.ts';
@@ -1091,7 +1092,10 @@ async function runTurnInner(
       result.status = 'failed';
       result.failedStage = 'workflow';
       // A pause only ADK can resume fails the turn on native rather than walking afresh (ADR 0094, ADR 0095).
-      result.error = { code: last instanceof UnsupportedWorkflowResumeError ? 'RESUME_UNSUPPORTED' : 'NODE_FAILED', message: last.message };
+      // The walk's node-run ceiling ends the turn by its own code, with a progress line (ADR 0105, native only).
+      const code = last instanceof UnsupportedWorkflowResumeError ? 'RESUME_UNSUPPORTED' : last instanceof NodeRunLimitError ? NODE_RUN_LIMIT : 'NODE_FAILED';
+      if (last instanceof NodeRunLimitError) ev.onProgress?.(`Stopped: the workflow reached its limit of ${last.limit} node runs`);
+      result.error = { code, message: last.message };
       return finish();
     }
     result.answer = answer;

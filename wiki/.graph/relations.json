@@ -2825,6 +2825,30 @@
       "evidence": "wiki/overview/architecture.md item 4: the runtime picked by MELCHIZEDEK_RUNTIME or the turn's runtime option (\"native by default since 0.20.0; adk needs the optional peer @google/adk ... ADR 0102\").",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0105 decisions 1-3: runWorkflowGraph counts every run it starts, and \"the run that would pass the ceiling fails its node\" with NodeRunLimitError.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "/decisions/0101-native-loop-security-gate.md",
+      "rel": "explains",
+      "evidence": "ADR 0105 context: \"The security gate recorded it as R4 (ADR 0101)\"; consequences: \"Native-loop-security R4 moves from recorded to fixed.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "/operations/native-loop-security.md",
+      "rel": "mitigates",
+      "evidence": "wiki/operations/native-loop-security.md F7: the walk's node-run ceiling, NODE_RUN_LIMIT (ADR 0105); native only, ADK has no ceiling.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

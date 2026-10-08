@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 867,
-    "edges": 3432,
+    "nodes": 869,
+    "edges": 3445,
     "byKind": {
-      "doc": 167,
+      "doc": 168,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 156,
+      "file": 157,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 738,
+      "links_to": 742,
       "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 841,
+      "imports": 843,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 851,
-      "constrains": 198,
+      "derives_from": 855,
+      "constrains": 199,
       "supersedes": 8,
       "depends_on": 107,
-      "explains": 35,
-      "mitigates": 2,
+      "explains": 36,
+      "mitigates": 3,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3080,
-      "inferred": 352
+      "extracted": 3090,
+      "inferred": 355
     },
     "isolated": 4
   },
@@ -1625,6 +1625,18 @@
       }
     },
     {
+      "id": "/decisions/0105-workflow-node-run-ceiling.md",
+      "kind": "doc",
+      "label": "ADR 0105: a native workflow walk starts at most 20 × max_steps node runs",
+      "source": "/decisions/0105-workflow-node-run-ceiling.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 874
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1837,7 +1849,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2930
+        "words": 3007
       }
     },
     {
@@ -1933,7 +1945,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4138
+        "words": 4422
       }
     },
     {
@@ -4678,6 +4690,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/workflowNodeRunLimit.test.ts",
+      "kind": "file",
+      "label": "workflowNodeRunLimit.test.ts",
+      "source": "tests/workflowNodeRunLimit.test.ts"
+    },
+    {
       "id": "file:tests/workflowParity.test.ts",
       "kind": "file",
       "label": "workflowParity.test.ts",
@@ -5677,7 +5695,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1205
+        "lines": 1209
       }
     },
     {
@@ -6352,7 +6370,7 @@
       "label": "lib/workflow/scheduler.ts",
       "source": "lib/workflow/scheduler.ts",
       "attrs": {
-        "lines": 993
+        "lines": 1063
       }
     },
     {
@@ -14432,6 +14450,48 @@
       "evidence": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md:44"
     },
     {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "file:tests/workflowNodeRunLimit.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0105-workflow-node-run-ceiling.md frontmatter"
+    },
+    {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0105-workflow-node-run-ceiling.md frontmatter"
+    },
+    {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0105-workflow-node-run-ceiling.md frontmatter"
+    },
+    {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0105-workflow-node-run-ceiling.md frontmatter"
+    },
+    {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0105-workflow-node-run-ceiling.md:24"
+    },
+    {
+      "from": "/decisions/0105-workflow-node-run-ceiling.md",
+      "to": "/decisions/0101-native-loop-security-gate.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0105-workflow-node-run-ceiling.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -17002,6 +17062,13 @@
     },
     {
       "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0105-workflow-node-run-ceiling.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:154"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18216,21 +18283,21 @@
       "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:95"
+      "evidence": "/overview/workflow-scheduler.md:97"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:120"
+      "evidence": "/overview/workflow-scheduler.md:122"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:146"
+      "evidence": "/overview/workflow-scheduler.md:148"
     },
     {
       "from": "/overview/workflow-scheduler.md",
@@ -18244,14 +18311,21 @@
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:165"
+      "evidence": "/overview/workflow-scheduler.md:167"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:85"
+      "evidence": "/overview/workflow-scheduler.md:86"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0105-workflow-node-run-ceiling.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:91"
     },
     {
       "from": "/overview/workflow-scheduler.md",
@@ -24394,6 +24468,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/workflow/turn.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26169,6 +26250,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/route.ts"
+    },
+    {
+      "from": "module:lib/workflow/scheduler.ts",
+      "to": "module:lib/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/scheduler.ts"
     },
     {
       "from": "module:lib/workflow/scheduler.ts",
