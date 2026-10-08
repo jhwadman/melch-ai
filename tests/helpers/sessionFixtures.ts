@@ -11,8 +11,6 @@ import { fileURLToPath } from 'node:url';
 import { InMemorySessionService } from '@google/adk';
 import type { BaseSessionService, Event } from '@google/adk';
 
-import { inputRequestFrom } from '../../lib/workflow.ts';
-import type { PendingInput } from '../../lib/workflow.ts';
 
 export const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'sessions');
 
@@ -74,24 +72,5 @@ export async function seedSessions(fixture: SessionFixture, service: BaseSession
   return service;
 }
 
-/**
- * The workflow question (`adk_request_input`) still open in a session's
- * events, or undefined. The answer is stored as the person's next text
- * message, not as a function response, so a user message after the question
- * closes it.
- */
-export function pendingWorkflowInput(events: readonly Event[]): PendingInput | undefined {
-  const answered = new Set<string>();
-  for (let i = events.length - 1; i >= 0; i--) {
-    const parts = (events[i]!.content?.parts ?? []) as Array<Record<string, any>>;
-    if (events[i]!.author === 'user' && parts.some((p) => typeof p.text === 'string' && p.text.trim() && !p.thought)) return undefined;
-    for (const p of parts) if (p.functionResponse?.id) answered.add(p.functionResponse.id);
-    for (const p of parts) {
-      const call = p.functionCall;
-      if (!call || (call.id && answered.has(call.id))) continue;
-      const input = inputRequestFrom(events[i]!.author, call);
-      if (input) return input;
-    }
-  }
-  return undefined;
-}
+/** Moved into the library beside pendingQuestion (lib/runtime/questions.ts); re-exported for the suites that read it here. */
+export { pendingWorkflowInput } from '../../lib/runtime/questions.ts';

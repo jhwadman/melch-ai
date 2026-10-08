@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 839,
-    "edges": 3035,
+    "nodes": 842,
+    "edges": 3061,
     "byKind": {
-      "doc": 156,
+      "doc": 157,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 144,
+      "file": 145,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 193,
+      "module": 194,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 623,
+      "links_to": 628,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 760,
+      "imports": 768,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 727,
-      "constrains": 158,
+      "derives_from": 734,
+      "constrains": 160,
       "supersedes": 7,
-      "depends_on": 82,
-      "explains": 26,
+      "depends_on": 85,
+      "explains": 27,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2759,
-      "inferred": 276
+      "extracted": 2779,
+      "inferred": 282
     },
     "isolated": 4
   },
@@ -1505,6 +1505,18 @@
       }
     },
     {
+      "id": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "kind": "doc",
+      "label": "ADR 0094: A paused workflow resumes on the scheduler by rebuilding every node's state from the stored events, as ADK's rehydration does",
+      "source": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1263
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1801,7 +1813,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2373
+        "words": 3030
       }
     },
     {
@@ -4493,6 +4505,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/workflowResume.test.ts",
+      "kind": "file",
+      "label": "workflowResume.test.ts",
+      "source": "tests/workflowResume.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/workflowScheduler.test.ts",
       "kind": "file",
       "label": "workflowScheduler.test.ts",
@@ -5429,7 +5448,7 @@
       "label": "lib/runtime/questions.ts",
       "source": "lib/runtime/questions.ts",
       "attrs": {
-        "lines": 127
+        "lines": 154
       }
     },
     {
@@ -6095,7 +6114,16 @@
       "label": "lib/workflow/pause.ts",
       "source": "lib/workflow/pause.ts",
       "attrs": {
-        "lines": 204
+        "lines": 231
+      }
+    },
+    {
+      "id": "module:lib/workflow/resume.ts",
+      "kind": "module",
+      "label": "lib/workflow/resume.ts",
+      "source": "lib/workflow/resume.ts",
+      "attrs": {
+        "lines": 473
       }
     },
     {
@@ -6113,7 +6141,7 @@
       "label": "lib/workflow/scheduler.ts",
       "source": "lib/workflow/scheduler.ts",
       "attrs": {
-        "lines": 866
+        "lines": 935
       }
     },
     {
@@ -13062,6 +13090,69 @@
       "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md:26"
     },
     {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "file:tests/workflowResume.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md frontmatter"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md frontmatter"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md frontmatter"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md frontmatter"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md frontmatter"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md:25"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md:56"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md:25"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md:55"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -16248,6 +16339,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "file:tests/workflowResume.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "file:tests/workflowScheduler.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -16283,6 +16381,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "module:lib/workflow/scheduler.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -16300,49 +16405,56 @@
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:25"
+      "evidence": "/overview/workflow-scheduler.md:27"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:25"
+      "evidence": "/overview/workflow-scheduler.md:27"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:25"
+      "evidence": "/overview/workflow-scheduler.md:27"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:86"
+      "evidence": "/overview/workflow-scheduler.md:89"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:111"
+      "evidence": "/overview/workflow-scheduler.md:114"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:140"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:25"
+      "evidence": "/overview/workflow-scheduler.md:27"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-graph.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:25"
+      "evidence": "/overview/workflow-scheduler.md:27"
     },
     {
       "from": "/protocols/a2a.md",
@@ -23843,6 +23955,13 @@
     },
     {
       "from": "module:lib/workflow/pause.ts",
+      "to": "module:lib/workflow/nodeEvents.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/pause.ts"
+    },
+    {
+      "from": "module:lib/workflow/pause.ts",
       "to": "module:lib/workflow/scheduler.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23861,6 +23980,48 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/pause.ts"
+    },
+    {
+      "from": "module:lib/workflow/resume.ts",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/resume.ts"
+    },
+    {
+      "from": "module:lib/workflow/resume.ts",
+      "to": "module:lib/runtime/credentials.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/resume.ts"
+    },
+    {
+      "from": "module:lib/workflow/resume.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/resume.ts"
+    },
+    {
+      "from": "module:lib/workflow/resume.ts",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/resume.ts"
+    },
+    {
+      "from": "module:lib/workflow/resume.ts",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/resume.ts"
+    },
+    {
+      "from": "module:lib/workflow/resume.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/resume.ts"
     },
     {
       "from": "module:lib/workflow/route.ts",
@@ -23886,6 +24047,13 @@
     {
       "from": "module:lib/workflow/scheduler.ts",
       "to": "module:lib/workflow/graph.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/scheduler.ts"
+    },
+    {
+      "from": "module:lib/workflow/scheduler.ts",
+      "to": "module:lib/workflow/resume.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/scheduler.ts"

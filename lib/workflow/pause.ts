@@ -31,12 +31,18 @@
  * Serialized, both events are the JSON ADK stores, key for key
  * (tests/workflowPause.test.ts compares them), so the turn runner's reader
  * (drainAgentStream, inputRequestFrom) reads the same `result.input` from
- * either runtime, and the resume (WS4-4b) can rebuild the node states from
+ * either runtime, and the resume (lib/workflow/resume.ts) rebuilds the node states from
  * them as ADK's rehydration does.
  *
- * NOT HERE: the resume (the reply as `{ reply, input }`, WS4-4b), a pause
- * inside an agent node, and the native refusal of a workflow syndicate,
- * which WS4-6 lifts. The question and the payload are data written into
+ * THE RESUME (ADR 0094). A resumed walk (lib/workflow/resume.ts) reruns
+ * the paused node on the input it recorded, with the answers in
+ * `run.resumeInputs`. With an answer there the node does not ask again: its
+ * output is `{ reply, input }`, the last answer and its input, written on
+ * one event as ADK's FunctionNode writes a handler's output, which is what
+ * the FunctionNode lib/workflow.ts compiles returns.
+ *
+ * NOT HERE: a pause inside an agent node, and the native refusal of a
+ * workflow syndicate, which WS4-6 lifts. The question and the payload are data written into
  * the event, never instructions this module acts on.
  */
 
@@ -47,6 +53,7 @@ import type { TurnEvent } from '../runtime/events.ts';
 import { INPUT_REQUEST } from '../workflowConfig.ts';
 import type { AskUserNode } from './graph.ts';
 import type { NodeResult, NodeRun, NodeRunner } from './scheduler.ts';
+import { nodeOutputContent } from './nodeEvents.ts';
 import { enrichNodeEvent } from './toolNode.ts';
 
 /** The arg ADK writes the response schema under. */
@@ -143,10 +150,30 @@ export function requestInputEvent(request: InputRequest): TurnEvent {
 // ── 2 and 3. One run ─────────────────────────────────────────────────────────
 
 /**
+ * ADK's FunctionNode output event for a handler's value (base_node.js
+ * toContent, function_node.js toEvent): the value as its content
+ * (nodeOutputContent, the port of toContent; `{ reply, input }` is one model
+ * text part holding its JSON) and as the event's output, stamped.
+ */
+export function answeredEvent(output: unknown, run: Pick<NodeRun, 'path' | 'branch'>, context: Pick<AskUserNodeContext, 'invocationId' | 'outputForAncestors' | 'isolationScope'>): TurnEvent {
+  const name = run.path.slice(run.path.lastIndexOf('.') + 1);
+  const event = createTurnEvent({ author: name, invocationId: context.invocationId, branch: run.branch, content: nodeOutputContent(output), output });
+  return enrichNodeEvent(event, run, context);
+}
+
+/**
  * Run one ask_user node: its request event, stamped as ADK's node runner
  * stamps it, to `context.onEvent`, and the interrupt as the run's result.
+ * On a resume with an answer, the node's `{ reply, input }` instead.
  */
-export function runAskUserNode(node: AskUserNode, run: Pick<NodeRun, 'input' | 'path' | 'branch'>, context: AskUserNodeContext): NodeResult {
+export function runAskUserNode(node: AskUserNode, run: Pick<NodeRun, 'input' | 'path' | 'branch' | 'resumeInputs'>, context: AskUserNodeContext): NodeResult {
+  // lib/workflow.ts's handler: every answer the resumed walk holds, the last one the reply.
+  const replies = Object.values(run.resumeInputs ?? {});
+  if (replies.length > 0) {
+    const output = { reply: replies[replies.length - 1], input: run.input };
+    context.onEvent?.(answeredEvent(output, run, context));
+    return { output };
+  }
   const interruptId = (context.newInterruptId ?? randomUUID)();
   const event = requestInputEvent({ interruptId, message: node.message, payload: run.input, ...(node.schema ? { responseSchema: node.schema } : {}) });
   enrichNodeEvent(event, run, context);

@@ -2217,6 +2217,54 @@
       "evidence": "ADR 0093 Decision 3: \"agentNodeRuntime queues a node's input turn synchronously as the node starts ... and queues an event another runner hands to store one microtask later\"; Decision 1: runAgentNode builds the workflow scope.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0094 Context: ADR 0092 made an ask_user node pause the walk and store ADK's events for it; the resume rebuilds the node states from them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0094 Context: Gate G4 of ADR 0045 needs the answer to resume the walk without ADK, and its stop rule needs every ADK-written session to resume under native.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0094 Decision 2: the scheduler's seam is one option (RunWorkflowOptions.resume) that changes only how a node's first activation starts, in the loop ADR 0087 copied from ADK.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0094 Decision 1: lib/workflow/resume.ts is ADK's rehydration, function for function, with no ADK import.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0094 Decision 2: a node completed from its stored run emits node_resumed instead of node_start and node_end, and neither shortcut counts as a run.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-scheduler.md, section Ask_user nodes: the resume: workflowResume's steps, the scheduler's resume seam, the ask_user rerun, the refusal of nested pauses, pendingWorkflowInput, and the parity suite.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
