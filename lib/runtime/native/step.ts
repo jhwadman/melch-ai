@@ -28,6 +28,11 @@
  *     longRunningToolIds; a set_model_response call becomes its arguments as
  *     JSON text, ending the step (skipSummarization). An answer with no
  *     parts, no error and no usage makes no event.
+ *   - SELF-CORRECTION (ADR 0075). With the caller's `correction`, the
+ *     request declares the reflection tool after the agent's tools, and each
+ *     response passes through it first, as ADK's reflect-and-retry model
+ *     plugin sees it: a retry may stand in its place, or the step may end on
+ *     the plugin's UNKNOWN_ERROR event (lib/runtime/native/selfCorrection.ts).
  *   - STORAGE. A final event is appended through the SessionService, which
  *     applies the store's own rules (trimming, state). A partial event is
  *     handed to the caller for streaming and stored nowhere.
@@ -55,6 +60,7 @@ import { toolOf } from '../../tools/tool.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import { SET_MODEL_RESPONSE, buildModelRequest } from './request.ts';
 import type { NativeAgent } from './request.ts';
+import type { ModelCorrection } from './selfCorrection.ts';
 
 export interface ModelStepOptions {
   agent: NativeAgent;
@@ -93,6 +99,13 @@ export interface ModelStepOptions {
    * a fallback model answers the step instead (ADR 0044, ADR 0053).
    */
   redirect?: (final: FinalModelResponse, produced: boolean) => boolean;
+  /**
+   * Self-correction's model side (lib/runtime/native/selfCorrection.ts):
+   * its reflection tool is declared after the agent's tools, and every
+   * response passes through it before it is recorded, as ADK's
+   * reflect-and-retry model plugin sees it.
+   */
+  correction?: ModelCorrection;
 }
 
 /** Why a step made no call, or stopped answering: the turn's own stop. */
@@ -132,7 +145,8 @@ function eitherSignal(...candidates: Array<AbortSignal | undefined>): AbortSigna
 }
 
 /** The turn's stop, as the turn runner reports it; a cancel when the signal aborted outside a turn. */
-function stopOf(): StepStop {
+/** The turn's stop, as a step reports it. */
+export function stopOf(): StepStop {
   const reason = currentTurnControl()?.stopReason ?? 'canceled';
   return { code: stopCode(reason), message: stopMessage(reason, currentTurnControl()) };
 }
@@ -168,6 +182,7 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
     ...(options.memory ? { memory: options.memory } : {}),
     stream: options.stream ?? false,
     ...(signal ? { signal } : {}),
+    ...(options.correction ? { extraTools: options.correction.tools } : {}),
   });
   if (options.model) request.model = options.model;
   const result: ModelStepResult = { request, text: '', thinking: '', toolCalls: [], longRunningToolIds: [], tools };
@@ -189,16 +204,27 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
   }
 
   let produced = false;
-  for await (const llmResponse of traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, inner())) {
+  for await (const traced of traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, inner())) {
     if (signal?.aborted) return { ...result, stopped: stopOf() };
-    const source = sources.get(llmResponse);
+    const source = sources.get(traced);
     if (!source) {
       // A refusal the tracer made in place of the call: the turn has stopped.
-      return { ...result, stopped: { code: String(llmResponse.errorCode), message: String(llmResponse.errorMessage ?? '') } };
+      return { ...result, stopped: { code: String(traced.errorCode), message: String(traced.errorMessage ?? '') } };
     }
     // Leaving the loop closes this call (and its span) before a fallback's opens.
     if (!source.partial && source.error && options.redirect?.(source, produced)) return { ...result, response: source, redirected: source.error };
     produced = true;
+    // Self-correction sees the response as ADK's afterModelCallback does: it may stand a retry in its place, or end the step.
+    const corrected = options.correction?.afterModel(traced) ?? { response: traced, replaced: false };
+    if ('failed' in corrected) {
+      // ADK's runAndHandleError: a callback that threw ends the step on an error event of its own.
+      const { code, message } = corrected.failed;
+      const event = createTurnEvent({ invocationId: options.invocationId, author: agent.name, errorCode: code, errorMessage: message });
+      options.beforeAppend?.(event);
+      const stored = await sessions.append(session, event);
+      return { ...result, event: stored, ...(source.partial ? {} : { response: source }), error: { code, message, retryable: false } };
+    }
+    const llmResponse = corrected.response;
     if (!makesEvent(llmResponse)) {
       if (!source.partial) result.response = source;
       continue;
@@ -228,7 +254,7 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
     const stored = await sessions.append(session, event);
     result.event = stored;
     result.response = source;
-    if (source.error) result.error = source.error;
+    if (source.error && !corrected.replaced) result.error = source.error;
     result.text = (stored.content?.parts ?? []).filter((p) => !p.thought && typeof p.text === 'string').map((p) => p.text).join('');
     result.toolCalls = getFunctionCalls(stored).map((c) => ({ type: 'toolCall', id: c.id as string, name: c.name ?? '', args: c.args ?? {} }));
     result.longRunningToolIds = [...(stored.longRunningToolIds ?? [])];

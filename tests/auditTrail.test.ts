@@ -40,7 +40,7 @@ before(async () => {
     serverSecret: SECRET,
     storage: {
       sessionService: new InMemorySessionService(),
-      erase: async () => ({ memory_facts: 2, sessions: 1, turns: 3, spans: 0, payloads: 0, verdicts: 0, labels: 0, tasks: 1, memory_markers: 1, task_tools: 0 }),
+      erase: async () => ({ memory_facts: 2, sessions: 1, turns: 3, spans: 0, payloads: 0, verdicts: 0, labels: 0, tasks: 1, memory_markers: 1, task_tools: 0, credentials: 1 }),
     },
     audit: (e) => events.push(e),
     resolveModel: () => new ScriptedLlm('scripted/echo', () => text('the secret recipe is basil')),
