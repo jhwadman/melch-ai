@@ -42,6 +42,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { SKILL_LIMITS, readFileBounded } from './loader.ts';
 import type { Skill } from './loader.ts';
 
 /** The languages a script can be in, by its extension (ADK's CodeExecutionLanguage values). */
@@ -332,10 +333,11 @@ export class LocalScriptExecutor {
         const staged = new Set((input.inputFiles ?? []).map((f) => f.name));
         for (const relativePath of await fs.readdir(cwd, { recursive: true })) {
           const fullPath = path.join(cwd, relativePath);
-          if (!(await fs.lstat(fullPath)).isFile()) continue;
           if (relativePath === path.basename(filePath) || staged.has(relativePath)) continue;
+          // One open handle (no symlink followed): the file checked is the file read.
+          const content = await readFileBounded(fullPath, SKILL_LIMITS.resourceBytes).catch(() => undefined);
+          if (!content) continue;
           const { mimeType, encoding } = mimeTypeAndEncoding(path.extname(relativePath));
-          const content = await fs.readFile(fullPath);
           outputFiles.push({ name: relativePath, content: content.toString(encoding === 'utf-8' ? 'utf-8' : 'base64'), contentEncoding: encoding, mimeType });
         }
       } catch {

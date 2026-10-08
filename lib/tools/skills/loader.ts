@@ -30,6 +30,7 @@
  */
 
 import { isUtf8 } from 'node:buffer';
+import { constants as fsConstants } from 'node:fs';
 import type { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -53,6 +54,30 @@ export interface Skill {
 }
 
 /** What the loader refuses to read. */
+/**
+ * A file's bytes read through one open handle, so the size checked is the
+ * size of the file read (no check-then-read race): undefined when it holds
+ * more than `maxBytes`, or is not a regular file.
+ */
+export async function readFileBounded(file: string, maxBytes: number): Promise<Buffer | undefined> {
+  const handle = await fs.open(file, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.size > maxBytes) return undefined;
+    const buffer = Buffer.alloc(maxBytes + 1);
+    let length = 0;
+    for (;;) {
+      const { bytesRead } = await handle.read(buffer, length, buffer.length - length, length);
+      if (bytesRead === 0) break;
+      length += bytesRead;
+      if (length > maxBytes) return undefined;
+    }
+    return buffer.subarray(0, length);
+  } finally {
+    await handle.close();
+  }
+}
+
 export const SKILL_LIMITS = {
   /** Bytes a SKILL.md may hold. */
   skillMdBytes: MAX_SKILL_MD_CHARS,
@@ -114,13 +139,13 @@ async function loadDir(directoryPath: string, budget: { files: number }, opts: L
           opts.onWarning?.(`skipped '${fullPath}': a skill ships at most ${SKILL_LIMITS.resourceFiles} files`);
           continue;
         }
-        const { size } = await fs.stat(fullPath);
-        if (size > SKILL_LIMITS.resourceBytes) {
+        const bytes = await readFileBounded(fullPath, SKILL_LIMITS.resourceBytes);
+        if (!bytes) {
           opts.onWarning?.(`skipped '${fullPath}': larger than ${SKILL_LIMITS.resourceBytes} bytes`);
           continue;
         }
         budget.files -= 1;
-        Object.defineProperty(files, relativePath, { value: decode(await fs.readFile(fullPath)), enumerable: true, writable: true, configurable: true });
+        Object.defineProperty(files, relativePath, { value: decode(bytes), enumerable: true, writable: true, configurable: true });
       }
     }
   };
@@ -154,9 +179,9 @@ export async function loadSkillFile(skillDir: string): Promise<{ frontmatter: Sk
     if (!entry.isFile() || entry.name.toLowerCase() !== 'skill.md') continue;
     const file = path.join(resolvedDir, entry.name);
     try {
-      const { size } = await fs.stat(file);
-      if (size > SKILL_LIMITS.skillMdBytes) throw new Error(`SKILL.md is larger than ${SKILL_LIMITS.skillMdBytes} bytes`);
-      content = await fs.readFile(file, 'utf-8');
+      const bytes = await readFileBounded(file, SKILL_LIMITS.skillMdBytes);
+      if (!bytes) throw new Error(`SKILL.md is larger than ${SKILL_LIMITS.skillMdBytes} bytes`);
+      content = bytes.toString('utf-8');
       break;
     } catch (e) {
       if ((e as Error).message.startsWith('SKILL.md is larger')) throw e;

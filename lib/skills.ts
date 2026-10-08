@@ -15,7 +15,7 @@
  * A SKILL.md's frontmatter is read by the skills harness's own parser
  * (lib/tools/skills/frontmatter.ts), the one an agent's `skills:` uses.
  */
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,8 +70,17 @@ export function resolveSkillsSource(from: string = fileURLToPath(import.meta.url
  */
 function frontmatterOf(file: string): Record<string, unknown> {
   try {
-    if (statSync(file).size > MAX_SKILL_MD_CHARS) return {};
-    return parseSkillMd(readFileSync(file, 'utf-8')).raw;
+    // One open file: the size checked is the size of the file read.
+    const fd = openSync(file, 'r');
+    try {
+      if (fstatSync(fd).size > MAX_SKILL_MD_CHARS) return {};
+      const buffer = Buffer.alloc(MAX_SKILL_MD_CHARS + 1);
+      const length = readSync(fd, buffer, 0, buffer.length, 0);
+      if (length > MAX_SKILL_MD_CHARS) return {};
+      return parseSkillMd(buffer.subarray(0, length).toString('utf-8')).raw;
+    } finally {
+      closeSync(fd);
+    }
   } catch {
     return {};
   }
