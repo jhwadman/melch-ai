@@ -3,13 +3,17 @@
  * (ADR 0023, lib/models/endpoints.ts). Offline: the Bedrock, Vertex AI and
  * Entra ID SDKs are mocked through setSdkImporter, Azure OpenAI through a
  * captured fetch. These paths are not verified against the live clouds.
+ *
+ * The adapters are driven on the engine's contract (ClaudeAdapter,
+ * GptAdapter, resolveAdapter): a ModelRequest in, the wire body out. Their
+ * ADK shims (ClaudeLlm, GptLlm) send the same bodies
+ * (tests/shimBodies.test.ts).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { setLogLevel, LogLevel } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
 
 import {
   azureBaseURL,
@@ -20,12 +24,12 @@ import {
   providerReady,
   setSdkImporter,
 } from '../lib/models/endpoints.ts';
-import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
-import { GptLlm } from '../lib/models/gptLlm.ts';
-import { TracedGemini, resolveModel } from '../lib/models/registry.ts';
+import type { FinalModelResponse, ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
+import { ClaudeAdapter } from '../lib/models/claudeAdapter.ts';
+import { GptAdapter } from '../lib/models/gptAdapter.ts';
+import { TracedGemini, resolveAdapter, resolveModel } from '../lib/models/registry.ts';
 import { capabilityOf, describeCapabilities } from '../lib/models/capabilities.ts';
 import { endpointRows } from '../lib/doctor.ts';
-import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -49,19 +53,23 @@ afterEach(() => {
   setSdkImporter(undefined);
 });
 
-const req = (model: string, tools = false): LlmRequest =>
-  ({
-    model,
-    contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
-    liveConnectConfig: {} as any,
-    toolsDict: tools ? { web_search: WEB_SEARCH } : {},
-    config: {},
-  }) as unknown as LlmRequest;
+const req = (model: string, tools = false): ModelRequest => ({
+  model,
+  messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
+  ...(tools ? { nativeTools: ['web_search' as const] } : {}),
+});
 
-async function drain(gen: AsyncGenerator<LlmResponse, void>): Promise<LlmResponse[]> {
-  const out: LlmResponse[] = [];
+async function drain(gen: AsyncIterable<ModelResponse>): Promise<ModelResponse[]> {
+  const out: ModelResponse[] = [];
   for await (const r of gen) out.push(r);
   return out;
+}
+
+/** The call's one final, last. */
+function finalOf(out: ModelResponse[]): FinalModelResponse {
+  const final = out.at(-1);
+  assert.ok(final && !final.partial, 'the call ends on a final');
+  return final;
 }
 
 test('the environment selects a platform per provider; direct is the default', () => {
@@ -137,12 +145,14 @@ test('Claude on Bedrock: the Bedrock client, the mapped id, web_search not sent'
     imported.push(m);
     return { AnthropicBedrock };
   });
-  const out = await drain(new ClaudeLlm({ model: 'claude-sonnet-x' }).generateContentAsync(req('claude-sonnet-x', true)));
+  const out = await drain(new ClaudeAdapter({ model: 'claude-sonnet-x' }).generate(req('claude-sonnet-x', true)));
   assert.deepEqual(imported, ['@anthropic-ai/bedrock-sdk']);
   assert.deepEqual(options, { awsRegion: 'us-east-1' });
   assert.equal(body.model, 'us.anthropic.claude-sonnet-x-v1:0');
   assert.ok(!(body.tools ?? []).some((t: any) => t.name === 'web_search'), 'web_search is not sent on Bedrock');
-  assert.equal(out.at(-1)?.content?.parts?.[0]?.text, 'hi from bedrock');
+  const final = finalOf(out);
+  assert.equal(final.error, undefined);
+  assert.deepEqual(final.parts, [{ type: 'text', text: 'hi from bedrock' }]);
 });
 
 test('Claude on a cloud platform without its SDK says which package to install', async () => {
@@ -150,13 +160,13 @@ test('Claude on a cloud platform without its SDK says which package to install',
   setSdkImporter(async () => {
     throw new Error('Cannot find package');
   });
-  const out = await drain(new ClaudeLlm({ model: 'claude-x' }).generateContentAsync(req('claude-x')));
-  assert.equal(out[0]?.errorCode, 'SDK_NOT_INSTALLED');
-  assert.match(out[0]?.errorMessage ?? '', /npm install @anthropic-ai\/vertex-sdk/);
+  const final = finalOf(await drain(new ClaudeAdapter({ model: 'claude-x' }).generate(req('claude-x'))));
+  assert.equal(final.error?.code, 'SDK_NOT_INSTALLED');
+  assert.match(final.error?.message ?? '', /npm install @anthropic-ai\/vertex-sdk/);
 });
 
-/** One GptLlm request with fetch captured: the URL, headers and body. */
-async function captureGpt(llm: GptLlm, request: LlmRequest) {
+/** One request through a GPT adapter with fetch captured: the URL, headers and body. */
+async function captureGpt(adapter: ModelAdapter, request: ModelRequest) {
   const originalFetch = globalThis.fetch;
   let seen: { url: string; headers: Headers; body: any } | undefined;
   globalThis.fetch = (async (input: any, init: any) => {
@@ -165,7 +175,7 @@ async function captureGpt(llm: GptLlm, request: LlmRequest) {
     return new Response(JSON.stringify({ error: { message: 'captured' } }), { status: 400, headers: { 'content-type': 'application/json' } });
   }) as any;
   try {
-    await drain(llm.generateContentAsync(request));
+    await drain(adapter.generate(request));
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -180,7 +190,7 @@ test('GPT on Azure OpenAI: the v1 endpoint, the deployment name, the key header,
     AZURE_OPENAI_API_KEY: 'fixture-azure-0123456789',
     OPENAI_MODEL_MAP: '{"gpt-5-mini":"acme-gpt5mini"}',
   });
-  const seen = await captureGpt(new GptLlm({ model: 'gpt-5-mini' }), req('gpt-5-mini', true));
+  const seen = await captureGpt(new GptAdapter({ model: 'gpt-5-mini' }), req('gpt-5-mini', true));
   assert.equal(seen.url, 'https://acme.openai.azure.com/openai/v1/responses');
   assert.equal(seen.body.model, 'acme-gpt5mini');
   assert.equal(seen.headers.get('authorization'), 'Bearer fixture-azure-0123456789');
@@ -197,20 +207,21 @@ test('GPT on Azure without a key authenticates with an Entra ID token', async ()
       getBearerTokenProvider: (_cred: unknown, s: string) => ((scope = s), async () => 'fixture-entra-token'),
     };
   });
-  const seen = await captureGpt(new GptLlm({ model: 'gpt-5-mini' }), req('gpt-5-mini'));
+  const seen = await captureGpt(new GptAdapter({ model: 'gpt-5-mini' }), req('gpt-5-mini'));
   assert.equal(scope, 'https://cognitiveservices.azure.com/.default');
   assert.equal(seen.headers.get('authorization'), 'Bearer fixture-entra-token');
 });
 
 test('an OpenAI-compatible proxy: OPENAI_BASE_URL, or an endpoint from the credentials plug point', async () => {
   withEnv({ OPENAI_API_KEY: 'fixture-openai-0123456789', OPENAI_BASE_URL: 'https://llm-proxy.internal/v1' });
-  let seen = await captureGpt(new GptLlm({ model: 'gpt-5-mini' }), req('gpt-5-mini', true));
+  let seen = await captureGpt(new GptAdapter({ model: 'gpt-5-mini' }), req('gpt-5-mini', true));
   assert.equal(seen.url, 'https://llm-proxy.internal/v1/responses');
   assert.ok((seen.body.tools ?? []).some((t: any) => t.type === 'web_search'), 'a direct proxy keeps the native tool');
 
   withEnv({});
-  const llm = resolveModel('gpt-5-mini', { endpoint: { baseURL: 'https://tenant-proxy.internal/v1', apiKey: 'fixture-tenant-key' } });
-  seen = await captureGpt(llm as GptLlm, req('gpt-5-mini'));
+  const adapter = resolveAdapter('gpt-5-mini', { endpoint: { baseURL: 'https://tenant-proxy.internal/v1', apiKey: 'fixture-tenant-key' } });
+  assert.ok(adapter instanceof GptAdapter);
+  seen = await captureGpt(adapter, req('gpt-5-mini'));
   assert.equal(seen.url, 'https://tenant-proxy.internal/v1/responses');
   assert.equal(seen.headers.get('authorization'), 'Bearer fixture-tenant-key');
 });

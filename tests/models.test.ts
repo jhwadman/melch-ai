@@ -7,14 +7,20 @@
  *   - provider availability gating (env-based, registration is pure)
  *   - adapter usage/thinking extraction against a stubbed fetch
  *   - the web_search tool's per-provider request shaping
+ *
+ * The adapters are driven on the engine's contract (lib/models/contract.ts,
+ * ADR 0048): a ModelRequest in, the wire body and the ModelResponses out,
+ * so the native runtime inherits every case. Under ADK each adapter runs
+ * behind its shim class (OllamaLlm, KimiLlm, GatewayLlm, GrokLlm, GptLlm,
+ * ClaudeLlm), which tests/shimBodies.test.ts holds to the same bodies.
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { setLogLevel, LogLevel, LlmAgent, AgentTool, LOAD_MEMORY } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
 
-import { toLowercaseJsonSchema } from '../lib/models/schemaNormalize.ts';
+import type { FinalModelResponse, ModelAdapter, ModelRequest, ModelResponse, ToolDeclaration } from '../lib/models/contract.ts';
+import { contractToolDeclaration, toLowercaseJsonSchema } from '../lib/models/schemaNormalize.ts';
 import {
   providerForModel,
   providerKeyPresent,
@@ -24,38 +30,63 @@ import {
 import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
 import { GrokLlm } from '../lib/models/grokLlm.ts';
 import { KimiLlm } from '../lib/models/kimiLlm.ts';
-import { ClaudeLlm, buildAnthropicTools } from '../lib/models/claudeLlm.ts';
+import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
+import { GptLlm } from '../lib/models/gptLlm.ts';
+import { anthropicTools } from '../lib/models/claudeAdapter.ts';
 import {
-  GptLlm,
-  buildResponsesInput,
-  buildResponsesTools,
+  GptAdapter,
   extractServerToolCalls,
+  responsesInput,
+  responsesServerTools,
   serverToolUsage,
   streamEventDelta,
-} from '../lib/models/gptLlm.ts';
-import { splitThinkBlocks, mapUsage, ThinkStreamSplitter } from '../lib/models/openAiCompatibleLlm.ts';
-import { WebSearchTool, WEB_SEARCH, wantsWebSearch } from '../lib/tools/webSearchTool.ts';
-import { COLLECTIONS_SEARCH } from '../lib/tools/collectionsSearchTool.ts';
-import { X_SEARCH } from '../lib/tools/xSearchTool.ts';
+} from '../lib/models/gptAdapter.ts';
+import { GrokAdapter } from '../lib/models/grokAdapter.ts';
+import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
+import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
+import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
+import type { ChatCompletionsRequest } from '../lib/models/chatCompletionsAdapter.ts';
+import { splitThinkBlocks, ThinkStreamSplitter } from '../lib/models/chatCompletionsAdapter.ts';
+import { mapUsage } from '../lib/models/openAiCompatibleLlm.ts';
+import { captureBody } from './helpers/capabilityInputs.ts';
 
 setLogLevel(LogLevel.WARN);
 
-/** Minimal LlmRequest for adapter tests. */
-function makeRequest(overrides: Partial<LlmRequest> = {}): LlmRequest {
+/** A minimal ModelRequest: one user turn. */
+function makeRequest(overrides: Partial<ChatCompletionsRequest> = {}): ChatCompletionsRequest {
   return {
     model: 'ollama/qwen3:8b',
-    contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
-    liveConnectConfig: {} as any,
-    toolsDict: {},
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
     ...overrides,
-  } as LlmRequest;
+  };
 }
 
-async function collect(gen: AsyncGenerator<LlmResponse, void>): Promise<LlmResponse[]> {
-  const out: LlmResponse[] = [];
+async function collect(gen: AsyncIterable<ModelResponse>): Promise<ModelResponse[]> {
+  const out: ModelResponse[] = [];
   for await (const r of gen) out.push(r);
   return out;
 }
+
+/** The one final a call ends with (contract rule 4: exactly one, last). */
+function finalOf(responses: ModelResponse[]): FinalModelResponse {
+  const final = responses.at(-1);
+  assert.ok(final && !final.partial, 'the call ends on a final');
+  return final;
+}
+
+/** The final's text, its text parts joined. */
+const textOf = (final: FinalModelResponse) => final.parts.map((p) => (p.type === 'text' ? p.text : '')).join('');
+
+/** The text of every partial's thinking parts, in order. */
+const thinkingOf = (responses: ModelResponse[]) =>
+  responses.flatMap((r) => (r.partial ? r.parts.filter((p) => p.type === 'thinking').map((p) => p.text) : []));
+
+/** Runs `adapter` on `request`, streaming when asked. */
+const run = (adapter: ModelAdapter, request: ModelRequest, stream = false) => collect(adapter.generate({ ...request, stream }));
+
+/** The body the row's adapter posts for `request` (fixture keys, fetch answering 400). */
+const gptBody = (request: ModelRequest) => captureBody('openai', () => new GptAdapter({ model: request.model }).generate(request));
+const grokBody = (request: ModelRequest) => captureBody('xai', () => new GrokAdapter({ model: request.model }).generate(request));
 
 // ── Schema normalization ─────────────────────────────────────────────────────
 
@@ -141,7 +172,7 @@ test('providerStatuses reflects env keys; ollama is always available', () => {
   }
 });
 
-// ── OpenAI-compatible base: reasoning + usage extraction ────────────────────
+// ── Chat-completions base: reasoning + usage extraction ─────────────────────
 
 test('splitThinkBlocks separates the scratchpad from the answer', () => {
   const { reasoning, answer } = splitThinkBlocks('<think>step 1\nstep 2</think>The answer.');
@@ -192,7 +223,7 @@ test('mapUsage maps OpenAI-style usage to GenAI usageMetadata', () => {
   assert.equal(mapUsage(undefined), undefined);
 });
 
-test('OllamaLlm yields thought part, answer, and usageMetadata from a stubbed response', async () => {
+test('OllamaAdapter yields the thinking, the answer and the usage from a stubbed response', async () => {
   const originalFetch = globalThis.fetch;
   let requestedUrl = '';
   let requestBody: any;
@@ -208,18 +239,13 @@ test('OllamaLlm yields thought part, answer, and usageMetadata from a stubbed re
     );
   }) as any;
   try {
-    const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
-    const responses = await collect(llm.generateContentAsync(makeRequest()));
+    const responses = await run(new OllamaAdapter({ model: 'ollama/qwen3:8b' }), makeRequest());
 
-    const thought = responses.find((r) => (r.content?.parts?.[0] as any)?.thought);
-    assert.ok(thought, 'expected a thought part');
-    assert.equal((thought!.content!.parts![0] as any).text, 'pondering');
-
-    const final = responses.find((r) => r.turnComplete);
-    assert.ok(final, 'expected a final response');
-    assert.equal((final!.content!.parts![0] as any).text, 'An answer.');
-    assert.equal(final!.usageMetadata?.promptTokenCount, 12);
-    assert.equal(final!.usageMetadata?.candidatesTokenCount, 34);
+    assert.deepEqual(thinkingOf(responses), ['pondering']);
+    const final = finalOf(responses);
+    assert.equal(textOf(final), 'An answer.');
+    assert.equal(final.usage?.inputTokens, 12);
+    assert.equal(final.usage?.outputTokens, 34);
 
     assert.match(requestedUrl, /\/chat\/completions$/);
     assert.equal(requestBody.model, 'qwen3:8b'); // ollama/ namespace stripped
@@ -230,8 +256,8 @@ test('OllamaLlm yields thought part, answer, and usageMetadata from a stubbed re
 
 // ── Moonshot Kimi: the reasoning controls per generation ────────────────────
 
-/** The body KimiLlm posts for one request, captured from a stubbed fetch. */
-async function kimiBody(model: string, config: Record<string, unknown>): Promise<any> {
+/** The body KimiAdapter posts for one request, captured from a stubbed fetch. */
+async function kimiBody(model: string, fields: Partial<ChatCompletionsRequest> = {}): Promise<any> {
   const originalFetch = globalThis.fetch;
   const savedKey = process.env.MOONSHOT_API_KEY;
   process.env.MOONSHOT_API_KEY = 'fixture-moonshot-0123456789abcdef'; // gitleaks:allow (test fixture)
@@ -249,13 +275,11 @@ async function kimiBody(model: string, config: Record<string, unknown>): Promise
     );
   }) as any;
   try {
-    const llm = new KimiLlm({ model });
-    const responses = await collect(llm.generateContentAsync(makeRequest({ model, config: config as any })));
-    const final = responses.find((r) => r.turnComplete);
-    assert.ok(final, 'expected a final response');
-    assert.equal((final!.content!.parts![0] as any).text, 'An answer.');
-    assert.equal(final!.usageMetadata?.thoughtsTokenCount, 3);
-    assert.ok(responses.some((r) => (r.content?.parts?.[0] as any)?.thought), 'reasoning_content surfaces as a thought');
+    const responses = await run(new KimiAdapter({ model }), makeRequest({ model, ...fields }));
+    const final = finalOf(responses);
+    assert.equal(textOf(final), 'An answer.');
+    assert.equal(final.usage?.thinkingTokens, 3);
+    assert.deepEqual(thinkingOf(responses), ['pondering'], 'reasoning_content surfaces as thinking');
     assert.equal(url, 'https://api.moonshot.ai/v1/chat/completions');
     return body;
   } finally {
@@ -265,31 +289,32 @@ async function kimiBody(model: string, config: Record<string, unknown>): Promise
   }
 }
 
-test('KimiLlm: kimi-k3 pins reasoning_effort below max, keeps an explicit effort, and never sends a thinking switch', async () => {
-  const pinned = await kimiBody('kimi-k3', {});
+test('KimiAdapter: kimi-k3 pins reasoning_effort below max, keeps an explicit effort, and never sends a thinking switch', async () => {
+  const pinned = await kimiBody('kimi-k3');
   assert.equal(pinned.model, 'kimi-k3');
   assert.equal(pinned.reasoning_effort, 'high');
   assert.ok(!('thinking' in pinned));
-  assert.equal((await kimiBody('kimi-k3', { reasoningEffort: 'max' })).reasoning_effort, 'max');
+  // `max` is no contract level: the ADK path carries it as the older spelling (ADR 0057).
+  assert.equal((await kimiBody('kimi-k3', { olderSpelling: { reasoningEffort: 'max' } })).reasoning_effort, 'max');
   // K3 cannot switch thinking off: "none" becomes the lightest effort.
-  assert.equal((await kimiBody('kimi-k3', { reasoningEffort: 'none' })).reasoning_effort, 'low');
+  assert.equal((await kimiBody('kimi-k3', { reasoning: 'none' })).reasoning_effort, 'low');
 });
 
-test('KimiLlm: the K2 generation takes a thinking switch and no reasoning_effort', async () => {
-  const on = await kimiBody('kimi-k2.6', { reasoningEffort: 'low' });
+test('KimiAdapter: the K2 generation takes a thinking switch and no reasoning_effort', async () => {
+  const on = await kimiBody('kimi-k2.6', { reasoning: 'low' });
   assert.ok(!('reasoning_effort' in on), 'reasoning_effort is K3-only');
   assert.ok(!('thinking' in on), 'thinking stays on by default');
-  const off = await kimiBody('kimi-k2.6', { reasoningEffort: 'none' });
+  const off = await kimiBody('kimi-k2.6', { reasoning: 'none' });
   assert.deepEqual(off.thinking, { type: 'disabled' });
-  assert.deepEqual((await kimiBody('kimi-k2.6', { thinkingConfig: { thinkingBudget: 0 } })).thinking, { type: 'disabled' });
+  assert.deepEqual((await kimiBody('kimi-k2.6', { reasoning: { budget_tokens: 0 } })).thinking, { type: 'disabled' });
 });
 
-test('KimiLlm: without a key the turn ends before any request', async () => {
+test('KimiAdapter: without a key the call ends before any request', async () => {
   const saved = process.env.MOONSHOT_API_KEY;
   delete process.env.MOONSHOT_API_KEY;
   try {
-    const responses = await collect(new KimiLlm({ model: 'kimi-k3' }).generateContentAsync(makeRequest({ model: 'kimi-k3' })));
-    assert.equal(responses[0]?.errorCode, 'MOONSHOT_MISSING_KEY');
+    const responses = await run(new KimiAdapter({ model: 'kimi-k3' }), makeRequest({ model: 'kimi-k3' }));
+    assert.equal(finalOf(responses).error?.code, 'MOONSHOT_MISSING_KEY');
   } finally {
     if (saved !== undefined) process.env.MOONSHOT_API_KEY = saved;
   }
@@ -298,7 +323,7 @@ test('KimiLlm: without a key the turn ends before any request', async () => {
 /** One SSE frame, in the wire shape Ollama actually emits. */
 const sseFrame = (o: any) => `data: ${JSON.stringify(o)}\n\n`;
 
-test('OllamaLlm (SSE) streams reasoning and text, then repeats the whole text on the final event', async () => {
+test('OllamaAdapter (SSE) streams reasoning and text, then repeats the whole text on the final', async () => {
   const originalFetch = globalThis.fetch;
   let requestBody: any;
   const body =
@@ -314,34 +339,25 @@ test('OllamaLlm (SSE) streams reasoning and text, then repeats the whole text on
     return new Response(body, { status: 200 });
   }) as any;
   try {
-    const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
-    const responses = await collect(llm.generateContentAsync(makeRequest(), true));
+    const responses = await run(new OllamaAdapter({ model: 'ollama/qwen3:8b' }), makeRequest(), true);
 
     assert.equal(requestBody.stream, true);
     assert.deepEqual(requestBody.stream_options, { include_usage: true });
 
-    const part = (r: LlmResponse) => (r.content?.parts?.[0] as any) ?? {};
-    const thoughts = responses.filter((r) => part(r).thought);
-    assert.deepEqual(thoughts.map((r) => part(r).text), ['weigh', 'ing it']);
-    assert.ok(
-      thoughts.every((r) => (r as any).partial),
-      'thinking must stay partial — partials are what keep it out of history',
-    );
+    // Thinking only ever travels on partials — what keeps it out of history.
+    assert.deepEqual(thinkingOf(responses), ['weigh', 'ing it']);
 
-    const streamedText = responses.filter(
-      (r) => (r as any).partial && part(r).text && !part(r).thought,
-    );
-    assert.deepEqual(streamedText.map((r) => part(r).text), ['Hello', ' world']);
+    const streamedText = responses.flatMap((r) => (r.partial ? r.parts.filter((p) => p.type === 'text').map((p) => p.text) : []));
+    assert.deepEqual(streamedText, ['Hello', ' world']);
 
-    // The final event is the ONLY one ADK persists (runner: `if
+    // The final is the ONLY response ADK persists (runner: `if
     // (!event.partial) appendEvent(...)`), so it must carry the whole
     // reply — otherwise the turn renders on screen and vanishes from history.
-    const final = responses.find((r) => r.turnComplete);
-    assert.ok(final, 'expected a final response');
-    assert.ok(!(final as any).partial, 'final must not be partial');
-    assert.equal(part(final!).text, 'Hello world');
-    assert.equal(final!.usageMetadata?.promptTokenCount, 20);
-    assert.equal(final!.usageMetadata?.candidatesTokenCount, 136);
+    const final = finalOf(responses);
+    assert.equal(responses.filter((r) => !r.partial).length, 1, 'exactly one final');
+    assert.equal(textOf(final), 'Hello world');
+    assert.equal(final.usage?.inputTokens, 20);
+    assert.equal(final.usage?.outputTokens, 136);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -367,20 +383,18 @@ const thinkingOnlyChoice = {
 };
 const contextFullUsage = { prompt_tokens: 318, completion_tokens: 3778, total_tokens: 4096 };
 
-/** Every response, in order, plus whether ADK would keep the final one. */
-function assertNamedMaxTokensError(responses: LlmResponse[], thinkingTokens = 3778): void {
-  const final = responses[responses.length - 1]!;
-  assert.ok(!(final as any).partial, 'the turn must not end on a partial — ADK warns and the reply is lost');
-  assert.equal(final.errorCode, 'OLLAMA_MAX_TOKENS');
-  assert.match(final.errorMessage!, /context window/);
-  assert.match(final.errorMessage!, /num_ctx/);
-  assert.match(final.errorMessage!, /reasoningEffort/);
-  assert.equal(final.usageMetadata?.candidatesTokenCount, thinkingTokens, 'tokens spent thinking are still counted');
-  const thought = responses.find((r) => (r.content?.parts?.[0] as any)?.thought);
-  assert.ok(thought, 'the scratchpad is still surfaced as a thought');
+/** Every response, in order: the call ends on a named error final, its tokens counted. */
+function assertNamedMaxTokensError(responses: ModelResponse[], thinkingTokens = 3778): void {
+  const final = finalOf(responses);
+  assert.equal(final.error?.code, 'OLLAMA_MAX_TOKENS');
+  assert.match(final.error!.message, /context window/);
+  assert.match(final.error!.message, /num_ctx/);
+  assert.match(final.error!.message, /reasoningEffort/);
+  assert.equal(final.usage?.outputTokens, thinkingTokens, 'tokens spent thinking are still counted');
+  assert.ok(thinkingOf(responses).length > 0, 'the scratchpad is still surfaced as thinking');
 }
 
-test('OllamaLlm: a reply lost to thinking, and lost again without thinking, is a named error, not empty text', async () => {
+test('OllamaAdapter: a reply lost to thinking, and lost again without thinking, is a named error, not empty text', async () => {
   const originalFetch = globalThis.fetch;
   const efforts: unknown[] = [];
   globalThis.fetch = (async (_url: string, init: any) => {
@@ -390,16 +404,15 @@ test('OllamaLlm: a reply lost to thinking, and lost again without thinking, is a
     });
   }) as any;
   try {
-    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
     // Retried once with thinking off; both attempts' tokens are counted.
-    assertNamedMaxTokensError(await collect(llm.generateContentAsync(makeRequest())), 2 * 3778);
+    assertNamedMaxTokensError(await run(new OllamaAdapter({ model: 'ollama/qwen3.5:9b' }), makeRequest()), 2 * 3778);
     assert.deepEqual(efforts, [undefined, 'none']);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test('OllamaLlm (SSE): a stream that ends inside the scratchpad is a named error, not empty text', async () => {
+test('OllamaAdapter (SSE): a stream that ends inside the scratchpad is a named error, not empty text', async () => {
   const originalFetch = globalThis.fetch;
   const body =
     sseFrame({ choices: [{ index: 0, delta: { reasoning: 'P1: 79 words. ' } }] }) +
@@ -409,14 +422,13 @@ test('OllamaLlm (SSE): a stream that ends inside the scratchpad is a named error
     'data: [DONE]\n\n';
   globalThis.fetch = (async () => new Response(body, { status: 200 })) as any;
   try {
-    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
-    assertNamedMaxTokensError(await collect(llm.generateContentAsync(makeRequest(), true)), 2 * 3778);
+    assertNamedMaxTokensError(await run(new OllamaAdapter({ model: 'ollama/qwen3.5:9b' }), makeRequest(), true), 2 * 3778);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test('OllamaLlm (SSE): an unclosed <think> in content stays thought; the turn errors instead of replying with it', async () => {
+test('OllamaAdapter (SSE): an unclosed <think> in content stays thinking; the call errors instead of replying with it', async () => {
   const originalFetch = globalThis.fetch;
   const body =
     sseFrame({ choices: [{ index: 0, delta: { content: '<think>weighing' } }] }) +
@@ -425,19 +437,16 @@ test('OllamaLlm (SSE): an unclosed <think> in content stays thought; the turn er
     'data: [DONE]\n\n';
   globalThis.fetch = (async () => new Response(body, { status: 200 })) as any;
   try {
-    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
-    const responses = await collect(llm.generateContentAsync(makeRequest(), true));
-    const leaked = responses.some((r) =>
-      r.content?.parts?.some((p: any) => !p.thought && /think|weighing/.test(p.text ?? '')),
-    );
+    const responses = await run(new OllamaAdapter({ model: 'ollama/qwen3.5:9b' }), makeRequest(), true);
+    const leaked = responses.some((r) => r.parts.some((p) => p.type === 'text' && /think|weighing/.test(p.text)));
     assert.ok(!leaked, 'scratchpad text must never reach the reply');
-    assert.equal(responses[responses.length - 1]!.errorCode, 'OLLAMA_MAX_TOKENS');
+    assert.equal(finalOf(responses).error?.code, 'OLLAMA_MAX_TOKENS');
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test('OllamaLlm: a reply cut short keeps its text and is marked MAX_TOKENS; one that stopped is unmarked', async () => {
+test('OllamaAdapter: a reply cut short keeps its text and finishes on max_tokens; one that stopped finishes on stop', async () => {
   const originalFetch = globalThis.fetch;
   let finish = 'length';
   globalThis.fetch = (async () =>
@@ -448,15 +457,15 @@ test('OllamaLlm: a reply cut short keeps its text and is marked MAX_TOKENS; one 
       { status: 200 },
     )) as any;
   try {
-    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
-    let final = (await collect(llm.generateContentAsync(makeRequest()))).find((r) => r.turnComplete)!;
-    assert.equal(final.errorCode, undefined);
-    assert.equal((final.content!.parts![0] as any).text, 'Quantum mechanics is');
-    assert.equal(final.finishReason, 'MAX_TOKENS');
+    const adapter = new OllamaAdapter({ model: 'ollama/qwen3.5:9b' });
+    let final = finalOf(await run(adapter, makeRequest()));
+    assert.equal(final.error, undefined);
+    assert.equal(textOf(final), 'Quantum mechanics is');
+    assert.equal(final.finishReason, 'max_tokens');
 
     finish = 'stop';
-    final = (await collect(llm.generateContentAsync(makeRequest()))).find((r) => r.turnComplete)!;
-    assert.equal(final.finishReason, undefined);
+    final = finalOf(await run(adapter, makeRequest()));
+    assert.equal(final.finishReason, 'stop');
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -468,22 +477,22 @@ test('chat-completions adapters: thinking that stops with no reply is EMPTY_RESP
   globalThis.fetch = (async () =>
     new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message }] }), { status: 200 })) as any;
   try {
-    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
-    let final = (await collect(llm.generateContentAsync(makeRequest()))).find((r) => r.turnComplete)!;
-    assert.equal(final.errorCode, 'OLLAMA_EMPTY_RESPONSE');
+    const adapter = new OllamaAdapter({ model: 'ollama/qwen3.5:9b' });
+    let final = finalOf(await run(adapter, makeRequest()));
+    assert.equal(final.error?.code, 'OLLAMA_EMPTY_RESPONSE');
 
     // No reasoning, no truncation: e.g. a model with nothing to say after a
-    // tool result. ADK already handles that shape; it must not become an error.
+    // tool result. The runtime already handles that shape; it must not become an error.
     message = { content: '' };
-    final = (await collect(llm.generateContentAsync(makeRequest()))).find((r) => r.turnComplete)!;
-    assert.equal(final.errorCode, undefined);
-    assert.deepEqual(final.content!.parts, []);
+    final = finalOf(await run(adapter, makeRequest()));
+    assert.equal(final.error, undefined);
+    assert.deepEqual(final.parts, []);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test('OllamaLlm (SSE) reassembles tool-call arguments split across frames', async () => {
+test('OllamaAdapter (SSE) reassembles tool-call arguments split across frames', async () => {
   const originalFetch = globalThis.fetch;
   const body =
     sseFrame({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'lookup', arguments: '{"q":' } }] } }] }) +
@@ -491,10 +500,9 @@ test('OllamaLlm (SSE) reassembles tool-call arguments split across frames', asyn
     'data: [DONE]\n\n';
   globalThis.fetch = (async () => new Response(body, { status: 200 })) as any;
   try {
-    const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
-    const responses = await collect(llm.generateContentAsync(makeRequest(), true));
-    const final = responses.find((r) => r.turnComplete);
-    const call = (final!.content!.parts![0] as any).functionCall;
+    const final = finalOf(await run(new OllamaAdapter({ model: 'ollama/qwen3:8b' }), makeRequest(), true));
+    const call = final.parts[0];
+    assert.ok(call?.type === 'toolCall');
     assert.equal(call.name, 'lookup');
     assert.equal(call.id, 'c1');
     assert.deepEqual(call.args, { q: 'zeno' });
@@ -503,10 +511,11 @@ test('OllamaLlm (SSE) reassembles tool-call arguments split across frames', asyn
   }
 });
 
-test('GrokLlm speaks the Responses API dialect (subclass of GptLlm, xAI overrides)', async () => {
+test('Grok speaks the Responses API dialect (GrokAdapter extends GptAdapter, xAI overrides)', async () => {
   // xAI retired chat-completions Live Search (410); Grok now rides the
-  // Responses-shaped Agent Tools API through the GptLlm translator.
-  assert.ok(new GrokLlm({ model: 'grok-4.5' }) instanceof GptLlm);
+  // Responses-shaped Agent Tools API through the GPT translator.
+  assert.ok(new GrokAdapter({ model: 'grok-4.5' }) instanceof GptAdapter);
+  assert.ok(new GrokLlm({ model: 'grok-4.5' }) instanceof GptLlm, 'and its ADK shim is a GptLlm');
   assert.deepEqual(
     GrokLlm.supportedModels.map((p) => String(p)),
     [String(/^grok-.+/)],
@@ -517,74 +526,51 @@ test('GrokLlm speaks the Responses API dialect (subclass of GptLlm, xAI override
   const saved = process.env.XAI_API_KEY;
   delete process.env.XAI_API_KEY;
   try {
-    const llm = new GrokLlm({ model: 'grok-4.5' });
-    const responses = await collect(
-      llm.generateContentAsync(makeRequest({ model: 'grok-4.5' })),
-    );
-    assert.equal(responses[0].errorCode, 'MISSING_API_KEY');
-    assert.match(responses[0].errorMessage!, /XAI_API_KEY/);
+    const final = finalOf(await run(new GrokAdapter({ model: 'grok-4.5' }), makeRequest({ model: 'grok-4.5' })));
+    assert.equal(final.error?.code, 'MISSING_API_KEY');
+    assert.match(final.error!.message, /XAI_API_KEY/);
   } finally {
     if (saved !== undefined) process.env.XAI_API_KEY = saved;
   }
 
   // Grok's web_search request shaping is the shared Responses builder:
-  const request = makeRequest({ model: 'grok-4.5' });
-  request.toolsDict['web_search'] = WEB_SEARCH;
-  const tools = buildResponsesTools(request);
+  const tools: any[] = (await grokBody(makeRequest({ model: 'grok-4.5', nativeTools: ['web_search'] }))).tools;
   assert.ok(tools.some((t) => t.type === 'web_search')); // Agent Tools web_search
-  assert.ok(!tools.some((t) => t.type === 'function')); // sentinel never a function tool
+  assert.ok(!tools.some((t) => t.type === 'function')); // never a function tool
 });
 
-test('web_search forwards xAI domain filters from env; OpenAI stays bare', () => {
+test('web_search forwards xAI domain filters from env; OpenAI stays bare', async () => {
   const saved: Record<string, string | undefined> = {
     XAI_WEB_SEARCH_ALLOWED_DOMAINS: process.env.XAI_WEB_SEARCH_ALLOWED_DOMAINS,
     XAI_WEB_SEARCH_EXCLUDED_DOMAINS: process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS,
   };
+  const webSearch = async (body: Promise<any>) => ((await body).tools as any[]).find((t) => t.type === 'web_search');
+  const grok = makeRequest({ model: 'grok-4.5', nativeTools: ['web_search'] });
   try {
     // Configured on a grok model: filters ride the tool object, nested under
     // `filters` on the OpenAI-compatible wire (docs.x.ai › Tools › Web Search).
     process.env.XAI_WEB_SEARCH_ALLOWED_DOMAINS = ' reuters.com , apnews.com ,';
     delete process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS;
-    const grokRequest = makeRequest({ model: 'grok-4.5' });
-    grokRequest.toolsDict['web_search'] = WEB_SEARCH;
-    assert.deepEqual(
-      buildResponsesTools(grokRequest).find((t) => t.type === 'web_search'),
-      {
-        type: 'web_search',
-        filters: { allowed_domains: ['reuters.com', 'apnews.com'] },
-      },
-    );
+    assert.deepEqual(await webSearch(grokBody(grok)), {
+      type: 'web_search',
+      filters: { allowed_domains: ['reuters.com', 'apnews.com'] },
+    });
 
     // Same env, OpenAI model: web_search takes no params and MUST stay bare.
-    const gptRequest = makeRequest({ model: 'gpt-5-mini' });
-    gptRequest.toolsDict['web_search'] = WEB_SEARCH;
-    assert.deepEqual(
-      buildResponsesTools(gptRequest).find((t) => t.type === 'web_search'),
-      { type: 'web_search' },
-    );
+    assert.deepEqual(await webSearch(gptBody(makeRequest({ model: 'gpt-5-mini', nativeTools: ['web_search'] }))), { type: 'web_search' });
 
     // Mutually exclusive lists: the allowlist wins, exclusions drop (never a 400).
     process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS = 'pinterest.com';
-    assert.deepEqual(
-      buildResponsesTools(grokRequest).find((t) => t.type === 'web_search')!.filters,
-      { allowed_domains: ['reuters.com', 'apnews.com'] },
-    );
+    assert.deepEqual((await webSearch(grokBody(grok))).filters, { allowed_domains: ['reuters.com', 'apnews.com'] });
 
     // Oversize list: truncates to xAI's cap of 5, never fatal.
     delete process.env.XAI_WEB_SEARCH_ALLOWED_DOMAINS;
-    process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS =
-      'a.com,b.com,c.com,d.com,e.com,f.com';
-    assert.deepEqual(
-      buildResponsesTools(grokRequest).find((t) => t.type === 'web_search')!.filters,
-      { excluded_domains: ['a.com', 'b.com', 'c.com', 'd.com', 'e.com'] },
-    );
+    process.env.XAI_WEB_SEARCH_EXCLUDED_DOMAINS = 'a.com,b.com,c.com,d.com,e.com,f.com';
+    assert.deepEqual((await webSearch(grokBody(grok))).filters, { excluded_domains: ['a.com', 'b.com', 'c.com', 'd.com', 'e.com'] });
 
     // Unconfigured: the bare tool it always was, on every provider.
     for (const name of Object.keys(saved)) delete process.env[name];
-    assert.deepEqual(
-      buildResponsesTools(grokRequest).find((t) => t.type === 'web_search'),
-      { type: 'web_search' },
-    );
+    assert.deepEqual(await webSearch(grokBody(grok)), { type: 'web_search' });
   } finally {
     for (const [name, value] of Object.entries(saved)) {
       if (value !== undefined) process.env[name] = value;
@@ -609,29 +595,27 @@ test('streamEventDelta maps Responses SSE events to text/thought deltas', () => 
   assert.equal(streamEventDelta(undefined), null);
 });
 
-test('collections_search shapes an xAI file_search tool from env ids', () => {
+test('collections_search shapes an xAI file_search tool from env ids', async () => {
   const savedIds = process.env.XAI_COLLECTION_IDS;
   const savedMax = process.env.XAI_COLLECTIONS_MAX_RESULTS;
+  const request = makeRequest({ model: 'grok-4.5', nativeTools: ['collections_search'] });
   try {
     // Configured: file_search with the parsed ids and the optional cap.
     process.env.XAI_COLLECTION_IDS = ' col_a , col_b ,';
     process.env.XAI_COLLECTIONS_MAX_RESULTS = '7';
-    const request = makeRequest({ model: 'grok-4.5' });
-    request.toolsDict['collections_search'] = COLLECTIONS_SEARCH;
-    const tools = buildResponsesTools(request);
-    const fileSearch = tools.find((t) => t.type === 'file_search');
-    assert.deepEqual(fileSearch, {
+    const tools: any[] = (await grokBody(request)).tools ?? [];
+    assert.deepEqual(tools.find((t) => t.type === 'file_search'), {
       type: 'file_search',
       vector_store_ids: ['col_a', 'col_b'],
       max_num_results: 7,
     });
-    // The sentinel is never emitted as a client-side function tool.
+    // Never emitted as a client-side function tool.
     assert.ok(!tools.some((t) => t.type === 'function'));
 
     // Declared but unconfigured: omitted entirely, never fatal.
     delete process.env.XAI_COLLECTION_IDS;
     delete process.env.XAI_COLLECTIONS_MAX_RESULTS;
-    const bare = buildResponsesTools(request);
+    const bare: any[] = (await grokBody(request)).tools ?? [];
     assert.ok(!bare.some((t) => t.type === 'file_search'));
   } finally {
     if (savedIds !== undefined) process.env.XAI_COLLECTION_IDS = savedIds;
@@ -641,47 +625,46 @@ test('collections_search shapes an xAI file_search tool from env ids', () => {
   }
 });
 
-test('x_search forwards env constraints; bare with none set', () => {
+test('x_search forwards env constraints; bare with none set', async () => {
   const saved: Record<string, string | undefined> = {
     XAI_X_SEARCH_FROM_DATE: process.env.XAI_X_SEARCH_FROM_DATE,
     XAI_X_SEARCH_TO_DATE: process.env.XAI_X_SEARCH_TO_DATE,
     XAI_X_SEARCH_ALLOWED_HANDLES: process.env.XAI_X_SEARCH_ALLOWED_HANDLES,
     XAI_X_SEARCH_EXCLUDED_HANDLES: process.env.XAI_X_SEARCH_EXCLUDED_HANDLES,
   };
+  const request = makeRequest({ model: 'grok-4.5', nativeTools: ['x_search'] });
+  const xSearch = async () => ((await grokBody(request)).tools as any[]).find((t) => t.type === 'x_search');
   try {
     // Configured: constraints ride the tool object (docs.x.ai › Tools › X Search).
     process.env.XAI_X_SEARCH_FROM_DATE = '2026-08-01';
     process.env.XAI_X_SEARCH_TO_DATE = '2026-08-02';
     process.env.XAI_X_SEARCH_ALLOWED_HANDLES = ' @Reuters , AP ,';
     delete process.env.XAI_X_SEARCH_EXCLUDED_HANDLES;
-    const request = makeRequest({ model: 'grok-4.5' });
-    request.toolsDict['x_search'] = X_SEARCH;
-    const tools = buildResponsesTools(request);
+    const tools: any[] = (await grokBody(request)).tools;
     assert.deepEqual(tools.find((t) => t.type === 'x_search'), {
       type: 'x_search',
       from_date: '2026-08-01',
       to_date: '2026-08-02',
       allowed_x_handles: ['Reuters', 'AP'], // trimmed, @-stripped
     });
-    // The sentinel is never emitted as a client-side function tool.
+    // Never emitted as a client-side function tool.
     assert.ok(!tools.some((t) => t.type === 'function'));
 
     // Mutually exclusive lists: the allowlist wins, exclusions drop (never a 400).
     process.env.XAI_X_SEARCH_EXCLUDED_HANDLES = 'spam_account';
-    const both = buildResponsesTools(request).find((t) => t.type === 'x_search');
+    const both = await xSearch();
     assert.deepEqual(both.allowed_x_handles, ['Reuters', 'AP']);
     assert.equal(both.excluded_x_handles, undefined);
 
     // Malformed date: dropped with a warning, the rest survive.
     process.env.XAI_X_SEARCH_FROM_DATE = 'yesterday';
-    const partial = buildResponsesTools(request).find((t) => t.type === 'x_search');
+    const partial = await xSearch();
     assert.equal(partial.from_date, undefined);
     assert.equal(partial.to_date, '2026-08-02');
 
     // Unconfigured: the bare tool it always was.
     for (const name of Object.keys(saved)) delete process.env[name];
-    const bare = buildResponsesTools(request).find((t) => t.type === 'x_search');
-    assert.deepEqual(bare, { type: 'x_search' });
+    assert.deepEqual(await xSearch(), { type: 'x_search' });
   } finally {
     for (const [name, value] of Object.entries(saved)) {
       if (value !== undefined) process.env[name] = value;
@@ -693,43 +676,27 @@ test('x_search forwards env constraints; bare with none set', () => {
 test('reasoningParam: grok-4.5/4.7 pin effort medium; other ids keep their shapes', () => {
   // grok-4.5 and grok-4.7 send the xAI effort control (docs.x.ai ›
   // Reasoning › Effort levels; xAI's own default is high) — pinned to
-  // medium in lib/config.ts.
-  assert.deepEqual(
-    (new GrokLlm({ model: 'grok-4.5' }) as any).reasoningParam(),
-    { effort: 'medium' },
-  );
-  assert.deepEqual(
-    (new GrokLlm({ model: 'grok-4.7' }) as any).reasoningParam(),
-    { effort: 'medium' },
-  );
+  // medium when the agent sets no reasoning.
+  assert.deepEqual(new GrokAdapter({ model: 'grok-4.5' }).reasoningParam(undefined), { effort: 'medium' });
+  assert.deepEqual(new GrokAdapter({ model: 'grok-4.7' }).reasoningParam(undefined), { effort: 'medium' });
   // Older grok ids don't accept the param and must not send one.
-  assert.equal(
-    (new GrokLlm({ model: 'grok-4-1-fast-reasoning' }) as any).reasoningParam(),
-    undefined,
-  );
+  assert.equal(new GrokAdapter({ model: 'grok-4-1-fast-reasoning' }).reasoningParam(undefined), undefined);
   // OpenAI reasoning ids keep requesting summaries; non-reasoning ids none.
-  assert.deepEqual(
-    (new GptLlm({ model: 'gpt-5-mini' }) as any).reasoningParam(),
-    { summary: 'auto' },
-  );
-  assert.equal(
-    (new GptLlm({ model: 'gpt-4o' }) as any).reasoningParam(),
-    undefined,
-  );
+  assert.deepEqual(new GptAdapter({ model: 'gpt-5-mini' }).reasoningParam(undefined), { summary: 'auto' });
+  assert.equal(new GptAdapter({ model: 'gpt-4o' }).reasoningParam(undefined), undefined);
 });
 
 // ── Claude request building ──────────────────────────────────────────────────
 
-test('buildAnthropicTools lowercases schemas and maps web_search to the server tool', () => {
-  const request = makeRequest({ model: 'claude-sonnet-4-6' });
-  request.toolsDict['search_catalog'] = {
+test("anthropicTools: a Gemini-dialect schema arrives lowercase, and web_search is Anthropic's server tool", () => {
+  // The schema is converted once, where a tool enters the request (ADR 0048).
+  const declaration = contractToolDeclaration({
     name: 'search_catalog',
     description: 'Search the catalog',
     parameters: { type: 'OBJECT', properties: { query: { type: 'STRING' } }, required: ['query'] },
-  } as any;
-  request.toolsDict['web_search'] = WEB_SEARCH;
-
-  const tools = buildAnthropicTools(request);
+  });
+  assert.ok(declaration);
+  const tools: any[] = anthropicTools({ tools: [declaration], nativeTools: ['web_search'] });
   const fn = tools.find((t) => t.name === 'search_catalog');
   assert.equal(fn.input_schema.type, 'object'); // the uppercase-schema bug, fixed
   assert.equal(fn.input_schema.properties.query.type, 'string');
@@ -741,51 +708,50 @@ test('buildAnthropicTools lowercases schemas and maps web_search to the server t
 
 // ── GPT (Responses API) request building ─────────────────────────────────────
 
-test('buildResponsesInput maps contents, round-trips call_id, extracts instructions', () => {
-  const request = makeRequest({
-    model: 'gpt-5-mini',
-    contents: [
-      { role: 'system', parts: [{ text: 'Be concise.' }] } as any,
-      { role: 'user', parts: [{ text: 'What is 2+2?' }] },
-      { role: 'model', parts: [{ functionCall: { id: 'call_abc', name: 'calc', args: { a: 2 } } }] } as any,
-      { role: 'user', parts: [{ functionResponse: { id: 'call_abc', name: 'calc', response: { result: 4 } } }] } as any,
+test('responsesInput maps messages, round-trips call_id, extracts instructions', () => {
+  const { instructions, input } = responsesInput({
+    system: 'Be concise.',
+    messages: [
+      { role: 'user', parts: [{ type: 'text', text: 'What is 2+2?' }] },
+      { role: 'assistant', parts: [{ type: 'toolCall', id: 'call_abc', name: 'calc', args: { a: 2 } }] },
+      { role: 'tool', parts: [{ type: 'toolResult', id: 'call_abc', name: 'calc', result: { result: 4 } }] },
     ],
   });
-  const { instructions, input } = buildResponsesInput(request);
   assert.equal(instructions, 'Be concise.');
-  const call = input.find((i) => i.type === 'function_call');
-  const output = input.find((i) => i.type === 'function_call_output');
+  const items = input as any[];
+  const call = items.find((i) => i.type === 'function_call');
+  const output = items.find((i) => i.type === 'function_call_output');
   assert.equal(call.call_id, 'call_abc');
   assert.equal(output.call_id, 'call_abc'); // Responses API requires the match
-  const userMsg = input.find((i) => i.role === 'user');
+  const userMsg = items.find((i) => i.role === 'user');
   assert.equal(userMsg.content[0].type, 'input_text');
 });
 
-test('buildResponsesTools lowercases schemas and adds native web_search', () => {
-  const request = makeRequest({ model: 'gpt-5-mini' });
-  request.toolsDict['calc'] = {
+test('GptAdapter sends lowercase function schemas and the native web_search', async () => {
+  const calc = contractToolDeclaration({
     name: 'calc',
     description: 'Calculate',
     parameters: { type: 'OBJECT', properties: { a: { type: 'NUMBER' } } },
-  } as any;
-  request.toolsDict['web_search'] = WEB_SEARCH;
-  const tools = buildResponsesTools(request);
+  });
+  assert.ok(calc);
+  const tools: any[] = (await gptBody(makeRequest({ model: 'gpt-5-mini', tools: [calc], nativeTools: ['web_search'] }))).tools;
   assert.equal(tools.find((t) => t.type === 'function').parameters.properties.a.type, 'number');
   assert.ok(tools.some((t) => t.type === 'web_search')); // OpenAI-native tool
 });
 
 // ── Real ADK tool objects reach every non-Gemini adapter with their schema ───
-// The tests above use plain objects carrying a `parameters` key. Real ADK
-// AgentTool and load_memory keep their schema only in _getDeclaration(), and
-// reading `.parameters` sent `{}` — the root cause of
-// plans/gpt-agenttool-delegation.md. These use the real classes.
+// Plain objects carry a `parameters` key. Real ADK AgentTool and load_memory
+// keep their schema only in _getDeclaration(), and reading `.parameters`
+// sent `{}` — the root cause of plans/gpt-agenttool-delegation.md. These use
+// the real classes, declared as a request carries them (contractToolDeclaration).
 
-function realToolRequest(model: string): LlmRequest {
+function realTools(): ToolDeclaration[] {
   const sub = new LlmAgent({ name: 'XScout', description: 'Sweeps X for a ticker', model: 'gemini-3.5-flash-lite', instruction: 'x' });
-  const request = makeRequest({ model });
-  request.toolsDict['XScout'] = new AgentTool({ agent: sub });
-  request.toolsDict['load_memory'] = LOAD_MEMORY as any;
-  return request;
+  return [new AgentTool({ agent: sub }), LOAD_MEMORY].map((tool) => {
+    const declaration = contractToolDeclaration(tool);
+    assert.ok(declaration, `${tool.name} declares a function`);
+    return declaration;
+  });
 }
 
 function assertDelegationSchemas(byName: (n: string) => any) {
@@ -799,44 +765,30 @@ function assertDelegationSchemas(byName: (n: string) => any) {
   assert.ok(memory.properties.query, 'load_memory keeps its query argument');
 }
 
-test('GPT adapter declares AgentTool and load_memory arguments', () => {
-  const tools = buildResponsesTools(realToolRequest('gpt-5-mini'));
+test('GPT adapter declares AgentTool and load_memory arguments', async () => {
+  const tools: any[] = (await gptBody(makeRequest({ model: 'gpt-5-mini', tools: realTools() }))).tools;
   assertDelegationSchemas((n) => tools.find((t) => t.name === n)?.parameters);
 });
 
 test('Claude adapter declares AgentTool and load_memory arguments', () => {
-  const tools = buildAnthropicTools(realToolRequest('claude-sonnet-4-6'));
+  const tools: any[] = anthropicTools({ tools: realTools() });
   assertDelegationSchemas((n) => tools.find((t) => t.name === n)?.input_schema);
 });
 
 test('chat-completions adapters (Ollama, gateway) declare AgentTool and load_memory arguments', () => {
-  const llm = new OllamaLlm({ model: 'ollama/qwen3:8b' });
-  const tools = (llm as any).buildTools(realToolRequest('ollama/qwen3:8b')) as any[];
-  assertDelegationSchemas((n) => tools.find((t) => t.function.name === n)?.function.parameters);
+  const request = makeRequest({ tools: realTools() });
+  for (const adapter of [new OllamaAdapter({ model: 'ollama/qwen3:8b' }), new GatewayAdapter({ model: 'claude-sonnet-4-6' })]) {
+    const tools = adapter.toolsFor(request) as any[];
+    assertDelegationSchemas((n) => tools.find((t) => t.function.name === n)?.function.parameters);
+  }
 });
 
-test('an AgentTool whose subagent has no description is still declared', () => {
+test('an AgentTool whose subagent has no description is still declared', async () => {
   const sub = new LlmAgent({ name: 'Quiet', model: 'gemini-3.5-flash-lite', instruction: 'x' });
-  const request = makeRequest({ model: 'gpt-5-mini' });
-  request.toolsDict['Quiet'] = new AgentTool({ agent: sub });
-  assert.ok(buildResponsesTools(request).some((t) => t.name === 'Quiet'));
-});
-
-// ── web_search tool routing ──────────────────────────────────────────────────
-
-test('WebSearchTool: Gemini model gets grounding; others get the sentinel', async () => {
-  const tool = new WebSearchTool();
-
-  const geminiRequest = makeRequest({ model: 'gemini-3.5-flash-lite' });
-  await tool.processLlmRequest({ llmRequest: geminiRequest } as any);
-  assert.deepEqual((geminiRequest.config as any).tools, [{ googleSearch: {} }]);
-  assert.equal(wantsWebSearch(geminiRequest), false); // no sentinel on Gemini
-
-  const claudeRequest = makeRequest({ model: 'claude-sonnet-4-6' });
-  await tool.processLlmRequest({ llmRequest: claudeRequest } as any);
-  assert.equal((claudeRequest.config as any)?.tools, undefined); // no Gemini grounding
-  assert.equal(wantsWebSearch(claudeRequest), true); // adapters read this
-  assert.equal(tool._getDeclaration(), undefined); // never a client-side function tool
+  const declaration = contractToolDeclaration(new AgentTool({ agent: sub }));
+  assert.ok(declaration);
+  const tools: any[] = (await gptBody(makeRequest({ model: 'gpt-5-mini', tools: [declaration] }))).tools;
+  assert.ok(tools.some((t) => t.name === 'Quiet'));
 });
 
 // Shapes copied from a live xAI grok-4.7 Responses call (2026-09-25),
@@ -874,7 +826,7 @@ test('extractServerToolCalls reads xAI web_search_call and custom_tool_call item
       status: 'completed',
     },
   ]);
-  // Client function calls are ADK's to run, not server-side records.
+  // Client function calls are the runtime's to run, not server-side records.
   assert.deepEqual(extractServerToolCalls([{ type: 'function_call', name: 'f', arguments: '{}', call_id: 'c' }]), []);
   assert.deepEqual(extractServerToolCalls(undefined), []);
   // Malformed custom input is kept raw, never thrown.
@@ -890,26 +842,23 @@ test('serverToolUsage keeps the total and the non-zero xAI counters; {} for Open
   assert.deepEqual(serverToolUsage(undefined), {});
 });
 
-test('a searched Grok response: message items split by a paragraph, search calls on customMetadata', () => {
-  const llm = new GrokLlm({ model: 'grok-4.7' });
-  const out = [...(llm as any).mapFinalResponse({ output: XAI_OUTPUT, usage: XAI_USAGE })] as LlmResponse[];
-  const final = out[out.length - 1] as any;
-  const text = final.content.parts.map((p: any) => p.text ?? '').join('');
+test('a searched Grok response: message items split by a paragraph, search calls on the server-side tool record', () => {
+  const adapter = new GrokAdapter({ model: 'grok-4.7' });
+  const { final } = adapter.finalOf({ output: XAI_OUTPUT, usage: XAI_USAGE });
   // Narration no longer runs into the answer's first line.
-  assert.equal(text, "I'll pull the tape.\n\n- NVDA closed down 0.4%.");
-  assert.ok(!final.content.parts.some((p: any) => p.functionCall)); // ADK must never run these
-  assert.equal(final.customMetadata['responses.server_tool_calls'].length, 2);
-  assert.deepEqual(final.customMetadata['responses.server_tool_usage'], {
-    total: 2, web_search_calls: 1, x_search_calls: 1, x_posts_fetched: 14,
-  });
+  assert.equal(textOf(final), "I'll pull the tape.\n\n- NVDA closed down 0.4%.");
+  assert.ok(!final.parts.some((p) => p.type === 'toolCall')); // the runtime must never run these
+  const record = responsesServerTools(final);
+  assert.equal(record?.calls.length, 2);
+  assert.deepEqual(record?.usage, { total: 2, web_search_calls: 1, x_search_calls: 1, x_posts_fetched: 14 });
 
-  // A plain answer carries no customMetadata at all.
-  const plain = [...(llm as any).mapFinalResponse({
+  // A plain answer carries no server-side tool record at all.
+  const plain = adapter.finalOf({
     output: [{ type: 'message', content: [{ type: 'output_text', text: 'hi' }] }],
     usage: { input_tokens: 1, output_tokens: 1 },
-  })] as any[];
-  assert.equal(plain[plain.length - 1].customMetadata, undefined);
-  assert.equal(plain[plain.length - 1].content.parts[0].text, 'hi');
+  }).final;
+  assert.equal(responsesServerTools(plain), undefined);
+  assert.equal(textOf(plain), 'hi');
 });
 
 // ── Retry without thinking (ADR 0027 follow-up) ──────────────────────────────
@@ -942,45 +891,43 @@ const answered = (stream: boolean) =>
       });
 
 for (const stream of [false, true]) {
-  test(`OllamaLlm${stream ? ' (SSE)' : ''}: thinking with no answer is retried once with thinking off, and answers`, async () => {
+  test(`OllamaAdapter${stream ? ' (SSE)' : ''}: thinking with no answer is retried once with thinking off, and answers`, async () => {
     const originalFetch = globalThis.fetch;
     const seen: any[] = [];
     globalThis.fetch = scriptedFetch([thinkingOnly, answered], seen);
     try {
-      const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
-      const responses = await collect(llm.generateContentAsync(makeRequest(), stream));
+      const responses = await run(new OllamaAdapter({ model: 'ollama/qwen3.5:9b' }), makeRequest(), stream);
       assert.equal(seen.length, 2);
       assert.equal(seen[0].reasoning_effort, undefined);
       assert.equal(seen[1].reasoning_effort, 'none');
-      assert.ok(!responses.some((r) => r.errorCode), 'the first attempt\'s error is never yielded');
-      const final = responses.find((r) => r.turnComplete)!;
-      const text = responses.filter((r) => !(r as any).partial || stream).flatMap((r) => r.content?.parts ?? []).filter((p: any) => !p.thought).map((p: any) => p.text ?? '').join('');
-      assert.match(text, /Quantum answer\./);
-      assert.equal(final.usageMetadata?.promptTokenCount, 2 * 318, 'both attempts are counted');
-      assert.equal(final.usageMetadata?.candidatesTokenCount, 3778 + 40);
+      const final = finalOf(responses);
+      assert.equal(final.error, undefined, "the first attempt's error is never yielded");
+      assert.match(textOf(final), /Quantum answer\./);
+      assert.equal(final.usage?.inputTokens, 2 * 318, 'both attempts are counted');
+      assert.equal(final.usage?.outputTokens, 3778 + 40);
     } finally {
       globalThis.fetch = originalFetch;
     }
   });
 }
 
-test('OllamaLlm: no retry for an agent already running without thinking, or with OLLAMA_RETRY_WITHOUT_THINKING=false', async () => {
+test('OllamaAdapter: no retry for an agent already running without thinking, or with OLLAMA_RETRY_WITHOUT_THINKING=false', async () => {
   const originalFetch = globalThis.fetch;
   const before = process.env.OLLAMA_RETRY_WITHOUT_THINKING;
   try {
     let seen: any[] = [];
     globalThis.fetch = scriptedFetch([thinkingOnly, answered], seen);
-    const llm = new OllamaLlm({ model: 'ollama/qwen3.5:9b' });
-    let final = (await collect(llm.generateContentAsync(makeRequest({ config: { reasoningEffort: 'none' } as any })))).at(-1)!;
+    const adapter = new OllamaAdapter({ model: 'ollama/qwen3.5:9b' });
+    let final = finalOf(await run(adapter, makeRequest({ reasoning: 'none' })));
     assert.equal(seen.length, 1);
-    assert.equal(final.errorCode, 'OLLAMA_MAX_TOKENS');
+    assert.equal(final.error?.code, 'OLLAMA_MAX_TOKENS');
 
     process.env.OLLAMA_RETRY_WITHOUT_THINKING = 'false';
     seen = [];
     globalThis.fetch = scriptedFetch([thinkingOnly, answered], seen);
-    final = (await collect(llm.generateContentAsync(makeRequest()))).at(-1)!;
+    final = finalOf(await run(adapter, makeRequest()));
     assert.equal(seen.length, 1);
-    assert.equal(final.errorCode, 'OLLAMA_MAX_TOKENS');
+    assert.equal(final.error?.code, 'OLLAMA_MAX_TOKENS');
   } finally {
     globalThis.fetch = originalFetch;
     if (before === undefined) delete process.env.OLLAMA_RETRY_WITHOUT_THINKING;
@@ -989,7 +936,6 @@ test('OllamaLlm: no retry for an agent already running without thinking, or with
 });
 
 test('a gateway or other chat-completions adapter never retries without thinking', async () => {
-  const { GatewayLlm } = await import('../lib/models/gatewayLlm.ts');
   const originalFetch = globalThis.fetch;
   const before = { g: process.env.MODEL_GATEWAY, k: process.env.MODEL_GATEWAY_API_KEY };
   process.env.MODEL_GATEWAY = 'openrouter';
@@ -997,7 +943,7 @@ test('a gateway or other chat-completions adapter never retries without thinking
   const seen: any[] = [];
   globalThis.fetch = scriptedFetch([thinkingOnly, answered], seen);
   try {
-    await collect(new GatewayLlm({ model: 'claude-sonnet-4-6' }).generateContentAsync(makeRequest()));
+    await run(new GatewayAdapter({ model: 'claude-sonnet-4-6' }), makeRequest({ model: 'claude-sonnet-4-6' }));
     assert.equal(seen.length, 1);
   } finally {
     globalThis.fetch = originalFetch;

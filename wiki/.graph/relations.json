@@ -914,6 +914,38 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/llmRequestBoundary.test.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0064 Decision 4: tests/llmRequestBoundary.test.ts \"fails a test file that names LlmRequest, calls modelRequestToLlmRequest, or writes toolsDict or liveConnectConfig, unless an explicit list names it with a reason\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/helpers/scriptedLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0064 Decision 3: \"ScriptedLlm is the shim around ScriptedModel\": it subclasses AdkShim and its LlmResponses \"reach ADK exactly as written, through the toLlmResponse seam\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/shimBodies.test.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0064 Decision 2: tests/shimBodies.test.ts \"sends each capability-matrix input through the provider's ADK class ... and requires the body the contract adapter sends for the ModelRequest itself\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0064 Decision 3 makes ScriptedLlm an AdkShim so \"the turn's charge, the abort and the llm.request span are the shim's\", the caller rule ADR 0053 sets for every contract adapter.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
       "to": "module:lib/tools/openapi/call.ts",
       "rel": "constrains",

@@ -571,10 +571,12 @@ test("an ADK adapter's failed call records its LlmRequest as a ModelRequest; a c
     off();
   }
   assert.strictEqual(spans.length, 4);
+  // ScriptedLlm is the ADK shim, which always passes ADK's stream flag.
   assert.deepStrictEqual(JSON.parse(String(spans[0]['llm.payload.request'])), {
     model: 'scripted/x',
     system: 'Be brief.',
     messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
+    stream: false,
   });
   assert.strictEqual(spans[1]['llm.payload.request'], undefined, 'a clean call carries no payload');
   assert.strictEqual(spans[1]['llm.payload.response'], undefined);
