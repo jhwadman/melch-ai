@@ -1,6 +1,7 @@
 /**
  * lib/models/geminiState.ts — the ids Gemini's provider-opaque state is
- * written under (ADR 0046), in one place.
+ * written under (ADR 0046), and the prefix of a call id the genai mapping
+ * mints, in one place.
  *
  * WHY: three modules write or replay a Gemini `thoughtSignature` as
  * `providerState`: the genai mapping (lib/models/genaiMapping.ts), the
@@ -18,3 +19,10 @@ export const GEMINI_PROVIDER = 'gemini';
 
 /** The providerState kind for a Gemini thought signature; the payload is the signature. */
 export const THOUGHT_SIGNATURE_KIND = 'thought_signature';
+
+/**
+ * The prefix of an id the genai mapping (lib/models/genaiMapping.ts) made
+ * for a call or result that had none. Such an id never goes on the wire: the
+ * mapping leaves it off, and so does the Gemini adapter.
+ */
+export const MINTED_CALL_ID_PREFIX = 'genai-noid-';
