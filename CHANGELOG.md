@@ -6,6 +6,14 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Docs: `config/agents/syndicateSchema.yaml` describes 0.20.0.** Its
+  comments say that the native runtime runs every key by default and that
+  `@google/adk` is an optional peer for the `adk` runtime until 1.0.0,
+  explain the ADK spellings and "Maps to:" lines as spellings, prefer
+  `reasoning:` over `generateContentConfig.thinkingConfig`, and no longer
+  call Gemini "ADK-native", plan-dispatch "A2A-only", or `require_approval`
+  unsupported inside a workflow. Comments only.
+
 - **A native workflow walk has a node-run ceiling (ADR 0105).** `max_steps`
   counts model calls, so a routed cycle through nodes that make none (a tool
   node and its route step looping on each other) ran until the turn's
