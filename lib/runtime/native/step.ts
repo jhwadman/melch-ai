@@ -38,6 +38,9 @@
  *     selfCorrection.ts). The request declares the tool only where ADK's
  *     model class would (declaresReflectionTool): never to a Gemini model
  *     ADK's own Gemini would serve, which sends no toolsDict (ADR 0097).
+ *     On a Gemini adapter the reflection call stored in a response's place
+ *     carries its signature, or Gemini 3's placeholder (reflectionSigning,
+ *     ADR 0103), where ADK stores it unsigned.
  *   - A THROWN FAILURE. The contract forbids an adapter to throw, but a
  *     leaf that does (an ADK-era model class) is read as ADK reads it. With
  *     a `redirect`, a provider-side failure (errorDecision, lib/models/
@@ -75,7 +78,7 @@ import { toolOf } from '../../tools/tool.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import { SET_MODEL_RESPONSE, buildModelRequest } from './request.ts';
 import type { NativeAgent, WorkflowInstructionScope } from './request.ts';
-import { declaresReflectionTool, standsForAdkGemini } from './selfCorrection.ts';
+import { declaresReflectionTool, reflectionSigning, standsForAdkGemini } from './selfCorrection.ts';
 import type { ModelCorrection } from './selfCorrection.ts';
 
 export interface ModelStepOptions {
@@ -241,6 +244,8 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
   let thrown: { error: unknown } | undefined;
   // ADK's own Gemini writes no turnComplete, so its stand-in's events carry none (ADR 0100).
   const adkGemini = standsForAdkGemini(adapter);
+  // How a reflection call stored in this adapter's place is signed (ADR 0103).
+  const signing = reflectionSigning(adapter, request.model);
   async function* inner(): AsyncGenerator<LlmResponse, void> {
     try {
       for await (const response of adapter.generate(request)) {
@@ -288,7 +293,8 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
       if (!source.partial && source.error && options.redirect?.(source, produced)) return { ...result, response: source, redirected: source.error };
       produced = true;
       // Self-correction sees the response as ADK's afterModelCallback does: it may stand a retry in its place, or end the step.
-      const corrected = options.correction?.afterModel(traced) ?? { response: traced, replaced: false };
+      // On Gemini the reflection call it stores is signed, so the next request does not 400 (ADR 0103).
+      const corrected = options.correction?.afterModel(traced, signing) ?? { response: traced, replaced: false };
       if ('failed' in corrected) {
         // ADK's runAndHandleError: a callback that threw ends the step on an error event of its own.
         const { code, message } = corrected.failed;

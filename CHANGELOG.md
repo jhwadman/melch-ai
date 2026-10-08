@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **On the native runtime, self-correction's reflection call is signed on
+  Gemini (ADR 0103).** When a Gemini 3 model calls the reserved
+  `adk_handle_model_error` tool, or answers `MALFORMED_FUNCTION_CALL`, the
+  reflection call stored in its place now carries the replaced call's
+  `thoughtSignature`, or Gemini's documented placeholder
+  (`skip_thought_signature_validator`) when there was none, so the next
+  request no longer fails with Gemini's "missing a thought_signature" 400.
+  On Gemini 2.x only a carried signature is added. The ADK runtime is
+  unchanged: ADK's plugin still stores the call unsigned. The stored event
+  differs from ADK's by that one field. `PLACEHOLDER_THOUGHT_SIGNATURE` is
+  still exported from `melchizedek-agents/models/geminiAdapter`.
+
 - **A workflow node's `retry` takes `exceptions` and `jitter` (ADR 0103).**
   `retry: { exceptions: [NodeTimeoutError] }` retries only a failure whose
   error class or `name` is listed; `jitter` sets the backoff's randomness

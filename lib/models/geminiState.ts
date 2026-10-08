@@ -21,6 +21,13 @@ export const GEMINI_PROVIDER = 'gemini';
 export const THOUGHT_SIGNATURE_KIND = 'thought_signature';
 
 /**
+ * The thought signature Gemini documents for a function call that has no
+ * real one. Gemini 3 rejects a current-turn function call without a
+ * signature; this value passes its validator (ADR 0065).
+ */
+export const PLACEHOLDER_THOUGHT_SIGNATURE = 'skip_thought_signature_validator';
+
+/**
  * The providerState kind the Gemini adapter writes for the Gemini parts the
  * contract has no type for (code execution, server-side invocations),
  * carried whole on the next output part (ADR 0065). The payload is
