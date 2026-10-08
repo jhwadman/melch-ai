@@ -3,6 +3,26 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0086-skill-scripts-get-a-minimal-environment.md —depends_on→ /decisions/0083-skills-harness-on-the-own-tool-base.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /tools/skill-harness.md —explains→ module:lib/tools/skills/env.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0086-skill-scripts-get-a-minimal-environment.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0086-skill-scripts-get-a-minimal-environment.md —constrains→ module:lib/tools/skills/env.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0086-skill-scripts-get-a-minimal-environment.md —constrains→ module:lib/tools/skills/executor.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/compileNative.ts
 
 by claude-code/claude-opus-5-5

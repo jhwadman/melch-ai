@@ -63,6 +63,10 @@ export interface SkillsConfig {
   scripts?: 'none' | 'local';
   /** Registry tool names a skill may unlock through its `allowed-tools` frontmatter, once loaded. */
   tools?: string[];
+  /** Environment variable names a script gets beyond the base allowlist (ADR 0086). Names only; none may look like a secret. */
+  env?: string[];
+  /** Secret-shaped variable names a script gets, passed deliberately (ADR 0086). */
+  secret_env?: string[];
 }
 
 /** One loaded skill (lib/tools/skills/loader.ts). */
@@ -166,7 +170,7 @@ export function skillsInstruction(skills: Record<string, LoadedSkill>, config: S
  */
 export class HarnessSkillToolset extends SkillToolset {
   constructor(skills: Record<string, LoadedSkill>, config: SkillsConfig, additionalTools: readonly unknown[] = []) {
-    super(skills, { scripts: config.scripts, additionalTools });
+    super(skills, { scripts: config.scripts, additionalTools, envNames: [...(config.env ?? []), ...(config.secret_env ?? [])] });
   }
 }
 

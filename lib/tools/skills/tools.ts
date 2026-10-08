@@ -96,7 +96,9 @@ export interface SkillToolsetOptions {
   scripts?: 'none' | 'local';
   /** The tools a loaded skill may unlock by name (the YAML's `skills.tools`, resolved). */
   additionalTools?: readonly unknown[];
-  /** The executor for `scripts: local`. Default: the local executor with SCRIPT_TIMEOUT_SECONDS. */
+  /** Variable names a script gets beyond the base allowlist (the YAML's `skills.env` and `skills.secret_env`; ADR 0086). */
+  envNames?: readonly string[];
+  /** The executor for `scripts: local`. Default: the local executor with SCRIPT_TIMEOUT_SECONDS and `envNames`. */
   executor?: LocalScriptExecutor;
   /** Where script output files are copied. Default: a private temp directory, made once. */
   scriptOutputDir?: string;
@@ -130,7 +132,7 @@ export class SkillToolset implements Toolset {
     this.skills = skills;
     this.#additionalTools = options.additionalTools ?? [];
     this.#scriptOutputDir = options.scriptOutputDir;
-    if (options.scripts === 'local') this.executor = options.executor ?? new LocalScriptExecutor({ timeoutSeconds: SCRIPT_TIMEOUT_SECONDS });
+    if (options.scripts === 'local') this.executor = options.executor ?? new LocalScriptExecutor({ timeoutSeconds: SCRIPT_TIMEOUT_SECONDS, envNames: options.envNames });
     this.#tools = [new LoadSkillTool(this), new LoadSkillResourceTool(this)];
     if (this.executor) this.#tools.push(new RunSkillScriptTool(this));
   }

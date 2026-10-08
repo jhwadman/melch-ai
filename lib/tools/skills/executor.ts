@@ -16,16 +16,21 @@
  *      beside a wrapper that starts the script: `require('./scripts/x.js')`
  *      under this Node, `runpy.run_path` under python3, `source` under bash
  *      (PowerShell or cmd on Windows).
- *   2. The child runs with the server's own user, its permissions and its
- *      whole environment (process.env is inherited, keys included), with
+ *   2. The child runs with the server's own user and its permissions, with
  *      network access, and can read any file that user can read. Nothing
  *      sandboxes it: the approval of each run, and the operator's choice of
- *      skill directory, are the controls (ADR 0029).
+ *      skill directory, are the controls (ADR 0029). Its environment is NOT
+ *      the server's: it gets only the allowlist an interpreter needs and
+ *      the names the YAML lists for the agent's skills (./env.ts, ADR 0086),
+ *      so no provider key, database credential or bearer secret reaches it
+ *      unless the YAML names it under `skills.secret_env`.
  *   3. The arguments are the model's `args` object as `--key value` pairs,
  *      passed as argv (never through a shell string).
- *   4. It is killed (SIGKILL) after `timeoutSeconds`; its stdout and stderr
- *      are collected whole. A non-zero exit with no stderr reports
- *      `Exit code N`.
+ *   4. It is killed (SIGKILL) after `timeoutSeconds`. Its stdout and its
+ *      stderr are each kept up to SCRIPT_OUTPUT_CHAR_LIMIT characters (20,000);
+ *      the rest is counted, not held, and a line saying how much was cut
+ *      ends the stream the model reads. A non-zero exit with no stderr
+ *      reports `Exit code N`.
  *   5. Files the script wrote in its directory (other than the ones staged)
  *      come back as `outputFiles`, UTF-8 or base64 by extension, and are
  *      copied into the toolset's output directory, never over a file
@@ -42,6 +47,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { CappedText, SCRIPT_OUTPUT_CHAR_LIMIT, scriptEnvironment } from './env.ts';
 import { SKILL_LIMITS, readFileBounded } from './loader.ts';
 import type { Skill } from './loader.ts';
 
@@ -244,6 +250,12 @@ export interface LocalScriptExecutorOptions {
   nodeCommandPath?: string;
   pythonCommandPath?: string;
   shellCommandPath?: string;
+  /** Variable names passed to a script beyond the base allowlist (the YAML's `skills.env` and `skills.secret_env`). */
+  envNames?: readonly string[];
+  /** Where variable values are read from. Default: process.env. */
+  sourceEnv?: NodeJS.ProcessEnv;
+  /** Characters of stdout, and of stderr, kept per run. Default SCRIPT_OUTPUT_CHAR_LIMIT. */
+  maxOutputChars?: number;
 }
 
 /** What one run is handed: the wrapper code, the files to stage, the language and the model's arguments. */
@@ -262,12 +274,18 @@ export class LocalScriptExecutor {
   readonly nodeCommandPath: string;
   readonly pythonCommandPath: string;
   readonly shellCommandPath: string;
+  readonly envNames: readonly string[];
+  readonly maxOutputChars: number;
+  readonly #sourceEnv?: NodeJS.ProcessEnv;
 
   constructor(options: LocalScriptExecutorOptions = {}) {
     this.timeoutSeconds = options.timeoutSeconds ?? 30;
     this.nodeCommandPath = options.nodeCommandPath ?? process.execPath;
     this.pythonCommandPath = options.pythonCommandPath ?? (IS_WINDOWS ? 'python' : 'python3');
     this.shellCommandPath = options.shellCommandPath ?? (IS_WINDOWS ? 'powershell' : 'bash');
+    this.envNames = [...(options.envNames ?? [])];
+    this.maxOutputChars = options.maxOutputChars ?? SCRIPT_OUTPUT_CHAR_LIMIT;
+    this.#sourceEnv = options.sourceEnv;
   }
 
   async run(input: ScriptRunInput): Promise<ScriptRunResult> {
@@ -300,10 +318,12 @@ export class LocalScriptExecutor {
       }
 
       const cwd = tempDir;
+      const env = scriptEnvironment(this.envNames, this.#sourceEnv ?? process.env);
       const outcome = await new Promise<{ stdout: string; stderr: string }>((resolve) => {
-        const child = spawn(command, args, { cwd });
-        let stdout = '';
-        let stderr = '';
+        const child = spawn(command, args, { cwd, env });
+        const stdout = new CappedText(this.maxOutputChars);
+        const stderr = new CappedText(this.maxOutputChars);
+        let processError = '';
         let timedOut = false;
         const timer = setTimeout(() => {
           timedOut = true;
@@ -311,20 +331,21 @@ export class LocalScriptExecutor {
           child.stdout?.destroy();
           child.stderr?.destroy();
         }, this.timeoutSeconds * 1000);
-        child.stdout?.on('data', (data: Buffer) => {
-          stdout += data.toString();
-        });
-        child.stderr?.on('data', (data: Buffer) => {
-          stderr += data.toString();
-        });
+        // Decoded as UTF-8 across chunk boundaries; past the cap a chunk is counted, not kept.
+        child.stdout?.setEncoding('utf8');
+        child.stderr?.setEncoding('utf8');
+        child.stdout?.on('data', (data: string) => stdout.push(data));
+        child.stderr?.on('data', (data: string) => stderr.push(data));
         child.on('error', (err) => {
-          stderr += `Process error: ${err.message}\n`;
+          processError += `Process error: ${err.message}\n`;
         });
         child.on('close', (exitCode, signal) => {
           clearTimeout(timer);
-          if (timedOut || signal === 'SIGKILL' || signal === 'SIGTERM') stderr += `\nCode execution timed out after ${this.timeoutSeconds} seconds.`;
-          else if (exitCode !== 0 && exitCode !== null && !stderr) stderr = `Exit code ${exitCode}`;
-          resolve({ stdout, stderr });
+          // The engine's own lines follow the capped text, so the model always sees them.
+          let err = stderr.text('stderr') + processError;
+          if (timedOut || signal === 'SIGKILL' || signal === 'SIGTERM') err += `\nCode execution timed out after ${this.timeoutSeconds} seconds.`;
+          else if (exitCode !== 0 && exitCode !== null && !err) err = `Exit code ${exitCode}`;
+          resolve({ stdout: stdout.text('stdout'), stderr: err });
         });
       });
 

@@ -26,6 +26,7 @@ import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from './loadSyndicate.ts';
 import { DEFAULT_ROUTE_KEY, NODE_KINDS, ROUTE_STEP_SUFFIX, START_NAME, elementNames, nodeKind } from './workflowConfig.ts';
+import { isSecretShapedEnvName } from './tools/skills/env.ts';
 import type { EdgeElement, WorkflowNodeYaml } from './workflowConfig.ts';
 
 // ── Leaf rules ───────────────────────────────────────────────────────────────
@@ -107,6 +108,8 @@ const generateContentConfig = z
 
 export const SKILL_SCRIPT_MODES = ['none', 'local'] as const;
 
+const envName = z.string().regex(/^[A-Z_][A-Z0-9_]*$/, 'an environment variable name (A–Z, 0–9, _)');
+
 /**
  * Agent Skills for one agent (lib/tools/skillToolset.ts): the frontmatter
  * index is injected into the instruction at compile time, a skill is read in
@@ -127,12 +130,31 @@ const skillsSchema = z
       .array(z.string().min(1))
       .optional()
       .describe('Registry tool names a skill may unlock through its `allowed-tools` frontmatter once it is loaded. Omitted, no skill unlocks anything.'),
+    env: z
+      .array(envName)
+      .optional()
+      .describe(
+        'Environment variable NAMES (never values) a skill script gets, beyond PATH, HOME, the temp directory, the locale and the OS essentials (ADR 0086). A name that looks like a secret (KEY, TOKEN, SECRET, PASSWORD, AUTH, DATABASE, …) belongs under secret_env.',
+      ),
+    secret_env: z
+      .array(envName)
+      .optional()
+      .describe('Secret-shaped environment variable names a skill script gets, listed here so passing a credential to a script is a deliberate, reviewable act (ADR 0086).'),
+  })
+  .superRefine((skills, ctx) => {
+    (skills.env ?? []).forEach((name, j) => {
+      if (isSecretShapedEnvName(name)) {
+        ctx.addIssue({ code: 'custom', path: ['env', j], message: `'${name}' looks like it holds a secret; a script gets it only if you list it under skills.secret_env (ADR 0086)` });
+      }
+    });
+    if ((skills.env?.length || skills.secret_env?.length) && skills.scripts !== 'local') {
+      ctx.addIssue({ code: 'custom', path: [skills.env?.length ? 'env' : 'secret_env'], message: 'variables reach skill scripts only, which run only with scripts: "local"' });
+    }
   })
   .describe('Agent Skills (SKILL.md directories) this agent reads the way a coding harness does.');
 
 // ── OpenAPI ──────────────────────────────────────────────────────────────────
 
-const envName = z.string().regex(/^[A-Z_][A-Z0-9_]*$/, 'an environment variable name (A–Z, 0–9, _)');
 const openapiEntry = z
   .strictObject({
     spec: z.string().min(1).describe('An OpenAPI 3 spec file (.yaml, .yml, .json), relative to this syndicate file. Files only, never URLs.'),

@@ -231,6 +231,22 @@
                 "type": "string",
                 "minLength": 1
               }
+            },
+            "env": {
+              "description": "Environment variable NAMES (never values) a skill script gets, beyond PATH, HOME, the temp directory, the locale and the OS essentials (ADR 0086). A name that looks like a secret (KEY, TOKEN, SECRET, PASSWORD, AUTH, DATABASE, …) belongs under secret_env.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z_][A-Z0-9_]*$"
+              }
+            },
+            "secret_env": {
+              "description": "Secret-shaped environment variable names a skill script gets, listed here so passing a credential to a script is a deliberate, reviewable act (ADR 0086).",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z_][A-Z0-9_]*$"
+              }
             }
           },
           "required": [
@@ -632,6 +648,22 @@
                 "items": {
                   "type": "string",
                   "minLength": 1
+                }
+              },
+              "env": {
+                "description": "Environment variable NAMES (never values) a skill script gets, beyond PATH, HOME, the temp directory, the locale and the OS essentials (ADR 0086). A name that looks like a secret (KEY, TOKEN, SECRET, PASSWORD, AUTH, DATABASE, …) belongs under secret_env.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                }
+              },
+              "secret_env": {
+                "description": "Secret-shaped environment variable names a skill script gets, listed here so passing a credential to a script is a deliberate, reviewable act (ADR 0086).",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Z_][A-Z0-9_]*$"
                 }
               }
             },
