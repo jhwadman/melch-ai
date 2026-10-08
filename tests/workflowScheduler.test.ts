@@ -8,8 +8,12 @@
  * are the same on both sides (an output from the input, an optional delay),
  * so the two walks are compared on what a scheduler decides: which node
  * runs when, on which input, on which branch, and what the workflow
- * outputs. The orders ADK records are also pinned as literals, so an ADK
- * upgrade that changes them fails here by name. No models run, no network.
+ * outputs. A stub's delay is on a virtual clock (tests/helpers/
+ * virtualClock.ts), one per side, so the order is the delays' timeline on
+ * both sides however loaded the machine is; a stub that races a real timer
+ * (a node timeout, a retry's backoff) waits on real time instead. The
+ * orders ADK records are also pinned as literals, so an ADK upgrade that
+ * changes them fails here by name. No models run, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -24,6 +28,7 @@ import type { LlmAgent } from '@google/adk';
 import { compileWorkflow } from '../lib/workflow.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
+import { virtualClock } from './helpers/virtualClock.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import {
   DEFAULT_MAX_PARALLEL,
@@ -56,11 +61,14 @@ function syndicate(name: string, agents: string[], workflow: Record<string, unkn
 /**
  * What an agent does in a case: its output from its input (it may throw, or
  * return `reported(...)` to report an error as an ADK node does with an
- * event's errorCode), and how long it takes (ms; absent = no timer).
+ * event's errorCode), and how long it takes (ms on the side's virtual clock;
+ * absent = no wait). `realTime` waits real ms instead, for a stub that races
+ * a real timer: a node's timeout or a retry's backoff.
  */
 interface Stub {
   output?: (input: unknown, call: number) => unknown;
   delay?: number | ((input: unknown, call: number) => number);
+  realTime?: boolean;
 }
 type Stubs = Record<string, Stub>;
 
@@ -105,16 +113,17 @@ const storedEvent = (event: unknown) => {
 const nodeError = (path: string, branch: string | undefined, node: string, code: string, message: string, gaveUp?: { errorType?: string; attempt?: number }) =>
   `${path}@${branch ?? '-'} ${node} [${code}] ${message}${gaveUp ? ` (${gaveUp.errorType} after ${gaveUp.attempt})` : ''}`;
 
-/** The stub table as one function both sides call; `calls` records `name <- input`. */
+/** The stub table as one function both sides call, each side on its own clock; `calls` records `name <- input`. */
 function stubRunner(stubs: Stubs, calls: string[]) {
   const counts = new Map<string, number>();
+  const clock = virtualClock();
   return async (name: string, input: unknown): Promise<unknown> => {
     const call = (counts.get(name) ?? 0) + 1;
     counts.set(name, call);
     calls.push(`${name} <- ${JSON.stringify(input)}`);
     const stub = stubs[name] ?? {};
     const delay = typeof stub.delay === 'function' ? stub.delay(input, call) : stub.delay;
-    if (delay !== undefined) await sleep(delay);
+    if (delay !== undefined) await (stub.realTime ? sleep(delay) : clock.sleep(delay));
     return stub.output ? stub.output(input, call) : `${name}(${typeof input === 'string' ? input : JSON.stringify(input)})`;
   };
 }
@@ -303,7 +312,7 @@ const mapSyndicate = (maxParallel?: number) =>
   });
 
 const ITEMS = ['a', 'b', 'c', 'd', 'e'];
-// Finish times never tie under any max_parallel here (at least 20 ms apart), so the order holds under slow instrumented runs.
+// Finish times never tie under any max_parallel here (at least 20 ms apart on the virtual clock).
 const itemDelays: Record<string, number> = { a: 200, b: 20, c: 110, d: 50, e: 80 };
 const MAP_STUBS: Stubs = {
   Splitter: { output: () => ITEMS },
@@ -387,7 +396,7 @@ test('max_concurrency bounds the nodes running at once, in ADK\'s order', async 
     nodes: { All: { join: true } },
     max_concurrency: 2,
   });
-  // Finish times B 5, C 25, A 80 ms: at least 20 ms apart, so the order holds under slow instrumented runs.
+  // Finish times B 5, C 25, A 80 ms on the virtual clock.
   const stubs: Stubs = { A: { delay: 80 }, B: { delay: 5 }, C: { delay: 20 } };
   const events: SchedulerEvent[] = [];
   const adk = await runOnAdk(cfg, stubs, 'go');
@@ -562,15 +571,16 @@ test('retry: a node that keeps throwing gives up after max_attempts; the walk re
 });
 
 test('timeout: an attempt that runs past it is abandoned and retried; without a retry the walk fails with NodeTimeoutError', async () => {
-  const slowOnce: Stubs = { Fixer: { delay: (_i, call) => (call === 1 ? 200 : 0), output: () => 'fixed' } };
-  const recovered = await bothAgreeOn(retrying({ max_attempts: 2 }, { timeout: 0.03 }), slowOnce);
+  // Real time: the first attempt (300 ms) runs 200 ms past the 100 ms timeout, the second (0 ms) ends 100 ms inside it.
+  const slowOnce: Stubs = { Fixer: { delay: (_i, call) => (call === 1 ? 300 : 0), realTime: true, output: () => 'fixed' } };
+  const recovered = await bothAgreeOn(retrying({ max_attempts: 2 }, { timeout: 0.1 }), slowOnce);
   assert.equal(recovered.record.output, 'fixed');
   assert.deepEqual(recovered.record.nodeErrors, []);
 
-  const timedOut = syndicate('T', ['Triage', 'Fixer'], { edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { timeout: 0.03 } } });
-  const { record } = await bothAgreeOn(timedOut, { Fixer: { delay: 200 } });
-  assert.equal(record.error, "NodeTimeoutError: Node 'Fixer' timed out after 0.03 seconds.");
-  assert.deepEqual(record.nodeErrors, ["T.Fixer@- Fixer [UNKNOWN_ERROR] Node 'Fixer' timed out after 0.03 seconds. (NodeTimeoutError after 1)"]);
+  const timedOut = syndicate('T', ['Triage', 'Fixer'], { edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { timeout: 0.1 } } });
+  const { record } = await bothAgreeOn(timedOut, { Fixer: { delay: 300, realTime: true } });
+  assert.equal(record.error, "NodeTimeoutError: Node 'Fixer' timed out after 0.1 seconds.");
+  assert.deepEqual(record.nodeErrors, ["T.Fixer@- Fixer [UNKNOWN_ERROR] Node 'Fixer' timed out after 0.1 seconds. (NodeTimeoutError after 1)"]);
 });
 
 test('timeout: the runner\'s signal aborts with the timeout', async () => {
@@ -624,8 +634,12 @@ const bounded = (nodes: Record<string, unknown>) =>
   });
 
 test('max_concurrency counts a retrying node as running, in ADK\'s order', async () => {
-  // B outlasts A's retry and C by a wide margin, so the order holds under slow instrumented runs.
-  const stubs: Stubs = { A: { delay: 5, output: (_i, call) => (call === 1 ? reported('429', 'slow down') : 'a') }, B: { delay: 80 }, C: { delay: 5 } };
+  // A's retry waits on a real backoff, so the stubs wait real time: A 5 ms, its retry 5 ms, then C 5 ms; B 400 ms outlasts them by far under load.
+  const stubs: Stubs = {
+    A: { delay: 5, realTime: true, output: (_i, call) => (call === 1 ? reported('429', 'slow down') : 'a') },
+    B: { delay: 400, realTime: true },
+    C: { delay: 5, realTime: true },
+  };
   const events: SchedulerEvent[] = [];
   const adk = await runOnAdk(bounded({ A: { retry: { max_attempts: 2, initial_delay: 0.001 } } }), stubs, 'go');
   const native = await runNative(bounded({ A: { retry: { max_attempts: 2, initial_delay: 0.001 } } }), stubs, 'go', events);

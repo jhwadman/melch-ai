@@ -27,9 +27,13 @@ import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 import { ScriptedModel, answer, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { virtualClock } from './helpers/virtualClock.ts';
 import { comparable } from './helpers/workflowParity.ts';
 
 setLogLevel(LogLevel.ERROR);
+
+/** The clock a slow script waits on: a finish order is the scripts' timeline, never a race of real timers (tests/helpers/virtualClock.ts). */
+const clock = virtualClock();
 
 const agent = (name: string, extra: Record<string, unknown> = {}) => ({ name, description: name, model: `scripted/${name.toLowerCase()}`, instruction: `${name}.`, ...extra });
 
@@ -62,14 +66,14 @@ function caller(): SyndicateYamlConfig {
 
 const lastText = (request: ModelRequest) => requestTexts(request).at(-1) ?? '';
 
-/** Scripts whose finish times stay at least 20 ms apart where a fan-out runs two nodes at once. */
+/** Scripts whose finish times stay 30 ms apart on the virtual clock where a fan-out runs two nodes at once. */
 function scripts(): Record<string, ModelScript> {
   return {
     boss: (request, n) => (n === 1 ? toolCall('Writer', { request: 'an article on cats' }, 'call-writer-1') : answer(`Boss relays: ${JSON.stringify(request.messages.at(-1)?.parts.at(-1))}`)),
     plan: (request) => answer(`plan(${lastText(request)})`),
     write: async (request) => answer(`draft(${lastText(request)})`),
     check: async (request) => {
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      await clock.sleep(30);
       return answer(`claims(${lastText(request)})`);
     },
     edit: (request) => answer(`edited(${lastText(request)})`),

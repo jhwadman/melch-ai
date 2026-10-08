@@ -19,6 +19,7 @@ sources:
   - resource: lib/workflow/turn.ts
   - resource: lib/runtime/native/telemetry.ts
   - resource: tests/workflowScheduler.test.ts
+  - resource: tests/helpers/virtualClock.ts
   - resource: tests/workflowToolNode.test.ts
   - resource: tests/workflowPause.test.ts
   - resource: tests/workflowResume.test.ts
@@ -216,6 +217,8 @@ A pause inside an agent node other than an approval (an OAuth consent) is refuse
 ## Parity with ADK
 
 `tests/workflowScheduler.test.ts` builds each case's graph twice. One copy goes through `buildWorkflowGraph` for the scheduler. The other goes through today's `compileWorkflow`, with every agent replaced by a stub `FunctionNode` and run by ADK's `Runner`. The stubs are the same on both sides. The test compares the agent calls with their inputs, every node's output, path and branch in completion order, and the workflow's output.
+
+A stub's delay is on a virtual clock (`tests/helpers/virtualClock.ts`), one per side. The clock moves only once the process has settled (every microtask drained, no immediate or file read pending), then ends the earliest wait, ties in the order they began. Whatever a finish sets off happens before the next wait ends, so a case's completion order is its delays' timeline on both sides however loaded the machine is, and ADK's run stays real. A stub that races a real timer (a node's timeout, a retry's backoff) waits on real time, with its finish 100 ms or more from the timer's.
 
 The cases are:
 

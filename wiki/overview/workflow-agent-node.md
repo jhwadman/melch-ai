@@ -106,3 +106,5 @@ ADK's `runLlmAgentAsNode` stores the input again on the rerun and starts the age
 - joins and maps: a fan-out and join, a join after a route step, a map under `max_parallel` 1, 2 and the default, an empty list, a non-list input and object items; `nodeOutputContent` against ADK's `toContent`;
 - concurrent fan-out: three branches at once (an agent that calls a tool and routes on, a tool node, a map) joined, under three delay profiles that keep any two finish times 20 ms apart, and a node two branches trigger;
 - compaction: a plain and a task-mode node that compact before their step.
+
+The scripted models and the slow tool in these cases, and the slow scripts of `tests/workflowApprovals.test.ts` and `tests/workflowSubagent.test.ts`, wait on the virtual clock of `tests/helpers/virtualClock.ts`, as the scheduler suite's stubs do ([Workflow scheduler](/overview/workflow-scheduler.md#parity-with-adk)): a finish order is the profile's timeline on every runtime, never a race of real timers.

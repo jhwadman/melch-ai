@@ -9,11 +9,14 @@
  *      store, so fan-out, join and map cases compare on stored events.
  *   3. Under concurrent fan-out the events land in ADK's order: three
  *      branches (an agent calling a tool and routing on, a tool node, a map)
- *      under delay profiles that keep any two finish times 20 ms apart, and
- *      a node two branches trigger; and, with the pause, an agent node's
+ *      under delay profiles that keep any two finish times 20 ms apart on a
+ *      virtual clock (tests/helpers/virtualClock.ts), and a node two
+ *      branches trigger; and, with the pause, an agent node's
  *      user turn stored ahead of an ask_user request started in the same
  *      pass, as ADK appends the turn straight to the session. Closer
- *      finishes race on both runtimes and are not pinned.
+ *      finishes race on both runtimes and are not pinned. The scripts wait
+ *      on the virtual clock, so a finish order is the profile's timeline on
+ *      every runtime however loaded the machine is.
  *   4. A compaction event a node agent stores carries the node stamp
  *      (enrichNodeEvent), and outside task mode the summary as its output,
  *      as ADK's node runner and maybeSetOutput write it.
@@ -46,6 +49,7 @@ import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
 import { mapNodeEvent, nodeOutputContent } from '../lib/workflow/nodeEvents.ts';
 import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
 import { answer, failure, requestTexts, toolCall } from './helpers/scriptedModel.ts';
+import { virtualClock } from './helpers/virtualClock.ts';
 import { agent, bothAgree, comparable, onAdk, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
 
 setLogLevel(LogLevel.ERROR);
@@ -189,10 +193,12 @@ test('a task-mode node fills its placeholders, and the node after it reads its f
 
 type Req = Parameters<typeof requestTexts>[0];
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The clock the scripts and the slow tool wait on; the runs of a case are one after another, so they share it. */
+const clock = virtualClock();
 const lastText = (req: Req) => requestTexts(req).at(-1) ?? '';
-/** A model that answers after `ms`; any two finish times in a case are at least 20 ms apart. */
+/** A model that answers after `ms` on the virtual clock; any two finish times in a case are at least 20 ms apart. */
 const after = (ms: number, text: (req: Req) => string) => async (req: Req) => {
-  await sleep(ms);
+  await clock.sleep(ms);
   return answer(text(req));
 };
 
@@ -232,7 +238,7 @@ const mapScripts = (list: string) => ({
   lister: () => answer(list),
   summ: async (req: Req) => {
     const item = lastText(req);
-    await sleep(DELAYS[item] ?? 40);
+    await clock.sleep(DELAYS[item] ?? 40);
     return answer(`s ${item}`);
   },
   merge: (req: Req) => answer(`m ${lastText(req)}`),
@@ -281,7 +287,7 @@ test('a map stopped from outside outputs nothing, so it stores no event, as ADK\
       runNode: async (run) => {
         if (run.target.kind !== 'map_item') return { output: ['a', 'b', 'c'] };
         if (run.target.index === 0) setTimeout(() => controller.abort(), 20);
-        await sleep(60);
+        await sleep(120); // well past the abort at 20 ms
         return { output: `s ${run.input}` };
       },
       onEvent: (e) => {
@@ -315,7 +321,7 @@ registerTool(
     description: 'Look something up, slowly.',
     schema: z.object({ q: z.string().optional() }),
     execute: async ({ q }) => {
-      await sleep(toolDelay);
+      await clock.sleep(toolDelay);
       return `got ${q}`;
     },
   }),
@@ -346,7 +352,7 @@ function fanOutScripts(d: Profile) {
   return {
     lead: () => answer('{"q":"x"}'),
     a: async (_req: Req, n: number) => {
-      await sleep(d.a);
+      await clock.sleep(d.a);
       return n === 1 ? toolCall('parity_slow_lookup', { q: 'a' }, 'call-a') : answer('go');
     },
     a2: after(d.a2, () => 'a2'),
@@ -354,7 +360,7 @@ function fanOutScripts(d: Profile) {
     lister: after(d.lister, () => '["p","q"]'),
     summ: async (req: Req) => {
       const item = lastText(req);
-      await sleep(item === 'p' ? d.p : d.q);
+      await clock.sleep(item === 'p' ? d.p : d.q);
       return answer(`s ${item}`);
     },
     last: () => answer('last'),
