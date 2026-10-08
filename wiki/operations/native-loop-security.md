@@ -151,6 +151,7 @@ What does not stop it: a `{key}` placeholder puts state, which a tool or a model
 | `max_steps` (default 50) | model calls across the turn: every agent, subagent, fallback and summary | `tests/nativeFuzz.test.ts` (a model that never stops calling tools), `tests/nativeDelegate.test.ts` |
 | ADK's 500 | model calls in one run, when no turn control is lower | `lib/runtime/native/agentLoop.ts` |
 | the deadline (`A2A_TASK_TIMEOUT_MS`, 15 minutes by default) and cancel | wall time; the call in flight is aborted, a stopped step stores nothing | `tests/nativeDelegate.test.ts`, `tests/workflowScheduler.test.ts` |
+| the node-run ceiling, `max(20 × max_steps, 100)` (native only) | node runs in one workflow walk, so a routed cycle through tool nodes and route steps ends at once ([ADR 0105](/decisions/0105-workflow-node-run-ceiling.md)) | `tests/workflowNodeRunLimit.test.ts` |
 | `max_parallel` (default 8), `max_concurrency` | a map's workers, a walk's pending nodes | `tests/workflowScheduler.test.ts` |
 | `MAX_VALUE_DEPTH` (64) | nesting of a call's arguments and a tool's result | `tests/nativeFuzz.test.ts` |
 | 16 levels | a `yaml_reference` chain | `tests/compile.test.ts` |
@@ -167,6 +168,7 @@ Fixed, each in its own commit with its test:
 | F4 | `pendingConsent` read a credential request the person wrote; `grantedCalls` re-ran the paused call from any author's event, so a call forged into a user event under the paused id ran with the forged arguments. | a library caller's message parts | both read only the agent's own events |
 | F5 | A replayed grant re-ran the paused call. | a library caller's message parts | a request an earlier grant bound is closed |
 | F6 | A `yaml_reference` chain that reached itself recursed at compile until the stack gave out, and the overflow took the process with it: one request stopped the server. | an agent the operator serves | the compile refuses the chain by name |
+| F7 | A routed workflow cycle through nodes that call no model (tool nodes, route steps) was bounded only by the deadline; a library caller with no `deadlineMs` looped until it stopped the turn. | a workflow the operator serves, a tool result that keeps naming the route | the walk's node-run ceiling, `NODE_RUN_LIMIT` (ADR 0105); native only, ADK has no ceiling |
 
 Recorded, not fixed, each the same on both runtimes unless it says otherwise:
 
@@ -175,7 +177,7 @@ Recorded, not fixed, each the same on both runtimes unless it says otherwise:
 | R1 | A garbled approval answer (`{ response: '<not JSON>' }`) throws a SyntaxError out of `runSyndicateTurn`; a function response naming no call throws ADK's content-processor Error. | ADK throws the same, so the runtimes agree; A2A never sends either (the executor builds the answer). The next turn runs. | Keep parity until ADK leaves (1.0), then return a failed result with a code instead of throwing. |
 | R2 | An adapter that throws a non-Error has it rethrown as it is. | ADK's `runAndHandleError` rethrows it; the contract forbids an adapter to throw. | None needed. |
 | R3 | A model can be steered by a tool result or a compaction summary to call an ungated tool. | The LLM01 boundary; the loop cannot tell persuasion from instruction. | Keep: gates on tools that act, fewer tools per agent. |
-| R4 | A routed workflow cycle through nodes that call no model (tool nodes, route steps) is bounded only by the deadline; a library caller with no `deadlineMs` loops until it stops the turn. | ADK's scheduler has the same bound; a node-run ceiling changes the walk's semantics. | A walk-level ceiling on node runs (for instance 20 × `max_steps`), its own ticket. Over A2A the 15-minute deadline bounds it. |
+| R4 | On the adk runtime, a routed workflow cycle through nodes that call no model is bounded only by the deadline. | ADK's `Workflow` has no node-run ceiling; native has one (F7). | None: the adk runtime leaves at 1.0.0. Over A2A the 15-minute deadline bounds it. |
 | R5 | `registerTool` accepts a framework call's name (`adk_request_confirmation`, `adk_request_credential`, `adk_request_input`) for a tool of its own, which a model could then call by that name. | Operator code only; no request reaches it. | Refuse the reserved names in `registerTool`, with the next surface change. |
 | R6 | A map over a list a model produced has no item ceiling of its own. | Every item calls a model, so `max_steps` bounds the run; workers are bounded by `max_parallel`. | None needed. |
 | R7 | Two gated calls under one id show the person the first call's arguments, and fail closed when answered. | Fail closed; ADK does the same. | None needed. |

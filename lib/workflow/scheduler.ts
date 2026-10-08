@@ -63,6 +63,13 @@
  *     reaches every run. Once it fires no node starts, and the walk rejects
  *     with `InvocationAbortedError` when nothing is left running.
  *   - **max_concurrency** counts every pending run, a retrying one included.
+ *   - **Node-run ceiling (ADR 0105, native only).** A walk starts at most
+ *     `maxNodeRuns` node runs; inside a turn the default is
+ *     `nodeRunCeiling(max_steps)`. The run that would pass it fails its node
+ *     with `NodeRunLimitError` (code NODE_RUN_LIMIT), reported once as any
+ *     node that gave up, so a routed cycle through nodes that make no model
+ *     call (tool nodes, route steps) ends in milliseconds, not at the turn's
+ *     deadline. ADK's Workflow has no such ceiling.
  *
  * A map item runs under its agent's own modifiers (`nodes.<agent>`), and an
  * item that gives up fails the map with `DynamicNodeFailError`, as ADK's
@@ -107,7 +114,8 @@
  */
 
 import { routeOf } from '../workflowConfig.ts';
-import { currentTurnSignal } from '../runtime/turnControl.ts';
+import { DEFAULT_MAX_STEPS } from '../config.ts';
+import { currentTurnControl, currentTurnSignal } from '../runtime/turnControl.ts';
 import { createTurnEvent } from '../runtime/events.ts';
 import type { TurnEvent } from '../runtime/events.ts';
 import { START_NODE, adkRouteString } from './graph.ts';
@@ -263,6 +271,14 @@ export interface RunWorkflowOptions {
    * resume runs nothing and is not wrapped. Default: none.
    */
   traceNode?: NodeTracer;
+  /**
+   * The most node runs the walk starts (ADR 0105): every run of an agent,
+   * tool, ask_user, route, join or map node counts once, however many
+   * attempts it makes; a map's items and a resumed node completed from its
+   * stored run do not. Default: inside a turn, `nodeRunCeiling` of the
+   * turn's model-call ceiling (`max_steps`); outside one, none.
+   */
+  maxNodeRuns?: number;
 }
 
 /** What a node tracer learns about the run it wraps. */
@@ -331,6 +347,45 @@ export class InvocationAbortedError extends Error {
     super(message, options);
     this.name = 'InvocationAbortedError';
   }
+}
+
+/**
+ * The walk reached its node-run ceiling (ADR 0105). Native only: ADK's
+ * Workflow has no ceiling, so on the adk runtime the turn's deadline is the
+ * bound. Its `code` is the reported error's code and the turn's.
+ */
+export class NodeRunLimitError extends Error {
+  readonly code = NODE_RUN_LIMIT;
+  readonly nodeName: string;
+  readonly limit: number;
+  constructor(options: { workflow: string; nodeName: string; limit: number }) {
+    super(
+      `Workflow ${options.workflow} reached its limit of ${options.limit} node runs in one turn before node '${options.nodeName}' could run again. ` +
+        'A routed cycle through nodes that make no model call is the usual cause; raise max_steps to raise the limit.',
+    );
+    this.name = 'NodeRunLimitError';
+    this.nodeName = options.nodeName;
+    this.limit = options.limit;
+  }
+}
+
+/** The error code of a walk stopped by its node-run ceiling, on the node-error event and the turn. */
+export const NODE_RUN_LIMIT = 'NODE_RUN_LIMIT';
+
+/** Node runs a walk may start per model call its turn allows (ADR 0105). */
+export const NODE_RUNS_PER_STEP = 20;
+
+/** The ceiling's floor, so a long tool pipeline under a low max_steps still runs (ADR 0105). */
+export const MIN_NODE_RUNS = 100;
+
+/**
+ * The node-run ceiling of a walk under a turn whose model-call ceiling is
+ * `maxSteps` (the YAML's max_steps, else DEFAULT_MAX_STEPS): 20 runs per
+ * step, at least 100. 1,000 at the default of 50.
+ */
+export function nodeRunCeiling(maxSteps: number | undefined): number {
+  const steps = typeof maxSteps === 'number' && maxSteps > 0 ? maxSteps : DEFAULT_MAX_STEPS;
+  return Math.max(NODE_RUNS_PER_STEP * steps, MIN_NODE_RUNS);
 }
 
 /** A map item gave up; the map fails with this. */
@@ -503,6 +558,13 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
   };
   const atConcurrencyLimit = () => graph.maxConcurrency !== undefined && pending.size >= graph.maxConcurrency;
 
+  // ADR 0105: the walk's node-run ceiling, the caller's, else the turn's.
+  const control = currentTurnControl();
+  const maxNodeRuns = options.maxNodeRuns ?? (control ? nodeRunCeiling(control.maxLlmCalls) : undefined);
+  let nodeRuns = 0;
+  /** Set once the ceiling failed a node: the walk starts nothing more. */
+  let overLimit = false;
+
   // ADK's startNodeTask on a resumed walk: each node's first activation takes its next prior run.
   const activated = new Set<string>();
   const resumeStart = (
@@ -538,7 +600,7 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
 
   const scheduleReadyNodes = () => {
     // A stopped walk starts nothing; the runs in flight have their signal.
-    if (controller.signal.aborted) return;
+    if (controller.signal.aborted || overLimit) return;
     for (const name of [...triggers.keys()]) {
       if (pending.has(name)) continue;
       if (nodes.get(name)?.status === 'running') continue;
@@ -555,6 +617,14 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
         pending.set(name, Promise.resolve(start.shortcut));
         continue;
       }
+      if (maxNodeRuns !== undefined && nodeRuns >= maxNodeRuns) {
+        // The run that would pass the ceiling fails its node before it starts: no node_start, no attempt.
+        overLimit = true;
+        state.attempts.count = 0;
+        pending.set(name, Promise.resolve({ name, error: new NodeRunLimitError({ workflow: graph.name, nodeName: name, limit: maxNodeRuns }) }));
+        return;
+      }
+      nodeRuns += 1;
       state.runCounter += 1;
       const runId = String(state.runCounter);
       const branch = trigger.branch !== undefined ? trigger.branch : trigger.useSubBranch ? subBranch(parentBranch, name, runId) : parentBranch;

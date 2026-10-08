@@ -4,8 +4,17 @@
 # ============================================================
 #
 # This file documents ALL available properties for a syndicate
-# YAML definition. Every property name maps 1:1 to its ADK
-# counterpart so there is zero translation confusion.
+# YAML definition. The agent fields keep the spelling of their ADK
+# counterparts (LlmAgent, GenerateContentConfig), so a file written
+# for ADK reads unchanged.
+#
+# Runtimes (0.20.0, ADR 0102): the engine's own NATIVE runtime runs
+# every key below by default, and nothing here needs @google/adk. The
+# `adk` runtime (MELCHIZEDEK_RUNTIME=adk, or a turn's `runtime`
+# option) runs the same file on Google ADK while @google/adk is
+# installed as an optional peer; 1.0.0 removes it. Both runtimes store
+# the same session events. A "Maps to:" line names the ADK field a key
+# is spelled after, which is also what the adk runtime builds from it.
 #
 # It is an annotated EXAMPLE. The enforced contract is
 # lib/syndicateSchema.ts: every load validates against it and a
@@ -14,7 +23,7 @@
 # syndicate.schema.json (npm run schema:gen), is what the modeline
 # above points an editor at — add the same line to your own file.
 #
-# ADK source references:
+# Where the spellings come from (a reference, not a dependency):
 #   LlmAgentConfig      → @google/adk :: agents/llm_agent.d.ts
 #   BaseAgentConfig     → @google/adk :: agents/base_agent.d.ts
 #   GenerateContentConfig → @google/genai :: GenerateContentConfig
@@ -22,7 +31,8 @@
 # Legend:
 #   [required]  Must be provided
 #   [optional]  Can be omitted
-#   ⚠           Note or constraint from ADK internals
+#   ⚠           Note or constraint the engine enforces on both
+#               runtimes (most were ADK's first)
 # ============================================================
 
 # ── Syndicate metadata ──────────────────────────────────────
@@ -46,9 +56,10 @@ syndicate_name: "My Syndicate"
 variables:
   my_variable: "default_value"
 
-# [optional] Self-correction, ON by default (ADK's reflect-and-retry
-# plugins, ADR 0034). model_errors: retries of a model reply ADK marks
-# malformed (default 2). tool_errors: retries of a tool that threw, with
+# [optional] Self-correction, ON by default: ADK's reflect-and-retry
+# behaviour, which the native loop ports and the adk runtime runs as
+# ADK's plugins (ADR 0034, ADR 0075). model_errors: retries of a model
+# reply the runtime marks malformed (default 2). tool_errors: retries of a tool that threw, with
 # reflection guidance to the model (default 3). 0 turns either off. Every
 # retry is a model call under max_steps.
 # retries:
@@ -93,12 +104,13 @@ memory_extraction_model: "gemini-3.8-flash"
 #   so it can be logged, traced, and streamed to a waiting user as
 #   "[STATUS] Routed to <Name> — <reason>".
 #
-# ⚠ The orchestrator MUST be a leaf when using this: ADK refuses to combine
-#   outputSchema with AgentTool delegation on one agent (see critic.yaml).
+# ⚠ The orchestrator is a leaf in this mode: it gets no subagent tools on
+#   either runtime, because outputSchema and subagent delegation do not
+#   combine on one agent (ADK refuses it; see examples/critic.yaml).
 #   Pair the schema with generateContentConfig.responseMimeType:
 #   "application/json".
-# ⚠ A2A-only — scripts/syndicate_chat.ts compiles every syndicate in
-#   DELEGATE mode (same limitation as yaml_reference).
+# Every surface runs it the same way: the A2A server and
+# scripts/syndicate_chat.ts both run turns through runSyndicateTurn.
 #
 # Contract and fail-static rules: lib/dispatch.ts. Worked examples:
 # examples/research.yaml, templates/support_triage.yaml.
@@ -129,8 +141,10 @@ dispatch:
 # [optional] Switches this syndicate to a WORKFLOW: the agents below are
 # the nodes of a graph, and `edges` says what runs after what. Nothing
 # delegates, nothing classifies; the orchestrator is a node like any
-# other. Cannot be combined with `dispatch`. Contract: lib/workflow.ts;
-# worked example: examples/pipeline.yaml (ADR 0030).
+# other. Cannot be combined with `dispatch`. Contract: lib/workflow/
+# (the engine's own scheduler, which the native runtime runs) and
+# lib/workflow.ts (ADK's Workflow, for the adk runtime); worked example:
+# examples/pipeline.yaml (ADR 0030).
 #
 #   - A chain is a list. `START` opens at least one chain. A name is an
 #     agent or a declared node; a list of names fans out (after one
@@ -142,8 +156,15 @@ dispatch:
 #     unless its YAML sets includeContents, sees nothing else.
 #   - `ask_user` pauses the turn (input-required); the next message is
 #     the answer, and the node outputs { reply, input }.
-#   - require_approval, skills.scripts: local and a2a_agent_url are not
-#     supported inside a workflow yet.
+#   - require_approval on a node's agent pauses that node, and the walk,
+#     until a person decides (native runtime, ADR 0098); the adk runtime
+#     refuses a gated workflow. skills.scripts: local and a2a_agent_url
+#     are not supported inside a workflow yet.
+#   - A route may lead back to an earlier node (a loop). max_steps bounds
+#     the model calls in it; on the native runtime a turn also starts at
+#     most 20 × max_steps node runs (at least 100), so a loop of tool nodes
+#     that never stops routing back fails the turn NODE_RUN_LIMIT
+#     (ADR 0105). Raise max_steps to raise it.
 # workflow:
 #   edges:
 #     - [START, OrchestratorName, { article: [MySubagent, Other], default: Other }]
@@ -161,7 +182,8 @@ dispatch:
 #   max_concurrency: 4
 
 # ── Orchestrator ────────────────────────────────────────────
-# Maps to: new LlmAgent({ ... }) — the root agent passed to InMemoryRunner.
+# The turn's root agent: the native loop runs it. Maps to: new
+# LlmAgent({ ... }), the root agent of ADK's Runner on the adk runtime.
 
 orchestrator:
 
@@ -179,7 +201,7 @@ orchestrator:
 
   # [required] The model to use. The id's prefix names the provider and the
   # framework routes accordingly (lib/models/registry.ts):
-  #   gemini-*  → Google Gemini (ADK-native)
+  #   gemini-*  → Google Gemini (GEMINI_API_KEY; the engine's adapter)
   #   claude-*  → Anthropic     (ANTHROPIC_API_KEY)
   #   gpt-* /o* → OpenAI        (OPENAI_API_KEY)
   #   grok-*    → xAI           (XAI_API_KEY)
@@ -243,8 +265,9 @@ orchestrator:
   # stderr are each cut at 20,000 characters, with a line saying so.
   # Maps to: tools[] (a toolset) and instruction (the appended index)
 
-  # [optional] Few-shot exchanges added to every request's instruction
-  # (ADK's ExampleTool; the model never calls it). Up to 20.
+  # [optional] Few-shot exchanges added to every request's instruction,
+  # on both runtimes as ADK's ExampleTool adds them (the model never
+  # calls it). Up to 20.
   # examples:
   #   - input: "Is it going to rain in Lyon tomorrow?"
   #     output: "Yes: 4 mm expected between 14:00 and 18:00."
@@ -333,9 +356,12 @@ orchestrator:
   reasoning: medium
 
   # ── generateContentConfig ─────────────────────────────────
-  # Maps to: generateContentConfig on LlmAgent (→ GenerateContentConfig)
+  # The model request's settings, in @google/genai's GenerateContentConfig
+  # spelling; every provider adapter reads the fields it supports.
+  # Maps to: generateContentConfig on LlmAgent
   # ⚠ Do NOT set tools here — use the top-level `tools:` field. Set
-  #   reasoning with the `reasoning:` key above, not thinkingConfig.
+  #   reasoning with the `reasoning:` key above (the preferred spelling,
+  #   read the same way by every provider), not thinkingConfig.
 
   generateContentConfig:
 
@@ -387,7 +413,7 @@ orchestrator:
         threshold: "BLOCK_MEDIUM_AND_ABOVE"
 
     # ── Thinking config: the older spelling of `reasoning:` ─
-    # Provider-specific: Gemini and Claude read thinkingConfig, the
+    # Prefer `reasoning:` in a new file. Provider-specific: Gemini and Claude read thinkingConfig, the
     # chat-completions and Responses providers read reasoningEffort, and
     # later Claude models read reasoningEffort first (ADR 0049).
     # Still accepted, but not together with `reasoning:` (a load error).
@@ -399,8 +425,10 @@ orchestrator:
     # reasoningEffort: "medium"
 
 # ── Subagents ───────────────────────────────────────────────
-# Each entry maps to: new LlmAgent({ ... }) wrapped in AgentTool
-# and passed to the orchestrator's tools[].
+# Each entry is an agent the orchestrator calls as a tool (DELEGATE),
+# a route (dispatch) or a node (workflow); the native loop runs it.
+# Maps to: new LlmAgent({ ... }) wrapped in AgentTool and passed to the
+# orchestrator's tools[] on the adk runtime.
 
 subagents:
 
