@@ -10,7 +10,7 @@
  *   and a legitimate production choice wherever privacy or cost demands
  *   local inference. The chat-completions translation is the shared base
  *   (lib/models/chatCompletionsAdapter.ts); this adapter supplies Ollama's
- *   endpoint, its wire model name, its JSON mode and its error wording.
+ *   endpoint, its wire model name and its error wording.
  *   Under ADK it runs behind OllamaLlm (lib/models/ollamaLlm.ts), which any
  *   agent with model: "ollama/<model>" routes to.
  *
@@ -69,8 +69,13 @@
  *   - web_search: a local model has no native search, so the tool is
  *     omitted with a warning. A local agent's grounding is what you supply:
  *     pasted material, subagents, or MCP tools.
- *   - Structured output is JSON mode (`response_format: json_object`): the
- *     /v1 endpoint takes no json_schema, so the schema is not enforced.
+ *   - Structured output: an output schema goes as `response_format:
+ *     json_schema` (strict form, as on Kimi and the gateway), which Ollama
+ *     0.5.0 and later enforce with grammar-constrained decoding; JSON mode
+ *     without a schema stays `json_object`. A server older than 0.5.0
+ *     silently ignores json_schema and returns free text, so 0.5.0 is the
+ *     minimum for structured output (ADR 0096). `strict` is accepted and
+ *     ignored; Ollama Cloud accepts the schema without enforcing it.
  *   - reasoning: travels as reasoning_effort (the level word), and on Ollama
  *     0.31 only "none" changes anything (it turns thinking off); "low" does
  *     not bound a qwen3.5 scratchpad, and `think: false` is ignored on this
@@ -115,11 +120,6 @@ export class OllamaAdapter extends ChatCompletionsAdapter {
 
   protected override wireModelName(model: string): string {
     return model.replace(/^ollama\//, '');
-  }
-
-  /** Ollama's OpenAI-compatible endpoint takes json_object, not json_schema. */
-  protected override supportsJsonSchemaFormat(): boolean {
-    return false;
   }
 
   // webSearchBodyFields() stays at the base default (null): no native

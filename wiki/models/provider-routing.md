@@ -70,7 +70,7 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 |---|---|---|---|---|---|---|---|
 | delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ◐3 | ✓4 |
+| structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ✓3 | ✓4 |
 | thinking with tool use | ✓ | ✓5 | ✓6 | ✓7 | ✓8 | ◐9 | ◐10 |
 | token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | image input | ✓ | ✓11 | ✓12 | ✓13 | ✓14 | ✓15 | ✓16 |
@@ -80,7 +80,7 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 
 1. Anthropic Claude · structured output (outputSchema): output_config.format (json_schema) from Opus 4.8, Sonnet 5 and Haiku 5.5 on; a forced tool call on Claude 4.6 and earlier and Opus 4.7, offered under tool_choice auto when thinking is on (ADR 0049).
 2. Moonshot Kimi · structured output (outputSchema): strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf).
-3. Ollama (local) · structured output (outputSchema): JSON mode only (json_object): the output is JSON but the schema is not enforced.
+3. Ollama (local) · structured output (outputSchema): json_schema, enforced by grammar-constrained decoding from Ollama 0.5.0 (an older server ignores it); not enforced on Ollama Cloud (ADR 0096).
 4. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
 5. Anthropic Claude · thinking with tool use: a thinking budget on Claude 4.6 and earlier, adaptive thinking with output_config.effort after (ADR 0049); signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046), and where the model binds them to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5) under drop_block, so a block whose history changed is dropped rather than rejected; with a budget, a step answering another model's tool call runs without thinking.
 6. OpenAI GPT · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); reasoning ids only (o-series, gpt-5*).

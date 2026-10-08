@@ -6,6 +6,14 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Ollama structured output enforces the schema (ADR 0096).** An
+  `ollama/` agent with an `outputSchema` now sends `response_format:
+  json_schema` with the schema in its strict form, as Kimi and the gateway
+  do, where it sent `json_object` and the schema was not enforced. JSON
+  mode without a schema still sends `json_object`. Ollama 0.5.0 or later is
+  required for the schema to hold: an older server ignores it and answers
+  in free text. The capability matrix and `npm run doctor` now report
+  Ollama's structured output as supported.
 - **A Gemini `MALFORMED_FUNCTION_CALL` from a contract adapter is
   retried (WS2-15, ADR 0088).** `modelResponseToLlmResponse`
   (`melchizedek-agents/models/genaiMapping`) now sets `finishReason` to an
