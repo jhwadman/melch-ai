@@ -39,7 +39,14 @@ import { isTool } from '../tools/tool.ts';
  */
 export function zodInputJsonSchema(schema: z.ZodType): Record<string, unknown> {
   const { $schema: _drop, ...json } = z.toJSONSchema(schema, { io: 'input' }) as Record<string, unknown>;
-  return json;
+  // A record's `propertyNames: { type: 'string' }` says only that its keys
+  // are strings, which JSON keys always are. Gemini refuses the keyword
+  // with a 400 (live, 2026-10-08), so it is left out here, the one source
+  // every path reads, and the paths keep declaring the same parameters.
+  return mapSchemaNodes(json, (node) => {
+    const names = node.propertyNames;
+    if (isPlainObject(names) && Object.keys(names).length === 1 && names.type === 'string') delete node.propertyNames;
+  }) ?? json;
 }
 
 /**

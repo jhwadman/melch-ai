@@ -197,9 +197,12 @@ export function toStandardJsonSchema(contract: ToolContract<any>): Record<string
  * Standard JSON Schema → Gemini/ADK dialect. The inverse of
  * schemaNormalize.toLowercaseJsonSchema(): every `type` value is UPPERCASED
  * ('object' → 'OBJECT'). Also drops keywords the Gemini API rejects or
- * ignores: an `additionalProperties` that is only `true` or `false`, and
- * `default` (defaults are applied by zod at parse time, not by the model).
- * A record's value schema (`additionalProperties` holding a schema) is kept.
+ * ignores: an `additionalProperties` that is only `true` or `false`,
+ * `default` (defaults are applied by zod at parse time, not by the model),
+ * and `propertyNames`, which a live call refused with a 400 ("Unknown name
+ * propertyNames", 2026-10-08); a record's keys are strings anyway. A
+ * record's value schema (`additionalProperties` holding a schema) is kept:
+ * the same live call accepted it and returned the record's arguments.
  * The walk follows schema keywords only, so a property named `type`,
  * `default` or `additionalProperties` is a property like any other, and
  * `enum`, `required` and `const` are data, copied verbatim.
@@ -209,6 +212,7 @@ export function toGeminiSchema(jsonSchema: unknown): Record<string, unknown> {
     mapSchemaNodes(jsonSchema, (node) => {
       delete node.$schema;
       delete node.default;
+      delete node.propertyNames;
       if (typeof node.additionalProperties === 'boolean') delete node.additionalProperties;
       if (typeof node.type === 'string') node.type = node.type.toUpperCase();
       else if (Array.isArray(node.type)) node.type = node.type.map((t) => (typeof t === 'string' ? t.toUpperCase() : t));

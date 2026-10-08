@@ -1283,7 +1283,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 735
+        "words": 773
       }
     },
     {
@@ -3994,7 +3994,7 @@
       "label": "lib/models/schemaNormalize.ts",
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
-        "lines": 439
+        "lines": 446
       }
     },
     {
@@ -4417,7 +4417,7 @@
       "label": "lib/tools/toolContract.ts",
       "source": "lib/tools/toolContract.ts",
       "attrs": {
-        "lines": 232
+        "lines": 238
       }
     },
     {

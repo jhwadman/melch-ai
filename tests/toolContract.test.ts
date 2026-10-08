@@ -367,9 +367,10 @@ test('toGeminiSchema walks by keyword: a property named additionalProperties or 
 
 test('a record keeps its value schema on both paths', () => {
   const gemini = toGeminiSchema(toStandardJsonSchema(FOLLOW_UPS)) as Node;
-  assert.deepEqual(gemini.properties.counts, { type: 'OBJECT', propertyNames: { type: 'STRING' }, additionalProperties: { type: 'NUMBER' } });
+  // Gemini refuses `propertyNames` with a 400 and accepts the value schema (live, 2026-10-08).
+  assert.deepEqual(gemini.properties.counts, { type: 'OBJECT', additionalProperties: { type: 'NUMBER' } });
   const direct = FOLLOW_UPS.declaration().parameters as Node;
-  assert.deepEqual(direct.properties.counts, { type: 'object', propertyNames: { type: 'string' }, additionalProperties: { type: 'number' } });
+  assert.deepEqual(direct.properties.counts, { type: 'object', additionalProperties: { type: 'number' } }, 'keys are strings in JSON: propertyNames adds nothing');
   assert.deepEqual((contractToolDeclaration(toFunctionTool(FOLLOW_UPS))!.parameters as Node).properties.counts, direct.properties.counts);
   assert.deepEqual(
     (toolDeclarationFor(toFunctionTool(FOLLOW_UPS))!.parameters as Node).properties.counts,

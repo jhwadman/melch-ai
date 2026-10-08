@@ -46,7 +46,9 @@ the starter pack and the templates), not the repo's full history.
   `tools/list` entry), a zod schema is exported for its input side
   (`io: 'input'`), so a field with a default is no longer listed as
   required. A record's value schema (`additionalProperties`) is kept on
-  both paths. `toGeminiSchema` walks by schema keyword, so a property named
+  both paths, and its `propertyNames: { type: 'string' }`, which says
+  nothing in JSON, is left out: a live Gemini call refuses that keyword
+  with a 400 and accepts the value schema. `toGeminiSchema` walks by schema keyword, so a property named
   `additionalProperties` or `default` keeps its schema. `models/schemaNormalize`
   exports `zodInputJsonSchema`, `zodToolParameters` and `mapSchemaNodes`,
   and `contractToolDeclaration` reads an own Tool's `declaration()`.

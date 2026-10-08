@@ -278,7 +278,7 @@ test("a contract's declaration comes from zod, without the keywords the ADK path
   assert.deepEqual(props.window.anyOf[1], { type: 'null' });
   assert.deepEqual(
     props.counts,
-    { type: 'object', propertyNames: { type: 'string' }, additionalProperties: { type: 'number' } },
+    { type: 'object', additionalProperties: { type: 'number' } },
     "a map keeps its value schema, as the ADK path keeps it",
   );
   assert.ok(!(decl.parameters.required as string[]).includes('limit'), 'a field with a default is optional');
