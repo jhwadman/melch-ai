@@ -4,6 +4,11 @@
  * tool that throws gets structured guidance), `retries: 0` turning each off,
  * `url_context` native on Gemini and a no-op elsewhere, and `examples:` in the
  * instruction. Scripted models, in-memory sessions, no network.
+ *
+ * The native loop's self-correction (lib/runtime/native/selfCorrection.ts,
+ * ADR 0075) is held to the same stored events as these plugins in
+ * tests/nativeLoop.test.ts ("self-correction: …"), with the parity harness
+ * there; here, its settings.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -12,7 +17,8 @@ import assert from 'node:assert/strict';
 import { FunctionTool, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { z } from 'zod';
 
-import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { URL_CONTEXT } from '../lib/tools/urlContextTool.ts';
 import { describeCapabilities } from '../lib/models/capabilities.ts';
@@ -103,4 +109,15 @@ test('examples reach every request\'s instruction', async () => {
   await turn(config({}, { examples: [{ input: 'Capital of France?', output: 'Paris.' }] }), boss);
   assert.match(instruction, /Capital of France\?/);
   assert.match(instruction, /Paris\./);
+});
+
+test('the native loop reads the same retries: defaults on, 0 turns each side off', () => {
+  const defaults = new SelfCorrection();
+  assert.deepEqual([defaults.modelErrors, defaults.toolErrors], [DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES]);
+  assert.deepEqual([defaults.modelErrors, defaults.toolErrors], [2, 3]);
+  assert.deepEqual(defaults.forModel('Boss', 'e-1')?.tools.map((t) => t.name), ['adk_handle_model_error']);
+  assert.ok(defaults.forCalls('e-1', 1));
+  const off = new SelfCorrection({ model_errors: 0, tool_errors: 0 });
+  assert.equal(off.forModel('Boss', 'e-1'), undefined);
+  assert.equal(off.forCalls('e-1', 1), undefined);
 });

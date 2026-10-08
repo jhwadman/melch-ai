@@ -34,6 +34,7 @@ import type { Session } from '../lib/runtime/sessions.ts';
 import { buildModelRequest, injectSessionState } from '../lib/runtime/native/request.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { projectHistory } from '../lib/runtime/native/history.ts';
+import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runModelStep } from '../lib/runtime/native/step.ts';
 import type { ModelStepOptions } from '../lib/runtime/native/step.ts';
 import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
@@ -71,14 +72,14 @@ registerTool(
 type Orchestrator = SyndicateYamlConfig['orchestrator'];
 
 /**
- * A one-agent syndicate. `retries.model_errors: 0` keeps ADK's reflect-and-
- * retry model plugin out of the request: the reflection tool it adds
- * (`adk_handle_model_error`) comes to the native loop with self-correction
- * (WS2-8), not with the step.
+ * A one-agent syndicate, retries at their defaults: ADK's reflect-and-retry
+ * model plugin declares its reflection tool (`adk_handle_model_error`) on
+ * every request, and the native step declares it through self-correction's
+ * model side (lib/runtime/native/selfCorrection.ts).
  */
 function syndicate(orchestrator: Record<string, unknown>): SyndicateYamlConfig {
   return validateSyndicateConfig(
-    { syndicate_name: APP, orchestrator: { model: 'scripted/boss', ...orchestrator }, subagents: [], retries: { model_errors: 0 } },
+    { syndicate_name: APP, orchestrator: { model: 'scripted/boss', ...orchestrator }, subagents: [] },
     'test',
   ) as SyndicateYamlConfig;
 }
@@ -180,6 +181,7 @@ async function assertParity(
   assert.equal(modelEvents.length, adk.calls.length, 'one stored model event per call');
 
   const nativeRequests: ModelRequest[] = [];
+  const selfCorrection = new SelfCorrection(config.retries);
   for (const [k, call] of adk.calls.entries()) {
     const [adkEvent, at] = modelEvents[k] as readonly [TurnEvent, number];
     const { session, sessions } = await sessionBefore(adk.events, at);
@@ -187,7 +189,15 @@ async function assertParity(
     const adapter = new ScriptedModel('scripted/boss', () => call.responses);
     const control = createTurnControl();
     const step = await runWithTurnControl(control, () =>
-      runModelStep({ agent, session, sessions, invocationId: adkEvent.invocationId, userContent: userEvent?.content as TurnContent, adapter }),
+      runModelStep({
+        agent,
+        session,
+        sessions,
+        invocationId: adkEvent.invocationId,
+        userContent: userEvent?.content as TurnContent,
+        adapter,
+        correction: selfCorrection.forModel(agent.name, adkEvent.invocationId),
+      }),
     );
     control.dispose();
     assert.equal(adapter.calls, 1);
@@ -245,7 +255,7 @@ test('parity: an agent with tools and an output schema (set_model_response) send
     ['grade alpha'],
   );
   const [first, second] = requests as [ModelRequest, ModelRequest];
-  assert.deepEqual(first.tools?.map((t) => t.name), ['native_step_lookup', 'load_memory', 'set_model_response']);
+  assert.deepEqual(first.tools?.map((t) => t.name), ['native_step_lookup', 'load_memory', 'set_model_response', 'adk_handle_model_error']);
   assert.deepEqual(first.nativeTools, ['web_search'], 'web_search, on a model the prefix table reads as Gemini');
   assert.equal(first.outputSchema, undefined, 'beside tools the schema is the set_model_response tool');
   assert.match(first.system ?? '', /call the "set_model_response" function/);
@@ -272,8 +282,8 @@ test('parity: an agent with examples and a skill sends and stores what ADK does,
   const [first, second] = requests as [ModelRequest, ModelRequest];
   assert.match(first.system ?? '', /<available_skills>/);
   assert.match(first.system ?? '', /<EXAMPLES>[\s\S]*notes for 1\.2[\s\S]*<EXAMPLES>$/);
-  assert.deepEqual(first.tools?.map((t) => t.name), ['load_skill', 'load_skill_resource']);
-  assert.deepEqual(second.tools?.map((t) => t.name), ['load_skill', 'load_skill_resource', 'harness_test_lookup']);
+  assert.deepEqual(first.tools?.map((t) => t.name), ['load_skill', 'load_skill_resource', 'adk_handle_model_error']);
+  assert.deepEqual(second.tools?.map((t) => t.name), ['load_skill', 'load_skill_resource', 'harness_test_lookup', 'adk_handle_model_error']);
 });
 
 test('parity: a call to a long-running tool is listed in longRunningToolIds, as ADK lists it', async () => {

@@ -32,6 +32,7 @@ import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
 import type { AgentLoopEnd } from '../lib/runtime/native/agentLoop.ts';
 import { SUBAGENT, subagentOf, subagentTool } from '../lib/runtime/native/delegate.ts';
@@ -204,6 +205,7 @@ async function runNative(config: SyndicateYamlConfig, nested: Nested, scripts: M
         const loop = runAgentLoop(agent, {
           session,
           sessions: store,
+          selfCorrection: new SelfCorrection(config.retries ?? {}),
           invocationId: userEvent.invocationId,
           userContent: userEvent.content as TurnContent,
           adapterFor: (id) => {
@@ -269,8 +271,8 @@ const noRetries = { retries: { model_errors: 0, tool_errors: 0 } };
 
 /** Runs both ways and asserts every session holds the same events, and every model was sent the same requests. */
 async function assertParity(given: SyndicateYamlConfig, scripts: Models, turns: Turn[] = [{}], nested: Nested = {}) {
-  // ADK's reflect-and-retry plugins add their own tool to the caller's requests; they come to the native loop with WS2-8.
-  const config = { ...given, retries: given.retries ?? noRetries.retries };
+  // Retries at their defaults: both runtimes run the caller with self-correction and each subagent without it (ADR 0075).
+  const config = given;
   resetCircuits();
   const adk = await runOnAdk(config, nested, scripts, turns);
   resetCircuits();

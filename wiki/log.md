@@ -3,6 +3,26 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/selfCorrection.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0075-native-self-correction-ports-adk-plugins.md —constrains→ module:lib/runtime/native/selfCorrection.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0075-native-self-correction-ports-adk-plugins.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0075-native-self-correction-ports-adk-plugins.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0075-native-self-correction-ports-adk-plugins.md —depends_on→ /decisions/0034-self-correction.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/delegate.ts
 
 by claude-code/claude-opus-5-5

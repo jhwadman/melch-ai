@@ -15,6 +15,7 @@ sources:
   - resource: lib/runtime/native/step.ts
   - resource: lib/runtime/native/agentLoop.ts
   - resource: lib/runtime/native/delegate.ts
+  - resource: lib/runtime/native/selfCorrection.ts
   - resource: tests/nativeStep.test.ts
   - resource: tests/nativeLoop.test.ts
   - resource: tests/nativeDelegate.test.ts
@@ -63,10 +64,11 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
 4. **Tools.** These follow the agent's order, a toolset expanded through `getTools` against the session's state (so a loaded skill's tools appear):
    - client-side declarations go through `contractToolDeclaration`, one per name, the later object winning;
    - server-side tools go where the ADK runtime sends them: `web_search` on every provider, `url_context` and `google_search` on Gemini, `x_search` and `collections_search` on xAI, and `code_execution` first among Gemini's own;
-   - `set_model_response` is added when step 2 asked for it.
+   - `set_model_response` is added when step 2 asked for it;
+   - self-correction's reflection tool, `adk_handle_model_error`, comes last when the step has a `correction` (see [Self-correction](#self-correction)).
 5. **The rest.** Tool choice, the output schema or JSON mode, reasoning and sampling, each read by the shim mapping's own reader. `stream` is `false` unless the caller streams, and `signal` is the turn's.
 
-Not done by the step: resuming an approval or an input request (WS2-7), self-correction's reflection tool (WS2-8), compaction (WS2-9), `transfer_to_agent` (compiled syndicates delegate through subagent tools), task mode (WS3-5), and an ADK tool's own request edits beyond its declaration.
+Not done by the step: resuming an approval or an input request (WS2-7), compaction (WS2-9), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), task mode (WS3-5), and an ADK tool's own request edits beyond its declaration.
 
 ## The call
 
@@ -82,6 +84,8 @@ Each response becomes ADK's event for it. The base event is created before the c
 - a call to a long-running tool (`ask_user`) is listed in `longRunningToolIds`;
 - a `set_model_response` call becomes its arguments as JSON text, with `skipSummarization`;
 - an answer with no parts, no error and no usage makes no event.
+
+With a `correction`, each response, partials included, passes through self-correction's model side first, after the fallback's redirect check. A retry may stand in its place, or the step may end on an `UNKNOWN_ERROR` event (see [Self-correction](#self-correction)).
 
 A partial event goes to the caller's `onPartial` and is never stored. The caller's `beforeAppend` sees the final event just before it is stored through `SessionService.append`, which applies the store's rules ([sessions](/memory/sessions.md)).
 
@@ -102,7 +106,7 @@ A caller may also send the request under another model id (`model`): a fallback 
 
 ## The loop
 
-`runAgentLoop(agent, ctx)` is an async generator. `ctx` is what the step takes besides the agent and its adapter (session, store, run id, user content, branch, memory, `stream`, signal), plus `adapterFor`, the leaf adapter for a model id (default `resolveAdapter`), and `log` for the fallback's notice. The session already holds the run's user event. The loop yields each partial as it arrives, never stored, then each event as the store returned it, so `drainAgentStream` reads it as it reads ADK's stream: streamed text reaches `onTextDelta`, and narration before a tool call is withdrawn with `onTextReset`.
+`runAgentLoop(agent, ctx)` is an async generator. `ctx` is what the step takes besides the agent and its adapter (session, store, run id, user content, branch, memory, `stream`, signal), plus `adapterFor`, the leaf adapter for a model id (default `resolveAdapter`), `log` for the fallback's notice, and `selfCorrection`, the turn's self-correction (default: retries at their defaults). The session already holds the run's user event. The loop yields each partial as it arrives, never stored, then each event as the store returned it, so `drainAgentStream` reads it as it reads ADK's stream: streamed text reaches `onTextDelta`, and narration before a tool call is withdrawn with `onTextReset`.
 
 Each step:
 
@@ -111,6 +115,7 @@ Each step:
    - a result that is not an object is wrapped `{ result }`, an array `{ results }`;
    - a call naming no declared tool answers `Function <name> is not found in the toolsDict.`;
    - a tool that throws answers `Error in tool '<name>': <message>`;
+   - with tool retries on, those two answer with reflection guidance instead (see [Self-correction](#self-correction));
    - a tool that requires approval asks for it: `requestedToolConfirmations` under the call's id, `skipSummarization`, and the pending notice as its answer;
    - a long-running call (`ask_user`) with no result answers nothing; its actions, when it set any, make an event with no content.
 
@@ -129,6 +134,35 @@ The generator returns an `AgentLoopEnd`:
 | `error` | the last event carries a failed call's error, among them a model that thinks but never answers ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)) | `lastEvent` |
 | `stopped` | the turn stopped a step (cancel, deadline, `max_steps`); nothing was stored for it | `stop`, the turn's code and message |
 | `empty` | the model answered nothing | |
+
+## Self-correction
+
+`lib/runtime/native/selfCorrection.ts` does what ADK's reflect-and-retry plugins do on the ADK runtime ([ADR 0034](/decisions/0034-self-correction.md), [ADR 0075](/decisions/0075-native-self-correction-ports-adk-plugins.md)). The texts, ids and counts are the same, so both runtimes store the same events. A `SelfCorrection` is built from the syndicate's `retries:` and holds one turn's counters, kept per run id.
+
+**The model side** (`retries.model_errors`, default 2; `0` turns it off), through the step's `correction`:
+
+- Every request declares `adk_handle_model_error` ("A tool that triggers reflection. …", no parameters) after the agent's tools.
+- Two kinds of response are replaced by ADK's reflection call, with id `adk_handle_model_error_<uuid>` and the arguments `response_type`, `error_type`, `error_details`, `finish_reason` and `retry_count`:
+  - a response that calls that tool itself (`RESERVED_TOOL_CALL`);
+  - a response whose finish reason is `MALFORMED_FUNCTION_CALL`.
+- The loop runs the call like any other, and the tool answers with reflection guidance.
+- The count is per agent, and any other response resets it, a streamed partial included.
+- Past the limit, the step stores ADK's event for a callback that threw: `UNKNOWN_ERROR`, "Error in plugin 'reflect_retry_model_plugin' during 'afterModelCallback' callback: …". The run ends with `error`.
+
+**The tool side** (`retries.tool_errors`, default 3; `0` turns it off), through each call's `CallCorrection`:
+
+- A tool that throws an Error, and a call naming no tool, answer with reflection guidance: `response_type`, `error_type`, `error_details`, `retry_count` and `reflection_guidance`.
+- Past the limit, the guidance says the retry limit is exceeded and not to use the tool again.
+- A call that answers resets its tool's count.
+- The calls run in parallel, but they are counted in call order, as ADK counts them running one after another.
+
+ADK's quirks are kept on purpose, so both runtimes match:
+
+- the reflection tool's guidance always says "attempt 1";
+- a partial resets the model count;
+- through the model contract a malformed Gemini call is an error code, not a finish reason, so no adapter's response is retried for it on either runtime.
+
+Not done by the loop: delegation and transfer (WS2-6), resuming an approval or a question (WS2-7a, WS2-7b), compaction (WS2-9), tool spans (WS2-11), and an auth request a tool raises. A `temp:` key a tool writes is not visible to the next step's instruction placeholders.
 
 ## Delegation
 
