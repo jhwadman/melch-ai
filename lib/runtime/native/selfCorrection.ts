@@ -12,9 +12,14 @@
  *   read differently on the other:
  *
  *   THE MODEL (`retries.model_errors`, default 2; 0 off):
- *   - Every request declares the reflection tool, `adk_handle_model_error`,
- *     after the agent's own tools (the plugin's beforeModelCallback adds it
- *     to the toolsDict last).
+ *   - The reflection tool, `adk_handle_model_error`, is one of every step's
+ *     tools, after the agent's own: the plugin's beforeModelCallback adds it
+ *     to the request's toolsDict last, and never to its config. Whether the
+ *     model is told of it depends on the model class ADK hands the request
+ *     to (ADR 0097): the ADK shim and the engine's own ADK classes declare
+ *     the toolsDict, so the tool is declared; ADK's own Gemini sends the
+ *     config alone, so a Gemini model is never told of it. The step asks
+ *     `declaresReflectionTool` and runs the tool either way.
  *   - Each response is checked (afterModelCallback), partials included. A
  *     response that calls the reflection tool itself, or whose finish reason
  *     is MALFORMED_FUNCTION_CALL, is replaced by a call to the reflection
@@ -50,6 +55,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { LlmResponse } from '@google/adk';
 
+import { GEMINI_PROVIDER } from '../../models/geminiState.ts';
 import type { Tool } from '../../tools/tool.ts';
 
 // ── The settings ─────────────────────────────────────────────────────────────
@@ -70,6 +76,33 @@ const RESERVED_TOOL_CALL = 'RESERVED_TOOL_CALL';
 /** The finish reasons the model plugin retries (its onModelErrors default). */
 const MODEL_ERRORS: readonly string[] = ['MALFORMED_FUNCTION_CALL'];
 const MODEL_PLUGIN = 'reflect_retry_model_plugin';
+
+// ── Where ADK declares the reflection tool ──────────────────────────────────
+
+/** Gemini adapters a caller handed over as a contract adapter or behind the ADK shim: on ADK the shim declares the toolsDict. */
+const SHIMMED_GEMINI = new WeakSet<object>();
+
+/**
+ * Marks `adapter` as one the ADK runtime would call through the ADK shim
+ * (a resolver's shim or contract adapter, lib/compileNative.ts), not through
+ * ADK's own Gemini. Returns it.
+ */
+export function servedThroughShim<T extends object>(adapter: T): T {
+  SHIMMED_GEMINI.add(adapter);
+  return adapter;
+}
+
+/**
+ * Whether the ADK runtime would tell this adapter's model of the reflection
+ * tool (ADR 0097). The plugin puts the tool in the toolsDict alone. Every
+ * model class the engine hands ADK declares the toolsDict, but ADK's own
+ * Gemini (and TracedGemini over it) sends only the request's config, which
+ * never holds it. A Gemini adapter stands for ADK's Gemini unless a caller
+ * handed it over behind the shim (servedThroughShim).
+ */
+export function declaresReflectionTool(adapter: { readonly provider: string }): boolean {
+  return adapter.provider !== GEMINI_PROVIDER || SHIMMED_GEMINI.has(adapter);
+}
 
 // ── Counting, per run ────────────────────────────────────────────────────────
 
@@ -105,7 +138,7 @@ export type CorrectedResponse =
 
 /** The model side, for one agent's steps in one run (lib/runtime/native/step.ts). */
 export interface ModelCorrection {
-  /** Declared after the agent's own tools: the reflection tool. */
+  /** After the agent's own tools: the reflection tool. Declared to the model only where ADK declares it (declaresReflectionTool). */
   readonly tools: readonly Tool[];
   /** ADK's afterModelCallback, on every response the step reads. */
   afterModel(response: LlmResponse): CorrectedResponse;

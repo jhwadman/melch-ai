@@ -3,6 +3,30 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0097-reflection-tool-declared-where-adk-declares-it.md —explains→ /decisions/0065-gemini-carried-parts-and-server-side-invocations.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0097-reflection-tool-declared-where-adk-declares-it.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0097-reflection-tool-declared-where-adk-declares-it.md —depends_on→ /decisions/0075-native-self-correction-ports-adk-plugins.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0097-reflection-tool-declared-where-adk-declares-it.md —constrains→ module:lib/compileNative.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0097-reflection-tool-declared-where-adk-declares-it.md —constrains→ module:lib/runtime/native/step.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0097-reflection-tool-declared-where-adk-declares-it.md —constrains→ module:lib/runtime/native/selfCorrection.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0096-ollama-structured-output-sends-json-schema.md —depends_on→ /decisions/0061-json-mode-on-the-contract.md
 
 by claude-code/claude-opus-5-5
