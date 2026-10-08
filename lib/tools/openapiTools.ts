@@ -3,17 +3,20 @@
  * agent's tools, from YAML.
  *
  * WHY: "Bring your own API" was a code task: write a `defineTool` per
- * endpoint, register it, name it in YAML. ADK 2.2 ships `OpenAPIToolset`,
- * which turns an OpenAPI 3 spec into one tool per operation (parameters and
- * request body as the tool's schema, the operation's summary as its
- * description). An agent's `openapi:` list hands it a spec file:
+ * endpoint, register it, name it in YAML. An OpenAPI 3 spec becomes one tool
+ * per operation (parameters and request body as the tool's schema, the
+ * operation's description or summary as its prompt). The engine's own
+ * parser (lib/tools/openapi/parse.ts, ADR 0063) reads the spec, names the
+ * tools and builds their declarations, by the rules ADK's OpenAPIToolset
+ * had; each operation is then called through ADK's RestApiTool until the
+ * engine owns the call. An agent's `openapi:` list hands it a spec file:
  *
  *   openapi:
  *     - spec: "specs/weather.yaml"          # beside this YAML file
  *       operations: [getForecast]           # omitted: the GET operations only
  *       auth: { api_key: { env: "WEATHER_KEY", in: "header", name: "X-Api-Key" } }
  *
- * WHAT THE ENGINE ADDS to ADK's toolset, all of it exposure discipline:
+ * WHAT THE ENGINE ADDS, all of it exposure discipline:
  *   - READ-ONLY BY DEFAULT. Without `operations`, only GET operations become
  *     tools; anything that writes is exposed only by naming it, and a named
  *     operation can be listed under `require_approval` like a registry tool
@@ -40,6 +43,9 @@
  *     full guard even with ALLOW_PRIVATE_OPENAPI (that permits the server
  *     you configured, not wherever it points), and loses every header but
  *     content negotiation, credentials included.
+ *   - BOUNDED SPECS. A spec over 4 MiB, one that expands past a million
+ *     values once its $refs are resolved, or nests past 128 levels fails
+ *     the compile with a readable error (lib/tools/openapi/parse.ts).
  *   - BOUNDED RESULTS. A response larger than MAX_RESULT_CHARS is cut and
  *     says so; a network failure comes back as `{ error }`, never a throw.
  *
@@ -47,15 +53,19 @@
  * second outbound surface, and a spec that changes under a running agent
  * changes its tools. Save the spec beside the YAML and review it like code.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
-import { BaseTool, OpenAPIToolset, tokenToSchemeCredential } from '@google/adk';
+import { BaseTool, createRestApiTool, tokenToSchemeCredential } from '@google/adk';
 import type { RunAsyncToolRequest } from '@google/adk';
 
 import { blockedHostReason, checkHost } from '../net/addressGuard.ts';
 import { withRedirectGuard } from '../net/redirects.ts';
 import type { RedirectPolicy } from '../net/redirects.ts';
 import { MAX_RESULT_CHARS as TOOL_RESULT_CHARS } from './tool.ts';
+import { MAX_SPEC_BYTES, operationNamed, parseOpenApiSpec } from './openapi/parse.ts';
+import type { OpenApiOperation } from './openapi/parse.ts';
+
+export { namesTool, toSnake } from './openapi/parse.ts';
 
 export interface OpenApiAuthConfig {
   /** Environment variable holding a bearer token (`Authorization: Bearer …`). */
@@ -82,20 +92,6 @@ export const MAX_RESULT_CHARS = TOOL_RESULT_CHARS;
 
 /** Marks a tool built here, so require_approval may gate it (lib/compile.ts). */
 export const OPENAPI_TOOL = Symbol.for('melchizedek.openapiTool');
-
-/** snake_case, the way ADK names a tool from an operationId. */
-export function toSnake(name: string): string {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-    .replace(/[^A-Za-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .toLowerCase();
-}
-
-/** True when a configured operation name (an operationId or a tool name) names this tool. */
-export function namesTool(configured: string, tool: { name: string; operation?: { operationId?: string } }): boolean {
-  return configured === tool.name || configured === tool.operation?.operationId || toSnake(configured) === tool.name;
-}
 
 /**
  * Why a server may not be called, or null. At compile time only the literal
@@ -189,24 +185,24 @@ export async function buildOpenApiTools(entry: OpenApiConfig, baseDir: string = 
   if (!existsSync(specPath)) throw new Error(`openapi: spec not found: ${entry.spec}`);
   const ext = extname(specPath).toLowerCase();
   if (!['.yaml', '.yml', '.json'].includes(ext)) throw new Error(`openapi ${entry.spec}: a spec is .yaml, .yml or .json`);
-  const toolset = new OpenAPIToolset({
-    specStr: readFileSync(specPath, 'utf-8'),
-    specType: ext === '.json' ? 'json' : 'yaml',
+  if (statSync(specPath).size > MAX_SPEC_BYTES) throw new Error(`openapi ${entry.spec}: the spec is larger than ${MAX_SPEC_BYTES} bytes`);
+  const credential = credentialFor(entry.auth, entry.spec);
+  const all = parseOpenApiSpec(readFileSync(specPath, 'utf-8'), ext === '.json' ? 'json' : 'yaml', {
+    source: entry.spec,
     ...(entry.prefix ? { prefix: entry.prefix } : {}),
-    ...credentialFor(entry.auth, entry.spec),
   });
-  const all = (await toolset.getTools()) as Array<BaseTool & { endpoint: { method: string; baseUrl: string }; operation?: { operationId?: string } }>;
 
-  let chosen: typeof all;
+  let picked: OpenApiOperation[];
   if (entry.operations?.length) {
-    const unknown = entry.operations.filter((op) => !all.some((t) => namesTool(op, t) || namesTool(op, { name: t.name.replace(`${entry.prefix}_`, ''), operation: t.operation })));
+    const unknown = entry.operations.filter((op) => !all.some((o) => operationNamed(op, o, entry.prefix)));
     if (unknown.length) {
-      throw new Error(`openapi ${entry.spec}: no operation ${unknown.map((u) => `'${u}'`).join(', ')} (the spec has ${all.map((t) => t.operation?.operationId ?? t.name).join(', ')})`);
+      throw new Error(`openapi ${entry.spec}: no operation ${unknown.map((u) => `'${u}'`).join(', ')} (the spec has ${all.map((o) => o.operationId).join(', ')})`);
     }
-    chosen = all.filter((t) => entry.operations!.some((op) => namesTool(op, t) || namesTool(op, { name: t.name.replace(`${entry.prefix}_`, ''), operation: t.operation })));
+    picked = all.filter((o) => entry.operations!.some((op) => operationNamed(op, o, entry.prefix)));
   } else {
-    chosen = all.filter((t) => t.endpoint.method.toLowerCase() === 'get');
+    picked = all.filter((o) => o.method === 'get');
   }
+  const chosen = picked.map((o) => restApiTool(o, credential));
 
   if (entry.base_url) for (const t of chosen) t.endpoint.baseUrl = entry.base_url;
   for (const baseUrl of new Set(chosen.map((t) => t.endpoint.baseUrl))) {
@@ -215,6 +211,33 @@ export async function buildOpenApiTools(entry: OpenApiConfig, baseDir: string = 
     if (problem) throw new Error(`openapi ${entry.spec}: ${problem}`);
   }
   return chosen.map(guarded);
+}
+
+/**
+ * The ADK tool that calls one parsed operation: the same RestApiTool
+ * OpenAPIToolset built, from the engine's parse (lib/tools/openapi/parse.ts),
+ * so its arguments, names and declaration are the parser's. The call itself
+ * stays ADK's until the engine owns it.
+ */
+function restApiTool(op: OpenApiOperation, credential: { authScheme?: any; authCredential?: any }) {
+  const tool = createRestApiTool({
+    name: op.name,
+    description: op.description,
+    endpoint: { baseUrl: op.baseUrl, path: op.path, method: op.method as any },
+    operation: op.operation as any,
+    authScheme: op.authScheme as any,
+    parameters: op.parameters.map((p) => ({
+      name: p.name,
+      originalName: p.originalName,
+      paramLocation: p.location,
+      paramSchema: p.schema as any,
+      description: p.description as string,
+      required: p.required,
+    })),
+  });
+  if (credential.authScheme) tool.configureAuthScheme(credential.authScheme);
+  if (credential.authCredential) tool.configureAuthCredential(credential.authCredential);
+  return tool as unknown as BaseTool & { endpoint: { method: string; baseUrl: string }; operation?: { operationId?: string } };
 }
 
 /**
