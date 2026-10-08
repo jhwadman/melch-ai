@@ -309,6 +309,46 @@
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08",
       "note": "Its filtering, re-create and paging already match the interface; moving it onto SessionService keeps them."
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Decision 2: \"On the ADK path the caller is AdkShim, which calls traceLlmGeneration exactly as the adapters above do, with the adapter's provider, the shim's model id and the LlmRequest.\" tests/adkShim.test.ts compares its refusals with ClaudeLlm, GptLlm and OllamaLlm.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Decision 1: \"An adapter on the contract never charges the turn and never opens llm.request. It honours request.signal, and it decorates the span that is open around it with setLlmSpanAttribute. GeminiAdapter already works this way.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/fallbackAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Decision 4: \"One shim per leaf adapter ... A FallbackAdapter behind one shim would make it one of each, attributed to the primary.\" Consequences: the native runtime charges and traces \"around each leaf adapter, never around a whole FallbackAdapter\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "constrains",
+      "evidence": "FallbackLlm reads only customMetadata['error.retryable'] (lib/models/errorResponse.ts); the shim writes it through modelResponseToLlmResponse, and the boundary suite case \"shim: FallbackLlm answers a retryable error from the fallback, and passes a non-retryable one on\" holds it to ADR 0044's rules.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0045 Decision 4: the stored Event JSON never changes without an ADR. tests/syndicateTurn.test.ts runs every shim case twice and asserts the stored session history is the same as with the scripted ADK model, call ids aside.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

@@ -19,13 +19,14 @@ sources:
   - resource: tests/contractToolDeclarations.test.ts
   - resource: lib/models/genaiMapping.ts
   - resource: tests/genaiMapping.test.ts
+  - resource: lib/models/adkShim.ts
 ---
 
 # Model contract
 
 `lib/models/contract.ts` is the format the native runtime speaks to every model ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), [ADR 0048](/decisions/0048-engine-owned-model-contract.md)): a message format, one request, one response stream, and the adapter interface each provider implements. It is a leaf of types only. Its one import is `ProviderState` ([ADR 0046](/decisions/0046-provider-reasoning-state-on-the-part.md)), and nothing in its import graph names `@google/*`, which `tests/modelContract.test.ts` asserts along with a whole tool loop written in the contract. The loader takes `ReasoningSetting` from it.
 
-Adapters move onto the contract in stages. Until an adapter does, it still translates `@google/genai` `Content` as [provider routing](/models/provider-routing.md) describes. The mappings below are what each adapter implements on the contract. `lib/models/genaiMapping.ts` converts between genai `Content` and the contract both ways ([From genai Content](#from-genai-content)), so an adapter can move onto the contract while ADK still runs, and the native runtime can read the sessions ADK stored.
+Adapters move onto the contract in stages. Until an adapter does, it still translates `@google/genai` `Content` as [provider routing](/models/provider-routing.md) describes. The mappings below are what each adapter implements on the contract. `lib/models/genaiMapping.ts` converts between genai `Content` and the contract both ways ([From genai Content](#from-genai-content)), so an adapter can move onto the contract while ADK still runs, behind the [ADK shim](/models/adk-shim.md), and the native runtime can read the sessions ADK stored.
 
 ## The adapter rules
 
@@ -115,7 +116,7 @@ The codes are the ones the adapters emit under ADK, kept verbatim, so a caller m
 
 | Code | Emitted by | When |
 |---|---|---|
-| `STEP_LIMIT`, `DEADLINE_EXCEEDED`, `CANCELED` | every adapter | The turn's controls (`lib/runtime/turnControl.ts`) refuse the call at the shared choke point: the step budget is spent, or the turn has stopped. |
+| `STEP_LIMIT`, `DEADLINE_EXCEEDED`, `CANCELED` | every adapter's caller | The turn's controls (`lib/runtime/turnControl.ts`) refuse the call at the shared choke point, before it reaches the adapter: the step budget is spent, or the turn has stopped. An adapter on the contract never emits them; the code that calls it does ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), which on the ADK path is the [ADK shim](/models/adk-shim.md). |
 | `MISSING_API_KEY` | Claude, GPT, Grok, Gemini | No key on a provider's own API. |
 | `ENDPOINT_MISCONFIGURED` | Claude, GPT, Gemini | A platform (ADR 0023) that is not fully configured, or its client failed to build. |
 | `SDK_NOT_INSTALLED` | Claude, GPT, Grok | The vendor SDK (or a platform's optional peer) is absent. |
@@ -282,7 +283,7 @@ Stored sessions and the ADK path hold `@google/genai` `Content`. `lib/models/gen
 - `llmRequestToModelRequest(llmRequest, { model?, stream?, signal? })`, for ADK's request;
 - `modelResponseToLlmResponse(response)`, for what ADK expects back.
 
-With them an adapter's ADK class can wrap the adapter's `generate()` while ADK still runs, and the native runtime reads the sessions ADK stored. The module may import `@google/genai` and ADK; the contract stays a leaf. `tests/genaiMapping.test.ts` runs every stored session fixture through it, and maps a request that a real ADK `LlmAgent` built.
+With them the [ADK shim](/models/adk-shim.md) (`lib/models/adkShim.ts`) runs any adapter's `generate()` under ADK, and the native runtime reads the sessions ADK stored. The module may import `@google/genai` and ADK; the contract stays a leaf. `tests/genaiMapping.test.ts` runs every stored session fixture through it, and maps a request that a real ADK `LlmAgent` built.
 
 ### Contents and messages
 
