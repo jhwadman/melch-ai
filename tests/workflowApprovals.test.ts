@@ -27,9 +27,13 @@ import { registerTool } from '../lib/toolRegistry.ts';
 import { compileWorkflow } from '../lib/workflow.ts';
 import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { virtualClock } from './helpers/virtualClock.ts';
 import { comparable } from './helpers/workflowParity.ts';
 
 setLogLevel(LogLevel.ERROR);
+
+/** The clock a slow script waits on: a finish order is the scripts' timeline, never a race of real timers (tests/helpers/virtualClock.ts). */
+const clock = virtualClock();
 
 const sent: string[] = [];
 registerTool(
@@ -137,7 +141,7 @@ test('native: a sibling node’s input stored after the request does not hide it
   const { turn, models, events } = conversation(cfg, 'native', {
     ...scripts(),
     slow: async (request) => {
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      await clock.sleep(30);
       return answer(`slow(${lastText(request)})`);
     },
     late: (request) => answer(`late(${lastText(request)})`),
@@ -169,7 +173,7 @@ test('native: two gated nodes pause at once; each decision resumes its own node,
     ...scripts(),
     mail: async (request, n) => {
       if (n > 1) return answer(`mail saw ${JSON.stringify(lastToolResult(request)?.result ?? null)}`);
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      await clock.sleep(30);
       return toolCall('workflow_approval_send', { to: 'pr@acme.test' }, 'call-mail-1');
     },
   });
