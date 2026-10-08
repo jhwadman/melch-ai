@@ -8,9 +8,10 @@ tags:
   - runtime
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-07
+  at: 2026-10-08
 sources:
   - resource: lib/models/contract.ts
+  - resource: lib/runtime/valueDepth.ts
   - resource: lib/models/providerState.ts
   - resource: lib/models/claudeModels.ts
   - resource: lib/models/capabilities.ts
@@ -371,6 +372,13 @@ The compiler writes the effort word beside `thinkingConfig` from one setting, so
 | `error` | `errorCode`, and `errorMessage` with key-shaped text scrubbed; `retryable` as `customMetadata['error.retryable']` and `status`, when there is one, as `customMetadata['error.status']` (`withRetryVerdict`, `lib/models/errorResponse.ts`). FallbackLlm reads only that verdict, so a retryable failure from an adapter on the contract is answered by the fallback model ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). |
 | `finishReason` | an error whose code is one of Gemini's finish reasons (`MALFORMED_FUNCTION_CALL`, `RECITATION`, …; not `STOP`) gets that reason, as ADK's Gemini reports both, so the reflect-and-retry plugin retries a malformed call on either runtime ([ADR 0088](/decisions/0088-native-parity-followups.md)); otherwise `stop` and `tool_call` are `STOP`, `max_tokens` is `MAX_TOKENS`, `content_filter` is `SAFETY`, `other` is `OTHER`, and `error` sets none |
 | `grounding` | `groundingMetadata`: `webSearchQueries` holds every query, and `groundingChunks[].web` each cited URL once with its title, which is what `lib/grounding.ts` reads |
+
+Before any of this, `contractModelResponse` holds the response to the contract, so an adapter that breaks it never has its parts stored as they came ([ADR 0101](/decisions/0101-native-loop-security-gate.md)). The native step calls it too, so both runtimes read and store the same answer:
+
+- a part that is not an object, of no known kind, or a `toolResult` (an answer holds none) is dropped, and so is a text or thinking part whose text is not a string, a blob without a string `mimeType` and a string `data` or `url`, and a Gemini part carried whole that is not an object;
+- a `toolCall`'s name and id that are not strings become `''` (the runtime then mints the id); its arguments become `{}` when absent or null, `{ raw: <value> }` when they are not an object or an array, and `{ raw: TOO_DEEP_ARGUMENTS }` when they nest deeper than `MAX_VALUE_DEPTH` (64) levels (`lib/runtime/valueDepth.ts`), since every later reader of the session recurses through them.
+
+A response every part of which the contract allows is returned as it is.
 
 An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. `GptLlm`, `GrokLlm` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)) and the chat-completions shims `OllamaLlm`, `KimiLlm` and `GatewayLlm` ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)) write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
 

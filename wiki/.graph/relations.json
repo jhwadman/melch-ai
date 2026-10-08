@@ -2633,6 +2633,94 @@
       "evidence": "ADR 0100 Decision 4: partsToGenai writes carried_parts state back out as the executableCode and codeExecutionResult parts Gemini sent, then the part with its own signature, so a stored event holds them as ADK stores them.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0101 Decision 1: contractModelResponse holds a model answer to the contract in the mapping both runtimes share.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0101 Decision 1: the native step applies contractModelResponse before it reads the answer.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/valueDepth.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0101 Decision 2: a value nested past MAX_VALUE_DEPTH (64) never reaches a session.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0101 Decisions 2 and 3: a deep tool result answers TOO_DEEP_RESULT; call-id keyed actions are own keys.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0101 Decision 4: grantedCalls resumes only the agent-authored call, and a request an earlier grant bound is closed.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/credentials.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0101 Decision 4: pendingConsent reads only an agent-authored credential request.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0101 Decision 5: a yaml_reference chain that reaches itself, or goes past 16 levels, fails the compile by name.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "explains",
+      "evidence": "native-loop-security.md is the threat model of the native loop: each input path, what stops it, and its test.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/overview/native-loop.md",
+      "rel": "explains",
+      "evidence": "native-loop-security.md: what a hostile model, tool, message or store can do to the loop native-loop.md describes.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0101 Context: the gate comes before ADR 0045 makes the native runtime the default.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "constrains",
+      "evidence": "ADR 0101 Decision 4: the consent resume departs from ADK auth preprocessor on author and replay.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

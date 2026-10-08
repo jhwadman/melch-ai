@@ -36,7 +36,11 @@
  *      - a long-running tool (ask_user) that returns nothing answers
  *        nothing; its actions, when it set any, make an event of their own;
  *      - a result that is not an object is wrapped `{ result }`, an array
- *        `{ results }`, as ADK wraps them.
+ *        `{ results }`, as ADK wraps them;
+ *      - a result nested deeper than MAX_VALUE_DEPTH levels answers
+ *        `{ error: TOO_DEEP_RESULT }` instead: every later reader of the
+ *        session would overflow its stack on it (lib/runtime/valueDepth.ts,
+ *        ADR 0101). ADK keeps it.
  *      One call's response is stored as its own event; several are merged
  *      into one, parts in call order and actions merged (ADK's
  *      mergeParallelFunctionResponseEvents). ADK runs the calls one after
@@ -123,6 +127,7 @@ import type { Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from
 import { createEventActions, createTurnEvent, getFunctionCalls, getFunctionResponses, isFinal } from '../events.ts';
 import type { TurnContent, TurnEvent, TurnEventActions, TurnFunctionCall, TurnPart } from '../events.ts';
 import type { MemoryService } from '../memoryService.ts';
+import { MAX_VALUE_DEPTH, nestedDeeperThan } from '../valueDepth.ts';
 import { currentTurnSignal } from '../turnControl.ts';
 import { compactBeforeStep } from './compaction.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
@@ -239,14 +244,19 @@ function isDefaultActions(a: TurnEventActions): boolean {
   );
 }
 
+/** Copies `from`'s own keys onto `to` as own keys: Object.assign would re-parent `to` for a key `__proto__` (a model-chosen call id). */
+function assignOwn(to: object, from: object): void {
+  for (const [k, v] of Object.entries(from)) setOwn(to as Record<string, unknown>, k, v);
+}
+
 /** ADK's mergeEventActions: dictionaries merged in order, the later flag winning. */
 function mergeActions(sources: TurnEventActions[]): TurnEventActions {
   const out = createEventActions();
   for (const s of sources) {
-    if (s.stateDelta) for (const [k, v] of Object.entries(s.stateDelta)) setOwn(out.stateDelta as Record<string, unknown>, k, v);
-    if (s.artifactDelta) Object.assign(out.artifactDelta as object, s.artifactDelta);
-    if (s.requestedAuthConfigs) Object.assign(out.requestedAuthConfigs as object, s.requestedAuthConfigs);
-    if (s.requestedToolConfirmations) Object.assign(out.requestedToolConfirmations as object, s.requestedToolConfirmations);
+    if (s.stateDelta) assignOwn(out.stateDelta as object, s.stateDelta);
+    if (s.artifactDelta) assignOwn(out.artifactDelta as object, s.artifactDelta);
+    if (s.requestedAuthConfigs) assignOwn(out.requestedAuthConfigs as object, s.requestedAuthConfigs);
+    if (s.requestedToolConfirmations) assignOwn(out.requestedToolConfirmations as object, s.requestedToolConfirmations);
     if (s.skipSummarization !== undefined) out.skipSummarization = s.skipSummarization;
     if (s.transferToAgent !== undefined) out.transferToAgent = s.transferToAgent;
     if (s.escalate !== undefined) out.escalate = s.escalate;
@@ -339,7 +349,8 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
     consent && functionCallId
       ? async (provider: string): Promise<void> => {
           const request = await consent.begin({ appName: session.appName, userId: session.userId, sessionId: session.id, functionCallId, provider });
-          (actions.requestedAuthConfigs as Record<string, unknown>)[functionCallId] = request.authConfig;
+          // An own key, as every delta: a call id such as `__proto__` names a request, never a prototype.
+          setOwn(actions.requestedAuthConfigs as Record<string, unknown>, functionCallId, request.authConfig);
         }
       : undefined;
   const credentials = ctx.credentials;
@@ -371,7 +382,7 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
     // ADK's Context.requestConfirmation: the request, keyed by the call's id.
     requestConfirmation: ({ hint, payload }: { hint?: string; payload?: unknown } = {}) => {
       if (!functionCallId) throw new Error('functionCallId is not set.');
-      (actions.requestedToolConfirmations as Record<string, unknown>)[functionCallId] = { hint: hint ?? '', confirmed: false, payload };
+      setOwn(actions.requestedToolConfirmations as Record<string, unknown>, functionCallId, { hint: hint ?? '', confirmed: false, payload });
     },
     // The person's answer, when this call is the pinned call an approval resumes (interrupts.ts).
     confirmation,
@@ -398,6 +409,10 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
 
 /** What one call left: a response part and its actions, its actions alone (a pending long-running call), or nothing. */
 type CallOutcome = { part?: TurnPart; actions: TurnEventActions } | undefined;
+
+/** What a tool's result becomes when it nests past MAX_VALUE_DEPTH (ADR 0101). */
+export const TOO_DEEP_RESULT = (toolName: string): string =>
+  `The result of tool '${toolName}' nested deeper than ${MAX_VALUE_DEPTH} levels and was not kept.`;
 
 /** ADK's normalization of a tool's result into a function response. */
 function asResponse(value: unknown): Record<string, unknown> {
@@ -490,7 +505,9 @@ async function runCall(
     return isDefaultActions(context.actions) ? undefined : { actions: context.actions };
   }
   const answer = failure ? { error: failure } : response === null || response === undefined ? { result: response } : asResponse(response);
-  return { part: { functionResponse: { id: context.functionCallId, name: toolName, response: answer } }, actions: context.actions };
+  // A result nested past MAX_VALUE_DEPTH would overflow every later reader of the session (lib/runtime/valueDepth.ts, ADR 0101): a note stands in for it.
+  const kept = nestedDeeperThan(answer) ? { error: TOO_DEEP_RESULT(toolName) } : answer;
+  return { part: { functionResponse: { id: context.functionCallId, name: toolName, response: kept } }, actions: context.actions };
 }
 
 /**
