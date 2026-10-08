@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 786,
-    "edges": 2597,
+    "nodes": 789,
+    "edges": 2627,
     "byKind": {
-      "doc": 137,
+      "doc": 138,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 129,
+      "file": 130,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 175,
+      "module": 176,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 522,
+      "links_to": 528,
       "requires_env": 168,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 664,
+      "imports": 675,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 579,
-      "constrains": 115,
+      "derives_from": 586,
+      "constrains": 117,
       "supersedes": 6,
-      "depends_on": 50,
-      "explains": 11,
+      "depends_on": 53,
+      "explains": 12,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2413,
-      "inferred": 184
+      "extracted": 2437,
+      "inferred": 190
     },
     "isolated": 4
   },
@@ -1300,6 +1300,18 @@
       }
     },
     {
+      "id": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "kind": "doc",
+      "label": "ADR 0078: The native loop compacts with a port of ADK's token-based compactor, and its summary call is an llm.request under the agent span",
+      "source": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 898
+      }
+    },
+    {
       "id": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "kind": "doc",
       "label": "ADR 0081: Task mode on the native loop is finish_task as an own tool and a task-node hook that ends the run on its answer",
@@ -1572,7 +1584,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4024
+        "words": 4441
       }
     },
     {
@@ -3808,6 +3820,13 @@
       "source": "tests/claudeVision.test.ts"
     },
     {
+      "id": "file:tests/compaction.test.ts",
+      "kind": "file",
+      "label": "compaction.test.ts",
+      "source": "tests/compaction.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/compile.test.ts",
       "kind": "file",
       "label": "compile.test.ts",
@@ -4316,7 +4335,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 533
+        "lines": 526
       }
     },
     {
@@ -4325,7 +4344,7 @@
       "label": "lib/compileAdk.ts",
       "source": "lib/compileAdk.ts",
       "attrs": {
-        "lines": 124
+        "lines": 125
       }
     },
     {
@@ -4334,7 +4353,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 135
+        "lines": 133
       }
     },
     {
@@ -4955,7 +4974,16 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 638
+        "lines": 658
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/compaction.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/compaction.ts",
+      "source": "lib/runtime/native/compaction.ts",
+      "attrs": {
+        "lines": 223
       }
     },
     {
@@ -4973,7 +5001,7 @@
       "label": "lib/runtime/native/history.ts",
       "source": "lib/runtime/native/history.ts",
       "attrs": {
-        "lines": 319
+        "lines": 324
       }
     },
     {
@@ -4982,7 +5010,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 557
+        "lines": 560
       }
     },
     {
@@ -5036,7 +5064,7 @@
       "label": "lib/runtime/nativeTurn.ts",
       "source": "lib/runtime/nativeTurn.ts",
       "attrs": {
-        "lines": 133
+        "lines": 132
       }
     },
     {
@@ -11364,6 +11392,76 @@
       "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:32"
     },
     {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "file:tests/compaction.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md frontmatter"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:25"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:25"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:25"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:25"
+    },
+    {
+      "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:38"
+    },
+    {
       "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "to": "file:tests/execution.test.ts",
       "rel": "derives_from",
@@ -14011,6 +14109,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/compaction.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/execution.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14061,6 +14166,13 @@
     {
       "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/compaction.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md frontmatter"
@@ -14140,133 +14252,140 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:147"
+      "evidence": "/overview/native-loop.md:149"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:200"
+      "evidence": "/overview/native-loop.md:222"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:42"
+      "evidence": "/overview/native-loop.md:44"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:153"
+      "evidence": "/overview/native-loop.md:175"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:126"
+      "evidence": "/overview/native-loop.md:128"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:35"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:88"
+      "evidence": "/overview/native-loop.md:90"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:188"
+      "evidence": "/overview/native-loop.md:210"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:37"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:37"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:35"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:37"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:153"
+      "evidence": "/overview/native-loop.md:175"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:232"
+      "evidence": "/overview/native-loop.md:253"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:155"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:181"
+      "evidence": "/overview/native-loop.md:203"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:103"
+      "evidence": "/overview/native-loop.md:105"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:37"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:69"
+      "evidence": "/overview/native-loop.md:71"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:52"
+      "evidence": "/overview/native-loop.md:54"
     },
     {
       "from": "/protocols/a2a.md",
@@ -16608,6 +16727,13 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/syndicateSchema.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -16679,6 +16805,13 @@
     {
       "from": "module:lib/compileAdk.ts",
       "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileAdk.ts"
+    },
+    {
+      "from": "module:lib/compileAdk.ts",
+      "to": "module:lib/runtime/native/compaction.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compileAdk.ts"
@@ -19065,6 +19198,13 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/runtime/native/delegate.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -19121,10 +19261,59 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/tools/tool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/compaction.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/compaction.ts"
     },
     {
       "from": "module:lib/runtime/native/delegate.ts",
@@ -19220,6 +19409,13 @@
     {
       "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/native/compaction.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/request.ts"

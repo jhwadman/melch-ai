@@ -17,7 +17,7 @@
  *
  * WHAT NATIVE REFUSES, before any model call, with a message naming the
  * feature and the runtime (UnsupportedOnRuntimeError): a workflow syndicate
- * (where `mode: task` nodes live), compaction (lib/compileNative.ts), a caller's ADK agent
+ * (where `mode: task` nodes live), a caller's ADK agent
  * transform, and a message that resumes an approval or answers a question.
  * Later tickets lift each.
  */
@@ -43,8 +43,7 @@ import { unsupportedOnNative } from './runtimeFlag.ts';
 
 /**
  * Throws UnsupportedOnRuntimeError for a syndicate or a call the native
- * runtime does not run yet. Compaction is refused per agent by
- * compileNative.
+ * runtime does not run yet.
  */
 export function refuseOnNative(
   config: SyndicateYamlConfig,

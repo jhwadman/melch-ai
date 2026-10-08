@@ -24,9 +24,10 @@ import { remoteAgentTool } from './a2a/remoteAgent.ts';
 import type { AgentSpec, CompileOptions, ContextConfig } from './compile.ts';
 import { FallbackLlm } from './models/fallback.ts';
 import { resolveModel as resolveRegistryModel } from './models/registry.ts';
+import { DEFAULT_KEEP_RECENT_EVENTS } from './runtime/native/compaction.ts';
 
-/** Events kept verbatim after a compaction summary when `context:` names none. */
-export const DEFAULT_KEEP_RECENT_EVENTS = 6;
+/** Events kept verbatim after a compaction summary when `context:` names none: the native compactor's default. */
+export { DEFAULT_KEEP_RECENT_EVENTS };
 
 /**
  * The LlmAgent fields a YAML agent may set beyond model, instruction, tools
