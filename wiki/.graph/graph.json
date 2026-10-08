@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 742,
-    "edges": 2248,
+    "nodes": 748,
+    "edges": 2270,
     "byKind": {
-      "doc": 126,
+      "doc": 127,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 115,
+      "file": 120,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 444,
+      "links_to": 451,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 76,
@@ -36,17 +36,17 @@
       "imports": 554,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 485,
-      "constrains": 85,
+      "derives_from": 496,
+      "constrains": 88,
       "supersedes": 5,
-      "depends_on": 22,
+      "depends_on": 23,
       "explains": 5,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2129,
-      "inferred": 119
+      "extracted": 2147,
+      "inferred": 123
     },
     "isolated": 4
   },
@@ -1156,6 +1156,18 @@
       }
     },
     {
+      "id": "/decisions/0064-model-tests-on-the-contract.md",
+      "kind": "doc",
+      "label": "ADR 0064: The model tests assert from a ModelRequest; the ADK path is held to them by one suite of shim cases and a scanned allowlist",
+      "source": "/decisions/0064-model-tests-on-the-contract.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 819
+      }
+    },
+    {
       "id": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "kind": "doc",
       "label": "ADR 0065: GeminiAdapter carries code execution and server-side invocations on the next part, asks for invocations on the Gemini API only, and keeps a placeholder signature off",
@@ -1272,7 +1284,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1352
+        "words": 1417
       }
     },
     {
@@ -1284,7 +1296,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1134
+        "words": 1361
       }
     },
     {
@@ -1296,7 +1308,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1203
+        "words": 1223
       }
     },
     {
@@ -1308,7 +1320,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1644
+        "words": 1679
       }
     },
     {
@@ -1356,7 +1368,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1758
+        "words": 1791
       }
     },
     {
@@ -3725,22 +3737,43 @@
       "source": "tests/governance.test.ts"
     },
     {
+      "id": "file:tests/helpers/capabilityInputs.ts",
+      "kind": "file",
+      "label": "capabilityInputs.ts",
+      "source": "tests/helpers/capabilityInputs.ts"
+    },
+    {
       "id": "file:tests/helpers/importGraph.ts",
       "kind": "file",
       "label": "importGraph.ts",
       "source": "tests/helpers/importGraph.ts"
     },
     {
+      "id": "file:tests/helpers/scriptedLlm.ts",
+      "kind": "file",
+      "label": "scriptedLlm.ts",
+      "source": "tests/helpers/scriptedLlm.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/helpers/scriptedModel.ts",
       "kind": "file",
       "label": "scriptedModel.ts",
-      "source": "tests/helpers/scriptedModel.ts"
+      "source": "tests/helpers/scriptedModel.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/identity.test.ts",
       "kind": "file",
       "label": "identity.test.ts",
       "source": "tests/identity.test.ts"
+    },
+    {
+      "id": "file:tests/llmRequestBoundary.test.ts",
+      "kind": "file",
+      "label": "llmRequestBoundary.test.ts",
+      "source": "tests/llmRequestBoundary.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/mcpTools.test.ts",
@@ -3763,10 +3796,17 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/modelRetry.test.ts",
+      "kind": "file",
+      "label": "modelRetry.test.ts",
+      "source": "tests/modelRetry.test.ts"
+    },
+    {
       "id": "file:tests/models.test.ts",
       "kind": "file",
       "label": "models.test.ts",
-      "source": "tests/models.test.ts"
+      "source": "tests/models.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/nativeStep.test.ts",
@@ -3881,6 +3921,13 @@
       "kind": "file",
       "label": "sessionFixtures.test.ts",
       "source": "tests/sessionFixtures.test.ts"
+    },
+    {
+      "id": "file:tests/shimBodies.test.ts",
+      "kind": "file",
+      "label": "shimBodies.test.ts",
+      "source": "tests/shimBodies.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/skillHarness.test.ts",
@@ -4524,7 +4571,7 @@
       "label": "lib/models/tracedGemini.ts",
       "source": "lib/models/tracedGemini.ts",
       "attrs": {
-        "lines": 110
+        "lines": 124
       }
     },
     {
@@ -10036,6 +10083,104 @@
       "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md:22"
     },
     {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/helpers/capabilityInputs.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/helpers/scriptedLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/helpers/scriptedModel.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/llmRequestBoundary.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/modelRetry.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/models.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/shimBodies.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md:28"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md:28"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md:28"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md:28"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md:28"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "/decisions/0062-server-side-tools-as-markers.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0064-model-tests-on-the-contract.md:35"
+    },
+    {
       "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "to": "file:tests/geminiAdapter.test.ts",
       "rel": "derives_from",
@@ -10989,7 +11134,28 @@
     },
     {
       "from": "/models/adk-shim.md",
+      "to": "file:tests/helpers/scriptedLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
       "to": "file:tests/helpers/scriptedModel.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "file:tests/llmRequestBoundary.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "file:tests/shimBodies.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/models/adk-shim.md frontmatter"
@@ -11041,91 +11207,98 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:60"
+      "evidence": "/models/adk-shim.md:63"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:25"
+      "evidence": "/models/adk-shim.md:28"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:37"
+      "evidence": "/models/adk-shim.md:40"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:36"
+      "evidence": "/models/adk-shim.md:39"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:66"
+      "evidence": "/models/adk-shim.md:69"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:67"
+      "evidence": "/models/adk-shim.md:70"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0064-model-tests-on-the-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:86"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:42"
+      "evidence": "/models/adk-shim.md:45"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:27"
+      "evidence": "/models/adk-shim.md:30"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/claude-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:27"
+      "evidence": "/models/adk-shim.md:30"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:25"
+      "evidence": "/models/adk-shim.md:28"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:27"
+      "evidence": "/models/adk-shim.md:30"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:27"
+      "evidence": "/models/adk-shim.md:30"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:42"
+      "evidence": "/models/adk-shim.md:45"
     },
     {
       "from": "/models/chat-completions-adapters.md",

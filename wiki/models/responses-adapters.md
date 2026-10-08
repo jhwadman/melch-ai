@@ -119,7 +119,7 @@ The events gain `finishReason`, as every shimmed adapter's do. `buildResponsesIn
 - JSON mode without a schema, from `outputFormat` and, through `GptLlm` and `GrokLlm`, from `responseMimeType` alone;
 - the ADK path's usage meaning and server-side tool record.
 
-`tests/responsesReasoningState.test.ts` runs the reasoning replay through a real ADK runner. `tests/models.test.ts`, `tests/reasoningKey.test.ts`, `tests/capabilityMatrix.test.ts`, `tests/endpoints.test.ts` and `tests/errorResponse.test.ts` drive `GptLlm` and `GrokLlm` with `LlmRequest`s, unchanged.
+`tests/responsesReasoningState.test.ts` runs the reasoning replay through a real ADK runner. `tests/models.test.ts`, `tests/capabilityMatrix.test.ts` and `tests/endpoints.test.ts` drive `GptAdapter` and `GrokAdapter` with ModelRequests: the native tools and xAI's filters, the reasoning field, Azure OpenAI and a proxy, the server-side tool record. `tests/shimBodies.test.ts` holds `GptLlm` and `GrokLlm` to the same bodies. `tests/reasoningKey.test.ts` and `tests/errorResponse.test.ts` drive the ADK classes with `LlmRequest`s.
 
 ## Confirmed only against documentation
 

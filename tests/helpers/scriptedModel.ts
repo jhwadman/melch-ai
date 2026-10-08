@@ -1,9 +1,9 @@
 /**
  * tests/helpers/scriptedModel.ts — a deterministic model adapter on the
- * engine's own contract (lib/models/contract.ts), for offline tests. It is
- * the contract twin of ScriptedLlm (./scriptedLlm.ts): behind the ADK shim
- * (lib/models/adkShim.ts) it runs a turn under ADK, charged and traced the
- * way every adapter is.
+ * engine's own contract (lib/models/contract.ts), for offline tests. Behind
+ * the ADK shim (lib/models/adkShim.ts) it runs a turn under ADK, charged and
+ * traced the way every adapter is. ScriptedLlm (./scriptedLlm.ts) is that
+ * shim around one, for a script written in ADK's terms.
  *
  * A script is a function from (request, call number, signal) to the
  * responses of that call; it may be async and may await the request's

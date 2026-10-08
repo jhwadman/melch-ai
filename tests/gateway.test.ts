@@ -6,6 +6,10 @@
  * when it is absent and configured, never for Ollama, never over a BYOK
  * key), wire-name mapping, the registry's instance factory, and the
  * capability report that names what a path drops.
+ *
+ * The gateway's request is asserted on the engine's contract: GatewayAdapter
+ * given a ModelRequest. GatewayLlm, its ADK shim, sends the same body
+ * (tests/shimBodies.test.ts).
  */
 
 import { test } from 'node:test';
@@ -20,10 +24,14 @@ import {
   planTransport,
 } from '../lib/models/gateway.ts';
 import { describeCapabilities, capabilitySummary } from '../lib/models/capabilities.ts';
-import { providerStatuses, resolveModel } from '../lib/models/registry.ts';
+import { providerStatuses, resolveAdapter, resolveModel } from '../lib/models/registry.ts';
 import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
 import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
 import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
+import type { ModelRequest, ModelResponse } from '../lib/models/contract.ts';
+import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
+import { ClaudeAdapter } from '../lib/models/claudeAdapter.ts';
+import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
 
 setLogLevel(LogLevel.WARN);
 
@@ -187,18 +195,22 @@ test('providerStatuses stays unavailable when the gateway is misconfigured', () 
   });
 });
 
-test('resolveModel returns the gateway adapter only when the direct key is absent', () => {
+test('resolveAdapter and resolveModel return the gateway adapter only when the direct key is absent', () => {
   withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    assert.ok(resolveAdapter('claude-sonnet-4-6') instanceof GatewayAdapter);
+    assert.ok(resolveAdapter('ollama/qwen3:8b') instanceof OllamaAdapter);
     assert.ok(resolveModel('claude-sonnet-4-6') instanceof GatewayLlm);
     assert.ok(resolveModel('ollama/qwen3:8b') instanceof OllamaLlm);
   });
   withEnv({ ANTHROPIC_API_KEY: 'a', MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    assert.ok(resolveAdapter('claude-sonnet-4-6') instanceof ClaudeAdapter);
     assert.ok(resolveModel('claude-sonnet-4-6') instanceof ClaudeLlm);
   });
 });
 
-test('resolveModel with a BYOK key for the caller provider stays direct', () => {
+test('a BYOK key for the caller provider stays direct', () => {
   withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+    assert.ok(resolveAdapter('claude-sonnet-4-6', { apiKey: 'caller', keyProvider: 'anthropic' }) instanceof ClaudeAdapter);
     const llm = resolveModel('claude-sonnet-4-6', { apiKey: 'caller', defaultProvider: 'anthropic' });
     assert.ok(llm instanceof ClaudeLlm);
   });
@@ -206,7 +218,15 @@ test('resolveModel with a BYOK key for the caller provider stays direct', () => 
 
 // ── The gateway adapter's request shape ──────────────────────────────────────
 
-test('GatewayLlm posts to the gateway with a bearer key and the mapped model id, attributing the upstream provider', async () => {
+const hello = (model: string, text = 'hello'): ModelRequest => ({ model, messages: [{ role: 'user', parts: [{ type: 'text', text }] }] });
+
+async function drain(gen: AsyncIterable<ModelResponse>): Promise<ModelResponse[]> {
+  const out: ModelResponse[] = [];
+  for await (const r of gen) out.push(r);
+  return out;
+}
+
+test('GatewayAdapter posts to the gateway with a bearer key and the mapped model id, attributing the upstream provider', async () => {
   await withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'secret-key' }, async () => {
     const calls: Array<{ url: string; init: any }> = [];
     const realFetch = globalThis.fetch;
@@ -221,30 +241,24 @@ test('GatewayLlm posts to the gateway with a bearer key and the mapped model id,
       );
     }) as any;
     try {
-      const llm = new GatewayLlm({ model: 'claude-sonnet-4-6' });
-      const out: any[] = [];
-      for await (const r of llm.generateContentAsync({
-        model: 'claude-sonnet-4-6',
-        contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
-        liveConnectConfig: {} as any,
-        toolsDict: {},
-      } as any)) out.push(r);
+      const adapter = new GatewayAdapter({ model: 'claude-sonnet-4-6' });
+      const out = await drain(adapter.generate(hello('claude-sonnet-4-6')));
       assert.equal(calls.length, 1);
       assert.equal(calls[0].url, 'https://ai-gateway.vercel.sh/v1/chat/completions');
       assert.equal(calls[0].init.headers.Authorization, 'Bearer secret-key');
       const body = JSON.parse(calls[0].init.body);
       assert.equal(body.model, 'anthropic/claude-sonnet-4.6');
-      assert.equal(out.at(-1)?.content?.parts?.[0]?.text, 'hi');
+      assert.deepEqual(out.at(-1)?.parts, [{ type: 'text', text: 'hi' }]);
       // Attribution: the span/ledger provider is the upstream, not "gateway".
-      assert.equal((llm as any).providerId(), 'anthropic');
-      assert.equal((llm as any).transport(), 'gateway:vercel');
+      assert.equal(adapter.provider, 'anthropic');
+      assert.equal(adapter.transport(), 'gateway:vercel');
     } finally {
       globalThis.fetch = realFetch;
     }
   });
 });
 
-test('GatewayLlm without a key yields a clear error and makes no request', async () => {
+test('GatewayAdapter without a key ends on a clear error and makes no request', async () => {
   await withEnv({ MODEL_GATEWAY: 'vercel' }, async () => {
     const realFetch = globalThis.fetch;
     let called = false;
@@ -253,16 +267,11 @@ test('GatewayLlm without a key yields a clear error and makes no request', async
       return new Response('{}');
     }) as any;
     try {
-      const llm = new GatewayLlm({ model: 'gpt-5-mini' });
-      const out: any[] = [];
-      for await (const r of llm.generateContentAsync({
-        model: 'gpt-5-mini',
-        contents: [{ role: 'user', parts: [{ text: 'x' }] }],
-        liveConnectConfig: {} as any,
-        toolsDict: {},
-      } as any)) out.push(r);
+      const out = await drain(new GatewayAdapter({ model: 'gpt-5-mini' }).generate(hello('gpt-5-mini', 'x')));
       assert.equal(called, false);
-      assert.equal(out[0].errorCode, 'GATEWAY_KEY_MISSING');
+      const final = out.at(-1);
+      assert.ok(final && !final.partial);
+      assert.equal(final.error?.code, 'GATEWAY_KEY_MISSING');
     } finally {
       globalThis.fetch = realFetch;
     }

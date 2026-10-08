@@ -27,6 +27,22 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/shimBodies.test.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/helpers/scriptedLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/llmRequestBoundary.test.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /models/gemini-adapter.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
 
 by claude-code/claude-opus-5-5
