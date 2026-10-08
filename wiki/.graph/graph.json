@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 809,
-    "edges": 2798,
+    "nodes": 812,
+    "edges": 2815,
     "byKind": {
-      "doc": 144,
+      "doc": 145,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 135,
+      "file": 137,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 567,
+      "links_to": 571,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 718,
+      "imports": 720,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 645,
-      "constrains": 133,
+      "derives_from": 652,
+      "constrains": 134,
       "supersedes": 6,
-      "depends_on": 60,
-      "explains": 17,
+      "depends_on": 62,
+      "explains": 18,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2579,
-      "inferred": 219
+      "extracted": 2592,
+      "inferred": 223
     },
     "isolated": 4
   },
@@ -1385,6 +1385,18 @@
       }
     },
     {
+      "id": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "kind": "doc",
+      "label": "ADR 0084: The turn-level suites register every case once per runtime, and CI runs the offline suite again with native as the default",
+      "source": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 793
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1597,7 +1609,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1075
+        "words": 1100
       }
     },
     {
@@ -1645,7 +1657,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 5196
+        "words": 5495
       }
     },
     {
@@ -3417,7 +3429,8 @@
       "id": "file:.github/workflows/ci.yml",
       "kind": "file",
       "label": "ci.yml",
-      "source": ".github/workflows/ci.yml"
+      "source": ".github/workflows/ci.yml",
+      "attrs": {}
     },
     {
       "id": "file:.github/workflows/codeql.yml",
@@ -3989,6 +4002,12 @@
       "source": "tests/helpers/importGraph.ts"
     },
     {
+      "id": "file:tests/helpers/runtime.ts",
+      "kind": "file",
+      "label": "runtime.ts",
+      "source": "tests/helpers/runtime.ts"
+    },
+    {
       "id": "file:tests/helpers/scriptedLlm.ts",
       "kind": "file",
       "label": "scriptedLlm.ts",
@@ -4168,6 +4187,12 @@
       "label": "redirects.test.ts",
       "source": "tests/redirects.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/remoteAgent.test.ts",
+      "kind": "file",
+      "label": "remoteAgent.test.ts",
+      "source": "tests/remoteAgent.test.ts"
     },
     {
       "id": "file:tests/resolveAdapter.test.ts",
@@ -4467,7 +4492,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 133
+        "lines": 159
       }
     },
     {
@@ -5106,7 +5131,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 713
+        "lines": 714
       }
     },
     {
@@ -5169,7 +5194,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 267
+        "lines": 322
       }
     },
     {
@@ -5277,7 +5302,7 @@
       "label": "lib/skills.ts",
       "source": "lib/skills.ts",
       "attrs": {
-        "lines": 184
+        "lines": 193
       }
     },
     {
@@ -5583,7 +5608,7 @@
       "label": "lib/tools/skills/executor.ts",
       "source": "lib/tools/skills/executor.ts",
       "attrs": {
-        "lines": 350
+        "lines": 352
       }
     },
     {
@@ -5601,7 +5626,7 @@
       "label": "lib/tools/skills/loader.ts",
       "source": "lib/tools/skills/loader.ts",
       "attrs": {
-        "lines": 244
+        "lines": 269
       }
     },
     {
@@ -5943,7 +5968,7 @@
       "label": "scripts/parity_check.ts",
       "source": "scripts/parity_check.ts",
       "attrs": {
-        "lines": 760
+        "lines": 763
       }
     },
     {
@@ -12166,6 +12191,69 @@
       "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md:47"
     },
     {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:.github/workflows/ci.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:tests/helpers/runtime.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:tests/postgresStorage.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:tests/remoteAgent.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:tests/syndicateTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md:27"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md:27"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -14435,6 +14523,13 @@
     },
     {
       "from": "/operations/parity-harness.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md:74"
+    },
+    {
+      "from": "/operations/parity-harness.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -14956,21 +15051,21 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:157"
+      "evidence": "/overview/native-loop.md:159"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:222"
+      "evidence": "/overview/native-loop.md:224"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:244"
+      "evidence": "/overview/native-loop.md:246"
     },
     {
       "from": "/overview/native-loop.md",
@@ -14984,14 +15079,14 @@
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:183"
+      "evidence": "/overview/native-loop.md:185"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:136"
+      "evidence": "/overview/native-loop.md:138"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15012,7 +15107,7 @@
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:218"
+      "evidence": "/overview/native-loop.md:220"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15047,49 +15142,56 @@
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:183"
+      "evidence": "/overview/native-loop.md:185"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:291"
+      "evidence": "/overview/native-loop.md:295"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:224"
+      "evidence": "/overview/native-loop.md:226"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:163"
+      "evidence": "/overview/native-loop.md:165"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:246"
+      "evidence": "/overview/native-loop.md:248"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:211"
+      "evidence": "/overview/native-loop.md:213"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:282"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:112"
+      "evidence": "/overview/native-loop.md:114"
     },
     {
       "from": "/overview/native-loop.md",
@@ -20469,6 +20571,13 @@
     },
     {
       "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23081,6 +23190,13 @@
     {
       "from": "module:scripts/parity_check.ts",
       "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/runtime/logging.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/parity_check.ts"

@@ -1761,6 +1761,38 @@
       "evidence": "wiki/tools/skill-harness.md \"Scripts and approval\": what an approved run is and what a script can reach.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0084 decision 1: every turn-level case runs on both runtimes in every npm test, through the turn's runtime option.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0084 context: \"ADR 0045 says that once the native runtime runs a turn, every suite G2 names runs under both runtimes\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0084 context: ADR 0073 gives a turn its runtime by the runtime option, else MELCHIZEDEK_RUNTIME, else adk.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"The runtime flag\": the request goes out under the id ADK's LlmAgent sends it under (wireModelOf).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
