@@ -170,6 +170,50 @@ export interface Tool {
    * context and writes nothing to it.
    */
   instruction?(ctx: ToolContext): Promise<string | undefined>;
+  /**
+   * Adds to the history of each model request made for an agent that lists
+   * this tool, after the history is projected and before it is sent, in the
+   * order the agent lists its tools: load_skill_resource shows a binary file
+   * it just answered for as inline data (lib/tools/skills/tools.ts), where
+   * ADK's tool did so in its processLlmRequest. It may append to `contents`
+   * and changes nothing else; nothing it adds is stored.
+   */
+  contents?(contents: TurnContent[], ctx: ToolContext): Promise<void>;
+}
+
+// ── Toolsets ─────────────────────────────────────────────────────────────────
+
+/** What a toolset reads to list its tools: the agent, and the session state. */
+export interface ToolsetContext {
+  readonly agentName?: string;
+  readonly invocationId?: string;
+  readonly state: { get(key: string): unknown };
+}
+
+/**
+ * Listed under an agent's tools like a Tool, but yields the tools the agent
+ * has for the next request: the skills harness (lib/tools/skills/tools.ts),
+ * whose tools grow as skills are loaded. The native loop expands it before
+ * every request; lib/tools/adkTool.ts wraps it as an ADK BaseToolset.
+ */
+export interface Toolset {
+  readonly name?: string;
+  getTools(ctx?: ToolsetContext): Promise<unknown[]>;
+}
+
+/** True for an own Toolset: getTools, and neither a Tool nor an ADK tool or toolset. */
+export function isOwnToolset(value: unknown): value is Toolset {
+  if (!value || typeof value !== 'object') return false;
+  const t = value as Record<string, unknown>;
+  return typeof t.getTools === 'function' && typeof t.execute !== 'function' && !('runAsync' in t) && typeof t.processLlmRequest !== 'function';
+}
+
+/** The own Toolset behind `value`: the value itself, or the one an ADK toolset was made from by toAdkToolset. */
+export function toolsetOf(value: unknown): Toolset | undefined {
+  if (isOwnToolset(value)) return value;
+  if (!value || typeof value !== 'object') return undefined;
+  const own = (value as Record<PropertyKey, unknown>)[OWN_TOOL];
+  return isOwnToolset(own) ? own : undefined;
 }
 
 /**

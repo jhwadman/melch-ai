@@ -45,6 +45,8 @@ The third shape.
 6. **The suite follows the standard's layout.** `melchizedek-author` and `melchizedek-scribe` ship their files under `assets/`, where any harness finds them.
 7. **The Harness is the specimen** (`config/agents/examples/harness.yaml`): a generic agent whose mandate is choose, read, follow, run when allowed, check, cite; `/name` forces a skill; a tool-free Checker holds a deliverable to the rules the skill states.
 
+> **Note (2026-10-08):** The harness no longer builds on ADK's toolset, loader or executor. Its parser, loader, executor and tools are the engine's own (`lib/tools/skills/`), with the same tool names, descriptions, parameters, results and error texts on both runtimes, see [ADR 0083](/decisions/0083-skills-harness-on-the-own-tool-base.md). ADR 0083 records the differences: frontmatter YAML is read by the engine's parser (timestamps stay strings, no `<<` merge keys), a field that fails its check is named in readable words in the compile log, a prototype key such as `constructor` is not found, temp directory names differ, and SKILL.md and resource sizes are bounded.
+
 ## Consequences
 
 - No new tool contracts and no registry entries: the capability is one toolset built per compile, and an agent without `skills:` is unchanged.

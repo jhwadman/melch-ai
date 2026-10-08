@@ -6,6 +6,22 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **The skills harness no longer builds on ADK (ADR 0083).** An agent's
+  `skills:` block loads, reads and runs skills through the engine's own
+  modules (`lib/tools/skills/`), the same on `runtime: 'adk'` and
+  `'native'`. A model sees the same tools, parameters, results and error
+  texts as before. Breaking for code that imports
+  `melchizedek-agents/tools/skillToolset` directly:
+  `HarnessSkillToolset` is now an engine Toolset rather than ADK's
+  `SkillToolset`, so wrap it with `toAdkToolset`
+  (`melchizedek-agents/tools/adkTool`) before handing it to an ADK
+  `LlmAgent`. `LeanLoadSkillTool` and `GatedRunSkillScriptTool` are now
+  engine Tools (`execute(args, ctx)`), not ADK `BaseTool`s. Frontmatter
+  YAML is read by the `yaml` package, so a timestamp stays a string and
+  `<<` merge keys are not merged. A SKILL.md over 1 MiB and a resource
+  file over 8 MiB are not loaded. `lib/tools/tool.ts` adds `Toolset`,
+  `ToolsetContext`, `isOwnToolset`, `toolsetOf` and an optional
+  `Tool.contents` hook. The `exports` map is unchanged.
 - **OAuth consent for tool credentials (ADR 0085).** On the native
   runtime, `runSyndicateTurn` takes `toolCredentials: { store, consent }`
   (both optional additions). `store` is the sealed credential store of ADR
