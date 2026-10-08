@@ -2633,6 +2633,38 @@
       "evidence": "ADR 0100 Decision 4: partsToGenai writes carried_parts state back out as the executableCode and codeExecutionResult parts Gemini sent, then the part with its own signature, so a stored event holds them as ADK stores them.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0103 Decision 1: \"A map entry refuses retry and timeout. validateSyndicateConfig and workflowConfigProblems report workflow.nodes.<Map>.retry ...\"; Decision 2: exceptions and jitter are spelled in the retry schema.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0103 Decision 1: workflowConfigProblems reports the map refusal with the schema message, in the same order; MapNode.settings is therefore always empty.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0103 Decision 3: \"reflectionSigning(adapter, model) is undefined for every provider but gemini\"; a Gemini adapter signs the reflection call with the replaced signature, or the placeholder on Gemini 3.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
+      "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "rel": "mitigates",
+      "evidence": "ADR 0103 Decision 3 closes on native the open item ADR 0097 recorded: a Gemini 3 reflection call stored unsigned and the next request failing with the missing thought_signature 400.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
