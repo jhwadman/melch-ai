@@ -19,6 +19,35 @@ the starter pack and the templates), not the repo's full history.
   field (the model thinks at its default) instead of
   `thinking: { type: 'disabled' }`, which Moonshot refuses for K2.7 Code
   and its highspeed variant. `kimi-k2.6` still sends `disabled`.
+- **The genai mapping exports two more readers (ADR 0066).**
+  `melchizedek-agents/models/genaiMapping` adds `toolChoiceOf` (an agent's
+  function-calling mode as a `ToolChoice`, and `VALIDATED` as strict tools)
+  and `samplingOf` (the sampling fields the contract carries). These are
+  additions under the existing `exports` map. The native loop's first piece,
+  one model step (`lib/runtime/native/`), is not in the `exports` map and
+  runs no turn yet.
+- **OpenAPI tools make their own calls (ADR 0067).** Each operation is
+  the engine's own Tool, and the ADK runtime runs it through
+  `toFunctionTool`; ADK's `RestApiTool` and `OpenAPIToolset` are no longer
+  used. An API receives the same request as before. What a consumer sees:
+  - `tools/openapiTools`: `buildOpenApiTools` returns `FunctionTool`s
+    (it returned `BaseTool`s), and gains `buildOpenApiOwnTools` (own Tools,
+    for either runtime) and `openApiOperationId`. `boundResult` is
+    deprecated in favour of `capResult` (`tools/tool`).
+  - The new module `tools/openapi/call` holds the caller: `buildRequest`,
+    `callOperation`, `hostProblem`, `OPENAPI_REDIRECTS`, `redactSecrets`
+    and `MAX_RESPONSE_BYTES`.
+  - `require_approval` on an OpenAPI operation uses the gate every
+    registry tool uses, so the approval hint and the pending and rejected
+    texts are ADK's FunctionTool texts. `requireApprovalOnBaseTool`
+    (`compile`) is deprecated and no longer used.
+  - A credential's value is replaced with `[redacted]` in every error an
+    OpenAPI tool returns; at most 8 MiB of a response is read; an operation
+    whose spec requires a credential is not called when the entry sets no
+    `auth`, and returns an error saying so.
+  - A spec that is not OpenAPI 3.x (Swagger 2.0, or no `openapi` version)
+    fails the compile with a readable error, and `~1` and `~0` in a
+    `$ref` are unescaped.
 - **`GeminiAdapter` covers Gemini's own features (ADR 0065).** In
   `melchizedek-agents/models/geminiAdapter` (which `resolveAdapter`
   returns only with `GEMINI_ADAPTER=engine` until gate G3):

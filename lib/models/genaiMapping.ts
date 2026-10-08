@@ -581,7 +581,8 @@ function nativeToolsOf(llmRequest: LlmRequest): NativeTool[] {
   return [...tools];
 }
 
-function toolChoiceOf(config: GenerateContentConfig | undefined): { toolChoice?: ToolChoice; strict?: true } {
+/** The function-calling mode as a ToolChoice, and VALIDATED as strict tools. The native request builder reads an agent's config through it too. */
+export function toolChoiceOf(config: GenerateContentConfig | undefined): { toolChoice?: ToolChoice; strict?: true } {
   const fcc = (config?.toolConfig as Json | undefined)?.functionCallingConfig;
   if (!isObject(fcc)) return {};
   const allowed = Array.isArray(fcc.allowedFunctionNames) ? (fcc.allowedFunctionNames as unknown[]) : [];
@@ -598,7 +599,8 @@ function toolChoiceOf(config: GenerateContentConfig | undefined): { toolChoice?:
   }
 }
 
-function samplingOf(config: GenerateContentConfig | undefined): Sampling | undefined {
+/** The sampling fields the contract carries, or undefined when none is set. The native request builder reads an agent's config through it too. */
+export function samplingOf(config: GenerateContentConfig | undefined): Sampling | undefined {
   const sampling: Sampling = {};
   if (typeof config?.temperature === 'number') sampling.temperature = config.temperature;
   if (typeof config?.topP === 'number') sampling.topP = config.topP;

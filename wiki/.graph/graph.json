@@ -5,26 +5,26 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 742,
-    "edges": 2227,
+    "nodes": 751,
+    "edges": 2304,
     "byKind": {
-      "doc": 126,
+      "doc": 129,
       "provider": 6,
-      "env": 104,
+      "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 119,
+      "file": 120,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 154,
+      "module": 158,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 437,
-      "requires_env": 166,
+      "links_to": 461,
+      "requires_env": 167,
       "routes_to": 8,
       "defined_in": 76,
       "documents": 56,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 533,
+      "imports": 557,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 491,
-      "constrains": 88,
-      "supersedes": 5,
-      "depends_on": 22,
-      "explains": 4,
+      "derives_from": 507,
+      "constrains": 93,
+      "supersedes": 6,
+      "depends_on": 27,
+      "explains": 5,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2106,
-      "inferred": 121
+      "extracted": 2171,
+      "inferred": 133
     },
     "isolated": 4
   },
@@ -1180,6 +1180,30 @@
       }
     },
     {
+      "id": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "kind": "doc",
+      "label": "ADR 0066: The native loop's model step sends the request the ADK runtime sends, and records its answer as ADK's event",
+      "source": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1276
+      }
+    },
+    {
+      "id": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "kind": "doc",
+      "label": "ADR 0067: The engine calls OpenAPI operations itself, by RestApiTool's rules, with the guard as a parameter",
+      "source": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1002
+      }
+    },
+    {
       "id": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
       "kind": "doc",
       "label": "ADR 0070: Kimi forces a tool choice per model and per thinking, and a refused named choice falls to required",
@@ -1296,7 +1320,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1350
+        "words": 1382
       }
     },
     {
@@ -1444,6 +1468,18 @@
       }
     },
     {
+      "id": "/overview/native-loop.md",
+      "kind": "doc",
+      "label": "Native loop",
+      "source": "/overview/native-loop.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1004
+      }
+    },
+    {
       "id": "/protocols/a2a.md",
       "kind": "doc",
       "label": "A2A",
@@ -1500,7 +1536,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 468
+        "words": 692
       }
     },
     {
@@ -1536,7 +1572,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1409
+        "words": 1417
       }
     },
     {
@@ -2632,7 +2668,7 @@
       "id": "env:ALLOW_PRIVATE_OPENAPI",
       "kind": "env",
       "label": "ALLOW_PRIVATE_OPENAPI",
-      "source": "lib/tools/openapiTools.ts"
+      "source": "lib/tools/openapi/call.ts"
     },
     {
       "id": "env:ALLOW_SCHEMA_MISMATCH",
@@ -2776,6 +2812,12 @@
       "label": "GOOGLE_GENAI_API_KEY",
       "source": "scripts/syndicate_chat.ts",
       "attrs": {}
+    },
+    {
+      "id": "env:GOOGLE_GENAI_USE_ENTERPRISE",
+      "kind": "env",
+      "label": "GOOGLE_GENAI_USE_ENTERPRISE",
+      "source": "lib/runtime/native/request.ts"
     },
     {
       "id": "env:GOOGLE_GENAI_USE_VERTEXAI",
@@ -3791,6 +3833,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nativeStep.test.ts",
+      "kind": "file",
+      "label": "nativeStep.test.ts",
+      "source": "tests/nativeStep.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/openapiTools.test.ts",
       "kind": "file",
       "label": "openapiTools.test.ts",
@@ -3851,7 +3900,8 @@
       "id": "file:tests/redirects.test.ts",
       "kind": "file",
       "label": "redirects.test.ts",
-      "source": "tests/redirects.test.ts"
+      "source": "tests/redirects.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/resolveAdapter.test.ts",
@@ -4105,7 +4155,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 494
+        "lines": 498
       }
     },
     {
@@ -4402,7 +4452,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 950
+        "lines": 952
       }
     },
     {
@@ -4573,7 +4623,7 @@
       "label": "lib/net/redirects.ts",
       "source": "lib/net/redirects.ts",
       "attrs": {
-        "lines": 110
+        "lines": 85
       }
     },
     {
@@ -4700,6 +4750,33 @@
       "source": "lib/runtime/memoryService.ts",
       "attrs": {
         "lines": 79
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/history.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/history.ts",
+      "source": "lib/runtime/native/history.ts",
+      "attrs": {
+        "lines": 319
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/request.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/request.ts",
+      "source": "lib/runtime/native/request.ts",
+      "attrs": {
+        "lines": 532
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/step.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/step.ts",
+      "source": "lib/runtime/native/step.ts",
+      "attrs": {
+        "lines": 214
       }
     },
     {
@@ -4937,12 +5014,21 @@
       }
     },
     {
+      "id": "module:lib/tools/openapi/call.ts",
+      "kind": "module",
+      "label": "lib/tools/openapi/call.ts",
+      "source": "lib/tools/openapi/call.ts",
+      "attrs": {
+        "lines": 348
+      }
+    },
+    {
       "id": "module:lib/tools/openapi/parse.ts",
       "kind": "module",
       "label": "lib/tools/openapi/parse.ts",
       "source": "lib/tools/openapi/parse.ts",
       "attrs": {
-        "lines": 584
+        "lines": 614
       }
     },
     {
@@ -4951,7 +5037,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 292
+        "lines": 254
       }
     },
     {
@@ -10206,6 +10292,167 @@
       "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:25"
     },
     {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "file:tests/nativeStep.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:42"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0060-engine-owned-registry.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0062-server-side-tools-as-markers.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "file:tests/redirects.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/net/redirects.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/tools/openapi/call.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
+    },
+    {
       "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
       "to": "file:tests/chatCompletionsAdapter.test.ts",
       "rel": "derives_from",
@@ -11113,7 +11360,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:61"
+      "evidence": "/models/adk-shim.md:63"
     },
     {
       "from": "/models/adk-shim.md",
@@ -11141,21 +11388,28 @@
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:67"
+      "evidence": "/models/adk-shim.md:69"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:68"
+      "evidence": "/models/adk-shim.md:70"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0064-model-tests-on-the-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:84"
+      "evidence": "/models/adk-shim.md:86"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:45"
     },
     {
       "from": "/models/adk-shim.md",
@@ -11191,6 +11445,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/adk-shim.md:30"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:45"
     },
     {
       "from": "/models/chat-completions-adapters.md",
@@ -12726,6 +12987,83 @@
       "evidence": "/overview/melchizedek.md:23"
     },
     {
+      "from": "/overview/native-loop.md",
+      "to": "file:tests/nativeStep.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:21"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:64"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:23"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/memory/sessions.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:77"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:23"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:46"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:31"
+    },
+    {
       "from": "/protocols/a2a.md",
       "to": "module:lib/a2a/app.ts",
       "rel": "derives_from",
@@ -13028,6 +13366,13 @@
     },
     {
       "from": "/tools/openapi-tools.md",
+      "to": "module:lib/tools/openapi/call.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
       "to": "module:lib/tools/openapi/parse.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -13045,35 +13390,49 @@
       "to": "/agents/weather.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:29"
+      "evidence": "/tools/openapi-tools.md:40"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:31"
+      "evidence": "/tools/openapi-tools.md:42"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:31"
+      "evidence": "/tools/openapi-tools.md:42"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:46"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:31"
+      "evidence": "/tools/openapi-tools.md:44"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:20"
+      "evidence": "/tools/openapi-tools.md:21"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:23"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -13298,6 +13657,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:47"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:39"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -17199,6 +17565,160 @@
       "evidence": "lib/runtime/memoryService.ts"
     },
     {
+      "from": "module:lib/runtime/native/history.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/history.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "env:GOOGLE_GENAI_USE_ENTERPRISE",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
       "from": "module:lib/runtime/questions.ts",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "imports",
@@ -17906,6 +18426,34 @@
       "evidence": "lib/tools/nativeTools.ts"
     },
     {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/call.ts"
+    },
+    {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "module:lib/net/redirects.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/call.ts"
+    },
+    {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/call.ts"
+    },
+    {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/call.ts"
+    },
+    {
       "from": "module:lib/tools/openapi/parse.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -17921,14 +18469,14 @@
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
-      "to": "module:lib/net/addressGuard.ts",
+      "to": "module:lib/tools/adkTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
-      "to": "module:lib/net/redirects.ts",
+      "to": "module:lib/tools/openapi/call.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
@@ -17944,13 +18492,6 @@
       "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/tools/tool.ts",
       "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/tools/openapiTools.ts"
-    },
-    {
-      "from": "module:lib/tools/openapiTools.ts",
-      "to": "env:ALLOW_PRIVATE_OPENAPI",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
     },
