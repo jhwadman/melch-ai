@@ -5,26 +5,26 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 792,
-    "edges": 2654,
+    "nodes": 803,
+    "edges": 2750,
     "byKind": {
-      "doc": 139,
+      "doc": 143,
       "provider": 6,
-      "env": 105,
+      "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 132,
+      "file": 134,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 176,
+      "module": 180,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 537,
-      "requires_env": 168,
+      "links_to": 557,
+      "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
       "documents": 56,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 675,
+      "imports": 707,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 599,
-      "constrains": 119,
+      "derives_from": 628,
+      "constrains": 127,
       "supersedes": 6,
-      "depends_on": 54,
-      "explains": 13,
+      "depends_on": 58,
+      "explains": 15,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2459,
-      "inferred": 195
+      "extracted": 2541,
+      "inferred": 209
     },
     "isolated": 4
   },
@@ -1337,6 +1337,42 @@
       }
     },
     {
+      "id": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "kind": "doc",
+      "label": "ADR 0080: The surfaces take stores with either face, bridge at the seam, and set the engine's log level",
+      "source": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1002
+      }
+    },
+    {
+      "id": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "kind": "doc",
+      "label": "ADR 0081: Task mode on the native loop is finish_task as an own tool and a task-node hook that ends the run on its answer",
+      "source": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 570
+      }
+    },
+    {
+      "id": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "kind": "doc",
+      "label": "ADR 0082: The workflow graph is the engine's own model, mirrors the ADK compile, and carries its own copy of the block's rules",
+      "source": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 773
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1345,7 +1381,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1653
+        "words": 1680
       }
     },
     {
@@ -1369,7 +1405,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 2196
+        "words": 2325
       }
     },
     {
@@ -1573,7 +1609,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 468
+        "words": 501
       }
     },
     {
@@ -1597,7 +1633,19 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4726
+        "words": 5145
+      }
+    },
+    {
+      "id": "/overview/workflow-graph.md",
+      "kind": "doc",
+      "label": "Workflow graph",
+      "source": "/overview/workflow-graph.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 834
       }
     },
     {
@@ -1609,7 +1657,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1466
+        "words": 1600
       }
     },
     {
@@ -1681,7 +1729,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 448
+        "words": 458
       }
     },
     {
@@ -3064,6 +3112,12 @@
       "source": "lib/memory/providers.ts"
     },
     {
+      "id": "env:MODEL_GATEWAY",
+      "kind": "env",
+      "label": "MODEL_GATEWAY",
+      "source": "scripts/direct_call.ts"
+    },
+    {
       "id": "env:MOONSHOT_API_KEY",
       "kind": "env",
       "label": "MOONSHOT_API_KEY",
@@ -3862,7 +3916,8 @@
       "id": "file:tests/execution.test.ts",
       "kind": "file",
       "label": "execution.test.ts",
-      "source": "tests/execution.test.ts"
+      "source": "tests/execution.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/fallback.test.ts",
@@ -4162,6 +4217,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/surfacesOffAdk.test.ts",
+      "kind": "file",
+      "label": "surfacesOffAdk.test.ts",
+      "source": "tests/surfacesOffAdk.test.ts"
+    },
+    {
       "id": "file:tests/syndicateTurn.test.ts",
       "kind": "file",
       "label": "syndicateTurn.test.ts",
@@ -4212,6 +4273,13 @@
       "kind": "file",
       "label": "workflow.test.ts",
       "source": "tests/workflow.test.ts"
+    },
+    {
+      "id": "file:tests/workflowGraph.test.ts",
+      "kind": "file",
+      "label": "workflowGraph.test.ts",
+      "source": "tests/workflowGraph.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tsconfig.build.json",
@@ -4299,7 +4367,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1103
+        "lines": 1117
       }
     },
     {
@@ -4308,7 +4376,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 774
+        "lines": 796
       }
     },
     {
@@ -4371,7 +4439,7 @@
       "label": "lib/compileAdk.ts",
       "source": "lib/compileAdk.ts",
       "attrs": {
-        "lines": 125
+        "lines": 139
       }
     },
     {
@@ -4960,12 +5028,21 @@
       }
     },
     {
+      "id": "module:lib/runtime/adkMemoryBridge.ts",
+      "kind": "module",
+      "label": "lib/runtime/adkMemoryBridge.ts",
+      "source": "lib/runtime/adkMemoryBridge.ts",
+      "attrs": {
+        "lines": 89
+      }
+    },
+    {
       "id": "module:lib/runtime/adkSessionBridge.ts",
       "kind": "module",
       "label": "lib/runtime/adkSessionBridge.ts",
       "source": "lib/runtime/adkSessionBridge.ts",
       "attrs": {
-        "lines": 209
+        "lines": 221
       }
     },
     {
@@ -4987,6 +5064,15 @@
       }
     },
     {
+      "id": "module:lib/runtime/logging.ts",
+      "kind": "module",
+      "label": "lib/runtime/logging.ts",
+      "source": "lib/runtime/logging.ts",
+      "attrs": {
+        "lines": 62
+      }
+    },
+    {
       "id": "module:lib/runtime/memoryService.ts",
       "kind": "module",
       "label": "lib/runtime/memoryService.ts",
@@ -5001,7 +5087,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 695
+        "lines": 713
       }
     },
     {
@@ -5046,7 +5132,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 554
+        "lines": 560
       }
     },
     {
@@ -5065,6 +5151,15 @@
       "source": "lib/runtime/native/step.ts",
       "attrs": {
         "lines": 267
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/taskMode.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/taskMode.ts",
+      "source": "lib/runtime/native/taskMode.ts",
+      "attrs": {
+        "lines": 155
       }
     },
     {
@@ -5680,6 +5775,15 @@
       }
     },
     {
+      "id": "module:lib/workflow/graph.ts",
+      "kind": "module",
+      "label": "lib/workflow/graph.ts",
+      "source": "lib/workflow/graph.ts",
+      "attrs": {
+        "lines": 534
+      }
+    },
+    {
       "id": "module:lib/workflowConfig.ts",
       "kind": "module",
       "label": "lib/workflowConfig.ts",
@@ -5694,7 +5798,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 513
+        "lines": 514
       }
     },
     {
@@ -5703,7 +5807,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 208
+        "lines": 213
       }
     },
     {
@@ -5730,7 +5834,7 @@
       "label": "scripts/demo_model_optionality.ts",
       "source": "scripts/demo_model_optionality.ts",
       "attrs": {
-        "lines": 220
+        "lines": 212
       }
     },
     {
@@ -5739,7 +5843,7 @@
       "label": "scripts/direct_call.ts",
       "source": "scripts/direct_call.ts",
       "attrs": {
-        "lines": 106
+        "lines": 88
       }
     },
     {
@@ -5829,7 +5933,7 @@
       "label": "scripts/syndicate_chat.ts",
       "source": "scripts/syndicate_chat.ts",
       "attrs": {
-        "lines": 497
+        "lines": 502
       }
     },
     {
@@ -11657,6 +11761,230 @@
       "evidence": "/decisions/0079-native-questions-resume-through-the-history.md:30"
     },
     {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "file:tests/surfacesOffAdk.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/compileAdk.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/adkMemoryBridge.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/logging.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:scripts/demo_model_optionality.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:scripts/direct_call.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md:32"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md:32"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md:32"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0058-session-stores-with-both-faces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md:32"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md:32"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md:32"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "file:tests/execution.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md:25"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md:25"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md:25"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "file:tests/workflowGraph.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md frontmatter"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md frontmatter"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md frontmatter"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md frontmatter"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md:24"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -11767,6 +12095,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/architecture.md:107"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:28"
     },
     {
       "from": "/memory/architecture.md",
@@ -11973,6 +12308,13 @@
     },
     {
       "from": "/memory/sessions.md",
+      "to": "module:lib/runtime/adkMemoryBridge.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
       "to": "module:lib/runtime/adkSessionBridge.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -12025,70 +12367,77 @@
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:137"
+      "evidence": "/memory/sessions.md:139"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0030-workflow-graphs.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:59"
+      "evidence": "/memory/sessions.md:60"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:29"
+      "evidence": "/memory/sessions.md:30"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:48"
+      "evidence": "/memory/sessions.md:49"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:29"
+      "evidence": "/memory/sessions.md:30"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0058-session-stores-with-both-faces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:115"
+      "evidence": "/memory/sessions.md:116"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:35"
+      "evidence": "/memory/sessions.md:36"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:120"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:39"
+      "evidence": "/memory/sessions.md:40"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:39"
+      "evidence": "/memory/sessions.md:40"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:139"
+      "evidence": "/memory/sessions.md:141"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -14108,6 +14457,13 @@
     },
     {
       "from": "/overview/architecture.md",
+      "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
+      "from": "/overview/architecture.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -14255,6 +14611,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/execution.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/nativeApprovals.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14367,6 +14730,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/native/telemetry.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14405,147 +14775,217 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:152"
+      "evidence": "/overview/native-loop.md:155"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:206"
+      "evidence": "/overview/native-loop.md:220"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:228"
+      "evidence": "/overview/native-loop.md:242"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:158"
+      "evidence": "/overview/native-loop.md:48"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:178"
+      "evidence": "/overview/native-loop.md:181"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:131"
+      "evidence": "/overview/native-loop.md:134"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:92"
+      "evidence": "/overview/native-loop.md:95"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:216"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:41"
+      "evidence": "/overview/native-loop.md:43"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:41"
+      "evidence": "/overview/native-loop.md:43"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:41"
+      "evidence": "/overview/native-loop.md:43"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:178"
+      "evidence": "/overview/native-loop.md:181"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:275"
+      "evidence": "/overview/native-loop.md:289"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:208"
+      "evidence": "/overview/native-loop.md:222"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:158"
+      "evidence": "/overview/native-loop.md:161"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:230"
+      "evidence": "/overview/native-loop.md:244"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:209"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:107"
+      "evidence": "/overview/native-loop.md:110"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:41"
+      "evidence": "/overview/native-loop.md:43"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:73"
+      "evidence": "/overview/native-loop.md:76"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:56"
+      "evidence": "/overview/native-loop.md:59"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "file:tests/workflowGraph.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:22"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:22"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:22"
     },
     {
       "from": "/protocols/a2a.md",
@@ -14629,7 +15069,7 @@
       "to": "/decisions/0026-governance-policy-and-visibility.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:64"
+      "evidence": "/protocols/a2a.md:66"
     },
     {
       "from": "/protocols/a2a.md",
@@ -14647,10 +15087,17 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:62"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:74"
+      "evidence": "/protocols/a2a.md:76"
     },
     {
       "from": "/protocols/mcp.md",
@@ -16642,6 +17089,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/loadSyndicate.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -16699,6 +17153,27 @@
     {
       "from": "module:lib/a2a/app.ts",
       "to": "module:lib/persistence/supabaseProvider.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/runtime/adkMemoryBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/app.ts"
@@ -16782,7 +17257,28 @@
     },
     {
       "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/runtime/adkMemoryBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/executor.ts"
@@ -16986,6 +17482,13 @@
     {
       "from": "module:lib/compileAdk.ts",
       "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileAdk.ts"
+    },
+    {
+      "from": "module:lib/compileAdk.ts",
+      "to": "module:lib/runtime/logging.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compileAdk.ts"
@@ -19294,6 +19797,20 @@
       "evidence": "lib/registry.ts"
     },
     {
+      "from": "module:lib/runtime/adkMemoryBridge.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/adkMemoryBridge.ts"
+    },
+    {
+      "from": "module:lib/runtime/adkMemoryBridge.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/adkMemoryBridge.ts"
+    },
+    {
       "from": "module:lib/runtime/adkSessionBridge.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
@@ -19422,6 +19939,13 @@
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/runtime/native/step.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/taskMode.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/agentLoop.ts"
@@ -19652,6 +20176,13 @@
     },
     {
       "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/runtime/native/tempState.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -19768,6 +20299,41 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
     },
     {
       "from": "module:lib/runtime/native/telemetry.ts",
@@ -21485,6 +22051,27 @@
       "evidence": "lib/workflow.ts"
     },
     {
+      "from": "module:lib/workflow/graph.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/graph.ts"
+    },
+    {
+      "from": "module:lib/workflow/graph.ts",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/graph.ts"
+    },
+    {
+      "from": "module:lib/workflow/graph.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/graph.ts"
+    },
+    {
       "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/a2a/app.ts",
       "rel": "imports",
@@ -21536,6 +22123,13 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/persistence/supabaseProvider.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/runtime/logging.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"
@@ -21773,6 +22367,27 @@
     },
     {
       "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/runtime/logging.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
       "to": "module:lib/runtime/syndicateTurn.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21920,13 +22535,6 @@
     },
     {
       "from": "module:scripts/demo_model_optionality.ts",
-      "to": "module:lib/compile.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "scripts/demo_model_optionality.ts"
-    },
-    {
-      "from": "module:scripts/demo_model_optionality.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21949,6 +22557,34 @@
     {
       "from": "module:scripts/demo_model_optionality.ts",
       "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/demo_model_optionality.ts"
+    },
+    {
+      "from": "module:scripts/demo_model_optionality.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/demo_model_optionality.ts"
+    },
+    {
+      "from": "module:scripts/demo_model_optionality.ts",
+      "to": "module:lib/runtime/logging.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/demo_model_optionality.ts"
+    },
+    {
+      "from": "module:scripts/demo_model_optionality.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/demo_model_optionality.ts"
+    },
+    {
+      "from": "module:scripts/demo_model_optionality.ts",
+      "to": "module:lib/runtime/syndicateTurn.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/demo_model_optionality.ts"
@@ -21983,8 +22619,15 @@
     },
     {
       "from": "module:scripts/direct_call.ts",
-      "to": "module:lib/models/registry.ts",
+      "to": "module:lib/model.ts",
       "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/direct_call.ts"
+    },
+    {
+      "from": "module:scripts/direct_call.ts",
+      "to": "env:MODEL_GATEWAY",
+      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/direct_call.ts"
     },
@@ -22306,6 +22949,41 @@
     {
       "from": "module:scripts/syndicate_chat.ts",
       "to": "module:lib/persistence/supabaseProvider.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/syndicate_chat.ts"
+    },
+    {
+      "from": "module:scripts/syndicate_chat.ts",
+      "to": "module:lib/runtime/adkMemoryBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/syndicate_chat.ts"
+    },
+    {
+      "from": "module:scripts/syndicate_chat.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/syndicate_chat.ts"
+    },
+    {
+      "from": "module:scripts/syndicate_chat.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/syndicate_chat.ts"
+    },
+    {
+      "from": "module:scripts/syndicate_chat.ts",
+      "to": "module:lib/runtime/logging.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/syndicate_chat.ts"
+    },
+    {
+      "from": "module:scripts/syndicate_chat.ts",
+      "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/syndicate_chat.ts"

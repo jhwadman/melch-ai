@@ -27,6 +27,60 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/taskMode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md —constrains→ module:lib/runtime/native/taskMode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md —depends_on→ /decisions/0033-context-task-code.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | module:lib/workflow/graph.ts —depends_on→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /overview/workflow-graph.md —explains→ module:lib/workflow/graph.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0082-workflow-graph-mirrors-the-adk-compile.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0082-workflow-graph-mirrors-the-adk-compile.md —constrains→ module:lib/workflow/graph.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/compileAdk.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/runtime/logging.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/runtime/adkMemoryBridge.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/a2a/executor.ts
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/interrupts.ts
 
 by claude-code/claude-opus-5-5

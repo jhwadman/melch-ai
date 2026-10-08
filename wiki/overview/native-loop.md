@@ -26,6 +26,8 @@ sources:
   - resource: tests/nativeDelegate.test.ts
   - resource: lib/runtime/native/telemetry.ts
   - resource: tests/nativeLedger.test.ts
+  - resource: lib/runtime/native/taskMode.ts
+  - resource: tests/execution.test.ts
   - resource: lib/runtime/native/interrupts.ts
   - resource: tests/nativeApprovals.test.ts
   - resource: lib/runtime/questions.ts
@@ -43,12 +45,13 @@ Every piece matches the ADK runtime, so a session either runtime wrote is one th
 - `tests/nativeStep.test.ts` rebuilds each call on the native step from the session as it stood before the call. The adapter must be handed an equal request, and the store must hold an equal event.
 - `tests/nativeLoop.test.ts` runs the same conversation through `runAgentLoop`: every single-agent case of the boundary suite (`tests/syndicateTurn.test.ts`) and the loop's own cases. The store must hold the same events, ids and times aside, and `onTextDelta` must get the same deltas.
 - `tests/nativeLedger.test.ts` runs the same conversation both ways with tracing on and hands each run's spans to the ledger exporter. `adk_turns`, `adk_telemetry` and `adk_payloads` must hold the same rows (see [the spans](#the-spans)).
+- `tests/execution.test.ts` does the same for `code_execution: gemini` and `mode: task` ([ADR 0033](/decisions/0033-context-task-code.md)): the same results, stored events and requests on both runtimes, and a task-mode node's events as ADK's workflow stores them.
 - `tests/nativeApprovals.test.ts` runs two-turn approval conversations the same way: a gated call opens the approval, the next message answers it. The stores must hold the same events and the gated tool must run as often. It also resumes an approval ADK stored (the session fixtures) on the loop.
 - `tests/nativeDelegate.test.ts` does the same for delegation: the boundary suite's delegation cases, a nested syndicate and the council example. Every session must hold the same events (the caller's, and each subagent's own), and every model must be sent the same requests.
 
 ## The agent
 
-`NativeAgent` (`lib/runtime/native/request.ts`) is what a compiled agent gives a model request, in the YAML's spelling: name, description, model id, instruction, `globalInstruction`, tools in list order, output schema, `generateContentConfig` (with `reasoning:` mapped in, as `withReasoning` maps it), `includeContents`, `codeExecution`, `context` (compaction, see [Compaction](#compaction)) and the transfer flags. A tool may be:
+`NativeAgent` (`lib/runtime/native/request.ts`) is what a compiled agent gives a model request, in the YAML's spelling: name, description, model id, instruction, `globalInstruction`, tools in list order, output schema, `generateContentConfig` (with `reasoning:` mapped in, as `withReasoning` maps it), `includeContents`, `codeExecution`, `mode` (see [Task mode](#task-mode)), `context` (compaction, see [Compaction](#compaction)) and the transfer flags. A tool may be:
 
 - an own Tool or a `defineTool` contract;
 - a subagent tool (`subagentTool(agent)`, `lib/runtime/native/delegate.ts`), which runs another `NativeAgent`;
@@ -56,7 +59,7 @@ Every piece matches the ADK runtime, so a session either runtime wrote is one th
 - a NativeToolMarker ([server-side tools](/tools/tool-contracts.md));
 - an ADK tool or toolset an agent still lists (MCP and OpenAPI tools, the skills toolset), read by its declaration and its `getTools`.
 
-An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fails the run when it is called: a subagent reaches the native loop as a subagent tool. `mode: task` is refused until WS3-5.
+An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fails the run when it is called: a subagent reaches the native loop as a subagent tool.
 
 `compileNative` (`lib/compileNative.ts`) builds it from the same `AgentSpec` that `compileAdk` (`lib/compileAdk.ts`) turns into ADK's `LlmAgent`. `compileSpec` and `compileSubagentSpec` in `lib/compile.ts` make the spec once per agent: tools resolved and gated, the skills index in the instruction, the model resolved once, the `generateContentConfig` built for that model. Each resolved tool reaches the loop as the own Tool or InstructionTool behind it, or as itself. `tests/compile.test.ts` compiles one fixture both ways and requires the same first request. `tests/nativeStep.test.ts`, `tests/nativeLoop.test.ts` and `tests/geminiNativeTools.test.ts` build their agents with it.
 
@@ -64,7 +67,7 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
 
 `buildModelRequest(agent, ctx)` builds the `ModelRequest` in ADK's order:
 
-1. **Config.** The agent's `generateContentConfig`. The output schema joins it when the agent lists no tools, or when the model takes a schema beside tools (Gemini 2 and later on Vertex AI). A config holding `tools`, `systemInstruction` or `responseSchema` is refused, as `LlmAgent` refuses it.
+1. **Config.** The agent's `generateContentConfig`. The output schema joins it when the agent lists no tools, or when the model takes a schema beside tools (Gemini 2 and later on Vertex AI), and never in `mode: task`, where it is `finish_task`'s parameters. A config holding `tools`, `systemInstruction` or `responseSchema` is refused, as `LlmAgent` refuses it.
 2. **System prompt.** Each piece is joined to the last by a blank line:
    - the identity lines, unless the agent may transfer to no one (an output schema rules transfer out);
    - the root agent's global instruction, then the agent's instruction. A string has its `{key}` placeholders filled from session state: `{key?}` is optional, a placeholder naming no state key stays as written, and a required key that is absent fails the request;
@@ -81,11 +84,11 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
 4. **Tools.** These follow the agent's order, a toolset expanded through `getTools` against the session's state (so a loaded skill's tools appear):
    - client-side declarations go through `contractToolDeclaration`, one per name, the later object winning;
    - server-side tools go where the ADK runtime sends them: `web_search` on every provider, `url_context` and `google_search` on Gemini, `x_search` and `collections_search` on xAI, and `code_execution` first among Gemini's own;
-   - `set_model_response` is added when step 2 asked for it;
+   - `set_model_response` is added when step 2 asked for it, except in `mode: task`, where `finish_task` takes its place (see [Task mode](#task-mode));
    - self-correction's reflection tool, `adk_handle_model_error`, comes last when the step has a `correction` (see [Self-correction](#self-correction)).
 5. **The rest.** Tool choice, the output schema or JSON mode, reasoning and sampling, each read by the shim mapping's own reader. `stream` is `false` unless the caller streams, and `signal` is the turn's.
 
-Not done by the step: resuming a node tool that paused on an input request (workflows, WS4), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), task mode (WS3-5), and an ADK tool's own request edits beyond its declaration.
+Not done by the step: resuming a node tool that paused on an input request (workflows, WS4), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), and an ADK tool's own request edits beyond its declaration.
 
 ## The call
 
@@ -123,7 +126,7 @@ A caller may also send the request under another model id (`model`): a fallback 
 
 ## The loop
 
-`runAgentLoop(agent, ctx)` is an async generator. `ctx` is what the step takes besides the agent and its adapter (session, store, run id, user content, branch, memory, `stream`, signal), plus `adapterFor`, the leaf adapter for a model id (default `resolveAdapter`), `log` for the fallback's notice, and `selfCorrection`, the turn's self-correction (default: retries at their defaults). The session already holds the run's user event. The loop yields each partial as it arrives, never stored, then each event as the store returned it, so `drainAgentStream` reads it as it reads ADK's stream: streamed text reaches `onTextDelta`, and narration before a tool call is withdrawn with `onTextReset`.
+`runAgentLoop(agent, ctx)` is an async generator. `ctx` is what the step takes besides the agent and its adapter (session, store, run id, user content, branch, memory, `stream`, signal), plus `adapterFor`, the leaf adapter for a model id (default `resolveAdapter`), `log` for the fallback's notice, `selfCorrection`, the turn's self-correction (default: retries at their defaults), and `taskNode`, which marks the run as a `mode: task` workflow node's (see [Task mode](#task-mode)). The session already holds the run's user event. The loop yields each partial as it arrives, never stored, then each event as the store returned it, so `drainAgentStream` reads it as it reads ADK's stream: streamed text reaches `onTextDelta`, and narration before a tool call is withdrawn with `onTextReset`.
 
 Each step, after any compaction the agent's `context:` calls for (see [Compaction](#compaction)):
 
@@ -147,7 +150,7 @@ The generator returns an `AgentLoopEnd`:
 
 | `reason` | when | also |
 |---|---|---|
-| `final` | the last event is a final answer: text, a `set_model_response` answer, a response that skips summarization | `lastEvent` |
+| `final` | the last event is a final answer: text, a `set_model_response` answer, a response that skips summarization; or, in a task node's run, `finish_task`'s successful answer | `lastEvent`; `output`, a task node's output |
 | `paused` | a call waits on a person: an `ask_user` call with no response, or an approval request | `pending`, the waiting call ids |
 | `error` | the last event carries a failed call's error, among them a model that thinks but never answers ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)) | `lastEvent` |
 | `stopped` | the turn stopped a step (cancel, deadline, `max_steps`); nothing was stored for it | `stop`, the turn's code and message |
@@ -200,6 +203,17 @@ ADK's quirks are kept on purpose, so both runtimes match:
 - a partial resets the model count;
 - through the model contract a malformed Gemini call is an error code, not a finish reason, so no adapter's response is retried for it on either runtime.
 
+
+## Task mode
+
+`mode: task` ([ADR 0033](/decisions/0033-context-task-code.md), [ADR 0081](/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md)) runs on native as ADK 2.2 runs it, in `lib/runtime/native/taskMode.ts`:
+
+- **The tool.** The request declares `finish_task` after the agent's own tools and before the reflection tool. Its parameters are the agent's output schema, or ADK's default (`result`, a string summary) when it has none. A schema whose `type` is not Gemini's `OBJECT` is wrapped under `result`, a lowercase `object` included, as ADK compares it to `Type.OBJECT`. Its description and the line it adds to the instruction are ADK's, word for word.
+- **The answer.** A call missing a top-level required key answers ADK's error naming the keys; any other call answers `Task completed.` (stored `{ result: "Task completed." }`).
+- **The schema.** The output schema is never the response schema in task mode. The `set_model_response` line still joins the instruction when an output schema sits beside tools on a model that cannot take both, as ADK's instruction processor writes it, though no `set_model_response` tool is declared.
+- **How it ends.** A run marked `taskNode` holds the latest `finish_task` call's arguments, and the event that answers it with success gets, before it is stored, `output` (the arguments, unwrapped from `result` when they were wrapped), `nodeInfo.messageAsOutput`, and the output under the agent's `outputKey` in its `stateDelta`. The run then ends `final` with that `output`, never asking the model again, as ADK's `runTaskMode` ends a workflow node. A plain run goes on after the answer, as `LlmAgent.runAsync` does; the schema allows `mode: task` on workflow nodes only, and a workflow syndicate is refused on native until WS4, whose node runner sets `taskNode` and adds the node's path.
+
+`code_execution: gemini` needs nothing of its own in the loop: the request asks Gemini for its code-execution tool (`code_execution` first among Gemini's own), the Gemini adapter returns the code and its result as carried parts on the next part ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)), and the event stores them as ADK's does. A history holding raw `executableCode` and `codeExecutionResult` parts (as ADK's own Gemini class stores them) is read as fenced text, as ADK's code-execution processor reads it.
 
 ## Approvals
 
@@ -265,11 +279,11 @@ What native does not run yet fails before any model call, with an `UnsupportedOn
 
 | Refused | where | until |
 |---|---|---|
-| `mode: task` | `compileNative` | WS3-5 |
 | a `workflow:` syndicate | `refuseOnNative` | the workflow engine (WS4) |
 | a caller's `transformAgent` (it transforms ADK agents) | `refuseOnNative` | none planned |
 
 A turn that paused on either runtime (an approval request, an `ask_user` call) stored ADK's own events, and resumes on either runtime: an approval as [Approvals](#approvals) describes, a question as [Questions](#questions) describes.
+
 ## The spans
 
 A native run writes the same ledger rows as an ADK run ([ADR 0076](/decisions/0076-native-loop-spans-feed-the-same-ledger.md)). The ledger reads a turn's spans, and ADK opens three that it depends on, so the loop opens the same three under its own names, in scope `melchizedek.runtime` (`lib/runtime/native/telemetry.ts`):

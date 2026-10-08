@@ -16,12 +16,13 @@
  *   turn runner drains both with drainAgentStream.
  *
  * WHAT NATIVE REFUSES, before any model call, with a message naming the
- * feature and the runtime (UnsupportedOnRuntimeError): a workflow syndicate,
- * task mode (lib/compileNative.ts), and a caller's ADK agent
- * transform. An answer to an approval resumes on native
- * (lib/runtime/native/interrupts.ts), an answer to a question resumes the
- * agent that asked (lib/runtime/questions.ts, ADR 0079), and `context:`
- * compacts on native (lib/runtime/native/compaction.ts).
+ * feature and the runtime (UnsupportedOnRuntimeError): a workflow syndicate
+ * (where `mode: task` nodes live), and a caller's ADK agent transform. An
+ * answer to an approval resumes on native (lib/runtime/native/interrupts.ts),
+ * an answer to a question resumes the agent that asked
+ * (lib/runtime/questions.ts, ADR 0079), `context:` compacts on native
+ * (lib/runtime/native/compaction.ts), and `mode: task` runs on native
+ * (lib/runtime/native/taskMode.ts).
  * Later tickets lift each.
  */
 
@@ -46,8 +47,7 @@ import { unsupportedOnNative } from './runtimeFlag.ts';
 
 /**
  * Throws UnsupportedOnRuntimeError for a syndicate or a call the native
- * runtime does not run yet. Task mode is refused per agent by
- * compileNative.
+ * runtime does not run yet.
  */
 export function refuseOnNative(
   config: SyndicateYamlConfig,

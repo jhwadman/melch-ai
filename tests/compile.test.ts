@@ -30,7 +30,7 @@ import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
 import { subagentOf } from '../lib/runtime/native/delegate.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runNativeAgent } from '../lib/runtime/nativeTurn.ts';
-import { UnsupportedOnRuntimeError, chooseRuntime, runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
+import { chooseRuntime, runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
@@ -350,13 +350,11 @@ test('a delegation compiles both ways: an AgentTool on ADK, a subagentTool holdi
   assert.strictEqual(subagents[0]!.model, config.subagents[0]!.model, 'each subagent is its own compiled NativeAgent');
 });
 
-test('a feature native does not run yet fails at compile time, naming the feature and the runtime', async () => {
+test('context: and mode: task compile for the native loop, and the same spec builds for ADK', async () => {
   const base = { name: 'Solo', description: 'd', model: 'gemini-3.5-flash-lite', instruction: 'x' };
+  // Task mode runs on native (WS3-5): the spec builds both ways, mode carried.
   const task = await compileSubagentSpec({ ...base, mode: 'task' } as any);
-  assert.throws(
-    () => compileNative(task),
-    (e: unknown) => e instanceof UnsupportedOnRuntimeError && e.runtime === 'native' && /Solo: task mode \(mode: task, WS3-5\) is not supported on the native runtime yet/.test(e.message),
-  );
+  assert.strictEqual(compileNative(task).mode, 'task');
   // context: compiles for the loop, which compacts as ADK does (WS2-9).
   const compaction = await compileSubagentSpec({ ...base, context: { compact_after_tokens: 1000, keep_recent_events: 2 } } as any);
   assert.deepStrictEqual(compileNative(compaction).context, { compact_after_tokens: 1000, keep_recent_events: 2 });

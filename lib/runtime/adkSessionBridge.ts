@@ -15,7 +15,11 @@
  *     where ADK's store has another (sessions.ts, "ONE MEANING ACROSS
  *     STORES").
  *   asAdkSessionService and asSessionService hand a store back as it is
- *   when it already implements the face asked for.
+ *   when it already implements the face asked for, and a bridge back as the
+ *   store it wraps, so a store bridged one way and then back is itself.
+ *   A surface that takes a store from its caller (the A2A executor and app,
+ *   the REPL) types it as EitherSessionService and asks for the face it
+ *   needs here (ADR 0080).
  *
  * APPEND: each face keeps its own runtime's rules for the caller's session.
  *   The ADK face applies an event to the runner's session through ADK's
@@ -50,6 +54,12 @@ import type {
   SessionKey,
   SessionService,
 } from './sessions.ts';
+
+/** ADK's session service, named here so a surface never imports ADK for the type (ADR 0080). */
+export type AdkSessionService = BaseSessionService;
+
+/** A session store with either face: what a surface takes from its caller. */
+export type EitherSessionService = SessionService | BaseSessionService;
 
 /** Every method the engine's interface names. */
 export function isSessionService(value: unknown): value is SessionService {
@@ -194,14 +204,16 @@ export class AdkSessionServiceForEngine implements SessionService {
 // ── Either face of a store ───────────────────────────────────────────────────
 
 /** The store as the ADK runtime takes it: itself when it already is one. */
-export function asAdkSessionService(service: SessionService | BaseSessionService): BaseSessionService {
+export function asAdkSessionService(service: EitherSessionService): BaseSessionService {
+  if (service instanceof AdkSessionServiceForEngine) return service.service;
   if (isAdkSessionService(service)) return service;
   if (isSessionService(service)) return new SessionServiceForAdk(service);
   throw new TypeError('Not a session service: it implements neither SessionService nor ADK\'s BaseSessionService.');
 }
 
 /** The store as the engine's interface: itself when it already is one. */
-export function asSessionService(service: SessionService | BaseSessionService): SessionService {
+export function asSessionService(service: EitherSessionService): SessionService {
+  if (service instanceof SessionServiceForAdk) return service.service;
   if (isSessionService(service)) return service;
   if (isAdkSessionService(service)) return new AdkSessionServiceForEngine(service);
   throw new TypeError('Not a session service: it implements neither SessionService nor ADK\'s BaseSessionService.');

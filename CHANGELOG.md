@@ -14,6 +14,12 @@ the starter pack and the templates), not the repo's full history.
   store the same events, so a question opened on either is answered on the
   other; `result.input` and the A2A `input_request` part are unchanged. No
   change to the `exports` map.
+- **`mode: task` runs on the native runtime (ADR 0081).** It no longer
+  throws `UnsupportedOnRuntimeError`: the agent's requests declare
+  `finish_task` as ADK's do, and its answers are stored as ADK stores them.
+  A `workflow:` syndicate, where task-mode nodes live, is still refused on
+  native. `code_execution: gemini` runs on native with the same stored
+  events as on ADK. No change to the exports map.
 - **An approval resumes on the native runtime (ADR 0077).** On
   `runtime: 'native'`, a message carrying `approvalResponsePart(id, …)` runs
   or refuses the pinned call before the agent's next step, as on ADK, and
@@ -21,6 +27,18 @@ the starter pack and the templates), not the repo's full history.
   the other. An answer whose pinned call does not bind (changed arguments,
   a request the user authored) throws ADK's `IntentMismatchError` text on
   both runtimes. No change to the `exports` map.
+- **`createA2AApp` takes the engine's own stores (ADR 0080).**
+  `A2AAppOptions.storage.sessionService` accepts the engine's
+  `SessionService` as well as ADK's `BaseSessionService`, and
+  `storage.memoryService` the engine's `MemoryService` as well as ADK's
+  `BaseMemoryService`; a store or service you pass today works unchanged.
+  Without durable storage, sessions live in the engine's
+  `InProcessSessionService` instead of ADK's `InMemorySessionService`, with
+  the durable stores' meaning (no `app:` or `user:` state shared across
+  sessions). `resolveModel` returns what `CompileOptions.resolveModel`
+  returns, the same type as before. The `melchizedek-serve` bin no longer
+  imports `@google/adk`; ADK's logger follows the level the engine sets.
+  No change to the `exports` map, `runSyndicateTurn`, or the A2A surface.
 - **`context:` compaction runs on the native runtime (ADR 0078).** A
   syndicate whose orchestrator sets `context:` no longer throws
   `UnsupportedOnRuntimeError` under `runtime: 'native'`
