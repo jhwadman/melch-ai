@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 856,
-    "edges": 3251,
+    "nodes": 857,
+    "edges": 3252,
     "byKind": {
       "doc": 163,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 151,
+      "file": 152,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -36,7 +36,7 @@
       "imports": 808,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 792,
+      "derives_from": 793,
       "constrains": 182,
       "supersedes": 8,
       "depends_on": 105,
@@ -46,7 +46,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2924,
+      "extracted": 2925,
       "inferred": 327
     },
     "isolated": 4
@@ -1861,7 +1861,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1748
+        "words": 1797
       }
     },
     {
@@ -1885,7 +1885,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3996
+        "words": 4097
       }
     },
     {
@@ -4263,6 +4263,12 @@
       "label": "scriptedModel.ts",
       "source": "tests/helpers/scriptedModel.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/helpers/virtualClock.ts",
+      "kind": "file",
+      "label": "virtualClock.ts",
+      "source": "tests/helpers/virtualClock.ts"
     },
     {
       "id": "file:tests/identity.test.ts",
@@ -17156,6 +17162,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "file:tests/helpers/virtualClock.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "file:tests/nativeLedger.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -17257,63 +17270,63 @@
       "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:31"
+      "evidence": "/overview/workflow-scheduler.md:32"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:31"
+      "evidence": "/overview/workflow-scheduler.md:32"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:94"
+      "evidence": "/overview/workflow-scheduler.md:95"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:119"
+      "evidence": "/overview/workflow-scheduler.md:120"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:145"
+      "evidence": "/overview/workflow-scheduler.md:146"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:31"
+      "evidence": "/overview/workflow-scheduler.md:32"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:164"
+      "evidence": "/overview/workflow-scheduler.md:165"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:31"
+      "evidence": "/overview/workflow-scheduler.md:32"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-graph.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:31"
+      "evidence": "/overview/workflow-scheduler.md:32"
     },
     {
       "from": "/protocols/a2a.md",

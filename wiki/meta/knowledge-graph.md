@@ -30,7 +30,7 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 |---|---|---|---|
 | `module` | `module:<name>` | 196 | one source module |
 | `doc` | `/dir/doc.md` | 163 | a concept document in the bundle — identity is its bundle path |
-| `file` | `file:<name>` | 151 | a repo file that is not a source module (DDL, config, prose) |
+| `file` | `file:<name>` | 152 | a repo file that is not a source module (DDL, config, prose) |
 | `env` | `env:<name>` | 106 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 89 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 47 | an npm script entrypoint |
@@ -51,7 +51,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
 | `imports` | extracted | A imports B | 808 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 792 | declared in the document’s `sources:` frontmatter |
+| `derives_from` | extracted | A derives from B | 793 | declared in the document’s `sources:` frontmatter |
 | `links_to` | extracted | A links to B | 674 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 170 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
