@@ -19,7 +19,7 @@ sources:
 
 # Workflow graph
 
-A `workflow:` block ([ADR 0030](/decisions/0030-workflow-graphs.md)) writes a graph as chains of names. `lib/workflow/graph.ts` turns those chains into the graph a scheduler runs, without ADK: `buildWorkflowGraph(config)` returns a `WorkflowGraph`. The ADK runtime still compiles the block with `compileWorkflow` (`lib/workflow.ts`) and runs ADK's `Workflow`; the [workflow scheduler](/overview/workflow-scheduler.md) runs this graph without ADK, and the native runtime refuses a workflow syndicate until its node kinds run on it ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), WS4). Why the model mirrors the ADK compile, and where it does not, is [ADR 0082](/decisions/0082-workflow-graph-mirrors-the-adk-compile.md).
+A `workflow:` block ([ADR 0030](/decisions/0030-workflow-graphs.md)) writes a graph as chains of names. `lib/workflow/graph.ts` turns those chains into the graph a scheduler runs, without ADK: `buildWorkflowGraph(config)` returns a `WorkflowGraph`. The ADK runtime still compiles the block with `compileWorkflow` (`lib/workflow.ts`) and runs ADK's `Workflow`; the [workflow scheduler](/overview/workflow-scheduler.md) runs this graph without ADK, which is how the native runtime runs a workflow syndicate ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), [ADR 0095](/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)). Why the model mirrors the ADK compile, and where it does not, is [ADR 0082](/decisions/0082-workflow-graph-mirrors-the-adk-compile.md).
 
 ## The model
 

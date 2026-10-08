@@ -40,9 +40,10 @@
  *      fills `{x.field}` and `<x.field from Node>` from it
  *      (lib/runtime/native/request.ts, injectSessionState).
  *   7. FAILURE. An event carrying an error code is the node's reported
- *      error; a run that ends with one and no output throws
- *      NodeReportedError with ADK's message, which stops the walk as ADK's
- *      does. A run the turn stopped throws. A run that pauses on a person
+ *      error; a run that ends with one and no output returns it as the
+ *      run's `error`, and the scheduler fails the attempt with
+ *      NodeReportedError, ADK's message, retried or stopping the walk as
+ *      ADK's does, and reported once (by the node's own event). A run the turn stopped throws. A run that pauses on a person
  *      (an ask_user tool, an approval) is an interrupt, not run here yet.
  *
  * `agentNodeRuntime` puts it together for the scheduler: a `runNode` for
@@ -70,19 +71,8 @@ import type { NodeResult, NodeRun, NodeRunner, SchedulerEvent } from './schedule
 
 // ── Errors, as ADK names them ────────────────────────────────────────────────
 
-/** A node whose run ended on an error event and produced no output (ADK's NodeReportedError, same message). */
-export class NodeReportedError extends Error {
-  readonly code: string;
-  readonly nodeName: string;
-  constructor(options: { nodeName: string; errorCode?: string; errorMessage?: string }) {
-    const code = options.errorCode ?? 'UNKNOWN_ERROR';
-    const detail = options.errorMessage ?? code;
-    super(`Node '${options.nodeName}' failed: ${code === 'UNKNOWN_ERROR' ? detail : `${code}: ${detail}`}`);
-    this.name = 'NodeReportedError';
-    this.code = code;
-    this.nodeName = options.nodeName;
-  }
-}
+/** A node whose run ended on an error event and produced no output: the scheduler's, which fails the attempt (rule 7). */
+export { NodeReportedError } from './scheduler.ts';
 
 /** A node run the turn stopped (cancel, deadline, max_steps): the stop's code and message. */
 export class NodeStoppedError extends Error {
@@ -175,15 +165,17 @@ export interface AgentNodeContext {
   loop?: AgentNodeLoopOptions;
   /** Each event as it is stored, in order. */
   onEvent?: (event: TurnEvent) => void;
+  /** Each partial (streamed, never stored) event the node's loop yields, as it yields it. */
+  onPartial?: (event: TurnEvent) => void;
   /** Stores the node's user turn; default `sessions.append`. agentNodeRuntime passes its queue. Called synchronously, before the run's first await. */
   appendInput?: (event: TurnEvent) => Promise<TurnEvent>;
 }
 
 /**
  * Runs `agent` as the node `run` names, on the native loop, and resolves
- * with the node's output. Throws NodeReportedError when the run ended on an
- * error with no output, NodeStoppedError when the turn stopped it, and an
- * Error when it paused on a person.
+ * with the node's output, or with the error it reported when it ended on
+ * one with no output. Throws NodeStoppedError when the turn stopped it, and
+ * an Error when it paused on a person.
  */
 export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input' | 'path' | 'branch' | 'signal'>, ctx: AgentNodeContext): Promise<NodeResult> {
   const taskMode = agent.mode === 'task';
@@ -216,14 +208,20 @@ export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input
       end = next.value;
       break;
     }
-    if (!next.value.partial) ctx.onEvent?.(next.value);
+    if (next.value.partial) ctx.onPartial?.(next.value);
+    else ctx.onEvent?.(next.value);
   }
   if (end.reason === 'paused') {
     throw new Error(`Node '${agent.name}' paused on ${(end.pending ?? []).join(', ')}: a pause inside an agent node does not run on the native runtime yet.`);
   }
   if (end.reason === 'stopped') throw new NodeStoppedError(agent.name, end.stop);
-  // ADK's failIfNodeReportedError: an error with an output is not the node's failure.
-  if (state.reported && state.output === undefined) throw new NodeReportedError({ nodeName: agent.name, ...state.reported });
+  // ADK's failIfNodeReportedError: an error with an output is not the node's failure. Without one the error is
+  // returned, not thrown: the scheduler fails the attempt with its own NodeReportedError (this class's message), which
+  // it knows the node reported, so it writes no node-error event of its own, as ADK writes none (ADR 0095).
+  if (state.reported && state.output === undefined) {
+    const code = state.reported.errorCode ?? 'UNKNOWN_ERROR';
+    return { error: { code, message: state.reported.errorMessage ?? code } };
+  }
   return state.output === undefined ? {} : { output: state.output };
 }
 
@@ -286,6 +284,7 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
     ...(options.userContent ? { userContent: options.userContent } : {}),
     ...(options.loop ? { loop: options.loop } : {}),
     ...(options.onEvent ? { onEvent: options.onEvent } : {}),
+    ...(options.onPartial ? { onPartial: options.onPartial } : {}),
     // An event queued before the input that failed to store stops the node before its agent runs.
     appendInput: async (event) => {
       const stored = await enqueue(event);

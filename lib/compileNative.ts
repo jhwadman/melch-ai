@@ -187,7 +187,7 @@ function adapterOf(resolved: unknown, model: string): ModelAdapter {
  * class native cannot run is refused before any model call; any other id
  * is resolved when first asked for. Each is kept.
  */
-export function nativeAdapterFor(opts: CompileOptions = {}, spec?: NativeModelSpec): (model: string) => ModelAdapter {
+export function nativeAdapterFor(opts: CompileOptions = {}, spec?: NativeModelSpec | readonly NativeModelSpec[]): (model: string) => ModelAdapter {
   const cache = new Map<string, ModelAdapter>();
   const known = new Map<string, unknown>();
   const learn = (s: NativeModelSpec): void => {
@@ -202,7 +202,8 @@ export function nativeAdapterFor(opts: CompileOptions = {}, spec?: NativeModelSp
     }
     for (const entry of s.tools ?? []) if (entry.kind === 'agent') learn(entry.agent);
   };
-  if (spec) learn(spec);
+  // A workflow's agents share one lookup: every node's spec is learned.
+  for (const s of spec === undefined ? [] : Array.isArray(spec) ? spec : [spec as NativeModelSpec]) learn(s);
   return (model: string) => {
     const held = cache.get(model);
     if (held) return held;

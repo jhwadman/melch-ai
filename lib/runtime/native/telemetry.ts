@@ -49,6 +49,7 @@ import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import type { AgentLoopContext, AgentLoopEnd } from './agentLoop.ts';
 import type { NativeAgent } from './request.ts';
 import type { ModelStepResult } from './step.ts';
+import type { NodeResult, TracedNode } from '../../workflow/scheduler.ts';
 
 /** The most a payload attribute holds, as for a failed call's (lib/observability/tracer.ts). */
 const PAYLOAD_MAX_CHARS = 200_000;
@@ -221,6 +222,95 @@ export async function traceToolCall<O extends { part?: TurnPart } | undefined>(
     return outcome;
   } catch (error) {
     return failed(span, error);
+  } finally {
+    span.end();
+  }
+}
+
+// ── A workflow's spans (ADR 0095) ────────────────────────────────────────────
+// ADK opens `invoke_workflow <name>` around a workflow's walk, `execute_node
+// <name>` around each node run (a map item's under its map's), and
+// `execute_tool <name>` around a tool node's call. The native walk opens the
+// same three under the engine's names, `workflow.invoke`, `node.execute` and
+// `tool.execute`, with ADK's attributes. An agent node's own `agent.invoke`
+// (traceAgentInvocation, above) opens inside its node's span, so the ledger
+// attributes each model call to the node's agent, as on ADK.
+
+/** The walk as a `workflow.invoke <name>` span; every node span opens under it. */
+export async function traceWorkflowInvocation<T>(
+  workflow: { name: string; path: string },
+  ctx: { sessionId: string; invocationId: string },
+  run: () => Promise<T>,
+): Promise<T> {
+  initializeTracing();
+  const span = runtimeTracer().startSpan(`workflow.invoke ${workflow.name}`, {
+    attributes: {
+      'gen_ai.operation.name': 'invoke_workflow',
+      'gen_ai.conversation.id': ctx.sessionId,
+      'adk.workflow.name': workflow.name,
+      'adk.node.path': workflow.path,
+      'adk.invocation_id': ctx.invocationId,
+    },
+  });
+  try {
+    return await context.with(trace.setSpan(context.active(), span), run);
+  } catch (error) {
+    return failed(span, error);
+  } finally {
+    span.end();
+  }
+}
+
+/**
+ * One node run as a `node.execute <name>` span (the scheduler's traceNode
+ * hook): every attempt of the run inside it, ending with ADK's status
+ * (`completed`, `waiting` when the run paused on a person, `failed`) and the
+ * attempts the run made.
+ */
+export async function traceNodeExecution(node: TracedNode, run: () => Promise<NodeResult>): Promise<NodeResult> {
+  initializeTracing();
+  const span = runtimeTracer().startSpan(`node.execute ${node.name}`, {
+    attributes: {
+      'gen_ai.operation.name': 'execute_node',
+      'adk.node.path': node.path,
+      'adk.node.run_id': node.runId,
+      'adk.node.kind': node.kind,
+    },
+  });
+  const settle = (status: 'completed' | 'waiting' | 'failed', interrupts: number) =>
+    span.setAttributes({ 'adk.node.attempt': node.attempts.count, 'adk.node.status': status, 'adk.node.interrupt_count': interrupts });
+  try {
+    const result = await context.with(trace.setSpan(context.active(), span), run);
+    const interrupts = result.interruptIds?.length ?? 0;
+    settle(interrupts > 0 ? 'waiting' : 'completed', interrupts);
+    return result;
+  } catch (error) {
+    settle('failed', 0);
+    return failed(span, error);
+  } finally {
+    span.end();
+  }
+}
+
+/** A tool node's call as a `tool.execute <name>` span, under its node's (ToolNodeContext.traceCall). */
+export async function traceToolNodeCall<T>(call: { id: string; name: string }, tool: unknown, run: () => Promise<T>): Promise<T> {
+  initializeTracing();
+  const description = tool && typeof tool === 'object' ? (tool as { description?: unknown }).description : undefined;
+  const span = runtimeTracer().startSpan(`tool.execute ${call.name}`, {
+    attributes: {
+      'gen_ai.operation.name': 'execute_tool',
+      'gen_ai.tool.name': call.name,
+      'gen_ai.tool.description': typeof description === 'string' ? description : '',
+      'gen_ai.tool.call.id': call.id,
+    },
+  });
+  try {
+    return await context.with(trace.setSpan(context.active(), span), run);
+  } catch (error) {
+    // The tool node turns the throw into its { error } response; the span notes the failure, not the message.
+    span.setAttribute('tool.error', true);
+    span.setStatus({ code: SpanStatusCode.ERROR });
+    throw error;
   } finally {
     span.end();
   }

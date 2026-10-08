@@ -4,171 +4,40 @@
  * (lib/workflow/route.ts), against ADK's Workflow on ADR 0030's routing
  * cases (ADR 0090).
  *
- * Each case runs one workflow syndicate twice with the same scripted models
- * on the engine's contract: once as today's turn runs it on ADK
- * (runSyndicateTurn, runtime adk: compileWorkflow, ADK's Runner), once as
- * the native walk will (the scheduler, lib/workflow/scheduler.ts, with
- * agentNodeRuntime as its runNode and onEvent, every agent compiled for
- * native). The two must store the same events (ids and times aside), send
+ * Each case runs one workflow syndicate with the same scripted models on
+ * the engine's contract, through the shared harness
+ * (tests/helpers/workflowParity.ts): on ADK (runSyndicateTurn, runtime
+ * adk), on the native modules driven by hand (the scheduler with
+ * agentNodeRuntime as its runNode and onEvent), and through the native
+ * turn (runSyndicateTurn, runtime native, lib/workflow/turn.ts). Each native
+ * side must store the same events as ADK's (ids and times aside), send
  * every model the same requests, take the same routes, end on the same
  * output, and publish the same progress lines, which name declared nodes
- * only. The turn runner does not run a workflow on native yet (WS4-6), so
- * the native side is driven here. No network.
+ * only. No network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
+import { LogLevel, setLogLevel } from '@google/adk';
 
-import { compileNativeSubagent } from '../lib/compileNative.ts';
-import type { SubagentYamlConfig, SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import type { ModelAdapter } from '../lib/models/contract.ts';
 import { createTurnEvent } from '../lib/runtime/events.ts';
-import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
+import type { TurnContent } from '../lib/runtime/events.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
-import { InProcessSessionService } from '../lib/runtime/sessions.ts';
-import { drainAgentStream, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
-import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
-import { NodeReportedError, agentNodeRuntime, asNodeAgent, eventOutput, nodeInputContent } from '../lib/workflow/agentNode.ts';
-import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
+import { NodeReportedError, asNodeAgent, eventOutput, nodeInputContent } from '../lib/workflow/agentNode.ts';
 import { routeOf, routeStepEvent } from '../lib/workflow/route.ts';
-import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
-import type { NodeRunner } from '../lib/workflow/scheduler.ts';
-import { toolNodeRunner } from '../lib/workflow/toolNode.ts';
-import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { z } from 'zod';
 import { routeOf as configRouteOf } from '../lib/workflowConfig.ts';
-import { ScriptedModel, answer, failure, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
+import { answer, failure, requestTexts, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { agent, bothAgree, comparable, onAdk, onNative, onNativeTurn, workflowConfig as config } from './helpers/workflowParity.ts';
+import type { Scripts } from './helpers/workflowParity.ts';
 import { importGraph, specifiersOf } from './helpers/importGraph.ts';
 
 setLogLevel(LogLevel.ERROR);
 
-const agent = (name: string, extra: Record<string, unknown> = {}) => ({ name, description: name, model: `scripted/${name.toLowerCase()}`, instruction: `${name}.`, ...extra });
-
-function config(workflow: Record<string, unknown>, subagents: Record<string, unknown>[], orchestrator: Record<string, unknown> = agent('Triage')): SyndicateYamlConfig {
-  return validateSyndicateConfig({ syndicate_name: 'Graph', memory_system: 'internal-only', orchestrator, subagents, workflow }, 'test') as SyndicateYamlConfig;
-}
-
-type Scripts = Record<string, ModelScript>;
-
-/** One side's record of a run. */
-interface Side {
-  status: string;
-  error?: string;
-  events: TurnEvent[];
-  models: Record<string, ScriptedModel>;
-  progress: string[];
-  /** The route each route step stored, by step. */
-  routes: Record<string, unknown>;
-  /** The workflow's output: the terminal node's. */
-  output: unknown;
-}
-
-const modelsFor = (scripts: Scripts) => Object.fromEntries(Object.entries(scripts).map(([key, script]) => [key, new ScriptedModel(`scripted/${key}`, script)]));
-
-const routesOf = (events: TurnEvent[]) => Object.fromEntries(events.filter((e) => e.route !== undefined).map((e) => [e.author!, e.route]));
-
-/** The terminal node's output, as both runtimes store it: the last stored output of a node the graph ends on. */
-function terminalOutput(cfg: SyndicateYamlConfig, events: TurnEvent[]): unknown {
-  const terminals = new Set(buildWorkflowGraph(cfg).terminals.map((n) => `${cfg.syndicate_name}.${n}`));
-  return events.filter((e) => e.output !== undefined && terminals.has(e.nodeInfo?.path ?? '')).at(-1)?.output;
-}
-
-async function progressOf(events: TurnEvent[]): Promise<string[]> {
-  const progress: string[] = [];
-  async function* stream() {
-    for (const e of events) yield e as any;
-  }
-  await drainAgentStream(stream(), { publishToolStatus: true, errorPolicy: 'collect', events: { onProgress: (t: string) => progress.push(t) } });
-  return progress;
-}
-
-/** ADK: the turn as it runs today. */
-async function onAdk(cfg: SyndicateYamlConfig, scripts: Scripts, text: string): Promise<Side> {
-  const models = modelsFor(scripts);
-  const sessionService = new InMemorySessionService();
-  const progress: string[] = [];
-  const r = await runSyndicateTurn({
-    config: cfg,
-    parts: [{ text }],
-    appName: 'app',
-    userId: 'u',
-    sessionId: 's',
-    sessionService,
-    compile: { resolveModel: shimResolver(models), log: () => {} },
-    trace: false,
-    runtime: 'adk',
-    events: { onProgress: (t: string) => progress.push(t) },
-  });
-  const events = JSON.parse(JSON.stringify((await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
-  return { status: r.status, ...(r.error ? { error: r.error.message } : {}), events, models, progress, routes: routesOf(events), output: terminalOutput(cfg, events) };
-}
-
-/** Every agent of the syndicate compiled for native, by YAML name. */
-async function nativeAgents(cfg: SyndicateYamlConfig): Promise<Map<string, NativeAgent>> {
-  const agents = new Map<string, NativeAgent>();
-  for (const sub of [{ description: '', ...cfg.orchestrator } as SubagentYamlConfig, ...(cfg.subagents ?? [])]) agents.set(sub.name, await compileNativeSubagent(sub, { log: () => {} }));
-  return agents;
-}
-
-/** Native: the user's message stored as the Runner stores it, then the scheduler with the agent node runtime. */
-async function onNative(cfg: SyndicateYamlConfig, scripts: Scripts, text: string): Promise<Side> {
-  const models = modelsFor(scripts);
-  const sessions = new InProcessSessionService();
-  const session = await sessions.create({ appName: 'app', userId: 'u', sessionId: 's' });
-  const invocationId = `e-${randomUUID()}`;
-  const userContent: TurnContent = { role: 'user', parts: [{ text }] };
-  await sessions.append(session, createTurnEvent({ invocationId, author: 'user', content: userContent }));
-  const yielded: TurnEvent[] = [];
-  const runtime = agentNodeRuntime({
-    agents: await nativeAgents(cfg),
-    session,
-    sessions,
-    invocationId,
-    userContent,
-    loop: { adapterFor: (model) => models[model.replace(/^scripted\//, '')] as ModelAdapter, stream: false, log: () => {} },
-    onEvent: (e) => yielded.push(e),
-  });
-  // The chain WS4-5 set: tool nodes first, everything else to the agent runtime; the tool's event on the same queue.
-  const runNode: NodeRunner = toolNodeRunner(
-    { invocationId, appName: 'app', userId: 'u', sessionId: 's', userContent, resolveTool: (name) => resolveTools([name])[0], state: () => session.state, onEvent: (e) => void runtime.store(e) },
-    runtime.runNode,
-  );
-  let status = 'completed';
-  let error: string | undefined;
-  try {
-    await runWorkflowGraph(buildWorkflowGraph(cfg), { input: userContent, runNode, onEvent: runtime.onEvent });
-  } catch (e) {
-    status = 'failed';
-    error = (e as Error).message;
-  }
-  await runtime.settled();
-  const events = JSON.parse(JSON.stringify((await sessions.get({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
-  assert.deepEqual(yielded.map((e) => e.id), events.slice(1).map((e) => e.id), 'onEvent sees every stored event, in the order stored');
-  return { status, ...(error ? { error } : {}), events, models, progress: await progressOf(yielded), routes: routesOf(events), output: terminalOutput(cfg, events) };
-}
-
-const comparable = (events: TurnEvent[]): unknown =>
-  JSON.parse(JSON.stringify(events.map((e) => ({ ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' }))), (_k, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v));
-
-/** Runs both sides and holds them equal: stored events, requests, routes, output, progress. */
-async function bothAgree(cfg: SyndicateYamlConfig, scripts: Scripts, text: string): Promise<{ adk: Side; native: Side }> {
-  const adk = await onAdk(cfg, scripts, text);
-  const native = await onNative(cfg, scripts, text);
-  assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events');
-  for (const key of Object.keys(scripts)) {
-    const strip = (m: ScriptedModel) => m.requests.map(({ signal: _s, ...r }) => r);
-    assert.deepEqual(strip(native.models[key]!), strip(adk.models[key]!), `the requests ${key} received`);
-  }
-  assert.deepEqual(native.routes, adk.routes, 'the routes');
-  assert.deepEqual(native.output, adk.output, 'the workflow output');
-  assert.deepEqual(native.progress, adk.progress, 'the progress lines');
-  return { adk, native };
-}
 
 // ── Route derivation ─────────────────────────────────────────────────────────
 
@@ -347,6 +216,11 @@ test("a node whose model fails, with no output, fails the walk with ADK's NodeRe
   assert.match(adk.error ?? '', /Triage/);
   assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events up to the failure');
   assert.equal(native.models.fixer!.calls + native.models.other!.calls, 0);
+  // Through the native turn: the same events, and the turn fails as ADK's does.
+  const turn = await onNativeTurn(cfg, scripts, 'go');
+  assert.deepEqual(comparable(turn.events), comparable(adk.events), 'the native turn stores the same events');
+  assert.equal(turn.status, 'failed');
+  assert.equal(turn.error, adk.error);
 });
 
 // ── No ADK ───────────────────────────────────────────────────────────────────

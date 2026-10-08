@@ -97,6 +97,13 @@
  *     same walk). Neither shortcut counts as a run of the node.
  *
  * A task-mode node that waits for its output (WS4-3) is a later ticket.
+ *
+ * ── Tracing (ADR 0095) ───────────────────────────────────────────────────
+ * The scheduler opens no span. A caller that passes `traceNode` has each
+ * node run (every attempt and backoff inside it) and each map item's run
+ * wrapped, as ADK's node runner opens `execute_node` around them; the
+ * native turn (lib/workflow/turn.ts) passes the engine's `node.execute`
+ * span, so an agent node's own spans nest under it.
  */
 
 import { routeOf } from '../workflowConfig.ts';
@@ -241,7 +248,31 @@ export interface RunWorkflowOptions {
    * consumes `priorRuns`.
    */
   resume?: ResumeState;
+  /**
+   * Wraps each node's run (every attempt of it, the backoffs included) and
+   * each map item's, as ADK's node runner opens its `execute_node` span
+   * around them. The turn runner passes the engine's span here
+   * (lib/runtime/native/telemetry.ts, ADR 0095); the scheduler itself
+   * knows nothing of tracing. A node completed from its stored run on a
+   * resume runs nothing and is not wrapped. Default: none.
+   */
+  traceNode?: NodeTracer;
 }
+
+/** What a node tracer learns about the run it wraps. */
+export interface TracedNode {
+  /** The node, or a map item's agent. */
+  name: string;
+  kind: GraphNodeKind | 'map_item';
+  path: string;
+  /** The run id (a map item's index). */
+  runId: string;
+  /** The run's attempt counter: read it once the run settles for the attempts made. */
+  attempts: { readonly count: number };
+}
+
+/** Wraps one node run; must return what `run` returns, or rethrow what it throws. */
+export type NodeTracer = (node: TracedNode, run: () => Promise<NodeResult>) => Promise<NodeResult>;
 
 export interface WorkflowRun {
   /** The terminal node's output, or undefined when no terminal node produced one. */
@@ -380,6 +411,8 @@ interface NodeState {
 /** What every node run in one walk shares. */
 interface Walk {
   runNode: NodeRunner;
+  /** RunWorkflowOptions.traceNode, else a plain call. */
+  traceNode: NodeTracer;
   emit: (event: SchedulerEvent) => void;
   /** Errors already reported (ADK's claimNodeErrorReport), so a failure is reported once. */
   claimed: WeakSet<object>;
@@ -424,7 +457,7 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
     if (event.type === 'node_error') nodeErrors.push({ node: event.node, code: event.code, message: event.message });
     onEvent(event);
   };
-  const walk: Walk = { runNode: options.runNode, emit, claimed: new WeakSet() };
+  const walk: Walk = { runNode: options.runNode, traceNode: options.traceNode ?? ((_node, run) => run()), emit, claimed: new WeakSet() };
 
   // The caller's signal, else the turn's: a cancel or the turn's deadline stops the walk.
   const parentSignal = options.signal ?? currentTurnSignal();
@@ -515,7 +548,8 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
       const input = start.input !== undefined ? start.input : trigger.input;
       emit({ type: 'node_start', node: name, kind: node.kind, runId, path, branch, input });
       const ctx: RunContext = { input, runId, path, branch, signal: controller.signal, ...(start.resumeInputs ? { resumeInputs: start.resumeInputs } : {}) };
-      const run = executeNode(node, ctx, walk, state.attempts).then(
+      const traced: TracedNode = { name, kind: node.kind, path, runId, attempts: state.attempts };
+      const run = walk.traceNode(traced, () => executeNode(node, ctx, walk, state.attempts)).then(
         (result): Settled => ({ name, result: { ...result, branch } }),
         (error: unknown): Settled => ({ name, error }),
       );
@@ -907,8 +941,10 @@ async function runMap(node: MapNode, ctx: RunContext, walk: Walk): Promise<unkno
         walk.emit({ type: 'item_start', ...base, input: items[index] });
         const itemCtx: RunContext = { input: items[index], runId: String(index), path, branch, signal: ctx.signal };
         const target: MapItem = { kind: 'map_item', agent: node.agent, map: node, index };
-        const result = await withControls(node.agent, node.agentSettings, itemCtx, walk, { count: 1 }, async (signal, attempt) =>
-          walk.runNode({ target, ...itemCtx, signal, attempt }),
+        const attempts = { count: 1 };
+        const traced: TracedNode = { name: node.agent, kind: 'map_item', path, runId: String(index), attempts };
+        const result = await walk.traceNode(traced, () =>
+          withControls(node.agent, node.agentSettings, itemCtx, walk, attempts, async (signal, attempt) => walk.runNode({ target, ...itemCtx, signal, attempt })),
         ).catch((error: unknown) => {
           if (isNamed(error, 'DynamicNodeFailError')) throw error;
           const cause = error instanceof Error ? error : new Error(String(error));

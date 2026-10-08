@@ -2,13 +2,15 @@
  * tests/helpers/workflowParity.ts — one workflow syndicate run on both
  * runtimes with the same scripted models, for the workflow parity suites.
  *
- * `onAdk` runs the turn as it runs today on ADK (runSyndicateTurn, runtime
- * adk: compileWorkflow, ADK's Runner). `onNative` runs it as the native walk
- * does: the user's message stored as the Runner stores it, then the
- * scheduler (lib/workflow/scheduler.ts) with the tool node runner chained
- * onto agentNodeRuntime (lib/workflow/agentNode.ts), every agent compiled
- * for native. `comparable` drops what differs per run (ids, times, the
- * invocation id). No network.
+ * `onAdk` runs the turn on ADK (runSyndicateTurn, runtime adk:
+ * compileWorkflow, ADK's Runner). `onNativeTurn` runs the same turn on
+ * native (runSyndicateTurn, runtime native: lib/workflow/turn.ts). `onNative`
+ * drives the native modules by hand, as the turn wires them: the user's
+ * message stored as the Runner stores it, then the scheduler
+ * (lib/workflow/scheduler.ts) with the ask_user and tool node runners
+ * chained onto agentNodeRuntime (lib/workflow/agentNode.ts), every agent
+ * compiled for native. `bothAgree` holds all three equal. `comparable`
+ * drops what differs per run (ids, times, the invocation id). No network.
  */
 
 import assert from 'node:assert/strict';
@@ -74,8 +76,8 @@ export async function progressOf(events: TurnEvent[]): Promise<string[]> {
   return progress;
 }
 
-/** ADK: the turn as it runs today. */
-export async function onAdk(cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> {
+/** The turn through runSyndicateTurn on `runtime`. */
+async function onTurn(runtime: 'adk' | 'native', cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> {
   const models = modelsFor(scripts);
   const sessionService = new InMemorySessionService();
   if (state) await sessionService.createSession({ appName: 'app', userId: 'u', sessionId: 's', state });
@@ -89,12 +91,18 @@ export async function onAdk(cfg: SyndicateYamlConfig, scripts: Scripts, text: st
     sessionService,
     compile: { resolveModel: shimResolver(models), log: () => {} },
     trace: false,
-    runtime: 'adk',
+    runtime,
     events: { onProgress: (t: string) => progress.push(t) },
   });
   const events = JSON.parse(JSON.stringify((await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
   return { status: r.status, ...(r.error ? { error: r.error.message } : {}), events, models, progress, routes: routesOf(events), output: terminalOutput(cfg, events) };
 }
+
+/** ADK: the turn as runSyndicateTurn runs it on ADK's Runner. */
+export const onAdk = (cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> => onTurn('adk', cfg, scripts, text, state);
+
+/** Native: the turn as runSyndicateTurn runs it on the engine's scheduler (lib/workflow/turn.ts). */
+export const onNativeTurn = (cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> => onTurn('native', cfg, scripts, text, state);
 
 /** Every agent of the syndicate compiled for native, by YAML name. */
 export async function nativeAgents(cfg: SyndicateYamlConfig): Promise<Map<string, NativeAgent>> {
@@ -103,7 +111,7 @@ export async function nativeAgents(cfg: SyndicateYamlConfig): Promise<Map<string
   return agents;
 }
 
-/** Native: the user's message stored as the Runner stores it, then the scheduler with the agent node runtime. */
+/** Native by hand: the user's message stored as the Runner stores it, then the scheduler with the agent node runtime. */
 export async function onNative(cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> {
   const models = modelsFor(scripts);
   const sessions = new InProcessSessionService();
@@ -168,17 +176,30 @@ export const comparable = (events: TurnEvent[]): unknown => {
   return JSON.parse(json, (_k, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v));
 };
 
-/** Runs both sides and holds them equal: stored events, requests, routes, output, progress. */
-export async function bothAgree(cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<{ adk: Side; native: Side }> {
-  const adk = await onAdk(cfg, scripts, text, state);
-  const native = await onNative(cfg, scripts, text, state);
-  assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events');
+/** Holds a native side equal to ADK's: stored events, requests, routes, output, progress. */
+function agrees(native: Side, adk: Side, scripts: Scripts, how: string): void {
+  assert.deepEqual(comparable(native.events), comparable(adk.events), `${how}: the stored events`);
   for (const key of Object.keys(scripts)) {
     const strip = (m: ScriptedModel) => m.requests.map(({ signal: _s, ...r }) => r);
-    assert.deepEqual(strip(native.models[key]!), strip(adk.models[key]!), `the requests ${key} received`);
+    assert.deepEqual(strip(native.models[key]!), strip(adk.models[key]!), `${how}: the requests ${key} received`);
   }
-  assert.deepEqual(native.routes, adk.routes, 'the routes');
-  assert.deepEqual(native.output, adk.output, 'the workflow output');
-  assert.deepEqual(native.progress, adk.progress, 'the progress lines');
-  return { adk, native };
+  assert.deepEqual(native.routes, adk.routes, `${how}: the routes`);
+  assert.deepEqual(native.output, adk.output, `${how}: the workflow output`);
+  assert.deepEqual(native.progress, adk.progress, `${how}: the progress lines`);
+}
+
+/**
+ * Runs the case on ADK, on the native modules by hand, and through the
+ * native turn, and holds both native sides equal to ADK's; the turn's status
+ * too, which the hand-driven side only approximates.
+ */
+export async function bothAgree(cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<{ adk: Side; native: Side; turn: Side }> {
+  const adk = await onAdk(cfg, scripts, text, state);
+  const native = await onNative(cfg, scripts, text, state);
+  agrees(native, adk, scripts, 'the native walk');
+  const turn = await onNativeTurn(cfg, scripts, text, state);
+  agrees(turn, adk, scripts, 'the native turn');
+  assert.equal(turn.status, adk.status, 'the native turn: the status');
+  assert.equal(turn.error, adk.error, 'the native turn: the error');
+  return { adk, native, turn };
 }

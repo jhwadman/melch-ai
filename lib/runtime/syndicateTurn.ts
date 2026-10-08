@@ -46,6 +46,12 @@ import { compileNative, nativeAdapterFor } from '../compileNative.ts';
 import type { ModelAdapter } from '../models/contract.ts';
 import type { NativeAgent } from './native/request.ts';
 import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
+import { asSessionService } from './adkSessionBridge.ts';
+import { resolveTools } from '../toolRegistry.ts';
+import { buildWorkflowGraph } from '../workflow/graph.ts';
+import type { WorkflowGraph } from '../workflow/graph.ts';
+import { UnsupportedWorkflowResumeError } from '../workflow/resume.ts';
+import { refuseUnrunnableNodes, runNativeWorkflow } from '../workflow/turn.ts';
 import { SelfCorrection } from './native/selfCorrection.ts';
 import { UnsupportedOnRuntimeError, chooseRuntime } from './runtimeFlag.ts';
 import type { RuntimeName } from './runtimeFlag.ts';
@@ -512,7 +518,39 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
 /** A compiled agent, for the runtime that runs it. */
 type TurnAgent =
   | { runtime: 'adk'; agent: LlmAgent }
-  | { runtime: 'native'; agent: NativeAgent; adapterFor: (model: string) => ModelAdapter };
+  | { runtime: 'native'; agent: NativeAgent; adapterFor: (model: string) => ModelAdapter }
+  | NativeWorkflowAgent;
+
+/** A workflow syndicate compiled for the native walk (lib/workflow/turn.ts). */
+interface NativeWorkflowAgent {
+  runtime: 'native-workflow';
+  graph: WorkflowGraph;
+  agents: Map<string, NativeAgent>;
+  adapterFor: (model: string) => ModelAdapter;
+  resolveTool: (name: string) => unknown;
+}
+
+/**
+ * A workflow syndicate for the native runtime: its graph, every agent
+ * compiled for native from the same specs ADK's compileWorkflow builds its
+ * agents from, one adapter lookup that knows every agent's models, and the
+ * registry's lookup for tool nodes. A tool node ADK's compile refuses (an
+ * unregistered or long-running tool) is refused here, before any model
+ * call, with ADK's message.
+ */
+async function compileNativeWorkflow(config: SyndicateYamlConfig, opts: CompileOptions): Promise<NativeWorkflowAgent> {
+  const graph = buildWorkflowGraph(config);
+  const specs: AgentSpec[] = [];
+  const agents = new Map<string, NativeAgent>();
+  for (const sub of [{ description: '', ...config.orchestrator } as SubagentYamlConfig, ...(config.subagents ?? [])]) {
+    const spec = await compileSubagentSpec(sub, opts);
+    specs.push(spec);
+    agents.set(sub.name, compileNative(spec));
+  }
+  const resolveTool = (name: string): unknown => resolveTools([name], opts.onUnknownTool)[0];
+  refuseUnrunnableNodes(graph, resolveTool);
+  return { runtime: 'native-workflow', graph, agents, adapterFor: nativeAdapterFor(opts, specs), resolveTool };
+}
 
 async function runTurnInner(
   opts: SyndicateTurnOptions,
@@ -704,7 +742,26 @@ async function runTurnInner(
     errorPolicy?: 'fail' | 'collect';
   }): Promise<DrainedRun> => {
     let stream: AsyncIterable<Event>;
-    if (params.agent.runtime === 'native') {
+    if (params.agent.runtime === 'native-workflow') {
+      // The engine's scheduler walks the graph (lib/workflow/turn.ts): the same events, the same drain.
+      stream = runNativeWorkflow({
+        graph: params.agent.graph,
+        agents: params.agent.agents,
+        adapterFor: params.agent.adapterFor,
+        resolveTool: params.agent.resolveTool,
+        sessions: asSessionService(params.sessions),
+        appName,
+        userId,
+        sessionId: params.sid,
+        userParts: params.userParts,
+        signal: control.signal,
+        stream: opts.streaming === true,
+        memory: nativeMemory(opts.memoryService),
+        ...(selfCorrection ? { selfCorrection } : {}),
+        ...(credentialStore ? { credentials: credentialStore } : {}),
+        ...(compileOpts.log ? { log: compileOpts.log } : {}),
+      }) as unknown as AsyncIterable<Event>;
+    } else if (params.agent.runtime === 'native') {
       // The engine's own loop (lib/runtime/nativeTurn.ts): the same events, the same drain.
       stream = runNativeAgent({
         agent: params.agent.agent,
@@ -907,14 +964,18 @@ async function runTurnInner(
   } else if (isWorkflowSyndicate(config)) {
     // ══ WORKFLOW ═════════════════════════════════════════════════════════
     // The syndicate is a graph (lib/workflow.ts): every agent a node, run
-    // by ADK's Workflow in the shared session. A node agent sees only its
-    // input unless its YAML says otherwise, so no projection is needed. An
+    // in the shared session by ADK's Workflow, or on native by the engine's
+    // scheduler (lib/workflow/turn.ts, ADR 0095); both store the same events
+    // and drain through the same reader. A node agent sees only its input
+    // unless its YAML says otherwise, so no projection is needed. An
     // `ask_user` node ends the turn input-required; the next message
     // resumes the graph where it waited.
-    const compiled = await compileWorkflow(config, compileOpts, transform);
+    const workflowAgent: TurnAgent = native
+      ? await compileNativeWorkflow(config, compileOpts)
+      : { runtime: 'adk', agent: (await compileWorkflow(config, compileOpts, transform)).workflow as unknown as LlmAgent };
     try {
       answer = await runAgent({
-        agent: { runtime: 'adk', agent: compiled.workflow as unknown as LlmAgent },
+        agent: workflowAgent,
         sid: sessionId,
         userParts: parts,
         sessions: sessionService,
@@ -929,7 +990,8 @@ async function runTurnInner(
       if (!last) throw err;
       result.status = 'failed';
       result.failedStage = 'workflow';
-      result.error = { code: 'NODE_FAILED', message: last.message };
+      // A pause only ADK can resume fails the turn on native rather than walking afresh (ADR 0094, ADR 0095).
+      result.error = { code: last instanceof UnsupportedWorkflowResumeError ? 'RESUME_UNSUPPORTED' : 'NODE_FAILED', message: last.message };
       return finish();
     }
     result.answer = answer;

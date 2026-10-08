@@ -371,6 +371,140 @@ test('under an errors-only policy a clean turn keeps no payloads on either runti
   assert.equal(native.adk_payloads.length, 0);
 });
 
+// ── A workflow: per-node attribution (WS4-6, ADR 0095) ───────────────────────
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const lastUserText = (request: ModelRequest): string =>
+  (request.messages.at(-1)?.parts ?? []).map((p: any) => (p.type === 'text' ? p.text : '')).join('');
+
+/**
+ * A graph with every kind of node: an agent, a tool node, a fan-out, a map
+ * whose items run side by side, a join, and an agent that calls a tool.
+ * Finish times are at least 20 ms apart, so the spans end in one order.
+ */
+function workflowSyndicate(): SyndicateYamlConfig {
+  const node = (name: string, extra: Record<string, unknown> = {}) => ({ name, description: name, model: `scripted/${name.toLowerCase()}`, instruction: `${name}.`, ...extra });
+  return validateSyndicateConfig(
+    {
+      syndicate_name: 'LedgerGraph',
+      memory_system: 'internal-only',
+      orchestrator: node('Triage'),
+      subagents: [node('Lister', { outputSchema: { type: 'ARRAY', items: { type: 'STRING' } } }), node('Summarizer'), node('Editor', { tools: ['native_ledger_lookup'] })],
+      workflow: {
+        edges: [['START', 'Triage', ['Lookup', 'Lister']], ['Lookup', 'Both'], ['Lister', 'Each', 'Both'], ['Both', 'Editor']],
+        nodes: { Lookup: { tool: 'native_ledger_lookup' }, Each: { map: 'Summarizer' }, Both: { join: true } },
+      },
+      retries: { model_errors: 0, tool_errors: 0 },
+    },
+    'test',
+  ) as SyndicateYamlConfig;
+}
+
+const workflowScripts: Models = {
+  triage: () => answer('{"key":"alpha"}', { inputTokens: 11, outputTokens: 3 }),
+  lister: async () => {
+    await delay(TOOL_MS + 40);
+    return answer('["a","b"]', { inputTokens: 12, outputTokens: 4 });
+  },
+  summarizer: async (request) => {
+    if (lastUserText(request) === 'b') await delay(30);
+    return answer(`s(${lastUserText(request)})`, { inputTokens: 13, outputTokens: 5 });
+  },
+  editor: (_r, n) => (n === 1 ? toolCall('native_ledger_lookup', { key: 'beta' }, 'call-e') : answer('edited', { inputTokens: 14, outputTokens: 6 })),
+};
+
+/** One workflow turn through runSyndicateTurn on `runtime`, traced, and the spans it ended. */
+async function workflowTurn(runtime: 'adk' | 'native'): Promise<Run & { status: string }> {
+  const models = build(workflowScripts);
+  const sessionService = new InMemorySessionService();
+  let status = '';
+  const spans = await spansOf(async () => {
+    const r = await runSyndicateTurn({
+      runtime,
+      config: workflowSyndicate(),
+      parts: [{ text: 'go' }],
+      appName: APP,
+      userId: USER,
+      sessionId: SESSION,
+      sessionService,
+      compile: { resolveModel: shimResolver(models), log: () => {} },
+    });
+    status = r.status;
+  });
+  const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: SESSION });
+  return { spans, models, status, invocationId: session?.events.find((e) => e.author === 'user')?.invocationId as string };
+}
+
+test('a workflow on native writes the ledger rows ADK writes, each model call attributed to its node’s agent', async () => {
+  resetCircuits();
+  const adkRun = await workflowTurn('adk');
+  resetCircuits();
+  const nativeRun = await workflowTurn('native');
+  assert.equal(adkRun.status, 'completed');
+  assert.equal(nativeRun.status, 'completed');
+  const adk = await ledgerOf(adkRun.spans, ALL);
+  const native = await ledgerOf(nativeRun.spans, ALL);
+
+  // The invocation id differs per run; everything else of a row must match.
+  const scrubInvocation = (row: Record<string, any>) => {
+    const out = comparable(row);
+    if ('invocation_id' in out) out.invocation_id = '<inv>';
+    if (out.attributes?.['adk.invocation_id']) out.attributes = { ...out.attributes, 'adk.invocation_id': '<inv>' };
+    if (out.span?.attributes?.['adk.invocation_id']) out.span = { ...out.span, attributes: { ...out.span.attributes, 'adk.invocation_id': '<inv>' } };
+    return out;
+  };
+  assert.deepEqual(native.adk_turns.map(scrubInvocation), adk.adk_turns.map(scrubInvocation), 'adk_turns');
+  assert.deepEqual(native.adk_telemetry.map(scrubInvocation), adk.adk_telemetry.map(scrubInvocation), 'adk_telemetry');
+
+  // Per-node attribution: every model call's row names the agent of the node that made it.
+  assert.deepEqual(native.adk_telemetry.map((r) => [r.span_name, r.agent, r.model]), [
+    ['llm.request', 'Triage', 'scripted/triage'],
+    ['llm.request', 'Lister', 'scripted/lister'],
+    ['llm.request', 'Summarizer', 'scripted/summarizer'],
+    ['llm.request', 'Summarizer', 'scripted/summarizer'],
+    ['llm.request', 'Editor', 'scripted/editor'],
+    ['llm.request', 'Editor', 'scripted/editor'],
+    ['Syndicate Execution: LedgerGraph', 'Editor', null],
+  ]);
+  const [turn] = native.adk_turns;
+  assert.equal(turn.stage, 'workflow');
+  assert.equal(turn.llm_calls, 6);
+  assert.equal(turn.tool_calls, 1, 'the Editor’s call; a tool node answers without a call');
+  assert.ok(turn.tool_ms >= 2 * TOOL_MS - 10, `tool time counts the tool node’s span and the Editor’s (${turn.tool_ms} ms)`);
+
+  // adk_payloads: the step rows hold each runtime's own shapes (the header), every other column matches.
+  const steps = (run: Run) => new Set(run.spans.filter((s) => isModelCallSpan(s.name, (s as any).instrumentationScope?.name ?? '')).map((s) => s.spanContext().spanId));
+  const withoutStepColumns = (run: Run) => {
+    const isStep = steps(run);
+    return (row: any) => {
+      const out = scrubInvocation(row);
+      if (isStep.has(row.span_id)) for (const key of STEP_PAYLOAD_COLUMNS) out[key] = '<step>';
+      return out;
+    };
+  };
+  assert.deepEqual(native.adk_payloads.map(withoutStepColumns(nativeRun)), adk.adk_payloads.map(withoutStepColumns(adkRun)), 'adk_payloads');
+  assert.deepEqual(native.adk_payloads.map((r) => r.agent), ['Triage', 'Lister', 'Summarizer', 'Summarizer', 'Editor', 'Editor']);
+
+  // The spans nest as ADK's: workflow → node → agent → model call, a map item's node under its map's.
+  const byId = new Map(nativeRun.spans.map((s) => [s.spanContext().spanId, s]));
+  const parentName = (s: ReadableSpan) => byId.get((s as any).parentSpanContext?.spanId)?.name;
+  const named = (name: string) => nativeRun.spans.filter((s) => s.name === name);
+  assert.equal(parentName(named('workflow.invoke LedgerGraph')[0] as ReadableSpan), 'Syndicate Execution: LedgerGraph');
+  for (const name of ['Triage', 'Lookup', 'Lister', 'Each', 'Both', 'Editor']) {
+    assert.deepEqual(named(`node.execute ${name}`).map(parentName), ['workflow.invoke LedgerGraph'], name);
+  }
+  assert.deepEqual(named('node.execute Summarizer').map(parentName), ['node.execute Each', 'node.execute Each']);
+  assert.deepEqual(named('agent.invoke Summarizer').map(parentName), ['node.execute Summarizer', 'node.execute Summarizer']);
+  for (const name of ['Triage', 'Lister', 'Editor']) assert.deepEqual(named(`agent.invoke ${name}`).map(parentName), [`node.execute ${name}`], name);
+  assert.deepEqual(named('tool.execute native_ledger_lookup').map(parentName).sort(), ['agent.invoke Editor', 'node.execute Lookup']);
+  const lookup = named('node.execute Lookup')[0] as ReadableSpan;
+  assert.deepEqual(
+    ['adk.node.path', 'adk.node.run_id', 'adk.node.attempt', 'adk.node.status', 'adk.node.interrupt_count'].map((k) => lookup.attributes[k]),
+    ['LedgerGraph.Lookup', '1', 1, 'completed', 0],
+  );
+  assert.equal(named('node.execute Summarizer').map((s) => s.attributes['adk.node.path']).sort().join(), 'LedgerGraph.Each.Summarizer@0,LedgerGraph.Each.Summarizer@1');
+});
+
 // ── The naming schemes ───────────────────────────────────────────────────────
 
 test('lineage reads both runtimes’ span names', () => {

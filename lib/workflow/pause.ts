@@ -41,8 +41,8 @@
  * one event as ADK's FunctionNode writes a handler's output, which is what
  * the FunctionNode lib/workflow.ts compiles returns.
  *
- * NOT HERE: a pause inside an agent node, and the native refusal of a
- * workflow syndicate, which WS4-6 lifts. The question and the payload are data written into
+ * NOT HERE: a pause inside an agent node. The turn that stores these
+ * events is lib/workflow/turn.ts. The question and the payload are data written into
  * the event, never instructions this module acts on.
  */
 
