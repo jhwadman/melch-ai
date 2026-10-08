@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 703,
-    "edges": 1854,
+    "nodes": 707,
+    "edges": 1882,
     "byKind": {
-      "doc": 113,
+      "doc": 114,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 106,
+      "file": 108,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 142,
+      "module": 143,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 325,
+      "links_to": 328,
       "requires_env": 165,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 451,
+      "imports": 460,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 373,
-      "constrains": 45,
+      "derives_from": 384,
+      "constrains": 49,
       "supersedes": 2,
-      "depends_on": 10,
+      "depends_on": 11,
       "explains": 2,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1793,
-      "inferred": 61
+      "extracted": 1816,
+      "inferred": 66
     },
     "isolated": 4
   },
@@ -1060,6 +1060,18 @@
       }
     },
     {
+      "id": "/decisions/0058-session-stores-with-both-faces.md",
+      "kind": "doc",
+      "label": "ADR 0058: The session stores implement both session interfaces, and a bridge gives a store that has one the other",
+      "source": "/decisions/0058-session-stores-with-both-faces.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1318
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1068,7 +1080,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1352
+        "words": 1383
       }
     },
     {
@@ -1092,7 +1104,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 1541
+        "words": 2086
       }
     },
     {
@@ -3440,6 +3452,13 @@
       "source": "tests/adkGeminiAdapter.test.ts"
     },
     {
+      "id": "file:tests/adkSessionBridge.test.ts",
+      "kind": "file",
+      "label": "adkSessionBridge.test.ts",
+      "source": "tests/adkSessionBridge.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/adkShim.test.ts",
       "kind": "file",
       "label": "adkShim.test.ts",
@@ -3574,6 +3593,12 @@
       "kind": "file",
       "label": "parityHarness.test.ts",
       "source": "tests/parityHarness.test.ts"
+    },
+    {
+      "id": "file:tests/postgresStorage.test.ts",
+      "kind": "file",
+      "label": "postgresStorage.test.ts",
+      "source": "tests/postgresStorage.test.ts"
     },
     {
       "id": "file:tests/publicPosture.test.ts",
@@ -4349,6 +4374,15 @@
       }
     },
     {
+      "id": "module:lib/runtime/adkSessionBridge.ts",
+      "kind": "module",
+      "label": "lib/runtime/adkSessionBridge.ts",
+      "source": "lib/runtime/adkSessionBridge.ts",
+      "attrs": {
+        "lines": 209
+      }
+    },
+    {
       "id": "module:lib/runtime/approvals.ts",
       "kind": "module",
       "label": "lib/runtime/approvals.ts",
@@ -4390,7 +4424,7 @@
       "label": "lib/runtime/sessions.ts",
       "source": "lib/runtime/sessions.ts",
       "attrs": {
-        "lines": 306
+        "lines": 307
       }
     },
     {
@@ -4417,7 +4451,7 @@
       "label": "lib/session/supabaseSessionService.ts",
       "source": "lib/session/supabaseSessionService.ts",
       "attrs": {
-        "lines": 235
+        "lines": 288
       }
     },
     {
@@ -4426,7 +4460,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 418
+        "lines": 481
       }
     },
     {
@@ -4462,7 +4496,7 @@
       "label": "lib/storage/postgres/sessionService.ts",
       "source": "lib/storage/postgres/sessionService.ts",
       "attrs": {
-        "lines": 277
+        "lines": 357
       }
     },
     {
@@ -8975,6 +9009,62 @@
       "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md:25"
     },
     {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "file:tests/adkSessionBridge.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "file:tests/postgresStorage.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/session/supabaseSessionService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/storage/postgres/sessionService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md:26"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md:26"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -9063,7 +9153,7 @@
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:61"
+      "evidence": "/memory/architecture.md:51"
     },
     {
       "from": "/memory/architecture.md",
@@ -9200,6 +9290,13 @@
     },
     {
       "from": "/memory/sessions.md",
+      "to": "file:tests/adkSessionBridge.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
       "to": "file:tests/events.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9208,6 +9305,13 @@
     {
       "from": "/memory/sessions.md",
       "to": "file:tests/helpers/importGraph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/memory/sessions.md frontmatter"
@@ -9235,52 +9339,80 @@
     },
     {
       "from": "/memory/sessions.md",
+      "to": "module:lib/session/supabaseSessionService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/storage/postgres/sessionService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:116"
+      "evidence": "/memory/sessions.md:135"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0030-workflow-graphs.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:52"
+      "evidence": "/memory/sessions.md:57"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:22"
+      "evidence": "/memory/sessions.md:27"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:41"
+      "evidence": "/memory/sessions.md:46"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:22"
+      "evidence": "/memory/sessions.md:27"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0058-session-stores-with-both-faces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:113"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:32"
+      "evidence": "/memory/sessions.md:37"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:32"
+      "evidence": "/memory/sessions.md:37"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -14862,6 +14994,20 @@
       "evidence": "lib/registry.ts"
     },
     {
+      "from": "module:lib/runtime/adkSessionBridge.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/adkSessionBridge.ts"
+    },
+    {
+      "from": "module:lib/runtime/adkSessionBridge.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/adkSessionBridge.ts"
+    },
+    {
       "from": "module:lib/runtime/events.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -15003,6 +15149,20 @@
     },
     {
       "from": "module:lib/session/supabaseSessionService.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/session/supabaseSessionService.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/session/supabaseSessionService.ts",
       "to": "module:lib/session/transcript.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -15014,6 +15174,27 @@
       "rel": "reads_table",
       "tier": "extracted",
       "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/session/transcript.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/transcript.ts"
+    },
+    {
+      "from": "module:lib/session/transcript.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/transcript.ts"
+    },
+    {
+      "from": "module:lib/session/transcript.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/transcript.ts"
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
@@ -15112,6 +15293,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/memoryStore.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/sessionService.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/sessionService.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/sessionService.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/sessionService.ts"
     },
     {
       "from": "module:lib/storage/postgres/taskQueue.ts",

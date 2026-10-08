@@ -31,6 +31,26 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —depends_on→ /decisions/0052-sessions-and-events-on-own-interfaces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/session/transcript.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/runtime/adkSessionBridge.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/storage/postgres/sessionService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/session/supabaseSessionService.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0009-observability-ledger.md —constrains→ module:lib/observability/tracer.ts
 
 by claude-code/claude-opus-5-5

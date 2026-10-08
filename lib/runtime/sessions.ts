@@ -4,13 +4,14 @@
  * ADR 0052).
  *
  * WHY this file exists:
- *   The native runtime reads and writes sessions without ADK. Today's stores
- *   (lib/session/supabaseSessionService.ts, lib/storage/postgres/
- *   sessionService.ts) extend ADK's BaseSessionService; they move onto
- *   SessionService in WS2-2, and until ADK leaves at 1.0 a bridge serves
- *   either runtime from one store. The shapes are ADK's JSON (a Session holds
- *   TurnEvents, lib/runtime/events.ts), so both runtimes read and write the
- *   same rows.
+ *   The native runtime reads and writes sessions without ADK. The durable
+ *   stores (lib/session/supabaseSessionService.ts, lib/storage/postgres/
+ *   sessionService.ts) and the transcript projection (lib/session/
+ *   transcript.ts) implement SessionService beside ADK's BaseSessionService,
+ *   and lib/runtime/adkSessionBridge.ts gives a store that has only one of
+ *   the two the other, until ADK leaves at 1.0 (ADR 0058). The shapes are
+ *   ADK's JSON (a Session holds TurnEvents, lib/runtime/events.ts), so both
+ *   runtimes read and write the same rows.
  *
  * ONE MEANING ACROSS STORES:
  *   Where ADK's own services disagree with the engine's durable stores, the
@@ -23,7 +24,7 @@
  *     and keeps an event at the timestamp itself).
  *   - Creating a session whose id exists returns it unchanged, events and
  *     all, so a second create never resets a conversation (ADK's in-memory
- *     store and the Supabase store reset it).
+ *     store resets it).
  *   - Paging reports at least one page (listPage).
  *   - `app:` and `user:` state keys stay in the session's own state, as both
  *     durable stores keep them; ADK's in-memory store shares them across
