@@ -8,7 +8,7 @@ tags:
   - runtime
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-07
+  at: 2026-10-08
 sources:
   - resource: lib/models/adkGeminiAdapter.ts
   - resource: lib/models/genaiMapping.ts
@@ -24,7 +24,7 @@ sources:
 
 `AdkGeminiAdapter` in `lib/models/adkGeminiAdapter.ts` is Gemini as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)) built on ADK's own `Gemini`: it maps the request to an `LlmRequest`, runs it through `TracedGemini` (`lib/models/tracedGemini.ts`), and maps each `LlmResponse` back.
 
-It is temporary. The native loop ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls only `ModelAdapter`s, and the engine's own [Gemini adapter](/models/gemini-adapter.md) waits for its live run at gate G3. Until then Gemini on the native runtime goes through ADK's Gemini, which serves every Gemini id today, so every provider has a contract adapter before gate G1. Once G3 is signed and `GeminiAdapter` serves the Gemini ids, this module is deleted. `resolveAdapter` (`lib/models/registry.ts`) returns it for every Gemini id unless `GEMINI_ADAPTER=engine` or the option `{ gemini: 'engine' }` asks for `GeminiAdapter` ([provider routing](/models/provider-routing.md), [ADR 0060](/decisions/0060-engine-owned-registry.md)).
+It is temporary. The native loop ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls only `ModelAdapter`s, and the engine's own [Gemini adapter](/models/gemini-adapter.md) waits for its live run at gate G3. Until then Gemini on the native runtime goes through ADK's Gemini, which serves every Gemini id today, so every provider has a contract adapter before gate G1. Once G3 is signed, `GeminiAdapter` becomes the default for Gemini ids, and this module is deleted a release later ([Retiring it](#retiring-it)). `resolveAdapter` (`lib/models/registry.ts`) returns it for every Gemini id unless `GEMINI_ADAPTER=engine` or the option `{ gemini: 'engine' }` asks for `GeminiAdapter` ([provider routing](/models/provider-routing.md), [ADR 0060](/decisions/0060-engine-owned-registry.md)).
 
 ```ts
 new AdkGeminiAdapter({ model, apiKey?, endpoint? })
@@ -83,7 +83,16 @@ These are ADK's behaviours, kept, and they are what G3's swap to `GeminiAdapter`
 - **A withheld answer.** A policy finish (`SAFETY` and the rest) is an error only where ADK makes it one: on a candidate with no parts, or at the end of a stream. A non-streamed answer with text keeps it, with `finishReason: 'content_filter'`. `GeminiAdapter` always reports the error.
 - **Messages.** genai does not carry a candidate's `finishMessage`, so an error ADK yields reads `The model call ended with <code>.`
 - **`includeServerSideToolInvocations`** is always sent, on Vertex AI too, where `@google/genai` refuses it before any request. `GeminiAdapter` sends it only beside function declarations and native tools, and only on the Gemini API ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)).
-- **Code execution and server-side tool parts** reach the final as text, each carried whole as `genai_part` state on its own part. `GeminiAdapter` keeps them out of the final's text and carries the run of them on the next output part, as `carried_parts` state, which this adapter passes through unread.
+- **Code execution and server-side tool parts** reach the final as text, each carried whole as `genai_part` state on its own part. `GeminiAdapter` keeps them out of the final's text and carries the run of them on the next output part, as `carried_parts` state, which the genai mapping writes out as the original parts before this adapter's request reaches ADK's Gemini. Stored, both adapters' code execution parts are the parts Gemini sent ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)).
+
+## Retiring it
+
+[ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md) sets the order. Once the owner signs G3 on a live run of `scripts/gemini_engine_check.ts`, the registry's `resolveAdapter` defaults Gemini ids to `GeminiAdapter`, in the release that makes `native` the default runtime (0.20.0, [ADR 0099](/decisions/0099-native-default-moves-to-0-20-0.md)), and `GEMINI_ADAPTER=adk` keeps this wrapper selectable for that release. The ADK runtime keeps `TracedGemini` until ADK leaves at 1.0.0. Deleting this module needs, in one change:
+
+- the default unchanged for one release with no Gemini incident on `native` that `GEMINI_ADAPTER=adk` fixed;
+- `GEMINI_ADAPTER=adk` and `{ gemini: 'adk' }` refused with a message naming `engine`, and the factory parameter of `adapterResolver` (`lib/models/adapterResolver.ts`) and its use in `lib/models/registry.ts` removed;
+- `tests/adkGeminiAdapter.test.ts` deleted, and the cases in `tests/geminiTurnParity.test.ts`, `tests/shimBodies.test.ts`, `tests/telemetryLedger.test.ts`, `tests/modelRetry.test.ts`, `tests/resolveAdapter.test.ts`, `tests/reasoningKey.test.ts` and `tests/llmRequestBoundary.test.ts` that run it moved to `GeminiAdapter` or removed;
+- a version bump and a breaking `CHANGELOG.md` entry, since `melchizedek-agents/models/adkGeminiAdapter` is importable through the `./models/*` export (`package-surface`); `DOCUMENTATION.md` and this page removed with it.
 
 ## What the offline tests assert
 

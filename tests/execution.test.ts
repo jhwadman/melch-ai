@@ -214,7 +214,17 @@ test('native: code_execution: gemini asks for the code tool, and the code and it
   const [first, second] = native.models[GEMINI]!.requests;
   assert.deepEqual(first?.nativeTools, ['code_execution']);
   assert.deepEqual(first?.tools?.map((t) => t.name), ['execution_lookup', 'adk_handle_model_error'], 'the code tool is never a declared function');
-  assert.ok(JSON.stringify(second?.messages).includes(CARRIED_PARTS_KIND), 'the next turn hands the carried parts back to the adapter, which decides what Gemini sees');
+  // Stored as Gemini sent them, as ADK's Gemini stores them (ADR 0100).
+  const stored = native.events.flatMap((e) => e.content?.parts ?? []);
+  assert.deepEqual(stored.filter((p: any) => p.executableCode || p.codeExecutionResult), [CODE, RESULT]);
+  assert.ok(!JSON.stringify(native.events).includes(CARRIED_PARTS_KIND), 'no adapter state is stored in their place');
+  // The next turn hands them back to the adapter as the mapping reads them, each part whole, which the adapter decides what to do with.
+  const assistant = second?.messages.find((m) => m.role === 'assistant');
+  assert.deepEqual(
+    assistant?.parts.map((p) => p.providerState?.payload),
+    [CODE, RESULT, undefined],
+    'the code and its result as genai_part state, then the answer',
+  );
 });
 
 test('native: a history holding raw executableCode and codeExecutionResult parts reaches the model as ADK converts it', async () => {

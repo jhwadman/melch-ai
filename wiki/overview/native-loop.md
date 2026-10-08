@@ -109,7 +109,8 @@ Each response becomes ADK's event for it. The base event is created before the c
 - a tool call with no id gets `adk-<uuid>`;
 - a call to a long-running tool (`ask_user`) is listed in `longRunningToolIds`;
 - a `set_model_response` call becomes its arguments as JSON text, with `skipSummarization`;
-- an answer with no parts, no error and no usage makes no event.
+- an answer with no parts, no error and no usage makes no event;
+- a Gemini adapter that stands for ADK's own Gemini (`standsForAdkGemini`, the same test `declaresReflectionTool` reads) gets no `turnComplete` on its events, since ADK's Gemini writes none. The events of both Gemini adapters (`GEMINI_ADAPTER=adk` or `engine`) are then the ADK runtime's, field for field ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)).
 
 With a `correction`, each response, partials included, passes through self-correction's model side first, after the fallback's redirect check. A retry may stand in its place, or the step may end on an `UNKNOWN_ERROR` event (see [Self-correction](#self-correction)).
 
@@ -219,7 +220,7 @@ ADK's quirks are kept on purpose, so both runtimes match:
 - **The schema.** The output schema is never the response schema in task mode. The `set_model_response` line still joins the instruction when an output schema sits beside tools on a model that cannot take both, as ADK's instruction processor writes it, though no `set_model_response` tool is declared.
 - **How it ends.** A run marked `taskNode` holds the latest `finish_task` call's arguments, and the event that answers it with success gets, before it is stored, `output` (the arguments, unwrapped from `result` when they were wrapped), `nodeInfo.messageAsOutput`, and the output under the agent's `outputKey` in its `stateDelta`. The run then ends `final` with that `output`, never asking the model again, as ADK's `runTaskMode` ends a workflow node. A plain run goes on after the answer, as `LlmAgent.runAsync` does; the schema allows `mode: task` on workflow nodes only, where the [workflow agent node](/overview/workflow-agent-node.md) sets `taskNode` and stamps the node's path.
 
-`code_execution: gemini` needs nothing of its own in the loop: the request asks Gemini for its code-execution tool (`code_execution` first among Gemini's own), the Gemini adapter returns the code and its result as carried parts on the next part ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)), and the event stores them as ADK's does. A history holding raw `executableCode` and `codeExecutionResult` parts (as ADK's own Gemini class stores them) is read as fenced text, as ADK's code-execution processor reads it.
+`code_execution: gemini` needs nothing of its own in the loop: the request asks Gemini for its code-execution tool (`code_execution` first among Gemini's own), the Gemini adapter returns the code and its result as carried parts on the next part ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)), and the event stores them as ADK's does: the genai mapping writes them out as the `executableCode` and `codeExecutionResult` parts Gemini sent, with their signatures, before the part that carried them ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)). A history holding raw `executableCode` and `codeExecutionResult` parts (as ADK's own Gemini class stores them) is read as fenced text, as ADK's code-execution processor reads it.
 
 ## Approvals
 

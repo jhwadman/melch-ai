@@ -32,17 +32,30 @@ import {
   ANTHROPIC_CURRENT,
   DIALECT,
   FAKE_ENV,
+  GEMINI_BUDGET_MODEL,
+  GEMINI_MODEL,
+  GEMINI_SIGNATURE,
   KIMI_REASONING,
   REASONING_ITEM,
   SCHEMA,
   SIGNED_THINKING,
   capture,
+  delegationTools,
+  geminiCandidate,
+  geminiDeclaration,
+  geminiExchange,
+  geminiRequest,
+  geminiThinkingToolLoop,
   request,
   thinkingToolLoop,
   visionRequest,
   withDelegationTools,
 } from './helpers/capabilityInputs.ts';
 import type { AdapterRow } from './helpers/capabilityInputs.ts';
+import type { Message, ModelRequest } from '../lib/models/contract.ts';
+import { CARRIED_PARTS_KIND } from '../lib/models/geminiAdapter.ts';
+import { contentToMessage, modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
+import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from '../lib/models/geminiState.ts';
 import { nativeToolOf } from '../lib/models/schemaNormalize.ts';
 import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
 
@@ -178,6 +191,230 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
   },
 };
 
+// ── The Gemini row (ADR 0100): the engine's GeminiAdapter on the real SDK ────
+//
+// Gemini's wire is its own dialect (contents, functionDeclarations,
+// generationConfig), so its checks are written out here rather than read
+// through DIALECT. Each asserts the request body the adapter posts and, where
+// the cell's claim covers the answer, the final it makes of Gemini's JSON. An
+// assertion that fails names what is missing; a check that returns says the
+// cell holds.
+
+const CODE = { executableCode: { language: 'PYTHON', code: 'print(6 * 7)' } };
+const CODE_RESULT = { codeExecutionResult: { outcome: 'OUTCOME_OK', output: '42\n' } };
+
+const GEMINI_CHECKS: Record<Capability, () => Promise<Observed>> = {
+  async delegation() {
+    const { body } = await geminiExchange(geminiRequest({ tools: delegationTools() }));
+    const scout = geminiDeclaration(body, 'Scout');
+    // JSON Schema as written, in parametersJsonSchema; never Gemini's uppercase Schema (ADR 0100).
+    assert.equal(scout?.parametersJsonSchema?.properties?.request?.type, 'string', 'Scout takes a string request');
+    assert.ok(scout.parametersJsonSchema.required?.includes('request'));
+    assert.equal(scout.parameters, undefined, 'no Gemini Schema dialect beside it');
+    assert.equal(body.toolConfig, undefined, 'no tool choice asked for: the provider default');
+    return 'supported';
+  },
+
+  async memory_tools() {
+    // Declared, then called and answered: the call and its result go back as functionCall and functionResponse.
+    const messages: Message[] = [
+      { role: 'user', parts: [{ type: 'text', text: 'what did I say about Friday?' }] },
+      { role: 'assistant', parts: [{ type: 'toolCall', id: 'adk-1-0-load_memory', name: 'load_memory', args: { query: 'Friday' } }] },
+      { role: 'tool', parts: [{ type: 'toolResult', id: 'adk-1-0-load_memory', name: 'load_memory', result: { memories: ['closed on Friday'] } }] },
+    ];
+    const { body } = await geminiExchange(geminiRequest({ tools: delegationTools(), messages }));
+    assert.ok(geminiDeclaration(body, 'load_memory')?.parametersJsonSchema?.properties?.query, 'load_memory declared with its query');
+    assert.deepEqual(body.contents[1], { role: 'model', parts: [{ functionCall: { name: 'load_memory', args: { query: 'Friday' } } }] });
+    assert.deepEqual(body.contents[2], {
+      role: 'user',
+      parts: [{ functionResponse: { name: 'load_memory', response: { memories: ['closed on Friday'] } } }],
+    });
+    return 'supported';
+  },
+
+  async structured_output() {
+    const answer = '{"verdict":"yes"}';
+    const { body, final } = await geminiExchange(geminiRequest({ outputSchema: SCHEMA }), geminiCandidate([{ text: answer }]));
+    const config = body.generationConfig ?? {};
+    assert.equal(config.responseMimeType, 'application/json');
+    assert.deepEqual(config.responseJsonSchema, SCHEMA, 'the schema as written, lowercase JSON Schema');
+    assert.equal(config.responseSchema, undefined, 'no Gemini Schema dialect beside it');
+    assert.deepEqual(final.parts, [{ type: 'text', text: answer }]);
+    // JSON mode without a schema (ADR 0061): the MIME type alone.
+    const json = await geminiExchange(geminiRequest({ outputFormat: 'json' }));
+    assert.deepEqual(json.body.generationConfig, { responseMimeType: 'application/json' });
+    // Beside tools, as a delegating orchestrator with a schema sends it.
+    const both = await geminiExchange(geminiRequest({ outputSchema: SCHEMA, tools: delegationTools() }));
+    assert.ok(geminiDeclaration(both.body, 'Scout') && both.body.generationConfig.responseJsonSchema, 'schema and tools in one request');
+    return 'supported';
+  },
+
+  async thinking_with_tools() {
+    // Mid tool loop: the level, the thoughts asked for, the tools, and the call's signature back on the call.
+    const { body } = await geminiExchange(geminiThinkingToolLoop('low'));
+    assert.deepEqual(body.generationConfig?.thinkingConfig, { thinkingLevel: 'LOW', includeThoughts: true });
+    assert.ok(geminiDeclaration(body, 'Scout'), 'the tools travel with thinking');
+    assert.deepEqual(body.contents[1], {
+      role: 'model',
+      parts: [{ functionCall: { name: 'Scout', args: { request: 'find it' } }, thoughtSignature: GEMINI_SIGNATURE }],
+    });
+    assert.deepEqual(body.contents[2], { role: 'user', parts: [{ functionResponse: { name: 'Scout', response: { result: 'found' } } }] });
+    assert.ok(!JSON.stringify(body).includes('I should ask Scout.'), 'thinking is never sent back');
+
+    // Every level on a Gemini 3 id, a budget on any id, and a Gemini 2.x id's budget (ADR 0047).
+    const levels: Array<[ModelRequest['reasoning'], string, object]> = [
+      ['none', GEMINI_MODEL, { thinkingLevel: 'MINIMAL' }],
+      ['medium', GEMINI_MODEL, { thinkingLevel: 'MEDIUM', includeThoughts: true }],
+      ['high', GEMINI_MODEL, { thinkingLevel: 'HIGH', includeThoughts: true }],
+      [{ budget_tokens: 3000 }, GEMINI_MODEL, { thinkingBudget: 3000, includeThoughts: true }],
+      ['low', GEMINI_BUDGET_MODEL, { thinkingBudget: 2048, includeThoughts: true }],
+    ];
+    for (const [reasoning, model, thinkingConfig] of levels) {
+      const sent = await geminiExchange(geminiThinkingToolLoop(reasoning, model));
+      assert.deepEqual(sent.body.generationConfig?.thinkingConfig, thinkingConfig, `${JSON.stringify(reasoning)} on ${model}`);
+      assert.equal(sent.body.contents[1].parts[0].thoughtSignature, GEMINI_SIGNATURE, `the signature on ${model}`);
+    }
+
+    // Another model's signature is not replayed: it binds to the model that wrote it.
+    const other = await geminiExchange({ ...geminiThinkingToolLoop('low'), model: 'gemini-3.8-flash' });
+    assert.equal(other.body.contents[1].parts[0].thoughtSignature, undefined, "another model's signature stays home");
+
+    // The answer: the thought as a partial, the call's signature written on the call for the next step.
+    const reply = geminiCandidate([
+      { text: 'Scout will know.', thought: true },
+      { functionCall: { name: 'Scout', args: { request: 'find it' } }, thoughtSignature: GEMINI_SIGNATURE },
+    ]);
+    const { partials, final } = await geminiExchange(geminiRequest({ tools: delegationTools(), reasoning: 'low' }), reply);
+    assert.deepEqual(partials.map((p) => p.parts), [[{ type: 'thinking', text: 'Scout will know.' }]]);
+    assert.equal(final.finishReason, 'tool_call');
+    assert.deepEqual(final.parts, [
+      {
+        type: 'toolCall',
+        id: 'adk-1-0-Scout',
+        name: 'Scout',
+        args: { request: 'find it' },
+        providerState: { provider: GEMINI_PROVIDER, kind: THOUGHT_SIGNATURE_KIND, model: GEMINI_MODEL, payload: GEMINI_SIGNATURE },
+      },
+    ]);
+    return 'supported';
+  },
+
+  async streaming() {
+    const chunks = [
+      geminiCandidate([{ text: 'Weighing it.', thought: true }], { finishReason: '' }),
+      geminiCandidate([{ text: 'Cats ' }], { finishReason: '' }),
+      geminiCandidate([{ text: 'purr.' }], {
+        usageMetadata: { promptTokenCount: 4, toolUsePromptTokenCount: 1, candidatesTokenCount: 2, thoughtsTokenCount: 3, cachedContentTokenCount: 2 },
+      }),
+    ];
+    const { url, partials, final } = await geminiExchange(geminiRequest({ stream: true, reasoning: 'low' }), chunks);
+    assert.match(url, /:streamGenerateContent\?alt=sse$/, 'the streaming endpoint');
+    assert.deepEqual(
+      partials.map((p) => p.parts),
+      [[{ type: 'thinking', text: 'Weighing it.' }], [{ type: 'text', text: 'Cats ' }], [{ type: 'text', text: 'purr.' }]],
+    );
+    // One final with the whole text and the usage under the contract's meanings.
+    assert.deepEqual(final, {
+      partial: false,
+      parts: [{ type: 'text', text: 'Cats purr.' }],
+      finishReason: 'stop',
+      usage: { inputTokens: 5, outputTokens: 5, thinkingTokens: 3, cacheReadTokens: 2 },
+    });
+    const once = await geminiExchange(geminiRequest());
+    assert.match(once.url, /:generateContent$/, 'a call that does not stream asks for one response');
+    return 'supported';
+  },
+
+  async vision() {
+    const messages: Message[] = [
+      {
+        role: 'user',
+        parts: [
+          { type: 'text', text: 'what are these?' },
+          { type: 'blob', mimeType: 'image/png', data: 'iVBORw0KGgo=' },
+          { type: 'blob', mimeType: 'image/jpeg', url: 'https://example.org/cat.jpg' },
+        ],
+      },
+    ];
+    const { body } = await geminiExchange(geminiRequest({ messages }));
+    assert.deepEqual(body.contents[0].parts, [
+      { text: 'what are these?' },
+      { inlineData: { mimeType: 'image/png', data: 'iVBORw0KGgo=' } },
+      { fileData: { mimeType: 'image/jpeg', fileUri: 'https://example.org/cat.jpg' } },
+    ]);
+    return 'supported';
+  },
+
+  async native_search() {
+    // Grounding: googleSearch, with what Gemini searched and cited on the final.
+    const answer = 'Café Nord opens at 9.';
+    const grounded = geminiCandidate([{ text: answer }], {
+      groundingMetadata: {
+        webSearchQueries: ['cafe nord hours'],
+        groundingChunks: [{ web: { uri: 'https://example.org/nord', title: 'example.org' } }],
+        groundingSupports: [{ segment: { endIndex: 22, text: answer }, groundingChunkIndices: [0] }],
+      },
+      urlContextMetadata: { urlMetadata: [{ retrievedUrl: 'https://example.org/menu', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' }] },
+    });
+    const search = await geminiExchange(geminiRequest({ nativeTools: ['web_search', 'url_context'] }), grounded);
+    assert.deepEqual(search.body.tools, [{ googleSearch: {} }, { urlContext: {} }]);
+    assert.equal(search.body.toolConfig, undefined, 'native tools alone: no server-side invocations asked for');
+    assert.deepEqual(search.final.grounding, {
+      citations: [
+        { url: 'https://example.org/nord', title: 'example.org', start: 0, end: answer.length },
+        { url: 'https://example.org/menu' },
+      ],
+      searchQueries: [{ tool: 'web_search', query: 'cafe nord hours' }],
+    });
+    const named = await geminiExchange(geminiRequest({ nativeTools: ['google_search'] }), grounded);
+    assert.deepEqual(named.body.tools, [{ googleSearch: {} }]);
+    assert.deepEqual(named.final.grounding?.searchQueries, [{ tool: 'google_search', query: 'cafe nord hours' }]);
+
+    // Beside function declarations: the server-side invocations come back (ADR 0065).
+    const beside = await geminiExchange(geminiRequest({ tools: delegationTools(), nativeTools: ['web_search', 'code_execution'] }));
+    assert.deepEqual(beside.body.tools.slice(1), [{ googleSearch: {} }, { codeExecution: {} }]);
+    assert.deepEqual(beside.body.toolConfig, { includeServerSideToolInvocations: true });
+
+    // Code execution: its parts ride on the next output part and go back before it within the turn.
+    const ran = await geminiExchange(
+      geminiRequest({ nativeTools: ['code_execution'] }),
+      geminiCandidate([{ text: 'Compute it.', thought: true, thoughtSignature: 'dGhvdWdodA==' }, CODE, CODE_RESULT, { text: 'The product is 42.' }]),
+    );
+    const [part] = ran.final.parts;
+    assert.equal(part.type === 'text' && part.text, 'The product is 42.');
+    assert.equal(part.providerState?.kind, CARRIED_PARTS_KIND);
+    const assistant: Message = { role: 'assistant', parts: ran.final.parts };
+    const sameTurn = await geminiExchange(
+      geminiRequest({ nativeTools: ['code_execution'], messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }, assistant] }),
+    );
+    assert.deepEqual(sameTurn.body.contents[1].parts, [{ ...CODE, thoughtSignature: 'dGhvdWdodA==' }, CODE_RESULT, { text: 'The product is 42.' }]);
+    // Stored, the parts are what Gemini sent, as ADK stores them (ADR 0100); read back from the store, they replay the same.
+    const stored = modelResponseToLlmResponse(ran.final).content!;
+    assert.deepEqual(stored.parts, [{ ...CODE, thoughtSignature: 'dGhvdWdodA==' }, CODE_RESULT, { text: 'The product is 42.' }]);
+    const fromStore = await geminiExchange(
+      geminiRequest({ nativeTools: ['code_execution'], messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }, contentToMessage(stored)] }),
+    );
+    assert.deepEqual(fromStore.body.contents[1].parts, sameTurn.body.contents[1].parts, 'the stored parts replay as the carried ones do');
+    const storedNextTurn = await geminiExchange(
+      geminiRequest({
+        messages: [
+          { role: 'user', parts: [{ type: 'text', text: 'hello' }] },
+          contentToMessage(stored),
+          { role: 'user', parts: [{ type: 'text', text: 'thanks' }] },
+        ],
+      }),
+    );
+    assert.deepEqual(storedNextTurn.body.contents[1].parts, [{ text: 'The product is 42.' }], 'stored ones too stay within their turn');
+    const nextTurn = await geminiExchange(
+      geminiRequest({
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }, assistant, { role: 'user', parts: [{ type: 'text', text: 'thanks' }] }],
+      }),
+    );
+    assert.deepEqual(nextTurn.body.contents[1].parts, [{ text: 'The product is 42.' }], 'carried parts stay within their turn');
+    return 'supported';
+  },
+};
+
 // ── The tests ────────────────────────────────────────────────────────────────
 
 const ADAPTER_ROWS = (Object.keys(CAPABILITY_MATRIX) as MatrixRow[]).filter((r): r is AdapterRow => r !== 'gemini');
@@ -192,9 +429,17 @@ for (const row of ADAPTER_ROWS) {
   }
 }
 
-test('matrix: Gemini cells are ADK-native and every non-supported cell explains itself', () => {
-  for (const cap of CAPABILITIES) {
-    assert.equal(CAPABILITY_MATRIX.gemini[cap].evidence, 'adk', `gemini.${cap}`);
+for (const cap of CAPABILITIES) {
+  const cell = CAPABILITY_MATRIX.gemini[cap];
+  test(`matrix gemini · ${cap}: ${cell.support} (the engine's GeminiAdapter, on the wire)`, async () => {
+    assert.equal(cell.evidence, 'test', `gemini.${cap} is the engine's own adapter, so it must be tested (gate G3)`);
+    assert.equal(await GEMINI_CHECKS[cap](), cell.support);
+  });
+}
+
+test('matrix: every cell is tested, and every non-supported cell explains itself', () => {
+  for (const [row, cells] of Object.entries(CAPABILITY_MATRIX)) {
+    for (const cap of CAPABILITIES) assert.equal(cells[cap].evidence, 'test', `${row}.${cap}`);
   }
   for (const [row, cells] of Object.entries(CAPABILITY_MATRIX)) {
     for (const [cap, cell] of Object.entries(cells)) {
