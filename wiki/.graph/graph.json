@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 682,
-    "edges": 1681,
+    "edges": 1684,
     "byKind": {
       "doc": 107,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 272,
+      "links_to": 274,
       "requires_env": 162,
       "routes_to": 8,
       "defined_in": 76,
@@ -36,7 +36,7 @@
       "imports": 399,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 330,
+      "derives_from": 331,
       "constrains": 27,
       "supersedes": 2,
       "depends_on": 7,
@@ -44,7 +44,7 @@
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1642,
+      "extracted": 1645,
       "inferred": 39
     },
     "isolated": 4
@@ -1127,7 +1127,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 5907
+        "words": 5962
       }
     },
     {
@@ -1139,7 +1139,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3876
+        "words": 3939
       }
     },
     {
@@ -1151,7 +1151,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 521
+        "words": 528
       }
     },
     {
@@ -3871,7 +3871,7 @@
       "label": "lib/models/adkShim.ts",
       "source": "lib/models/adkShim.ts",
       "attrs": {
-        "lines": 141
+        "lines": 142
       }
     },
     {
@@ -4060,7 +4060,7 @@
       "label": "lib/models/reasoning.ts",
       "source": "lib/models/reasoning.ts",
       "attrs": {
-        "lines": 72
+        "lines": 73
       }
     },
     {
@@ -9278,6 +9278,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "module:lib/models/contract.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9309,70 +9316,77 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:72"
+      "evidence": "/models/model-contract.md:73"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:42"
+      "evidence": "/models/model-contract.md:43"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:89"
+      "evidence": "/models/model-contract.md:90"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:26"
+      "evidence": "/models/model-contract.md:27"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:26"
+      "evidence": "/models/model-contract.md:27"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:96"
+      "evidence": "/models/model-contract.md:97"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:26"
+      "evidence": "/models/model-contract.md:27"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:202"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:118"
+      "evidence": "/models/model-contract.md:119"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:28"
+      "evidence": "/models/model-contract.md:29"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:28"
+      "evidence": "/models/model-contract.md:29"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9407,7 +9421,7 @@
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:59"
+      "evidence": "/models/provider-routing.md:60"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9421,14 +9435,14 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:136"
+      "evidence": "/models/provider-routing.md:137"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:116"
+      "evidence": "/models/provider-routing.md:117"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9449,14 +9463,14 @@
       "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:132"
+      "evidence": "/models/provider-routing.md:133"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:138"
+      "evidence": "/models/provider-routing.md:139"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9470,7 +9484,7 @@
       "to": "/operations/parity-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:63"
+      "evidence": "/models/provider-routing.md:64"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9484,7 +9498,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:65"
+      "evidence": "/models/provider-routing.md:66"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -9531,6 +9545,13 @@
     {
       "from": "/operations/agent-skills.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/agent-skills.md:29"
+    },
+    {
+      "from": "/operations/agent-skills.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/agent-skills.md:29"
