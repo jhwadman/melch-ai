@@ -3,6 +3,50 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/workflow-scheduler.md —explains→ module:lib/workflow/turn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —constrains→ module:lib/runtime/native/telemetry.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —constrains→ module:lib/workflow/agentNode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —constrains→ module:lib/workflow/scheduler.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —constrains→ module:lib/workflow/turn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —depends_on→ /decisions/0073-one-agent-spec-and-a-runtime-flag.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —depends_on→ /decisions/0076-native-loop-spans-feed-the-same-ledger.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —depends_on→ /decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —depends_on→ /decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/workflow-scheduler.md —explains→ module:lib/workflow/resume.ts
 
 by claude-code/claude-opus-5-5

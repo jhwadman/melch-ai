@@ -16,14 +16,15 @@
  *   turn runner drains both with drainAgentStream.
  *
  * WHAT NATIVE REFUSES, before any model call, with a message naming the
- * feature and the runtime (UnsupportedOnRuntimeError): a workflow syndicate
- * (where `mode: task` nodes live), and a caller's ADK agent transform. An
- * answer to an approval resumes on native (lib/runtime/native/interrupts.ts),
- * an answer to a question resumes the agent that asked
- * (lib/runtime/questions.ts, ADR 0079), `context:` compacts on native
- * (lib/runtime/native/compaction.ts), and `mode: task` runs on native
- * (lib/runtime/native/taskMode.ts).
- * Later tickets lift each.
+ * feature and the runtime (UnsupportedOnRuntimeError): a caller's ADK agent
+ * transform, and an `ask_user` tool on a workflow's agent (the schema
+ * refuses it on both runtimes; a config that skipped validation is refused
+ * here, ADR 0095). A workflow syndicate runs on native through the engine's
+ * scheduler (lib/workflow/turn.ts, ADR 0095). An answer to an approval
+ * resumes on native (lib/runtime/native/interrupts.ts), an answer to a
+ * question resumes the agent that asked (lib/runtime/questions.ts, ADR
+ * 0079), `context:` compacts on native (lib/runtime/native/compaction.ts),
+ * and `mode: task` runs on native (lib/runtime/native/taskMode.ts).
  */
 
 import { randomUUID } from 'node:crypto';
@@ -43,6 +44,7 @@ import type { SelfCorrection } from './native/selfCorrection.ts';
 import type { SessionService } from './sessions.ts';
 import type { CredentialStore } from '../tools/auth.ts';
 import type { OAuthConsent } from '../tools/oauthConsent.ts';
+import { ASK_USER } from './questions.ts';
 import { unsupportedOnNative } from './runtimeFlag.ts';
 
 // ── What native refuses before a turn starts ─────────────────────────────────
@@ -56,8 +58,12 @@ export function refuseOnNative(
   call: { isWorkflow: boolean; transformAgent?: unknown },
 ): void {
   const where = config.syndicate_name || config.orchestrator?.name || 'syndicate';
-  if (call.isWorkflow) throw unsupportedOnNative('a workflow syndicate (workflow:)', where);
   if (call.transformAgent) throw unsupportedOnNative('transformAgent (it transforms ADK agents)', where);
+  if (call.isWorkflow) {
+    // A pause inside an agent node cannot be resumed by the native walk (lib/workflow/resume.ts).
+    const asking = [config.orchestrator, ...(config.subagents ?? [])].find((agent) => (agent?.tools ?? []).includes(ASK_USER));
+    if (asking) throw unsupportedOnNative(`an ${ASK_USER} tool on a workflow node (${asking.name}; use an ask_user node)`, where);
+  }
 }
 
 // ── Memory ───────────────────────────────────────────────────────────────────

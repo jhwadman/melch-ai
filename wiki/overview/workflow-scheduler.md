@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Workflow scheduler
-description: "The engine's own walk of a workflow graph (lib/workflow/scheduler.ts): runWorkflowGraph runs a WorkflowGraph with ADK's Workflow loop. A node runs when a predecessor's completion triggers it, fan-out gives each target its own branch, a join waits for every predecessor, a map runs its agent per item under max_parallel, and outputs flow as inputs. Routes are matched in ADK's spelling of the key. Every attempt runs under the node's retry and timeout as ADK's node runner runs it, node errors are emitted and collected, and the turn's cancel or deadline stops the walk. Agent, tool and ask_user nodes and map items run through a runner the caller passes in; toolNodeRunner (lib/workflow/toolNode.ts) is the runner for tool nodes and writes the event ADK's ToolNode writes. askUserNodeRunner (lib/workflow/pause.ts) is the runner for ask_user nodes: it writes ADK's adk_request_input event and returns the interrupt, the node waits, and the walk ends paused with every open interrupt id. workflowResume (lib/workflow/resume.ts) rebuilds every node's state from the stored events as ADK's rehydration does, and a walk given it completes finished nodes from their stored output and reruns the paused node with the answer. No ADK import. The native runtime does not call it yet."
+description: "The engine's own walk of a workflow graph (lib/workflow/scheduler.ts): runWorkflowGraph runs a WorkflowGraph with ADK's Workflow loop. A node runs when a predecessor's completion triggers it, fan-out gives each target its own branch, a join waits for every predecessor, a map runs its agent per item under max_parallel, and outputs flow as inputs. Routes are matched in ADK's spelling of the key. Every attempt runs under the node's retry and timeout as ADK's node runner runs it, node errors are emitted and collected, and the turn's cancel or deadline stops the walk. Agent, tool and ask_user nodes and map items run through a runner the caller passes in; toolNodeRunner (lib/workflow/toolNode.ts) is the runner for tool nodes and writes the event ADK's ToolNode writes. askUserNodeRunner (lib/workflow/pause.ts) is the runner for ask_user nodes: it writes ADK's adk_request_input event and returns the interrupt, the node waits, and the walk ends paused with every open interrupt id. workflowResume (lib/workflow/resume.ts) rebuilds every node's state from the stored events as ADK's rehydration does, and a walk given it completes finished nodes from their stored output and reruns the paused node with the answer. runNativeWorkflow (lib/workflow/turn.ts) is a workflow turn on the native runtime: the message stored, the walk with every runner chained under the turn's signal, its events yielded to the turn runner's reader, node and workflow spans for the ledger. No ADK import."
 tags:
   - runtime
   - agents
@@ -16,15 +16,19 @@ sources:
   - resource: lib/workflow/toolNode.ts
   - resource: lib/workflow/pause.ts
   - resource: lib/workflow/resume.ts
+  - resource: lib/workflow/turn.ts
+  - resource: lib/runtime/native/telemetry.ts
   - resource: tests/workflowScheduler.test.ts
   - resource: tests/workflowToolNode.test.ts
   - resource: tests/workflowPause.test.ts
   - resource: tests/workflowResume.test.ts
+  - resource: tests/workflow.test.ts
+  - resource: tests/nativeLedger.test.ts
 ---
 
 # Workflow scheduler
 
-`lib/workflow/scheduler.ts` runs the [workflow graph](/overview/workflow-graph.md) that `buildWorkflowGraph` builds, without ADK. It walks the graph the way ADK 2.2's `Workflow` does, so a workflow completes in the order ADK records for it. Why it copies ADK's loop, and matches routes in ADK's spelling, is [ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md). Why its retries, timeouts, node errors and abort follow ADK's node runner is [ADR 0089](/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md). The native runtime still refuses a workflow syndicate ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). Agent nodes and map items run on it through `agentNodeRuntime` ([Workflow agent node](/overview/workflow-agent-node.md)), and the runners for tool nodes and ask_user nodes are in place (below); a paused walk resumes from the stored events (below). The scheduler is the walk the native runtime will use once the turn runner calls it (WS4-6).
+`lib/workflow/scheduler.ts` runs the [workflow graph](/overview/workflow-graph.md) that `buildWorkflowGraph` builds, without ADK. It walks the graph the way ADK 2.2's `Workflow` does, so a workflow completes in the order ADK records for it. Why it copies ADK's loop, and matches routes in ADK's spelling, is [ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md). Why its retries, timeouts, node errors and abort follow ADK's node runner is [ADR 0089](/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md). Agent nodes and map items run on it through `agentNodeRuntime` ([Workflow agent node](/overview/workflow-agent-node.md)), tool nodes and ask_user nodes through their runners (below), and a paused walk resumes from the stored events (below). On the native runtime, `runSyndicateTurn` runs a workflow syndicate on it through `runNativeWorkflow` ([the native turn](#the-native-turn), [ADR 0095](/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)).
 
 ## The interface
 
@@ -46,6 +50,7 @@ It rejects with the error of the node that gave up, unchanged, or with `Invocati
 | `onEvent(event)` | `node_start`, `node_end`, `node_waiting`, `node_resumed`, `item_start`, `item_end` and `node_error`, synchronously, in order |
 | `nodePath`, `branch` | the workflow's own path (default: the graph's name) and branch (default: none) |
 | `resume` | a paused walk's prior node runs and answers, from `workflowResume` (below); the walk consumes it |
+| `traceNode(node, run)` | wraps each node run (every attempt and backoff inside it) and each map item's, as ADK opens `execute_node` around them; `node` carries the name, kind, path, run id and the attempt counter. A node completed from its stored run on a resume is not wrapped. Default: none |
 
 `streamWorkflowGraph(graph, options)` is the same walk as an async generator. It yields each event, then returns the run. The walk does not wait for the reader.
 
@@ -162,9 +167,45 @@ A pause raised inside an agent node (an OAuth consent) or inside a map item is r
 
 `tests/workflowResume.test.ts` resumes the WS0-6 fixture `05-workflow-ask-user`, written by ADK, on the scheduler with real agent nodes. The events stored after the reply match ADK's resume of the same session, Triage is not called, and Publisher's request carries the reply and the draft. A pause the scheduler opens stores the fixture's events and resumes on ADK too. After a resume, an agent node's workflow placeholders fill as ADK's do: the outputs of the current invocation only. Stub graphs (a chain, an answer by function response, a fan-out, a join, a map on the finished branch, two ask_user nodes in a row, a session with nothing paused, a reply to an unknown interrupt) resume from ADK's stored events and from the scheduler's own, and write ADK's events. Each ported function is checked against ADK's own on the same events.
 
+## The native turn
+
+`lib/workflow/turn.ts` is one turn of a workflow syndicate on the native runtime. `runSyndicateTurn` hands its generator, `runNativeWorkflow(params)`, to the same `traceAgentRun` and `drainAgentStream` that read ADK's Runner, so the result, the progress lines, `onProgress`, `answer.nodeErrors`, `result.input` and the ledger rows come out of one reader on both runtimes. Why the turn drains through ADK's reader, and what it refuses, is [ADR 0095](/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md).
+
+| step | does | as ADK |
+|---|---|---|
+| the message | stored as the user's event under a new `e-` invocation id, before the walk; nothing is stored when the signal fired first | the Runner stores it |
+| the start | `workflowResume` on the session, every turn: the message's text as the walk's input, every node's prior runs, the answers. With nothing paused every node runs fresh | the rehydration runs on every message |
+| the walk | `runWorkflowGraph` with `askUserNodeRunner`, `toolNodeRunner` and `agentNodeRuntime` chained, under the turn's signal; every event through the agent node runtime's queue | the Workflow's node runners |
+| a node that gave up | `nodeErrorEvent` stored on the walk's `node_error` (source `workflow`), on the same queue; the walk's error rethrown once every event is stored and yielded, and the turn fails `NODE_FAILED` | the workflow's node-error event, then the Runner throws |
+| a paused walk | `workflowPauseEvent` stored after every node's event, with the text as the recorded input; the turn ends `input-required` with `result.input` read from the request event | `recordInputForResume` |
+| a stopped walk | `InvocationAbortedError`, or any failure once the signal fired, ends the stream quietly; the turn fails with its stop reason | the Runner ends an aborted run without an error |
+
+The generator yields every stored event in the order stored, but a node's input turn: ADK appends that turn straight to the session and its Runner never yields it, and the root span's output is read from what is yielded. A node agent's partial events (with `streaming: true`) are yielded as its loop yields them, never stored (`AgentNodeContext.onPartial`), so `onTextDelta` streams a node's text on both runtimes.
+
+What the native turn refuses:
+
+- a tool node with an unregistered or long-running tool, before any model call, with ADK's compile-time message (`refuseUnrunnableNodes`, through `resolveToolNode`);
+- an `ask_user` tool on a workflow node's agent, by name, before any model call (`refuseOnNative`; the schema refuses it on both runtimes);
+- a session paused inside an agent node or a map item: `workflowResume` throws `UnsupportedWorkflowResumeError` after the message is stored, and the turn fails `RESUME_UNSUPPORTED` without walking afresh;
+- a pause raised inside an agent node during the walk, by `runAgentNode` (an approval gate and an `ask_user` tool are refused by the schema first; a node agent gets no OAuth consent step).
+
+### The spans
+
+The native walk opens ADK's three workflow spans under the engine's names, in scope `melchizedek.runtime` (`lib/runtime/native/telemetry.ts`):
+
+| the walk's span | ADK's | covers | attributes |
+|---|---|---|---|
+| `workflow.invoke <name>` | `invoke_workflow <name>` | the walk, under the turn's root span | `adk.workflow.name`, `adk.node.path`, the conversation and invocation ids |
+| `node.execute <name>` | `execute_node <name>` | one node run, every attempt inside it (the scheduler's `traceNode`); a map item's under its map's | `adk.node.path`, `run_id`, `attempt`, `status` (`completed`, `waiting`, `failed`), `interrupt_count`, and `adk.node.kind` |
+| `tool.execute <name>` | `execute_tool <name>` | a tool node's call (`ToolNodeContext.traceCall`) | the tool's name and description, the call id |
+
+An agent node's own `agent.invoke` opens inside its `node.execute`, so the tracer attributes every `llm.request` to the node's agent, and the tool node's span counts in `tool_ms`. `tests/nativeLedger.test.ts` runs a graph with every node kind through `runSyndicateTurn` on both runtimes: `adk_turns`, `adk_telemetry` and `adk_payloads` hold the same rows (ids, times and the invocation id aside; a model step's own payload columns as ADR 0076 sets out), and each `llm.request` row names its node's agent.
+
+ADK also opens `execute_node_attempt` per attempt of a node with a retry config, and an `invocation` and `execute_node` span for the workflow itself. The walk opens neither: no ledger row reads them.
+
 ## What it does not do yet
 
-A pause inside an agent node (an approval, an OAuth consent) is refused by `runAgentNode`, a map item's interrupts are not carried, and a session paused on either is refused by `workflowResume`. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)). The native workflow path (WS4-6) writes `nodeErrorEvent` where ADK writes its node-error event.
+A pause inside an agent node (an approval, an OAuth consent) is refused by `runAgentNode`, a map item's interrupts are not carried, and a session paused on either is refused by `workflowResume`. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)).
 
 ## Parity with ADK
 

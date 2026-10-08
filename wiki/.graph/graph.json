@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 842,
-    "edges": 3061,
+    "nodes": 844,
+    "edges": 3121,
     "byKind": {
-      "doc": 157,
+      "doc": 158,
       "provider": 6,
       "env": 106,
       "model": 8,
@@ -18,12 +18,12 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 194,
+      "module": 195,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 628,
+      "links_to": 640,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 768,
+      "imports": 789,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 734,
-      "constrains": 160,
+      "derives_from": 750,
+      "constrains": 165,
       "supersedes": 7,
-      "depends_on": 85,
-      "explains": 27,
+      "depends_on": 90,
+      "explains": 28,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2779,
-      "inferred": 282
+      "extracted": 2828,
+      "inferred": 293
     },
     "isolated": 4
   },
@@ -1517,6 +1517,18 @@
       }
     },
     {
+      "id": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "kind": "doc",
+      "label": "ADR 0095: A workflow turn on the native runtime is a stream of the walk's stored events, drained and traced as ADK's Runner stream is",
+      "source": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1691
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1777,7 +1789,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6087
+        "words": 6152
       }
     },
     {
@@ -1789,7 +1801,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1431
+        "words": 1506
       }
     },
     {
@@ -1801,7 +1813,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 879
+        "words": 875
       }
     },
     {
@@ -1813,7 +1825,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3030
+        "words": 3738
       }
     },
     {
@@ -4388,7 +4400,8 @@
       "id": "file:tests/sessionFixtures.test.ts",
       "kind": "file",
       "label": "sessionFixtures.test.ts",
-      "source": "tests/sessionFixtures.test.ts"
+      "source": "tests/sessionFixtures.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/shimBodies.test.ts",
@@ -4474,7 +4487,8 @@
       "id": "file:tests/workflow.test.ts",
       "kind": "file",
       "label": "workflow.test.ts",
-      "source": "tests/workflow.test.ts"
+      "source": "tests/workflow.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/workflowAgentNode.test.ts",
@@ -4692,7 +4706,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 215
+        "lines": 216
       }
     },
     {
@@ -5421,7 +5435,7 @@
       "label": "lib/runtime/native/telemetry.ts",
       "source": "lib/runtime/native/telemetry.ts",
       "attrs": {
-        "lines": 228
+        "lines": 318
       }
     },
     {
@@ -5439,7 +5453,7 @@
       "label": "lib/runtime/nativeTurn.ts",
       "source": "lib/runtime/nativeTurn.ts",
       "attrs": {
-        "lines": 144
+        "lines": 150
       }
     },
     {
@@ -5475,7 +5489,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1119
+        "lines": 1181
       }
     },
     {
@@ -6087,7 +6101,7 @@
       "label": "lib/workflow/agentNode.ts",
       "source": "lib/workflow/agentNode.ts",
       "attrs": {
-        "lines": 331
+        "lines": 330
       }
     },
     {
@@ -6141,7 +6155,7 @@
       "label": "lib/workflow/scheduler.ts",
       "source": "lib/workflow/scheduler.ts",
       "attrs": {
-        "lines": 935
+        "lines": 971
       }
     },
     {
@@ -6150,7 +6164,16 @@
       "label": "lib/workflow/toolNode.ts",
       "source": "lib/workflow/toolNode.ts",
       "attrs": {
-        "lines": 252
+        "lines": 269
+      }
+    },
+    {
+      "id": "module:lib/workflow/turn.ts",
+      "kind": "module",
+      "label": "lib/workflow/turn.ts",
+      "source": "lib/workflow/turn.ts",
+      "attrs": {
+        "lines": 262
       }
     },
     {
@@ -13153,6 +13176,160 @@
       "evidence": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md:55"
     },
     {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "file:tests/nativeLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "file:tests/sessionFixtures.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "file:tests/workflow.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "file:tests/workflowParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "module:lib/runtime/nativeTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md frontmatter"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
+      "from": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -16076,7 +16253,7 @@
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:312"
+      "evidence": "/overview/native-loop.md:313"
     },
     {
       "from": "/overview/native-loop.md",
@@ -16157,6 +16334,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/overview/workflow-scheduler.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:296"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -16220,13 +16404,6 @@
     },
     {
       "from": "/overview/workflow-agent-node.md",
-      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/workflow-agent-node.md:24"
-    },
-    {
-      "from": "/overview/workflow-agent-node.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -16242,6 +16419,13 @@
     {
       "from": "/overview/workflow-agent-node.md",
       "to": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:24"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-agent-node.md:24"
@@ -16325,10 +16509,31 @@
     },
     {
       "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:22"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-graph.md:22"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "file:tests/nativeLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "file:tests/workflow.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
     },
     {
       "from": "/overview/workflow-scheduler.md",
@@ -16354,6 +16559,13 @@
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "file:tests/workflowToolNode.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/runtime/native/telemetry.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/overview/workflow-scheduler.md frontmatter"
@@ -16402,59 +16614,66 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
-      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "rel": "links_to",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "derives_from",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:27"
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:27"
+      "evidence": "/overview/workflow-scheduler.md:31"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:27"
+      "evidence": "/overview/workflow-scheduler.md:31"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:89"
+      "evidence": "/overview/workflow-scheduler.md:94"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:114"
+      "evidence": "/overview/workflow-scheduler.md:119"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:140"
+      "evidence": "/overview/workflow-scheduler.md:145"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:31"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:27"
+      "evidence": "/overview/workflow-scheduler.md:31"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-graph.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:27"
+      "evidence": "/overview/workflow-scheduler.md:31"
     },
     {
       "from": "/protocols/a2a.md",
@@ -22050,6 +22269,13 @@
       "evidence": "lib/runtime/native/telemetry.ts"
     },
     {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
       "from": "module:lib/runtime/native/tempState.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
@@ -22115,6 +22341,13 @@
     {
       "from": "module:lib/runtime/nativeTurn.ts",
       "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/nativeTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/questions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/nativeTurn.ts"
@@ -22254,6 +22487,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/approvals.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -22317,6 +22557,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/tools/auth.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -22332,6 +22579,27 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/workflow.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/workflow/turn.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -24092,6 +24360,104 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/toolNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
     },
     {
       "from": "module:lib/workflowConfig.ts",

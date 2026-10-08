@@ -60,10 +60,13 @@ per agent; `lib/compileAdk.ts` turns it into the `LlmAgent`, and
 turn by default. `MELCHIZEDEK_RUNTIME=native`, or `runtime: 'native'` on
 `runSyndicateTurn`, runs a single-agent, delegating or plan-dispatch
 syndicate on the native loop with the same result and the same stored
-events, `context:` compaction included
-([ADR 0078](./wiki/decisions/0078-native-compaction-ports-adk-compactor.md));
-what it does not run yet (workflows, task mode) throws
-`UnsupportedOnRuntimeError` before any model call
+events, `context:` compaction and `mode: task` included
+([ADR 0078](./wiki/decisions/0078-native-compaction-ports-adk-compactor.md)),
+and a `workflow:` syndicate on the engine's own scheduler, its pause and
+resume included
+([ADR 0095](./wiki/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md));
+what it does not run yet throws `UnsupportedOnRuntimeError` before any
+model call
 ([ADR 0073](./wiki/decisions/0073-one-agent-spec-and-a-runtime-flag.md)).
 
 ## 2. The syndicate YAML
@@ -1225,8 +1228,13 @@ the deadline cap the whole graph as they cap any turn.
 and remote `a2a_agent_url` subagents are refused inside a workflow by
 the schema, and a workflow cannot be another syndicate's `yaml_reference`
 (ADK cannot yet make a `Workflow` a subagent; nested, only its
-orchestrator runs). The record is [ADR 0030](./wiki/decisions/0030-workflow-graphs.md);
-the contract is `lib/workflow.ts`, on ADK's `Workflow`.
+orchestrator runs). An `ask_user` tool on a node agent is refused too:
+use an `ask_user` node. The record is [ADR 0030](./wiki/decisions/0030-workflow-graphs.md);
+the contract is `lib/workflow.ts`, on ADK's `Workflow`, and on the native
+runtime `lib/workflow/turn.ts`, on the engine's own scheduler
+([ADR 0095](./wiki/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)).
+On native, a conversation paused inside an agent node or a map item
+(which only ADK resumes) fails the next turn with `RESUME_UNSUPPORTED`.
 
 ## 7. Extending the framework
 

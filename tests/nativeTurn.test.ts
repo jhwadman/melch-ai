@@ -493,7 +493,7 @@ test('a traced native turn has the turn runner’s root span over the loop’s a
 
 // ── What native refuses, before any model call ───────────────────────────────
 
-test('native refuses a workflow and a transform at compile time, naming the feature', async () => {
+test('native refuses a transform and an ask_user tool on a workflow node at compile time, naming the feature', async () => {
   const boss = new ScriptedModel('scripted/boss', () => answer('never'));
   const scout = new ScriptedModel('scripted/scout', () => answer('never'));
   const run = (config: SyndicateYamlConfig, extra: Record<string, unknown> = {}) =>
@@ -515,10 +515,11 @@ test('native refuses a workflow and a transform at compile time, naming the feat
   const workflow = {
     syndicate_name: APP,
     orchestrator: { name: 'Lead', model: 'scripted/boss', instruction: 'Lead.' },
-    subagents: [{ name: 'Step', model: 'scripted/scout', instruction: 'Do.', description: 'a step' }],
+    subagents: [{ name: 'Step', model: 'scripted/scout', instruction: 'Do.', description: 'a step', tools: ['ask_user'] }],
     workflow: { edges: [['START', 'Lead'], ['Lead', 'Step']] },
   } as unknown as SyndicateYamlConfig;
-  await assert.rejects(run(workflow), refused(/a workflow syndicate/));
+  // A workflow runs on native (ADR 0095); an ask_user tool on one of its nodes, which the schema refuses, does not.
+  await assert.rejects(run(workflow), refused(/an ask_user tool on a workflow node \(Step/));
   assert.equal(boss.calls + scout.calls, 0, 'no model was called');
 
   // Self-correction runs on native (ADR 0075), with retries on or off.

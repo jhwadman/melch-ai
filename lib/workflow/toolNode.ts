@@ -36,7 +36,12 @@
  * prints the same progress lines ADK's do: `⇢ Node: Lookup`, then
  * `← Result: <tool> — <n> chars`, and `Running node: Lookup` to onProgress.
  *
- * Not here: a long-running tool is refused, as ADK's ToolNode refuses it;
+ * The call runs inside the caller's `traceCall` when it passes one (the
+ * native turn opens the engine's `tool.execute` span there, as ADK opens
+ * `execute_tool`).
+ *
+ * Not here: a long-running tool is refused, as ADK's ToolNode refuses it
+ * (resolveToolNode, which the turn also calls before any model call);
  * tool callbacks and plugins do not exist on a workflow node; retries,
  * timeouts and the node-error event are the scheduler's (WS4-2b).
  *
@@ -66,6 +71,12 @@ export interface ToolNodeContext extends Pick<ToolContextInit, 'appName' | 'user
   outputForAncestors?: string[];
   /** ADK's isolation scope, written on the event when set. */
   isolationScope?: string;
+  /**
+   * Wraps the call, as ADK's tool runner opens `execute_tool <name>` around
+   * it; the turn runner passes the engine's tool span
+   * (lib/runtime/native/telemetry.ts). Default: a plain call.
+   */
+  traceCall?: (call: { id: string; name: string }, tool: unknown, run: () => Promise<unknown>) => Promise<unknown>;
 }
 
 // ── 1. Input to arguments ────────────────────────────────────────────────────
@@ -123,8 +134,13 @@ function asResponse(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** The registry entry for the node's tool, refused as ADK refuses it at compile time. */
-function resolve(node: ToolNode, context: ToolNodeContext): { own: Tool; name: string } | { other: RunAsyncTool; name: string } {
+/**
+ * The registry entry for the node's tool, refused as ADK refuses it at
+ * compile time: unregistered, or long-running. The turn runner calls it for
+ * every tool node before the walk starts, so a refusal comes before any
+ * model call, as ADK's compileWorkflow throws before its Runner runs.
+ */
+export function resolveToolNode(node: ToolNode, context: Pick<ToolNodeContext, 'resolveTool'>): { own: Tool; name: string } | { other: RunAsyncTool; name: string } {
   const entry = context.resolveTool(node.tool);
   const own = toolOf(entry);
   const other = own ? undefined : isRunAsyncTool(entry) ? entry : undefined;
@@ -161,7 +177,7 @@ async function runOwnTool(tool: Tool, args: Record<string, unknown>, call: Retur
  * response object as the node's output.
  */
 export async function runToolNode(node: ToolNode, run: NodeRun, context: ToolNodeContext): Promise<NodeResult> {
-  const resolved = resolve(node, context);
+  const resolved = resolveToolNode(node, context);
   const args = coerceToolArgs(run.input);
   const functionCallId = `${run.path}:${run.runId}`;
   const call = createToolContext({
@@ -180,14 +196,15 @@ export async function runToolNode(node: ToolNode, run: NodeRun, context: ToolNod
   // handleFunctionCallList starts from null: a call that threw an empty message answers `{ result: null }`.
   let response: unknown = null;
   let error: unknown;
+  const invoke = (): Promise<unknown> => {
+    if ('own' in resolved) return runOwnTool(resolved.own, args, call);
+    // The shape ADK's tools read from ADK's Context, over the same context and the same actions.
+    const toolContext = { ...call, abortSignal: run.signal, invocationContext: { invocationId: context.invocationId, branch: run.branch, userContent: context.userContent } };
+    return resolved.other.runAsync({ args, toolContext });
+  };
   try {
-    if ('own' in resolved) {
-      response = await runOwnTool(resolved.own, args, call);
-    } else {
-      // The shape ADK's tools read from ADK's Context, over the same context and the same actions.
-      const toolContext = { ...call, abortSignal: run.signal, invocationContext: { invocationId: context.invocationId, branch: run.branch, userContent: context.userContent } };
-      response = await resolved.other.runAsync({ args, toolContext });
-    }
+    const tool = 'own' in resolved ? resolved.own : resolved.other;
+    response = await (context.traceCall ? context.traceCall({ id: functionCallId, name: resolved.name }, tool, invoke) : invoke());
   } catch (e) {
     // handleFunctionCallList: an Error's message, any other throw as it is.
     error = e instanceof Error ? e.message : e;
