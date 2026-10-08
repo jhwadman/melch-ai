@@ -445,6 +445,24 @@ test('structured output: strict json_schema on Kimi and the gateway, JSON mode o
   assert.ok(!('response_format' in (await bodyOf(kimi(), req('kimi-k3')))));
 });
 
+test("JSON mode (outputFormat 'json', ADR 0061): json_object on Ollama, Kimi and the gateway; a schema says more and wins", async () => {
+  const jsonMode = { type: 'json_object' };
+  assert.deepEqual((await bodyOf(ollama(), req('ollama/qwen3:8b', { outputFormat: 'json' }))).response_format, jsonMode);
+  assert.deepEqual((await bodyOf(kimi(), req('kimi-k3', { outputFormat: 'json' }))).response_format, jsonMode);
+  assert.deepEqual((await bodyOf(kimi('kimi-k2.6'), req('kimi-k2.6', { outputFormat: 'json' }))).response_format, jsonMode);
+  assert.deepEqual((await bodyOf(gateway(), req('claude-sonnet-4-6', { outputFormat: 'json' }), GATEWAY_ENV)).response_format, jsonMode);
+  assert.equal((await bodyOf(kimi(), req('kimi-k3', { outputSchema: SCHEMA, outputFormat: 'json' }))).response_format.type, 'json_schema');
+});
+
+test('the retry without thinking keeps JSON mode and drops the older spelling\'s effort word', async () => {
+  const lost = json(completion({ content: '', reasoning: 'thinking...' }, 'length', { prompt_tokens: 10, completion_tokens: 90, total_tokens: 100 }));
+  const answered = json(completion({ content: '{"ok":true}' }));
+  const request: ChatCompletionsRequest = { ...req('ollama/qwen3.5:9b', { reasoning: 'low', outputFormat: 'json' }), olderSpelling: { reasoningEffort: 'max' } };
+  const { sent } = await run(ollama('ollama/qwen3.5:9b'), request, [lost, answered]);
+  assert.deepEqual(sent.map((s) => s.body.response_format), [{ type: 'json_object' }, { type: 'json_object' }]);
+  assert.deepEqual(sent.map((s) => s.body.reasoning_effort), ['max', 'none']);
+});
+
 test('streaming asks for usage; Kimi posts to Moonshot with a bearer key; the gateway to its base with the mapped id', async () => {
   const { sent } = await run(kimi(), req('kimi-k3', { stream: true }), [sse([{ choices: [{ index: 0, delta: { content: 'hi' } }] }])]);
   assert.equal(sent[0].url, 'https://api.moonshot.ai/v1/chat/completions');
@@ -797,16 +815,18 @@ test('olderSpellingOf: only what the contract leaves out', () => {
   assert.equal(olderSpellingOf({ reasoningEffort: 'low' } as any), undefined, 'a level rides in reasoning');
   assert.equal(olderSpellingOf({ reasoningEffort: 'minimal' } as any), undefined, 'minimal is none');
   assert.deepEqual(olderSpellingOf({ reasoningEffort: 'max' } as any), { reasoningEffort: 'max' });
-  assert.deepEqual(olderSpellingOf({ responseMimeType: 'application/json' }), { jsonMode: true });
+  assert.equal(olderSpellingOf({ responseMimeType: 'application/json' }), undefined, 'JSON mode rides in outputFormat (ADR 0061)');
   assert.equal(olderSpellingOf({ responseMimeType: 'application/json', responseSchema: { type: 'OBJECT' } } as any), undefined, 'a schema rides in outputSchema');
 });
 
-test('through the shims, the older spelling reaches the wire: K3 max, and JSON mode without a schema', async () => {
+test('through the shims, the older spelling reaches the wire: K3 max; and JSON mode without a schema, through the contract', async () => {
   const bodyVia = async (make: () => BaseLlm, request: LlmRequest, env: Record<string, string | undefined> = {}) =>
     (await withFetch([json(completion({ content: 'ok' }))], env, () => drain(make().generateContentAsync(request)))).sent[0].body;
   assert.equal((await bodyVia(() => new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY }), llmRequest('kimi-k3', { reasoningEffort: 'max' }))).reasoning_effort, 'max');
   assert.ok(!('reasoning_effort' in (await bodyVia(() => new KimiLlm({ model: 'kimi-k2.6', apiKey: MOONSHOT_KEY }), llmRequest('kimi-k2.6', { reasoningEffort: 'max' })))));
   assert.deepEqual((await bodyVia(() => new OllamaLlm({ model: 'ollama/qwen3:8b' }), llmRequest('ollama/qwen3:8b', { responseMimeType: 'application/json' }))).response_format, { type: 'json_object' });
+  assert.deepEqual((await bodyVia(() => new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY }), llmRequest('kimi-k3', { responseMimeType: 'application/json' }))).response_format, { type: 'json_object' });
+  assert.deepEqual((await bodyVia(() => new GatewayLlm({ model: 'gpt-5.4' }), llmRequest('gpt-5.4', { responseMimeType: 'application/json' }), GATEWAY_ENV)).response_format, { type: 'json_object' });
   assert.equal((await bodyVia(() => new GatewayLlm({ model: 'gpt-5.4' }), llmRequest('gpt-5.4', { reasoningEffort: 'xhigh' }), GATEWAY_ENV)).reasoning_effort, 'xhigh');
   // A level rides in the contract's reasoning, mapped as the compiler maps it.
   assert.equal((await bodyVia(() => new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY }), llmRequest('kimi-k3', { reasoningEffort: 'medium' }))).reasoning_effort, 'high');

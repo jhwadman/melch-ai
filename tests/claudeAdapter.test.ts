@@ -347,6 +347,18 @@ test('adaptive era: structured output is output_config.format beside the effort,
   }
 });
 
+test("outputFormat 'json' sends nothing: the Messages API has no JSON mode, and ClaudeLlm never sent one (ADR 0061)", async () => {
+  for (const model of ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-opus-5-5']) {
+    const plain = await capture(modelRequest(model, { reasoning: 'low' }));
+    const json = await capture(modelRequest(model, { reasoning: 'low', outputFormat: 'json' }));
+    assert.deepEqual(json.body, plain.body, model);
+    // The ADK path: responseMimeType alone changes nothing, as before the adapter.
+    const adkPlain = await llmBody(model, llmRequest(model, { reasoningEffort: 'low' }));
+    const adkJson = await llmBody(model, llmRequest(model, { reasoningEffort: 'low', responseMimeType: 'application/json' }));
+    assert.deepEqual(adkJson, adkPlain, model);
+  }
+});
+
 test('a schema the transform refuses falls back to the tool, under auto where forcing is a 400', async () => {
   const c = await capture(modelRequest('claude-opus-5-5', { outputSchema: { type: 'array', items: { type: 'string' } } }));
   assert.equal(c.body.output_config, undefined);

@@ -245,6 +245,14 @@ export interface ModelRequest {
    */
   outputSchema?: JsonSchema;
   /**
+   * `json`: the answer is a JSON object, with no schema to hold it to (a
+   * provider's JSON mode; ADR 0061). The answer arrives as the text of the
+   * final response. `outputSchema` says more and wins when both are set.
+   * An adapter whose provider has no JSON mode sends nothing for it (Claude);
+   * absent means plain text.
+   */
+  outputFormat?: 'json';
+  /**
    * Each adapter maps the setting to its own provider's field, so a
    * fallback model gets its own mapping, never the primary's. Absent means
    * the provider's or the adapter's default.

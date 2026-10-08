@@ -368,6 +368,32 @@ test('sampling and structured output: as the ADK path sent them, with top_p besi
   assert.equal(body.temperature, 0.2);
 });
 
+test("JSON mode (outputFormat 'json', ADR 0061): text.format json_object on GPT and Grok; a schema says more and wins", async () => {
+  const jsonMode = { format: { type: 'json_object' } };
+  assert.deepEqual((await bodyOf(gpt('gpt-4o'), request('gpt-4o', { outputFormat: 'json' }))).text, jsonMode);
+  assert.deepEqual((await bodyOf(gpt('gpt-5-mini'), request('gpt-5-mini', { outputFormat: 'json' }))).text, jsonMode);
+  assert.deepEqual((await bodyOf(grok('grok-4.7'), request('grok-4.7', { outputFormat: 'json' }))).text, jsonMode);
+  const schema = { type: 'object', properties: { verdict: { type: 'string' } }, required: ['verdict'] };
+  assert.equal((await bodyOf(gpt('gpt-4o'), request('gpt-4o', { outputSchema: schema, outputFormat: 'json' }))).text.format.type, 'json_schema');
+  assert.ok(!('text' in (await bodyOf(gpt('gpt-4o'), request('gpt-4o')))), 'plain text sends no format');
+});
+
+test('the ADK path: responseMimeType application/json without a schema is JSON mode on GptLlm and GrokLlm, as before WS1-5', async () => {
+  const adkBody = (llm: GptLlm, config: Record<string, unknown>) =>
+    withFetch([400, 400], async (sent) => {
+      await collect(llm.generateContentAsync({ ...llmRequestOf(llm.model), config } as LlmRequest));
+      return sent[0].body;
+    });
+  const json = { responseMimeType: 'application/json' };
+  const gptLlm = () => new GptLlm({ model: 'gpt-5-mini', apiKey: OPENAI_KEY, endpoint: DIRECT });
+  const grokLlm = () => new GrokLlm({ model: 'grok-4.7', apiKey: XAI_KEY });
+  assert.deepEqual((await adkBody(gptLlm(), json)).text, { format: { type: 'json_object' } });
+  assert.deepEqual((await adkBody(grokLlm(), json)).text, { format: { type: 'json_object' } });
+  const schema = { ...json, responseSchema: { type: 'OBJECT', properties: { verdict: { type: 'STRING' } }, required: ['verdict'] } };
+  assert.equal((await adkBody(gptLlm(), schema)).text.format.type, 'json_schema');
+  assert.ok(!('text' in (await adkBody(grokLlm(), {}))));
+});
+
 test('GptLlm and GptAdapter send the same body for the same conversation', async () => {
   const state = { provider: 'openai', kind: REASONING_STATE_KIND, model: 'gpt-5-mini', payload: [R1] };
   const llmRequest = {
