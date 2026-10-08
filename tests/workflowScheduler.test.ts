@@ -303,7 +303,8 @@ const mapSyndicate = (maxParallel?: number) =>
   });
 
 const ITEMS = ['a', 'b', 'c', 'd', 'e'];
-const itemDelays: Record<string, number> = { a: 30, b: 5, c: 20, d: 5, e: 10 };
+// Finish times never tie under any max_parallel here (at least 20 ms apart), so the order holds under slow instrumented runs.
+const itemDelays: Record<string, number> = { a: 200, b: 20, c: 110, d: 50, e: 80 };
 const MAP_STUBS: Stubs = {
   Splitter: { output: () => ITEMS },
   Worker: { output: (item) => `w:${item}`, delay: (item) => itemDelays[item as string] },
@@ -622,7 +623,8 @@ const bounded = (nodes: Record<string, unknown>) =>
   });
 
 test('max_concurrency counts a retrying node as running, in ADK\'s order', async () => {
-  const stubs: Stubs = { A: { delay: 5, output: (_i, call) => (call === 1 ? reported('429', 'slow down') : 'a') }, B: { delay: 20 }, C: { delay: 5 } };
+  // B outlasts A's retry and C by a wide margin, so the order holds under slow instrumented runs.
+  const stubs: Stubs = { A: { delay: 5, output: (_i, call) => (call === 1 ? reported('429', 'slow down') : 'a') }, B: { delay: 80 }, C: { delay: 5 } };
   const events: SchedulerEvent[] = [];
   const adk = await runOnAdk(bounded({ A: { retry: { max_attempts: 2, initial_delay: 0.001 } } }), stubs, 'go');
   const native = await runNative(bounded({ A: { retry: { max_attempts: 2, initial_delay: 0.001 } } }), stubs, 'go', events);

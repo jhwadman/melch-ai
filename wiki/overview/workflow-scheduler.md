@@ -20,7 +20,7 @@ sources:
 
 # Workflow scheduler
 
-`lib/workflow/scheduler.ts` runs the [workflow graph](/overview/workflow-graph.md) that `buildWorkflowGraph` builds, without ADK. It walks the graph the way ADK 2.2's `Workflow` does, so a workflow completes in the order ADK records for it. Why it copies ADK's loop, and matches routes in ADK's spelling, is [ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md). Why its retries, timeouts, node errors and abort follow ADK's node runner is [ADR 0089](/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md). The native runtime still refuses a workflow syndicate ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). The scheduler is the walk the native runtime will use once agent and ask_user nodes run on it (WS4-3, WS4-4a). The runner for tool nodes is in place (below).
+`lib/workflow/scheduler.ts` runs the [workflow graph](/overview/workflow-graph.md) that `buildWorkflowGraph` builds, without ADK. It walks the graph the way ADK 2.2's `Workflow` does, so a workflow completes in the order ADK records for it. Why it copies ADK's loop, and matches routes in ADK's spelling, is [ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md). Why its retries, timeouts, node errors and abort follow ADK's node runner is [ADR 0089](/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md). The native runtime still refuses a workflow syndicate ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). Agent nodes and map items run on it through `agentNodeRuntime` ([Workflow agent node](/overview/workflow-agent-node.md)), and the runner for tool nodes is in place (below); the scheduler is the walk the native runtime will use once ask_user nodes run on it too (WS4-4a) and the turn runner calls it (WS4-6).
 
 ## The interface
 
@@ -52,7 +52,7 @@ A `NodeRun` carries the `target`: the graph node, or `{ kind: 'map_item', agent,
 | `start` | the scheduler: one trigger per `START` edge, with the workflow input | — |
 | `agent`, `tool`, `ask_user` | `runNode` | what the runner returns |
 | `join` | the scheduler, once every predecessor has completed | `{ <predecessor>: <output> }`, keyed in edge order |
-| `route` | the scheduler | its input, with `routeOf(input, routeKey)` as the route |
+| `route` | the scheduler | its input, with `routeOf(input, routeKey)` as the route ([lib/workflow/route.ts](/overview/workflow-agent-node.md#route-derivation)) |
 | `map` | the scheduler's pool, one `runNode` per item | the results, by index |
 
 Each pass starts every triggered node that is not already running, in the order its triggers arrived, until `max_concurrency` nodes are running. It then handles the first run to settle. `Promise.race` takes the pending runs in start order, so of two runs already settled, the one started first goes first. A completed node triggers:
@@ -105,7 +105,7 @@ The progress lines come from that event. The turn runner's reader (`drainAgentSt
 
 ## What it does not do yet
 
-Later tickets add interrupts (ask_user's pause, WS4-4a), a task-mode node that waits for its output (WS4-3), and resuming from stored events. The native workflow path (WS4-6) writes `nodeErrorEvent` where ADK writes its node-error event.
+Later tickets add interrupts (ask_user's pause, WS4-4a) and resuming from stored events. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)). The native workflow path (WS4-6) writes `nodeErrorEvent` where ADK writes its node-error event.
 
 ## Parity with ADK
 
