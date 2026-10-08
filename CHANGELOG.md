@@ -80,6 +80,16 @@ the starter pack and the templates), not the repo's full history.
   it off) and exports `REASONING_CONTENT_KIND`; `models/kimiLlm` exports
   `wantsReasoningReplay`. `currentTurnStart` returns -1 when no user
   content opens the turn, so every content is then the current turn's.
+- **A Gemini adapter on the model contract, not yet wired.** New module
+  `melchizedek-agents/models/geminiAdapter`: `GeminiAdapter` implements
+  `ModelAdapter` (ADR 0048) on `@google/genai` directly, with no ADK, on the
+  Gemini API or Vertex AI (`lib/models/endpoints.ts`). Schemas go as
+  lowercase JSON Schema (`parametersJsonSchema`, `responseJsonSchema`).
+  `reasoning:` maps through `reasoningConfig`. Thought signatures ride on
+  the part as `providerState` and are replayed within the turn. Every
+  failure is a final response. A `clientFactory` option takes an injected
+  client. Nothing registers the adapter yet: Gemini ids are still served by
+  `TracedGemini`, unchanged.
 
 ## 0.18.0 — 2026-10-06
 

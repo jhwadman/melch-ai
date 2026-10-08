@@ -5,26 +5,26 @@
     "at": "2026-10-07"
   },
   "stats": {
-    "nodes": 662,
-    "edges": 1577,
+    "nodes": 666,
+    "edges": 1600,
     "byKind": {
-      "doc": 103,
+      "doc": 104,
       "provider": 6,
-      "env": 102,
+      "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 93,
+      "file": 94,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 125,
+      "module": 126,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 247,
-      "requires_env": 159,
+      "links_to": 254,
+      "requires_env": 162,
       "routes_to": 8,
       "defined_in": 76,
       "documents": 56,
@@ -33,18 +33,18 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 367,
+      "imports": 374,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 307,
+      "derives_from": 310,
       "supersedes": 1,
-      "constrains": 9,
+      "constrains": 12,
       "depends_on": 6,
       "explains": 2
     },
     "byTier": {
-      "extracted": 1559,
-      "inferred": 18
+      "extracted": 1579,
+      "inferred": 21
     },
     "isolated": 4
   },
@@ -1067,6 +1067,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 580
+      }
+    },
+    {
+      "id": "/models/gemini-adapter.md",
+      "kind": "doc",
+      "label": "Gemini adapter",
+      "source": "/models/gemini-adapter.md",
+      "attrs": {
+        "type": "model-provider",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1670
       }
     },
     {
@@ -2468,6 +2480,12 @@
       "source": "lib/observability/lineage.ts"
     },
     {
+      "id": "env:GOOGLE_API_KEY",
+      "kind": "env",
+      "label": "GOOGLE_API_KEY",
+      "source": "lib/models/geminiAdapter.ts"
+    },
+    {
       "id": "env:GOOGLE_CLOUD_LOCATION",
       "kind": "env",
       "label": "GOOGLE_CLOUD_LOCATION",
@@ -3341,6 +3359,12 @@
       "source": "tests/fixtures/sessions/generate.ts"
     },
     {
+      "id": "file:tests/geminiAdapter.test.ts",
+      "kind": "file",
+      "label": "geminiAdapter.test.ts",
+      "source": "tests/geminiAdapter.test.ts"
+    },
+    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -3828,6 +3852,15 @@
       "source": "lib/models/gatewayLlm.ts",
       "attrs": {
         "lines": 131
+      }
+    },
+    {
+      "id": "module:lib/models/geminiAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/geminiAdapter.ts",
+      "source": "lib/models/geminiAdapter.ts",
+      "attrs": {
+        "lines": 733
       }
     },
     {
@@ -8799,6 +8832,76 @@
       "evidence": "/meta/wiki-system.md:34"
     },
     {
+      "from": "/models/gemini-adapter.md",
+      "to": "file:tests/geminiAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:32"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:20"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:72"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:50"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:20"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:24"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:22"
+    },
+    {
       "from": "/models/model-contract.md",
       "to": "file:tests/modelContract.test.ts",
       "rel": "derives_from",
@@ -12388,6 +12491,76 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gatewayLlm.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "env:GEMINI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "env:GOOGLE_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "env:GOOGLE_GENAI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
     },
     {
       "from": "module:lib/models/gptLlm.ts",
