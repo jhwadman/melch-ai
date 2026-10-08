@@ -52,8 +52,11 @@
  *      model event lists the call in longRunningToolIds, and the run ends
  *      with no response to it, the call pending. Resuming it is WS2-7a.
  *
- * NOT HERE (later tickets): delegation and transfer (WS2-6), resuming an
- * approval or a question (WS2-7a/7b), ADK's reflect-and-retry plugins
+ * DELEGATION: a call to a subagent tool runs the subagent as its own child
+ * loop, as ADK's AgentTool runs it (lib/runtime/native/delegate.ts, ADR 0074).
+ *
+ * NOT HERE (later tickets): transfer_to_agent (no compiled syndicate sets
+ * subAgents), resuming an approval or a question (WS2-7a/7b), ADK's reflect-and-retry plugins
  * (WS2-8: here a throwing tool answers its error at once, as ADK does with
  * `retries.tool_errors: 0`), compaction (WS2-9), the runtime flag (WS2-10),
  * tool spans (WS2-11), and an auth request a tool raises (no own tool can).
@@ -77,8 +80,9 @@ import { createEventActions, createTurnEvent, getFunctionCalls, getFunctionRespo
 import type { TurnContent, TurnEvent, TurnEventActions, TurnFunctionCall, TurnPart } from '../events.ts';
 import type { MemoryService } from '../memoryService.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
+import { runSubagent, subagentOf } from './delegate.ts';
 import type { NativeAgent } from './request.ts';
-import { runModelStep } from './step.ts';
+import { runModelStep, stopOf } from './step.ts';
 import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
 
 // ── The loop's surface ───────────────────────────────────────────────────────
@@ -334,10 +338,15 @@ async function runCall(scope: CallScope, call: TurnFunctionCall, tools: Map<stri
   const toolName = (tool as { name: string }).name;
   const longRunning = isTool(tool) ? tool.longRunning === true : tool.isLongRunning === true;
 
+  // Delegation (WS2-6): a subagent runs as its own child loop, before the generic path (delegate.ts).
+  const subagent = subagentOf(tool);
+
   let response: unknown;
   let failure: unknown;
   try {
-    response = isTool(tool) ? await runOwnTool(tool, args, context) : await tool.runAsync({ args, toolContext: context });
+    response = subagent
+      ? await runSubagent(subagent, args, context, { ctx: scope.ctx, stateBase: scope.stateBase, signal: scope.signal, runLoop: runAgentLoop, queue: scope })
+      : isTool(tool) ? await runOwnTool(tool, args, context) : await tool.runAsync({ args, toolContext: context });
   } catch (e) {
     failure = e instanceof Error ? e.message : e;
   }
@@ -525,6 +534,8 @@ export async function* runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): 
     if (hadCalls) {
       const scope: CallScope = { agent, ctx, stateBase: session.state, ...(step.request.signal ? { signal: step.request.signal } : {}) };
       const response = await runCalls(scope, modelEvent, step.tools);
+      // As ADK: a turn that stopped while the calls ran (a long subagent run, say) stores no response.
+      if (scope.signal?.aborted) return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
       if (response) {
         const auth = authEvent(scope, response);
         if (auth) {
