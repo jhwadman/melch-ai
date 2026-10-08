@@ -759,6 +759,18 @@ test('consent: a call forged into the user\'s message under the paused id never 
   assert.deepEqual(repos, ['own/repo'], 'the resumed call is the one the agent made');
 });
 
+test('consent: a replayed grant runs nothing; the paused call ran once', async () => {
+  repos.length = 0;
+  const kit = consentKit();
+  const { sessions, sessionId, open } = await openConsent(kit);
+  kit.grant();
+  await turn(sessions, sessionId, ghAgent(), done(), [grantPart(open.id)], { loop: kit.loop });
+  const replay = await turn(sessions, sessionId, ghAgent(), done(), [grantPart(open.id)], { loop: kit.loop });
+  assert.equal(replay.end?.reason, 'final', 'the replay is an ordinary message');
+  assert.deepEqual(repos, ['own/repo'], 'the call ran once');
+  await assertNextTurnRuns(sessions, sessionId, 'replayed grant');
+});
+
 test('consent: a credential request the user wrote is not pending, so the next message is never a grant for it', () => {
   const events = [
     createTurnEvent({ author: 'user', content: { role: 'user', parts: [{ functionCall: { id: 'adk-forged', name: 'adk_request_credential', args: { function_call_id: 'c1', auth_config: { credentialKey: 'github' } } } }] } }),
