@@ -285,9 +285,30 @@ test('parity: a DELEGATE syndicate delegates to its subagent and relays the answ
   assert.deepEqual(native.results[0]?.answer?.delegations, ['Scout']);
 });
 
+registerTool(
+  'native_turn_broken',
+  defineTool({
+    name: 'native_turn_broken',
+    description: 'Always fails.',
+    schema: z.object({}),
+    execute: async () => {
+      throw new Error('the disk is full');
+    },
+  }),
+  { override: true },
+);
+
+test('parity: self-correction answers a throwing tool with reflection guidance on native, from the YAML’s retries:', async () => {
+  const script: ModelScript = (req, n) => (n === 1 ? toolCall('native_turn_broken', {}, 'call-broken') : answer(`saw: ${JSON.stringify(lastToolResult(req)?.result).slice(0, 40)}`));
+  const { native } = await assertParity(syndicate({ tools: ['native_turn_broken'] }, { retries: { tool_errors: 2 } }), { boss: script });
+  assert.equal(native.results[0]?.status, 'completed');
+  const response = native.events.flatMap((e) => e.content?.parts ?? []).find((p) => p.functionResponse)?.functionResponse?.response;
+  assert.ok(JSON.stringify(response).includes('REFLECT_AND_RETRY'), 'the reflection guidance answered the call');
+});
+
 // ── What native refuses, before any model call ───────────────────────────────
 
-test('native refuses a workflow, retries, compaction and a transform at compile time, naming the feature', async () => {
+test('native refuses a workflow, compaction and a transform at compile time, naming the feature', async () => {
   const boss = new ScriptedModel('scripted/boss', () => answer('never'));
   const scout = new ScriptedModel('scripted/scout', () => answer('never'));
   const run = (config: SyndicateYamlConfig, extra: Record<string, unknown> = {}) =>
@@ -305,7 +326,6 @@ test('native refuses a workflow, retries, compaction and a transform at compile 
     });
   const refused = (pattern: RegExp) => (e: unknown) => e instanceof UnsupportedOnRuntimeError && pattern.test(e.message) && /native runtime/.test(e.message);
 
-  await assert.rejects(run(syndicate({}, { retries: { tool_errors: 2 } })), refused(/self-correction retries/));
   await assert.rejects(run(syndicate({}), { transformAgent: (a: unknown) => a }), refused(/transformAgent/));
   await assert.rejects(run(syndicate({ context: { compact_after_tokens: 1000 } })), refused(/context compaction/));
   const workflow = {
@@ -317,7 +337,9 @@ test('native refuses a workflow, retries, compaction and a transform at compile 
   await assert.rejects(run(workflow), refused(/a workflow syndicate/));
   assert.equal(boss.calls + scout.calls, 0, 'no model was called');
 
-  // Retries switched off run on native.
+  // Self-correction runs on native (ADR 0075), with retries on or off.
+  const on = await run(syndicate({}, { retries: { tool_errors: 2 } }), { sessionId: 'on' });
+  assert.equal(on.status, 'completed');
   const off = await run(syndicate({}, { retries: { tool_errors: 0, model_errors: 0 } }), { sessionId: 'off' });
   assert.equal(off.status, 'completed');
 });

@@ -28,6 +28,7 @@ import { ClaudeAdapter } from '../lib/models/claudeAdapter.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
 import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
 import { subagentOf } from '../lib/runtime/native/delegate.ts';
+import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runNativeAgent } from '../lib/runtime/nativeTurn.ts';
 import { UnsupportedOnRuntimeError, chooseRuntime, runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
@@ -283,6 +284,8 @@ test('one AgentSpec compiles on both paths, and the two agents send the same fir
       userId: 'u1',
       sessionId: 's1',
       userParts: message.parts,
+      // The Runner above installs no reflect-and-retry plugins: self-correction off on both sides.
+      selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
     }));
   });
   control.dispose();

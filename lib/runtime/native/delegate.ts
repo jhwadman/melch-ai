@@ -65,6 +65,7 @@ import { TEMP_STATE_PREFIX } from '../sessions.ts';
 import type { Session } from '../sessions.ts';
 import type { AgentLoopContext, AgentLoopEnd } from './agentLoop.ts';
 import type { NativeAgent } from './request.ts';
+import { SelfCorrection } from './selfCorrection.ts';
 
 // ── The subagent tool ────────────────────────────────────────────────────────
 
@@ -190,6 +191,9 @@ async function runChild(agent: NativeAgent, args: Record<string, unknown>, conte
     invocationId,
     userContent: content,
     stream: false,
+    // ADK's AgentTool builds its sub-runner without the reflect-and-retry
+    // plugins, so a subagent's own errors are not retried (ADR 0075).
+    selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
     ...(ctx.memory ? { memory: ctx.memory } : {}),
     ...(ctx.signal ? { signal: ctx.signal } : {}),
     ...(ctx.adapterFor ? { adapterFor: ctx.adapterFor } : {}),

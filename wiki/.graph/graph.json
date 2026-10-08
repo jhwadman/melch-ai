@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 771,
-    "edges": 2444,
+    "nodes": 773,
+    "edges": 2467,
     "byKind": {
-      "doc": 133,
+      "doc": 134,
       "provider": 6,
       "env": 105,
       "model": 8,
@@ -18,12 +18,12 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 167,
+      "module": 168,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 493,
+      "links_to": 498,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 605,
+      "imports": 610,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 542,
-      "constrains": 105,
+      "derives_from": 550,
+      "constrains": 106,
       "supersedes": 6,
-      "depends_on": 37,
-      "explains": 7,
+      "depends_on": 40,
+      "explains": 8,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2287,
-      "inferred": 157
+      "extracted": 2305,
+      "inferred": 162
     },
     "isolated": 4
   },
@@ -1264,6 +1264,18 @@
       }
     },
     {
+      "id": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "kind": "doc",
+      "label": "ADR 0075: The native loop's self-correction ports ADK's reflect-and-retry plugins as they behave, counted in call order",
+      "source": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 832
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1524,7 +1536,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2247
+        "words": 2681
       }
     },
     {
@@ -4016,7 +4028,8 @@
       "id": "file:tests/selfCorrection.test.ts",
       "kind": "file",
       "label": "selfCorrection.test.ts",
-      "source": "tests/selfCorrection.test.ts"
+      "source": "tests/selfCorrection.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/serverShutdown.test.ts",
@@ -4866,7 +4879,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 568
+        "lines": 596
       }
     },
     {
@@ -4875,7 +4888,7 @@
       "label": "lib/runtime/native/delegate.ts",
       "source": "lib/runtime/native/delegate.ts",
       "attrs": {
-        "lines": 209
+        "lines": 213
       }
     },
     {
@@ -4893,7 +4906,16 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 536
+        "lines": 545
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/selfCorrection.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/selfCorrection.ts",
+      "source": "lib/runtime/native/selfCorrection.ts",
+      "attrs": {
+        "lines": 314
       }
     },
     {
@@ -4902,7 +4924,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 239
+        "lines": 264
       }
     },
     {
@@ -4929,7 +4951,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 968
+        "lines": 969
       }
     },
     {
@@ -10948,6 +10970,76 @@
       "evidence": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md:24"
     },
     {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "file:tests/nativeLoop.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md frontmatter"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "file:tests/nativeStep.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md frontmatter"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "file:tests/selfCorrection.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md frontmatter"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md frontmatter"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md frontmatter"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md frontmatter"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md frontmatter"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "/decisions/0034-self-correction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md:27"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md:34"
+    },
+    {
+      "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0075-native-self-correction-ports-adk-plugins.md:34"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -13574,6 +13666,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/native/step.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -13584,84 +13683,98 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:129"
+      "evidence": "/overview/native-loop.md:134"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:143"
+      "evidence": "/overview/native-loop.md:177"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0034-self-correction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:140"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:109"
+      "evidence": "/overview/native-loop.md:113"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:25"
+      "evidence": "/overview/native-loop.md:26"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:73"
+      "evidence": "/overview/native-loop.md:75"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:27"
+      "evidence": "/overview/native-loop.md:28"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:27"
+      "evidence": "/overview/native-loop.md:28"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:27"
+      "evidence": "/overview/native-loop.md:28"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:140"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:86"
+      "evidence": "/overview/native-loop.md:90"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:27"
+      "evidence": "/overview/native-loop.md:28"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:55"
+      "evidence": "/overview/native-loop.md:56"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:40"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/protocols/a2a.md",
@@ -18411,6 +18524,13 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/runtime/native/step.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -18447,6 +18567,13 @@
     {
       "from": "module:lib/runtime/native/delegate.ts",
       "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/delegate.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/delegate.ts",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/delegate.ts"
@@ -18543,6 +18670,13 @@
       "evidence": "lib/runtime/native/request.ts"
     },
     {
+      "from": "module:lib/runtime/native/selfCorrection.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/selfCorrection.ts"
+    },
+    {
       "from": "module:lib/runtime/native/step.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -18594,6 +18728,13 @@
     {
       "from": "module:lib/runtime/native/step.ts",
       "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/step.ts"
@@ -18706,6 +18847,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"

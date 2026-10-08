@@ -17,9 +17,9 @@
  *
  * WHAT NATIVE REFUSES, before any model call, with a message naming the
  * feature and the runtime (UnsupportedOnRuntimeError): a workflow syndicate,
- * delegation and compaction (lib/compileNative.ts), self-correction retries
- * the YAML turns on, a caller's ADK agent transform, and a message that
- * resumes an approval or answers a question. Later WS2 tickets lift each.
+ * compaction and task mode (lib/compileNative.ts), a caller's ADK agent
+ * transform, and a message that resumes an approval or answers a question.
+ * Later tickets lift each.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -35,16 +35,11 @@ import type { MemorySearchRequest, MemorySearchResult, MemoryService } from './m
 import { runAgentLoop } from './native/agentLoop.ts';
 import type { AgentLoopEnd } from './native/agentLoop.ts';
 import type { NativeAgent } from './native/request.ts';
+import type { SelfCorrection } from './native/selfCorrection.ts';
 import type { SessionService } from './sessions.ts';
 import { unsupportedOnNative } from './runtimeFlag.ts';
 
 // ── What native refuses before a turn starts ─────────────────────────────────
-
-/** True when the YAML turns a self-correction retry on (`retries:` with a count above zero). */
-function asksForRetries(config: SyndicateYamlConfig): boolean {
-  const r = config.retries;
-  return !!r && ((r.model_errors ?? 0) > 0 || (r.tool_errors ?? 0) > 0);
-}
 
 /**
  * Throws UnsupportedOnRuntimeError for a syndicate or a call the native
@@ -58,7 +53,6 @@ export function refuseOnNative(
   const where = config.syndicate_name || config.orchestrator?.name || 'syndicate';
   if (call.isWorkflow) throw unsupportedOnNative('a workflow syndicate (workflow:)', where);
   if (call.transformAgent) throw unsupportedOnNative('transformAgent (it transforms ADK agents)', where);
-  if (asksForRetries(config)) throw unsupportedOnNative('self-correction retries (retries:, WS2-8)', where);
 }
 
 // ── Memory ───────────────────────────────────────────────────────────────────
@@ -98,6 +92,8 @@ export interface NativeRunParams {
   stream?: boolean;
   memory?: Pick<MemoryService, 'search'>;
   log?: (message: string) => void;
+  /** The turn's self-correction (ADR 0075), built once per turn from `retries:`. Default: retries at their defaults. */
+  selfCorrection?: SelfCorrection;
 }
 
 /**
@@ -131,5 +127,6 @@ export async function* runNativeAgent(params: NativeRunParams): AsyncGenerator<T
     ...(params.signal ? { signal: params.signal } : {}),
     ...(params.memory ? { memory: params.memory } : {}),
     ...(params.log ? { log: params.log } : {}),
+    ...(params.selfCorrection ? { selfCorrection: params.selfCorrection } : {}),
   });
 }

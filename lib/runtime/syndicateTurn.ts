@@ -46,6 +46,7 @@ import { compileNative, nativeAdapterFor } from '../compileNative.ts';
 import type { ModelAdapter } from '../models/contract.ts';
 import type { NativeAgent } from './native/request.ts';
 import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
+import { SelfCorrection } from './native/selfCorrection.ts';
 import { chooseRuntime, unsupportedOnNative } from './runtimeFlag.ts';
 import type { RuntimeName } from './runtimeFlag.ts';
 export { chooseRuntime, runtimeSetting, DEFAULT_RUNTIME, RUNTIMES, UnsupportedOnRuntimeError } from './runtimeFlag.ts';
@@ -72,6 +73,7 @@ export { approvalResponsePart, describeApproval, pendingApproval } from './appro
 export type { PendingApproval } from './approvals.ts';
 import { RemoteA2AAgent, remoteContextId, remoteToolOutput } from '../a2a/remoteAgent.ts';
 import { createTurnControl, runWithTurnControl, stopCode, stopMessage } from './turnControl.ts';
+import { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './native/selfCorrection.ts';
 import type { TurnStopReason } from './turnControl.ts';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -242,8 +244,8 @@ const CLASSIFIER_PREAMBLE =
 
 // ── Self-correction (ADR 0034) ───────────────────────────────────────────────
 
-export const DEFAULT_MODEL_ERROR_RETRIES = 2;
-export const DEFAULT_TOOL_ERROR_RETRIES = 3;
+// The defaults live with the native loop's self-correction, so both runtimes read one pair.
+export { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './native/selfCorrection.ts';
 
 /**
  * ADK's reflect-and-retry plugins, on by default. The model plugin turns a
@@ -517,6 +519,8 @@ async function runTurnInner(
   const compileRoute = async (routeCfg: SubagentYamlConfig): Promise<TurnAgent> =>
     native ? nativeOf(await compileSubagentSpec(routeCfg, compileOpts)) : { runtime: 'adk', agent: transform(await compileSubagent(routeCfg, compileOpts)) };
   const syndicateLabel = config.syndicate_name || config.orchestrator.name;
+  // Native self-correction (ADR 0075): one per turn, from the YAML's retries:, as the ADK path installs retryPlugins.
+  const selfCorrection = native ? new SelfCorrection(config.retries) : undefined;
 
   const result: SyndicateTurnResult = {
     status: 'completed',
@@ -641,6 +645,7 @@ async function runTurnInner(
         signal: control.signal,
         stream: opts.streaming === true,
         memory: nativeMemory(opts.memoryService),
+        ...(selfCorrection ? { selfCorrection } : {}),
         // The fallback's notice goes where compile's FallbackLlm sends it on ADK.
         ...(compileOpts.log ? { log: compileOpts.log } : {}),
       }) as unknown as AsyncIterable<Event>;

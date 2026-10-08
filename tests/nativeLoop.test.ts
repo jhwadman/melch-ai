@@ -32,6 +32,7 @@ import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runAgentLoop, saveOutput } from '../lib/runtime/native/agentLoop.ts';
 import type { AgentLoopEnd } from '../lib/runtime/native/agentLoop.ts';
+import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
@@ -79,7 +80,22 @@ registerTool(
   defineTool({ name: 'harness_test_lookup', description: 'Look something up.', schema: z.object({ key: z.string() }), execute: async ({ key }) => `looked up ${key}` }),
   { override: true },
 );
-// The boundary suite's gated tool: an ADK FunctionTool from the registry, gated as compile gates it (requireApprovalOn).
+// Fails when asked to; answers late otherwise, so a parallel step's calls finish out of call order.
+registerTool(
+  'native_loop_maybe',
+  defineTool({
+    name: 'native_loop_maybe',
+    description: 'Fails when asked to.',
+    schema: z.object({ fail: z.boolean() }),
+    execute: async ({ fail }) => {
+      if (fail) throw new Error('asked to fail');
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      return 'fine';
+    },
+  }),
+  { override: true },
+);
+// The boundary suite's gated tool: an ADK FunctionTool from the registry, gated by compile's requireApprovalOn.
 const sent: string[] = [];
 registerTool(
   'native_loop_send',
@@ -190,6 +206,8 @@ async function runNative(config: SyndicateYamlConfig, scripts: Models, turns: Tu
           invocationId: userEvent.invocationId,
           userContent: userEvent.content as TurnContent,
           stream: turn.streaming === true,
+          // One per turn, from the syndicate's retries:, as runSyndicateTurn builds ADK's plugins per Runner.
+          selfCorrection: new SelfCorrection(config.retries),
           adapterFor: (id) => {
             const m = models[id.replace(/^scripted\//, '')];
             if (!m) throw new Error(`no scripted model '${id}'`);
@@ -229,11 +247,11 @@ async function runNative(config: SyndicateYamlConfig, scripts: Models, turns: Tu
   return { ends, events: JSON.parse(JSON.stringify(stored?.events ?? [])) as TurnEvent[], yielded, models, deltas };
 }
 
-/** Event ids and times, and ADK's own `adk-` call ids, are minted per run; everything else must match. */
+/** Event ids and times, ADK's own `adk-` call ids and the reflection call's ids are minted per run; everything else must match. */
 function comparable(events: TurnEvent[]): unknown {
   return JSON.parse(
     JSON.stringify(events.map((e) => ({ ...e, id: '<id>', timestamp: 0 }))),
-    (_key, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v),
+    (_key, v) => (typeof v === 'string' && (v.startsWith('adk-') || v.startsWith('adk_handle_model_error_')) ? '<adk-id>' : v),
   );
 }
 
@@ -369,10 +387,8 @@ test('boundary: a turn canceled before it starts makes no call and stores nothin
 
 // ── The loop's own cases, both ways ──────────────────────────────────────────
 
-const noRetries = { retries: { model_errors: 0, tool_errors: 0 } };
-
 test('parity: a tool call, its result fed back, then the answer; the tool’s state write lands with its response', async () => {
-  const { native } = await assertParity(solo({ tools: ['native_loop_lookup'] }, noRetries), {
+  const { native } = await assertParity(solo({ tools: ['native_loop_lookup'] }), {
     boss: (req, n) => (n === 1 ? toolCall('native_loop_lookup', { key: 'alpha' }, 'call-1') : answer(`got ${String(lastToolResult(req)?.result)}`)),
   });
   assert.deepEqual(lastToolResult(native.models.boss?.requests[1] as ModelRequest)?.result, 'found alpha');
@@ -381,7 +397,7 @@ test('parity: a tool call, its result fed back, then the answer; the tool’s st
 });
 
 test('parity: parallel calls are merged into one response event, in call order, a list wrapped as results', async () => {
-  const { native } = await assertParity(solo({ tools: ['native_loop_lookup', 'native_loop_list'] }, noRetries), {
+  const { native } = await assertParity(solo({ tools: ['native_loop_lookup', 'native_loop_list'] }), {
     boss: (_r, n) =>
       n === 1
         ? {
@@ -404,8 +420,8 @@ test('parity: parallel calls are merged into one response event, in call order, 
   assert.deepEqual(native.events[2]?.actions.stateDelta, { seen_a: true, seen_b: true });
 });
 
-test('parity: a throwing tool answers ADK’s error text, and an unknown tool answers not found', async () => {
-  const { native } = await assertParity(solo({ tools: ['native_loop_broken'] }, noRetries), {
+test('parity: with tool_errors: 0, a throwing tool answers ADK’s error text, and an unknown tool answers not found', async () => {
+  const { native } = await assertParity(solo({ tools: ['native_loop_broken'] }, { retries: { tool_errors: 0 } }), {
     boss: (_r, n) =>
       n === 1
         ? {
@@ -425,7 +441,7 @@ test('parity: a throwing tool answers ADK’s error text, and an unknown tool an
 });
 
 test('parity: ask_user ends the run with the call pending and no response to it', async () => {
-  const { adk, native } = await assertParity(solo({ tools: ['ask_user'] }, noRetries), {
+  const { adk, native } = await assertParity(solo({ tools: ['ask_user'] }), {
     boss: () => toolCall('ask_user', { question: 'Which year?' }, 'call-ask-1'),
   });
   assert.equal(adk.results[0]?.status, 'input-required');
@@ -437,11 +453,11 @@ test('parity: ask_user ends the run with the call pending and no response to it'
 });
 
 test('parity: outputKey saves the final answer into state, and an output schema saves it parsed', async () => {
-  const { native } = await assertParity(solo({ outputKey: 'last_answer' }, noRetries), { boss: () => answer('plain words') });
+  const { native } = await assertParity(solo({ outputKey: 'last_answer' }), { boss: () => answer('plain words') });
   assert.equal(native.events.at(-1)?.actions.stateDelta?.last_answer, 'plain words');
 
   const schema = { type: 'object', properties: { verdict: { type: 'string' }, score: { type: 'integer' } }, required: ['verdict'] };
-  const parsed = await assertParity(solo({ outputKey: 'grade', outputSchema: schema }, noRetries), {
+  const parsed = await assertParity(solo({ outputKey: 'grade', outputSchema: schema }), {
     boss: () => answer('{"verdict":"pass","score":3,"extra":true}'),
   });
   assert.deepEqual(parsed.native.events.at(-1)?.actions.stateDelta?.grade, parsed.adk.events.at(-1)?.actions.stateDelta?.grade);
@@ -456,7 +472,6 @@ test('parity: an output schema beside tools ends on set_model_response, saved un
         outputKey: 'grade',
         outputSchema: { type: 'object', properties: { verdict: { type: 'string' } }, required: ['verdict'] },
       },
-      noRetries,
     ),
     {
       boss: (_r, n) => (n === 1 ? toolCall('native_loop_lookup', { key: 'alpha' }, 'call-1') : toolCall('set_model_response', { verdict: 'pass' }, 'call-smr')),
@@ -469,7 +484,7 @@ test('parity: an output schema beside tools ends on set_model_response, saved un
 
 test('parity: a skill’s ADK tool runs through its own runAsync, and unlocks the skill’s tool', async () => {
   const { native } = await assertParity(
-    solo({ instruction: 'Follow skills.', skills: { dir: SKILLS, tools: ['harness_test_lookup'] } }, noRetries),
+    solo({ instruction: 'Follow skills.', skills: { dir: SKILLS, tools: ['harness_test_lookup'] } }),
     {
       boss: (_r, n) =>
         n === 1
@@ -479,12 +494,12 @@ test('parity: a skill’s ADK tool runs through its own runAsync, and unlocks th
             : answer('Release 2.0: smaller.'),
     },
   );
-  assert.deepEqual(native.models.boss?.requests[1]?.tools?.map((t) => t.name), ['load_skill', 'load_skill_resource', 'harness_test_lookup']);
+  assert.deepEqual(native.models.boss?.requests[1]?.tools?.map((t) => t.name), ['load_skill', 'load_skill_resource', 'harness_test_lookup', 'adk_handle_model_error']);
   assert.deepEqual(lastToolResult(native.models.boss?.requests[2] as ModelRequest)?.result, 'looked up v2');
 });
 
 test('parity: a model that thinks but never answers ends on the adapter’s named error (ADR 0027)', async () => {
-  const { native } = await assertParity(solo({}, noRetries), {
+  const { native } = await assertParity(solo(), {
     boss: () => [
       { partial: true, parts: [{ type: 'thinking', text: 'counting words' }] },
       failure({ code: 'OLLAMA_EMPTY_RESPONSE', message: 'scripted/boss finished thinking but returned no reply.' }),
@@ -497,7 +512,7 @@ test('parity: a model that thinks but never answers ends on the adapter’s name
 
 test('parity: narration streamed before a tool call is reset, then the answer streams', async () => {
   await assertParity(
-    solo({ tools: ['native_loop_lookup'] }, noRetries),
+    solo({ tools: ['native_loop_lookup'] }),
     {
       boss: (_r, n): ModelResponse[] =>
         n === 1
@@ -506,6 +521,117 @@ test('parity: narration streamed before a tool call is reset, then the answer st
     },
     [{ streaming: true }],
   );
+});
+
+// ── Self-correction, both ways (ADR 0034, ADR 0075) ──────────────────────────
+
+const responses = (event: TurnEvent | undefined) => (event?.content?.parts ?? []).map((p) => p.functionResponse?.response as Record<string, any>);
+const call = (id: string, name: string, args: Record<string, unknown> = {}) => ({ type: 'toolCall' as const, id, name, args });
+const calls = (...parts: ReturnType<typeof call>[]): ModelResponse => ({ partial: false, parts, finishReason: 'tool_call' });
+
+test('self-correction: a throwing tool and an unknown tool answer with reflection guidance, counted per tool in call order', async () => {
+  const { native } = await assertParity(solo({ tools: ['native_loop_broken'] }), {
+    boss: (_r, n) =>
+      n === 1
+        ? calls(call('c-1', 'native_loop_broken'), call('c-2', 'no_such_tool'), call('c-3', 'native_loop_broken'))
+        : n === 2
+          ? calls(call('c-4', 'native_loop_broken'))
+          : answer('sorry'),
+  });
+  const first = responses(native.events[2]);
+  assert.deepEqual(first.map((r) => [r.response_type, r.error_type, r.retry_count]), [
+    ['ERROR_HANDLED_BY_REFLECT_AND_RETRY_PLUGIN', 'Error', 1],
+    ['ERROR_HANDLED_BY_REFLECT_AND_RETRY_PLUGIN', 'Error', 1],
+    ['ERROR_HANDLED_BY_REFLECT_AND_RETRY_PLUGIN', 'Error', 2],
+  ]);
+  assert.equal(first[0]?.error_details, "Error in tool 'native_loop_broken': the disk is full");
+  assert.match(String(first[1]?.error_details), /^Function no_such_tool is not found in the /);
+  assert.match(String(first[2]?.reflection_guidance), /retry attempt \*\*2 of 3\*\*/);
+  assert.equal(responses(native.events[4])[0]?.retry_count, 3);
+  assert.equal(native.ends[0]?.reason, 'final');
+});
+
+test('self-correction: past tool_errors the tool answers that its retry limit is exceeded', async () => {
+  const { native } = await assertParity(solo({ tools: ['native_loop_broken'] }, { retries: { tool_errors: 1 } }), {
+    boss: (_r, n) => (n <= 2 ? toolCall('native_loop_broken', {}, `c-${n}`) : answer('giving up')),
+  });
+  assert.equal(responses(native.events[2])[0]?.retry_count, 1);
+  const exceeded = responses(native.events[4])[0];
+  assert.match(String(exceeded?.reflection_guidance), /has failed consecutively 1 times and the retry limit has been exceeded/);
+  assert.match(String(exceeded?.reflection_guidance), /Do not attempt to use the `native_loop_broken` tool again/);
+});
+
+test('self-correction: a call that answers resets its tool’s count, in call order though the calls run in parallel', async () => {
+  const { native } = await assertParity(solo({ tools: ['native_loop_maybe'] }), {
+    boss: (_r, n) =>
+      n === 1
+        ? calls(call('c-1', 'native_loop_maybe', { fail: true }), call('c-2', 'native_loop_maybe', { fail: false }), call('c-3', 'native_loop_maybe', { fail: true }))
+        : answer('done'),
+  });
+  // The slow success (c-2) finishes after c-3 failed; counted in call order, c-3 is a first failure again.
+  assert.deepEqual(responses(native.events[2]).map((r) => r.retry_count ?? r.result), [1, 'fine', 1]);
+});
+
+test('self-correction: every request declares the reflection tool, and a model calling it is retried with ADK’s reflection call', async () => {
+  const { native } = await assertParity(
+    solo(),
+    {
+      boss: (_r, n): ModelResponse[] =>
+        n <= 2 ? [{ partial: true, parts: [{ type: 'text', text: 'Hm. ' }] }, toolCall('adk_handle_model_error', { a: 1 }, `c-${n}`)] : streamedAnswer('Recovered.'),
+    },
+    [{ streaming: true }],
+  );
+  const requests = native.models.boss?.requests ?? [];
+  assert.deepEqual(requests[0]?.tools, [
+    {
+      name: 'adk_handle_model_error',
+      description: 'A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.',
+      parameters: { type: 'object', properties: {} },
+    },
+  ]);
+  const retry = native.events[1]?.content?.parts?.[0]?.functionCall;
+  assert.match(String(retry?.id), /^adk_handle_model_error_[0-9a-f-]{36}$/);
+  assert.deepEqual(retry?.args, {
+    response_type: 'ERROR_HANDLED_BY_REFLECT_AND_RETRY_PLUGIN',
+    error_type: 'RESERVED_TOOL_CALL',
+    error_details: 'Model attempted to call reserved tool adk_handle_model_error directly. This tool is reserved for framework use only. Do not call it.',
+    finish_reason: 'OTHER',
+    retry_count: 1,
+  });
+  // ADK's reflection tool says attempt 1 whatever the count (it reads retryCount, the call carries retry_count).
+  assert.match(String(responses(native.events[4])[0]?.reflection_guidance), /retry attempt \*\*1\*\* of \*\*2\*\*/);
+  // A streamed partial passes through the plugin too, and resets the agent's count: the second retry is a first again.
+  assert.equal((native.events[3]?.content?.parts?.[0]?.functionCall?.args as any)?.retry_count, 1);
+  assert.equal(native.ends[0]?.reason, 'final');
+  assert.equal(native.events.at(-1)?.content?.parts?.[0]?.text, 'Recovered.');
+});
+
+test('self-correction: past model_errors the run ends on ADK’s UNKNOWN_ERROR event', async () => {
+  const { adk, native } = await assertParity(solo(), { boss: (_r, n) => toolCall('adk_handle_model_error', {}, `c-${n}`) });
+  assert.equal(native.models.boss?.calls, 3);
+  const end = native.ends[0] as AgentLoopEnd;
+  assert.equal(end.reason, 'error');
+  assert.equal(end.lastEvent?.errorCode, 'UNKNOWN_ERROR');
+  assert.equal(
+    end.lastEvent?.errorMessage,
+    "Error in plugin 'reflect_retry_model_plugin' during 'afterModelCallback' callback: Error: The model has failed consecutively 2 times and the retry limit has been exceeded.",
+  );
+  assert.equal(adk.results[0]?.status, 'failed');
+});
+
+test('self-correction: model_errors: 0 declares no reflection tool, and a call to it is an unknown tool', async () => {
+  const { native } = await assertParity(solo({}, { retries: { model_errors: 0 } }), {
+    boss: (_r, n) => (n === 1 ? toolCall('adk_handle_model_error', {}, 'c-1') : answer('ok')),
+  });
+  assert.equal(native.models.boss?.requests[0]?.tools, undefined);
+  assert.match(String(responses(native.events[2])[0]?.error_details), /^Function adk_handle_model_error is not found in the /);
+});
+
+test('self-correction: a MALFORMED_FUNCTION_CALL failure from an adapter is stored as the failure on both runtimes', async () => {
+  // The contract carries Gemini's MALFORMED_FUNCTION_CALL as an error code, not a finish reason, so the model plugin never sees it (PR open question).
+  const { native } = await assertParity(solo(), { boss: () => failure({ code: 'MALFORMED_FUNCTION_CALL', message: 'bad call' }) });
+  assert.equal(native.ends[0]?.lastEvent?.errorCode, 'MALFORMED_FUNCTION_CALL');
+  assert.equal(native.models.boss?.calls, 1);
 });
 
 // ── The loop on its own ──────────────────────────────────────────────────────

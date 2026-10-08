@@ -37,6 +37,7 @@ import {
 } from '../models/registry.ts';
 import type { TurnEvent } from '../runtime/events.ts';
 import type { NativeAgent } from '../runtime/native/request.ts';
+import { SelfCorrection } from '../runtime/native/selfCorrection.ts';
 import { runNativeAgent } from '../runtime/nativeTurn.ts';
 import { chooseRuntime } from '../runtime/runtimeFlag.ts';
 import type { RuntimeName } from '../runtime/runtimeFlag.ts';
@@ -134,6 +135,8 @@ export async function runWikiAgent(run: WikiAgentRun): Promise<WikiAgentResult> 
         userId: USER_ID,
         sessionId,
         userParts: newMessage.parts,
+        // As on ADK, where this Runner installs no reflect-and-retry plugins.
+        selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
       }),
     );
   }
