@@ -53,7 +53,7 @@
  * second outbound surface, and a spec that changes under a running agent
  * changes its tools. Save the spec beside the YAML and review it like code.
  */
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { closeSync, openSync, readSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import { BaseTool, createRestApiTool, tokenToSchemeCredential } from '@google/adk';
 import type { RunAsyncToolRequest } from '@google/adk';
@@ -176,18 +176,40 @@ export function boundResult(result: unknown): unknown {
 }
 
 /**
+ * A spec's text, read through one open file: at most MAX_SPEC_BYTES are read,
+ * so the size bound holds for the bytes actually parsed, with no separate
+ * check that the file could change after (CodeQL js/file-system-race).
+ */
+function readSpec(specPath: string, source: string): string {
+  let fd: number;
+  try {
+    fd = openSync(specPath, 'r');
+  } catch {
+    throw new Error(`openapi: spec not found: ${source}`);
+  }
+  try {
+    const buf = Buffer.alloc(MAX_SPEC_BYTES + 1);
+    let n = 0;
+    for (let r = 1; r > 0 && n < buf.length; n += r) r = readSync(fd, buf, n, buf.length - n, null);
+    if (n > MAX_SPEC_BYTES) throw new Error(`openapi ${source}: the spec is larger than ${MAX_SPEC_BYTES} bytes`);
+    return buf.subarray(0, n).toString('utf-8');
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
  * The tools one `openapi:` entry gives an agent. Throws (failing the compile)
  * on a missing spec, an unset auth variable, an operation the spec does not
  * have, or a server the guard refuses.
  */
 export async function buildOpenApiTools(entry: OpenApiConfig, baseDir: string = process.cwd()): Promise<BaseTool[]> {
   const specPath = resolve(baseDir, entry.spec);
-  if (!existsSync(specPath)) throw new Error(`openapi: spec not found: ${entry.spec}`);
   const ext = extname(specPath).toLowerCase();
+  const text = readSpec(specPath, entry.spec);
   if (!['.yaml', '.yml', '.json'].includes(ext)) throw new Error(`openapi ${entry.spec}: a spec is .yaml, .yml or .json`);
-  if (statSync(specPath).size > MAX_SPEC_BYTES) throw new Error(`openapi ${entry.spec}: the spec is larger than ${MAX_SPEC_BYTES} bytes`);
   const credential = credentialFor(entry.auth, entry.spec);
-  const all = parseOpenApiSpec(readFileSync(specPath, 'utf-8'), ext === '.json' ? 'json' : 'yaml', {
+  const all = parseOpenApiSpec(text, ext === '.json' ? 'json' : 'yaml', {
     source: entry.spec,
     ...(entry.prefix ? { prefix: entry.prefix } : {}),
   });
