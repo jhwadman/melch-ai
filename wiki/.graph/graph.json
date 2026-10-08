@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 824,
-    "edges": 2920,
+    "nodes": 827,
+    "edges": 2938,
     "byKind": {
-      "doc": 150,
+      "doc": 151,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 140,
+      "file": 141,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 188,
+      "module": 189,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 599,
+      "links_to": 603,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 736,
+      "imports": 740,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 692,
-      "constrains": 145,
+      "derives_from": 698,
+      "constrains": 146,
       "supersedes": 7,
-      "depends_on": 68,
-      "explains": 21,
+      "depends_on": 70,
+      "explains": 22,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2676,
-      "inferred": 244
+      "extracted": 2690,
+      "inferred": 248
     },
     "isolated": 4
   },
@@ -1445,6 +1445,18 @@
       }
     },
     {
+      "id": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "kind": "doc",
+      "label": "ADR 0091: A workflow tool node runs its tool as ADK's ToolNode does, writes ADK's event itself, and takes the registry from its caller",
+      "source": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 804
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1729,7 +1741,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 802
+        "words": 1217
       }
     },
     {
@@ -4407,6 +4419,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/workflowToolNode.test.ts",
+      "kind": "file",
+      "label": "workflowToolNode.test.ts",
+      "source": "tests/workflowToolNode.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tsconfig.build.json",
       "kind": "file",
       "label": "tsconfig.build.json",
@@ -5978,6 +5997,15 @@
       "source": "lib/workflow/scheduler.ts",
       "attrs": {
         "lines": 415
+      }
+    },
+    {
+      "id": "module:lib/workflow/toolNode.ts",
+      "kind": "module",
+      "label": "lib/workflow/toolNode.ts",
+      "source": "lib/workflow/toolNode.ts",
+      "attrs": {
+        "lines": 252
       }
     },
     {
@@ -12665,6 +12693,55 @@
       "evidence": "/decisions/0088-native-parity-followups.md:39"
     },
     {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "file:tests/workflowToolNode.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md frontmatter"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md:24"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md:24"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -15753,6 +15830,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "file:tests/workflowToolNode.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "module:lib/workflow/graph.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -15767,24 +15851,38 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:20"
+      "evidence": "/overview/workflow-scheduler.md:22"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:20"
+      "evidence": "/overview/workflow-scheduler.md:22"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:66"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-graph.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:20"
+      "evidence": "/overview/workflow-scheduler.md:22"
     },
     {
       "from": "/protocols/a2a.md",
@@ -23205,6 +23303,34 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/scheduler.ts"
+    },
+    {
+      "from": "module:lib/workflow/toolNode.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/toolNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/toolNode.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/toolNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/toolNode.ts",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/toolNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/toolNode.ts",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/toolNode.ts"
     },
     {
       "from": "module:scripts/a2a_server.ts",
