@@ -21,6 +21,7 @@
  *   user blob                → input_image (a data URL, or an https URL), input_file for PDF
  *   reasoning                → `reasoning` (ADR 0047), per vendor (reasoningParam)
  *   outputSchema             → text.format json_schema, strict
+ *   outputFormat 'json'      → text.format json_object (JSON mode, ADR 0061)
  *   nativeTools              → the vendor's own tool objects (nativeToolPlan)
  *   'reasoning' output items → providerState on the part after them (ADR 0050),
  *                              replayed before that part within the turn's tool loop
@@ -686,7 +687,9 @@ export class GptAdapter implements ModelAdapter {
               },
             },
           }
-        : {}),
+        : request.outputFormat === 'json'
+          ? { text: { format: { type: 'json_object' } } }
+          : {}),
       ...(reasoning ? { reasoning } : {}),
       // ADR 0050: the vendor keeps nothing, and returns the reasoning
       // encrypted so the next step of the tool loop can send it back.

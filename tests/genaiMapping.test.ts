@@ -462,6 +462,17 @@ test('LlmRequest: the output schema, tool choice, sampling, stream and signal', 
   assert.throws(() => llmRequestToModelRequest(bareRequest({ model: undefined })), /names no model/);
 });
 
+test("LlmRequest: responseMimeType application/json without a schema is outputFormat 'json' (JSON mode, ADR 0061)", () => {
+  assert.equal(llmRequestToModelRequest(bareRequest({ config: { responseMimeType: 'application/json' } })).outputFormat, 'json');
+  const schema = llmRequestToModelRequest(bareRequest({ config: { responseMimeType: 'application/json', responseJsonSchema: { type: 'object', properties: {} } } }));
+  assert.equal(schema.outputFormat, undefined, 'a schema rides in outputSchema, which says more');
+  assert.ok(schema.outputSchema);
+  const gemini = llmRequestToModelRequest(bareRequest({ config: { responseMimeType: 'application/json', responseSchema: { type: 'OBJECT' as never, properties: {} } } }));
+  assert.equal(gemini.outputFormat, undefined, "Gemini's dialect is a schema too");
+  assert.equal(llmRequestToModelRequest(bareRequest({ config: { responseMimeType: 'text/plain' } })).outputFormat, undefined);
+  assert.equal(llmRequestToModelRequest(bareRequest()).outputFormat, undefined);
+});
+
 test('LlmRequest: the reasoning fields map to a ReasoningSetting where it is exact', () => {
   const cases: Array<[Record<string, unknown>, unknown]> = [
     [{ thinkingConfig: { thinkingLevel: 'MINIMAL' }, reasoningEffort: 'none' }, 'none'],
@@ -647,6 +658,12 @@ test('ModelRequest → LlmRequest → ModelRequest gives back every field an Llm
     const thinking: ModelRequest = { model: 'gemini-3-flash', messages: [], reasoning };
     assert.deepEqual(llmRequestToModelRequest(modelRequestToLlmRequest(thinking)), thinking, JSON.stringify(reasoning));
   }
+  // JSON mode: the MIME type alone, and back.
+  const jsonMode: ModelRequest = { model: 'gemini-3-flash', messages: [], outputFormat: 'json' };
+  const jsonLlm = modelRequestToLlmRequest(jsonMode);
+  assert.equal(jsonLlm.config?.responseMimeType, 'application/json');
+  assert.equal(jsonLlm.config?.responseJsonSchema, undefined);
+  assert.deepEqual(llmRequestToModelRequest(jsonLlm), jsonMode);
 });
 
 test('the reverse request mapping: what does not come back the same', () => {
@@ -666,6 +683,9 @@ test('the reverse request mapping: what does not come back the same', () => {
   assert.deepEqual(back({ model: 'gemini-2.5-flash', reasoning: 'low' }).reasoning, { budget_tokens: 2048 }, 'a level Gemini 2.x takes as a budget reads back as the budget');
   assert.equal(back({ model: 'o3', reasoning: 'none' }).reasoning, 'low', 'a level a model cannot take reads back as its rendering');
   assert.equal(back({ stream: true }).stream, undefined, 'stream is not an LlmRequest field');
+  const both = back({ outputSchema: { type: 'object', properties: {} }, outputFormat: 'json' });
+  assert.equal(both.outputFormat, undefined, "outputFormat 'json' beside a schema reads back as the schema alone");
+  assert.deepEqual(both.outputSchema, { type: 'object', properties: {} });
   assert.equal(modelRequestToLlmRequest({ model: 'gemini-3-flash', messages: [], system: '' }).config?.systemInstruction, undefined, 'an empty system prompt is none');
 
   // System messages stay system contents; the Gemini wrapper folds them into the system prompt.

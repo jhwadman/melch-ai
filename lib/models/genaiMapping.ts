@@ -77,13 +77,14 @@
  * nativeToolOf names (the web_search, x_search and collections_search
  * sentinels) and from Gemini's `config.tools` entries (`googleSearch` and
  * `googleSearchRetrieval` → web_search, `urlContext`, `codeExecution`);
- * `responseJsonSchema` or `responseSchema` as a lowercase outputSchema; the
- * function-calling mode as toolChoice (`VALIDATED` as strict tools); the
- * reasoning fields as a ReasoningSetting where it is exact (reasoningOf);
+ * `responseJsonSchema` or `responseSchema` as a lowercase outputSchema, and
+ * `responseMimeType: 'application/json'` with neither as `outputFormat:
+ * 'json'` (JSON mode, ADR 0061); the function-calling mode as toolChoice
+ * (`VALIDATED` as strict tools); the reasoning fields as a ReasoningSetting where it is exact (reasoningOf);
  * sampling; stream; the abort signal. Not mapped: tool options inside a
  * `config.tools` entry, any other `config.tools` entry, `includeThoughts`,
  * and the generateContentConfig fields the contract leaves out (topK, seed,
- * penalties, safetySettings, JSON mode without a schema).
+ * penalties, safetySettings).
  *
  * THE RESPONSE (modelResponseToLlmResponse). Parts back to a `model`
  * content; a partial as `partial: true`, the final with `turnComplete:
@@ -108,7 +109,9 @@
  *   entries, where llmRequestToModelRequest and the ADK-path adapters read
  *   them; native tools as Gemini's tool objects, in the request's order;
  *   toolChoice and strict as the function-calling mode, sent only beside
- *   declarations; the output schema as `responseJsonSchema`; reasoning
+ *   declarations; the output schema as `responseJsonSchema`, and
+ *   `outputFormat: 'json'` without one as `responseMimeType:
+ *   'application/json'`; reasoning
  *   through reasoningConfig (lib/models/reasoning.ts), as the compiler maps
  *   it; sampling; the signal as `config.abortSignal`. What does not come
  *   back the same through llmRequestToModelRequest: `google_search` reads as
@@ -117,7 +120,8 @@
  *   reads as absent, and a choice without tools is not sent; one strict tool
  *   makes every tool strict, and strict is lost beside a forced choice; a
  *   level a model renders as a budget or another word reads back as that
- *   rendering; `stream` is not an LlmRequest field. System messages stay
+ *   rendering; `outputFormat: 'json'` beside a schema reads back as the
+ *   schema alone; `stream` is not an LlmRequest field. System messages stay
  *   `system` contents, which Gemini refuses: the caller folds them into the
  *   system prompt.
  *
@@ -621,6 +625,8 @@ export function llmRequestToModelRequest(llmRequest: LlmRequest, options: ModelR
   }
   const nativeTools = nativeToolsOf(llmRequest);
   const schema = config?.responseJsonSchema ?? config?.responseSchema;
+  // JSON mode: the MIME type alone, with no schema to say more (ADR 0061).
+  const jsonMode = !isObject(schema) && config?.responseMimeType === 'application/json';
   const reasoning = reasoningOf(config);
   const sampling = samplingOf(config);
   const signal = options.signal ?? config?.abortSignal;
@@ -633,6 +639,7 @@ export function llmRequestToModelRequest(llmRequest: LlmRequest, options: ModelR
     ...(nativeTools.length > 0 ? { nativeTools } : {}),
     ...(toolChoice !== undefined ? { toolChoice } : {}),
     ...(isObject(schema) ? { outputSchema: toContractJsonSchema(schema) } : {}),
+    ...(jsonMode ? { outputFormat: 'json' as const } : {}),
     ...(reasoning !== undefined ? { reasoning } : {}),
     ...(sampling ? { sampling } : {}),
     ...(options.stream !== undefined ? { stream: options.stream } : {}),
@@ -795,6 +802,8 @@ export function modelRequestToLlmRequest(request: ModelRequest): LlmRequest {
   if (request.outputSchema) {
     config.responseMimeType = 'application/json';
     config.responseJsonSchema = request.outputSchema;
+  } else if (request.outputFormat === 'json') {
+    config.responseMimeType = 'application/json';
   }
   // The fields the compiler writes for the model (ADR 0047): a thinking
   // level or budget on Gemini, and the effort word every other adapter reads.

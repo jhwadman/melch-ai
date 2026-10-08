@@ -263,6 +263,20 @@ test('outputSchema asks for JSON with the schema in responseJsonSchema', async (
   assert.deepEqual(final.parts, [{ type: 'text', text: '{"answer":"42"}' }]);
 });
 
+test("outputFormat 'json' is JSON mode: responseMimeType alone; a schema says more and wins (ADR 0061)", async () => {
+  let fake = new FakeClient({ response: candidate([{ text: '{"answer":"42"}' }]) });
+  await run(adapter(fake), { messages: [user('hi')], outputFormat: 'json' });
+  assert.equal(fake.requests[0].config?.responseMimeType, 'application/json');
+  assert.equal(fake.requests[0].config?.responseJsonSchema, undefined);
+  const schema = { type: 'object', properties: { answer: { type: 'string' } } };
+  fake = new FakeClient({ response: candidate([{ text: '{}' }]) });
+  await run(adapter(fake), { messages: [user('hi')], outputFormat: 'json', outputSchema: schema });
+  assert.deepEqual(fake.requests[0].config?.responseJsonSchema, schema);
+  fake = new FakeClient({ response: candidate([{ text: 'ok' }]) });
+  await run(adapter(fake), { messages: [user('hi')] });
+  assert.equal(fake.requests[0].config?.responseMimeType, undefined, 'plain text asks for no MIME type');
+});
+
 test("reasoning maps through ADR 0047's table, with thoughts included unless it is none", async () => {
   const cases: Array<[string, ModelRequest['reasoning'], unknown]> = [
     ['gemini-3-flash', 'none', { thinkingLevel: 'MINIMAL' }],
