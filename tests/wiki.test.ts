@@ -683,3 +683,49 @@ test('wiki_relate refuses derived relations, dangling ends and closure breaks; l
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('wiki_relate appends: every record already stored keeps its place and its bytes', async () => {
+  const root = makeBundle({ 'index.md': '# Root\n', 'log.md': '# Log\n' });
+  writeSnapshot(root, buildEntityGraph(NODES, EDGES), { by: 'process:wiki-build', at: '2026-08-19' });
+  // Out of sorted order on purpose: a re-sort would move both.
+  saveRelations(root, [
+    { from: '/zeta.md', to: 'module:z.ts', rel: 'explains', evidence: 'the last by name', by: 'human:a', at: '2026-10-01' },
+    { from: '/alpha.md', to: 'module:a.ts', rel: 'explains', evidence: 'the first by name', by: 'human:b', at: '2026-10-02' },
+  ]);
+  const file = join(root, '.graph/relations.json');
+  const before = readFileSync(file, 'utf-8');
+  process.env.WIKI_ROOT = root;
+  try {
+    const ok = await executeContract(wikiRelateContract, {
+      from: '/decisions/0003.md',
+      to: 'module:lib/wiki/lint.ts',
+      relation: 'constrains',
+      evidence: 'ADR 0003: "Closure (lint error): no document outside /private/ may link into it."',
+      actor: 'human:reviewer',
+    });
+    assert.ok(ok.startsWith('ASSERTED'), ok);
+    const after = readFileSync(file, 'utf-8');
+    // Only the comma after the last stored record is new before the appended one.
+    const stored = before.slice(0, before.lastIndexOf('\n  ]'));
+    assert.ok(after.startsWith(`${stored},\n`), `the stored records changed:\n${after}`);
+    assert.deepEqual(
+      JSON.parse(after).relations.map((r: { from: string }) => r.from),
+      ['/zeta.md', '/alpha.md', '/decisions/0003.md'],
+    );
+
+    // A store that does not parse is refused, never overwritten.
+    writeFileSync(file, '{ not json');
+    const broken = await executeContract(wikiRelateContract, {
+      from: '/decisions/0003.md',
+      to: 'module:lib/wiki/lint.ts',
+      relation: 'constrains',
+      evidence: 'ADR 0003: "Closure (lint error): no document outside /private/ may link into it."',
+      actor: 'human:reviewer',
+    });
+    assert.ok(broken.startsWith('REJECTED') && broken.includes('nothing was written'), broken);
+    assert.equal(readFileSync(file, 'utf-8'), '{ not json');
+  } finally {
+    delete process.env.WIKI_ROOT;
+    rmSync(root, { recursive: true, force: true });
+  }
+});

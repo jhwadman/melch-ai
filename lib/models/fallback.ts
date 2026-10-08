@@ -18,52 +18,21 @@
  *   - The breaker is per provider, shared by every agent in the process:
  *     MODEL_BREAKER_THRESHOLD consecutive failures (default 5; 0 disables)
  *     open it for MODEL_BREAKER_COOLDOWN_MS (default 30 s). While open, a
- *     wrapped agent goes straight to its fallback; after the cooldown one
- *     call is let through, and a success closes the circuit.
+ *     wrapped agent goes straight to its fallback; after the cooldown calls
+ *     go through again, the next failure reopens it at once, and a success
+ *     closes it. Its state is lib/models/circuitBreaker.ts, which the
+ *     contract-level wrapper (lib/models/fallbackAdapter.ts) shares.
  */
 import { BaseLlm } from '@google/adk';
 import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
 
 import { classifyError } from './retry.ts';
 import { providerForModel } from './providerMap.ts';
+import { circuitOpen, recordFailure, recordSuccess } from './circuitBreaker.ts';
 
-interface Circuit {
-  failures: number;
-  openUntil: number;
-}
-const circuits = new Map<string, Circuit>();
-
-function breakerSettings(env: NodeJS.ProcessEnv = process.env): { threshold: number; cooldownMs: number } {
-  const n = (name: string, fallback: number) => {
-    const v = Number(env[name]);
-    return Number.isFinite(v) && v >= 0 ? Math.floor(v) : fallback;
-  };
-  return { threshold: n('MODEL_BREAKER_THRESHOLD', 5), cooldownMs: n('MODEL_BREAKER_COOLDOWN_MS', 30_000) };
-}
-
-/** True while `provider`'s circuit is open (calls skip it). */
-export function circuitOpen(provider: string, now = Date.now()): boolean {
-  const c = circuits.get(provider);
-  return !!c && c.openUntil > now;
-}
-
-function recordFailure(provider: string, now = Date.now()): void {
-  const { threshold, cooldownMs } = breakerSettings();
-  if (threshold === 0) return;
-  const c = circuits.get(provider) ?? { failures: 0, openUntil: 0 };
-  c.failures += 1;
-  if (c.failures >= threshold) c.openUntil = now + cooldownMs;
-  circuits.set(provider, c);
-}
-
-function recordSuccess(provider: string): void {
-  circuits.delete(provider);
-}
-
-/** For tests: close every circuit. */
-export function resetCircuits(): void {
-  circuits.clear();
-}
+// The breaker's state lives in lib/models/circuitBreaker.ts, shared with the
+// contract-level FallbackAdapter. Re-exported so existing imports keep working.
+export { circuitOpen, resetCircuits } from './circuitBreaker.ts';
 
 /** A provider-side failure: worth counting against the provider and worth a fallback. */
 export function isProviderFailure(err: unknown): boolean {

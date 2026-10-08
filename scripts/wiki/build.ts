@@ -709,7 +709,7 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 Both stores sit in \`.graph/\` inside the bundle — a dot-directory, so the vault walker ignores them and no document operation can see them:
 
 - \`.graph/graph.json\` — the derived snapshot: every node, every extracted relation, stamped with the build that produced it. Regenerate with \`npm run wiki:build\`; never edit it.
-- \`.graph/relations.json\` — the asserted relations: \`from\`, \`to\`, \`rel\`, \`evidence\`, \`by\`, \`at\`. Written only through the gate.
+- \`.graph/relations.json\` — the asserted relations: \`from\`, \`to\`, \`rel\`, \`evidence\`, \`by\`, \`at\`, in the order they were asserted. Written only through the gate, which appends each one at the end and never reorders what is there, so two branches that each assert something merge by keeping both sides.
 
 A bundle is published as markdown only, so a derived map of PRIVATE structure never rides along: whoever receives it rebuilds the graph from what it actually holds ([ADR 0003](/decisions/0003-path-based-visibility.md)).
 
@@ -717,7 +717,7 @@ A bundle is published as markdown only, so a derived map of PRIVATE structure ne
 
 [\`wiki_graph\`](/tools/wiki-tools.md) is the read path: no arguments for the census, \`find\` to locate a node, \`node\` to see everything attached to one, \`path_to\` for the chain joining two, \`kind\` to list a population. It reports its own staleness — documents added since the last build are named, not hidden.
 
-\`wiki_relate\` is the only write path, and it refuses more than it accepts: an extracted relation (the build owns those), a missing endpoint, a public document pointing into the private annex, a duplicate, or an assertion without evidence. Accepted edges append to \`log.md\` under the \`relate\` op with the actor who made them.
+\`wiki_relate\` is the only write path, and it refuses more than it accepts: an extracted relation (the build owns those), a missing endpoint, a public document pointing into the private annex, a duplicate, an assertion without evidence, or a store that does not parse (which it never overwrites). Accepted edges append to \`log.md\` under the \`relate\` op with the actor who made them.
 
 The [Cartographers](/agents/cartographers.md) do this conversationally — the Surveyor reads and proposes with quotations, the Registrar records through the gate. [Gardening](/meta/gardening.md) covers the prose side of the same discipline, and [how this bundle works](/meta/wiki-system.md) the format underneath both.`,
       },

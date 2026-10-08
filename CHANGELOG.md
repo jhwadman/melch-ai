@@ -6,6 +6,28 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Claude requests follow the model generation (ADR 0049).** `ClaudeLlm`
+  reads a per-generation table from the model id. Before, every `claude-*`
+  id got a thinking budget and a forced tool, which the current models refuse
+  with a 400. Now:
+  - Claude 4.6 and earlier keep the thinking budget.
+  - Later models get adaptive thinking with `output_config.effort` from
+    `reasoning:` (or `reasoningEffort`), and a summarized thinking display.
+    `none` becomes each model's own off switch at `low` effort, or `low`
+    effort where the model has none.
+  - Structured output is `output_config.format` from Opus 4.8, Sonnet 5 and
+    Haiku 5.5 on. Forced tool use is a 400 on Fable 5.1, Opus 5.5 and
+    Sonnet 5.5.
+  - Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 5.5 bind thinking to the
+    conversation. Their requests set `drop_block` under the
+    `thinking-binding-controls-2026-08-01` beta, so a turn resumed from
+    storage no longer fails on a history that changed in storage.
+  - An image URL that names no type is typed by its extension. Claude on
+    Bedrock and Vertex AI drops URL images, since those platforms take base64
+    only, and the capability matrix says so.
+  - `melchizedek-agents/models/claudeModels` exports `claudeGeneration`,
+    `adaptiveThinking`, `requestedEffort`, `claudeUrlImagesOn` and
+    `THINKING_BINDING_BETA`.
 - **`reasoning:` sets how hard an agent reasons, on any provider (ADR 0047).**
   Write `none`, `low`, `medium` or `high`, or `{ budget_tokens: <int> }`, on
   the orchestrator or a subagent. The compiler sends each provider the field
@@ -59,6 +81,16 @@ the starter pack and the templates), not the repo's full history.
   runtime and every model adapter will speak it, and no adapter uses it
   yet. `ReasoningLevel` and `ReasoningSetting` are defined there now.
   `melchizedek-agents/loadSyndicate` re-exports them unchanged.
+- **Tool declarations in the contract's shape.** `models/schemaNormalize`
+  exports `contractToolDeclaration(tool, { strict? })`, which builds a
+  contract `ToolDeclaration` from an ADK tool or straight from a
+  `defineTool` contract's zod schema; `nativeToolOf(tool)`, which names the
+  `NativeTool` a server-side tool or Gemini's code executor stands for; and
+  `toContractJsonSchema(schema, { strict? })`. Gemini's dialect (uppercase
+  types, int64 bounds as strings, `nullable`) is converted once, at any
+  depth, and the strict form reaches every nested object. Nothing calls
+  them yet; `toolDeclarationFor`, `toLowercaseJsonSchema` and
+  `toStrictJsonSchema` are unchanged.
 - **Thinking with tool use works on GPT and Grok (ADR 0050).** On
   reasoning ids (o-series, `gpt-5*`, `grok-4.5`, `grok-4.7`), the Responses
   adapters write each run of encrypted reasoning items on the part after it
@@ -80,6 +112,37 @@ the starter pack and the templates), not the repo's full history.
   it off) and exports `REASONING_CONTENT_KIND`; `models/kimiLlm` exports
   `wantsReasoningReplay`. `currentTurnStart` returns -1 when no user
   content opens the turn, so every content is then the current turn's.
+- **The fallback model on the engine's own contract (ADR 0044, ADR 0048).**
+  New module `melchizedek-agents/models/fallbackAdapter`: `FallbackAdapter`,
+  a `ModelAdapter` around a primary and a fallback adapter, with
+  `FallbackAdapterOptions` and `isProviderError`. It applies ADR 0044's
+  rules to a failed final's `error.retryable` and `status`, and hands the
+  fallback the request with its own model id and the caller's `reasoning`
+  unchanged. Nothing uses it yet. The breaker's state moves to the new
+  module `melchizedek-agents/models/circuitBreaker` (`circuitOpen`,
+  `recordFailure`, `recordSuccess`, `resetCircuits`, `breakerSettings`, and
+  `setBreakerClock` for tests), shared by both wrappers, so a provider
+  tripped on one path is skipped on the other. `models/fallback` still
+  exports `circuitOpen` and `resetCircuits`, and `FallbackLlm` behaves as
+  before.
+- **An elided tool result's size is stored the same on every server.**
+  `trimEventForStorage` writes it with en-US digit grouping (`2,563 chars
+  dropped before storage — …`), where it followed the server's locale
+  (`2.563` in German). An en-US server stores the same bytes as before, and
+  rows already stored are untouched.
+- The capability matrix's Ollama and gateway `thinking_with_tools` note names
+  `reasoning:` as the lever (ADR 0047), compiled to `reasoningEffort`.
+- **The shipped skills cover Kimi.** `melchizedek-models` adds `kimi-*` to
+  Moonshot AI in its routing table, `MOONSHOT_API_KEY` to its key list and
+  `kimi-k3` to its verified ids; `melchizedek` adds the key and `kimi-*` to
+  its `Model not found` line. Their briefs match.
+- **`wiki_relate` appends.** A new assertion goes at the end of
+  `.graph/relations.json` and every stored record keeps its place and bytes,
+  where each write used to re-sort the whole file. A store that does not
+  parse is refused rather than overwritten. `melchizedek-agents/wiki/entities`
+  exports `appendRelation(wikiRoot, record)`, which returns `false` for a
+  duplicate, and `saveRelations` writes records in the order given instead of
+  sorting them.
 - **A Gemini adapter on the model contract, not yet wired.** New module
   `melchizedek-agents/models/geminiAdapter`: `GeminiAdapter` implements
   `ModelAdapter` (ADR 0048) on `@google/genai` directly, with no ADK, on the

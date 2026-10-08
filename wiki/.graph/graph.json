@@ -2,28 +2,28 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-07"
+    "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 666,
-    "edges": 1600,
+    "nodes": 673,
+    "edges": 1629,
     "byKind": {
-      "doc": 104,
+      "doc": 105,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 94,
+      "file": 97,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 126,
+      "module": 129,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 254,
+      "links_to": 259,
       "requires_env": 162,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,18 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 374,
+      "imports": 383,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 310,
-      "supersedes": 1,
-      "constrains": 12,
-      "depends_on": 6,
-      "explains": 2
+      "derives_from": 317,
+      "supersedes": 2,
+      "constrains": 17,
+      "depends_on": 7,
+      "explains": 2,
+      "mitigates": 1
     },
     "byTier": {
-      "extracted": 1579,
-      "inferred": 21
+      "extracted": 1600,
+      "inferred": 29
     },
     "isolated": 4
   },
@@ -946,7 +947,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1089
+        "words": 1173
       }
     },
     {
@@ -986,6 +987,18 @@
       }
     },
     {
+      "id": "/decisions/0049-claude-requests-by-model-generation.md",
+      "kind": "doc",
+      "label": "ADR 0049: Claude requests follow the model generation",
+      "source": "/decisions/0049-claude-requests-by-model-generation.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 2274
+      }
+    },
+    {
       "id": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "kind": "doc",
       "label": "ADR 0050: The Responses adapters replay encrypted reasoning items and store nothing with the vendor",
@@ -1006,7 +1019,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1316
+        "words": 1326
       }
     },
     {
@@ -1090,7 +1103,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 4095
+        "words": 4607
       }
     },
     {
@@ -1102,7 +1115,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2999
+        "words": 3813
       }
     },
     {
@@ -3335,6 +3348,24 @@
       "source": "tests/auditTrail.test.ts"
     },
     {
+      "id": "file:tests/capabilityMatrix.test.ts",
+      "kind": "file",
+      "label": "capabilityMatrix.test.ts",
+      "source": "tests/capabilityMatrix.test.ts"
+    },
+    {
+      "id": "file:tests/claudeCurrentApi.test.ts",
+      "kind": "file",
+      "label": "claudeCurrentApi.test.ts",
+      "source": "tests/claudeCurrentApi.test.ts"
+    },
+    {
+      "id": "file:tests/contractToolDeclarations.test.ts",
+      "kind": "file",
+      "label": "contractToolDeclarations.test.ts",
+      "source": "tests/contractToolDeclarations.test.ts"
+    },
+    {
       "id": "file:tests/execution.test.ts",
       "kind": "file",
       "label": "execution.test.ts",
@@ -3797,7 +3828,16 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 392
+        "lines": 400
+      }
+    },
+    {
+      "id": "module:lib/models/circuitBreaker.ts",
+      "kind": "module",
+      "label": "lib/models/circuitBreaker.ts",
+      "source": "lib/models/circuitBreaker.ts",
+      "attrs": {
+        "lines": 82
       }
     },
     {
@@ -3806,7 +3846,16 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 566
+        "lines": 671
+      }
+    },
+    {
+      "id": "module:lib/models/claudeModels.ts",
+      "kind": "module",
+      "label": "lib/models/claudeModels.ts",
+      "source": "lib/models/claudeModels.ts",
+      "attrs": {
+        "lines": 253
       }
     },
     {
@@ -3833,7 +3882,16 @@
       "label": "lib/models/fallback.ts",
       "source": "lib/models/fallback.ts",
       "attrs": {
-        "lines": 118
+        "lines": 87
+      }
+    },
+    {
+      "id": "module:lib/models/fallbackAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/fallbackAdapter.ts",
+      "source": "lib/models/fallbackAdapter.ts",
+      "attrs": {
+        "lines": 108
       }
     },
     {
@@ -3950,7 +4008,7 @@
       "label": "lib/models/schemaNormalize.ts",
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
-        "lines": 133
+        "lines": 388
       }
     },
     {
@@ -4112,7 +4170,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 399
+        "lines": 418
       }
     },
     {
@@ -4391,7 +4449,7 @@
       "label": "lib/tools/wikiTools.ts",
       "source": "lib/tools/wikiTools.ts",
       "attrs": {
-        "lines": 838
+        "lines": 839
       }
     },
     {
@@ -4445,7 +4503,7 @@
       "label": "lib/wiki/entities.ts",
       "source": "lib/wiki/entities.ts",
       "attrs": {
-        "lines": 830
+        "lines": 867
       }
     },
     {
@@ -8335,6 +8393,62 @@
       "evidence": "/decisions/0048-engine-owned-model-contract.md:28"
     },
     {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "file:tests/claudeCurrentApi.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md frontmatter"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md:35"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md:33"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0049-claude-requests-by-model-generation.md:55"
+    },
+    {
       "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "to": "file:tests/responsesReasoningState.test.ts",
       "rel": "derives_from",
@@ -8903,6 +9017,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "file:tests/contractToolDeclarations.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "file:tests/modelContract.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8931,59 +9052,66 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:122"
+      "evidence": "/models/model-contract.md:69"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:37"
+      "evidence": "/models/model-contract.md:39"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:71"
+      "evidence": "/models/model-contract.md:86"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:78"
+      "evidence": "/models/model-contract.md:93"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:21"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:23"
+      "evidence": "/models/model-contract.md:25"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9018,7 +9146,7 @@
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:50"
+      "evidence": "/models/provider-routing.md:59"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9032,14 +9160,14 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:125"
+      "evidence": "/models/provider-routing.md:136"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:107"
+      "evidence": "/models/provider-routing.md:116"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9050,10 +9178,24 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:50"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:121"
+      "evidence": "/models/provider-routing.md:132"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:138"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9067,7 +9209,7 @@
       "to": "/operations/parity-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:54"
+      "evidence": "/models/provider-routing.md:63"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9081,7 +9223,7 @@
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:56"
+      "evidence": "/models/provider-routing.md:65"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -12277,6 +12419,13 @@
     },
     {
       "from": "module:lib/models/capabilities.ts",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/capabilities.ts",
       "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12295,6 +12444,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/capabilities.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
@@ -12344,6 +12500,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeModels.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeModels.ts"
     },
     {
       "from": "module:lib/models/contract.ts",
@@ -12445,6 +12608,13 @@
     },
     {
       "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallback.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12456,6 +12626,27 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallbackAdapter.ts",
+      "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallbackAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/fallbackAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallbackAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/fallbackAdapter.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallbackAdapter.ts"
     },
     {
       "from": "module:lib/models/gateway.ts",
@@ -12862,6 +13053,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
+    },
+    {
+      "from": "module:lib/models/schemaNormalize.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/schemaNormalize.ts"
+    },
+    {
+      "from": "module:lib/models/schemaNormalize.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/schemaNormalize.ts"
     },
     {
       "from": "module:lib/observability/embeddings.ts",
