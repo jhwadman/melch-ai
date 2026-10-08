@@ -26,18 +26,27 @@
  *     agent's list: where ADK's load_memory and preload_memory wrote theirs
  *     (ADR 0059);
  *   - the context reaches the run's memory through ADK's own
- *     `Context.searchMemory`, so a search reads the silo ADK's tools read.
+ *     `Context.searchMemory`, so a search reads the silo ADK's tools read;
+ *   - a NativeToolMarker is the shared sentinel the ADK runtime always ran
+ *     for that server-side tool, which carries the same marker (ADR 0062).
+ *
+ *   toAdkTool takes any of these and picks the wrapper.
  */
 
-import { BaseTool, FunctionTool } from '@google/adk';
+import { BaseTool, FunctionTool, GOOGLE_SEARCH } from '@google/adk';
 import type { Context, LlmRequest, ToolOptions, ToolProcessLlmRequest } from '@google/adk';
 import type { Schema } from '@google/genai';
 
+import type { NativeTool } from '../models/contract.ts';
 import type { TurnContent } from '../runtime/events.ts';
 import type { MemorySearchResult } from '../runtime/memoryService.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
-import { OWN_TOOL, createToolContext } from './tool.ts';
-import type { InstructionTool, Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from './tool.ts';
+import { COLLECTIONS_SEARCH } from './collectionsSearchTool.ts';
+import { OWN_TOOL, createToolContext, isInstructionTool, isNativeToolMarker, nativeToolMarkerOf } from './tool.ts';
+import type { InstructionTool, NativeToolMarker, Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from './tool.ts';
+import { URL_CONTEXT } from './urlContextTool.ts';
+import { WEB_SEARCH } from './webSearchTool.ts';
+import { X_SEARCH } from './xSearchTool.ts';
 import { asTool, toGeminiSchema, toolCallContextFrom } from './toolContract.ts';
 import type { ToolContract } from './toolContract.ts';
 
@@ -211,4 +220,47 @@ export function toAdkInstructionTool(tool: InstructionTool): BaseTool {
   const adkTool = new InstructionOnlyTool({ name: tool.name, description: tool.name });
   Object.defineProperty(adkTool, OWN_TOOL, { value: tool });
   return adkTool;
+}
+
+// ── Server-side tools (ADR 0062) ─────────────────────────────────────────────
+
+/**
+ * The ADK runtime's object for each NativeTool a marker may name: the
+ * engine's sentinels, which carry the same marker, and ADK's own
+ * GOOGLE_SEARCH. Code execution is the agent's `code_execution: gemini`,
+ * never a listed tool, so it has none.
+ */
+const ADK_NATIVE_TOOLS: Partial<Record<NativeTool, BaseTool>> = {
+  web_search: WEB_SEARCH,
+  x_search: X_SEARCH,
+  url_context: URL_CONTEXT,
+  collections_search: COLLECTIONS_SEARCH,
+  google_search: GOOGLE_SEARCH,
+};
+
+/**
+ * ADK surface for a NativeToolMarker: the shared sentinel the ADK runtime
+ * has always run for it, which during processLlmRequest leaves itself in
+ * the request for the adapter (or adds Gemini's own tool object).
+ */
+export function toAdkNativeTool(marker: NativeToolMarker): BaseTool {
+  const native = nativeToolMarkerOf(marker);
+  const adkTool = native ? ADK_NATIVE_TOOLS[native] : undefined;
+  if (!adkTool) {
+    throw new Error(`${marker.name} names no server-side tool an agent can list (code execution is an agent's code_execution: gemini)`);
+  }
+  return adkTool;
+}
+
+/**
+ * What the engine holds as a tool, as the ADK runtime consumes it: a Tool
+ * or a defineTool contract through toFunctionTool, an InstructionTool
+ * through toAdkInstructionTool, a NativeToolMarker through toAdkNativeTool.
+ * An ADK tool (one with runAsync) passes through as it is.
+ */
+export function toAdkTool(tool: Tool | ToolContract<any> | InstructionTool | NativeToolMarker | BaseTool): BaseTool {
+  if (tool instanceof BaseTool || 'runAsync' in tool) return tool as BaseTool;
+  if (isNativeToolMarker(tool)) return toAdkNativeTool(tool);
+  if (isInstructionTool(tool)) return toAdkInstructionTool(tool);
+  return toFunctionTool(tool as Tool);
 }

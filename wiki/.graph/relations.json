@@ -799,6 +799,54 @@
       "evidence": "registry.ts resolveAdapterWithFallback header: the ADK path's pair stays FallbackLlm(shim(primary), shim(fallback)) (ADR 0053); the contract path gets a FallbackAdapter around resolveAdapter's adapters.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §2: \"Every reader detects the marker, never the class or the shape.\" nativeToolOf \"reads it first, then ADK's own markers\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §3: \"toAdkNativeTool(marker) returns the shared sentinel\" and \"toAdkTool() picks the wrapper for a Tool, a contract, an InstructionTool or a marker\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §5: \"MCP tools are own Tools.\" The parameters \"pass through Gemini's dialect once (mcpToolParameters), so the native and ADK runtimes declare the same schema.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/a2a/remoteAgent.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §6: \"The remote agent tool is an own Tool (remoteAgentOwnTool)\" and remoteAgentTool \"still declares exactly what the hand-built one declared.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "module:lib/tools/examples.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 §7: \"An agent's examples are an InstructionTool\" that \"writes ExampleTool's block for text examples word for word\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0062 Context: ADR 0051 \"made every registry tool that declares a function an own Tool\"; the server-side sentinels were left as ADK objects \"until their own ticket\" (ADR 0051 item 6).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

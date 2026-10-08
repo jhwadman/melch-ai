@@ -11,6 +11,28 @@ the starter pack and the templates), not the repo's full history.
   grounding and the A2A server's web-sources lines list the pages it used,
   as they already did for Gemini. Before, only Gemini's answers showed
   their sources.
+- **Server-side tools are markers, and MCP, remote-agent and examples tools
+  are the engine's own (ADR 0062).** All additions, under the existing
+  `exports` map:
+  - `melchizedek-agents/tools/tool` gains `NativeToolMarker`,
+    `nativeToolMarker`, `nativeToolMarkerOf`, `isNativeToolMarker` and the
+    `NATIVE_TOOL` symbol. The new module `tools/nativeTools` holds the
+    markers for `web_search`, `x_search`, `url_context`,
+    `collections_search` and `google_search`;
+  - `tools/adkTool` gains `toAdkNativeTool` and `toAdkTool`, and
+    `registerTool` takes a marker;
+  - `tools/mcpToolFactory` gains `loadMcpTools` (own Tools) and
+    `mcpToolParameters`;
+  - `a2a/remote` gains `remoteAgentOwnTool`;
+  - the new module `tools/examples` holds an agent's `examples:` as an
+    InstructionTool that writes ADK's ExampleTool block word for word.
+
+  `nativeToolOf`, `wantsWebSearch` and the other sentinel checks now read
+  the marker, not the class. A tool that only declares nothing under a
+  server-side name is no longer treated as that tool. An MCP tool's nested
+  schemas no longer carry `default`, `propertyNames`, `$schema` or a boolean
+  `additionalProperties`. `propertyNames` was refused by the Gemini API.
+
 - **JSON mode without a schema is on the model contract (ADR 0061).**
   `ModelRequest` (`melchizedek-agents/models/contract`) gains
   `outputFormat?: 'json'`. An agent with

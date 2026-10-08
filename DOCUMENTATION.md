@@ -118,7 +118,7 @@ Field reference:
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
 | `context` | orchestrator | Compacts a long conversation: when the last request's prompt passed `compact_after_tokens`, earlier turns become one summary (written by `summary_model`, default the agent's own) and the last `keep_recent_events` stay verbatim. The full history stays stored; only what the model reads shrinks. The orchestrator of a delegate syndicate only: a dispatch route already reads a bounded projection, a workflow node sees only its input. |
 | `mode` | workflow node | `"task"`: the agent works with its tools until it calls `finish_task`, whose arguments (matching its `outputSchema`) become the node's output. Workflow nodes only. |
-| `examples` | any agent | Few-shot exchanges, `[{ input, output }]` (up to 20), added to every request's instruction by ADK's `ExampleTool`; the model never calls it. Keeps worked examples out of the prose of `instruction`. |
+| `examples` | any agent | Few-shot exchanges, `[{ input, output }]` (up to 20), added to every request's instruction as a few-shot block, the one ADK's `ExampleTool` wrote (an Instruction tool, `lib/tools/examples.ts`); the model never calls it. Keeps worked examples out of the prose of `instruction`. |
 | `skills` | any agent | Agent Skills (a directory of SKILL.md folders) the agent holds the way a coding harness does: every skill's name and description is appended to its instruction at compile time; `load_skill` reads one in full with the names of its files, `load_skill_resource` reads one file. `scripts: local` adds `run_skill_script`, which runs a skill's own scripts on this machine, each after a person approves (the `require_approval` pause); `tools:` names registry tools a skill's `allowed-tools` may unlock once loaded. Worked example: `examples/harness.yaml`; engine: `lib/tools/skillToolset.ts`. |
 
 Validation happens at load: missing names, legacy option blocks, and
@@ -134,7 +134,10 @@ defined once with `defineTool` and handed to the ADK runtime as a
 `FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`). An
 **Instruction tool** is the engine's own too: it declares no function and
 only writes into each request's instruction, reaching the ADK runtime
-through `toAdkInstructionTool`:
+through `toAdkInstructionTool`. A **server-side tool** is an own marker
+(`lib/tools/nativeTools.ts`) that names the provider's tool and declares no
+function; the ADK runtime runs its sentinel (`toAdkNativeTool`), and every
+adapter recognises it by marker ([ADR 0062](./wiki/decisions/0062-server-side-tools-as-markers.md)):
 
 | Name | Kind | Does |
 |---|---|---|
@@ -155,7 +158,8 @@ through `toAdkInstructionTool`:
 **MCP tools** are the exception to the registry: a subagent with
 `mcp_server_url:` in its YAML gets its tools from a remote MCP server at
 load time. `lib/tools/mcpToolFactory.ts` dials the server over SSE,
-lists its tools, and wraps each one as a live `FunctionTool` — the
+lists its tools, and makes each one an own Tool (`loadMcpTools`), which
+the ADK runtime runs as a `FunctionTool` (`createMcpTools`) — the
 agent's reach is decided by the server, not compiled in.
 `config/agents/examples/librarian.yaml` plus the demo catalog server
 (`npm run mcp:demo`, `scripts/demo_mcp_server.ts`) are the worked

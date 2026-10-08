@@ -34,6 +34,11 @@
  * user's recalled facts into the instruction. Both run before the request
  * is sent, in the order the agent lists its tools.
  *
+ * SERVER-SIDE TOOLS (ADR 0062): a NativeToolMarker declares no function
+ * either; it names the NativeTool the provider runs on its own side
+ * (web_search, x_search, url_context, collections_search). Every reader
+ * recognises one by its marker symbol, never by class or name.
+ *
  * A LEAF: types and plain functions. Its imports are types from the model
  * contract and the runtime's event and memory interfaces; nothing in its
  * import graph names @google/*, which tests/toolContract.test.ts asserts.
@@ -42,7 +47,7 @@
  * what it found, and nothing here reads a result to decide what runs next.
  */
 
-import type { ToolDeclaration } from '../models/contract.ts';
+import type { NativeTool, ToolDeclaration } from '../models/contract.ts';
 import type { TurnContent } from '../runtime/events.ts';
 import type { MemorySearchResult, MemoryService } from '../runtime/memoryService.ts';
 
@@ -146,6 +151,52 @@ export interface Tool {
 export interface InstructionTool {
   readonly name: string;
   instruction(ctx: ToolContext): Promise<string | undefined>;
+}
+
+// ── Server-side tools (ADR 0062) ─────────────────────────────────────────────
+
+/**
+ * Where a server-side tool names the NativeTool it stands for. A global
+ * symbol, so a second copy of this module, or an ADK sentinel made from a
+ * marker, still matches.
+ */
+export const NATIVE_TOOL: unique symbol = Symbol.for('melchizedek.nativeTool');
+
+/**
+ * Listed under an agent's `tools:` like a Tool, but declares no function and
+ * is never called here: the provider runs it on its own side (web_search,
+ * x_search, url_context, collections_search). The marker only names the
+ * NativeTool; the request carries it in `nativeTools`, and each adapter adds
+ * its provider's own tool object or drops it (lib/models/capabilities.ts).
+ */
+export interface NativeToolMarker {
+  readonly name: string;
+  /** What the tool is, for a reader: never sent as a declaration. */
+  readonly description: string;
+  readonly [NATIVE_TOOL]: NativeTool;
+}
+
+/** A frozen marker for `nativeTool`, listed under the NativeTool's own name. */
+export function nativeToolMarker(nativeTool: NativeTool, description = ''): NativeToolMarker {
+  return Object.freeze({ name: nativeTool, description, [NATIVE_TOOL]: nativeTool });
+}
+
+/**
+ * The NativeTool `value` stands for, read from its marker: the marker
+ * itself, or anything carrying the marker's symbol (the ADK sentinels in
+ * lib/tools/*Tool.ts carry it). Undefined for anything else. Never by class
+ * or by name: a client-side tool registered as `web_search` carries no
+ * marker and stays a client-side tool.
+ */
+export function nativeToolMarkerOf(value: unknown): NativeTool | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const native = (value as Record<PropertyKey, unknown>)[NATIVE_TOOL];
+  return typeof native === 'string' ? (native as NativeTool) : undefined;
+}
+
+/** True for a NativeToolMarker itself (not an ADK tool, which has runAsync). */
+export function isNativeToolMarker(value: unknown): value is NativeToolMarker {
+  return nativeToolMarkerOf(value) !== undefined && typeof (value as { name?: unknown }).name === 'string' && !('runAsync' in (value as object));
 }
 
 /** True for an InstructionTool: an instruction and no declaration (and not an ADK tool, which has runAsync). */
@@ -358,8 +409,9 @@ export const OWN_TOOL: unique symbol = Symbol.for('melchizedek.tool');
 
 /**
  * The Tool behind `value`: the value itself when it is a Tool, the Tool an
- * ADK tool was made from by toFunctionTool, else undefined (a server-side
- * sentinel, an InstructionTool, an MCP or subagent tool). An ADK tool that was
+ * ADK tool was made from by toFunctionTool, else undefined: a server-side
+ * tool, an InstructionTool, a local subagent's AgentTool, an OpenAPI or
+ * skills tool. An ADK tool that was
  * gated afterwards (lib/compile.ts sets `requireConfirmation`) yields the
  * gated Tool, so the gate survives the trip back.
  */
