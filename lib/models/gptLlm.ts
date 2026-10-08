@@ -1,14 +1,15 @@
 /**
- * lib/models/gptLlm.ts — OpenAI GPT provider for the ADK LLMRegistry.
+ * lib/models/gptLlm.ts — OpenAI GPT for ADK's LLMRegistry: the ADK shim
+ * (lib/models/adkShim.ts) around GptAdapter (lib/models/gptAdapter.ts).
  *
  * WHY this file exists:
- *   Model optionality: any agent YAML with model: "gpt-*" (or an o-series
- *   id like "o4-mini") routes here after registration. Unlike Grok/Ollama
- *   this adapter does NOT reuse the chat-completions base class — it speaks
- *   OpenAI's Responses API through the official `openai` SDK, because the
- *   Responses API is where OpenAI exposes reasoning summaries (the model's
- *   thinking, surfaced as { thought: true } parts here) and the first-class
- *   `web_search` tool this framework's web_search abstraction maps to.
+ *   Model optionality: any agent YAML with model: "gpt-*" (or an o-series id
+ *   like "o4-mini") routes here after registration. The Responses API
+ *   translation lives in GptAdapter, on the engine's own model contract
+ *   (ADR 0048), so the native runtime can call it without ADK. GptLlm is
+ *   what ADK registers and calls: the shim maps ADK's LlmRequest to a
+ *   ModelRequest, charges the turn and opens the llm.request span once
+ *   (ADR 0053), and maps each ModelResponse back. GrokLlm subclasses it.
  *
  * HOW TO ENABLE:
  *   1. Install the SDK (already in package.json):  npm install
@@ -16,801 +17,138 @@
  *   3. Set model: "gpt-5-mini" (or any gpt-* / o-series id) in your YAML.
  *   registerAvailableProviders() registers this adapter when the key is set.
  *
- * CONTENT FORMAT TRANSLATION:
- *   ADK Content/Part objects → Responses API `input` items:
- *     user/model text        → { role, content } message items
- *     functionCall part      → { type:'function_call', call_id, name, arguments }
- *     functionResponse part  → { type:'function_call_output', call_id, output }
- *   The call_id round-trip matters: this adapter emits functionCall.id so
- *   ADK echoes it back on the tool response, and the Responses API requires
- *   function_call_output.call_id to match the originating call.
+ * WHAT IT KEEPS FROM THE ADK PATH (ADR 0056), beyond the shim's mapping:
+ *   - Usage in the Responses meaning: `candidatesTokenCount` is
+ *     `output_tokens`, reasoning included, so llm.tokens.output, the turn's
+ *     token charge and the ledger count what they always counted for GPT and
+ *     Grok. (The shim's mapping writes Gemini's meaning, reasoning excluded.)
+ *   - The server-side tool calls (web_search, x_search…) as
+ *     customMetadata['responses.server_tool_calls'] and the vendor's counters
+ *     as ['responses.server_tool_usage'], which the root span turns into
+ *     ToolCall events so adk_turns.tool_calls counts a searched answer.
+ *   - No groundingMetadata: the A2A server's sources lines stay Gemini's.
  *
- *   Response `output` items map back:
- *     'reasoning' summary    → { text, thought: true } partial (display-only)
- *     'reasoning' item       → providerState on the part that follows it, on
- *                              ids that replay reasoning (ADR 0050): sent back
- *                              verbatim before that part's item within the
- *                              turn's tool loop; those requests carry
- *                              store: false and include the encrypted content
- *     'message' output_text  → text part (2nd+ message item opens a new paragraph)
- *     'function_call'        → functionCall part
- *     '*_call' / 'custom_tool_call' (server-side: web_search, x_search…)
- *                            → customMetadata['responses.server_tool_calls'],
- *                              never a functionCall (ADK must not run them)
- *   usage.input_tokens / output_tokens / output_tokens_details.reasoning_tokens
- *   → LlmResponse.usageMetadata, so token telemetry works like every provider.
- *   xAI's server-side tool counters → customMetadata['responses.server_tool_usage']
- *   and llm.server_tools.* span attributes.
- *
- * STREAMING (ADK stream=true, i.e. RunConfig streamingMode: SSE):
- *   The request is sent with { stream: true }; SSE deltas
- *   (response.output_text.delta / response.reasoning_summary_text.delta)
- *   are yielded as { partial: true } responses — the ADK Runner displays
- *   but does NOT persist partial events — and the terminal
- *   response.completed payload is mapped through the same final-response
- *   translator as the non-streaming path, carrying full content + usage
- *   as the ONE event that lands in the session. Function calls are never
- *   delta-streamed (both OpenAI and xAI deliver them whole).
+ * The LlmRequest builders below (buildResponsesInput, buildResponsesTools)
+ * are the adapter's own, run on the LlmRequest mapped to the contract.
  */
 
-import { endpointFromEnv, entraTokenSource, nativeSearchOn, platformModel } from './endpoints.ts';
-import type { ProviderEndpoint } from './endpoints.ts';
-import { BaseLlm, LLMRegistry } from '@google/adk';
+import { LLMRegistry } from '@google/adk';
 import type { LlmRequest, LlmResponse } from '@google/adk';
-import type { BaseLlmConnection } from '@google/adk';
 
-import {
-  traceLlmGeneration,
-  setLlmSpanAttribute,
-} from '../observability/tracer.ts';
-import {
-  wantsWebSearch,
-  isWebSearchSentinel,
-  xaiWebSearchParamsFromEnv,
-} from '../tools/webSearchTool.ts';
-import {
-  wantsXSearch,
-  isXSearchSentinel,
-  xSearchParamsFromEnv,
-} from '../tools/xSearchTool.ts';
-import {
-  wantsCollectionsSearch,
-  isCollectionsSearchSentinel,
-  collectionIdsFromEnv,
-  collectionsMaxResultsFromEnv,
-} from '../tools/collectionsSearchTool.ts';
+import { AdkShim } from './adkShim.ts';
+import type { ModelResponse } from './contract.ts';
+import type { ProviderEndpoint } from './endpoints.ts';
+import { llmRequestToModelRequest, reasoningOf } from './genaiMapping.ts';
+import { GptAdapter, responsesFunctionTools, responsesInput, responsesServerTools } from './gptAdapter.ts';
+import type { GptAdapterOptions, ReasoningReplay } from './gptAdapter.ts';
+import { GrokAdapter } from './grokAdapter.ts';
 import { providerForModel } from './providerMap.ts';
-import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
-import { providerRequestOptions } from '../runtime/turnControl.ts';
-import { toLowercaseJsonSchema, toStrictJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
-import { providerErrorResponse } from './errorResponse.ts';
 
-/** Reasoning-capable ids: o-series and the gpt-5 family. The reasoning
- *  param is also dropped and retried once on a 400, so a miss here only
- *  costs one extra round trip. */
-function isReasoningModel(model: string): boolean {
-  return /^o[0-9]/.test(model) || /^gpt-5/.test(model);
+export {
+  REASONING_STATE_KIND,
+  extractServerToolCalls,
+  serverToolUsage,
+  streamEventDelta,
+} from './gptAdapter.ts';
+export type { ServerToolCall } from './gptAdapter.ts';
+
+// ── The LlmRequest builders (the adapter's, on the mapped request) ───────────
+
+/** The ModelRequest an LlmRequest maps to, for the request's own model id. */
+function toModelRequest(llmRequest: LlmRequest) {
+  return llmRequestToModelRequest(llmRequest, { model: llmRequest.model || 'unknown' });
 }
 
-/** The providerState kind these adapters write: the reasoning output items
- *  that preceded a part, verbatim (ADR 0046). */
-export const REASONING_STATE_KIND = 'reasoning_items';
-
-/** The `include` value that returns reasoning items with their encrypted content. */
-const ENCRYPTED_REASONING = 'reasoning.encrypted_content';
-
-/** A reasoning item that can be sent back with `store: false`: one that
- *  carries its encrypted content (its id alone points at nothing stored). */
-const isReplayableReasoning = (item: any): boolean =>
-  !!item && typeof item === 'object' && item.type === 'reasoning' && typeof item.encrypted_content === 'string';
-
-// ── Request building (exported for offline tests) ────────────────────────────
-
 /**
- * ADK Contents → Responses API `input` items + `instructions` string.
- *
- * With `replay`, the reasoning items `replay.provider`'s adapter for
- * `replay.model` wrote on a part (providerState, ADR 0046) are sent back
- * verbatim, immediately before that part's item, on the model contents of
- * the current turn's tool loop only. A model content that replays keeps the
- * model's order of text and calls, so each run of reasoning items is
- * followed by the item it preceded.
+ * ADK Contents → Responses API `input` items + `instructions` string: the
+ * LlmRequest mapped to the contract (lib/models/genaiMapping.ts), then
+ * GptAdapter's responsesInput. With `replay`, that provider's reasoning items
+ * for that model are sent back before their part's item, within the current
+ * turn's tool loop only (ADR 0050).
  */
 export function buildResponsesInput(
   llmRequest: LlmRequest,
-  replay?: { provider: string; model: string },
+  replay?: ReasoningReplay,
 ): {
   instructions: string | undefined;
   input: any[];
 } {
-  const systemParts: string[] = [];
-  const input: any[] = [];
-  const turnStart = replay ? currentTurnStart(llmRequest.contents) : llmRequest.contents.length;
-
-  for (const [index, content] of llmRequest.contents.entries()) {
-    if ((content as any).role === 'system') {
-      const text = content.parts
-        ?.filter((p: any) => p.text)
-        .map((p: any) => p.text)
-        .join('\n');
-      if (text) systemParts.push(text);
-      continue;
-    }
-
-    const role = content.role === 'model' ? 'assistant' : 'user';
-    const contentParts: any[] = [];
-    const flush = () => {
-      if (contentParts.length > 0) input.push({ role, content: contentParts.splice(0) });
-    };
-    const replayHere = role === 'assistant' && index > turnStart ? replay : undefined;
-    let ordered = false;
-
-    for (const part of content.parts ?? []) {
-      const p = part as any;
-      // The reasoning items that preceded this part. Another provider's,
-      // or another model's, are skipped.
-      const payload = replayHere ? providerStateOf(p, replayHere.provider, REASONING_STATE_KIND, replayHere.model)?.payload : undefined;
-      const items = Array.isArray(payload) ? payload.filter(isReplayableReasoning) : [];
-      if (items.length > 0) {
-        flush();
-        input.push(...items);
-        ordered = true;
-      }
-      if (p.thought) {
-        // Prior-turn scratchpad is display-only; never replay it.
-        continue;
-      }
-      if (p.text) {
-        contentParts.push({
-          type: role === 'assistant' ? 'output_text' : 'input_text',
-          text: p.text,
-        });
-      } else if (p.inlineData?.data && role === 'user') {
-        const mime = p.inlineData.mimeType ?? 'image/png';
-        contentParts.push({
-          type: 'input_image',
-          image_url: `data:${mime};base64,${p.inlineData.data}`,
-        });
-      } else if (p.functionCall) {
-        if (ordered) flush();
-        input.push({
-          type: 'function_call',
-          call_id: p.functionCall.id ?? `call_${input.length}`,
-          name: p.functionCall.name,
-          arguments: JSON.stringify(p.functionCall.args ?? {}),
-        });
-      } else if (p.functionResponse) {
-        input.push({
-          type: 'function_call_output',
-          call_id: p.functionResponse.id ?? '',
-          output: JSON.stringify(p.functionResponse.response ?? {}),
-        });
-      }
-    }
-
-    flush();
-  }
-
-  const configSystem = (llmRequest.config as any)?.systemInstruction;
-  if (configSystem) {
-    const text =
-      typeof configSystem === 'string'
-        ? configSystem
-        : configSystem.parts?.map((p: any) => p.text).join('\n') ?? '';
-    if (text) systemParts.unshift(text);
-  }
-
-  return {
-    instructions: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
-    input,
-  };
-}
-
-/** ADK toolsDict (+ web_search sentinel) → Responses API tool definitions. */
-export function buildResponsesTools(llmRequest: LlmRequest): any[] {
-  const tools: any[] = [];
-  for (const [, tool] of Object.entries(llmRequest.toolsDict ?? {})) {
-    if (isWebSearchSentinel(tool)) continue; // added as a native tool below
-    if (isXSearchSentinel(tool)) continue;   // added as a native tool below
-    if (isCollectionsSearchSentinel(tool)) continue; // added as a native tool below
-    const decl = toolDeclarationFor(tool);
-    if (decl) {
-      tools.push({
-        type: 'function',
-        name: decl.name,
-        description: decl.description,
-        parameters: decl.parameters,
-        strict: false,
-      });
-    }
-  }
-  if (wantsWebSearch(llmRequest)) {
-    // OpenAI-native, runs server-side. On the xAI path only, optional
-    // domain filters ride the tool object (XAI_WEB_SEARCH_* env vars —
-    // deployment config, the XAI_COLLECTION_IDS doctrine); xAI's web_search
-    // accepts no date bounds (docs.x.ai, 2026-08-08 — from_date/to_date are
-    // x_search-only). OpenAI's web_search takes no params and stays bare.
-    const xaiParams =
-      llmRequest.model && providerForModel(llmRequest.model) === 'xai'
-        ? xaiWebSearchParamsFromEnv()
-        : {};
-    tools.push({ type: 'web_search', ...xaiParams });
-  }
-  if (wantsXSearch(llmRequest)) {
-    // xAI Agent Tools only (sentinel is xai-gated). Optional server-side
-    // constraints (date bounds, handle lists) are deployment config from
-    // XAI_X_SEARCH_* env vars — the XAI_COLLECTION_IDS doctrine; with none
-    // set this is the bare tool it always was.
-    tools.push({ type: 'x_search', ...xSearchParamsFromEnv() });
-  }
-  if (wantsCollectionsSearch(llmRequest)) {
-    // xAI Collections ride the OpenAI-compatible `file_search` wire shape;
-    // ids are deployment config (XAI_COLLECTION_IDS), never YAML.
-    const ids = collectionIdsFromEnv();
-    if (ids.length > 0) {
-      const max = collectionsMaxResultsFromEnv();
-      tools.push({
-        type: 'file_search',
-        vector_store_ids: ids,
-        ...(max !== undefined ? { max_num_results: max } : {}),
-      });
-    } else {
-      console.warn(
-        '[collections_search] declared but XAI_COLLECTION_IDS is empty — tool omitted for this request.',
-      );
-    }
-  }
-  return tools;
-}
-
-// ── Stream-event mapping (exported for offline tests) ────────────────────────
-
-/** Maps one Responses-API SSE event to a displayable delta, or null for
- *  event types that carry none. Function calls are NOT delta-streamed —
- *  both OpenAI and xAI deliver them whole in the final response. */
-export function streamEventDelta(
-  ev: any,
-): { thought: boolean; text: string } | null {
-  if (!ev || typeof ev !== 'object') return null;
-  if (ev.type === 'response.output_text.delta' && typeof ev.delta === 'string') {
-    return { thought: false, text: ev.delta };
-  }
-  if (
-    ev.type === 'response.reasoning_summary_text.delta' &&
-    typeof ev.delta === 'string'
-  ) {
-    return { thought: true, text: ev.delta };
-  }
-  return null;
-}
-
-// ── Server-side tool calls (exported for offline tests) ──────────────────────
-
-/** One tool call the vendor ran on its own side inside a single Responses
- *  call. It never comes back to ADK as a functionCall, so without this
- *  record a searched answer and a recalled one look identical in a trace. */
-export interface ServerToolCall {
-  name: string;
-  args: Record<string, unknown>;
-  status?: string;
-  /** URLs the vendor reports the call returned (web search only). */
-  sources?: string[];
+  const { instructions, input } = responsesInput(toModelRequest(llmRequest), replay);
+  return { instructions, input };
 }
 
 /**
- * The server-side tool calls in a Responses `output` array. Two shapes,
- * both verified against a live xAI response (2026-09-25):
- *   web_search_call   → { status, action: { type:'search', query, sources:[{url}] } }
- *   custom_tool_call  → { name:'x_keyword_search'|'x_semantic_search', input:'<json>', status }
- * Any other `*_call` item (code_interpreter_call, file_search_call…) is
- * recorded by its type with its `action` as args. `custom_tool_call` is
- * server-side here because this adapter never declares a client custom tool.
+ * ADK toolsDict (+ the native-tool sentinels) → Responses API tool
+ * definitions: the function tools, then the vendor's native tools, the
+ * request's model choosing the vendor (xAI's filters ride only on grok ids).
  */
-export function extractServerToolCalls(output: unknown): ServerToolCall[] {
-  const calls: ServerToolCall[] = [];
-  for (const item of Array.isArray(output) ? output : []) {
-    const type = item?.type;
-    if (typeof type !== 'string' || type === 'function_call') continue;
-    if (type === 'custom_tool_call') {
-      let args: Record<string, unknown>;
-      try {
-        args = JSON.parse(item.input ?? '{}');
-      } catch {
-        args = { raw: item.input };
-      }
-      calls.push({ name: String(item.name ?? 'custom_tool'), args, status: item.status });
-    } else if (type.endsWith('_call')) {
-      const { sources, ...args } = item.action ?? {};
-      const urls = Array.isArray(sources)
-        ? sources.map((s: any) => s?.url).filter((u: unknown) => typeof u === 'string')
-        : [];
-      calls.push({
-        name: type.slice(0, -'_call'.length),
-        args,
-        status: item.status,
-        ...(urls.length > 0 ? { sources: urls } : {}),
-      });
-    }
-  }
-  return calls;
-}
-
-/** xAI's server-side tool counters off `usage` (num_server_side_tools_used +
- *  server_side_tool_usage_details), non-zero entries only; {} for OpenAI. */
-export function serverToolUsage(usage: any): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (typeof usage?.num_server_side_tools_used === 'number') {
-    out.total = usage.num_server_side_tools_used;
-  }
-  for (const [k, v] of Object.entries(usage?.server_side_tool_usage_details ?? {})) {
-    if (typeof v === 'number' && v > 0) out[k] = v;
-  }
-  return out;
+export function buildResponsesTools(llmRequest: LlmRequest): any[] {
+  const request = toModelRequest(llmRequest);
+  const adapter = providerForModel(request.model) === 'xai' ? new GrokAdapter({ model: request.model }) : new GptAdapter({ model: request.model });
+  return [...responsesFunctionTools(request), ...adapter.nativeToolPlan(request).tools];
 }
 
 // ── GptLlm ───────────────────────────────────────────────────────────────────
 
-export class GptLlm extends BaseLlm {
-  /** gpt-* and o-series ids route here after registration. */
-  static readonly supportedModels: Array<string | RegExp> = [
-    /^gpt-.+/,
-    /^o[0-9].*/,
-  ];
+/** GptLlm's constructor options: the adapter's (ADR 0023 for `endpoint`). */
+export type GptLlmOptions = GptAdapterOptions;
 
-  protected apiKey?: string;
-  private endpointOverride?: ProviderEndpoint;
-  private searchDropWarned = false;
+export class GptLlm extends AdkShim {
+  /** gpt-* and o-series ids route here after registration. */
+  static readonly supportedModels: Array<string | RegExp> = [/^gpt-.+/, /^o[0-9].*/];
+
+  declare readonly adapter: GptAdapter;
+
+  /** The adapter a class builds for its options: GptAdapter here, GrokAdapter in GrokLlm. */
+  protected static createAdapter(options: GptLlmOptions): GptAdapter {
+    return new GptAdapter(options);
+  }
 
   /**
    * `endpoint` (ADR 0023): OpenAI's API (or a proxy at its base URL) or Azure
    * OpenAI. Default: the environment's (`OPENAI_PLATFORM`).
    */
-  constructor({ model, apiKey, endpoint }: { model: string; apiKey?: string; endpoint?: ProviderEndpoint }) {
-    super({ model });
-    this.apiKey = apiKey;
-    this.endpointOverride = endpoint;
-  }
-
-  /** Where requests go. Only OpenAI's own ids have platforms; a subclass vendor is direct. */
-  protected endpoint(): ProviderEndpoint {
-    if (this.providerId() !== 'openai') return { platform: 'direct' };
-    return this.endpointOverride ?? endpointFromEnv('openai');
+  constructor(options: { model: string; apiKey?: string; endpoint?: ProviderEndpoint }) {
+    super((new.target as typeof GptLlm).createAdapter(options), { model: options.model });
   }
 
   /**
-   * The key (or token source) and base URL for the client, or why there is
-   * none. Azure takes AZURE_OPENAI_API_KEY (or the credentials plug point's
-   * key or token), else an Entra ID token from @azure/identity.
+   * The shim's mapping, with the Responses usage meaning and the server-side
+   * tool record the ADK path has always carried, and without groundingMetadata
+   * (see the header, ADR 0056).
    */
-  protected clientAuth(e: ProviderEndpoint): { apiKey: string | (() => Promise<string>); baseURL?: string } | { error: string } {
-    if (e.platform === 'azure') {
-      if (!e.baseURL) return { error: 'Azure OpenAI: AZURE_OPENAI_ENDPOINT is not set.' };
-      const key = this.apiKey || e.apiKey;
-      return { apiKey: key || e.token || entraTokenSource(), baseURL: e.baseURL };
+  protected override toLlmResponse(response: ModelResponse): LlmResponse {
+    const mapped = super.toLlmResponse(response);
+    if (response.partial) return mapped;
+    const { groundingMetadata: _dropped, ...out } = mapped;
+    if (response.usage && out.usageMetadata) {
+      out.usageMetadata = { ...out.usageMetadata, candidatesTokenCount: response.usage.outputTokens };
     }
-    const key = this.apiKey || e.apiKey || this.apiKeyFromEnv();
-    if (!key) return { error: this.missingKeyMessage() };
-    const baseURL = this.baseURL() ?? e.baseURL;
-    return { apiKey: key, ...(baseURL ? { baseURL } : {}) };
+    const tools = responsesServerTools(response);
+    if (tools) {
+      out.customMetadata = {
+        ...out.customMetadata,
+        ...(tools.calls.length > 0 ? { 'responses.server_tool_calls': tools.calls } : {}),
+        ...(Object.keys(tools.usage).length > 0 ? { 'responses.server_tool_usage': tools.usage } : {}),
+      };
+    }
+    return out;
   }
 
-  // ── Provider hooks ─────────────────────────────────────────────────────────
-  // The Responses API surface is spoken by more than one vendor: xAI's Agent
-  // Tools API (lib/models/grokLlm.ts) is wire-compatible, so GrokLlm
-  // subclasses this adapter and overrides only these hooks.
-
-  /** Provider id for telemetry and error codes. */
-  protected providerId(): string {
-    return 'openai';
-  }
-
-  /** SDK baseURL override; undefined = api.openai.com. */
-  protected baseURL(): string | undefined {
-    return undefined;
-  }
-
-  protected apiKeyFromEnv(): string | undefined {
-    return process.env.OPENAI_API_KEY;
-  }
-
-  protected missingKeyMessage(): string {
-    return 'OPENAI_API_KEY is not set in environment.';
-  }
-
-  /** Responses API `reasoning` request param, or undefined to omit it.
-   *  Base: reasoning summaries for OpenAI's reasoning-capable ids, plus the
-   *  effort the agent set (generateContentConfig.reasoningEffort, which the
-   *  YAML `reasoning:` key compiles to — ADR 0047). Subclasses override per
-   *  vendor (GrokLlm pins grok-4.5 to a reasoning effort). A 400 from a
-   *  model that rejects the param is retried once without it — see
-   *  createWithRetry. */
+  /** The `reasoning` field this model sends for an LlmRequest's config (ADR 0047), as the adapter maps it. */
   protected reasoningParam(llmRequest?: LlmRequest): Record<string, unknown> | undefined {
-    if (!isReasoningModel(this.model)) return undefined;
-    const effort = (llmRequest?.config as any)?.reasoningEffort;
-    return { summary: 'auto', ...(effort !== undefined ? { effort } : {}) };
+    return this.adapter.reasoningParam(reasoningOf(llmRequest?.config));
   }
 
-  /** Whether this id carries its reasoning across the steps of a tool loop
-   *  (ADR 0050): its requests send `store: false` and ask for encrypted
-   *  reasoning, its responses write the reasoning items on the part that
-   *  follows them, and its requests replay them. Base: OpenAI's
-   *  reasoning-capable ids. GrokLlm overrides it per vendor. */
-  protected replaysReasoning(): boolean {
-    return isReasoningModel(this.model);
-  }
-
-  /** Extra options for the OpenAI SDK client constructor. Subclasses
-   *  override per vendor (GrokLlm sets a long request timeout, per xAI's
-   *  streaming guidance for reasoning models). */
-  protected clientOptions(): Record<string, unknown> {
-    return {};
-  }
-
-  // ── Generation ─────────────────────────────────────────────────────────────
-
-  async *generateContentAsync(
-    llmRequest: LlmRequest,
-    stream = false,
-  ): AsyncGenerator<LlmResponse, void> {
-    yield* traceLlmGeneration(
-      { provider: this.providerId(), model: this.model, llmRequest },
-      this.generateInner(llmRequest, stream),
-    );
-  }
-
-  private async *generateInner(
-    llmRequest: LlmRequest,
-    stream: boolean,
-  ): AsyncGenerator<LlmResponse, void> {
-    let endpoint: ProviderEndpoint;
-    try {
-      endpoint = this.endpoint();
-    } catch (err) {
-      yield { errorCode: 'ENDPOINT_MISCONFIGURED', errorMessage: (err as Error).message };
-      return;
-    }
-    const auth = this.clientAuth(endpoint);
-    if ('error' in auth) {
-      yield {
-        errorCode: endpoint.platform === 'direct' ? 'MISSING_API_KEY' : 'ENDPOINT_MISCONFIGURED',
-        errorMessage: auth.error,
-      };
-      return;
-    }
-
-    // Dynamic import — mirrors claudeLlm.ts, so the framework boots without
-    // the openai SDK installed for users of other providers.
-    let OpenAI: any;
-    try {
-      const mod = await import('openai');
-      OpenAI = mod.default ?? (mod as any).OpenAI;
-    } catch {
-      yield {
-        errorCode: 'SDK_NOT_INSTALLED',
-        errorMessage:
-          'The openai package is not installed. Run: npm install openai',
-      };
-      return;
-    }
-
-    const client = new OpenAI({
-      apiKey: auth.apiKey,
-      ...(auth.baseURL ? { baseURL: auth.baseURL } : {}),
-      ...this.clientOptions(),
-    });
-
-    const replays = this.replaysReasoning();
-    const { instructions, input } = buildResponsesInput(
-      llmRequest,
-      replays ? { provider: this.providerId(), model: this.model } : undefined,
-    );
-    let tools = buildResponsesTools(llmRequest);
-    if (wantsWebSearch(llmRequest)) {
-      if (nativeSearchOn('openai', endpoint.platform)) {
-        setLlmSpanAttribute('llm.web_search.native', true);
-      } else {
-        // Not sent to Azure OpenAI (lib/models/endpoints.ts); the doctor and
-        // the capability matrix state this before any request.
-        tools = tools.filter((t) => t.type !== 'web_search');
-        setLlmSpanAttribute('llm.web_search.omitted', true);
-        setLlmSpanAttribute('llm.capability.dropped', 'web_search');
-        if (!this.searchDropWarned) {
-          this.searchDropWarned = true;
-          console.warn(`⚠ web_search is not sent to ${this.model} on Azure OpenAI; the agent answers without it (use web_extract).`);
-        }
-      }
-    }
-    if (wantsCollectionsSearch(llmRequest)) {
-      setLlmSpanAttribute(
-        collectionIdsFromEnv().length > 0
-          ? 'llm.collections_search.native'
-          : 'llm.collections_search.omitted',
-        true,
-      );
-    }
-
-    const cfg = (llmRequest.config as any) ?? {};
-    const reasoning = this.reasoningParam(llmRequest);
-    const request: Record<string, unknown> = {
-      model: platformModel(endpoint, this.model),
-      input,
-      ...(instructions ? { instructions } : {}),
-      ...(tools.length > 0 ? { tools } : {}),
-      ...(cfg.maxOutputTokens !== undefined
-        ? { max_output_tokens: cfg.maxOutputTokens }
-        : {}),
-      ...(cfg.temperature !== undefined && !isReasoningModel(this.model)
-        ? { temperature: cfg.temperature }
-        : {}),
-      // Structured output: outputSchema wins over bare JSON mode.
-      ...(cfg.responseSchema
-        ? {
-            text: {
-              format: {
-                type: 'json_schema',
-                name: 'response',
-                // Strict: the API enforces the exact property names, so a
-                // judge rubric's fields arrive as declared, never renamed.
-                strict: true,
-                schema: toStrictJsonSchema(cfg.responseSchema),
-              },
-            },
-          }
-        : cfg.responseMimeType === 'application/json'
-          ? { text: { format: { type: 'json_object' } } }
-          : {}),
-      // Reasoning param — summaries and/or vendor effort control (see
-      // reasoningParam hook; provider subclasses shape it).
-      ...(reasoning ? { reasoning } : {}),
-      // Reasoning state (ADR 0050): the vendor keeps nothing server-side,
-      // and returns the reasoning encrypted so the next step of the tool
-      // loop can send it back from the part it rides on.
-      ...(replays ? { store: false, include: [ENCRYPTED_REASONING] } : {}),
-    };
-
-    try {
-      if (stream) {
-        yield* this.streamResponses(client, request);
-        return;
-      }
-      const response = await this.createWithRetry(client, request);
-      yield* this.mapFinalResponse(response);
-    } catch (err: unknown) {
-      // The SDK's own retries are spent: say whether another model may
-      // succeed (customMetadata 'error.retryable', lib/models/errorResponse.ts).
-      yield providerErrorResponse(err, `${this.providerId().toUpperCase()}_ERROR`);
-    }
-  }
-
-  /** responses.create with the guarded reasoning retry: if the model
-   *  rejects the request with a 400 while it carries reasoning additions (a
-   *  non-reasoning model matched the pattern, or a replayed reasoning item
-   *  was refused), drop the reasoning param, the encrypted-reasoning
-   *  include and the replayed items, and try once more. `store: false`
-   *  stays. */
-  private async createWithRetry(
-    client: any,
-    request: Record<string, unknown>,
-  ): Promise<any> {
-    try {
-      return await client.responses.create(request, providerRequestOptions());
-    } catch (err: any) {
-      if (err?.status === 400 && (request.reasoning || request.include)) {
-        delete request.reasoning;
-        delete request.include;
-        request.input = (request.input as any[]).filter((i) => i?.type !== 'reasoning');
-        setLlmSpanAttribute('llm.retry_without_reasoning', true);
-        return await client.responses.create(request, providerRequestOptions());
-      }
-      throw err;
-    }
-  }
-
-  /** Final (non-delta) Response → LlmResponse yields: reasoning summaries
-   *  as a display-only thought part, then text/functionCall parts with
-   *  usage. Shared by the non-streaming path and the stream finalizer
-   *  (which sets skipThoughts — its summaries already streamed as deltas). */
-  private *mapFinalResponse(
-    response: any,
-    opts: { skipThoughts?: boolean } = {},
-  ): Generator<LlmResponse> {
-    if (!opts.skipThoughts) {
-      const reasoningTexts: string[] = [];
-      for (const item of response.output ?? []) {
-        if (item.type === 'reasoning') {
-          for (const s of item.summary ?? []) {
-            if (s?.text) reasoningTexts.push(s.text);
-          }
-        }
-      }
-      if (reasoningTexts.length > 0) {
-        yield {
-          content: {
-            role: 'model',
-            parts: [{ text: reasoningTexts.join('\n\n'), thought: true } as any],
-          },
-          partial: true,
-        };
-      }
-    }
-
-    const parts: any[] = [];
-    // Each run of reasoning items rides, verbatim, on the part made from the
-    // output item right after it (providerState, ADR 0046), and is replayed
-    // immediately before that part's item. A run followed by anything else
-    // (a server-side tool call, a message with no text, nothing) is dropped:
-    // a replayed reasoning item must be followed by the item it preceded.
-    const carries = this.replaysReasoning();
-    let run: any[] = [];
-    const emit = (part: Record<string, unknown>) => {
-      parts.push(
-        run.length > 0
-          ? withProviderState(part, { provider: this.providerId(), kind: REASONING_STATE_KIND, model: this.model, payload: run })
-          : part,
-      );
-      run = [];
-    };
-    // A model that searches server-side emits one message item per turn
-    // between searches. Consumers concatenate text parts bare, so each item
-    // after the first starts on a new paragraph — otherwise narration runs
-    // straight into the answer's first line ("…names.- Nasdaq futures").
-    let messageItems = 0;
-    for (const item of response.output ?? []) {
-      if (item.type === 'reasoning') {
-        if (carries && isReplayableReasoning(item)) run.push(item);
-        continue;
-      }
-      if (item.type === 'message') {
-        const sep = messageItems++ > 0 ? '\n\n' : '';
-        let first = true;
-        for (const c of item.content ?? []) {
-          if (c.type === 'output_text' && c.text) {
-            const part = { text: first ? sep + c.text : c.text };
-            if (first) emit(part);
-            else parts.push(part);
-            first = false;
-          }
-        }
-      } else if (item.type === 'function_call') {
-        let args: unknown = {};
-        try {
-          args = JSON.parse(item.arguments ?? '{}');
-        } catch {
-          args = { raw: item.arguments };
-        }
-        emit({
-          functionCall: { name: item.name, args, id: item.call_id },
-        });
-      }
-      run = [];
-    }
-
-    const usage = response.usage;
-    const serverCalls = extractServerToolCalls(response.output);
-    const serverUsage = serverToolUsage(usage);
-    for (const [k, v] of Object.entries(serverUsage)) {
-      setLlmSpanAttribute(`llm.server_tools.${k}`, v);
-    }
-    if (typeof usage?.cost_in_usd_ticks === 'number') {
-      setLlmSpanAttribute('llm.cost.vendor_usd_ticks', usage.cost_in_usd_ticks);
-    }
-    yield {
-      content: { role: 'model', parts },
-      turnComplete: true,
-      // The root turn span (tracer.ts) turns these into ToolCall events, so
-      // adk_turns.tool_calls counts the searches the vendor ran for us.
-      ...(serverCalls.length > 0 || Object.keys(serverUsage).length > 0
-        ? {
-            customMetadata: {
-              ...(serverCalls.length > 0
-                ? { 'responses.server_tool_calls': serverCalls }
-                : {}),
-              ...(Object.keys(serverUsage).length > 0
-                ? { 'responses.server_tool_usage': serverUsage }
-                : {}),
-            },
-          }
-        : {}),
-      ...(usage
-        ? {
-            usageMetadata: {
-              ...(usage.input_tokens !== undefined
-                ? { promptTokenCount: usage.input_tokens }
-                : {}),
-              ...(usage.output_tokens !== undefined
-                ? { candidatesTokenCount: usage.output_tokens }
-                : {}),
-              ...(usage.output_tokens_details?.reasoning_tokens !== undefined
-                ? {
-                    thoughtsTokenCount:
-                      usage.output_tokens_details.reasoning_tokens,
-                  }
-                : {}),
-              ...(usage.total_tokens !== undefined
-                ? { totalTokenCount: usage.total_tokens }
-                : {}),
-            },
-          }
-        : {}),
-    };
-  }
-
-  /** SSE streaming: yield displayable DELTAS as { partial: true } responses
-   *  (the ADK Runner shows but never persists partials), then map the
-   *  terminal response.completed payload through mapFinalResponse — full
-   *  content + usage, the ONE event that lands in the session. Usage rides
-   *  only the final response so the tracer never double-counts tokens. */
-  private async *streamResponses(
-    client: any,
-    request: Record<string, unknown>,
-  ): AsyncGenerator<LlmResponse, void> {
-    const events: AsyncIterable<any> = await this.createWithRetry(client, {
-      ...request,
-      stream: true,
-    });
-
-    let finalResponse: any | undefined;
-    let streamedThoughts = false;
-    const textBuf: string[] = [];
-    const thoughtBuf: string[] = [];
-
-    for await (const ev of events) {
-      const delta = streamEventDelta(ev);
-      if (delta) {
-        if (delta.thought) {
-          streamedThoughts = true;
-          thoughtBuf.push(delta.text);
-        } else {
-          textBuf.push(delta.text);
-        }
-        yield {
-          content: {
-            role: 'model',
-            parts: [
-              delta.thought
-                ? ({ text: delta.text, thought: true } as any)
-                : { text: delta.text },
-            ],
-          },
-          partial: true,
-        };
-        continue;
-      }
-      if (ev?.type === 'response.completed' && ev.response) {
-        finalResponse = ev.response;
-      } else if (ev?.type === 'response.failed' || ev?.type === 'error') {
-        const msg =
-          ev?.response?.error?.message ?? ev?.message ?? 'response stream failed';
-        yield {
-          errorCode: `${this.providerId().toUpperCase()}_STREAM_ERROR`,
-          errorMessage: String(msg),
-        };
-        return;
-      }
-    }
-
-    if (finalResponse) {
-      yield* this.mapFinalResponse(finalResponse, {
-        skipThoughts: streamedThoughts,
-      });
-      return;
-    }
-
-    // Defensive: the stream ended without response.completed — aggregate
-    // the buffered deltas so the turn still persists a complete event.
-    const parts: any[] = [];
-    if (thoughtBuf.length > 0)
-      parts.push({ text: thoughtBuf.join(''), thought: true } as any);
-    if (textBuf.length > 0) parts.push({ text: textBuf.join('') });
-    yield { content: { role: 'model', parts }, turnComplete: true };
-  }
-
-  /** Live/bidirectional streaming is not wired for this adapter. */
-  async connect(_llmRequest: LlmRequest): Promise<BaseLlmConnection> {
-    throw new Error(
-      'GptLlm does not support live bidirectional connections. ' +
-        'Use a Gemini model for live/streaming sessions.',
-    );
+  /**
+   * A Responses reply (non-delta) as the LlmResponses ADK sees: the reasoning
+   * summaries as one thought partial (unless `skipThoughts`), then the final,
+   * through the adapter's finalOf and this class's mapping.
+   */
+  protected *mapFinalResponse(response: any, opts: { skipThoughts?: boolean } = {}): Generator<LlmResponse> {
+    const { thinking, final } = this.adapter.finalOf(response, this.model, opts);
+    if (thinking) yield this.toLlmResponse(thinking);
+    yield this.toLlmResponse(final);
   }
 }
 

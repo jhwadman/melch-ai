@@ -41,7 +41,7 @@
 import { BaseLlm } from '@google/adk';
 import type { BaseLlmConnection, BaseLlmType, LlmRequest, LlmResponse } from '@google/adk';
 
-import type { ModelAdapter } from './contract.ts';
+import type { ModelAdapter, ModelResponse } from './contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from './genaiMapping.ts';
 import { traceLlmGeneration } from '../observability/tracer.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
@@ -101,8 +101,18 @@ export class AdkShim extends BaseLlm {
       ...(signal ? { signal } : {}),
     });
     for await (const response of this.adapter.generate(request)) {
-      yield modelResponseToLlmResponse(response);
+      yield this.toLlmResponse(response);
     }
+  }
+
+  /**
+   * One ModelResponse as the LlmResponse ADK sees: modelResponseToLlmResponse.
+   * It runs inside the llm.request span, so the tracer reads what it returns.
+   * A subclass that stands in for an ADK-path adapter overrides it to keep
+   * what that adapter wrote beyond the contract (GptLlm, ADR 0056).
+   */
+  protected toLlmResponse(response: ModelResponse): LlmResponse {
+    return modelResponseToLlmResponse(response);
   }
 
   /** Live/bidirectional connections are outside the model contract. Throws to say so. */
