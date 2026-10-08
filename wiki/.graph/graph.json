@@ -5,26 +5,26 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 741,
-    "edges": 2216,
+    "nodes": 748,
+    "edges": 2270,
     "byKind": {
-      "doc": 125,
+      "doc": 127,
       "provider": 6,
-      "env": 104,
+      "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 119,
+      "file": 120,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 154,
+      "module": 157,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 434,
-      "requires_env": 166,
+      "links_to": 451,
+      "requires_env": 167,
       "routes_to": 8,
       "defined_in": 76,
       "documents": 56,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 533,
+      "imports": 554,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 487,
-      "constrains": 85,
+      "derives_from": 496,
+      "constrains": 88,
       "supersedes": 5,
-      "depends_on": 21,
-      "explains": 4,
+      "depends_on": 23,
+      "explains": 5,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2099,
-      "inferred": 117
+      "extracted": 2147,
+      "inferred": 123
     },
     "isolated": 4
   },
@@ -1180,6 +1180,18 @@
       }
     },
     {
+      "id": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "kind": "doc",
+      "label": "ADR 0066: The native loop's model step sends the request the ADK runtime sends, and records its answer as ADK's event",
+      "source": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1276
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1284,7 +1296,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1329
+        "words": 1361
       }
     },
     {
@@ -1429,6 +1441,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 263
+      }
+    },
+    {
+      "id": "/overview/native-loop.md",
+      "kind": "doc",
+      "label": "Native loop",
+      "source": "/overview/native-loop.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1004
       }
     },
     {
@@ -2766,6 +2790,12 @@
       "attrs": {}
     },
     {
+      "id": "env:GOOGLE_GENAI_USE_ENTERPRISE",
+      "kind": "env",
+      "label": "GOOGLE_GENAI_USE_ENTERPRISE",
+      "source": "lib/runtime/native/request.ts"
+    },
+    {
       "id": "env:GOOGLE_GENAI_USE_VERTEXAI",
       "kind": "env",
       "label": "GOOGLE_GENAI_USE_VERTEXAI",
@@ -3779,6 +3809,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nativeStep.test.ts",
+      "kind": "file",
+      "label": "nativeStep.test.ts",
+      "source": "tests/nativeStep.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/openapiTools.test.ts",
       "kind": "file",
       "label": "openapiTools.test.ts",
@@ -4390,7 +4427,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 950
+        "lines": 952
       }
     },
     {
@@ -4688,6 +4725,33 @@
       "source": "lib/runtime/memoryService.ts",
       "attrs": {
         "lines": 79
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/history.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/history.ts",
+      "source": "lib/runtime/native/history.ts",
+      "attrs": {
+        "lines": 319
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/request.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/request.ts",
+      "source": "lib/runtime/native/request.ts",
+      "attrs": {
+        "lines": 532
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/step.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/step.ts",
+      "source": "lib/runtime/native/step.ts",
+      "attrs": {
+        "lines": 214
       }
     },
     {
@@ -10194,6 +10258,97 @@
       "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:25"
     },
     {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "file:tests/nativeStep.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:42"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0060-engine-owned-registry.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
+      "from": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "to": "/decisions/0062-server-side-tools-as-markers.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0066-native-step-sends-the-adk-request.md:25"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -11052,7 +11207,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:61"
+      "evidence": "/models/adk-shim.md:63"
     },
     {
       "from": "/models/adk-shim.md",
@@ -11080,21 +11235,28 @@
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:67"
+      "evidence": "/models/adk-shim.md:69"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:68"
+      "evidence": "/models/adk-shim.md:70"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0064-model-tests-on-the-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:84"
+      "evidence": "/models/adk-shim.md:86"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:45"
     },
     {
       "from": "/models/adk-shim.md",
@@ -11130,6 +11292,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/adk-shim.md:30"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:45"
     },
     {
       "from": "/models/chat-completions-adapters.md",
@@ -12663,6 +12832,83 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/melchizedek.md:23"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "file:tests/nativeStep.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:21"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:64"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:23"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/memory/sessions.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:77"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:23"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:46"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:31"
     },
     {
       "from": "/protocols/a2a.md",
@@ -17136,6 +17382,160 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/memoryService.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/history.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/history.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "env:GOOGLE_GENAI_USE_ENTERPRISE",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
     },
     {
       "from": "module:lib/runtime/questions.ts",
