@@ -1,10 +1,10 @@
 /**
- * inspectImageTool — native ADK FunctionTool for BLIND visual inventory.
+ * inspectImageTool — a tool contract for BLIND visual inventory.
  *
- * WHY a FunctionTool instead of an AgentTool subagent:
+ * WHY a function tool instead of an AgentTool subagent:
  *   Same constraint as generateImageTool in reverse — AgentTool converts all
  *   traffic to text, so image bytes can't ride into a subagent's context.
- *   A FunctionTool reads the saved file directly and calls the vision model
+ *   A function tool reads the saved file directly and calls the vision model
  *   itself.
  *
  * WHY the inventory prompt is hard-coded here and takes ONLY a file path:
@@ -17,10 +17,13 @@
  *   SpecAuditor subagent, which sees spec + inventory but never the image.
  */
 
-import { FunctionTool } from '@google/adk';
-import { GoogleGenAI, type Schema } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { readFileSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
+import { z } from 'zod';
+
+import { toFunctionTool } from './adkTool.ts';
+import { defineTool } from './toolContract.ts';
 
 const VISION_MODEL = 'gemini-3.8-flash';
 
@@ -40,24 +43,16 @@ RULES:
 - If something is genuinely ambiguous, write "uncertain:" and describe what is visible.
 Return a plain, factual, numbered inventory.`;
 
-export const inspectImageTool = new FunctionTool({
+export const inspectImageContract = defineTool({
   name: 'inspect_image',
   description:
     'Performs a BLIND visual inventory of a previously saved image (subjects with exact counts, ' +
     'composition, light, palette, medium cues, artifacts). Pass ONLY the file path returned by ' +
     'generate_image — never describe the expected content, or the inventory will be primed.',
-  parameters: {
-    type: 'OBJECT' as const,
-    properties: {
-      image_path: {
-        type: 'STRING' as const,
-        description: 'Path to the saved image, e.g. "outputs/image_1234.png".',
-      },
-    },
-    required: ['image_path'],
-  } as unknown as Schema,
-  execute: async (input: unknown): Promise<string> => {
-    const { image_path } = input as { image_path: string };
+  schema: z.object({
+    image_path: z.string().describe('Path to the saved image, e.g. "outputs/image_1234.png".'),
+  }),
+  execute: async ({ image_path }): Promise<string> => {
     console.log(`[InspectTool] Blind inventory requested for: ${image_path}`);
 
     // Confine reads to the outputs/ directory — this tool inventories
@@ -108,3 +103,6 @@ export const inspectImageTool = new FunctionTool({
     return `BLIND INVENTORY of ${image_path}:\n${text}`;
   },
 });
+
+/** ADK surface, ready for the registry. */
+export const inspectImageTool = toFunctionTool(inspectImageContract);

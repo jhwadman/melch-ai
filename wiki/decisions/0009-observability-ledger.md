@@ -41,6 +41,8 @@ Three facts about the existing stores shaped the answer. The root span carried n
 
 > **Note (2026-10-01):** The observatory, with its `doctor` and its grading of production rows, lives in a separate evaluation repository; this repository ships the ledger, `telemetry:stats`, `telemetry:prune` and `telemetry:replay`, see [ADR 0022](/decisions/0022-public-source-of-truth.md).
 
+> **Note (2026-10-07):** A failed call's own `llm.request` span also carries its request and error body (`llm.payload.request`, `llm.payload.response`), because ADK's `call_llm` span is lost on error, and they reach `adk_payloads` under the same policy. The request is written in the engine's model contract shape (`model`, `system`, `messages`, `tools`; [ADR 0048](/decisions/0048-engine-owned-model-contract.md)), whichever adapter made the call. A row from a `call_llm` span keeps ADK's request.
+
 ## Consequences
 
 Every question that motivated this is now a query: a conversation with its stored events per turn, routing mix and fallback rate per route, cost per agent per day, a full-text search over old inputs and outputs, and a comparison of any metric across `config_hash` values — which also exposes registry-versus-file drift for the first time. The observatory grades production out of `adk_turns` and tags its own eval rows so they never contaminate production views; later phases (persisted verdicts and human labels, gates before deploy, replay with recorded tool responses) build on the same rows.

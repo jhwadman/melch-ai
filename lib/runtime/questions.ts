@@ -6,8 +6,8 @@
  * these three accounts?", "what is the order number?". Before this, an
  * agent could only end its turn with a question in its text and hope the
  * next message answered it, with nothing in the session saying a question
- * was open. `ask_user` is ADK's long-running tool mechanism under one YAML
- * name: the call is recorded, the run ends without a response to it, the
+ * was open. `ask_user` is a long-running tool (lib/tools/tool.ts) under one
+ * YAML name: the call is recorded, the run ends without a response to it, the
  * turn ends `input-required` (`result.input`), and the next message on the
  * conversation becomes the call's response, so the agent resumes its own
  * tool loop where it asked, with the question and the answer side by side
@@ -22,10 +22,10 @@
  * subagent ADK swallows the pause. Not inside a workflow node yet. The
  * schema refuses both.
  */
-import { LongRunningFunctionTool } from '@google/adk';
 import type { Event } from '@google/adk';
 import { z } from 'zod';
 
+import { defineTool } from '../tools/toolContract.ts';
 import type { PendingInput } from '../workflowConfig.ts';
 
 /** The registry name, and the function-call name an open question carries. */
@@ -34,16 +34,19 @@ export const ASK_USER = 'ask_user';
 export const MAX_OPTIONS = 10;
 
 /**
- * The tool. Its execute returns nothing: a long-running call with no result
- * ends the run, and ADK waits for a function response with the call's id.
+ * The tool, an own Tool marked long-running; the registry hands the ADK
+ * runtime its FunctionTool (lib/tools/adkTool.ts). Its execute returns
+ * nothing: a long-running call with no result ends the run, and the runtime
+ * waits for a function response with the call's id.
  */
-export const askUserTool = new LongRunningFunctionTool({
+export const askUserTool = defineTool({
   name: ASK_USER,
+  longRunning: true,
   description:
     'Ask the person one question and wait for their answer before you continue: a missing detail you need, or a choice only they can make. ' +
     'Pass `options` when the answer is one of a few choices. The turn ends here; the person\'s next message is the answer, returned to you as this call\'s result. ' +
     'Ask only what you cannot find out or reasonably assume, one question per call.',
-  parameters: z.object({
+  schema: z.object({
     question: z.string().min(1).max(500).describe('The question, as the person will read it.'),
     options: z
       .array(z.string().min(1).max(120))
@@ -51,9 +54,9 @@ export const askUserTool = new LongRunningFunctionTool({
       .optional()
       .describe('The choices, when the answer is one of a few. Omit for a free answer.'),
   }),
-  execute: async (_args, context) => {
-    if (context) (context.actions as { skipSummarization?: boolean }).skipSummarization = true;
-    return null;
+  execute: async (_args, context): Promise<undefined> => {
+    context.actions.skipSummarization = true;
+    return undefined;
   },
 });
 

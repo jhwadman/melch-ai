@@ -40,6 +40,8 @@ Each adapter also reads the turn's abort signal at its own provider call. An ada
 4. **One shim per leaf adapter.** A fallback pair on the ADK path is `FallbackLlm(shim(primary), shim(fallback))` ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)), so a redirected call is two charges and two spans, as it is today. A `FallbackAdapter` behind one shim would make it one of each, attributed to the primary.
 5. **The shim repairs nothing.** A throw reaches ADK as a throw, as Gemini's does today. `connect()` is refused, because live sessions are outside the contract.
 
+> **Note (2026-10-07):** `traceLlmGeneration` now takes the request as a `ModelRequest` (WS1-8). The shim passes the one it hands the adapter, and every ADK-path adapter maps its `LlmRequest` to one, so item 2's refusals, charges and span attributes stay identical; only a failed call's `llm.payload.request` is now written in the contract's shape. The temporary wrapper over ADK's Gemini (`AdkGeminiAdapter`) keeps item 1: behind the shim it records the span `TracedGemini` records, and opens none of its own.
+
 ## Alternatives considered
 
 - **Each adapter charges and opens its span inside `generate()`.** Rejected. It repeats the same lines in every adapter, test doubles included, as the ADK path does today, and an adapter that forgets the charge escapes the turn's `max_steps`, and is called again after the turn has stopped. It also puts the turn's budget, which is no provider's concern, inside the provider mapping. And it would need a `ModelRequest` form of `traceLlmGeneration` now, which WS1-8 is building in parallel.

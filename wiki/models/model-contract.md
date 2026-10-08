@@ -1,7 +1,7 @@
 ---
 type: schema
 title: Model contract
-description: "The engine's own model contract (lib/models/contract.ts): every field of the message, request, response and adapter types and why it exists, how each field maps to the wire for Gemini, Anthropic, OpenAI Responses, xAI, Moonshot, Ollama and the gateway, and how it maps to and from @google/genai Content (lib/models/genaiMapping.ts)."
+description: "The engine's own model contract (lib/models/contract.ts): every field of the message, request, response and adapter types and why it exists, how each field maps to the wire for Gemini, Anthropic, OpenAI Responses, xAI, Moonshot, Ollama and the gateway, and how it maps to and from @google/genai Content and ADK's LlmRequest and LlmResponse, in both directions (lib/models/genaiMapping.ts)."
 tags:
   - models
   - contracts
@@ -15,9 +15,11 @@ sources:
   - resource: lib/models/claudeModels.ts
   - resource: lib/models/capabilities.ts
   - resource: lib/models/schemaNormalize.ts
+  - resource: lib/tools/tool.ts
   - resource: tests/modelContract.test.ts
   - resource: tests/contractToolDeclarations.test.ts
   - resource: lib/models/genaiMapping.ts
+  - resource: lib/models/geminiState.ts
   - resource: tests/genaiMapping.test.ts
   - resource: lib/models/adkShim.ts
 ---
@@ -73,7 +75,7 @@ A final response's parts are `OutputPart`s: text, toolCall and blob.
 `lib/models/schemaNormalize.ts` builds both from the tools the registry resolves, so neither an adapter nor the runtime reads a tool's private fields ([ADR 0019](/decisions/0019-multi-model-parity-matrix.md)) or keeps its own dialect converter:
 
 - **`contractToolDeclaration(tool, { strict? })`** returns a `ToolDeclaration`, or undefined for a tool that declares nothing.
-  - A `defineTool` contract (`lib/tools/toolContract.ts`) is declared straight from its zod schema with `z.toJSONSchema`, as the MCP surface is, never through Gemini's dialect. The declaration leaves out the keywords `additionalProperties` and `default`, which the ADK path cannot carry, so a contract declares the same parameters as the `FunctionTool` that `toFunctionTool()` makes of it, whichever runtime resolves it. The one exception is a property itself named `additionalProperties` or `default`, which `toGeminiSchema` drops by name and this path keeps.
+  - An own Tool ([tool contracts](/tools/tool-contracts.md), `lib/tools/tool.ts`) is declared by its own `declaration()`. A `defineTool` contract builds that from its zod schema through `zodToolParameters`, from the same `zodInputJsonSchema` step the MCP surface uses and never through Gemini's dialect: the schema's input side (`io: 'input'`), so a field with a default is optional, without the `default` keyword or an `additionalProperties` that is only `true` or `false`, and with a record's value schema kept. `toGeminiSchema` makes the same choices on the ADK path, walking by keyword as this path does, so a contract declares the same parameters as the `FunctionTool` that `toFunctionTool()` makes of it, whichever runtime resolves it.
   - An ADK tool (`FunctionTool`, `AgentTool`, `load_memory`, an MCP tool) is read from its own `_getDeclaration()`: its `parameters`, or else its `parametersJsonSchema`. Gemini's dialect is converted once, here: types are lowercased, and the int64 bounds Gemini spells as strings (`minLength: '2'`) become integers. OpenAPI's `nullable: true` becomes a schema that admits null. A plain typed node gains `null` in its type (`['number', 'null']`) and in any `enum`. A bare `anyOf` gains a `{ type: 'null' }` branch. A node built otherwise (`$ref`, `allOf`, `oneOf`, `const`) moves into an `anyOf` beside `{ type: 'null' }`, with its description staying on the node.
   - The walk follows only the keywords that hold schemas (`properties`, `items`, `prefixItems`, `anyOf`, `oneOf`, `allOf`, `$defs`, and the rest), so a parameter named `type`, `enum` or `default` is converted like any other, and `enum`, `const` and `examples` stay data.
   - With `strict`, every object node that has properties, at any depth, lists all of them as `required` and sets `additionalProperties: false`, and the declaration carries `strict: true`. An optional property becomes required as it is, not widened to null, because the contract's zod schema would refuse a null. An object without properties (a map) is left open, so a strict provider refuses it rather than receive a field the model can never fill. `toContractJsonSchema(schema, { strict? })` is the same conversion for any schema, such as an `outputSchema`.
@@ -281,9 +283,12 @@ Stored sessions and the ADK path hold `@google/genai` `Content`. `lib/models/gen
 - `contentsToMessages(contents, systemInstruction?)` and its inverse `messagesToContents({ system, messages })`, for a history;
 - `contentToMessage` and `messageToContent`, for one content;
 - `llmRequestToModelRequest(llmRequest, { model?, stream?, signal? })`, for ADK's request;
-- `modelResponseToLlmResponse(response)`, for what ADK expects back.
+- `modelResponseToLlmResponse(response)`, for what ADK expects back;
+- `modelRequestToLlmRequest(request)` and `llmResponseToModelResponse(response, { model?, index?, searchTool? })`, the [reverse directions](#the-reverse-directions), for a contract adapter over an ADK model.
 
-With them the [ADK shim](/models/adk-shim.md) (`lib/models/adkShim.ts`) runs any adapter's `generate()` under ADK, and the native runtime reads the sessions ADK stored. The module may import `@google/genai` and ADK; the contract stays a leaf. `tests/genaiMapping.test.ts` runs every stored session fixture through it, and maps a request that a real ADK `LlmAgent` built.
+With them the [ADK shim](/models/adk-shim.md) (`lib/models/adkShim.ts`) runs any adapter's `generate()` under ADK, a contract adapter can wrap an ADK model (the [wrapper over ADK's Gemini](/models/adk-gemini-adapter.md)), and the native runtime reads the sessions ADK stored. The module may import `@google/genai` and ADK; the contract stays a leaf. `tests/genaiMapping.test.ts` runs every stored session fixture through it both ways, and maps a request that a real ADK `LlmAgent` built.
+
+The Gemini ids, `GEMINI_PROVIDER` (`gemini`) and `THOUGHT_SIGNATURE_KIND` (`thought_signature`), are defined once, in `lib/models/geminiState.ts`, and the mapping and both Gemini adapters take them from there.
 
 ### Contents and messages
 
@@ -353,6 +358,38 @@ The compiler writes the effort word beside `thinkingConfig` from one setting, so
 An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. The ADK-path GPT and chat-completions adapters write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
 
 The stored Event JSON keeps its shape ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). The engine types a stored event as `TurnEvent` ([sessions and events](/memory/sessions.md)), whose content is this genai shape.
+
+### The reverse directions
+
+`modelRequestToLlmRequest` builds the LlmRequest ADK's path builds for a Gemini model:
+
+| ModelRequest | LlmRequest |
+|---|---|
+| `model` | `model` |
+| `system` | `config.systemInstruction`, a string; none when empty |
+| `messages` | `contents`, as above. A system message stays a `system` content, which Gemini refuses, so a Gemini caller folds it into the system prompt. |
+| `tools` | `config.tools[].functionDeclarations`, the lowercase schema in `parametersJsonSchema`; and one declaration-only `toolsDict` entry per tool, whose `_getDeclaration()` gives the schema as `parameters`, where `llmRequestToModelRequest` and the ADK-path adapters read it. It is never run. |
+| `nativeTools` | Gemini's tool objects, in the request's order: `web_search` and `google_search` as one `googleSearch`, `url_context`, `code_execution`. `x_search` and `collections_search` are left out, since ADK adds their sentinels only for xAI; `nativeToolsWithoutGeminiTool` names them. |
+| `toolChoice`, `strict` | `toolConfig.functionCallingConfig`, only beside declarations: `AUTO`, `NONE`, `ANY`, `ANY` with `allowedFunctionNames`, and `VALIDATED` for a strict tool under `auto` or no choice |
+| `outputSchema` | `responseMimeType: 'application/json'` and `responseJsonSchema` |
+| `reasoning` | `reasoningConfig` (`lib/models/reasoning.ts`) for the model, as the compiler writes it: a thinking level or budget on Gemini, and the effort word every other adapter reads |
+| `sampling` | `temperature`, `topP`, `maxOutputTokens`, `stopSequences` |
+| `signal` | `config.abortSignal` |
+
+Through `llmRequestToModelRequest` a request comes back the same, except: `google_search` reads as `web_search`; `x_search` and `collections_search` are gone; `auto` reads as absent, and a choice without tools is not sent; one strict tool makes every tool strict, and strict is lost beside a forced choice; a level a model renders as a budget or another word (Gemini 2.x, o-series) reads back as that rendering; `stream` is not an LlmRequest field. An LlmRequest comes back the same in every field the forward table maps. `tests/genaiMapping.test.ts` round-trips every fixture history, stored and as an LlmRequest carries it, and a request a real `LlmAgent` built.
+
+`llmResponseToModelResponse` reads one LlmResponse:
+
+| LlmResponse | ModelResponse |
+|---|---|
+| `partial: true` | a partial: its non-empty text parts as text and thinking deltas. Other parts wait for the final. |
+| any other | a final. `content.parts` map as an assistant message's (above), with ids minted from `index`, the answer's place in its conversation. Thinking is left out, and a signature on it moves to the next part that has no state of its own, or stays with the last part when no part follows. `model`, when given, is set on every `thought_signature` state. |
+| `errorCode` | `error`: the code; `errorMessage` with key-shaped text scrubbed, or `The model call ended with <code>.`; `retryable` and `status` from `customMetadata['error.retryable']` and `['error.status']`, so a verdict an adapter stamped reads back. ADK's `STOP` is no error. |
+| `finishReason` | the Gemini table's: `tool_call` whenever a call is there. With no finish reason, an error is `content_filter` for a policy reason (a blocked prompt), else `error`; no error is `stop`. |
+| `usageMetadata` | `usage`, through `usageFromMetadata` |
+| `groundingMetadata` | `grounding`: each `groundingChunks[].web` page once, with its title, and `webSearchQueries` attributed to `searchTool` (default `web_search`) |
+
+Not read: citation spans and cited text, and the thought text of a final, which is display only; a caller folding a stream keeps it as a partial. Every model event of every stored session fixture maps to a final whose output parts, usage and finish reason come back byte-equal, and a ModelResponse comes back the same through an LlmResponse but for `cacheWriteTokens` and a citation's span.
 
 ## What the contract leaves out
 
