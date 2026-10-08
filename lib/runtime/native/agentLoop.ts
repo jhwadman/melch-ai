@@ -46,6 +46,9 @@
  *      WS2-7b.
  *   4. The agent's outputKey is written into each final event's stateDelta
  *      before it is stored (ADK's maybeSaveOutputToState, case for case).
+ *      The `temp:` keys of every event stored are kept for the rest of the
+ *      run, beside the session and never in it, and each later step and
+ *      call reads them (lib/runtime/native/tempState.ts).
  *   5. The loop goes on unless the step's last event is final (ADK's
  *      isFinalResponse), the turn stopped the step, or the step stored
  *      nothing. A model call that waits on a person (ask_user) is final: its
@@ -55,7 +58,7 @@
  * NOT HERE (later tickets): delegation and transfer (WS2-6), resuming an
  * approval or a question (WS2-7a/7b), ADK's reflect-and-retry plugins
  * (WS2-8: here a throwing tool answers its error at once, as ADK does with
- * `retries.tool_errors: 0`), compaction (WS2-9), the runtime flag (WS2-10),
+ * `retries.tool_errors: 0`), compaction (WS2-9),
  * tool spans (WS2-11), and an auth request a tool raises (no own tool can).
  *
  * ADK stays out of this file: an ADK tool an agent still lists during the
@@ -79,6 +82,7 @@ import type { MemoryService } from '../memoryService.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import type { NativeAgent } from './request.ts';
 import { runModelStep } from './step.ts';
+import { createRunTempState, withStateOverlay } from './tempState.ts';
 import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
 
 // ── The loop's surface ───────────────────────────────────────────────────────
@@ -88,7 +92,7 @@ import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
  * adapter. The session already holds the run's user event; every event the
  * loop stores is appended to it.
  */
-export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adapter' | 'onPartial' | 'model' | 'beforeAppend' | 'redirect'> {
+export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adapter' | 'onPartial' | 'model' | 'beforeAppend' | 'redirect' | 'stateOverlay'> {
   /** The leaf adapter for a model id: the agent's, and its fallback's. Default resolveAdapter (lib/models/registry.ts). */
   adapterFor?: (model: string) => ModelAdapter;
   /** Where the fallback's redirect notice goes. Default console.warn, as compile's. */
@@ -501,8 +505,14 @@ async function* modelStep(
  */
 export async function* runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGenerator<TurnEvent, AgentLoopEnd> {
   const { session, sessions } = ctx;
-  const store = async (event: TurnEvent): Promise<TurnEvent> => {
+  // The run's temp: keys, read from each event before the store drops them (lib/runtime/native/tempState.ts).
+  const runTemp = createRunTempState();
+  const beforeStore = (event: TurnEvent): void => {
     saveOutput(agent, event);
+    runTemp.record(event);
+  };
+  const store = async (event: TurnEvent): Promise<TurnEvent> => {
+    beforeStore(event);
     return sessions.append(session, event);
   };
   let steps = 0;
@@ -513,7 +523,7 @@ export async function* runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): 
       return { reason: 'stopped', steps, lastEvent, stop: { code: 'STEP_LIMIT', message: `Max number of llm calls limit of ${MAX_LLM_CALLS} exceeded` } };
     }
     steps += 1;
-    const step = yield* modelStep(agent, ctx, { ...ctx, agent, beforeAppend: (event) => saveOutput(agent, event) });
+    const step = yield* modelStep(agent, ctx, { ...ctx, agent, beforeAppend: beforeStore, stateOverlay: runTemp.values() });
     if (step.stopped) return { reason: 'stopped', steps, lastEvent, stop: step.stopped };
     const modelEvent = step.event;
     if (!modelEvent) return { reason: 'empty', steps, lastEvent };
@@ -523,7 +533,7 @@ export async function* runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): 
     let stepEnd = modelEvent;
     const hadCalls = getFunctionCalls(modelEvent).length > 0;
     if (hadCalls) {
-      const scope: CallScope = { agent, ctx, stateBase: session.state, ...(step.request.signal ? { signal: step.request.signal } : {}) };
+      const scope: CallScope = { agent, ctx, stateBase: withStateOverlay(session.state, runTemp.values()), ...(step.request.signal ? { signal: step.request.signal } : {}) };
       const response = await runCalls(scope, modelEvent, step.tools);
       if (response) {
         const auth = authEvent(scope, response);

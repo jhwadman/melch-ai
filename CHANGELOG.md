@@ -6,6 +6,25 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **A turn can run on the native runtime (ADR 0073).** `runSyndicateTurn`
+  takes an optional `runtime` (`'adk'` or `'native'`). Without it,
+  `MELCHIZEDEK_RUNTIME` decides (`adk` or `native`), and without that, `adk`,
+  so nothing changes unless you ask. On `native` a single-agent or
+  plan-dispatch syndicate runs on the engine's own loop and returns the
+  same result shape; what native does not run yet (delegation, compaction,
+  workflows, task mode, `retries:` above zero, `transformAgent`, resuming
+  an approval or answering a question) throws `UnsupportedOnRuntimeError`
+  before any model call. Additions under the existing `exports` map:
+  - `melchizedek-agents/runtime` exports `RuntimeName`, `RUNTIMES`,
+    `DEFAULT_RUNTIME`, `chooseRuntime`, `runtimeSetting` and
+    `UnsupportedOnRuntimeError`.
+  - `melchizedek-agents/compile` exports `AgentSpec`, `SpecTool`,
+    `compileSpec` and `compileSubagentSpec`, the runtime-neutral half of the
+    compiler. `compileGraph` and `compileSubagent` build the same `LlmAgent`
+    as before.
+  - `melchizedek-agents/wiki/agentRun`: `runWikiAgent` follows the same
+    flag, and takes `runtime` and (native only) `adapterFor`.
+  - `.env.example` lists `MELCHIZEDEK_RUNTIME` and `GEMINI_ADAPTER`.
 - **New entry `melchizedek-agents/model`: the model layer without ADK
   (ADR 0068).** A new path in the `exports` map, so the version is 0.19.0.
   It exports the model contract's types, `ClaudeAdapter`, `GptAdapter`,

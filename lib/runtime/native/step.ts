@@ -87,6 +87,8 @@ export interface ModelStepOptions {
   model?: string;
   /** Called on the final event just before it is stored: the loop saves the agent's outputKey here, as ADK does before its Runner appends. */
   beforeAppend?: (event: TurnEvent) => void;
+  /** State laid over the session's when the request is built: the run's `temp:` keys (lib/runtime/native/tempState.ts). */
+  stateOverlay?: Readonly<Record<string, unknown>>;
   /**
    * Called on each failed final, with whether the adapter had yielded
    * anything before it. True hands the failure back unstored (`redirected`):
@@ -166,6 +168,7 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
     ...(options.isolationScope !== undefined ? { isolationScope: options.isolationScope } : {}),
     ...(options.root ? { root: options.root } : {}),
     ...(options.memory ? { memory: options.memory } : {}),
+    ...(options.stateOverlay ? { stateOverlay: options.stateOverlay } : {}),
     stream: options.stream ?? false,
     ...(signal ? { signal } : {}),
   });

@@ -25,6 +25,14 @@
  * subagents, nested syndicates), an optional deadline bounds wall-clock
  * time, and an outer AbortSignal cancels it. All three abort the provider
  * request in flight, not just the loop around it.
+ *
+ * ── Runtimes (ADR 0045, ADR 0073) ─────────────────────────────────────────
+ * Each agent of a turn runs on ADK's Runner (the default) or on the
+ * engine's own agent loop: the turn's `runtime` option, else
+ * MELCHIZEDEK_RUNTIME. Both compile the same AgentSpec (lib/compile.ts),
+ * store the same events and drain through drainAgentStream, so everything
+ * else here is shared. What native does not run yet fails before any model
+ * call, naming the feature (lib/runtime/nativeTurn.ts).
  */
 
 import { InMemorySessionService, ReflectAndRetryModelPlugin, ReflectAndRetryToolPlugin, Runner, StreamingMode, getFunctionCalls, getFunctionResponses } from '@google/adk';
@@ -32,7 +40,16 @@ import type { BasePlugin } from '@google/adk';
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
 import { DEFAULT_MAX_STEPS } from '../config.ts';
-import { agentGates, compileGraph, compileSubagent } from '../compile.ts';
+import { agentGates, compileGraph, compileSpec, compileSubagent, compileSubagentSpec } from '../compile.ts';
+import type { AgentSpec } from '../compile.ts';
+import { compileNative, nativeAdapterFor } from '../compileNative.ts';
+import type { ModelAdapter } from '../models/contract.ts';
+import type { NativeAgent } from './native/request.ts';
+import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
+import { chooseRuntime, unsupportedOnNative } from './runtimeFlag.ts';
+import type { RuntimeName } from './runtimeFlag.ts';
+export { chooseRuntime, runtimeSetting, DEFAULT_RUNTIME, RUNTIMES, UnsupportedOnRuntimeError } from './runtimeFlag.ts';
+export type { RuntimeName } from './runtimeFlag.ts';
 import { ROUTE_STEP_SUFFIX, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
 import type { PendingInput } from '../workflow.ts';
 export { describeInput } from '../workflow.ts';
@@ -111,8 +128,15 @@ export interface SyndicateTurnOptions {
   memoryService?: BaseMemoryService;
   /** Model resolution, unknown-tool handling, nested loading. */
   compile?: CompileOptions;
-  /** Applied to every compiled agent before it runs (eval tool replay). */
+  /** Applied to every compiled agent before it runs (eval tool replay). ADK runtime only. */
   transformAgent?: (agent: LlmAgent) => LlmAgent;
+  /**
+   * The runtime that runs the turn's agents: `adk` (Google ADK's Runner) or
+   * `native` (the engine's own loop). Default: MELCHIZEDEK_RUNTIME, else
+   * `adk`. A feature native does not run yet throws UnsupportedOnRuntimeError
+   * before any model call.
+   */
+  runtime?: RuntimeName;
   /** Plan-dispatch only: skip the classifier and run this route. Overrides
    *  in the YAML still win, as they do in production. */
   forceRoute?: string;
@@ -448,6 +472,7 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
   // the framework's adapters registered there, Gemini would be ADK's own
   // class, which bypasses traceLlmGeneration: no max_steps, no cancel. A
   // caller that resolves models itself (the A2A server) is left alone.
+  const runtime = chooseRuntime(opts.runtime);
   if (!opts.compile?.resolveModel) registerAvailableProviders();
   const control = createTurnControl({
     maxLlmCalls: opts.maxLlmCalls ?? config.max_steps ?? DEFAULT_MAX_STEPS,
@@ -455,15 +480,21 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
     signal: opts.signal,
   });
   try {
-    return await runWithTurnControl(control, () => runTurnInner(opts, control));
+    return await runWithTurnControl(control, () => runTurnInner(opts, control, runtime));
   } finally {
     control.dispose();
   }
 }
 
+/** A compiled agent, for the runtime that runs it. */
+type TurnAgent =
+  | { runtime: 'adk'; agent: LlmAgent }
+  | { runtime: 'native'; agent: NativeAgent; adapterFor: (model: string) => ModelAdapter };
+
 async function runTurnInner(
   opts: SyndicateTurnOptions,
   control: ReturnType<typeof createTurnControl>,
+  runtime: RuntimeName,
 ): Promise<SyndicateTurnResult> {
   const { config, appName, userId, sessionId, sessionService } = opts;
   const ev = opts.events ?? {};
@@ -475,6 +506,17 @@ async function runTurnInner(
   const trace = opts.trace === false ? undefined : opts.trace ?? {};
   let parts = opts.parts.map((p) => (typeof p === 'string' ? { text: p } : p));
   const messageText = parts.map((p: any) => (typeof p.text === 'string' ? p.text : '')).join('\n');
+  const native = runtime === 'native';
+  // What native does not run yet fails here, before the session is touched.
+  if (native) refuseOnNative(config, { isWorkflow: isWorkflowSyndicate(config), transformAgent: opts.transformAgent });
+  const nativeOf = (spec: AgentSpec): TurnAgent => ({ runtime: 'native', agent: compileNative(spec), adapterFor: nativeAdapterFor(compileOpts, spec) });
+  /** The orchestrator (a DELEGATE root, or a dispatch classifier) for the turn's runtime. */
+  const compileRoot = async (): Promise<TurnAgent> =>
+    native ? nativeOf(await compileSpec(config, compileOpts)) : { runtime: 'adk', agent: transform(await compileGraph(config, compileOpts)) };
+  /** A dispatch route for the turn's runtime. */
+  const compileRoute = async (routeCfg: SubagentYamlConfig): Promise<TurnAgent> =>
+    native ? nativeOf(await compileSubagentSpec(routeCfg, compileOpts)) : { runtime: 'adk', agent: transform(await compileSubagent(routeCfg, compileOpts)) };
+  const syndicateLabel = config.syndicate_name || config.orchestrator.name;
 
   const result: SyndicateTurnResult = {
     status: 'completed',
@@ -519,6 +561,7 @@ async function runTurnInner(
   const decision = approvalDecisionIn(parts);
   let resuming: PendingApproval | undefined;
   if (decision) {
+    if (native) throw unsupportedOnNative('resuming an approval (WS2-7)', syndicateLabel);
     resuming = pendingApproval(existing?.events ?? []);
     if (!resuming || resuming.id !== decision.id) {
       result.status = 'failed';
@@ -538,6 +581,7 @@ async function runTurnInner(
     const question = pendingQuestion(existing?.events ?? []);
     const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
     if (question && plainText) {
+      if (native) throw unsupportedOnNative(`answering ${question.node}'s question (WS2-7)`, syndicateLabel);
       answering = { agent: question.node, id: question.id };
       parts = [questionAnswerPart(question.id, messageText)];
       ev.log?.(`✓ Answer to ${question.node}'s question`);
@@ -571,7 +615,7 @@ async function runTurnInner(
 
   /** Run ONE agent against ONE session, under the turn's controls. */
   const runAgent = async (params: {
-    agent: LlmAgent;
+    agent: TurnAgent;
     sid: string;
     userParts: any[];
     sessions: BaseSessionService;
@@ -583,20 +627,39 @@ async function runTurnInner(
     /** Workflow runs collect node errors instead of stopping on the first. */
     errorPolicy?: 'fail' | 'collect';
   }): Promise<DrainedRun> => {
-    const runner = new Runner({
-      agent: params.agent,
-      appName,
-      sessionService: params.sessions,
-      plugins: retryPlugins(config.retries),
-      ...(opts.memoryService ? { memoryService: opts.memoryService } : {}),
-    });
-    let stream: AsyncIterable<Event> = runner.runAsync({
-      userId,
-      sessionId: params.sid,
-      newMessage: { role: 'user', parts: params.userParts },
-      abortSignal: control.signal,
-      ...(opts.streaming ? { runConfig: { streamingMode: StreamingMode.SSE } as any } : {}),
-    });
+    let stream: AsyncIterable<Event>;
+    if (params.agent.runtime === 'native') {
+      // The engine's own loop (lib/runtime/nativeTurn.ts): the same events, the same drain.
+      stream = runNativeAgent({
+        agent: params.agent.agent,
+        adapterFor: params.agent.adapterFor,
+        sessions: params.sessions,
+        appName,
+        userId,
+        sessionId: params.sid,
+        userParts: params.userParts,
+        signal: control.signal,
+        stream: opts.streaming === true,
+        memory: nativeMemory(opts.memoryService),
+        // The fallback's notice goes where compile's FallbackLlm sends it on ADK.
+        ...(compileOpts.log ? { log: compileOpts.log } : {}),
+      }) as unknown as AsyncIterable<Event>;
+    } else {
+      const runner = new Runner({
+        agent: params.agent.agent,
+        appName,
+        sessionService: params.sessions,
+        plugins: retryPlugins(config.retries),
+        ...(opts.memoryService ? { memoryService: opts.memoryService } : {}),
+      });
+      stream = runner.runAsync({
+        userId,
+        sessionId: params.sid,
+        newMessage: { role: 'user', parts: params.userParts },
+        abortSignal: control.signal,
+        ...(opts.streaming ? { runConfig: { streamingMode: StreamingMode.SSE } as any } : {}),
+      });
+    }
     if (trace) {
       stream = traceAgentRun(stream as AsyncIterableIterator<Event>, {
         syndicateName: trace.syndicateName ?? config.syndicate_name ?? appName,
@@ -668,7 +731,7 @@ async function runTurnInner(
       // The classifier reads the SHARED transcript as an input digest and runs
       // in a throwaway in-memory lane, so its JSON verdicts never enter the
       // conversation the next specialist reads.
-      const routerAgent = transform(await compileGraph(config, compileOpts));
+      const routerAgent = await compileRoot();
       const routerSid = `${sessionId}::route`;
       const routerSessions = new InMemorySessionService();
       await routerSessions.createSession({ appName, userId, sessionId: routerSid });
@@ -713,7 +776,7 @@ async function runTurnInner(
       // The route answers directly in the SHARED session, read through a
       // projection: ADK would otherwise render other agents' turns as user
       // speech mixed with their tool payloads (lib/session/transcript.ts).
-      const routeAgent = transform(await compileSubagent(routeCfg, compileOpts));
+      const routeAgent = await compileRoute(routeCfg);
       answer = await runAgent({
         agent: routeAgent,
         sid: sessionId,
@@ -765,7 +828,7 @@ async function runTurnInner(
     const compiled = await compileWorkflow(config, compileOpts, transform);
     try {
       answer = await runAgent({
-        agent: compiled.workflow as unknown as LlmAgent,
+        agent: { runtime: 'adk', agent: compiled.workflow as unknown as LlmAgent },
         sid: sessionId,
         userParts: parts,
         sessions: sessionService,
@@ -809,7 +872,7 @@ async function runTurnInner(
   } else {
     // ══ DELEGATE ═════════════════════════════════════════════════════════
     // Subagents are AgentTools; the orchestrator relays the answer it got.
-    const orchestrator = transform(await compileGraph(config, compileOpts));
+    const orchestrator = await compileRoot();
     let drained: DrainedRun | undefined;
     answer = await runAgent({
       agent: orchestrator,
