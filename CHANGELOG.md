@@ -6,6 +6,12 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Fix: a message could stall the server in the memory search.**
+  `stripHarnessBlocks` (run on every memory query and extraction
+  transcript) matched an unclosed `[System Context:` marker with a pattern
+  that rescanned the rest of the text once per marker, so a message of
+  many such markers took seconds per search (16 s for 800,000 characters).
+  The pattern now stops at any bracket and scans the text once.
 - **Memory and its tools are the engine's own (ADR 0059).** Additions
   only; the `exports` map is unchanged.
   - `load_memory` and `preload_memory` are the engine's own tools, in the

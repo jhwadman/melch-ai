@@ -47,7 +47,9 @@ import type { Embedder, MemoryExtractor } from './providers.ts';
  */
 export function stripHarnessBlocks(text: string): string {
 	return text
-		.replace(/\[System Context:[^\]]*\]\s*/g, '')
+		// `[^[\]]` stops at any bracket, so a run of unclosed markers is
+		// scanned once, not once per marker (CodeQL js/polynomial-redos).
+		.replace(/\[System Context:[^[\]]*\]\s*/g, '')
 		// A data block a calling surface attaches: a bracketed label ending in
 		// "Payload" or "Sheet" (e.g. `[Account Payload]`), then a fenced block.
 		.replace(/\[[A-Za-z][A-Za-z ]{0,60}(?:Payload|Sheet)\]\s*```[\s\S]*?```\s*/g, '')
