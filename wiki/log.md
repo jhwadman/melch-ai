@@ -15,6 +15,18 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-07] relate | /decisions/0049-claude-requests-by-model-generation.md —mitigates→ module:lib/session/transcript.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0049-claude-requests-by-model-generation.md —supersedes→ /decisions/0047-provider-neutral-reasoning-key.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0049-claude-requests-by-model-generation.md —depends_on→ /decisions/0046-provider-reasoning-state-on-the-part.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/schemaNormalize.ts
 
 by claude-code/claude-opus-5-5
