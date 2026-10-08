@@ -144,6 +144,11 @@ dispatch:
 #     the answer, and the node outputs { reply, input }.
 #   - require_approval, skills.scripts: local and a2a_agent_url are not
 #     supported inside a workflow yet.
+#   - A route may lead back to an earlier node (a loop). max_steps bounds
+#     the model calls in it; on the native runtime a turn also starts at
+#     most 20 × max_steps node runs (at least 100), so a loop of tool nodes
+#     that never stops routing back fails the turn NODE_RUN_LIMIT
+#     (ADR 0105). Raise max_steps to raise it.
 # workflow:
 #   edges:
 #     - [START, OrchestratorName, { article: [MySubagent, Other], default: Other }]

@@ -3,6 +3,18 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0105-workflow-node-run-ceiling.md —mitigates→ /operations/native-loop-security.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0105-workflow-node-run-ceiling.md —explains→ /decisions/0101-native-loop-security-gate.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0105-workflow-node-run-ceiling.md —constrains→ module:lib/workflow/scheduler.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0102-native-default-and-optional-adk-peer.md —explains→ /overview/architecture.md
 
 by claude-code/claude-opus-5-5
