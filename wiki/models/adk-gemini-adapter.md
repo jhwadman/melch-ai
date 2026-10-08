@@ -100,3 +100,5 @@ These are ADK's behaviours, kept, and they are what G3's swap to `GeminiAdapter`
 - behind the ADK shim: one span per call carrying the adapter's tags, one charge, and a spent step budget that never reaches the adapter.
 
 `tests/telemetryLedger.test.ts` runs one exchange through `TracedGemini` and through this adapter behind the shim, and compares the two `llm.request` spans.
+
+`tests/modelRetry.test.ts` runs the shared retries through this adapter and `GeminiAdapter` alike: a 503 retried and answered, a 400 not retried and ended as a `GEMINI_ERROR` final with genai's message, the same contents re-sent. `tests/shimBodies.test.ts` asserts that `TracedGemini`, given the LlmRequest a compiled Gemini agent sends, posts this adapter's body, and that it still throws a 400 with its status and verdict on the ADK path.

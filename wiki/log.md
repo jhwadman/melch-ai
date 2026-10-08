@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/shimBodies.test.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/helpers/scriptedLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/llmRequestBoundary.test.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | module:lib/tools/openapi/parse.ts —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
 
 by claude-code/claude-opus-5-5
