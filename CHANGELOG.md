@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **The engine parses OpenAPI specs itself (ADR 0063).** A new module,
+  `melchizedek-agents/tools/openapi/parse` (through the existing
+  `./tools/*` pattern), exports `parseOpenApiSpec` and
+  `parseOpenApiDocument`. They read an OpenAPI 3 spec into
+  `OpenApiOperation`s, each with its arguments and the `ToolDeclaration`
+  the model receives. `openapi:` tools keep their names and declarations:
+  the parser follows ADK's rules, and `buildOpenApiTools` builds the
+  same ADK tools from it. A spec is now bounded. A file over 4 MiB, more
+  than 100 YAML aliases, more than a million values once its `$ref`s are
+  resolved, or nesting deeper than 128 levels fails the compile with a
+  readable error, as does a spec that is not an object. `toSnake` and
+  `namesTool` are still exported from `tools/openapiTools`.
 - **JSON mode without a schema is on the model contract (ADR 0061).**
   `ModelRequest` (`melchizedek-agents/models/contract`) gains
   `outputFormat?: 'json'`. An agent with
