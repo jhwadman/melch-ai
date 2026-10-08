@@ -461,9 +461,11 @@ async function ledgerOf(spans: ReadableSpan[]): Promise<{ adk_turns: any[]; adk_
 function scrubbed(row: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = { ...row, ts: '<ts>', trace_id: '<trace>', span_id: '<span>' };
   for (const key of ['latency_ms', 'model_ms', 'tool_ms']) if (key in out) out[key] = '<ms>';
+  if ('engine_version' in out) out.engine_version = '<engine>'; // the version and commit change with every release
   const scrub = (attrs: Record<string, unknown>) => {
     const copy = { ...attrs };
     for (const key of ['syndicate.latency.model_ms', 'syndicate.latency.tool_ms']) if (key in copy) copy[key] = '<ms>';
+    if ('engine.version' in copy) copy['engine.version'] = '<engine>';
     return copy;
   };
   if (out.attributes) out.attributes = scrub(out.attributes);
