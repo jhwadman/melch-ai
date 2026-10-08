@@ -6,6 +6,12 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Breaking for one import path: `toFunctionTool` moves to
+  `melchizedek-agents/tools/adkTool` (ADR 0051).**
+  `melchizedek-agents/tools/toolContract` no longer exports it, so that
+  module loads nothing from `@google/adk`. Import it from
+  `melchizedek-agents`, which still exports it, or from the new subpath.
+  The `exports` map is unchanged.
 - **The engine's own event, session and memory interfaces (ADR 0052).**
   Internal modules for the native runtime, not in the exports map, so
   nothing a consumer imports changes: `lib/runtime/events.ts` (`TurnEvent`,
@@ -20,6 +26,46 @@ the starter pack and the templates), not the repo's full history.
   `low` effort on Opus 5 and 5.5, Fable and Mythos. The 1,024 floor holds on
   Claude 4.6 and earlier only, and the non-streaming limit on a
   `budget_tokens` above about 19,000 holds on every Claude model.
+- **Tools are the engine's own (ADR 0051).** New module
+  `melchizedek-agents/tools/tool`:
+  - `Tool`: `name`, `declaration()` (the model contract's
+    `ToolDeclaration`) and `execute(args, ctx)`.
+  - `ToolContext`: ids, a `state` view whose writes land in
+    `stateDelta`, `actions.skipSummarization`, `requestConfirmation` and
+    `confirmation`, and the abort `signal`. `createToolContext()` and
+    `toToolContext()` build one.
+  - `requireApproval(tool)`, the `longRunning` marker with
+    `LONG_RUNNING_NOTE` and `isLongRunning`, `capResult` and
+    `MAX_RESULT_CHARS` (20,000, the limit OpenAPI and MCP results already
+    use), and `toolOf(value)`, which finds the Tool behind a registry entry.
+
+  `defineTool` returns a Tool that is still a `ToolContract`. Its
+  `execute` validates the arguments before the handler runs, and the
+  handler gets a complete `ToolContext`; `executeContract` validates such
+  a Tool once. `defineTool` takes `longRunning` and `maxResultChars`.
+  `toolContract` also exports `asTool`, `DefinedTool` and `ToolSpec`.
+  `toFunctionTool` takes a Tool or a contract, and `registerTool` takes a
+  contract, any Tool or an ADK tool.
+- **Every registry tool that declares a function is a Tool**, wrapped for
+  the ADK runtime by `toFunctionTool`, except ADK's `load_memory`. The ADK
+  runtime runs the same `FunctionTool`s, with the same approval
+  interrupts and texts. `generate_image`, `inspect_image` and `ask_user`
+  become contracts (`generateImageContract`, `inspectImageContract`):
+  - `generate_image` and `inspect_image` now return the readable error for
+    arguments their schema refuses, instead of calling Gemini;
+  - an `ask_user` call with invalid arguments returns the error to the
+    model instead of pausing the turn on it.
+- **Tool schemas: defaults are optional, and records keep their values.**
+  On every surface (the declaration, the ADK `FunctionTool` and the MCP
+  `tools/list` entry), a zod schema is exported for its input side
+  (`io: 'input'`), so a field with a default is no longer listed as
+  required. A record's value schema (`additionalProperties`) is kept on
+  both paths, and its `propertyNames: { type: 'string' }`, which says
+  nothing in JSON, is left out: a live Gemini call refuses that keyword
+  with a 400 and accepts the value schema. `toGeminiSchema` walks by schema keyword, so a property named
+  `additionalProperties` or `default` keeps its schema. `models/schemaNormalize`
+  exports `zodInputJsonSchema`, `zodToolParameters` and `mapSchemaNodes`,
+  and `contractToolDeclaration` reads an own Tool's `declaration()`.
 - **Claude requests follow the model generation (ADR 0049).** `ClaudeLlm`
   reads a per-generation table from the model id. Before, every `claude-*`
   id got a thinking budget and a forced tool, which the current models refuse

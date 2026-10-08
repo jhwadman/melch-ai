@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 689,
-    "edges": 1712,
+    "nodes": 693,
+    "edges": 1752,
     "byKind": {
-      "doc": 109,
+      "doc": 110,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 102,
+      "file": 103,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 136,
+      "module": 138,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 285,
+      "links_to": 292,
       "requires_env": 162,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,19 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 403,
+      "imports": 423,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 340,
-      "constrains": 30,
+      "derives_from": 349,
+      "constrains": 33,
       "supersedes": 2,
-      "depends_on": 8,
+      "depends_on": 9,
       "explains": 2,
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1669,
-      "inferred": 43
+      "extracted": 1705,
+      "inferred": 47
     },
     "isolated": 4
   },
@@ -1011,6 +1011,18 @@
       }
     },
     {
+      "id": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "kind": "doc",
+      "label": "ADR 0051: Tools are the engine's own, with a delta-aware context, and reach ADK through one wrapper",
+      "source": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1197
+      }
+    },
+    {
       "id": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "kind": "doc",
       "label": "ADR 0052: The engine types the stored event as it is, and gives sessions and memory interfaces of its own",
@@ -1151,7 +1163,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 5979
+        "words": 6009
       }
     },
     {
@@ -1331,7 +1343,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 287
+        "words": 773
       }
     },
     {
@@ -3613,6 +3625,13 @@
       "source": "tests/taskLimiter.test.ts"
     },
     {
+      "id": "file:tests/toolContract.test.ts",
+      "kind": "file",
+      "label": "toolContract.test.ts",
+      "source": "tests/toolContract.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/traceCorrelation.test.ts",
       "kind": "file",
       "label": "traceCorrelation.test.ts",
@@ -3836,7 +3855,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 121
+        "lines": 122
       }
     },
     {
@@ -4124,7 +4143,7 @@
       "label": "lib/models/schemaNormalize.ts",
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
-        "lines": 388
+        "lines": 446
       }
     },
     {
@@ -4268,7 +4287,7 @@
       "label": "lib/runtime/questions.ts",
       "source": "lib/runtime/questions.ts",
       "attrs": {
-        "lines": 112
+        "lines": 115
       }
     },
     {
@@ -4412,7 +4431,16 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 148
+        "lines": 156
+      }
+    },
+    {
+      "id": "module:lib/tools/adkTool.ts",
+      "kind": "module",
+      "label": "lib/tools/adkTool.ts",
+      "source": "lib/tools/adkTool.ts",
+      "attrs": {
+        "lines": 133
       }
     },
     {
@@ -4430,7 +4458,7 @@
       "label": "lib/tools/generateImageTool.ts",
       "source": "lib/tools/generateImageTool.ts",
       "attrs": {
-        "lines": 137
+        "lines": 128
       }
     },
     {
@@ -4439,7 +4467,7 @@
       "label": "lib/tools/inspectImageTool.ts",
       "source": "lib/tools/inspectImageTool.ts",
       "attrs": {
-        "lines": 111
+        "lines": 109
       }
     },
     {
@@ -4457,7 +4485,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 205
+        "lines": 207
       }
     },
     {
@@ -4466,7 +4494,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 246
+        "lines": 247
       }
     },
     {
@@ -4551,12 +4579,21 @@
       }
     },
     {
+      "id": "module:lib/tools/tool.ts",
+      "kind": "module",
+      "label": "lib/tools/tool.ts",
+      "source": "lib/tools/tool.ts",
+      "attrs": {
+        "lines": 302
+      }
+    },
+    {
       "id": "module:lib/tools/toolContract.ts",
       "kind": "module",
       "label": "lib/tools/toolContract.ts",
       "source": "lib/tools/toolContract.ts",
       "attrs": {
-        "lines": 174
+        "lines": 238
       }
     },
     {
@@ -4574,7 +4611,7 @@
       "label": "lib/tools/webExtractTool.ts",
       "source": "lib/tools/webExtractTool.ts",
       "attrs": {
-        "lines": 481
+        "lines": 482
       }
     },
     {
@@ -4592,7 +4629,7 @@
       "label": "lib/tools/wikiTools.ts",
       "source": "lib/tools/wikiTools.ts",
       "attrs": {
-        "lines": 839
+        "lines": 840
       }
     },
     {
@@ -4601,7 +4638,7 @@
       "label": "lib/tools/xApiSearchTool.ts",
       "source": "lib/tools/xApiSearchTool.ts",
       "attrs": {
-        "lines": 662
+        "lines": 663
       }
     },
     {
@@ -8634,6 +8671,55 @@
       "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md:28"
     },
     {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "file:tests/toolContract.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md frontmatter"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md frontmatter"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md frontmatter"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md frontmatter"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md frontmatter"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md:24"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md:24"
+    },
+    {
       "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "to": "file:tests/events.test.ts",
       "rel": "derives_from",
@@ -9510,87 +9596,101 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:73"
+      "evidence": "/models/model-contract.md:74"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:43"
+      "evidence": "/models/model-contract.md:44"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:90"
+      "evidence": "/models/model-contract.md:91"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:27"
+      "evidence": "/models/model-contract.md:28"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:27"
+      "evidence": "/models/model-contract.md:28"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:97"
+      "evidence": "/models/model-contract.md:98"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:27"
+      "evidence": "/models/model-contract.md:28"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:202"
+      "evidence": "/models/model-contract.md:203"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:119"
+      "evidence": "/models/model-contract.md:120"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:355"
+      "evidence": "/models/model-contract.md:356"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:29"
+      "evidence": "/models/model-contract.md:30"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:29"
+      "evidence": "/models/model-contract.md:30"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:77"
     },
     {
       "from": "/models/provider-routing.md",
@@ -10707,7 +10807,28 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "file:tests/toolContract.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/tool.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md frontmatter"
@@ -10721,45 +10842,73 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:32"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:29"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:23"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:27"
+      "evidence": "/tools/tool-contracts.md:45"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:31"
+      "evidence": "/tools/tool-contracts.md:49"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/tools/ask-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:34"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:33"
+      "evidence": "/tools/tool-contracts.md:51"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:33"
+      "evidence": "/tools/tool-contracts.md:51"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:33"
+      "evidence": "/tools/tool-contracts.md:51"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:33"
+      "evidence": "/tools/tool-contracts.md:51"
     },
     {
       "from": "/tools/web-tools.md",
@@ -12639,6 +12788,13 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -13661,6 +13817,13 @@
     },
     {
       "from": "module:lib/models/schemaNormalize.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/schemaNormalize.ts"
+    },
+    {
+      "from": "module:lib/models/schemaNormalize.ts",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -14011,6 +14174,13 @@
     },
     {
       "from": "module:lib/runtime/questions.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/questions.ts"
+    },
+    {
+      "from": "module:lib/runtime/questions.ts",
       "to": "module:lib/workflowConfig.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -14305,6 +14475,13 @@
     },
     {
       "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/tools/collectionsSearchTool.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -14340,7 +14517,7 @@
     },
     {
       "from": "module:lib/toolRegistry.ts",
-      "to": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/tools/tool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/toolRegistry.ts"
@@ -14388,6 +14565,27 @@
       "evidence": "lib/toolRegistry.ts"
     },
     {
+      "from": "module:lib/tools/adkTool.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/adkTool.ts"
+    },
+    {
+      "from": "module:lib/tools/adkTool.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/adkTool.ts"
+    },
+    {
+      "from": "module:lib/tools/adkTool.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/adkTool.ts"
+    },
+    {
       "from": "module:lib/tools/collectionsSearchTool.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
@@ -14410,6 +14608,20 @@
     },
     {
       "from": "module:lib/tools/generateImageTool.ts",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/generateImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/generateImageTool.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/generateImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/generateImageTool.ts",
       "to": "env:GEMINI_API_KEY",
       "rel": "requires_env",
       "tier": "extracted",
@@ -14428,6 +14640,20 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/generateImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/inspectImageTool.ts",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/inspectImageTool.ts"
+    },
+    {
+      "from": "module:lib/tools/inspectImageTool.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/inspectImageTool.ts"
     },
     {
       "from": "module:lib/tools/inspectImageTool.ts",
@@ -14473,6 +14699,13 @@
     },
     {
       "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
       "to": "env:ALLOW_PRIVATE_MCP",
       "rel": "requires_env",
       "tier": "extracted",
@@ -14495,6 +14728,13 @@
     {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/net/redirects.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/tools/tool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
@@ -14647,6 +14887,34 @@
       "evidence": "lib/tools/taskTools.ts"
     },
     {
+      "from": "module:lib/tools/tool.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/tool.ts"
+    },
+    {
+      "from": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/toolContract.ts"
+    },
+    {
+      "from": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/toolContract.ts"
+    },
+    {
+      "from": "module:lib/tools/toolContract.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/toolContract.ts"
+    },
+    {
       "from": "module:lib/tools/urlContextTool.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
@@ -14656,6 +14924,13 @@
     {
       "from": "module:lib/tools/webExtractTool.ts",
       "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/webExtractTool.ts"
+    },
+    {
+      "from": "module:lib/tools/webExtractTool.ts",
+      "to": "module:lib/tools/adkTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/webExtractTool.ts"
@@ -14684,6 +14959,13 @@
     {
       "from": "module:lib/tools/wikiTools.ts",
       "to": "module:lib/config.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/wikiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/wikiTools.ts",
+      "to": "module:lib/tools/adkTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/wikiTools.ts"
@@ -14764,6 +15046,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/wikiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/xApiSearchTool.ts",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/xApiSearchTool.ts"
     },
     {
       "from": "module:lib/tools/xApiSearchTool.ts",

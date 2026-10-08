@@ -55,6 +55,7 @@ import type { RunAsyncToolRequest } from '@google/adk';
 import { blockedHostReason, checkHost } from '../net/addressGuard.ts';
 import { withRedirectGuard } from '../net/redirects.ts';
 import type { RedirectPolicy } from '../net/redirects.ts';
+import { MAX_RESULT_CHARS as TOOL_RESULT_CHARS } from './tool.ts';
 
 export interface OpenApiAuthConfig {
   /** Environment variable holding a bearer token (`Authorization: Bearer …`). */
@@ -76,8 +77,8 @@ export interface OpenApiConfig {
   auth?: OpenApiAuthConfig;
 }
 
-/** Characters a single API result may carry into the conversation. */
-export const MAX_RESULT_CHARS = 20_000;
+/** Characters a single API result may carry into the conversation: every tool's shared limit (lib/tools/tool.ts). */
+export const MAX_RESULT_CHARS = TOOL_RESULT_CHARS;
 
 /** Marks a tool built here, so require_approval may gate it (lib/compile.ts). */
 export const OPENAPI_TOOL = Symbol.for('melchizedek.openapiTool');

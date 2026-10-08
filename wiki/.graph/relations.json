@@ -349,6 +349,38 @@
       "evidence": "ADR 0045 Decision 4: the stored Event JSON never changes without an ADR. tests/syndicateTurn.test.ts runs every shim case twice and asserts the stored session history is the same as with the scripted ADK model, call ids aside.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0051 §1 and §4: \"The module imports only a type from the model contract\" and \"tool.ts and toolContract.ts load nothing from @google/* at runtime\"; tests/toolContract.test.ts asserts it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0051 §4: \"lib/tools/adkTool.ts holds toFunctionTool(tool)\", the one place a Tool becomes an ADK FunctionTool, and §5: it keeps ADK's approval texts and long-running note so both runtimes store the same events.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0051 §3: \"defineTool returns a Tool that is still a ToolContract\", whose execute validates the arguments before the handler runs; §4: toolContract.ts no longer exports toFunctionTool.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0051 §1: \"declaration() returns the model contract's ToolDeclaration\", the type ADR 0048 defines in lib/models/contract.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

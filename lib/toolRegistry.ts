@@ -6,6 +6,11 @@
  *   a2a_server.ts and syndicate_chat.ts each carried an identical `resolveTools`
  *   switch. The two copies had already begun to drift. Centralising the mapping
  *   here means a newly added tool is available to every entrypoint at once.
+ *
+ * Every client-side tool here is an own Tool (lib/tools/tool.ts), defined
+ * once, and the ADK runtime receives the FunctionTool toFunctionTool
+ * (lib/tools/adkTool.ts) makes of it; toolOf() reads the Tool back from it.
+ * The server-side sentinels and ADK's memory tools are ADK objects still.
  */
 
 import {
@@ -16,7 +21,8 @@ import {
 import { COLLECTIONS_SEARCH } from './tools/collectionsSearchTool.ts';
 import { generateImageTool } from './tools/generateImageTool.ts';
 import { inspectImageTool } from './tools/inspectImageTool.ts';
-import { toFunctionTool } from './tools/toolContract.ts';
+import { toFunctionTool } from './tools/adkTool.ts';
+import { isTool } from './tools/tool.ts';
 import { WEB_SEARCH } from './tools/webSearchTool.ts';
 import { webExtractTool } from './tools/webExtractTool.ts';
 import { WIKI_AGENT_TOOL_CONTRACTS } from './tools/wikiTools.ts';
@@ -85,7 +91,7 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   // Ask the person mid-turn (lib/runtime/questions.ts): a long-running call
   // that ends the turn input-required; the next message is its answer. Only
   // on an agent the turn runs directly (the schema enforces it).
-  ask_user: askUserTool,
+  ask_user: toFunctionTool(askUserTool),
   load_memory: LOAD_MEMORY,
   preload_memory: PRELOAD_MEMORY,
 };
@@ -122,8 +128,10 @@ export function resolveTools(
  * only what is registered, never load code), and editing this file under
  * node_modules is not an option. Registering is the same deliberate act of
  * exposure as listing a tool above — it happens in your code, where a
- * reviewer reads it. Pass a `defineTool` contract (lib/tools/toolContract.ts)
- * or a ready ADK tool. Replacing a built-in requires `{ override: true }`.
+ * reviewer reads it. Pass a `defineTool` contract (lib/tools/toolContract.ts),
+ * any own Tool (lib/tools/tool.ts), or a ready ADK tool. A contract or Tool
+ * reaches the ADK runtime through toFunctionTool. Replacing a built-in
+ * requires `{ override: true }`.
  */
 export function registerTool(
   name: string,
@@ -138,7 +146,7 @@ export function registerTool(
   }
   const t = tool as Record<string, unknown>;
   const isContract = !!t && typeof t === 'object' && 'schema' in t && typeof t.execute === 'function' && !('runAsync' in t);
-  TOOL_MAP[name] = isContract ? toFunctionTool(tool as any) : tool;
+  TOOL_MAP[name] = isContract || isTool(tool) ? toFunctionTool(tool as any) : tool;
 }
 
 /** Names a YAML can declare under `tools:` right now. */

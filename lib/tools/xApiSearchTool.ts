@@ -59,7 +59,8 @@
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
-import { defineTool, toFunctionTool } from './toolContract.ts';
+import { toFunctionTool } from './adkTool.ts';
+import { defineTool } from './toolContract.ts';
 
 export const X_API_SEARCH_TOOL_NAME = 'x_api_search';
 

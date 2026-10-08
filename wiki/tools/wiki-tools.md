@@ -8,7 +8,7 @@ tags:
   - mcp
 generated:
   by: process:wiki-build
-  at: 2026-08-19
+  at: 2026-10-08
 sources:
   - resource: lib/tools/wikiTools.ts
 ---
@@ -24,10 +24,10 @@ This document details the tool surface used by agents and external clients to in
 |---|---|---|
 | `wiki_map` | — | Orient in the knowledge bundle: its purpose, directory map, document census, and graph health. |
 | `wiki_read` | `path`, `section?` | Read one wiki document by bundle path (e.g. |
-| `wiki_search` | `query`, `limit` | Lexical search over the knowledge bundle (titles, tags, headings, paths, body). |
-| `wiki_links` | `path`, `depth`, `direction` | Walk the knowledge graph from one document: what it links to and what links to it, out to a chosen depth. |
-| `wiki_dive` | `task`, `budget_words` | Repo dive: given a TASK, get an ordered reading plan through the bundle — orientation indexes first, then matched concepts, then graph-linked context, within a word budget. |
-| `wiki_graph` | `node?`, `find?`, `kind?`, `path_to?`, `relations?`, `depth`, `direction`, `limit` | Query the ENTITY graph: agents, syndicates, models, providers, tools, MCP servers, modules, tables, env vars, npm scripts and documents, joined by typed relations (uses_tool, uses_model, imports, reads_table, requires_env, documents, depends_on, constrains…). |
+| `wiki_search` | `query`, `limit?` | Lexical search over the knowledge bundle (titles, tags, headings, paths, body). |
+| `wiki_links` | `path`, `depth?`, `direction?` | Walk the knowledge graph from one document: what it links to and what links to it, out to a chosen depth. |
+| `wiki_dive` | `task`, `budget_words?` | Repo dive: given a TASK, get an ordered reading plan through the bundle — orientation indexes first, then matched concepts, then graph-linked context, within a word budget. |
+| `wiki_graph` | `node?`, `find?`, `kind?`, `path_to?`, `relations?`, `depth?`, `direction?`, `limit?` | Query the ENTITY graph: agents, syndicates, models, providers, tools, MCP servers, modules, tables, env vars, npm scripts and documents, joined by typed relations (uses_tool, uses_model, imports, reads_table, requires_env, documents, depends_on, constrains…). |
 | `wiki_save` | `path`, `content`, `actor`, `summary` | Write one concept document into the bundle (create or revise). |
 | `wiki_relate` | `from`, `to`, `relation`, `evidence`, `actor`, `note?` | Assert ONE typed relation the build cannot derive — a judgment read out of prose (depends_on, constrains, supersedes, explains, alternative_to, mitigates, contradicts). |
 | `wiki_query` | `question`, `model?` | Ask the knowledge bundle a question in natural language. |
