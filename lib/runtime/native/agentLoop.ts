@@ -83,6 +83,10 @@
  * declares; a run marked `taskNode` ends on its successful answer
  * (lib/runtime/native/taskMode.ts).
  *
+ * WORKFLOW NODES (ADR 0090): a run for a workflow agent node passes
+ * `nodeStamp`, which writes the node's output and path on each event before
+ * it is stored (lib/workflow/agentNode.ts).
+ *
  * CONSENT (WS6-3b, ADR 0085): with `credentials`, each call's
  * `accessToken(provider)` reads the user's grant (ADR 0072). With `consent`,
  * a call whose provider the user has not granted asks for it
@@ -158,6 +162,13 @@ export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adap
    * goes on after finish_task's answer, as LlmAgent.runAsync does.
    */
   taskNode?: boolean;
+  /**
+   * The run is a workflow node's: called on each event before it is stored,
+   * after the outputKey and task hooks, as ADK's node runner stamps an event
+   * (its output, `nodeInfo.path` and `outputFor`) before its Runner appends
+   * it (lib/workflow/agentNode.ts). Not passed to a delegated subagent's loop.
+   */
+  nodeStamp?: (event: TurnEvent) => void;
   /**
    * The run's tool credentials, already pinned to its app
    * (pinnedCredentialStore, ADR 0072): each call's `accessToken` reads them
@@ -707,6 +718,7 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
   const beforeStore = (event: TurnEvent): void => {
     saveOutput(agent, event);
     task?.beforeStore(event);
+    ctx.nodeStamp?.(event);
     runTemp.record(event);
   };
   const store = async (event: TurnEvent): Promise<TurnEvent> => {

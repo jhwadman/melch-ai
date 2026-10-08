@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 827,
-    "edges": 2938,
+    "nodes": 832,
+    "edges": 2973,
     "byKind": {
-      "doc": 151,
+      "doc": 153,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 141,
+      "file": 142,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 189,
+      "module": 191,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 603,
+      "links_to": 613,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 740,
+      "imports": 749,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 698,
-      "constrains": 146,
+      "derives_from": 707,
+      "constrains": 149,
       "supersedes": 7,
-      "depends_on": 70,
-      "explains": 22,
+      "depends_on": 73,
+      "explains": 23,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2690,
-      "inferred": 248
+      "extracted": 2718,
+      "inferred": 255
     },
     "isolated": 4
   },
@@ -1445,6 +1445,18 @@
       }
     },
     {
+      "id": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "kind": "doc",
+      "label": "ADR 0090: A workflow agent node runs on the native loop with a stamp hook, the route step stores ADK's event, and route derivation is one function",
+      "source": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 690
+      }
+    },
+    {
       "id": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "kind": "doc",
       "label": "ADR 0091: A workflow tool node runs its tool as ADK's ToolNode does, writes ADK's event itself, and takes the registry from its caller",
@@ -1717,7 +1729,19 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 5995
+        "words": 6025
+      }
+    },
+    {
+      "id": "/overview/workflow-agent-node.md",
+      "kind": "doc",
+      "label": "Workflow agent node",
+      "source": "/overview/workflow-agent-node.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 845
       }
     },
     {
@@ -1741,7 +1765,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1217
+        "words": 1248
       }
     },
     {
@@ -4405,6 +4429,13 @@
       "source": "tests/workflow.test.ts"
     },
     {
+      "id": "file:tests/workflowAgentNode.test.ts",
+      "kind": "file",
+      "label": "workflowAgentNode.test.ts",
+      "source": "tests/workflowAgentNode.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/workflowGraph.test.ts",
       "kind": "file",
       "label": "workflowGraph.test.ts",
@@ -5240,7 +5271,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 813
+        "lines": 825
       }
     },
     {
@@ -5982,12 +6013,30 @@
       }
     },
     {
+      "id": "module:lib/workflow/agentNode.ts",
+      "kind": "module",
+      "label": "lib/workflow/agentNode.ts",
+      "source": "lib/workflow/agentNode.ts",
+      "attrs": {
+        "lines": 309
+      }
+    },
+    {
       "id": "module:lib/workflow/graph.ts",
       "kind": "module",
       "label": "lib/workflow/graph.ts",
       "source": "lib/workflow/graph.ts",
       "attrs": {
         "lines": 536
+      }
+    },
+    {
+      "id": "module:lib/workflow/route.ts",
+      "kind": "module",
+      "label": "lib/workflow/route.ts",
+      "source": "lib/workflow/route.ts",
+      "attrs": {
+        "lines": 85
       }
     },
     {
@@ -6014,7 +6063,7 @@
       "label": "lib/workflowConfig.ts",
       "source": "lib/workflowConfig.ts",
       "attrs": {
-        "lines": 148
+        "lines": 141
       }
     },
     {
@@ -12693,6 +12742,62 @@
       "evidence": "/decisions/0088-native-parity-followups.md:39"
     },
     {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "file:tests/workflowAgentNode.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0090-workflow-agent-node-on-the-native-loop.md frontmatter"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0090-workflow-agent-node-on-the-native-loop.md frontmatter"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0090-workflow-agent-node-on-the-native-loop.md frontmatter"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "module:lib/workflow/route.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0090-workflow-agent-node-on-the-native-loop.md frontmatter"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0090-workflow-agent-node-on-the-native-loop.md frontmatter"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0090-workflow-agent-node-on-the-native-loop.md:25"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0090-workflow-agent-node-on-the-native-loop.md:25"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0090-workflow-agent-node-on-the-native-loop.md:31"
+    },
+    {
       "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "to": "file:tests/workflowToolNode.test.ts",
       "rel": "derives_from",
@@ -15739,6 +15844,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/overview/workflow-agent-node.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:135"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -15750,6 +15862,69 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:61"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "file:tests/workflowAgentNode.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "module:lib/workflow/route.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:21"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:31"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:21"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:21"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/overview/workflow-scheduler.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:21"
     },
     {
       "from": "/overview/workflow-graph.md",
@@ -15876,6 +16051,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-scheduler.md:66"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/overview/workflow-agent-node.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:22"
     },
     {
       "from": "/overview/workflow-scheduler.md",
@@ -23270,6 +23452,55 @@
       "evidence": "lib/workflow.ts"
     },
     {
+      "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/workflow/route.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
+    },
+    {
       "from": "module:lib/workflow/graph.ts",
       "to": "module:lib/loadSyndicate.ts",
       "rel": "imports",
@@ -23289,6 +23520,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/graph.ts"
+    },
+    {
+      "from": "module:lib/workflow/route.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/route.ts"
     },
     {
       "from": "module:lib/workflow/scheduler.ts",
@@ -23331,6 +23569,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/toolNode.ts"
+    },
+    {
+      "from": "module:lib/workflowConfig.ts",
+      "to": "module:lib/workflow/route.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflowConfig.ts"
     },
     {
       "from": "module:scripts/a2a_server.ts",
