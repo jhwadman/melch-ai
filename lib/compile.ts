@@ -28,7 +28,7 @@
  * Contract and rationale: lib/dispatch.ts.
  */
 
-import { AgentTool, BaseLlm, BuiltInCodeExecutor, ExampleTool, FunctionTool, LLMRegistry, LlmAgent, LlmSummarizer, TokenBasedContextCompactor } from '@google/adk';
+import { AgentTool, BaseLlm, BuiltInCodeExecutor, FunctionTool, LLMRegistry, LlmAgent, LlmSummarizer, TokenBasedContextCompactor } from '@google/adk';
 import type { BaseTool, Context, RunAsyncToolRequest } from '@google/adk';
 import { relative } from 'node:path';
 
@@ -40,6 +40,9 @@ import { providerForModel } from './models/providerMap.ts';
 import { reasoningConfig } from './models/reasoning.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
+import { toAdkInstructionTool } from './tools/adkTool.ts';
+import { examplesInstructionTool } from './tools/examples.ts';
+import type { ExampleConfig } from './tools/examples.ts';
 import { capabilitySummary, describeCapabilities } from './models/capabilities.ts';
 import { FallbackLlm } from './models/fallback.ts';
 import { resolveModel as resolveRegistryModel } from './models/registry.ts';
@@ -271,23 +274,17 @@ export function declaresApprovals(config: SyndicateYamlConfig): boolean {
   return agentGates(config.orchestrator) || (config.subagents ?? []).some((s) => agentGates(s));
 }
 
-/** An agent's `examples:` entry: one exchange the model should imitate. */
-export interface ExampleConfig {
-  input: string;
-  output: string;
-}
+export type { ExampleConfig };
 
 /**
- * ADK's ExampleTool from YAML pairs: never called by the model, it adds the
- * exchanges to every request's instruction as few-shot examples.
+ * An agent's `examples:` as the ADK tool for their InstructionTool
+ * (lib/tools/examples.ts): never called by the model, it adds the exchanges
+ * to every request's instruction as few-shot examples, in the words ADK's
+ * ExampleTool used.
  */
 export function examplesTool(examples: ExampleConfig[] | undefined): unknown[] {
-  if (!examples?.length) return [];
-  return [
-    new ExampleTool(
-      examples.map((e) => ({ input: { role: 'user', parts: [{ text: e.input }] }, output: [{ role: 'model', parts: [{ text: e.output }] }] })),
-    ),
-  ];
+  const tool = examplesInstructionTool(examples);
+  return tool ? [toAdkInstructionTool(tool)] : [];
 }
 
 /**
