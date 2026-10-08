@@ -69,7 +69,7 @@ import { currentTurnControl, currentTurnSignal, stopCode, stopMessage } from '..
 import { toolOf } from '../../tools/tool.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import { SET_MODEL_RESPONSE, buildModelRequest } from './request.ts';
-import type { NativeAgent } from './request.ts';
+import type { NativeAgent, WorkflowInstructionScope } from './request.ts';
 import type { ModelCorrection } from './selfCorrection.ts';
 
 export interface ModelStepOptions {
@@ -118,6 +118,8 @@ export interface ModelStepOptions {
    * reflect-and-retry model plugin sees it.
    */
   correction?: ModelCorrection;
+  /** A workflow agent node's run: fills the instruction's workflow placeholders (request.ts, WorkflowInstructionScope). */
+  workflowScope?: WorkflowInstructionScope;
 }
 
 /** Why a step made no call, or stopped answering: the turn's own stop. */
@@ -212,6 +214,7 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
     stream: options.stream ?? false,
     ...(signal ? { signal } : {}),
     ...(options.correction ? { extraTools: options.correction.tools } : {}),
+    ...(options.workflowScope ? { workflowScope: options.workflowScope } : {}),
   });
   if (options.model) request.model = options.model;
   const result: ModelStepResult = { request, text: '', thinking: '', toolCalls: [], longRunningToolIds: [], tools };

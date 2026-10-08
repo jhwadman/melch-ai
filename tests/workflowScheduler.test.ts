@@ -387,7 +387,8 @@ test('max_concurrency bounds the nodes running at once, in ADK\'s order', async 
     nodes: { All: { join: true } },
     max_concurrency: 2,
   });
-  const stubs: Stubs = { A: { delay: 20 }, B: { delay: 5 }, C: { delay: 5 } };
+  // Finish times B 5, C 25, A 80 ms: at least 20 ms apart, so the order holds under slow instrumented runs.
+  const stubs: Stubs = { A: { delay: 80 }, B: { delay: 5 }, C: { delay: 20 } };
   const events: SchedulerEvent[] = [];
   const adk = await runOnAdk(cfg, stubs, 'go');
   const native = await runNative(cfg, stubs, 'go', events);
