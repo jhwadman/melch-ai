@@ -229,6 +229,30 @@
       "note": "In part: only how the Claude adapter reads the reasoning fields. ADR 0047's key, levels and compiler mapping stand."
     },
     {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "/models/model-contract.md Gemini table: \"{ provider: 'gemini', kind: 'thought_signature', model, payload } <-> the part's thoughtSignature, on the same part, replayed within the current turn.\" /models/gemini-adapter.md, Thought signatures: \"The adapter writes a part's thoughtSignature as providerState ... on the output part it arrived on.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 3: \"Each adapter maps the setting itself, so a fallback model gets its own mapping.\" /models/gemini-adapter.md: \"Reasoning maps through reasoningConfig in lib/compile.ts (ADR 0047) for the request's model id\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 4: \"Exactly one final, which never holds thinking, ends every call. A failure is a final with error set, never a throw.\" Consequences: \"Gemini receives the lowercase form as parametersJsonSchema and responseJsonSchema.\" /models/gemini-adapter.md: \"GeminiAdapter ... is Gemini as a contract ModelAdapter\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-07"
+    },
+    {
       "from": "/decisions/0048-engine-owned-model-contract.md",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "constrains",

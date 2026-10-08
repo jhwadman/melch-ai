@@ -115,8 +115,8 @@ The codes are the ones the adapters emit under ADK, kept verbatim, so a caller m
 | Code | Emitted by | When |
 |---|---|---|
 | `STEP_LIMIT`, `DEADLINE_EXCEEDED`, `CANCELED` | every adapter | The turn's controls (`lib/runtime/turnControl.ts`) refuse the call at the shared choke point: the step budget is spent, or the turn has stopped. |
-| `MISSING_API_KEY` | Claude, GPT, Grok | No key on a provider's own API. |
-| `ENDPOINT_MISCONFIGURED` | Claude, GPT | A platform (ADR 0023) that is not fully configured, or its client failed to build. |
+| `MISSING_API_KEY` | Claude, GPT, Grok, Gemini | No key on a provider's own API. |
+| `ENDPOINT_MISCONFIGURED` | Claude, GPT, Gemini | A platform (ADR 0023) that is not fully configured, or its client failed to build. |
 | `SDK_NOT_INSTALLED` | Claude, GPT, Grok | The vendor SDK (or a platform's optional peer) is absent. |
 | `ANTHROPIC_ERROR` | Claude | The Messages API call failed. |
 | `OPENAI_ERROR`, `XAI_ERROR` | GPT, Grok | The Responses call failed. |
