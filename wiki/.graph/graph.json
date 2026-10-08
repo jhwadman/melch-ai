@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 857,
-    "edges": 3256,
+    "edges": 3257,
     "byKind": {
       "doc": 163,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 675,
+      "links_to": 676,
       "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
@@ -46,7 +46,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2928,
+      "extracted": 2929,
       "inferred": 328
     },
     "isolated": 4
@@ -949,7 +949,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1721
+        "words": 1875
       }
     },
     {
@@ -10026,6 +10026,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:84"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:87"
     },
     {
       "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
