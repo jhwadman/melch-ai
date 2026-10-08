@@ -721,8 +721,65 @@ function finishReasonOfCode(code: string | undefined): FinishReason | undefined 
   return code !== undefined && GEMINI_FINISH_REASONS.has(code) ? (code as FinishReason) : undefined;
 }
 
+/**
+ * One part of a model's answer as the contract allows it (lib/models/
+ * contract.ts), or undefined to drop it. The contract binds an adapter, and
+ * a model's answer is untrusted input to the runtime that stores it, so the
+ * runtimes hold an adapter to it here rather than store a part no reader
+ * expects (WS5-5, wiki/operations/native-loop-security.md):
+ *   - a part that is not an object, of no known kind, or a tool result (an
+ *     answer holds none) is dropped;
+ *   - a text or thinking part whose text is not a string is dropped;
+ *   - a tool call's name and id that are not strings become `''` (the
+ *     runtime then mints the id), and its arguments that are not an object
+ *     become `{}` when absent or null, else `{ raw: <value> }`, the
+ *     contract's form for arguments that do not parse;
+ *   - a blob needs a string mimeType and a string `data` or `url`;
+ *   - a Gemini part carried whole must be an object.
+ * A part the contract allows is returned as it is, so a well-behaved
+ * adapter's answer maps exactly as before.
+ */
+function contractOutputPart(part: unknown): Part | undefined {
+  if (!isObject(part)) return undefined;
+  const state = part.providerState as Part['providerState'] | undefined;
+  if (state?.provider === GEMINI_PROVIDER && state.kind === GENAI_PART_KIND && !isObject(state.payload)) return undefined;
+  switch (part.type) {
+    case 'text':
+    case 'thinking':
+      return typeof part.text === 'string' ? (part as unknown as Part) : undefined;
+    case 'toolCall': {
+      const { name, id, args } = part;
+      if (typeof name === 'string' && typeof id === 'string' && (isObject(args) || Array.isArray(args))) return part as unknown as Part;
+      const checkedArgs = isObject(args) || Array.isArray(args) ? args : args === undefined || args === null ? {} : { raw: args };
+      return { ...part, type: 'toolCall', name: typeof name === 'string' ? name : '', id: typeof id === 'string' ? id : '', args: checkedArgs as Record<string, unknown> };
+    }
+    case 'blob':
+      return typeof part.mimeType === 'string' && (typeof part.data === 'string' || typeof part.url === 'string') ? (part as unknown as Part) : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * `response` with each part held to the contract (contractOutputPart): the
+ * same object when every part already is, else a copy with the parts
+ * checked. Used by modelResponseToLlmResponse (the ADK shim's mapping) and
+ * by the native step, so both runtimes read and store the same answer. A
+ * response that is not an object is returned as it is: the caller fails on
+ * it as on any adapter that broke the contract.
+ */
+export function contractModelResponse<R extends ModelResponse>(response: R): R {
+  if (!isObject(response)) return response;
+  const raw: unknown = (response as { parts?: unknown }).parts;
+  const parts = Array.isArray(raw) ? raw : [];
+  const checked = parts.map(contractOutputPart);
+  if (Array.isArray(raw) && checked.every((p, i) => p === parts[i])) return response;
+  return { ...response, parts: checked.filter((p): p is Part => p !== undefined) } as R;
+}
+
 /** A ModelResponse as the LlmResponse ADK expects from a model (see the header). */
-export function modelResponseToLlmResponse(response: ModelResponse): LlmResponse {
+export function modelResponseToLlmResponse(unchecked: ModelResponse): LlmResponse {
+  const response = contractModelResponse(unchecked);
   const parts = (response.parts as Part[]).map(partToGenai);
   if (response.partial) return { content: { role: 'model', parts }, partial: true };
   const finishReason = finishReasonOfCode(response.error?.code) ?? FINISH_REASONS[response.finishReason];

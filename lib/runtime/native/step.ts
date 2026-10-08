@@ -61,7 +61,7 @@ import type { LlmResponse } from '@google/adk';
 
 import type { FinalModelResponse, ModelAdapter, ModelError, ModelRequest, ModelResponse, ToolCallPart } from '../../models/contract.ts';
 import { errorDecision, errorText } from '../../models/errorResponse.ts';
-import { modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
+import { contractModelResponse, modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import { traceLlmGeneration } from '../../observability/tracer.ts';
 import type { MemoryService } from '../memoryService.ts';
@@ -239,7 +239,9 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
   let thrown: { error: unknown } | undefined;
   async function* inner(): AsyncGenerator<LlmResponse, void> {
     try {
-      for await (const response of adapter.generate(request)) {
+      for await (const unchecked of adapter.generate(request)) {
+        // The answer held to the contract, as the shim's mapping holds it (contractModelResponse): the step reads and stores the same parts.
+        const response = contractModelResponse(unchecked);
         const mapped = modelResponseToLlmResponse(response);
         sources.set(mapped, response);
         yield mapped;
