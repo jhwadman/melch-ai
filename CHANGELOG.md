@@ -6,6 +6,12 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Base URLs lose their trailing slashes in one pass.** The Kimi
+  adapter, the gateway, the endpoints module and the embeddings provider
+  trimmed a base URL with a regular expression that backtracked
+  quadratically on a long run of slashes (CodeQL js/polynomial-redos).
+  They now share `trimTrailingSlashes` (new module
+  `melchizedek-agents/models/urls`). Results are unchanged.
 - **Breaking for subclasses of `OpenAiCompatibleLlm`: the chat-completions
   adapters move onto the model contract (ADR 0057).** New modules under
   `melchizedek-agents/models/`:

@@ -112,6 +112,7 @@ import { DEFAULT_KIMI_REASONING_EFFORT } from '../config.ts';
 import { ChatCompletionsAdapter, reasonsNotAtAll } from './chatCompletionsAdapter.ts';
 import type { ChatFailure } from './chatCompletionsAdapter.ts';
 import { reasoningConfig } from './reasoning.ts';
+import { trimTrailingSlashes } from './urls.ts';
 
 export const MOONSHOT_BASE_URL = 'https://api.moonshot.ai/v1';
 
@@ -145,7 +146,7 @@ export class KimiAdapter extends ChatCompletionsAdapter {
   constructor({ model, apiKey, baseUrl }: KimiAdapterOptions) {
     super({ model });
     this.#apiKey = apiKey;
-    this.#baseUrl = (baseUrl || process.env.MOONSHOT_BASE_URL || MOONSHOT_BASE_URL).replace(/\/+$/, '');
+    this.#baseUrl = trimTrailingSlashes(baseUrl || process.env.MOONSHOT_BASE_URL || MOONSHOT_BASE_URL);
   }
 
   protected endpointUrl(): string {

@@ -41,6 +41,7 @@
 import { providerReady } from './endpoints.ts';
 import { PROVIDERS, providerForModel } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
+import { trimTrailingSlashes } from './urls.ts';
 
 export type GatewayId = 'vercel' | 'openrouter';
 
@@ -101,7 +102,7 @@ export function gatewayConfig(): GatewayConfig | null {
   const override = (process.env[GATEWAY_BASE_URL_ENV] ?? '').trim();
   return {
     gateway,
-    baseUrl: (override || gateway.baseUrl).replace(/\/+$/, ''),
+    baseUrl: trimTrailingSlashes(override || gateway.baseUrl),
     keyPresent: !!process.env[GATEWAY_KEY_ENV],
   };
 }
