@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/claudeCurrentApi.test.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md —depends_on→ /decisions/0057-chat-completions-shims-keep-the-adk-shape.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md —constrains→ module:lib/models/chatCompletionsAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md —constrains→ module:lib/models/kimiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
 
 by claude-code/claude-opus-5-5
