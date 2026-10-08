@@ -5,8 +5,8 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 673,
-    "edges": 1629,
+    "nodes": 675,
+    "edges": 1640,
     "byKind": {
       "doc": 105,
       "provider": 6,
@@ -18,7 +18,7 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 129,
+      "module": 131,
       "script": 47,
       "external": 2
     },
@@ -33,19 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 383,
+      "imports": 392,
       "reads_table": 28,
       "runs": 67,
       "derives_from": 317,
+      "constrains": 19,
       "supersedes": 2,
-      "constrains": 17,
       "depends_on": 7,
       "explains": 2,
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1600,
-      "inferred": 29
+      "extracted": 1609,
+      "inferred": 31
     },
     "isolated": 4
   },
@@ -935,7 +935,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 338
+        "words": 435
       }
     },
     {
@@ -1103,7 +1103,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 4607
+        "words": 4609
       }
     },
     {
@@ -1115,7 +1115,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3813
+        "words": 3876
       }
     },
     {
@@ -3693,7 +3693,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 551
+        "lines": 497
       }
     },
     {
@@ -3846,7 +3846,7 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 671
+        "lines": 673
       }
     },
     {
@@ -3877,12 +3877,21 @@
       }
     },
     {
+      "id": "module:lib/models/errorResponse.ts",
+      "kind": "module",
+      "label": "lib/models/errorResponse.ts",
+      "source": "lib/models/errorResponse.ts",
+      "attrs": {
+        "lines": 84
+      }
+    },
+    {
       "id": "module:lib/models/fallback.ts",
       "kind": "module",
       "label": "lib/models/fallback.ts",
       "source": "lib/models/fallback.ts",
       "attrs": {
-        "lines": 87
+        "lines": 122
       }
     },
     {
@@ -3927,7 +3936,7 @@
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 827
+        "lines": 826
       }
     },
     {
@@ -3963,7 +3972,7 @@
       "label": "lib/models/openAiCompatibleLlm.ts",
       "source": "lib/models/openAiCompatibleLlm.ts",
       "attrs": {
-        "lines": 902
+        "lines": 906
       }
     },
     {
@@ -3985,6 +3994,15 @@
       }
     },
     {
+      "id": "module:lib/models/reasoning.ts",
+      "kind": "module",
+      "label": "lib/models/reasoning.ts",
+      "source": "lib/models/reasoning.ts",
+      "attrs": {
+        "lines": 72
+      }
+    },
+    {
       "id": "module:lib/models/registry.ts",
       "kind": "module",
       "label": "lib/models/registry.ts",
@@ -3999,7 +4017,7 @@
       "label": "lib/models/retry.ts",
       "source": "lib/models/retry.ts",
       "attrs": {
-        "lines": 364
+        "lines": 365
       }
     },
     {
@@ -11873,6 +11891,13 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/models/registry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12461,6 +12486,13 @@
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/providerState.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12607,8 +12639,29 @@
       "evidence": "lib/models/endpoints.ts"
     },
     {
+      "from": "module:lib/models/errorResponse.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/errorResponse.ts"
+    },
+    {
+      "from": "module:lib/models/errorResponse.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/errorResponse.ts"
+    },
+    {
       "from": "module:lib/models/fallback.ts",
       "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/models/errorResponse.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/fallback.ts"
@@ -12622,7 +12675,7 @@
     },
     {
       "from": "module:lib/models/fallback.ts",
-      "to": "module:lib/models/retry.ts",
+      "to": "module:lib/runtime/turnControl.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/fallback.ts"
@@ -12685,13 +12738,6 @@
     },
     {
       "from": "module:lib/models/geminiAdapter.ts",
-      "to": "module:lib/compile.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/geminiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/geminiAdapter.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12707,6 +12753,13 @@
     {
       "from": "module:lib/models/geminiAdapter.ts",
       "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/models/reasoning.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/geminiAdapter.ts"
@@ -12756,6 +12809,13 @@
     {
       "from": "module:lib/models/gptLlm.ts",
       "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/errorResponse.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gptLlm.ts"
@@ -12902,6 +12962,13 @@
     },
     {
       "from": "module:lib/models/openAiCompatibleLlm.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/openAiCompatibleLlm.ts"
+    },
+    {
+      "from": "module:lib/models/openAiCompatibleLlm.ts",
       "to": "module:lib/models/providerState.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12955,6 +13022,20 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/providerMap.ts"
+    },
+    {
+      "from": "module:lib/models/reasoning.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/reasoning.ts"
+    },
+    {
+      "from": "module:lib/models/reasoning.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/reasoning.ts"
     },
     {
       "from": "module:lib/models/registry.ts",

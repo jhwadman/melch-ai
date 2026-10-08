@@ -15,6 +15,14 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-07] relate | /decisions/0044-fallback-model-and-circuit-breaker.md —constrains→ module:lib/models/fallback.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0044-fallback-model-and-circuit-breaker.md —constrains→ module:lib/models/errorResponse.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0049-claude-requests-by-model-generation.md —mitigates→ module:lib/session/transcript.ts
 
 by claude-code/claude-opus-5-5
