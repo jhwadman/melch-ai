@@ -19,11 +19,13 @@
  * syndicate as its orchestrator's agent; a remote A2A subagent is the own
  * Tool the ADK runtime's FunctionTool wraps (lib/a2a/remoteAgent.ts).
  *
- * WHAT THE NATIVE RUNTIME DOES NOT RUN YET fails here, at compile time,
- * with a message naming the feature and the runtime: `mode: task` (WS3-5).
- * `context:` is handed to the loop, which compacts as ADK does
- * (lib/runtime/native/compaction.ts, WS2-9). Workflows, resuming an approval or a
- * question, and a caller's agent transform are refused by the turn runner
+ * EVERY AGENT KEY COMPILES for the native loop: `context:` is handed to
+ * the loop, which compacts as ADK does (lib/runtime/native/compaction.ts,
+ * WS2-9); `mode: task` and `code_execution: gemini` pass through, the
+ * request declaring finish_task (lib/runtime/native/taskMode.ts) and asking
+ * Gemini for its code-execution tool (lib/runtime/native/request.ts). What
+ * native does not run yet (workflows, resuming an approval or a
+ * question, a caller's agent transform) is refused by the turn runner
  * (lib/runtime/nativeTurn.ts), which owns those choices.
  */
 
@@ -35,7 +37,6 @@ import type { ModelAdapter } from './models/contract.ts';
 import { providerForModel, resolveAdapter } from './models/registry.ts';
 import { subagentTool } from './runtime/native/delegate.ts';
 import type { NativeAgent } from './runtime/native/request.ts';
-import { unsupportedOnNative } from './runtime/runtimeFlag.ts';
 export { UnsupportedOnRuntimeError, unsupportedOnNative } from './runtime/runtimeFlag.ts';
 import { instructionToolOf, toolOf } from './tools/tool.ts';
 
@@ -45,8 +46,7 @@ function nativeTool(tool: unknown): unknown {
 }
 
 /**
- * The NativeAgent for `spec`. Throws UnsupportedOnRuntimeError for what the
- * native loop does not run yet, and when no model id is known.
+ * The NativeAgent for `spec`. Throws when no model id is known.
  */
 export function compileNative(spec: AgentSpec): NativeAgent {
   const tools: unknown[] = [];
@@ -55,7 +55,6 @@ export function compileNative(spec: AgentSpec): NativeAgent {
     else if (entry.kind === 'remote') tools.push(remoteAgentOwnTool({ name: entry.name, description: entry.description, url: entry.url }));
     else tools.push(nativeTool(entry.tool));
   }
-  if (spec.mode === 'task') throw unsupportedOnNative('task mode (mode: task, WS3-5)', spec.name);
   if (!spec.modelId) throw new Error(`${spec.name}: no model id to run on (the YAML names none and the resolver returned none).`);
 
   const agent: NativeAgent = {
@@ -72,6 +71,7 @@ export function compileNative(spec: AgentSpec): NativeAgent {
   if (spec.disallowTransferToParent !== undefined) agent.disallowTransferToParent = spec.disallowTransferToParent;
   if (spec.disallowTransferToPeers !== undefined) agent.disallowTransferToPeers = spec.disallowTransferToPeers;
   if (spec.codeExecution) agent.codeExecution = spec.codeExecution;
+  if (spec.mode) agent.mode = spec.mode;
   if (spec.outputKey !== undefined) agent.outputKey = spec.outputKey;
   if (spec.fallbackModel) agent.fallbackModel = spec.fallbackModel;
   if (spec.context) agent.context = spec.context;

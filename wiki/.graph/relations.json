@@ -1593,6 +1593,46 @@
       "evidence": "lib/workflow/graph.ts workflowConfigProblems repeats the schema's workflowProblems paths and messages (and imports its suggest helper); tests/workflowGraph.test.ts fails when the two differ.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0081 Context: \"ADR 0033 made mode: task and code_execution: gemini agent keys, compiled into ADK's LlmAgent.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0081 Decision 2: the task-node hook sees each event the native loop stores before it is stored, and ends the run on finish_task's answer.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0081 Decision 1: \"Every text is ADK's word for word. ADK's quirks are kept: a schema whose type is not Gemini's OBJECT is wrapped under result\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0081 Decision 2: \"AgentLoopContext.taskNode marks a run as a task-mode node's ... The change to agentLoop.ts is that hook and one return.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"Task mode\": the tool, the answer, the schema and how a task node's run ends.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

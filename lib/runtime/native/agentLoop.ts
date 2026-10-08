@@ -75,6 +75,10 @@
  * (lib/runtime/native/compaction.ts). It is yielded like any stored event
  * and is not the run's `lastEvent`.
  *
+ * TASK MODE (ADR 0033, ADR 0081): finish_task is an own tool the request
+ * declares; a run marked `taskNode` ends on its successful answer
+ * (lib/runtime/native/taskMode.ts).
+ *
  * NOT HERE (later tickets): transfer_to_agent (no compiled syndicate sets
  * subAgents), resuming a question (WS2-7b), and an auth request a tool raises
  * (no own tool can). The run's spans (agent.invoke, model.call,
@@ -107,6 +111,7 @@ import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
 import type { CallCorrection } from './selfCorrection.ts';
 import { eitherSignal, runModelStep, stopOf } from './step.ts';
+import { taskNodeRun } from './taskMode.ts';
 import { createRunTempState, withStateOverlay } from './tempState.ts';
 import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
 import { traceAgentInvocation, traceModelCall, traceToolCall } from './telemetry.ts';
@@ -129,6 +134,13 @@ export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adap
    * runSyndicateTurn installs ADK's plugins by default.
    */
   selfCorrection?: SelfCorrection;
+  /**
+   * The run is a `mode: task` workflow node's (ADK's runTaskMode): it ends
+   * once finish_task answers with success, that event carrying the node's
+   * output (lib/runtime/native/taskMode.ts). Default false: a plain run
+   * goes on after finish_task's answer, as LlmAgent.runAsync does.
+   */
+  taskNode?: boolean;
 }
 
 /** How the run ended. */
@@ -154,6 +166,8 @@ export interface AgentLoopEnd {
   pending?: string[];
   /** For `stopped`: the turn's code and message. */
   stop?: StepStop;
+  /** For a task-mode node's run that finished: the finish_task arguments, extracted (lib/runtime/native/taskMode.ts). */
+  output?: unknown;
 }
 
 /** ADK's own ceiling on model calls in one run (RunConfig.maxLlmCalls); the turn's max_steps is lower. */
@@ -601,8 +615,11 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
   const { session, sessions } = ctx;
   // The run's temp: keys, read from each event before the store drops them (lib/runtime/native/tempState.ts).
   const runTemp = createRunTempState();
+  // Task-mode hook (WS3-5): a task node's run ends on finish_task's successful answer.
+  const task = ctx.taskNode && agent.mode === 'task' ? taskNodeRun(agent) : undefined;
   const beforeStore = (event: TurnEvent): void => {
     saveOutput(agent, event);
+    task?.beforeStore(event);
     runTemp.record(event);
   };
   const store = async (event: TurnEvent): Promise<TurnEvent> => {
@@ -673,6 +690,7 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
         lastEvent = await store(response);
         yield lastEvent;
         stepEnd = lastEvent;
+        if (task?.finished) return { reason: 'final', steps, lastEvent, output: task.output };
       }
     }
 
