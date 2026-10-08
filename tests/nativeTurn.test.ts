@@ -19,6 +19,7 @@ import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter } from '../lib/models/contract.ts';
+import { adkShim } from '../lib/models/adkShim.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
 import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
@@ -322,6 +323,39 @@ test('parity: a DELEGATE syndicate delegates to its subagent and relays the answ
   });
   assert.equal(native.results[0]?.text, 'relayed: the thing is here');
   assert.deepEqual(native.results[0]?.answer?.delegations, ['Scout']);
+});
+
+test('a resolver may answer an id with a model under another id: the request goes out under that id on both runtimes, as ADK sends it', async () => {
+  // A gateway stand-in or a caller's alias: the YAML says scripted/boss, the
+  // resolver returns a model whose own id is provider-model-x. ADK's LlmAgent
+  // sends the request under the model's id, so the adapter (which chooses
+  // thinking, replay and pricing by it) must see that id on native too.
+  const seen: Record<string, string[]> = { adk: [], native: [] };
+  for (const runtime of ['adk', 'native'] as const) {
+    const boss = new ScriptedModel('provider-model-x', (req, n) => {
+      seen[runtime]!.push(req.model);
+      return n === 1 ? toolCall('Scout', { request: 'look' }, 'call-scout') : answer('done');
+    });
+    const scout = new ScriptedModel('provider-model-y', (req) => {
+      seen[runtime]!.push(req.model);
+      return answer('here');
+    });
+    const resolve = (id: string | undefined) => adkShim(id === 'scripted/scout' ? scout : boss);
+    const r = await runSyndicateTurn({
+      config: syndicate({ instruction: 'Delegate to Scout.' }, { subagents: [{ name: 'Scout', model: 'scripted/scout', instruction: 'Find.', description: 'Finds' }] }),
+      parts: [{ text: 'find it' }],
+      appName: APP,
+      userId: USER,
+      sessionId: `alias-${runtime}`,
+      sessionService: new InMemorySessionService(),
+      compile: { resolveModel: resolve, log: () => {} },
+      trace: false,
+      runtime,
+    });
+    assert.equal(r.status, 'completed', `${runtime}: ${r.error?.message}`);
+  }
+  assert.deepEqual(seen.adk, ['provider-model-x', 'provider-model-y', 'provider-model-x']);
+  assert.deepEqual(seen.native, seen.adk);
 });
 
 registerTool(

@@ -55,11 +55,12 @@ export function compileNative(spec: AgentSpec): NativeAgent {
     else if (entry.kind === 'remote') tools.push(remoteAgentOwnTool({ name: entry.name, description: entry.description, url: entry.url }));
     else tools.push(nativeTool(entry.tool));
   }
-  if (!spec.modelId) throw new Error(`${spec.name}: no model id to run on (the YAML names none and the resolver returned none).`);
+  const model = wireModelOf(spec);
+  if (!model) throw new Error(`${spec.name}: no model id to run on (the YAML names none and the resolver returned none).`);
 
   const agent: NativeAgent = {
     name: spec.name,
-    model: spec.modelId,
+    model,
     instruction: spec.instruction,
     tools,
     generateContentConfig: spec.generateContentConfig,
@@ -76,6 +77,22 @@ export function compileNative(spec: AgentSpec): NativeAgent {
   if (spec.fallbackModel) agent.fallbackModel = spec.fallbackModel;
   if (spec.context) agent.context = spec.context;
   return agent;
+}
+
+/**
+ * The model id a request is sent under, as ADK's LlmAgent sends it: the id
+ * of the model object the resolver returned (an ADK model or a contract
+ * adapter carries its own), else the id the resolver returned, else the
+ * spec's. A resolver may answer a YAML id with a model under another id (a
+ * gateway stand-in, a caller's alias); the adapter, the span and the
+ * circuit breaker then see that id on both runtimes.
+ */
+export function wireModelOf(spec: Pick<AgentSpec, 'modelId' | 'resolvedModel'>): string | undefined {
+  const resolved = spec.resolvedModel;
+  if (typeof resolved === 'string' && resolved) return resolved;
+  const own = resolved && typeof resolved === 'object' ? (resolved as { model?: unknown }).model : undefined;
+  if (typeof own === 'string' && own) return own;
+  return spec.modelId;
 }
 
 /** A syndicate's orchestrator for the native loop: compileSpec, then compileNative. */
@@ -116,15 +133,24 @@ function adapterOf(resolved: unknown, model: string): ModelAdapter {
  * uses: the leaf adapter behind what CompileOptions.resolveModel returns
  * (an ADK shim carries its contract adapter, so a caller's BYOK key on a
  * shimmed provider reaches the call), else resolveAdapter for the id
- * (lib/models/registry.ts). The spec's own resolution is reused for its
- * model; each other id (a fallback) is resolved once and kept.
+ * (lib/models/registry.ts). The spec's own resolution, and each delegated
+ * subagent's, is reused for the id its agent runs under (wireModelOf);
+ * each other id (a fallback) is resolved once and kept.
  */
-export function nativeAdapterFor(opts: CompileOptions = {}, spec?: Pick<AgentSpec, 'modelId' | 'resolvedModel'>): (model: string) => ModelAdapter {
+export function nativeAdapterFor(opts: CompileOptions = {}, spec?: Pick<AgentSpec, 'modelId' | 'resolvedModel'> & { tools?: AgentSpec['tools'] }): (model: string) => ModelAdapter {
   const cache = new Map<string, ModelAdapter>();
+  const known = new Map<string, unknown>();
+  const learn = (s: Pick<AgentSpec, 'modelId' | 'resolvedModel'> & { tools?: AgentSpec['tools'] }): void => {
+    if (s.resolvedModel !== undefined) {
+      for (const id of [wireModelOf(s), s.modelId]) if (id && !known.has(id)) known.set(id, s.resolvedModel);
+    }
+    for (const entry of s.tools ?? []) if (entry.kind === 'agent') learn(entry.agent);
+  };
+  if (spec) learn(spec);
   return (model: string) => {
     const held = cache.get(model);
     if (held) return held;
-    const resolved = spec?.modelId === model && spec.resolvedModel !== undefined ? spec.resolvedModel : opts.resolveModel ? opts.resolveModel(model) : model;
+    const resolved = known.has(model) ? known.get(model) : opts.resolveModel ? opts.resolveModel(model) : model;
     const adapter = adapterOf(resolved, model);
     cache.set(model, adapter);
     return adapter;
