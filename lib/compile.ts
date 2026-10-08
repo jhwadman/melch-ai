@@ -46,6 +46,8 @@ import type { ExampleConfig } from './tools/examples.ts';
 import { capabilitySummary, describeCapabilities } from './models/capabilities.ts';
 import { FallbackLlm } from './models/fallback.ts';
 import { resolveModel as resolveRegistryModel } from './models/registry.ts';
+import { DEFAULT_KEEP_RECENT_EVENTS } from './runtime/native/compaction.ts';
+import type { ContextConfig } from './runtime/native/compaction.ts';
 import { remoteAgentTool } from './a2a/remoteAgent.ts';
 import { buildSkillHarness } from './tools/skillToolset.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
@@ -147,17 +149,9 @@ function passthroughFields(cfg: {
   return out;
 }
 
-/** An agent's `context:` block: compact a long conversation into a summary (ADR 0033). */
-export interface ContextConfig {
-  /** Compact when the last request's prompt passed this many tokens. */
-  compact_after_tokens: number;
-  /** Events kept verbatim after the summary. Default 6. */
-  keep_recent_events?: number;
-  /** The model that writes the summary. Default: the agent's own. */
-  summary_model?: string;
-}
-
-export const DEFAULT_KEEP_RECENT_EVENTS = 6;
+/** An agent's `context:` block and its default, owned by the native compactor (ADR 0033); compile hands the same values to ADK's. */
+export type { ContextConfig } from './runtime/native/compaction.ts';
+export { DEFAULT_KEEP_RECENT_EVENTS } from './runtime/native/compaction.ts';
 
 /**
  * The LlmAgent fields the engine builds from YAML rather than passing
