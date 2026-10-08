@@ -1,7 +1,7 @@
 ---
 type: schema
 title: Sessions and events
-description: "The engine's own types for what a session stores and how a store is reached (lib/runtime/events.ts, sessions.ts, memoryService.ts): TurnEvent as the stored ADK Event JSON, the parse that carries every field, ADK's semantics for reading and making events, SessionService with one meaning across stores, the in-process store, and MemoryService."
+description: "The engine's own types for what a session stores and how a store is reached (lib/runtime/events.ts, sessions.ts, memoryService.ts): TurnEvent as the stored ADK Event JSON, the parse that carries every field, ADK's semantics for reading and making events, SessionService with one meaning across stores, the in-process store, the durable stores and the projection with both session interfaces, the bridge for a store with one (adkSessionBridge.ts), and MemoryService."
 tags:
   - memory
   - runtime
@@ -13,7 +13,12 @@ sources:
   - resource: lib/runtime/events.ts
   - resource: lib/runtime/sessions.ts
   - resource: lib/runtime/memoryService.ts
+  - resource: lib/runtime/adkSessionBridge.ts
+  - resource: lib/session/supabaseSessionService.ts
+  - resource: lib/storage/postgres/sessionService.ts
+  - resource: lib/session/transcript.ts
   - resource: tests/events.test.ts
+  - resource: tests/adkSessionBridge.test.ts
   - resource: tests/helpers/importGraph.ts
 ---
 
@@ -25,7 +30,7 @@ Three modules hold the engine's own types for sessions and memory ([ADR 0045](/d
 - `lib/runtime/sessions.ts`: the `SessionService` interface, the rules every store applies, and `InProcessSessionService`.
 - `lib/runtime/memoryService.ts`: the `MemoryService` interface.
 
-The native runtime reads and writes sessions through them. The ADK runtime still uses ADK's types. The Supabase and Postgres session services extend ADK's `BaseSessionService`, and long-term memory implements ADK's `BaseMemoryService`; none of them implements the engine's interfaces yet. Each module imports only types, and nothing in its import graph names `@google/*`. The modules are not in the package's `exports` map.
+The native runtime reads and writes sessions through them. The ADK runtime still uses ADK's types. The Supabase and Postgres session services and the transcript projection implement `SessionService` beside ADK's `BaseSessionService`, on the same rows, and `lib/runtime/adkSessionBridge.ts` gives a store that has only one of the two the other ([two faces, one store](#two-faces-one-store)). Long-term memory implements ADK's `BaseMemoryService`, not yet `MemoryService`. Each of the three modules imports only types, and nothing in its import graph names `@google/*`. None of the four modules is in the package's `exports` map.
 
 ## The event
 
@@ -94,12 +99,26 @@ ADK's services and the engine's durable stores disagree in places. The interface
 | | The interface | ADK's in-memory store |
 |---|---|---|
 | `afterTimestamp` with `numRecentEvents` (`selectEvents`) | Events strictly after the timestamp, then the newest N of those. A value of 0 or below applies nothing. | The newest N, then events at or after the timestamp. |
-| Creating an id that exists | Returns the session unchanged. The Supabase store resets it today. | Resets it. |
+| Creating an id that exists | Returns the session unchanged. | Resets it. |
 | An empty or one-page listing (`listPage`) | One page. `page` wins over `offset` beside a `limit`, and `limit` reports the total when none was asked for (`listWindow`). | No pages when empty. |
 | `app:` and `user:` state keys | Kept in the session's own state. | Shared across the app's or user's sessions. |
-| `lastUpdateTime` | The last appended event's timestamp. The durable stores write the clock at append. | The event's timestamp, on a partial event too. |
+| `lastUpdateTime` | The last appended event's timestamp. The durable stores write it in whole milliseconds. | The event's timestamp, on a partial event too. |
 
 No syndicate writes an `app:` or `user:` key.
+
+A list without a user id lists every user's sessions of the app, in every store. A list orders by last update, then id, when an order is asked for, and in the order the sessions were created otherwise.
+
+### Two faces, one store
+
+ADR 0052 named the interface's methods differently from ADK's so that one class can implement both until ADK leaves at 1.0 ([ADR 0058](/decisions/0058-session-stores-with-both-faces.md)):
+
+- **`SupabaseSessionService`** (`lib/session/supabaseSessionService.ts`) and **`PostgresSessionService`** (`lib/storage/postgres/sessionService.ts`) implement both. ADK's methods call the engine's, so each store states its rules once. The exception is `appendEvent`, which applies the event to the runner's session through ADK's base service, keeping ADK's state write-order check and the event the runner yields as ADK leaves it. It then records the event as `append` does. The Supabase store creates with `ON CONFLICT DO NOTHING`. On Postgres, an event whose id the caller's session already holds replaces its row in place. Neither the schema nor the stored JSON changes ([sessions in Postgres](/memory/architecture.md)).
+- **`ProjectedSessionService`** (`lib/session/transcript.ts`) has both faces too. `get` projects the history for one agent, and `append` writes both the projected session the runtime holds and the real session underneath. It takes a store with either face, or both.
+- **The bridge** (`lib/runtime/adkSessionBridge.ts`) adapts a store that has only one face. `SessionServiceForAdk` runs the ADK runtime on an engine store such as `InProcessSessionService`, and `AdkSessionServiceForEngine` gives the engine's interface to an ADK store such as ADK's `InMemorySessionService`. Through the bridge, the engine keeps the interface's meaning: a create keeps an existing session, a read is filtered by `selectEvents`, and paging is `listPage`'s. `asAdkSessionService` and `asSessionService` return a store as it is when it already has the face asked for.
+
+The ADK face of an engine store applies an event to the runner's session through ADK's base service and gives the store a copy of the session as it stood. The engine face of an ADK store applies the event through `applyEvent` and gives ADK's store copies of the session and the event, because ADK's base service rewrites both in place.
+
+Nothing but the stores and the layers that forward to them lists sessions: no route, tool or turn does. A listing across users is therefore reachable only by code that holds the store.
 
 ### The in-process store
 
@@ -123,3 +142,5 @@ Every fact is filed under `<appName>/<userId>`, and a search reads that silo alo
 - **ADK parity.** On every fixture event and a dozen edge cases, the helpers give ADK's answers, and `createTurnEvent` gives `createEvent`'s JSON. `applyEvent` leaves a session as ADK's base service does. An ADK `Event` and `Session` assign to `TurnEvent` and `Session` without a cast, which `npx tsc --noEmit` checks.
 - **Parse errors.** The parse names the failing path and never the value.
 - **Leaves.** The three modules load nothing at run time and reach no `@google/*` module. The scan is `tests/helpers/importGraph.ts`.
+
+`tests/adkSessionBridge.test.ts` proves the stores and the bridge. An ADK `Runner` turn, an engine read and append, and a second `Runner` turn share one conversation on a Supabase row (on an in-memory stand-in for supabase-js, `tests/helpers/fakeSupabase.ts`), on an engine store through the bridge, and on ADK's store through the bridge. The Supabase store keeps a conversation on a second create, writes the event's timestamp, and lists every user's sessions without a user id. The engine face of ADK's store keeps the interface's meaning where ADK's has another. On Postgres, an event whose id the session holds replaces its row. The test also fails if anything outside the stores and their forwarders lists sessions. `tests/postgresStorage.test.ts` runs the same two-runtime turn and the interface's rules on real Postgres rows, in CI's storage integration job. `tests/transcript.test.ts` covers the projection's engine face over each kind of store, and `tests/sessionPaging.test.ts` covers the query both faces send.

@@ -381,6 +381,46 @@
       "evidence": "ADR 0051 §1: \"declaration() returns the model contract's ToolDeclaration\", the type ADR 0048 defines in lib/models/contract.ts.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/session/supabaseSessionService.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0058 Decision 3: \"A create of an existing id returns the conversation unchanged. The Supabase store inserts with ON CONFLICT DO NOTHING (ignoreDuplicates)\", and \"A list without a user id lists every user's sessions of the app, in both stores and through both faces.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/storage/postgres/sessionService.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0058 Decision 3: \"On Postgres, an event whose id the caller's session already holds replaces its row in place\", and lastUpdateTime \"is the appended event's timestamp, written as whole milliseconds because the column is BIGINT\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0058 Decision 2: \"SessionServiceForAdk runs the ADK runtime on an engine store ... AdkSessionServiceForEngine gives the engine's interface to an ADK store ... It keeps the interface's meaning\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0058 Decision 1: \"SupabaseSessionService, PostgresSessionService and ProjectedSessionService implement SessionService ... and extend BaseSessionService\", and Decision 2: \"The projection takes either kind of store.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0058 Context: \"ADR 0052 gave the engine its own SessionService ... and named its methods differently from ADK's, so that one class could implement both during the dual-runtime period\"; Decision 1 relies on exactly that.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

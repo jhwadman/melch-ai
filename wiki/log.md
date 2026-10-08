@@ -3,6 +3,26 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —depends_on→ /decisions/0052-sessions-and-events-on-own-interfaces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/session/transcript.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/runtime/adkSessionBridge.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/storage/postgres/sessionService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/session/supabaseSessionService.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —depends_on→ /decisions/0048-engine-owned-model-contract.md
 
 by claude-code/claude-opus-5-5
