@@ -39,7 +39,7 @@ The reasoning field comes from the request's `reasoning`, mapped with `reasoning
 
 - **Ollama and the gateway:** `reasoning_effort` as that model's word. Through a gateway it is the upstream's word, `minimal` for `none` on the first GPT-5 generation.
 - **Kimi K3:** `reasoning_effort`, `none` sent as `low`, `medium` as `high`, a budget as the level that covers it, and `DEFAULT_KIMI_REASONING_EFFORT` when the request has none.
-- **Kimi K2.x:** `thinking: { type: 'disabled' }` for `none`, and nothing otherwise.
+- **Kimi K2.x:** `thinking: { type: 'disabled' }` for `none`, and nothing otherwise; K2.7 Code (and its highspeed variant) sends nothing for `none` too, since it cannot switch thinking off and Moonshot refuses `disabled` for it.
 
 Structured output is `response_format`: a schema goes as strict `json_schema` on Kimi and the gateway and as `json_object` on Ollama, whose endpoint takes no schema. `outputFormat: 'json'` without a schema is JSON mode, `json_object`, on all three ([ADR 0061](/decisions/0061-json-mode-on-the-contract.md)). The retry without thinking keeps it.
 

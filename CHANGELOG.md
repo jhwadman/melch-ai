@@ -15,6 +15,10 @@ the starter pack and the templates), not the repo's full history.
   is still marked `llm.tool_choice.weakened` on the span. In the
   chat-completions base, a subclass's `toolChoiceModes` now also receives
   the request's reasoning.
+- **Fix: `kimi-k2.7-code` with `reasoning: none`.** It sends no thinking
+  field (the model thinks at its default) instead of
+  `thinking: { type: 'disabled' }`, which Moonshot refuses for K2.7 Code
+  and its highspeed variant. `kimi-k2.6` still sends `disabled`.
 - **`GeminiAdapter` covers Gemini's own features (ADR 0065).** In
   `melchizedek-agents/models/geminiAdapter` (which `resolveAdapter`
   returns only with `GEMINI_ADAPTER=engine` until gate G3):

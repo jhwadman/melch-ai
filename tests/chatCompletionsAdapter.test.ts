@@ -273,12 +273,21 @@ test('Kimi K3: reasoning travels as reasoning_effort in its word, pinned when ab
 });
 
 test('Kimi K2.x: a thinking switch and no reasoning_effort', async () => {
-  for (const model of ['kimi-k2.6', 'kimi-k2.7-code']) {
+  for (const model of ['kimi-k2.6', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed']) {
     const on = await bodyOf(kimi(model), req(model, { reasoning: 'low' }));
     assert.ok(!('reasoning_effort' in on) && !('thinking' in on), model);
-    assert.deepEqual((await bodyOf(kimi(model), req(model, { reasoning: 'none' }))).thinking, { type: 'disabled' });
-    assert.deepEqual((await bodyOf(kimi(model), req(model, { reasoning: { budget_tokens: 0 } }))).thinking, { type: 'disabled' });
     assert.ok(!('thinking' in (await bodyOf(kimi(model), req(model)))), 'thinking stays on by default');
+  }
+  assert.deepEqual((await bodyOf(kimi('kimi-k2.6'), req('kimi-k2.6', { reasoning: 'none' }))).thinking, { type: 'disabled' });
+  assert.deepEqual((await bodyOf(kimi('kimi-k2.6'), req('kimi-k2.6', { reasoning: { budget_tokens: 0 } }))).thinking, { type: 'disabled' });
+});
+
+test('kimi-k2.7-code: `none` sends no thinking field, since Moonshot refuses disabled thinking for it', async () => {
+  for (const model of ['kimi-k2.7-code', 'kimi-k2.7-code-highspeed']) {
+    for (const reasoning of ['none', { budget_tokens: 0 }] as const) {
+      const body = await bodyOf(kimi(model), req(model, { reasoning }));
+      assert.ok(!('thinking' in body) && !('reasoning_effort' in body), `${model} ${JSON.stringify(reasoning)}`);
+    }
   }
 });
 

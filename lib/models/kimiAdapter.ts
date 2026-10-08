@@ -72,8 +72,9 @@
  *   path carries beside the contract (ChatCompletionsRequest.olderSpelling).
  *   K2.x models take no reasoning_effort: a `thinking: { type }` switch
  *   instead, so `none` (or a budget of 0) sends `disabled` and any other
- *   setting sends nothing (K2.7 Code rejects disabled thinking; Moonshot's
- *   own error says so).
+ *   setting sends nothing. K2.7 Code (and its highspeed variant) cannot
+ *   switch thinking off and Moonshot refuses `disabled` for it, so there
+ *   `none` sends nothing either: the model thinks at its default.
  *
  * TOOL CHOICE (toolChoiceModes; checked live against Moonshot on
  *   2026-10-08, PR #87): auto and none always (none by sending no tools).
@@ -134,6 +135,11 @@ export function isKimiK3(model: string): boolean {
 /** K2.6: thinking is on by default and switchable, and forcing a tool needs it off. */
 export function isKimiK26(model: string): boolean {
   return /^kimi-k2\.6\b/.test(model);
+}
+
+/** K2.7 Code and its highspeed variant: thinking cannot be switched off, and `disabled` is refused. */
+export function isKimiK27Code(model: string): boolean {
+  return /^kimi-k2\.7-code\b/.test(model);
 }
 
 /**
@@ -214,6 +220,7 @@ export class KimiAdapter extends ChatCompletionsAdapter {
       const word = reasoningConfig(model, setting).reasoningEffort;
       return { reasoning_effort: word === 'none' ? 'low' : word }; // K3 cannot switch thinking off
     }
-    return reasonsNotAtAll(setting) ? { thinking: { type: 'disabled' } } : {};
+    // K2.7 Code always thinks, and Moonshot refuses `disabled` for it.
+    return reasonsNotAtAll(setting) && !isKimiK27Code(model) ? { thinking: { type: 'disabled' } } : {};
   }
 }
