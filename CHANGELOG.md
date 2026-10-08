@@ -10,9 +10,9 @@ the starter pack and the templates), not the repo's full history.
   `melchizedek-agents/models/genaiMapping` adds `toolChoiceOf` (an agent's
   function-calling mode as a `ToolChoice`, and `VALIDATED` as strict tools)
   and `samplingOf` (the sampling fields the contract carries). These are
-  additions under the existing `exports` map. The native loop's first piece,
-  one model step (`lib/runtime/native/`), is not in the `exports` map and
-  runs no turn yet.
+  additions under the existing `exports` map. The native loop
+  (`lib/runtime/native/`: one model step, and the agent loop around it,
+  ADR 0071) is not in the `exports` map and runs no turn yet.
 - **`GeminiAdapter` covers Gemini's own features (ADR 0065).** In
   `melchizedek-agents/models/geminiAdapter` (which `resolveAdapter`
   returns only with `GEMINI_ADAPTER=engine` until gate G3):
