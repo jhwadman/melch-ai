@@ -78,7 +78,7 @@ Every call ends with exactly one final, and a failure is that final with `error`
 | The call failed, after the SDK's own retries | `ANTHROPIC_ERROR`, with `status` when it had one | `lib/models/retry.ts`'s classification |
 | The signal aborted, before or during the call | `ANTHROPIC_ERROR` | false |
 
-The message is the SDK's or the platform's, with key-shaped text removed (`errorText`, `lib/models/errorResponse.ts`). Behind the shim the final becomes an `LlmResponse` with `errorCode`, `errorMessage` and the verdict in `customMetadata['error.retryable']` and `['error.status']`, which `FallbackLlm` reads ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). A setup failure now carries `error.retryable: false` there too, which reads as it did without one.
+The message is the SDK's or the platform's, with key-shaped text removed (`errorText`, `lib/models/errorResponse.ts`). Behind the shim the final becomes an `LlmResponse` with `errorCode`, `errorMessage` and the verdict in `customMetadata['error.retryable']` and `['error.status']`, which `FallbackLlm` reads ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). A setup failure carries `error.retryable: false` there, which `FallbackLlm` reads as it reads a response with no verdict: passed on, never redirected.
 
 Retries are the Anthropic SDK's own two, before anything is yielded. A stream that breaks after a delta is reported, never replayed.
 
