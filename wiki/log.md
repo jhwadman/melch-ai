@@ -15,6 +15,46 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —depends_on→ /decisions/0060-engine-owned-registry.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/tools/xaiSearchParams.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/models/adapterResolver.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/model.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | module:lib/tools/openapi/call.ts —depends_on→ /decisions/0036-redirects-under-the-ssrf-guard.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —supersedes→ /decisions/0036-redirects-under-the-ssrf-guard.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —depends_on→ /decisions/0063-openapi-parser-on-the-engines-own-types.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —constrains→ module:lib/tools/openapi/call.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/step.ts
 
 by claude-code/claude-opus-5-5

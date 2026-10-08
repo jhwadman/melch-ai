@@ -13,7 +13,11 @@
  *   - `$ref`s inside the document are resolved in document order, a ref met
  *     again while it is still being resolved (a cycle) becoming its sibling
  *     keys without the `$ref`, and an unresolvable one staying as written.
- *     An external ref (`other.yaml#/…`) fails the parse.
+ *     An external ref (`other.yaml#/…`) fails the parse. A ref is a JSON
+ *     pointer: `~1` in it is `/` and `~0` is `~` (RFC 6901), which ADK
+ *     did not unescape.
+ *   - Only OpenAPI 3.x is read: a Swagger 2.0 spec, or one without an
+ *     `openapi` version, fails the parse with a readable error.
  *   - Inside a schema, a `type` is lowercased; one that is not a JSON Schema
  *     type is dropped, and a list keeps its valid entries.
  *   - Operations come in path order, then get, post, put, delete, patch,
@@ -41,7 +45,8 @@
  *   with a readable message, which fails the compile.
  *
  * A LEAF: no ADK, no network, no environment. The caller (the HTTP call,
- * the SSRF guard, credentials) stays in lib/tools/openapiTools.ts.
+ * the SSRF guard) is lib/tools/openapi/call.ts; credentials are read in
+ * lib/tools/openapiTools.ts.
  */
 
 import { parse as parseYaml } from 'yaml';
@@ -276,7 +281,9 @@ function lookup(ref: string, doc: unknown, source?: string): unknown {
   const parts = ref.split('/');
   if (parts[0] !== '#') fail(source, `external references are not supported: ${ref}`);
   let current: unknown = doc;
-  for (const part of parts.slice(1)) {
+  for (const escaped of parts.slice(1)) {
+    // A JSON pointer escapes `/` as `~1` and `~0` as `~` (RFC 6901), unescaped in that order.
+    const part = escaped.split('~1').join('/').split('~0').join('~');
     if (typeof current === 'object' && current !== null && Object.hasOwn(current, part)) current = (current as Obj)[part];
     else return undefined;
   }
@@ -519,6 +526,28 @@ function declaredParameters(params: OpenApiParameter[], source?: string): JsonSc
 
 // ── Entry points ────────────────────────────────────────────────────────────
 
+/** A value quoted in an error, cut short. */
+const quoted = (value: unknown) => {
+  const text = JSON.stringify(value) ?? String(value);
+  return text.length > 40 ? `${text.slice(0, 40)}…` : text;
+};
+
+/**
+ * Throws, with a readable message, unless the document says it is OpenAPI
+ * 3.x: a Swagger 2.0 spec, or one without an `openapi` version, would parse
+ * into tools with the wrong arguments.
+ */
+function openApiVersionProblem(document: Obj, source?: string): void {
+  if (Object.hasOwn(document, 'swagger')) {
+    fail(source, `the spec is Swagger ${quoted(document.swagger)} (OpenAPI 2); only OpenAPI 3.x is supported, so convert it first`);
+  }
+  const version = document.openapi;
+  const text = typeof version === 'string' || typeof version === 'number' ? String(version) : '';
+  if (text !== '3' && !text.startsWith('3.')) {
+    fail(source, version === undefined ? 'the spec has no `openapi` version; only OpenAPI 3.x is supported' : `the spec is OpenAPI ${quoted(version)}; only OpenAPI 3.x is supported`);
+  }
+}
+
 /**
  * Every operation of a parsed OpenAPI document. Throws, with a readable
  * message, on a document that is not an object, an external ref, a server
@@ -527,6 +556,7 @@ function declaredParameters(params: OpenApiParameter[], source?: string): JsonSc
 export function parseOpenApiDocument(document: unknown, options: ParseOptions = {}): OpenApiOperation[] {
   const { prefix, source } = options;
   if (!isObj(document)) fail(source, 'the spec is not an OpenAPI document (an object)');
+  openApiVersionProblem(document, source);
   const budget = new Budget(source);
   const copy = jsonCopy(document, budget);
   const spec = resolveRefs(copy, new Budget(source), source) as Obj;
