@@ -6,6 +6,22 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.0.1 — 2026-10-08
+
+### Fixed
+
+- **The published package carries only this release's build.** `npm run
+  build` (which `npm pack` and `npm publish` run) now empties `dist/`
+  before compiling. 1.0.0 was packed from a checkout whose `dist/` still
+  held files from older builds, so its tarball carried 40 stale modules the
+  1.0.0 source no longer has (among them `models/adkShim`, the ADK
+  `*Llm` classes, `models/tracedGemini`, `models/fallback`,
+  `tools/adkTool`, `tools/webSearchTool`, `runtime/adkSessionBridge`).
+  The `./models/*` and `./tools/*` export patterns made them importable,
+  and they load `@google/adk`, which 1.0.0 removed. Everything 1.0.0
+  documents was built from its own source; only those extra files were
+  wrong. Use 1.0.1; 1.0.0 is deprecated.
+
 ## 1.0.0 — 2026-10-08
 
 Release 1.0.0: Google ADK is gone (ADR 0107). Every turn runs on the
