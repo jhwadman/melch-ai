@@ -16,13 +16,14 @@ sources:
   - resource: tests/helpers/scriptedModel.ts
   - resource: lib/models/genaiMapping.ts
   - resource: lib/models/claudeLlm.ts
+  - resource: lib/models/gptLlm.ts
 ---
 
 # ADK shim
 
 `AdkShim` in `lib/models/adkShim.ts` is an ADK `BaseLlm` that wraps one `ModelAdapter` on the engine's own [model contract](/models/model-contract.md). ADK calls `generateContentAsync(llmRequest, stream, abortSignal)` on it, and the adapter sees only a `ModelRequest`. While ADK runs every turn ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)), an adapter moves onto the contract by being registered behind the shim. ADK sees no change.
 
-`ClaudeLlm` (`lib/models/claudeLlm.ts`) is the shim around the [Claude adapter](/models/claude-adapter.md), so every `claude-*` id the registry serves runs through it. Every other model id is served by its ADK-path adapter as [provider routing](/models/provider-routing.md) describes, until the registry ticket (WS1-3) registers contract adapters behind the shim.
+`ClaudeLlm` (`lib/models/claudeLlm.ts`) is the shim around the [Claude adapter](/models/claude-adapter.md), so every `claude-*` id the registry serves runs through it. `GptLlm` and `GrokLlm` are shims: subclasses of `AdkShim` around `GptAdapter` and `GrokAdapter` ([Responses adapters](/models/responses-adapters.md)), which the registry registers under their own names. Every other model id is served by its ADK-path adapter as [provider routing](/models/provider-routing.md) describes, until the registry ticket (WS1-3) registers contract adapters behind the shim.
 
 ## One call
 
@@ -36,7 +37,7 @@ sources:
    - A turn that is spent or stopped refuses the call with `STEP_LIMIT`, `DEADLINE_EXCEEDED` or `CANCELED`. The refusal is the same `LlmResponse` `GptLlm` and the chat-completions adapters yield, and the adapter is never called.
    - One `llm.request` span covers the call, with the same attributes as on any ADK-path adapter. The adapter adds its own with `setLlmSpanAttribute`, and they land on that span.
    - The final's usage is charged to the turn.
-3. **The responses.** Each `ModelResponse` the adapter yields goes back through `modelResponseToLlmResponse`, in order. A partial is a `partial: true` response, and the final is `turnComplete: true` with Gemini's usage meanings and finish reason. A failed final carries `errorCode`, and its retry verdict in `customMetadata['error.retryable']`, which `FallbackLlm` reads.
+3. **The responses.** Each `ModelResponse` the adapter yields goes back through `toLlmResponse`, in order, inside the span, so the tracer reads what it returns. It is `modelResponseToLlmResponse`: a partial is a `partial: true` response, and the final is `turnComplete: true` with Gemini's usage meanings and finish reason. A failed final carries `errorCode`, and its retry verdict in `customMetadata['error.retryable']`, which `FallbackLlm` reads. A subclass that stands in for an ADK-path adapter overrides `toLlmResponse` to keep what that adapter wrote beyond the contract.
 
 The shim does not repair an adapter that breaks the contract. A throw reaches ADK as a throw, as a Gemini failure does, and every response is mapped as it comes. `connect()` is refused, because live connections are outside the contract.
 
@@ -57,7 +58,7 @@ Put one shim around each leaf adapter. A fallback pair under ADK is `FallbackLlm
 
 ## What changes for an adapter behind it
 
-Mapped through the contract, an adapter's events carry `finishReason` (`STOP` for a normal stop or a tool call) as Gemini's do. The span's `llm.tokens.output` is output less thinking, Gemini's meaning, where the ADK-path GPT and chat-completions adapters include reasoning in it. The stored Event JSON keeps its shape.
+Mapped through the contract, an adapter's events carry `finishReason` (`STOP` for a normal stop or a tool call) as Gemini's do. The span's `llm.tokens.output`, the turn's output charge and the ledger's `output_tokens` are output less thinking, Gemini's meaning, where the ADK-path chat-completions adapters include reasoning in them. `GptLlm` and `GrokLlm` override `toLlmResponse` to keep reasoning inside the output, as those providers have always been counted, and to keep the server-side tool record on `customMetadata` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)). The stored Event JSON keeps its shape.
 
 ## Tests
 

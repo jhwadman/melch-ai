@@ -4,11 +4,24 @@
  * same session retries them. Before 2026-10 every one of those failures was
  * swallowed and the watermark moved past turns that were never distilled.
  * Offline: a fake model client and a fake Supabase client.
+ *
+ * Every ingestion test runs twice (ADR 0020 item 6, ADR 0059): through ADK's
+ * `addSessionToMemory`, which the ADK runtime and the A2A server call, and
+ * through the engine's own `MemoryService.ingest`, which the native runtime
+ * calls. Both must keep the same promise.
  */
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { SupabaseVectorMemoryService } from '../lib/memory/supabaseMemoryService.ts';
 import type { Embedder, MemoryExtractor } from '../lib/memory/providers.ts';
+import type { MemoryService } from '../lib/runtime/memoryService.ts';
+
+/** One ingestion, through either interface. */
+type Ingest = (svc: SupabaseVectorMemoryService, session: any, rules?: string, extractionModel?: string) => Promise<void>;
+const VIA: Array<[string, Ingest]> = [
+  ['ADK addSessionToMemory', (svc, s, rules, model) => svc.addSessionToMemory(s, rules, { extractionModel: model })],
+  ['engine ingest', (svc, s, rules, model) => (svc as MemoryService).ingest(s, { extractionRules: rules, extractionModel: model })],
+];
 
 /** A memory service whose extractor and embedder are the given fakes. */
 function service(client: unknown, extract: () => Promise<string>, embed: () => Promise<number[]>) {
@@ -82,7 +95,7 @@ function session(events: number) {
   } as any;
 }
 
-test('a failed extraction leaves the turns pending and the next ingestion stores them', async () => {
+for (const [via, ingest] of VIA) test(`a failed extraction leaves the turns pending and the next ingestion stores them (${via})`, async () => {
   const { client, inserted } = fakeSupabase();
   let fail = true;
   let calls = 0;
@@ -96,20 +109,20 @@ test('a failed extraction leaves the turns pending and the next ingestion stores
     async () => VECTOR(),
   );
 
-  await assert.rejects(svc.addSessionToMemory(session(2)), /extraction failed/i);
+  await assert.rejects(ingest(svc, session(2)), /extraction failed/i);
   assert.strictEqual(inserted.length, 0);
 
   fail = false;
-  await svc.addSessionToMemory(session(2));
+  await ingest(svc, session(2));
   assert.strictEqual(inserted.length, 1, 'the same turns are retried and stored');
 
   // Now the watermark has advanced: the same events are not re-extracted.
   calls = 0;
-  await svc.addSessionToMemory(session(2));
+  await ingest(svc, session(2));
   assert.strictEqual(calls, 0);
 });
 
-test('a failed embedding also leaves the turns pending', async () => {
+for (const [via, ingest] of VIA) test(`a failed embedding also leaves the turns pending (${via})`, async () => {
   const { client, inserted } = fakeSupabase();
   let embedFails = true;
   const svc = service(
@@ -120,37 +133,37 @@ test('a failed embedding also leaves the turns pending', async () => {
       return VECTOR();
     },
   );
-  await assert.rejects(svc.addSessionToMemory(session(2)), /Embedding failed/);
+  await assert.rejects(ingest(svc, session(2)), /Embedding failed/);
   embedFails = false;
-  await svc.addSessionToMemory(session(2));
+  await ingest(svc, session(2));
   assert.strictEqual(inserted.length, 1);
 });
 
-test('the processed marker survives a restart: a new process does not re-extract', async () => {
+for (const [via, ingest] of VIA) test(`the processed marker survives a restart: a new process does not re-extract (${via})`, async () => {
   const shared = { markers: new Map<string, number>(), inserted: [] as Array<Record<string, unknown>> };
   let calls = 0;
   const first = service(fakeSupabase(shared).client, async () => ((calls += 1), RECORD), async () => VECTOR());
-  await first.addSessionToMemory(session(2));
+  await ingest(first, session(2));
   assert.strictEqual(shared.inserted.length, 1);
 
   // A fresh service over the same database: the durable marker says done.
   const restarted = service(fakeSupabase(shared).client, async () => ((calls += 1), RECORD), async () => VECTOR());
   calls = 0;
-  await restarted.addSessionToMemory(session(2));
+  await ingest(restarted, session(2));
   assert.strictEqual(calls, 0, 'nothing re-extracted after the restart');
-  await restarted.addSessionToMemory(session(4));
+  await ingest(restarted, session(4));
   assert.strictEqual(calls, 1, 'only the new turns are extracted');
 });
 
-test('a failed commit leaves facts and marker untouched, and the turns pending', async () => {
+for (const [via, ingest] of VIA) test(`a failed commit leaves facts and marker untouched, and the turns pending (${via})`, async () => {
   const fake = fakeSupabase();
   const svc = service(fake.client, async () => RECORD, async () => VECTOR());
   fake.state.failCommit = true;
-  await assert.rejects(svc.addSessionToMemory(session(2)), /turns stay pending/);
+  await assert.rejects(ingest(svc, session(2)), /turns stay pending/);
   assert.strictEqual(fake.inserted.length, 0);
   assert.strictEqual(fake.markers.size, 0);
   fake.state.failCommit = false;
-  await svc.addSessionToMemory(session(2));
+  await ingest(svc, session(2));
   assert.strictEqual(fake.inserted.length, 1);
 });
 
@@ -164,7 +177,7 @@ test('an embedder that does not fit the stored column is refused at boot', async
   await svc.verifyEmbeddingDimensions();
 });
 
-test("a syndicate's memory_extraction_model distils its turns; others use the deployment's", async () => {
+for (const [via, ingest] of VIA) test(`a syndicate's memory_extraction_model distils its turns; others use the deployment's (${via})`, async () => {
   const fake = fakeSupabase();
   const used: string[] = [];
   const svc = new SupabaseVectorMemoryService(
@@ -176,8 +189,25 @@ test("a syndicate's memory_extraction_model distils its turns; others use the de
     },
     fake.client,
   );
-  await svc.addSessionToMemory({ ...session(2), id: 'a' }, undefined, { extractionModel: 'cheap-model' });
-  await svc.addSessionToMemory({ ...session(2), id: 'b' });
-  await svc.addSessionToMemory({ ...session(2), id: 'c' }, undefined, { extractionModel: 'deployment-model' });
+  await ingest(svc, { ...session(2), id: 'a' }, undefined, 'cheap-model');
+  await ingest(svc, { ...session(2), id: 'b' });
+  await ingest(svc, { ...session(2), id: 'c' }, undefined, 'deployment-model');
   assert.deepStrictEqual(used, ['cheap-model', 'deployment-model', 'deployment-model']);
+});
+
+for (const [via, ingest] of VIA) test(`a syndicate's memory_extraction_rules reach its own extraction prompt only (${via})`, async () => {
+  const fake = fakeSupabase();
+  const prompts: string[] = [];
+  const svc = new SupabaseVectorMemoryService(
+    {
+      apiKey: 'test',
+      extractor: { model: 'm', extract: async (prompt) => (prompts.push(prompt), RECORD) },
+      embedder: { provider: 'fake', model: 'fake-embedder', dimensions: 768, embed: async (t) => t.map(() => VECTOR()) },
+    },
+    fake.client,
+  );
+  await ingest(svc, { ...session(2), id: 'a' }, 'Never store a market quote.');
+  await ingest(svc, { ...session(2), id: 'b' });
+  assert.match(prompts[0], /DOMAIN RULES — [^\n]*\nNever store a market quote\.\n\nNow distill/);
+  assert.doesNotMatch(prompts[1], /DOMAIN RULES|market quote/);
 });

@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 
 import { eraseScope } from '../lib/memory/erase.ts';
 import { namespacedMemoryService } from '../lib/memory/namespace.ts';
+import type { MemoryService } from '../lib/runtime/memoryService.ts';
 
 test('eraseScope calls the SQL function and returns a count per store', async () => {
   let called: any;
@@ -96,6 +97,40 @@ test('namespacedMemoryService pins searches and ingestion to the root namespace'
     ['search', 'support_triage.k3f9q2a8', 'u1'],
     ['add', 'support_triage.k3f9q2a8', 'u1', 'rules'],
     ['delete', 'x/u1'],
+  ]);
+});
+
+test("namespacedMemoryService pins the engine's MemoryService too, and passes erase and retention through", async () => {
+  const seen: any[] = [];
+  const base: MemoryService = {
+    async search(req) {
+      seen.push(['search', req.appName, req.userId, req.query]);
+      return { memories: [] };
+    },
+    async ingest(session, options) {
+      seen.push(['ingest', session.appName, session.userId, session.id, options?.extractionRules, options?.extractionModel]);
+    },
+    async deleteUserMemory(key) {
+      seen.push(['delete', key]);
+      return 2;
+    },
+    async pruneExpired(ns, days) {
+      seen.push(['prune', ns, days]);
+      return 0;
+    },
+  };
+  const pinned = namespacedMemoryService(base, 'support_triage.k3f9q2a8');
+  await pinned.search({ appName: 'Scout', userId: 'u1', query: 'tea' });
+  const session = { appName: 'Scout', userId: 'u1', id: 's', state: {}, events: [], lastUpdateTime: 0 };
+  await pinned.ingest(session, { extractionRules: 'rules', extractionModel: 'cheap' });
+  assert.equal(session.appName, 'Scout', "the caller's session is not changed");
+  assert.equal(await pinned.deleteUserMemory!('x/u1'), 2);
+  assert.equal(await pinned.pruneExpired!('other.ns', 30), 0);
+  assert.deepEqual(seen, [
+    ['search', 'support_triage.k3f9q2a8', 'u1', 'tea'],
+    ['ingest', 'support_triage.k3f9q2a8', 'u1', 's', 'rules', 'cheap'],
+    ['delete', 'x/u1'],
+    ['prune', 'other.ns', 30],
   ]);
 });
 

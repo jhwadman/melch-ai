@@ -59,11 +59,12 @@ export const DEFAULT_GPT_MODEL = 'gpt-5-mini';
 export const DEFAULT_GROK_MODEL = 'grok-4.7';
 
 /**
- * Reasoning effort sent with grok-4.5/4.7 requests: 'low' | 'medium' | 'high'
- * (xAI's own default is 'high'; 4.7 adds 'xhigh'). Pinned to MEDIUM — deeper
- * than low without high's latency and token cost. Source: docs.x.ai › Model
- * capabilities › Text › Reasoning › Effort levels. Older grok ids don't
- * accept the param and never receive it (lib/models/grokLlm.ts).
+ * Reasoning effort sent with grok-4.5, 4.6 and 4.7 requests that set no
+ * `reasoning:`: 'low' | 'medium' | 'high' (xAI's own default is 'high'; 4.7
+ * adds 'xhigh'). Pinned to MEDIUM — deeper than low without high's latency
+ * and token cost. Source: docs.x.ai › Model capabilities › Text › Reasoning ›
+ * Effort levels. Older grok ids don't accept the param and never receive it
+ * (lib/models/grokAdapter.ts).
  */
 export const DEFAULT_GROK_REASONING_EFFORT = 'medium';
 

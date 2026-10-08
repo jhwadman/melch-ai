@@ -479,6 +479,126 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0056 Decision 2: \"GptLlm overrides it, and GrokLlm inherits the override\": on a final, candidatesTokenCount is the contract's outputTokens, reasoning included; the server-side calls go on customMetadata; groundingMetadata is left off. tests/responsesAdapter.test.ts asserts the turn's counts against a bare shim.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0056 Decision 1: \"AdkShim maps each response through a protected toLlmResponse(response), which is modelResponseToLlmResponse and runs inside the llm.request span, so the tracer reads its result.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0056 Decision 4: \"ADR 0053 is refined, not replaced. The caller still charges and traces, once per leaf adapter. Only its consequence on the output count does not apply to GptLlm and GrokLlm.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "constrains",
+      "evidence": "/models/responses-adapters.md, Reasoning across a tool loop: the ids that reason send store: false and include reasoning.encrypted_content (ADR 0050); each run of reasoning items rides on the part after it and is replayed before it within the current turn, for this provider and model only.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "constrains",
+      "evidence": "grokAdapter.ts replaysReasoning(): \"grok-4.5, grok-4.6 and grok-4.7 carry their reasoning across a tool loop (ADR 0050)\"; /models/responses-adapters.md lists the same ids under Reasoning across a tool loop.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 4: \"A failure is a final with error set, never a throw.\" /models/responses-adapters.md, Failures: \"Every call ends with exactly one final, and a failure is that final with error set, never a throw.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Decision 1: \"An adapter on the contract never charges the turn and never opens llm.request.\" /models/responses-adapters.md, Telemetry: \"The adapters open no span and charge no turn (ADR 0053); the shim does both.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §4: \"load_memory is a defineTool Tool with an instruction\", \"preload_memory is an InstructionTool\", and \"Their declaration, note, result and recalled block are ADK's, word for word.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/memory/supabaseMemoryService.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §1: \"SupabaseVectorMemoryService implements MemoryService and BaseMemoryService\"; ADK's addSessionToMemory and searchMemory \"each hand their arguments to the engine's method and return its result.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §2 and §3: ToolContext gains searchMemory, bound to \"the context's own <appName>/<userId> silo\", and userContent; a Tool may have instruction(ctx), and an InstructionTool has only a name and an instruction.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §3: on the ADK runtime lib/tools/adkTool.ts appends the instruction text in processLlmRequest, \"joined exactly as ADK's own appendInstructions joins it\" (a FunctionTool subclass, or toAdkInstructionTool for an InstructionTool).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/memory/namespace.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §1: \"namespacedMemoryService pins the root namespace on search and ingest as it does on ADK's two methods\"; erase and retention pass through it unchanged.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0059 Context: \"ADR 0052 gave the engine its own MemoryService (lib/runtime/memoryService.ts)\", which §1 has the memory service implement.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0059 Context: ADR 0051 \"made every registry tool the engine's own except the two memory tools\"; §4 builds load_memory with defineTool and §3 extends ADR 0051's Tool and ToolContext.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0059 §1 and §2 keep ADR 0020's silos: facts under <memory_namespace>/<scopeKey>, the root namespace pinned (ADR 0020 item 3), and a tool's search bound to its own silo.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
       "to": "module:lib/models/claudeAdapter.ts",
       "rel": "constrains",

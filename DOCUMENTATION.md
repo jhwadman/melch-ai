@@ -130,7 +130,10 @@ skipped with a warning at compile time.
 Registered in `lib/toolRegistry.ts` — one map from YAML name to ADK tool
 instance. A **Contract** is the engine's own Tool (`lib/tools/tool.ts`),
 defined once with `defineTool` and handed to the ADK runtime as a
-`FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`):
+`FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`). An
+**Instruction tool** is the engine's own too: it declares no function and
+only writes into each request's instruction, reaching the ADK runtime
+through `toAdkInstructionTool`:
 
 | Name | Kind | Does |
 |---|---|---|
@@ -140,8 +143,8 @@ defined once with `defineTool` and handed to the ADK runtime as a
 | `collections_search` | xAI-only | Semantic search over xAI **Collections** — hosted document stores (PDFs/text/CSVs) uploaded at console.x.ai — server-side RAG with `collections://…` citations. Which collections: `XAI_COLLECTION_IDS` in `.env` (optional `XAI_COLLECTIONS_MAX_RESULTS`). Declared with no ids → omitted with a warning; non-xAI providers → silent no-op. |
 | `url_context` | Gemini built-in | Gemini reads the pages at URLs in the conversation, server-side (Google fetches them, not this host). On any other provider it is a no-op the doctor reports as dropped; use `web_extract` there. |
 | `google_search` | ADK built-in | Live web search — Gemini agents only (legacy alias; use `web_search`). |
-| `preload_memory` | ADK built-in | Silently injects similarity-matched facts into every request (ambient recall). |
-| `load_memory` | ADK built-in | Explicit tool call to search the fact store (deliberate recall). |
+| `preload_memory` | Instruction tool | Silently injects similarity-matched facts into every request's instruction (ambient recall). The model never calls it. |
+| `load_memory` | Contract | Explicit tool call to search the fact store (deliberate recall). Both memory tools read the caller's own silo only and send the model what ADK's tools of the same names sent ([ADR 0059](./wiki/decisions/0059-memory-on-the-engines-own-interfaces.md)). |
 | `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive the AgentTool text boundary. |
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
@@ -314,8 +317,8 @@ accordingly — model optionality is a single YAML line per agent:
 |---|---|---|---|---|
 | `gemini-*` | Google Gemini | ADK-native (`TracedGemini`) | `GOOGLE_GENAI_API_KEY` | ✅ grounding |
 | `claude-*` | Anthropic | `lib/models/claudeAdapter.ts` (Messages API; `ClaudeLlm` is its ADK shim) | `ANTHROPIC_API_KEY` | ✅ server tool |
-| `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
-| `grok-*` | xAI | `lib/models/grokLlm.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
+| `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` around `gptAdapter.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
+| `grok-*` | xAI | `lib/models/grokLlm.ts` around `grokAdapter.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
 | `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiLlm.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
 | `ollama/*` | Local Ollama | `lib/models/ollamaLlm.ts` | none | ⚠ omitted + warning |
 | *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayLlm.ts` (chat completions) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
@@ -448,7 +451,8 @@ dimmed THINKING output and kept out of session history. On Claude, any
 extended thinking, tools included: the signed thinking blocks ride on the
 response's parts as `providerState` and are replayed verbatim within the
 turn's tool loop (ADR 0046). GPT's reasoning ids (o-series, `gpt-5*`) and
-`grok-4.5`/`grok-4.7` do the same with their encrypted reasoning items.
+`grok-4.5`, `grok-4.6` and `grok-4.7` do the same with their encrypted
+reasoning items.
 Their requests send `store: false`, so the vendor keeps no copy of the
 response (ADR 0050).
 
@@ -462,6 +466,11 @@ runs the turn, an adapter on the contract runs behind `AdkShim`
 (`melchizedek-agents/models/adkShim`), an ADK `BaseLlm` that charges each
 call against `max_steps`, passes the turn's abort signal and opens the
 `llm.request` span, as the ADK-path adapters do (ADR 0053).
+GPT and Grok run on the contract already: `GptLlm` and `GrokLlm` are that
+shim around `GptAdapter` (`melchizedek-agents/models/gptAdapter`) and
+`GrokAdapter` (`melchizedek-agents/models/grokAdapter`), and keep the token
+counts and server-side tool record the ledger has always had for them
+(ADR 0056).
 Gemini has two adapters on the contract, neither registered yet:
 `melchizedek-agents/models/geminiAdapter` (`GeminiAdapter`, on
 `@google/genai` with no ADK) and, until that one passes its live parity

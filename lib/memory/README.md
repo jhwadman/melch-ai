@@ -100,9 +100,12 @@ Recall is **hybrid** — three channels connect a query to the history:
 Active records get a rank boost over retired ones; superseded records that
 still surface are **relabeled** (`status: SUPERSEDED by a later
 correction`) so an outdated claim can never masquerade as current state.
-The top 10 re-ranked records are injected into the orchestrator's context
-via the ADK `preload_memory` (automatic) or `load_memory` (explicit tool
-call) mechanisms.
+The top 10 re-ranked records reach the agent through the engine's own
+memory tools (`lib/tools/memoryTools.ts`, ADR 0059): `preload_memory`
+writes them into the instruction before each request (automatic), and
+`load_memory` returns them for a query the model chooses (explicit tool
+call). Both read the run's own silo only, and say to the model exactly
+what ADK's tools of the same names said.
 
 ## 4. Multi-user siloing (read this before deploying to real users)
 

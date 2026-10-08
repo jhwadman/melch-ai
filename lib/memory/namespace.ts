@@ -9,34 +9,35 @@
  * nothing, and said so without error. Wrapping the service the runtime hands
  * to ADK pins every search and ingestion to one namespace, whatever app
  * name the caller carries.
+ *
+ * The pin covers both interfaces a service may implement: ADK's
+ * (`searchMemory`, `addSessionToMemory`) and the engine's MemoryService
+ * (`search`, `ingest`, lib/runtime/memoryService.ts, ADR 0059). Every other
+ * member, erase and retention included, passes through unchanged: they name
+ * their key or namespace themselves.
  */
 
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { BaseMemoryService, SearchMemoryRequest, SearchMemoryResponse } from '@google/adk';
+import type { BaseMemoryService } from '@google/adk';
+import type { MemoryService } from '../runtime/memoryService.ts';
 
-type Session = Parameters<BaseMemoryService['addSessionToMemory']>[0];
+/** The four methods whose first argument carries the app name the pin replaces. */
+const PINNED = new Set<PropertyKey>(['searchMemory', 'addSessionToMemory', 'search', 'ingest']);
 
 /** A memory service whose every read and write uses `namespace` as the app name. */
-export function namespacedMemoryService<T extends BaseMemoryService>(base: T, namespace: string): T {
+export function namespacedMemoryService<T extends BaseMemoryService | MemoryService>(base: T, namespace: string): T {
   if (!namespace) throw new Error('namespacedMemoryService: namespace is required');
   return new Proxy(base, {
     get(target, prop, receiver) {
-      if (prop === 'searchMemory') {
-        return (request: SearchMemoryRequest): Promise<SearchMemoryResponse> =>
-          target.searchMemory({ ...request, appName: namespace });
-      }
-      if (prop === 'addSessionToMemory') {
-        return (session: Session, ...rest: unknown[]) =>
-          (target.addSessionToMemory as (s: Session, ...r: unknown[]) => Promise<void>).call(
-            target,
-            { ...session, appName: namespace } as Session,
-            ...rest,
-          );
-      }
       const value = Reflect.get(target, prop, receiver);
+      if (PINNED.has(prop) && typeof value === 'function') {
+        // A search request or a session: the same object with the namespace as its app name.
+        return (first: object, ...rest: unknown[]) =>
+          (value as (...args: unknown[]) => unknown).call(target, { ...first, appName: namespace }, ...rest);
+      }
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });

@@ -80,6 +80,8 @@ export interface ToolSpec<S extends z.ZodType = z.ZodType, R = string> {
   longRunning?: boolean;
   /** Cut the result to this many characters (capResult). Off unless set; MAX_RESULT_CHARS is the shared limit. */
   maxResultChars?: number;
+  /** Text for the system instruction of each request that lists the tool (Tool.instruction, ADR 0059). */
+  instruction?: (ctx: ToolContext) => Promise<string | undefined>;
 }
 
 /**

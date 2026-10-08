@@ -31,6 +31,66 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —depends_on→ /decisions/0020-memory-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —depends_on→ /decisions/0052-sessions-and-events-on-own-interfaces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/memory/namespace.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/tools/adkTool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/tools/tool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/memory/supabaseMemoryService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/tools/memoryTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/models/gptAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/gptAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0050-responses-reasoning-replay-without-storage.md —constrains→ module:lib/models/grokAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0050-responses-reasoning-replay-without-storage.md —constrains→ module:lib/models/gptAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0056-responses-usage-meaning-on-the-adk-path.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0056-responses-usage-meaning-on-the-adk-path.md —constrains→ module:lib/models/adkShim.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0056-responses-usage-meaning-on-the-adk-path.md —constrains→ module:lib/models/gptLlm.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —depends_on→ /decisions/0052-sessions-and-events-on-own-interfaces.md
 
 by claude-code/claude-opus-5-5
