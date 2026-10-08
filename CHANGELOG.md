@@ -6,6 +6,29 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **A Gemini `MALFORMED_FUNCTION_CALL` from a contract adapter is
+  retried (WS2-15, ADR 0088).** `modelResponseToLlmResponse`
+  (`melchizedek-agents/models/genaiMapping`) now sets `finishReason` to an
+  error's code when the code is one of Gemini's finish reasons, as ADK's
+  Gemini reports both. Self-correction (`retries.model_errors`) then
+  retries a malformed function call on both runtimes, where it used to fail
+  the turn on native and behind a shim. A stored Gemini error event can
+  carry its own finish reason (`RECITATION`, say) where it carried
+  `SAFETY` or `OTHER`.
+- **On native, a custom ADK model class from `resolveModel` is refused
+  (WS2-15, ADR 0088).** A `compile.resolveModel` that returns an ADK
+  `BaseLlm` which is neither a shim nor ADK's Gemini now makes a
+  `runtime: 'native'` turn throw `UnsupportedOnRuntimeError` before any
+  model call. This covers an agent's model, a subagent's,
+  `fallback_model` and `summary_model`. Native used to run the registry's
+  model for that id instead. To run such a model on native, return its
+  `ModelAdapter`, or `adkShim(adapter)` from
+  `melchizedek-agents/models/adkShim`. ADK turns are unchanged.
+- **A user-authored `ask_user` call is no question (WS2-15, ADR 0088).**
+  `pendingQuestion` ignores an `ask_user` call in an event the user
+  authored. A message that forges one no longer turns the next message
+  into its answer, on either runtime.
+
 - **The native runtime sends a request, and reads a thrown failure, as
   ADK does (WS2-12, ADR 0084).** On `runtime: 'native'` (or
   `MELCHIZEDEK_RUNTIME=native`) a request goes out under the resolved

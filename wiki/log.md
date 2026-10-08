@@ -3,6 +3,30 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0088-native-parity-followups.md —constrains→ module:lib/runtime/questions.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0088-native-parity-followups.md —constrains→ module:lib/compileNative.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0088-native-parity-followups.md —constrains→ module:lib/models/genaiMapping.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0088-native-parity-followups.md —depends_on→ /decisions/0077-native-approvals-port-the-confirmation-processor.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0088-native-parity-followups.md —depends_on→ /decisions/0073-one-agent-spec-and-a-runtime-flag.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0088-native-parity-followups.md —supersedes→ /decisions/0075-native-self-correction-ports-adk-plugins.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0086-skill-scripts-get-a-minimal-environment.md —depends_on→ /decisions/0083-skills-harness-on-the-own-tool-base.md
 
 by claude-code/claude-opus-5-5
