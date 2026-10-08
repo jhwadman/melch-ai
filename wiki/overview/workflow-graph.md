@@ -39,7 +39,7 @@ A node is one of seven kinds:
 | `start` | `START` in a chain | its name, `__START__` (`START_NODE`), as the ADK compile names it |
 | `agent` | the orchestrator or a subagent | `settings`: `retry` and `timeout` from its node entry |
 | `join` | `join: true` | `settings` |
-| `map` | `map: <agent>` | the agent run per item (not itself a graph node), `maxParallel`, `settings` |
+| `map` | `map: <agent>` | the agent run per item (not itself a graph node), `maxParallel`, `settings` (kept as written; neither runtime applies them), and `agentSettings`, the mapped agent's own `retry` and `timeout`, which apply to each item |
 | `tool` | `tool: <name>` | the registry tool's name, `settings` |
 | `ask_user` | `ask_user: <question>` | the question, the reply's `schema`, `settings` |
 | `route` | a routing map after a node | `<node>__route`, the `source` node, and the `routeKey` it reads (`route_key`, default `route`) |

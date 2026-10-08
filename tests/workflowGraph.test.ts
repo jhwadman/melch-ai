@@ -168,7 +168,7 @@ test('the pipeline example as a model: node kinds, settings, routes, terminals',
 
 test('a map node names its agent, which is not a graph node; max_concurrency carries over', () => {
   const g = buildWorkflowGraph(valid(raw({ edges: [['START', 'Lister', 'Each', 'Merge']], nodes: { Each: { map: 'Summarizer', max_parallel: 2 } }, max_concurrency: 3 }, [agent('Summarizer'), agent('Merge')], agent('Lister'))));
-  assert.deepEqual(g.nodes.get('Each'), { kind: 'map', name: 'Each', agent: 'Summarizer', maxParallel: 2, settings: {} });
+  assert.deepEqual(g.nodes.get('Each'), { kind: 'map', name: 'Each', agent: 'Summarizer', maxParallel: 2, settings: {}, agentSettings: {} });
   assert.equal(g.nodes.has('Summarizer'), false);
   assert.ok(g.agents.includes('Summarizer'));
   assert.equal(g.maxConcurrency, 3);

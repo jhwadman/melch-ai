@@ -17,15 +17,25 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { FunctionNode, InMemorySessionService, LogLevel, Runner, setLogLevel } from '@google/adk';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { FunctionNode, InMemorySessionService, LogLevel, Runner, createEvent, setLogLevel } from '@google/adk';
 import type { LlmAgent } from '@google/adk';
 
 import { compileWorkflow } from '../lib/workflow.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
-import { DEFAULT_MAX_PARALLEL, nextNodes, runWorkflowGraph, streamWorkflowGraph } from '../lib/workflow/scheduler.ts';
-import type { NodeRun, SchedulerEvent } from '../lib/workflow/scheduler.ts';
+import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
+import {
+  DEFAULT_MAX_PARALLEL,
+  InvocationAbortedError,
+  errorName,
+  nextNodes,
+  retryDelaySeconds,
+  runWorkflowGraph,
+  shouldRetry,
+  streamWorkflowGraph,
+} from '../lib/workflow/scheduler.ts';
+import type { NodeRun, SchedulerEvent, WorkflowRun } from '../lib/workflow/scheduler.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 
 setLogLevel(LogLevel.ERROR);
@@ -42,7 +52,11 @@ function syndicate(name: string, agents: string[], workflow: Record<string, unkn
   ) as SyndicateYamlConfig;
 }
 
-/** What an agent does in a case: its output from its input, and how long it takes (ms; absent = no timer). */
+/**
+ * What an agent does in a case: its output from its input (it may throw, or
+ * return `reported(...)` to report an error as an ADK node does with an
+ * event's errorCode), and how long it takes (ms; absent = no timer).
+ */
 interface Stub {
   output?: (input: unknown, call: number) => unknown;
   delay?: number | ((input: unknown, call: number) => number);
@@ -51,12 +65,36 @@ type Stubs = Record<string, Stub>;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** One side's record: every agent call with its input, and every node completion with its output and branch. */
+/** A reported error: an ADK event carrying errorCode and errorMessage; the scheduler's `NodeResult.error`. */
+class Reported {
+  readonly code: string;
+  readonly message: string;
+  constructor(code: string, message: string) {
+    this.code = code;
+    this.message = message;
+  }
+}
+const reported = (code: string, message: string) => new Reported(code, message);
+
+/** An error carrying a code, as a provider SDK's errors do. */
+const coded = (message: string, code: number | string) => Object.assign(new Error(message), { code });
+
+/**
+ * One side's record: every agent call with its input, every node completion
+ * with its output and branch, every node error as runSyndicateTurn's drain
+ * collects it (with the error type and attempt count of a node that gave
+ * up), and the workflow's output or the error it failed with.
+ */
 interface Record_ {
   calls: string[];
   completions: string[];
   output: unknown;
+  nodeErrors: string[];
+  error?: string;
 }
+
+const nodeError = (path: string, branch: string | undefined, node: string, code: string, message: string, gaveUp?: { errorType?: string; attempt?: number }) =>
+  `${path}@${branch ?? '-'} ${node} [${code}] ${message}${gaveUp ? ` (${gaveUp.errorType} after ${gaveUp.attempt})` : ''}`;
 
 /** The stub table as one function both sides call; `calls` records `name <- input`. */
 function stubRunner(stubs: Stubs, calls: string[]) {
@@ -74,44 +112,82 @@ function stubRunner(stubs: Stubs, calls: string[]) {
 
 const completion = (path: string, output: unknown, branch: string | undefined) => `${path} = ${JSON.stringify(output)} @${branch ?? '-'}`;
 
-/** ADK's walk: the real compile, every agent a stub FunctionNode, run by ADK's Runner. */
+/**
+ * ADK's walk: the real compile, every agent a stub FunctionNode carrying the
+ * agent's node modifiers (retry, timeout) as the compiled agent does, run by
+ * ADK's Runner.
+ */
 async function runOnAdk(cfg: SyndicateYamlConfig, stubs: Stubs, input: string): Promise<Record_> {
   const calls: string[] = [];
   const run = stubRunner(stubs, calls);
-  const toStub = (a: LlmAgent) => new FunctionNode(a.name, (_ctx: unknown, nodeInput: unknown) => run(a.name, nodeInput)) as unknown as LlmAgent;
+  const toStub = (a: LlmAgent) =>
+    new FunctionNode(
+      a.name,
+      async (_ctx: unknown, nodeInput: unknown) => {
+        const out = await run(a.name, nodeInput);
+        return out instanceof Reported ? createEvent({ errorCode: out.code, errorMessage: out.message }) : out;
+      },
+      { retryConfig: (a as any).retryConfig, timeout: (a as any).timeout },
+    ) as unknown as LlmAgent;
   const { workflow } = await compileWorkflow(cfg, {}, toStub);
   const sessionService = new InMemorySessionService();
   await sessionService.createSession({ appName: 'sched', userId: 'u', sessionId: 's' });
   const runner = new Runner({ agent: workflow as any, appName: 'sched', sessionService });
   const completions: string[] = [];
+  const nodeErrors: string[] = [];
   // The Runner yields no event for the workflow's own output; it is the one terminal node's, as ADK's finalize takes it.
   const terminals = new Set(buildWorkflowGraph(cfg).terminals.map((n) => `${cfg.syndicate_name}.${n}`));
   let output: unknown;
-  for await (const ev of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: { role: 'user', parts: [{ text: input }] } })) {
-    const p = (ev as any).nodeInfo?.path as string | undefined;
-    if ((ev as any).output === undefined || !p) continue;
-    if (terminals.has(p)) output = (ev as any).output;
-    completions.push(completion(p, (ev as any).output, ev.branch));
+  let error: string | undefined;
+  try {
+    for await (const ev of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: { role: 'user', parts: [{ text: input }] } })) {
+      const e = ev as any;
+      const p = e.nodeInfo?.path as string | undefined;
+      // An error as runSyndicateTurn's drain reads it (errorPolicy 'collect').
+      if ((e.errorCode || e.errorMessage) && e.errorCode !== 'STOP') {
+        nodeErrors.push(nodeError(p ?? '', ev.branch, e.author, String(e.errorCode), String(e.errorMessage), e.isNodeError ? { errorType: e.errorType, attempt: e.attemptCount } : undefined));
+        continue;
+      }
+      if (e.output === undefined || !p) continue;
+      if (terminals.has(p)) output = e.output;
+      completions.push(completion(p, e.output, ev.branch));
+    }
+  } catch (err) {
+    error = `${(err as Error).name}: ${(err as Error).message}`;
+    output = undefined;
   }
-  return { calls, completions, output };
+  return { calls, completions, output, nodeErrors, ...(error ? { error } : {}) };
 }
 
 /** The scheduler's walk on the engine's own graph, with the same stubs. */
-async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs, input: string, events?: SchedulerEvent[]): Promise<Record_> {
+async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs, input: string, events?: SchedulerEvent[], runs?: WorkflowRun[]): Promise<Record_> {
   const calls: string[] = [];
   const run = stubRunner(stubs, calls);
   const completions: string[] = [];
-  const result = await runWorkflowGraph(buildWorkflowGraph(cfg), {
-    input,
-    runNode: async (r: NodeRun) => ({ output: await run(r.target.kind === 'map_item' ? r.target.agent : r.target.name, r.input) }),
-    onEvent: (e) => {
-      events?.push(e);
-      // ADK writes no event for a node whose output is undefined; the record leaves it out on both sides.
-      if ((e.type === 'node_end' || e.type === 'item_end') && e.output !== undefined) completions.push(completion(e.path, e.output, e.branch));
-    },
-  });
+  const nodeErrors: string[] = [];
+  let output: unknown;
+  let error: string | undefined;
+  try {
+    const result = await runWorkflowGraph(buildWorkflowGraph(cfg), {
+      input,
+      runNode: async (r: NodeRun) => {
+        const out = await run(r.target.kind === 'map_item' ? r.target.agent : r.target.name, r.input);
+        return out instanceof Reported ? { error: { code: out.code, message: out.message } } : { output: out };
+      },
+      onEvent: (e) => {
+        events?.push(e);
+        // ADK writes no event for a node whose output is undefined; the record leaves it out on both sides.
+        if ((e.type === 'node_end' || e.type === 'item_end') && e.output !== undefined) completions.push(completion(e.path, e.output, e.branch));
+        if (e.type === 'node_error') nodeErrors.push(nodeError(e.path, e.branch, e.node, e.code, e.message, e.source === 'workflow' ? { errorType: e.errorType, attempt: e.attempt } : undefined));
+      },
+    });
+    runs?.push(result);
+    output = result.output;
+  } catch (err) {
+    error = `${(err as Error).name}: ${(err as Error).message}`;
+  }
   // ADK writes a map item's event before the map's own; so does the scheduler. The orders compare as they stand.
-  return { calls, completions, output: result.output };
+  return { calls, completions, output, nodeErrors, ...(error ? { error } : {}) };
 }
 
 async function bothAgree(cfg: SyndicateYamlConfig, stubs: Stubs, input = 'go'): Promise<Record_> {
@@ -316,11 +392,27 @@ test('max_concurrency bounds the nodes running at once, in ADK\'s order', async 
 
 test('two terminal outputs fail the run with ADK\'s message', async () => {
   const cfg = syndicate('Two', ['Lead', 'A', 'B'], { edges: [['START', 'Lead', ['A', 'B']]] });
-  const adkError = await runOnAdk(cfg, {}, 'go').then(
-    () => assert.fail('ADK accepts two terminal outputs'),
-    (e: Error) => e.message,
-  );
-  await assert.rejects(runNative(cfg, {}, 'go'), (e: Error) => e.message === adkError);
+  const record = await bothAgree(cfg, {});
+  assert.match(record.error ?? '', /^Error: Workflow Two: multiple terminal nodes produced output \(2\)/);
+});
+
+test('a null output is no output, as on ADK: nothing recorded, the successor runs on undefined, a join keys it as undefined', async () => {
+  const chain = syndicate('N', ['A', 'B', 'C'], { edges: [['START', 'A', 'B', 'C']] });
+  const record = await bothAgree(chain, { B: { output: () => null } });
+  assert.deepEqual(record.calls, ['A <- "go"', 'B <- "A(go)"', 'C <- undefined']);
+  assert.deepEqual(record.completions, ['N.A = "A(go)" @-', 'N.C = "C(undefined)" @-']);
+
+  // One of two terminals outputs null: only one terminal output, so the walk completes.
+  const twoEnds = syndicate('N2', ['A', 'B', 'C'], { edges: [['START', 'A', ['B', 'C']]] });
+  assert.equal((await bothAgree(twoEnds, { B: { output: () => null } })).output, 'C(A(go))');
+
+  const joined = syndicate('N3', ['A', 'B', 'C', 'D'], { edges: [['START', 'A', ['B', 'C']], [['B', 'C'], 'J', 'D']], nodes: { J: { join: true } } });
+  const viaJoin = await bothAgree(joined, { B: { output: () => null }, D: { output: (input) => input } });
+  assert.deepEqual(viaJoin.output, { B: undefined, C: 'C(A(go))' }, 'keyed as undefined, which a JSON write drops');
+
+  const items = syndicate('N4', ['Lead', 'Worker', 'Sum'], { edges: [['START', 'Lead', 'Fan', 'Sum']], nodes: { Fan: { map: 'Worker' } } });
+  const viaMap = await bothAgree(items, { Lead: { output: () => ['a', 'b'] }, Worker: { output: (i) => (i === 'a' ? null : i) }, Sum: { output: (list) => list } });
+  assert.deepEqual(viaMap.output, [undefined, 'b'], 'a null item is undefined in the list, which JSON writes as null');
 });
 
 test('a node that throws stops the walk: the others are aborted and settle, the error is rethrown', async () => {
@@ -382,6 +474,260 @@ test('streamWorkflowGraph yields every event in order, then the run', async () =
   assert.equal(seen.at(-1), 'node_end:Publisher');
   assert.deepEqual(step.value.order, ['Planner', 'Writer', 'Checker', 'Editor', 'Both', 'Publisher']);
   assert.equal(step.value.output, 'Publisher');
+});
+
+// ── Retry, timeout and node errors (ADR 0030 on both sides, WS4-2b) ──────────
+
+const retrying = (retry: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+  syndicate('R', ['Triage', 'Fixer'], { edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { retry: { initial_delay: 0.001, ...retry }, ...extra } } });
+
+/** Run both sides, require the same record, and return it with the scheduler's own result. */
+async function bothAgreeOn(cfg: SyndicateYamlConfig, stubs: Stubs): Promise<{ record: Record_; run?: WorkflowRun; events: SchedulerEvent[] }> {
+  const adk = await runOnAdk(cfg, stubs, 'go');
+  const events: SchedulerEvent[] = [];
+  const runs: WorkflowRun[] = [];
+  const native = await runNative(cfg, stubs, 'go', events, runs);
+  assert.deepEqual(native, adk);
+  return { record: adk, run: runs[0], events };
+}
+
+test('retry: a node that throws once recovers on its next attempt, and nothing is reported', async () => {
+  const stubs: Stubs = { Fixer: { output: (_i, call) => (call === 1 ? (() => { throw coded('flaky', 503); })() : 'fixed') } };
+  const { record, run } = await bothAgreeOn(retrying({ max_attempts: 3 }), stubs);
+  assert.equal(record.output, 'fixed');
+  assert.deepEqual(record.calls, ['Triage <- "go"', 'Fixer <- "Triage(go)"', 'Fixer <- "Triage(go)"']);
+  assert.deepEqual(record.nodeErrors, []);
+  assert.deepEqual(run?.nodeErrors, []);
+});
+
+test('retry: a node that reports an error once recovers; the failed attempt is collected, not fatal (ADR 0030)', async () => {
+  const stubs: Stubs = { Fixer: { output: (_i, call) => (call === 1 ? reported('503', 'overloaded') : 'fixed') } };
+  const { record, run } = await bothAgreeOn(retrying({ max_attempts: 3, max_delay: 0.02 }), stubs);
+  assert.equal(record.output, 'fixed');
+  assert.deepEqual(record.nodeErrors, ['R.Fixer@- Fixer [503] overloaded']);
+  assert.deepEqual(run?.nodeErrors, [{ node: 'Fixer', code: '503', message: 'overloaded' }], 'as answer.nodeErrors holds it');
+});
+
+test('retry: a node that gives up on a reported error fails the walk, the error named once per attempt (ADR 0030)', async () => {
+  const stubs: Stubs = { Fixer: { output: () => reported('500', 'down') } };
+  const once = await bothAgreeOn(retrying({ max_attempts: 1 }), stubs);
+  assert.equal(once.record.error, "NodeReportedError: Node 'Fixer' failed: 500: down");
+  assert.deepEqual(once.record.nodeErrors, ['R.Fixer@- Fixer [500] down']);
+  const thrice = await bothAgreeOn(retrying({ max_attempts: 3 }), stubs);
+  assert.equal(thrice.record.calls.filter((c) => c.startsWith('Fixer')).length, 3);
+  assert.deepEqual(thrice.record.nodeErrors, Array(3).fill('R.Fixer@- Fixer [500] down'));
+});
+
+test('retry: a node that keeps throwing gives up after max_attempts; the walk reports it once with its type, code and attempts', async () => {
+  for (const [error, expected] of [
+    [() => new TypeError('bad'), ['TypeError: bad', 'R.Fixer@- Fixer [UNKNOWN_ERROR] bad (TypeError after 3)']],
+    [() => coded('overloaded', 503), ['Error: overloaded', 'R.Fixer@- Fixer [503] overloaded (Error after 3)']],
+  ] as const) {
+    const stubs: Stubs = { Fixer: { output: () => { throw error(); } } };
+    const { record } = await bothAgreeOn(retrying({ max_attempts: 3 }), stubs);
+    assert.equal(record.error, expected[0]);
+    assert.deepEqual(record.nodeErrors, [expected[1]]);
+    assert.equal(record.calls.filter((c) => c.startsWith('Fixer')).length, 3);
+  }
+});
+
+test('timeout: an attempt that runs past it is abandoned and retried; without a retry the walk fails with NodeTimeoutError', async () => {
+  const slowOnce: Stubs = { Fixer: { delay: (_i, call) => (call === 1 ? 200 : 0), output: () => 'fixed' } };
+  const recovered = await bothAgreeOn(retrying({ max_attempts: 2 }, { timeout: 0.03 }), slowOnce);
+  assert.equal(recovered.record.output, 'fixed');
+  assert.deepEqual(recovered.record.nodeErrors, []);
+
+  const timedOut = syndicate('T', ['Triage', 'Fixer'], { edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { timeout: 0.03 } } });
+  const { record } = await bothAgreeOn(timedOut, { Fixer: { delay: 200 } });
+  assert.equal(record.error, "NodeTimeoutError: Node 'Fixer' timed out after 0.03 seconds.");
+  assert.deepEqual(record.nodeErrors, ["T.Fixer@- Fixer [UNKNOWN_ERROR] Node 'Fixer' timed out after 0.03 seconds. (NodeTimeoutError after 1)"]);
+});
+
+test('timeout: the runner\'s signal aborts with the timeout', async () => {
+  const cfg = syndicate('T', ['Triage', 'Fixer'], { edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { timeout: 0.02 } } });
+  let reason: unknown;
+  await assert.rejects(
+    runWorkflowGraph(buildWorkflowGraph(cfg), {
+      input: 'go',
+      runNode: async (r) => {
+        if (r.target.kind !== 'map_item' && r.target.name === 'Triage') return { output: 'x' };
+        await new Promise<void>((resolve) => r.signal.addEventListener('abort', () => resolve(), { once: true }));
+        reason = r.signal.reason;
+        return { output: 'late' };
+      },
+    }),
+    { name: 'NodeTimeoutError' },
+  );
+  assert.equal(errorName(reason), 'NodeTimeoutError');
+});
+
+const mapped = syndicate('M', ['Lead', 'Worker', 'Sum'], {
+  edges: [['START', 'Lead', 'Fan', 'Sum']],
+  // The map entry's own timeout is not applied on ADK (its compile does not hand it to the worker), so here neither.
+  nodes: { Fan: { map: 'Worker', max_parallel: 1, timeout: 0.001 }, Worker: { retry: { max_attempts: 2, initial_delay: 0.001 } } },
+});
+
+test('map: each item runs under its agent\'s retry; a reported item error names the item\'s path and branch', async () => {
+  const stubs: Stubs = {
+    Lead: { output: () => ['a', 'b'] },
+    Worker: { delay: 5, output: (item, call) => (item === 'b' && call === 2 ? reported('503', 'once') : `w:${item}`) },
+    Sum: { output: (list) => (list as string[]).join(',') },
+  };
+  const { record } = await bothAgreeOn(mapped, stubs);
+  assert.equal(record.output, 'w:a,w:b');
+  assert.deepEqual(record.nodeErrors, ['M.Fan.Worker@1@Worker@1 Worker [503] once']);
+});
+
+test('map: an item that gives up fails the map with DynamicNodeFailError, reported once under the map\'s name', async () => {
+  const stubs: Stubs = { Lead: { output: () => ['a', 'b', 'c'] }, Worker: { output: (item) => { if (item === 'b') throw new Error('item'); return `w:${item}`; } } };
+  const { record } = await bothAgreeOn(mapped, stubs);
+  assert.equal(record.error, 'DynamicNodeFailError: Dynamic node Worker failed: item');
+  assert.deepEqual(record.nodeErrors, ['M.Fan@- Fan [UNKNOWN_ERROR] Dynamic node Worker failed: item (DynamicNodeFailError after 1)']);
+  assert.deepEqual(record.calls, ['Lead <- "go"', 'Worker <- "a"', 'Worker <- "b"', 'Worker <- "b"'], 'the pool takes no item after the failure');
+});
+
+const bounded = (nodes: Record<string, unknown>) =>
+  syndicate('B', ['Lead', 'A', 'B', 'C', 'Tail'], {
+    edges: [['START', 'Lead', ['A', 'B', 'C']], [['A', 'B', 'C'], 'All', 'Tail']],
+    nodes: { All: { join: true }, ...nodes },
+    max_concurrency: 2,
+  });
+
+test('max_concurrency counts a retrying node as running, in ADK\'s order', async () => {
+  const stubs: Stubs = { A: { delay: 5, output: (_i, call) => (call === 1 ? reported('429', 'slow down') : 'a') }, B: { delay: 20 }, C: { delay: 5 } };
+  const events: SchedulerEvent[] = [];
+  const adk = await runOnAdk(bounded({ A: { retry: { max_attempts: 2, initial_delay: 0.001 } } }), stubs, 'go');
+  const native = await runNative(bounded({ A: { retry: { max_attempts: 2, initial_delay: 0.001 } } }), stubs, 'go', events);
+  assert.deepEqual(native, adk);
+  let running = 0;
+  let peak = 0;
+  for (const e of events) {
+    if (e.type === 'node_start') peak = Math.max(peak, ++running);
+    if (e.type === 'node_end') running--;
+  }
+  assert.equal(peak, 2);
+  assert.deepEqual(native.nodeErrors, ['B.A@A@1 A [429] slow down']);
+});
+
+test('max_concurrency under a failure: the buffered node never starts, the error is ADK\'s', async () => {
+  const stubs: Stubs = { A: { delay: 5, output: () => { throw new RangeError('no'); } }, B: { delay: 20 } };
+  const { record } = await bothAgreeOn(bounded({}), stubs);
+  assert.equal(record.error, 'RangeError: no');
+  assert.ok(!record.calls.some((c) => c.startsWith('C')), record.calls.join(' | '));
+  assert.deepEqual(record.nodeErrors, ['B.A@- A [UNKNOWN_ERROR] no (RangeError after 1)']);
+});
+
+test('which errors retry, and the backoff, are ADK\'s (retry_utils)', async () => {
+  const adkRetry = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/workflow/utils/retry_utils.js')).href);
+  class ProviderError extends Error {}
+  const named = Object.assign(new Error('x'), { name: 'RateLimitError' });
+  for (const error of [new Error('x'), new TypeError('x'), new ProviderError('x'), named, 'text', { plain: true }]) {
+    assert.equal(errorName(error), adkRetry.errorName(error));
+    for (const exceptions of [undefined, ['TypeError'], ['ProviderError', 'RateLimitError'], []]) {
+      for (const attempts of [1, 2, 3, 5]) {
+        for (const max of [undefined, 1, 3]) {
+          const ours = shouldRetry(error, { ...(max !== undefined ? { max_attempts: max } : {}), ...(exceptions ? { exceptions } : {}) }, attempts);
+          const theirs = adkRetry.shouldRetryNode({ error, retryConfig: { maxAttempts: max, exceptions }, nodeState: { attemptCount: attempts } });
+          assert.equal(ours, theirs, `${errorName(error)} ${JSON.stringify(exceptions)} ${attempts}/${max}`);
+        }
+      }
+    }
+  }
+  for (const r of [0, 0.25, 0.5, 0.999]) {
+    for (const retry of [{}, { initial_delay: 0.5, backoff_factor: 3, max_delay: 4 }, { initial_delay: 2, max_delay: 3, jitter: 0 }, { jitter: 0.5 }]) {
+      for (const attempts of [1, 2, 4, 9]) {
+        const ours = retryDelaySeconds(retry, attempts, () => r);
+        const theirs = adkRetry.getRetryDelaySeconds({
+          retryConfig: { initialDelay: (retry as any).initial_delay, maxDelay: (retry as any).max_delay, backoffFactor: (retry as any).backoff_factor, jitter: (retry as any).jitter },
+          nodeState: { attemptCount: attempts },
+          randomFn: () => r,
+        });
+        assert.equal(ours, theirs, `${JSON.stringify(retry)} attempt ${attempts} random ${r}`);
+      }
+    }
+  }
+});
+
+// ── Abort and deadline ───────────────────────────────────────────────────────
+
+test('abort during a retry\'s backoff: no further attempt, nothing reported, the successor never runs', async () => {
+  const controller = new AbortController();
+  const ran: string[] = [];
+  const events: SchedulerEvent[] = [];
+  await assert.rejects(
+    runWorkflowGraph(buildWorkflowGraph(retrying({ max_attempts: 5, initial_delay: 10 })), {
+      input: 'go',
+      signal: controller.signal,
+      onEvent: (e) => events.push(e),
+      runNode: async (r) => {
+        const name = (r.target as { name: string }).name;
+        ran.push(`${name}#${r.attempt}`);
+        if (name === 'Fixer') {
+          setTimeout(() => controller.abort(new Error('cancel')), 5);
+          throw new Error('flaky');
+        }
+        return { output: name };
+      },
+    }),
+    (e: Error) => e instanceof InvocationAbortedError && e.message === 'Invocation aborted during retry.',
+  );
+  assert.deepEqual(ran, ['Triage#1', 'Fixer#1']);
+  assert.deepEqual(events.filter((e) => e.type === 'node_error'), [], 'an aborted walk reports no node error');
+});
+
+test('the turn\'s deadline (turnControl) reaches every run and stops the walk: no node starts after it', async () => {
+  const cfg = syndicate('D', ['Lead', 'Slow', 'Next'], { edges: [['START', 'Lead', 'Slow', 'Next']] });
+  const control = createTurnControl({ deadlineMs: 20 });
+  const ran: string[] = [];
+  let slowReason: unknown;
+  try {
+    await assert.rejects(
+      runWithTurnControl(control, () =>
+        runWorkflowGraph(buildWorkflowGraph(cfg), {
+          input: 'go',
+          runNode: async (r) => {
+            const name = (r.target as { name: string }).name;
+            ran.push(name);
+            if (name === 'Slow') {
+              // A node that sees the abort but still finishes with an output.
+              await new Promise<void>((resolve) => r.signal.addEventListener('abort', () => resolve(), { once: true }));
+              slowReason = r.signal.reason;
+            }
+            return { output: name };
+          },
+        }),
+      ),
+      (e: Error) => e instanceof InvocationAbortedError && /exceeded its time limit/.test(String((e.cause as Error)?.message)),
+    );
+  } finally {
+    control.dispose();
+  }
+  assert.equal(control.stopReason, 'deadline');
+  assert.match(String((slowReason as Error)?.message), /exceeded its time limit/);
+  assert.deepEqual(ran, ['Lead', 'Slow'], 'Next never starts');
+});
+
+test('abort while a timed node runs: the attempt ends at once with InvocationAbortedError, not a timeout', async () => {
+  const cfg = syndicate('A', ['Lead', 'Slow'], { edges: [['START', 'Lead', 'Slow']], nodes: { Slow: { timeout: 5, retry: { max_attempts: 3 } } } });
+  const controller = new AbortController();
+  const started = Date.now();
+  let attempts = 0;
+  await assert.rejects(
+    runWorkflowGraph(buildWorkflowGraph(cfg), {
+      input: 'go',
+      signal: controller.signal,
+      runNode: async (r) => {
+        if ((r.target as { name: string }).name === 'Lead') return { output: 'x' };
+        attempts++;
+        setTimeout(() => controller.abort(), 5);
+        await sleep(1000); // ignores its signal; the timeout's race does not wait for it
+        return { output: 'late' };
+      },
+    }),
+    (e: Error) => e instanceof InvocationAbortedError && e.message === "Invocation aborted while running node 'Slow'.",
+  );
+  assert.equal(attempts, 1, 'an abort is never retried');
+  assert.ok(Date.now() - started < 500, 'the walk did not wait for the abandoned attempt');
 });
 
 // ── No ADK ───────────────────────────────────────────────────────────────────
