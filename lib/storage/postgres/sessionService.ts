@@ -1,6 +1,6 @@
 /**
  * lib/storage/postgres/sessionService.ts — sessions on a direct Postgres
- * connection (ADR 0021), for either runtime (ADR 0052, ADR 0058).
+ * connection (ADR 0021): the engine's SessionService (ADR 0052, ADR 0107).
  *
  * WHY it differs from the Supabase session service:
  *   That one re-uploads a conversation's WHOLE events array on every event.
@@ -10,19 +10,15 @@
  *   adk_session_events, appended under a row lock on its session, and state
  *   changes are merged into the stored state rather than overwriting it.
  *
- *   Events are stored as ADK produced them. The Supabase service trims thought
+ *   Events are stored as the runtime produced them. The Supabase service trims thought
  *   signatures and large tool payloads because it rewrites everything on every
  *   event; appending each event once removes that cost, and a DELEGATE
  *   conversation that is replayed to the model gets back exactly what it sent.
  *
- * TWO FACES, ONE STORE:
+ * THE RULES:
  *   The class is the engine's SessionService (create, get, list, delete,
- *   append) and ADK's BaseSessionService (createSession, getSession, …), so
- *   the ADK runtime and the native one read and write the same rows. The ADK
- *   methods call the engine's, except appendEvent, which applies the event
- *   to the runner's session through ADK's base service (its write-order
- *   check included), where append uses applyEvent. Both record it the same
- *   way. The rules are lib/runtime/sessions.ts's: a create of an existing
+ *   append). The rows hold the JSON ADK wrote before 1.0.0, so a
+ *   conversation stored then resumes. The rules are lib/runtime/sessions.ts's: a create of an existing
  *   id keeps the conversation, `afterTimestamp` is strict and filters
  *   before `numRecentEvents` counts, an event whose id the caller's session
  *   already holds replaces that row in place (as applyEvent replaces it in
@@ -35,16 +31,6 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { BaseSessionService } from '../../adkPeer.ts';
-import type {
-  CreateSessionRequest as AdkCreateSessionRequest,
-  DeleteSessionRequest as AdkDeleteSessionRequest,
-  Event as AdkEvent,
-  GetSessionRequest as AdkGetSessionRequest,
-  ListSessionsRequest as AdkListSessionsRequest,
-  ListSessionsResponse as AdkListSessionsResponse,
-  Session as AdkSession,
-} from '@google/adk';
 import type { Pool, PoolClient } from 'pg';
 
 import type { TurnEvent } from '../../runtime/events.ts';
@@ -122,12 +108,11 @@ const REPLACE_EVENT = `
   UPDATE adk_session_events SET ts = $2, event = $3::jsonb
    WHERE session_id = $1 AND event->>'id' = $4`;
 
-export class PostgresSessionService extends BaseSessionService implements SessionService {
+export class PostgresSessionService implements SessionService {
   private readonly ttlMs: number;
   private readonly pool: Pool;
 
   constructor(pool: Pool, options: PostgresSessionOptions = {}) {
-    super();
     this.pool = pool;
     this.ttlMs = (options.ttlDays ?? 7) * 24 * 60 * 60 * 1000;
   }
@@ -277,7 +262,7 @@ export class PostgresSessionService extends BaseSessionService implements Sessio
    */
   private async record(
     session: { appName: string; userId: string; id: string },
-    event: TurnEvent | AdkEvent,
+    event: TurnEvent,
     replacing: boolean,
   ): Promise<void> {
     const id = dbId(session.appName, session.userId, session.id);
@@ -320,37 +305,5 @@ export class PostgresSessionService extends BaseSessionService implements Sessio
     } finally {
       client.release();
     }
-  }
-
-  // ── ADK's BaseSessionService, for the ADK runtime ─────────────────────────
-
-  async createSession(request: AdkCreateSessionRequest): Promise<AdkSession> {
-    return (await this.create(request)) as unknown as AdkSession;
-  }
-
-  async getSession(request: AdkGetSessionRequest): Promise<AdkSession | undefined> {
-    const key = { appName: request.appName, userId: request.userId, sessionId: request.sessionId };
-    return (await this.get(key, request.config)) as unknown as AdkSession | undefined;
-  }
-
-  async listSessions(request: AdkListSessionsRequest): Promise<AdkListSessionsResponse> {
-    return (await this.list(request)) as unknown as AdkListSessionsResponse;
-  }
-
-  async deleteSession(request: AdkDeleteSessionRequest): Promise<void> {
-    await this.delete(request);
-  }
-
-  async appendEvent(request: { session: AdkSession; event: AdkEvent }): Promise<AdkEvent> {
-    const { session, event } = request;
-    if (event.partial) return event;
-    // ADK's own merge: applies the state delta to the live session, strips
-    // temp: keys, replaces or pushes the event. It must run: a bare push
-    // drops every state write (see the Supabase service).
-    const replacing = holds(session, event);
-    await super.appendEvent({ session, event });
-    session.lastUpdateTime = eventTime(event.timestamp);
-    await this.record(session, event, replacing);
-    return event;
   }
 }

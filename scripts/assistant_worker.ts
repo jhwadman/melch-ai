@@ -13,8 +13,8 @@
  *   and writes the result (or the error) back to the store, where
  *   `task_get` reads it in a later conversation.
  *
- *   A job runs through lib/runtime/syndicateTurn.ts (on the runtime
- *   MELCHIZEDEK_RUNTIME names, ADK by default), the same runtime the
+ *   A job runs through lib/runtime/syndicateTurn.ts (the engine's own
+ *   loop, the only runtime since 1.0.0), the same runtime the
  *   A2A server, the REPL and the observatory use, so it runs the exact agent
  *   the conversation would have called directly — with the same step cap —
  *   and the job timeout ABORTS the run (the model call in flight included)
@@ -38,14 +38,13 @@ import { loadEnv } from '../lib/loadEnv.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
-import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import {
   PROVIDERS,
   providerForModel,
   providerKeyPresent,
-  registerAvailableProviders,
 } from '../lib/models/registry.ts';
 import { getTaskBackend, setTaskBackend, taskStorePath } from '../lib/tools/taskTools.ts';
 import type { OwnedTask, TaskRecord, WorkerLease } from '../lib/tools/taskTools.ts';
@@ -55,7 +54,8 @@ import { hostname } from 'node:os';
 
 loadEnv(import.meta.url);
 setLogLevel('warn');
-registerAvailableProviders();
+// MELCHIZEDEK_RUNTIME=adk (removed in 1.0.0) stops the worker here, naming the release.
+runtimeSetting();
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -133,7 +133,7 @@ async function runJob(job: TaskRecord): Promise<string> {
       sessionId: randomUUID(),
       // A fresh in-process store per job, as the turn runner's signature
       // names it (ADR 0080). The runtime follows MELCHIZEDEK_RUNTIME.
-      sessionService: asAdkSessionService(new InProcessSessionService()),
+      sessionService: new InProcessSessionService(),
       compile: { log, onUnknownTool: (n) => log(`unknown tool '${n}' skipped`) },
       signal: current.signal,
       deadlineMs: JOB_TIMEOUT_MS,
@@ -177,7 +177,7 @@ async function drain(): Promise<number> {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-log(`agent ${agentName} (${model ?? 'ADK default'}) from ${syndicateFile}`);
+log(`agent ${agentName} (${model ?? 'default model'}) from ${syndicateFile}`);
 log(pg ? 'store Postgres (DATABASE_URL)' : `store ${taskStorePath()}`);
 const { requeued, failed } = await backend.recover();
 if (requeued.length) log(`re-queued interrupted jobs: ${requeued.join(', ')}`);

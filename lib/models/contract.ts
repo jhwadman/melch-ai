@@ -4,12 +4,12 @@
  * implements and the native runtime calls (ADR 0045, ADR 0048).
  *
  * WHY this file exists:
- *   The ADK runtime speaks @google/genai `Content`, which is Gemini's wire
- *   format. It has no slot for another provider's reasoning state, spells
- *   schemas in Gemini's uppercase dialect, carries server-side tools as
- *   sentinel tool objects, and surfaces failures as a throw on one path and
- *   a yielded `errorCode` on another. The native runtime owns its loop, so it
- *   owns this format instead. Each adapter translates it to its provider's
+ *   ADK spoke @google/genai `Content`, which is Gemini's wire format. It
+ *   has no slot for another provider's reasoning state, spells schemas in
+ *   Gemini's uppercase dialect, carried server-side tools as sentinel tool
+ *   objects, and surfaced failures as a throw on one path and a yielded
+ *   `errorCode` on another. The native runtime owns its loop, so it owns
+ *   this format instead. Each adapter translates it to its provider's
  *   wire; wiki/models/model-contract.md is the field-by-field spec, with the
  *   mapping for every provider.
  *
@@ -332,9 +332,9 @@ type ChatErrorCode =
   | 'GATEWAY_HTTP_ERROR';
 
 /**
- * Gemini's codes: ADK's adapter reports a candidate's finish reason, or the
- * prompt's block reason, as the code itself. GEMINI_ERROR is a failed call,
- * which ADK throws and the contract reports.
+ * Gemini's codes: a candidate's finish reason, or the prompt's block reason,
+ * is the code itself, as ADK's adapter reported it. GEMINI_ERROR is a failed
+ * call, which ADK threw and the contract reports.
  */
 type GeminiErrorCode =
   | 'GEMINI_ERROR'
@@ -366,8 +366,8 @@ type GeminiErrorCode =
 type TurnControlErrorCode = 'STEP_LIMIT' | 'DEADLINE_EXCEEDED' | 'CANCELED';
 
 /**
- * The codes the engine's adapters report, kept verbatim from what they emit
- * under ADK so a caller matching on a code keeps working. An adapter the
+ * The codes the engine's adapters report, kept verbatim from what they
+ * emitted under ADK so a caller matching on a code keeps working. An adapter the
  * engine does not ship may report its own; the engine's adapters use only
  * these, and adding one is a change to wiki/models/model-contract.md.
  */

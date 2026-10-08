@@ -1,10 +1,10 @@
 /**
- * lib/workflow/nodeEvents.ts — the events ADK 2.2 stores for the workflow
+ * lib/workflow/nodeEvents.ts — the events ADK 2.2 stored for the workflow
  * nodes the scheduler runs itself: a join and a map (ADR 0030, ADR 0093).
  *
  * The scheduler (lib/workflow/scheduler.ts) runs joins and maps as graph
- * mechanics and hands back their outputs; on ADK each is a node whose
- * output becomes a stored event. A session the native walk writes must hold
+ * mechanics and hands back their outputs; under ADK each was a node whose
+ * output became a stored event. A session the native walk writes must hold
  * the same events, so agentNodeRuntime (lib/workflow/agentNode.ts) stores
  * these on the scheduler's `node_end`, beside the route step's
  * (lib/workflow/route.ts):
@@ -19,8 +19,8 @@
  *     else one text part holding the list's JSON.
  *
  * Both are then stamped as ADK's node runner stamps every event
- * (enrichNodeEvent: the path, `outputFor`). Item runs have no wrapper event
- * on ADK: each item's agent stores its own events. It imports nothing from
+ * (enrichNodeEvent: the path, `outputFor`). Item runs have no wrapper event,
+ * as under ADK: each item's agent stores its own events. It imports nothing from
  * ADK.
  */
 

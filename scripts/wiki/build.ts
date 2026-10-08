@@ -369,7 +369,7 @@ function toolDocSpecs(): DocSpec[] {
         tags: ['tools', 'web'],
         sources: [
           { resource: 'lib/tools/webExtractTool.ts' },
-          { resource: 'lib/tools/webSearchTool.ts' },
+          { resource: 'lib/tools/nativeTools.ts' },
           { resource: 'lib/tools/xApiSearchTool.ts' },
         ],
       },
@@ -606,7 +606,7 @@ function providerSpec(): DocSpec {
       {
         kind: 'fill',
         id: 'overview',
-        hint: 'the three resolution paths (LLMRegistry string matching, the resolveModel instance factory, and resolveAdapter for contract adapters) and why registration must happen before agent construction',
+        hint: 'how the engine resolves a model: resolveAdapter (lib/models/registry.ts) maps the prefix of a model id to its contract adapter, and resolveModel adds a per-request key and the default model; a CompileOptions.resolveModel may return an id or a ModelAdapter instead',
       },
       {
         kind: 'generated',
@@ -802,7 +802,10 @@ function resourceNode(resource: string): { id: string; node?: EntityNode; rel: s
   }
   const agentYaml = /^config\/agents\/([\w-]+)\.yaml$/.exec(resource);
   if (agentYaml) return { id: entityId('syndicate', agentYaml[1]), rel: 'documents' };
-  if (/^(lib|scripts)\/.+\.ts$/.test(resource)) {
+  // A module that still exists is the scanned module node. One a release
+  // removed (a dated ADR's source, say) falls through to a file node, so the
+  // record keeps its provenance without a dangling edge.
+  if (/^(lib|scripts)\/.+\.ts$/.test(resource) && existsSync(join(repoRoot, resource))) {
     return { id: entityId('module', resource), rel: 'derives_from' };
   }
   const id = entityId('file', resource);

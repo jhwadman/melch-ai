@@ -1,5 +1,5 @@
 /**
- * tests/genaiMapping.test.ts — @google/genai Content, ADK's LlmRequest and
+ * tests/genaiMapping.test.ts — genai Content, the genai-shaped LlmRequest and
  * LlmResponse, to and from the engine's model contract
  * (lib/models/genaiMapping.ts, ADR 0048).
  *
@@ -11,12 +11,12 @@
  *     carries it (ADK's `adk-` ids stripped) round-trips too.
  *   - A thoughtSignature, a call id and another adapter's providerState
  *     survive, and so do the parts the contract cannot hold exactly.
- *   - An LlmRequest that a real ADK LlmAgent built maps to a ModelRequest
- *     with the agent's tools and system text.
- *   - A ModelResponse maps to the LlmResponse ADK expects.
- *   - The reverse directions, for a contract adapter over an ADK BaseLlm:
- *     a ModelRequest round-trips through an LlmRequest; every fixture
- *     history, and a request a real LlmAgent built, round-trips the other
+ *   - The LlmRequest a native turn's ModelRequest maps to reads back as a
+ *     ModelRequest with the agent's tools and system text.
+ *   - A ModelResponse maps to the LlmResponse ADK expected.
+ *   - The reverse directions: a ModelRequest round-trips through an
+ *     LlmRequest; every fixture history, and the request a native turn
+ *     sent, round-trips the other
  *     way; every model event of every fixture round-trips through a
  *     ModelResponse, thinking aside; a ModelResponse round-trips through an
  *     LlmResponse.
@@ -27,8 +27,6 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
 import type { Content } from '@google/genai';
 
 import {
@@ -50,21 +48,20 @@ import {
   usageFromMetadata,
   usageToMetadata,
 } from '../lib/models/genaiMapping.ts';
+import type { LlmRequest, LlmResponse } from '../lib/models/genaiMapping.ts';
 import type { FinalModelResponse, Message, ModelRequest, ModelResponse, Part, ToolCallPart, ToolResultPart } from '../lib/models/contract.ts';
-import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, isRetryableErrorResponse, withRetryVerdict } from '../lib/models/errorResponse.ts';
-import { toolDeclarationFor } from '../lib/models/schemaNormalize.ts';
+import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, withRetryVerdict } from '../lib/models/errorResponse.ts';
+import { contractToolDeclaration } from '../lib/models/schemaNormalize.ts';
 import type { ProviderState } from '../lib/models/providerState.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { SKIP_SIGNATURE } from '../lib/session/transcript.ts';
-import { COLLECTIONS_SEARCH } from '../lib/tools/collectionsSearchTool.ts';
-import { X_SEARCH } from '../lib/tools/xSearchTool.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { COLLECTIONS_SEARCH_MARKER, WEB_SEARCH_MARKER, X_SEARCH_MARKER } from '../lib/tools/nativeTools.ts';
 import { THOUGHT_SIGNATURE } from './fixtures/sessions/scenarios.ts';
 import { fixtureFiles, loadFixture } from './helpers/sessionFixtures.ts';
 import type { SessionFixture } from './helpers/sessionFixtures.ts';
 import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 /** JSON with every object's keys sorted: the bytes a jsonb column gives back, whatever the key order. */
 function canonical(value: unknown): string {
@@ -116,7 +113,7 @@ test('every event content of every session fixture round-trips Content → contr
     for (const contents of rows) {
       contents.forEach((content, i) => {
         assertRoundTrip(content, `${name} content ${i}`, i);
-        // ADK writes its parts' keys in the order the mapping writes them.
+        // ADK wrote the fixtures' parts' keys in the order the mapping writes them.
         assert.equal(JSON.stringify(messageToContent(contentToMessage(content, i)).parts), JSON.stringify(content.parts), `${name} content ${i}: parts in ADK's key order`);
         inFile++;
       });
@@ -334,7 +331,7 @@ function delegateConfig(tools: string[], model = 'scripted/boss'): SyndicateYaml
   } as SyndicateYamlConfig;
 }
 
-/** Runs one delegating turn and returns the second request ADK built for Boss. */
+/** Runs one delegating turn and returns the second request Boss's script read, as an LlmRequest. */
 async function secondRequest(boss: ScriptedLlm, config: SyndicateYamlConfig): Promise<LlmRequest> {
   const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
   const result = await runSyndicateTurn({
@@ -343,11 +340,9 @@ async function secondRequest(boss: ScriptedLlm, config: SyndicateYamlConfig): Pr
     appName: APP,
     userId: USER,
     sessionId: 's1',
-    sessionService: new InMemorySessionService(),
+    sessionService: new InProcessSessionService(),
     compile: { resolveModel: scriptedResolver({ boss, scout, claude: boss }) },
     trace: false,
-    // The LlmRequest a real ADK LlmAgent built is the subject here: always ADK's runtime.
-    runtime: 'adk',
   });
   assert.equal(result.status, 'completed');
   assert.equal(boss.requests.length, 2);
@@ -359,7 +354,7 @@ const delegating = (model: string) =>
     n === 1 ? ({ content: { role: 'model', parts: [{ functionCall: { name: 'Scout', args: { request: 'look in the attic' } } }] } } as LlmResponse) : text('Scout says: the attic'),
   );
 
-test('an LlmRequest a real ADK LlmAgent built maps to a ModelRequest with its tools and system text', async () => {
+test('the LlmRequest a native turn sent maps to a ModelRequest with its tools and system text', async () => {
   const boss = delegating('scripted/boss');
   const request = await secondRequest(boss, delegateConfig(['load_memory', 'web_search']));
   const mapped = llmRequestToModelRequest(request, { stream: false });
@@ -383,7 +378,7 @@ test('an LlmRequest a real ADK LlmAgent built maps to a ModelRequest with its to
   assert.equal(mapped.reasoning, 'high', 'reasoning: high compiled to thinkingLevel HIGH reads back as high');
   assert.equal(mapped.stream, false);
 
-  // The history: ADK stripped its adk- ids from the call and the result; minted ids pair them.
+  // The history: the call and the result carry no id in the LlmRequest; minted ids pair them.
   assert.deepEqual(mapped.messages.map((m) => m.role), ['user', 'assistant', 'tool']);
   const call = mapped.messages[1].parts[0] as ToolCallPart;
   const result = mapped.messages[2].parts[0] as ToolResultPart;
@@ -391,20 +386,23 @@ test('an LlmRequest a real ADK LlmAgent built maps to a ModelRequest with its to
   assert.ok(call.id.startsWith(MINTED_CALL_ID_PREFIX));
   assert.equal(result.id, call.id);
   assert.equal(result.result, 'it is in the attic');
-  assert.equal(canonical(messagesToContents({ messages: mapped.messages }).contents), canonical(request.contents), "ADK's request contents round-trip");
+  assert.equal(canonical(messagesToContents({ messages: mapped.messages }).contents), canonical(request.contents), 'the request contents round-trip');
 });
 
 test('on a model that is not Gemini, the web_search sentinel reads as a native tool', async () => {
   const boss = delegating('claude-sonnet-4-6');
-  const request = await secondRequest(boss, delegateConfig(['web_search'], 'scripted/claude'));
-  assert.ok(!((request.config?.tools ?? []) as any[]).some((t) => t.googleSearch), 'no Gemini grounding object on Claude');
-  const mapped = llmRequestToModelRequest(request);
-  assert.equal(mapped.model, 'claude-sonnet-4-6');
-  assert.deepEqual(mapped.nativeTools, ['web_search']);
-  assert.ok('web_search' in request.toolsDict, 'ADK registered the sentinel');
-  const names = (mapped.tools ?? []).map((t) => t.name);
+  await secondRequest(boss, delegateConfig(['web_search'], 'scripted/claude'));
+  // The ModelRequest the loop sent the Claude model.
+  const sent = boss.adapter.requests[1];
+  assert.equal(sent.model, 'claude-sonnet-4-6');
+  assert.deepEqual(sent.nativeTools, ['web_search']);
+  const names = (sent.tools ?? []).map((t) => t.name);
   assert.ok(names.includes('Scout'));
   assert.ok(!names.includes('web_search'), 'the sentinel is not a client tool');
+  // A non-Gemini LlmRequest carries the sentinel in toolsDict, with no Gemini grounding object: it reads as the native tool.
+  const mapped = llmRequestToModelRequest(bareRequest({ model: 'claude-sonnet-4-6', toolsDict: { web_search: WEB_SEARCH_MARKER } as any }));
+  assert.deepEqual(mapped.nativeTools, ['web_search']);
+  assert.equal(mapped.tools, undefined, 'and declares no client tool');
 });
 
 function bareRequest(over: Partial<LlmRequest> = {}): LlmRequest {
@@ -416,7 +414,7 @@ test('LlmRequest: the output schema, tool choice, sampling, stream and signal', 
   const signal = new AbortController().signal;
   const mapped = llmRequestToModelRequest(
     bareRequest({
-      toolsDict: { calc, x_search: X_SEARCH, collections_search: COLLECTIONS_SEARCH } as any,
+      toolsDict: { calc, x_search: X_SEARCH_MARKER, collections_search: COLLECTIONS_SEARCH_MARKER } as any,
       config: {
         responseSchema: { type: 'OBJECT' as never, properties: { answer: { type: 'STRING' as never } }, required: ['answer'] },
         responseMimeType: 'application/json',
@@ -565,7 +563,7 @@ test('ModelResponse: a partial streams its deltas, and a failure is an error cod
   }
 });
 
-test('ModelResponse: an error carries the retry verdict FallbackLlm reads (ADR 0044)', () => {
+test('ModelResponse: an error carries its retry verdict on customMetadata (ADR 0044)', () => {
   const failed = (error: { code: string; message: string; retryable: boolean; status?: number }) =>
     modelResponseToLlmResponse({ partial: false, parts: [], finishReason: 'error', error });
 
@@ -576,16 +574,16 @@ test('ModelResponse: an error carries the retry verdict FallbackLlm reads (ADR 0
     turnComplete: true,
     customMetadata: { [ERROR_RETRYABLE_KEY]: true, [ERROR_STATUS_KEY]: 529 },
   });
-  assert.equal(isRetryableErrorResponse(overloaded), true, 'a fallback model answers it');
+  assert.equal(overloaded.customMetadata?.[ERROR_RETRYABLE_KEY], true, 'a fallback model answers it');
 
   const bad = failed({ code: 'ANTHROPIC_ERROR', message: '400 invalid_request_error', retryable: false, status: 400 });
   assert.deepEqual(bad.customMetadata, { [ERROR_RETRYABLE_KEY]: false, [ERROR_STATUS_KEY]: 400 });
-  assert.equal(isRetryableErrorResponse(bad), false, 'the request is at fault: passed on');
+  assert.equal(bad.customMetadata?.[ERROR_RETRYABLE_KEY], false, 'the request is at fault: passed on');
 
   const unreachable = failed({ code: 'OLLAMA_UNREACHABLE', message: 'connection refused', retryable: true });
   assert.deepEqual(unreachable.customMetadata, { [ERROR_RETRYABLE_KEY]: true });
   assert.equal(ERROR_STATUS_KEY in unreachable.customMetadata!, false, 'no status, no error.status key');
-  assert.equal(isRetryableErrorResponse(unreachable), true);
+  assert.equal(unreachable.customMetadata?.[ERROR_RETRYABLE_KEY], true);
 
   // The message leaves the mapping with key-shaped text scrubbed, as every adapter's error does.
   const leaked = failed({ code: 'OPENAI_ERROR', message: 'bad key sk-proj-abcdefghijklmnopqrstuvwxyz0123456789', retryable: false, status: 401 });
@@ -656,7 +654,7 @@ test('ModelRequest → LlmRequest → ModelRequest gives back every field an Llm
   assert.deepEqual(llmRequestToModelRequest(llm), request);
   assert.deepEqual(request.tools![0].parameters, LOOKUP_SCHEMA, 'the input is not mutated');
 
-  // What ADK's Gemini sends: config.tools, the lowercase schema as written, the mode, thinking and the effort word.
+  // What Gemini is sent: config.tools, the lowercase schema as written, the mode, thinking and the effort word.
   assert.deepEqual(llm.config?.tools, [
     { functionDeclarations: [{ name: 'lookup', description: 'Looks a word up.', parametersJsonSchema: LOOKUP_SCHEMA }] },
     { urlContext: {} },
@@ -668,8 +666,8 @@ test('ModelRequest → LlmRequest → ModelRequest gives back every field an Llm
   assert.equal((llm.config as Record<string, unknown>).reasoningEffort, 'high');
   assert.equal(llm.config?.systemInstruction, 'Be brief.');
   assert.equal(llm.config?.abortSignal, signal);
-  // ADK-path adapters read the same declaration out of toolsDict.
-  assert.deepEqual(toolDeclarationFor(llm.toolsDict.lookup), { name: 'lookup', description: 'Looks a word up.', parameters: LOOKUP_SCHEMA });
+  // An adapter that reads toolsDict reads the same declaration out of it.
+  assert.deepEqual(contractToolDeclaration(llm.toolsDict.lookup), { name: 'lookup', description: 'Looks a word up.', parameters: LOOKUP_SCHEMA });
 
   for (const toolChoice of ['none', 'required', { name: 'lookup' }] as const) {
     const forced: ModelRequest = { model: 'gemini-3-flash', messages: [], tools: [{ name: 'lookup', description: '', parameters: LOOKUP_SCHEMA }], toolChoice };
@@ -734,7 +732,7 @@ test('every fixture history, as an LlmRequest carries it, round-trips LlmRequest
   assert.ok(histories >= 20, `only ${histories} histories were checked`);
 });
 
-test('an LlmRequest a real ADK LlmAgent built round-trips through the contract', async () => {
+test('the LlmRequest a native turn sent round-trips through the contract', async () => {
   const boss = delegating('scripted/boss');
   const request = await secondRequest(boss, delegateConfig(['load_memory', 'web_search']));
   const mapped = llmRequestToModelRequest(request);

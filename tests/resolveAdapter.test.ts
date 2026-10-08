@@ -1,9 +1,9 @@
 /**
  * tests/resolveAdapter.test.ts — the engine's own registry (WS1-3, ADR 0060):
  * resolveAdapter for every prefix, the gateway fallback, BYOK key injection
- * and endpoints on the contract path, the Gemini adapter choice, the
- * FallbackAdapter pair, and that the ADK path (registerAvailableProviders,
- * resolveModel, the compiler's fallback pair) is what it was.
+ * and endpoints on the contract path, the Gemini adapter choice (the ADK
+ * Gemini adapter that 1.0.0 removed is refused by name), the FallbackAdapter
+ * pair, resolveModel's BYOK route, and logProviderStatuses.
  *
  * Offline: the environment is set and restored around each test, and every
  * wire call is a stubbed fetch answering 400. Keys are fixtures.
@@ -11,36 +11,24 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LLMRegistry, LogLevel, setLogLevel } from '@google/adk';
 
 import {
   geminiAdapterChoice,
-  registerAvailableProviders,
+  logProviderStatuses,
   resolveAdapter,
   resolveAdapterWithFallback,
   resolveModel,
-  TracedGemini,
 } from '../lib/models/registry.ts';
+import type { GeminiAdapterChoice } from '../lib/models/registry.ts';
 import type { ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
-import { AdkShim } from '../lib/models/adkShim.ts';
-import { AdkGeminiAdapter } from '../lib/models/adkGeminiAdapter.ts';
 import { ClaudeAdapter } from '../lib/models/claudeAdapter.ts';
-import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
 import { FallbackAdapter } from '../lib/models/fallbackAdapter.ts';
-import { FallbackLlm } from '../lib/models/fallback.ts';
 import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
 import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
 import { GptAdapter } from '../lib/models/gptAdapter.ts';
-import { GptLlm } from '../lib/models/gptLlm.ts';
 import { GrokAdapter } from '../lib/models/grokAdapter.ts';
-import { GrokLlm } from '../lib/models/grokLlm.ts';
 import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
-import { KimiLlm } from '../lib/models/kimiLlm.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
-import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
-import { compileSubagent } from '../lib/compile.ts';
-
-setLogLevel(LogLevel.WARN);
 
 const ENV_KEYS = [
   'GOOGLE_GENAI_API_KEY',
@@ -154,19 +142,24 @@ test('resolveAdapter returns each provider\'s contract adapter from the one pref
   });
 });
 
-test('Gemini: the engine adapter by default (ADR 0100); the ADK wrapper by GEMINI_ADAPTER=adk or the option', async () => {
+test('Gemini: the engine adapter (ADR 0100); GEMINI_ADAPTER=adk or the adk option throws, naming 1.0.0', async () => {
   await withEnv({ GOOGLE_GENAI_API_KEY: ENV_GEMINI }, () => {
     assert.equal(geminiAdapterChoice(), 'engine');
     assert.ok(resolveAdapter('gemini-x') instanceof GeminiAdapter);
-    assert.ok(resolveAdapter('gemini-x', { gemini: 'adk' }) instanceof AdkGeminiAdapter);
+    assert.ok(resolveAdapter('gemini-x', { gemini: 'engine' }) instanceof GeminiAdapter);
+    assert.throws(() => resolveAdapter('gemini-x', { gemini: 'adk' as GeminiAdapterChoice }), /removed in melchizedek-agents 1\.0\.0/);
   });
   await withEnv({ GOOGLE_GENAI_API_KEY: ENV_GEMINI, GEMINI_ADAPTER: 'ADK' }, () => {
-    assert.equal(geminiAdapterChoice(), 'adk');
-    assert.ok(resolveAdapter('gemini-x') instanceof AdkGeminiAdapter);
+    assert.throws(() => geminiAdapterChoice(), /GEMINI_ADAPTER asks for the ADK Gemini adapter, which was removed in melchizedek-agents 1\.0\.0/);
+    assert.throws(() => resolveAdapter('gemini-x'), /1\.0\.0/);
     assert.ok(resolveAdapter('gemini-x', { gemini: 'engine' }) instanceof GeminiAdapter, 'the option wins over the environment');
   });
+  await withEnv({ GOOGLE_GENAI_API_KEY: ENV_GEMINI, GEMINI_ADAPTER: 'engine' }, () => {
+    assert.equal(geminiAdapterChoice(), 'engine');
+    assert.ok(resolveAdapter('gemini-x') instanceof GeminiAdapter);
+  });
   await withEnv({ ...ALL_KEYS, GEMINI_ADAPTER: 'genai' }, () => {
-    assert.throws(() => resolveAdapter('gemini-x'), /GEMINI_ADAPTER must be "adk" or "engine"/);
+    assert.throws(() => resolveAdapter('gemini-x'), /GEMINI_ADAPTER must be "engine"/);
     assert.ok(resolveAdapter('claude-x') instanceof ClaudeAdapter, 'a bad GEMINI_ADAPTER touches only Gemini ids');
   });
 });
@@ -215,7 +208,7 @@ for (const [id, envKey] of [
 ] as const) {
   test(`BYOK on ${id}: the caller's key goes on the wire, not the environment's, and never into the error`, async () => {
     await withEnv(ALL_KEYS, async () => {
-      for (const gemini of id === 'gemini-x' ? (['adk', 'engine'] as const) : (['adk'] as const)) {
+      for (const gemini of ['engine'] as const) {
         const { seen, final } = await call(resolveAdapter(id, { apiKey: CALLER, gemini }));
         assert.ok(seen.length > 0, `${id} (${gemini}) made a call`);
         const sent = headerValues(seen);
@@ -253,15 +246,15 @@ test('an endpoint from the credentials plug point reaches the adapter', async ()
   });
 });
 
-test('the same route on both paths: resolveModel and resolveAdapter send a key and endpoint to one place', async () => {
+test('the same route on both entry points: resolveModel and resolveAdapter send a key and endpoint to one place', async () => {
   await withEnv({}, async () => {
     const options = { endpoint: { baseURL: 'https://tenant-proxy.internal/v1' }, apiKey: CALLER };
     const viaAdapter = await call(resolveAdapter('gpt-5-mini', options));
-    const shim = resolveModel('gpt-5-mini', { ...options, defaultProvider: 'openai' }) as GptLlm;
-    assert.ok(shim instanceof GptLlm);
-    const viaShim = await call(shim.adapter);
-    assert.equal(viaShim.seen[0]!.url, viaAdapter.seen[0]!.url);
-    assert.equal(viaShim.seen[0]!.headers.get('authorization'), viaAdapter.seen[0]!.headers.get('authorization'));
+    const model = resolveModel('gpt-5-mini', { ...options, defaultProvider: 'openai' });
+    assert.ok(model instanceof GptAdapter);
+    const viaModel = await call(model);
+    assert.equal(viaModel.seen[0]!.url, viaAdapter.seen[0]!.url);
+    assert.equal(viaModel.seen[0]!.headers.get('authorization'), viaAdapter.seen[0]!.headers.get('authorization'));
   });
 });
 
@@ -281,40 +274,27 @@ test('resolveAdapterWithFallback: a FallbackAdapter around both adapters, the ke
   });
 });
 
-// ── The ADK path is unchanged ────────────────────────────────────────────────
+// ── resolveModel and the provider report ─────────────────────────────────────
 
-test('resolveModel still returns each provider\'s own ADK class', async () => {
+test("resolveModel returns each provider's contract adapter", async () => {
   await withEnv(ALL_KEYS, () => {
-    assert.ok(resolveModel('claude-x') instanceof ClaudeLlm);
-    assert.equal(resolveModel('gpt-5-mini').constructor, GptLlm);
-    assert.ok(resolveModel('grok-4.7') instanceof GrokLlm);
-    assert.ok(resolveModel('kimi-k3') instanceof KimiLlm);
-    assert.ok(resolveModel('ollama/qwen3:8b') instanceof OllamaLlm);
-    assert.ok(resolveModel('gemini-x') instanceof TracedGemini);
+    assert.ok(resolveModel('claude-x') instanceof ClaudeAdapter);
+    assert.equal(resolveModel('gpt-5-mini').constructor, GptAdapter);
+    assert.ok(resolveModel('grok-4.7') instanceof GrokAdapter);
+    assert.ok(resolveModel('kimi-k3') instanceof KimiAdapter);
+    assert.ok(resolveModel('ollama/qwen3:8b') instanceof OllamaAdapter);
+    assert.ok(resolveModel('gemini-x') instanceof GeminiAdapter);
   });
 });
 
-test("registerAvailableProviders registers the providers' own classes under their own patterns", async () => {
+test('logProviderStatuses reports every provider once and registers nothing', async () => {
   await withEnv(ALL_KEYS, () => {
-    registerAvailableProviders();
-    assert.equal(LLMRegistry.resolve('claude-sonnet-4-6'), ClaudeLlm);
-    assert.equal(LLMRegistry.resolve('gpt-5-mini'), GptLlm);
-    assert.equal(LLMRegistry.resolve('o4-mini'), GptLlm);
-    assert.equal(LLMRegistry.resolve('grok-4.7'), GrokLlm);
-    assert.equal(LLMRegistry.resolve('kimi-k3'), KimiLlm);
-    assert.equal(LLMRegistry.resolve('ollama/qwen3:8b'), OllamaLlm);
-    assert.equal(LLMRegistry.resolve('gemini-3.5-flash-lite'), TracedGemini);
-  });
-});
-
-test('the compiler\'s fallback pair stays FallbackLlm(shim(primary), shim(fallback)) (ADR 0053)', async () => {
-  await withEnv(ALL_KEYS, async () => {
-    const agent = (await compileSubagent(
-      { name: 'Pair', description: 'p', instruction: 'y', model: 'claude-sonnet-4-6', fallback_model: 'gpt-5-mini' } as any,
-      { resolveModel: (m) => resolveModel(m), log: () => {} },
-    )) as any;
-    assert.ok(agent.model instanceof FallbackLlm);
-    assert.ok(agent.model.primary instanceof ClaudeLlm && agent.model.primary instanceof AdkShim);
-    assert.ok(agent.model.fallback instanceof GptLlm && agent.model.fallback instanceof AdkShim);
+    const lines: string[] = [];
+    const statuses = logProviderStatuses((m) => lines.push(m));
+    assert.deepEqual(statuses.map((s) => s.provider).sort(), ['anthropic', 'gemini', 'moonshot', 'ollama', 'openai', 'xai']);
+    assert.ok(statuses.every((s) => s.available && s.transport === 'direct'));
+    assert.equal(lines.length, statuses.length);
+    assert.ok(lines.every((l) => /active/.test(l)));
+    assert.deepEqual(logProviderStatuses().map((s) => s.provider), statuses.map((s) => s.provider), 'silent without a log');
   });
 });

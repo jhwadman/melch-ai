@@ -73,15 +73,15 @@ Install into your existing project:
 npm install melchizedek-agents
 ```
 
-`@google/adk` is an optional peer since 0.20.0: install it beside the package (`npm install @google/adk@~2.2.0`) only to run on the `adk` runtime.
+The package has no Google ADK dependency: 1.0.0 removed ADK, and every turn runs on the engine's own agent loop. Upgrading from 0.x: read the 1.0.0 "Breaking — read before upgrading" section of [`CHANGELOG.md`](./CHANGELOG.md).
 
 Define your agents in `./config/agents/mine.yaml`, then run turns programmatically:
 
 ```typescript
-import { InProcessSessionService, asAdkSessionService, loadSyndicate, registerAvailableProviders, runSyndicateTurn } from 'melchizedek-agents';
+import { InProcessSessionService, loadSyndicate, logProviderStatuses, runSyndicateTurn } from 'melchizedek-agents';
 
-// 1. Register a provider for every key that is set
-registerAvailableProviders();
+// 1. Report which providers have a key set
+logProviderStatuses(console.log);
 
 // 2. Load and validate syndicate YAML from ./config/agents/
 const config = loadSyndicate('mine.yaml');
@@ -93,7 +93,7 @@ const result = await runSyndicateTurn({
   appName: 'my-app',
   userId: 'user-42',
   sessionId: 'conversation-7', // same id, same conversation
-  sessionService: asAdkSessionService(new InProcessSessionService()),
+  sessionService: new InProcessSessionService(),
   events: {
     onProgress: (line) => console.log('…', line)
   },
@@ -102,7 +102,7 @@ const result = await runSyndicateTurn({
 console.log(result.status, result.text);
 ```
 
-`runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. Since 0.20.0 it runs every syndicate on the engine's own loop and scheduler (the `native` runtime) by default. `MELCHIZEDEK_RUNTIME=adk` (or `runtime: 'adk'`) runs it on Google ADK instead, with `@google/adk` installed, until 1.0.0 removes that runtime; `npx melchizedek-doctor` prints the runtime in use and whether ADK is installed ([ADR 0102](./wiki/decisions/0102-native-default-and-optional-adk-peer.md)). To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`.
+`runSyndicateTurn` is the same runtime the server, CLI, and eval harness use. It runs every syndicate on the engine's own agent loop and, for a workflow, its own scheduler (the `native` runtime, the only one). `MELCHIZEDEK_RUNTIME=adk` is an error that names 1.0.0; `npx melchizedek-doctor` prints the runtime in use (ADR 0107). To read syndicates from somewhere else, pass `loadSyndicate(file, { agentsDir })` or set `MELCHIZEDEK_AGENTS_DIR`. To serve inside your own Express app, mount `(await createA2AApp({ defaultSyndicate: 'mine.yaml', serverSecret })).app`.
 
 The example syndicates ship inside the package at `node_modules/melchizedek-agents/config/agents/examples/`; copy one out as a starting point.
 
@@ -119,7 +119,7 @@ registerGuard(myGuardInstance);
 
 ### The Model Adapters Alone
 
-`melchizedek-agents/model` is the engine's model layer on its own: one message format for every provider, an adapter per provider, `resolveAdapter` over the same model-id prefixes the YAML uses, and `FallbackAdapter`. It loads no `@google/adk`. Since 0.20.0 ADK is an optional peer, so `npm install melchizedek-agents` leaves it out; the other peers (redis, the cloud SDKs) are optional too.
+`melchizedek-agents/model` is the engine's model layer on its own: one message format for every provider, an adapter per provider, `resolveAdapter` over the same model-id prefixes the YAML uses, and `FallbackAdapter`. The peers (redis, the cloud SDKs) are optional.
 
 ```typescript
 import { ClaudeAdapter, OllamaAdapter, resolveAdapter } from 'melchizedek-agents/model';
@@ -149,7 +149,7 @@ console.log(await ask(new OllamaAdapter({ model: 'ollama/qwen3:8b' }), 'What is 
 const adapter = resolveAdapter('ollama/qwen3:8b');
 ```
 
-A Gemini id resolves to the engine's `GeminiAdapter` here. The ADK-backed Gemini adapter, the ADK shims and `resolveModel` stay under `melchizedek-agents/models/*` for the optional `adk` runtime, and need `@google/adk`.
+A Gemini id resolves to the engine's `GeminiAdapter` here, on `@google/genai`.
 
 ### CLI & Server Utilities
 

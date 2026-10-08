@@ -6,11 +6,9 @@
  * WHY this file exists:
  *   OpenAI's Responses API is where OpenAI exposes reasoning summaries and
  *   its first-class `web_search` tool, and xAI's Agent Tools API speaks the
- *   same wire. GptLlm and GrokLlm translated ADK's LlmRequest to it
- *   directly. This module is that translation on the contract: it reads a
- *   ModelRequest and yields ModelResponses, with no ADK in the path, so the
- *   native runtime (ADR 0045) can call it. GptLlm and GrokLlm (gptLlm.ts,
- *   grokLlm.ts) are now the ADK shim (lib/models/adkShim.ts) around it.
+ *   same wire. This module is the translation on the contract: it reads a
+ *   ModelRequest and yields ModelResponses, and the native loop (ADR 0045)
+ *   calls it directly.
  *
  * THE MAPPING is the OpenAI Responses table of wiki/models/model-contract.md
  * (and its xAI table for the subclass). In short:
@@ -40,8 +38,9 @@
  *
  * BEYOND THE CONTRACT: the server-side tool calls a response reports, with
  * their arguments and sources, have no contract field. responsesServerTools()
- * returns them for a final this adapter yielded, so GptLlm can put them on the
- * ADK event's customMetadata where the ledger reads them (ADR 0056).
+ * returns them for a final this adapter yielded (ADR 0056); the native step
+ * writes them on the stored final's customMetadata
+ * (`responses.server_tool_calls`), where the ledger counts them.
  */
 
 import type {
@@ -120,8 +119,8 @@ function resultJson(part: ToolResultPart): string {
 
 /** A user-turn blob as an input content item, or why it is left out. */
 function blobItem(part: BlobPart): WireItem | string {
-  // The genai mapping types an untyped part as octet-stream; the ADK path
-  // sent an untyped image as PNG, and the provider reads the bytes.
+  // The genai mapping types an untyped part as octet-stream; an untyped
+  // image goes as PNG, as ADK sent it, and the provider reads the bytes.
   const mimeType = !part.mimeType || part.mimeType === 'application/octet-stream' ? 'image/png' : part.mimeType;
   if (part.url !== undefined && !/^https:\/\//i.test(part.url)) return 'URL scheme';
   if (mimeType === 'application/pdf') {
@@ -147,7 +146,7 @@ function replayedItems(part: Part, replay: ReasoningReplay): WireItem[] {
  * loop only (currentTurnStart). An assistant message that replays keeps the
  * model's order of text and calls, so each run of reasoning items is
  * followed by the item it preceded; one that does not puts its calls before
- * its text, as the ADK path always built it.
+ * its text, as ADK always built it.
  */
 export function responsesInput(request: Pick<ModelRequest, 'system' | 'messages'>, replay?: ReasoningReplay): ResponsesInput {
   const system: string[] = request.system ? [request.system] : [];
@@ -319,9 +318,10 @@ const SERVER_TOOLS = new WeakMap<FinalModelResponse, ResponsesServerTools>();
 /**
  * The server-side tool calls and counters behind a final response a
  * Responses adapter yielded, or undefined when it reported none. The
- * contract has no field for them (only their queries, as grounding); GptLlm
- * writes them on the ADK event's customMetadata, where the ledger counts
- * them (lib/observability/tracer.ts, serverToolEvents).
+ * contract has no field for them (only their queries, as grounding). The
+ * native step (lib/runtime/native/step.ts, withServerTools) writes them on
+ * the stored final's customMetadata, and the root span counts them from
+ * there (lib/observability/tracer.ts, serverToolEvents).
  */
 export function responsesServerTools(response: ModelResponse): ResponsesServerTools | undefined {
   return response.partial ? undefined : SERVER_TOOLS.get(response);

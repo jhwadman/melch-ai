@@ -2,33 +2,31 @@
  * lib/memory/namespace.ts — memory always resolves to the ROOT syndicate's
  * namespace (ADR 0020 item 3).
  *
- * WHY: ADK runs each DELEGATE subagent (AgentTool) as its own Runner under
- * `appName = <the subagent's name>`, and its memory tools search with that
- * name. Facts are written under the root syndicate's namespace, so a
- * `load_memory` declared on a subagent searched `<SubAgent>/<user>`, found
- * nothing, and said so without error. Wrapping the service the runtime hands
- * to ADK pins every search and ingestion to one namespace, whatever app
- * name the caller carries.
+ * WHY: a DELEGATE subagent runs on its own session row under
+ * `appName = <the subagent's name>`, and its memory tools search with the
+ * session's app name. Facts are written under the root syndicate's
+ * namespace, so a `load_memory` declared on a subagent would search
+ * `<SubAgent>/<user>`, find nothing, and say so without error. Wrapping the
+ * service the runtime receives pins every search and ingestion to one
+ * namespace, whatever app name the caller carries.
  *
- * The pin covers both interfaces a service may implement: ADK's
- * (`searchMemory`, `addSessionToMemory`) and the engine's MemoryService
- * (`search`, `ingest`, lib/runtime/memoryService.ts, ADR 0059). Every other
- * member, erase and retention included, passes through unchanged: they name
- * their key or namespace themselves.
+ * The pin covers the engine's MemoryService (`search`, `ingest`,
+ * lib/runtime/memoryService.ts, ADR 0059). Every other member, erase and
+ * retention included, passes through unchanged: they name their key or
+ * namespace themselves.
  */
 
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { BaseMemoryService } from '@google/adk';
 import type { MemoryService } from '../runtime/memoryService.ts';
 
-/** The four methods whose first argument carries the app name the pin replaces. */
-const PINNED = new Set<PropertyKey>(['searchMemory', 'addSessionToMemory', 'search', 'ingest']);
+/** The methods whose first argument carries the app name the pin replaces. */
+const PINNED = new Set<PropertyKey>(['search', 'ingest']);
 
 /** A memory service whose every read and write uses `namespace` as the app name. */
-export function namespacedMemoryService<T extends BaseMemoryService | MemoryService>(base: T, namespace: string): T {
+export function namespacedMemoryService<T extends MemoryService>(base: T, namespace: string): T {
   if (!namespace) throw new Error('namespacedMemoryService: namespace is required');
   return new Proxy(base, {
     get(target, prop, receiver) {

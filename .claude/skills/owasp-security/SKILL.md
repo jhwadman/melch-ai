@@ -320,8 +320,10 @@ Map the standard onto what is actually here:
   boundary is the tool registry plus the YAML's `tools:` list, and nothing
   else. Operator-only routes check `currentRequestContext().operator`.
 - **A03 Supply chain** → every dependency in `package.json` ships to every
-  consumer. `@google/adk` and `@google/genai` are pinned exact in development
-  because newer minors change response part shapes; ADK is a peer.
+  consumer. `@google/genai` is pinned exact because newer minors change
+  response part shapes, and only the Gemini adapter, the image tools and
+  memory embeddings reach it (`tests/importGraph.test.ts`); there is no
+  Google ADK dependency.
 - **A05 Injection** → the relevant injection is **prompt** injection, covered
   under the LLM Top 10. Model output is untrusted input to whatever renders
   it, tool arguments are model-chosen, and a tool that interpolates a

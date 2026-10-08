@@ -20,8 +20,8 @@
  *
  * How hard a request asks Claude to think reaches the table as one
  * `ClaudeReasoning`: from the contract's `reasoning` (claudeReasoningOf),
- * or, on the ADK path, from the agent's generateContentConfig as ADR 0049
- * reads it (claudeReasoningFromConfig, ADR 0055).
+ * or from the agent's generateContentConfig as ADR 0049 reads it
+ * (claudeReasoningFromConfig, ADR 0055).
  */
 
 import type { ReasoningSetting } from './contract.ts';
@@ -206,8 +206,8 @@ export function claudeReasoningOf(setting: ReasoningSetting | undefined): Claude
  * The older spelling in an agent's generateContentConfig, read as ADR 0049
  * reads it: the effort word first (`xhigh` and `max` pass through,
  * `minimal` is `low`), else the thinking budget rounded up to a level; and
- * the thinking budget as given, which is all the budget rows read. The ADK
- * path's ClaudeLlm hands the adapter this (ADR 0055).
+ * the thinking budget as given, which is all the budget rows read
+ * (ADR 0055).
  */
 export function claudeReasoningFromConfig(cfg: Record<string, any>): ClaudeReasoning {
   const effort = requestedEffort(cfg);

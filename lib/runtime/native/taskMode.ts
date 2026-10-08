@@ -3,15 +3,15 @@
  * finish_task tool, and how a task-mode node's run ends (ADR 0033, ADR 0081).
  *
  * WHY this file exists:
- *   On the ADK runtime `mode: task` is three things in ADK 2.2: LlmAgent
- *   adds its FinishTaskTool after the agent's own tools and never sets the
- *   output schema as the response schema; the tool declares the output
- *   schema as its parameters, adds a line to the instruction and answers
- *   "Task completed." (or an error naming the missing required keys); and
- *   a workflow node in task mode (ADK's runTaskMode) ends its run on that
+ *   In ADK 2.2 `mode: task` was three things: LlmAgent added its
+ *   FinishTaskTool after the agent's own tools and never set the output
+ *   schema as the response schema; the tool declared the output schema as
+ *   its parameters, added a line to the instruction and answered "Task
+ *   completed." (or an error naming the missing required keys); and a
+ *   workflow node in task mode (ADK's runTaskMode) ended its run on that
  *   answer, the finish_task arguments its output. This file is those three
- *   for the native loop, word for word, so a session either runtime wrote
- *   holds the same events (tests/execution.test.ts).
+ *   for the native loop, word for word, so a session holds the events ADK
+ *   stored (tests/execution.test.ts).
  *
  * WHERE IT PLUGS IN:
  *   - lib/runtime/native/request.ts adds finishTaskTool(agent.outputSchema)

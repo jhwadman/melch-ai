@@ -5,8 +5,9 @@
  *   Three wiki operations need a model in the loop — gap-fill (write the
  *   prose a structural build can't), wiki_query (answer a question over the
  *   bundle), wiki_garden (author or revise a document). Each is a single
- *   agent run: build an ADK LlmAgent, hand it the wiki FunctionTools it
- *   needs, stream one exchange, return the text. This helper is that idiom
+ *   agent run: build an agent, hand it the wiki tools it needs, stream one
+ *   exchange on the engine's loop (lib/runtime/nativeTurn.ts), return the
+ *   text. This helper is that idiom
  *   (the same one scripts/demo_model_optionality.ts uses), shared so the
  *   three call sites can't drift.
  *
@@ -16,24 +17,16 @@
  *   optionality. A missing provider key degrades to a clear error string;
  *   nothing here throws for want of credentials.
  *
- *   The runtime follows the turn runner's flag (lib/runtime/runtimeFlag.ts):
- *   MELCHIZEDEK_RUNTIME, or the run's `runtime` option. On `native` the
- *   same agent runs on the engine's own loop (lib/runtime/nativeTurn.ts),
- *   each wiki FunctionTool as the own Tool behind it, and its events are
- *   read the same way.
+ *   The runtime flag is read as the turn runner reads it
+ *   (lib/runtime/runtimeFlag.ts): `native`, the only runtime; `adk` throws.
  */
 
 import { randomUUID } from 'node:crypto';
-
-import type { FunctionTool } from '@google/adk';
-
-import { requireAdk } from '../adkPeer.ts';
 
 import type { ModelAdapter } from '../models/contract.ts';
 import {
   providerForModel,
   providerKeyPresent,
-  registerAvailableProviders,
   resolveAdapter,
 } from '../models/registry.ts';
 import type { TurnEvent } from '../runtime/events.ts';
@@ -44,6 +37,7 @@ import { chooseRuntime } from '../runtime/runtimeFlag.ts';
 import type { RuntimeName } from '../runtime/runtimeFlag.ts';
 import { InProcessSessionService } from '../runtime/sessions.ts';
 import { toolOf } from '../tools/tool.ts';
+import type { Tool } from '../tools/tool.ts';
 
 export interface WikiAgentRun {
   name: string;
@@ -51,12 +45,13 @@ export interface WikiAgentRun {
   model: string;
   instruction: string;
   userText: string;
-  tools?: FunctionTool[];
+  /** The engine's own tools (a defineTool contract is one). */
+  tools?: Tool[];
   temperature?: number;
   maxOutputTokens?: number;
-  /** The runtime that runs the agent. Default: MELCHIZEDEK_RUNTIME, else native. */
+  /** The runtime that runs the agent: `native`, the only one. Default: MELCHIZEDEK_RUNTIME, else native. */
   runtime?: RuntimeName;
-  /** Native runtime only: the leaf adapter for a model id. Default resolveAdapter (lib/models/registry.ts). */
+  /** The leaf adapter for a model id. Default resolveAdapter (lib/models/registry.ts). */
   adapterFor?: (model: string) => ModelAdapter;
 }
 
@@ -83,7 +78,7 @@ function configOf(run: WikiAgentRun): Record<string, unknown> {
   };
 }
 
-/** Reads a run's events, either runtime: every non-thinking text part, and the last error. */
+/** Reads a run's events: every non-thinking text part, and the last error. */
 async function readRun(stream: () => AsyncIterable<unknown>): Promise<WikiAgentResult> {
   let outputText = '';
   let errorText = '';
@@ -116,44 +111,28 @@ export async function runWikiAgent(run: WikiAgentRun): Promise<WikiAgentResult> 
   const sessionId = randomUUID();
   const newMessage = { role: 'user', parts: [{ text: run.userText }] };
 
-  if (chooseRuntime(run.runtime) === 'native') {
-    const agent: NativeAgent = {
-      name: run.name,
-      description: run.description,
-      model: run.model,
-      instruction: run.instruction,
-      generateContentConfig: configOf(run),
-      tools: (run.tools ?? []).map((t) => toolOf(t) ?? t),
-    };
-    const sessions = new InProcessSessionService();
-    await sessions.create({ appName: APP_NAME, userId: USER_ID, sessionId });
-    return readRun((): AsyncIterable<TurnEvent> =>
-      runNativeAgent({
-        agent,
-        adapterFor: run.adapterFor ?? ((model) => resolveAdapter(model)),
-        sessions,
-        appName: APP_NAME,
-        userId: USER_ID,
-        sessionId,
-        userParts: newMessage.parts,
-        // As on ADK, where this Runner installs no reflect-and-retry plugins.
-        selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
-      }),
-    );
-  }
-
-  const { InMemorySessionService, LlmAgent, Runner } = requireAdk('A wiki agent on the adk runtime (MELCHIZEDEK_RUNTIME=adk)');
-  registerAvailableProviders();
-  const agent = new LlmAgent({
+  chooseRuntime(run.runtime);
+  const agent: NativeAgent = {
     name: run.name,
     description: run.description,
     model: run.model,
     instruction: run.instruction,
-    generateContentConfig: configOf(run) as never,
-    ...(run.tools && run.tools.length > 0 ? { tools: run.tools } : {}),
-  });
-  const sessionService = new InMemorySessionService();
-  const runner = new Runner({ agent, appName: APP_NAME, sessionService });
-  await sessionService.createSession({ appName: APP_NAME, userId: USER_ID, sessionId, state: {} });
-  return readRun(() => runner.runAsync({ userId: USER_ID, sessionId, newMessage }));
+    generateContentConfig: configOf(run),
+    tools: (run.tools ?? []).map((t) => toolOf(t) ?? t),
+  };
+  const sessions = new InProcessSessionService();
+  await sessions.create({ appName: APP_NAME, userId: USER_ID, sessionId });
+  return readRun((): AsyncIterable<TurnEvent> =>
+    runNativeAgent({
+      agent,
+      adapterFor: run.adapterFor ?? ((model) => resolveAdapter(model)),
+      sessions,
+      appName: APP_NAME,
+      userId: USER_ID,
+      sessionId,
+      userParts: newMessage.parts,
+      // A wiki run retries nothing: one exchange, its error reported as it is.
+      selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
+    }),
+  );
 }

@@ -1,12 +1,14 @@
 /**
- * tests/llmRequestBoundary.test.ts — which tests may build an ADK LlmRequest.
+ * tests/llmRequestBoundary.test.ts — which tests may build a genai-shaped
+ * LlmRequest.
  *
  * The model tests assert from a ModelRequest (lib/models/contract.ts, ADR
- * 0048) to the wire body, so the native runtime inherits them when ADK
- * leaves (ADR 0045). Only the ADK path's own tests build an LlmRequest:
- * the shim and the genai mapping, the per-provider shim cases, the ADK
- * runtime and tool layer that WS2 replaces, and the boundary suite, which
- * stays on ADK until WS2-12. This suite keeps that list.
+ * 0048) to the wire body. The genai-shaped LlmRequest (lib/models/genaiMapping.ts)
+ * remains only where the engine speaks genai: the mapping itself, the
+ * scripted model the turn suites are written in (tests/helpers/scriptedLlm.ts,
+ * which reads the request the way the recorded ADK references did, ADR 0108),
+ * the suites and fixtures scripted through it, and the tool suites that read
+ * a declared tool set off that request. This suite keeps that list.
  *
  * A file builds an LlmRequest when its code (comments aside) names the
  * `LlmRequest` type, calls `modelRequestToLlmRequest`, or writes one of the
@@ -25,46 +27,28 @@ import path from 'node:path';
 import { ROOT, stripComments } from './helpers/importGraph.ts';
 
 type Reason =
-  /** The shim, the mapping it runs on, and the scripted ADK model built on it. */
-  | 'shim'
-  /** A provider's ADK class held to its contract adapter: the thin per-provider shim cases. */
-  | 'provider shim cases'
-  /** ADK's runner, sessions, tools and callbacks: the runtime WS2 replaces. */
-  | 'ADK runtime'
-  /** A provider suite still driven through its ADK class; its contract twin already asserts the bodies. */
-  | 'ADK-path provider suite';
+  /** The genai mapping and the scripted model the turn suites are written in. */
+  | 'genai mapping'
+  /** A suite or fixture whose scripted model reads the request it is given. */
+  | 'scripted turn'
+  /** A tool suite that reads the tools declared on the request. */
+  | 'declared tools';
 
 /** Every test file that may build an LlmRequest, relative to tests/, and why. */
 const ALLOWED: Record<string, { reason: Reason; why: string }> = {
-  // ── The shim's own tests ───────────────────────────────────────────────────
-  'adkShim.test.ts': { reason: 'shim', why: 'AdkShim maps an LlmRequest to a ModelRequest and back (ADR 0053).' },
-  'genaiMapping.test.ts': { reason: 'shim', why: 'the mapping between LlmRequest and ModelRequest the shim runs on.' },
-  'helpers/scriptedLlm.ts': { reason: 'shim', why: 'ScriptedLlm, the shim around ScriptedModel, scripted in ADK terms.' },
-  'telemetryLedger.test.ts': { reason: 'shim', why: 'what an ADK-path call records on its span, through the shim and TracedGemini.' },
+  // ── The mapping and the scripted model ─────────────────────────────────────
+  'genaiMapping.test.ts': { reason: 'genai mapping', why: 'the mapping between the genai shapes and the contract the Gemini adapter speaks.' },
+  'helpers/scriptedLlm.ts': { reason: 'genai mapping', why: 'ScriptedLlm, scripted in the genai shapes the recorded references read (ADR 0108).' },
 
-  // ── Per-provider shim cases ────────────────────────────────────────────────
-  'shimBodies.test.ts': { reason: 'provider shim cases', why: 'every ADK-path class sends its contract adapter’s body for the matrix inputs.' },
-  'claudeAdapter.test.ts': { reason: 'provider shim cases', why: 'ClaudeLlm’s older reasoning spelling and event shape (ADR 0055).' },
-  'responsesAdapter.test.ts': { reason: 'provider shim cases', why: 'GptLlm and GrokLlm keep the Responses usage meaning and tool record (ADR 0056).' },
-  'chatCompletionsAdapter.test.ts': { reason: 'provider shim cases', why: 'the chat shims’ older spelling and final shape (ADR 0057).' },
-  'adkGeminiAdapter.test.ts': { reason: 'provider shim cases', why: 'AdkGeminiAdapter runs ADK’s Gemini, and behind the shim.' },
-  'errorResponse.test.ts': { reason: 'provider shim cases', why: 'the error LlmResponse each ADK-path class yields, which FallbackLlm reads (ADR 0044).' },
-  'fallback.test.ts': { reason: 'provider shim cases', why: 'FallbackLlm, the ADK path’s fallback pair (ADR 0044).' },
-  'fallbackAdapter.test.ts': { reason: 'provider shim cases', why: 'FallbackAdapter behind the shim, against FallbackLlm.' },
+  // ── Scripted turns ─────────────────────────────────────────────────────────
+  'syndicateTurn.test.ts': { reason: 'scripted turn', why: 'the boundary suite scripts its models with ScriptedLlm.' },
+  'fixtures/sessions/scenarios.ts': { reason: 'scripted turn', why: 'the stored-session scenarios read the scripted request.' },
+  'reasoningState.test.ts': { reason: 'scripted turn', why: 'Claude’s reasoning state read back off the scripted request (ADR 0046).' },
+  'kimiReasoningState.test.ts': { reason: 'scripted turn', why: 'Kimi’s reasoning_content read back off a genai-shaped request (ADR 0046).' },
 
-  // ── The ADK runtime (WS2) and the boundary suite (WS2-12) ──────────────────
-  'syndicateTurn.test.ts': { reason: 'ADK runtime', why: 'the boundary suite, on ADK until WS2-12.' },
-  'fixtures/sessions/scenarios.ts': { reason: 'ADK runtime', why: 'stored-session fixtures recorded through ADK’s runner.' },
-  'memoryTools.test.ts': { reason: 'ADK runtime', why: 'ADK’s memory tools write into the LlmRequest (processLlmRequest).' },
-  'toolBaseRest.test.ts': { reason: 'ADK runtime', why: 'the ADK sentinels and request processors beside the engine’s own tools (ADR 0062).' },
-  'selfCorrection.test.ts': { reason: 'ADK runtime', why: 'an ADK before-model callback reads the request.' },
-  'skillHarness.test.ts': { reason: 'ADK runtime', why: 'reads the tools ADK declared on the request.' },
-  'reasoningState.test.ts': { reason: 'ADK runtime', why: 'Claude’s reasoning state through ADK’s runner and storage (ADR 0046).' },
-  'responsesReasoningState.test.ts': { reason: 'ADK runtime', why: 'Responses reasoning items through ADK’s runner and storage (ADR 0050).' },
-  'kimiReasoningState.test.ts': { reason: 'ADK runtime', why: 'Kimi’s reasoning_content through ADK’s runner and storage (ADR 0046).' },
-
-  // ── ADK-path provider suites (their contract twins assert the same bodies) ─
-  'tracedGeminiVertex.test.ts': { reason: 'ADK-path provider suite', why: 'TracedGemini drops includeServerSideToolInvocations on Vertex AI before ADK’s Gemini sees the request; the flag only exists on the ADK path.' },
+  // ── Declared tools ─────────────────────────────────────────────────────────
+  'toolBaseRest.test.ts': { reason: 'declared tools', why: 'the engine’s own tools declared onto a genai-shaped request (ADR 0062).' },
+  'skillHarness.test.ts': { reason: 'declared tools', why: 'reads the tools the harness declared on the request.' },
 };
 
 /** The model suites moved onto the contract (WS1-11, WS1-15): never allowed back. */
@@ -99,7 +83,7 @@ function testSources(dir = TESTS): string[] {
 
 const buildsLlmRequest = (file: string) => BUILDS_LLM_REQUEST.test(stripComments(fs.readFileSync(path.join(TESTS, file), 'utf8')));
 
-test('only the allowlisted tests build an ADK LlmRequest; the rest assert from a ModelRequest', () => {
+test('only the allowlisted tests build an LlmRequest; the rest assert from a ModelRequest', () => {
   const offenders = testSources().filter((file) => buildsLlmRequest(file) && !(file in ALLOWED));
   assert.deepEqual(offenders, [], 'drive the contract adapter with a ModelRequest, or add the file to ALLOWED with its reason');
 });
@@ -121,10 +105,10 @@ test('the model suites on the contract stay off the list', () => {
 
 test('the scan sees an LlmRequest however a file builds one, and skips comments', () => {
   const code = (src: string) => BUILDS_LLM_REQUEST.test(stripComments(src));
-  assert.equal(code("import type { LlmRequest } from '@google/adk';"), true);
+  assert.equal(code("import type { LlmRequest } from '../lib/models/genaiMapping.ts';"), true);
   assert.equal(code('const r = modelRequestToLlmRequest(request);'), true);
   assert.equal(code("const r: any = { model: 'm', contents: [], toolsDict: {} };"), true);
   assert.equal(code('// an LlmRequest, mentioned in a comment\nconst r = 1;'), false);
   assert.equal(code('/** llmRequestToModelRequest maps it */ const r = 1;'), false);
-  assert.equal(code('const r = llmRequestToModelRequest;'), false, 'the other direction is the shim’s, and names no LlmRequest');
+  assert.equal(code('const r = llmRequestToModelRequest;'), false, 'the other direction names no LlmRequest');
 });

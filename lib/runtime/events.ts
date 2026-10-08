@@ -3,7 +3,7 @@
  * conversation as a session stores it (ADR 0045, ADR 0052).
  *
  * WHY this file exists:
- *   The native runtime reads and writes the sessions ADK wrote, and the
+ *   The engine reads and writes the sessions ADK wrote, and the
  *   stored Event JSON in adk_sessions.events and adk_session_events is one of
  *   the four shapes ADR 0045 fixes. So the engine's event is not a new
  *   format: TurnEvent IS that JSON, typed. Every field the engine reads has
@@ -21,13 +21,12 @@
  *   camelCase toolCall some providers emit) is kept as it is, in place. That
  *   matters because the Supabase service rewrites a conversation's whole
  *   events array on every append: a parse that dropped an unknown field would
- *   erase it from every stored row the native runtime touched. It rejects
+ *   erase it from every stored row the engine touched. It rejects
  *   only what the engine cannot read, with the path of the field and the
  *   type it found, never the value, since events hold what people said.
  *
  * NO RUNTIME IMPORTS: every import here is a type. Nothing in this module's
- * import graph names @google/* (tests/events.test.ts asserts it), so the
- * native runtime can read sessions with ADK uninstalled.
+ * import graph names @google/* (tests/events.test.ts asserts it).
  */
 
 import type { ProviderState } from '../models/contract.ts';

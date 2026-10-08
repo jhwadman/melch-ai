@@ -1,28 +1,25 @@
 /**
  * tests/toolBaseRest.test.ts — the rest of the tool base on the engine's own
  * types (ADR 0062): the server-side tools as markers, the examples as an
- * InstructionTool, the remote agent and MCP tools as own Tools, and toAdkTool.
+ * InstructionTool, and the remote agent and MCP tools as own Tools.
  *
- * The ADK runtime must see what it saw before: the same sentinel objects in
- * the registry, ExampleTool's block word for word, the same declarations.
+ * The examples block is compared with the one ADK 2.2's ExampleTool wrote,
+ * recorded in tests/fixtures/adk-reference/toolbaserest.
  * Offline: no provider and no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Context, FunctionTool, GOOGLE_SEARCH, setLogLevel, LogLevel } from '@google/adk';
-import type { ExampleTool, LlmRequest } from '@google/adk';
 import { z } from 'zod';
 
 import { examplesTool } from '../lib/compile.ts';
 import type { NativeTool } from '../lib/models/contract.ts';
-import { contractToolDeclaration, nativeToolOf, toolDeclarationFor } from '../lib/models/schemaNormalize.ts';
+import { contractToolDeclaration, nativeToolOf } from '../lib/models/schemaNormalize.ts';
 import { llmRequestToModelRequest } from '../lib/models/genaiMapping.ts';
+import type { LlmRequest } from '../lib/models/genaiMapping.ts';
 import { remoteAgentOwnTool, remoteAgentTool } from '../lib/a2a/remoteAgent.ts';
 import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
-import { toAdkNativeTool, toAdkTool, toFunctionTool } from '../lib/tools/adkTool.ts';
-import { COLLECTIONS_SEARCH, isCollectionsSearchSentinel, wantsCollectionsSearch } from '../lib/tools/collectionsSearchTool.ts';
 import { EXAMPLES_TOOL_NAME, examplesInstruction, examplesInstructionTool } from '../lib/tools/examples.ts';
 import { mcpToolParameters } from '../lib/tools/mcpToolFactory.ts';
 import {
@@ -39,21 +36,15 @@ import {
   isInstructionTool,
   isNativeToolMarker,
   isTool,
-  nativeToolMarker,
   nativeToolMarkerOf,
   toolOf,
 } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
-import { URL_CONTEXT } from '../lib/tools/urlContextTool.ts';
-import { WEB_SEARCH, WebSearchTool, isWebSearchSentinel, wantsWebSearch } from '../lib/tools/webSearchTool.ts';
-import { X_SEARCH, isXSearchSentinel, wantsXSearch } from '../lib/tools/xSearchTool.ts';
 import { adkReferences } from './helpers/adkReference.ts';
 
 // ADK's ExampleTool block, the reference for the examples tool, is recorded
-// (tests/fixtures/adk-reference/toolbaserest); ADK's ExampleTool runs only under ADK_REFERENCE=live|record.
+// (tests/fixtures/adk-reference/toolbaserest) by ADK 2.2.
 const reference = adkReferences('toolBaseRest');
-
-setLogLevel(LogLevel.ERROR);
 
 const MARKERS: Array<[unknown, NativeTool]> = [
   [WEB_SEARCH_MARKER, 'web_search'],
@@ -63,14 +54,14 @@ const MARKERS: Array<[unknown, NativeTool]> = [
   [GOOGLE_SEARCH_MARKER, 'google_search'],
 ];
 
-/** A sentinel from a second copy of the sentinel module: the marker, and no class in common. */
+/** A marker from a second copy of the marker module: the symbol, and no object in common. */
 function foreignSentinel(native: NativeTool): Record<PropertyKey, unknown> {
-  return { name: native, description: 'a copy', [NATIVE_TOOL]: native, _getDeclaration: () => undefined, runAsync: async () => undefined };
+  return { name: native, description: 'a copy', [NATIVE_TOOL]: native };
 }
 
 /** A client-side tool registered under a server-side tool's name: no marker. */
-function clientSearch(name: string): FunctionTool {
-  return new FunctionTool({ name, description: 'client-side search', parameters: z.object({ q: z.string() }), execute: async () => '' });
+function clientSearch(name: string) {
+  return defineTool({ name, description: 'client-side search', schema: z.object({ q: z.string() }), execute: async () => '' });
 }
 
 function llmRequest(model: string, toolsDict: Record<string, unknown>): LlmRequest {
@@ -86,7 +77,6 @@ test('each server-side tool is an own marker that declares no function and names
     assert.equal(nativeToolMarkerOf(marker), native);
     assert.equal(nativeToolOf(marker), native);
     assert.equal(contractToolDeclaration(marker), undefined, `${native} declares nothing`);
-    assert.equal(toolDeclarationFor(marker), undefined, `${native} declares nothing`);
     assert.equal(isTool(marker), false);
     assert.equal(isInstructionTool(marker), false);
     assert.equal(toolOf(marker), undefined);
@@ -95,68 +85,35 @@ test('each server-side tool is an own marker that declares no function and names
   }
 });
 
-test('the ADK sentinels carry the same marker, and toAdkTool hands the ADK runtime the objects it always ran', () => {
-  const sentinels: Array<[unknown, unknown, NativeTool]> = [
-    [WEB_SEARCH_MARKER, WEB_SEARCH, 'web_search'],
-    [X_SEARCH_MARKER, X_SEARCH, 'x_search'],
-    [URL_CONTEXT_MARKER, URL_CONTEXT, 'url_context'],
-    [COLLECTIONS_SEARCH_MARKER, COLLECTIONS_SEARCH, 'collections_search'],
-    [GOOGLE_SEARCH_MARKER, GOOGLE_SEARCH, 'google_search'],
-  ];
-  for (const [marker, adk, native] of sentinels) {
-    assert.equal(toAdkTool(marker as any), adk, native);
-    assert.equal(toAdkNativeTool(marker as any), adk, native);
-    assert.equal(nativeToolOf(adk), native);
-    assert.equal(contractToolDeclaration(adk), undefined);
-  }
-  // The engine's own sentinels carry the marker; ADK's GOOGLE_SEARCH has ADK's.
-  for (const adk of [WEB_SEARCH, X_SEARCH, URL_CONTEXT, COLLECTIONS_SEARCH]) assert.ok(nativeToolMarkerOf(adk));
-  assert.equal(nativeToolMarkerOf(GOOGLE_SEARCH), undefined);
-  // The registry holds the very same objects as before.
+test('the registry holds the markers themselves', () => {
   assert.deepEqual(resolveTools(['web_search', 'x_search', 'url_context', 'collections_search', 'google_search']), [
-    WEB_SEARCH,
-    X_SEARCH,
-    URL_CONTEXT,
-    COLLECTIONS_SEARCH,
-    GOOGLE_SEARCH,
+    WEB_SEARCH_MARKER,
+    X_SEARCH_MARKER,
+    URL_CONTEXT_MARKER,
+    COLLECTIONS_SEARCH_MARKER,
+    GOOGLE_SEARCH_MARKER,
   ]);
-  // Code execution is an agent's code_execution: gemini, never a listed tool.
-  assert.throws(() => toAdkTool(nativeToolMarker('code_execution')), /code_execution: gemini/);
 });
 
-test('toAdkTool picks the wrapper for every kind of own tool, and passes an ADK tool through', async () => {
-  const contract = defineTool({ name: 'echo_rest', description: 'Echo.', schema: z.object({ s: z.string() }), execute: async ({ s }) => s });
-  const fn = toAdkTool(contract);
-  assert.ok(fn instanceof FunctionTool);
-  assert.equal(toolOf(fn), contract);
-  const instruction = { name: 'note_rest', instruction: async () => 'A note.' };
-  assert.equal(instructionToolOf(toAdkTool(instruction)), instruction);
-  const adk = clientSearch('lookup_rest');
-  assert.equal(toAdkTool(adk), adk);
-});
-
-test('registerTool takes a marker and registers its sentinel', () => {
+test('registerTool takes a marker and registers it', () => {
   registerTool('web_search_alias_rest', WEB_SEARCH_MARKER);
-  assert.deepEqual(resolveTools(['web_search_alias_rest']), [WEB_SEARCH]);
+  assert.deepEqual(resolveTools(['web_search_alias_rest']), [WEB_SEARCH_MARKER]);
 });
 
-test('sentinel tests read the marker, never the class', () => {
+test('marker tests read the symbol, never the object', () => {
   const foreign = foreignSentinel('web_search');
-  assert.equal(foreign instanceof WebSearchTool, false);
-  assert.equal(isWebSearchSentinel(foreign), true);
-  assert.equal(isWebSearchSentinel(WEB_SEARCH_MARKER), true);
-  assert.equal(wantsWebSearch(llmRequest('claude-sonnet-4-6', { web_search: foreign })), true);
-  assert.equal(isXSearchSentinel(foreignSentinel('x_search')), true);
-  assert.equal(wantsXSearch(llmRequest('grok-4.5', { x_search: foreignSentinel('x_search') })), true);
-  assert.equal(isCollectionsSearchSentinel(foreignSentinel('collections_search')), true);
-  assert.equal(wantsCollectionsSearch(llmRequest('grok-4.5', { collections_search: foreignSentinel('collections_search') })), true);
-  // A subclass instance stripped of its marker is not a sentinel: the marker decides.
-  const unmarked = Object.create(WEB_SEARCH, { [NATIVE_TOOL]: { value: undefined } });
-  assert.equal(unmarked instanceof WebSearchTool, true);
-  assert.equal(isWebSearchSentinel(unmarked), false);
+  assert.notEqual(foreign, WEB_SEARCH_MARKER);
+  assert.equal(nativeToolOf(foreign), 'web_search');
+  assert.equal(nativeToolMarkerOf(foreign), 'web_search');
+  assert.equal(nativeToolOf(foreignSentinel('x_search')), 'x_search');
+  assert.equal(nativeToolOf(foreignSentinel('collections_search')), 'collections_search');
+  // An object made from a marker and stripped of its symbol is not a marker: the symbol decides.
+  const unmarked = Object.create(WEB_SEARCH_MARKER, { [NATIVE_TOOL]: { value: undefined } });
+  assert.equal(nativeToolOf(unmarked), undefined);
   // A client-side tool under the same name is a client-side tool.
   for (const name of ['web_search', 'x_search', 'collections_search']) {
-    assert.equal(isWebSearchSentinel(clientSearch(name)) || isXSearchSentinel(clientSearch(name)) || isCollectionsSearchSentinel(clientSearch(name)), false);
+    assert.equal(nativeToolOf(clientSearch(name)), undefined, name);
+    assert.ok(contractToolDeclaration(clientSearch(name)), name);
   }
 });
 
@@ -167,7 +124,7 @@ test('nativeToolOf recognises a marker by symbol alone; a tool that merely decla
   }
 });
 
-test('the ADK-path request mapping reads every sentinel by marker, so a foreign copy routes the same as the original', () => {
+test('the genai request mapping reads every marker by symbol, so a foreign copy routes the same as the original', () => {
   for (const [model, native] of [
     ['claude-sonnet-4-6', 'web_search'],
     ['gpt-5-mini', 'web_search'],
@@ -175,7 +132,7 @@ test('the ADK-path request mapping reads every sentinel by marker, so a foreign 
     ['grok-4.5', 'collections_search'],
     ['kimi-k3', 'web_search'],
   ] as Array<[string, NativeTool]>) {
-    const original = { web_search: WEB_SEARCH, x_search: X_SEARCH, collections_search: COLLECTIONS_SEARCH }[native as 'web_search'];
+    const original = { web_search: WEB_SEARCH_MARKER, x_search: X_SEARCH_MARKER, collections_search: COLLECTIONS_SEARCH_MARKER }[native as 'web_search'];
     const theirs = llmRequestToModelRequest(llmRequest(model, { [native]: original }));
     const ours = llmRequestToModelRequest(llmRequest(model, { [native]: foreignSentinel(native) }));
     assert.deepEqual(ours.nativeTools, [native], `${model} ${native}`);
@@ -189,23 +146,11 @@ test('the ADK-path request mapping reads every sentinel by marker, so a foreign 
 
 // ── Examples as an InstructionTool ───────────────────────────────────────────
 
-function adkContext(userContent?: unknown): Context {
-  const invocationContext = {
-    invocationId: 'inv-1',
-    userId: 'u',
-    appName: 'app',
-    session: { id: 's1', appName: 'app', userId: 'u', state: {}, events: [] },
-    agent: { name: 'Boss' },
-    userContent,
-  };
-  return new Context({ invocationContext: invocationContext as any });
-}
-
 function emptyRequest(model: string, system?: string): LlmRequest {
   return { model, contents: [], liveConnectConfig: {}, toolsDict: {}, config: system ? { systemInstruction: system } : {} } as unknown as LlmRequest;
 }
 
-test("examples write ADK's ExampleTool block, word for word, in every case", async () => {
+test("examples write ADK's recorded ExampleTool block, word for word, in every case", async () => {
   const hi = { role: 'user', parts: [{ text: 'hello' }] };
   const exampleSets = [
     [{ input: 'What is 2+2?', output: '4' }],
@@ -225,31 +170,18 @@ test("examples write ADK's ExampleTool block, word for word, in every case", asy
   const systems = [undefined, 'Base.'];
   for (const [i, examples] of exampleSets.entries()) {
     // ADK's ExampleTool over every model, system and context, in loop order: the reference.
-    const theirRequests = await reference(`example-tool-block-${i + 1}`, async () => {
-      const { ExampleTool } = await import('@google/adk');
-      const theirs = new ExampleTool(
-        examples.map((e) => ({ input: { role: 'user', parts: [{ text: e.input }] }, output: [{ role: 'model', parts: [{ text: e.output }] }] })),
-      );
-      const out: LlmRequest[] = [];
-      for (const model of models) {
-        for (const system of systems) {
-          for (const [, userContent] of contexts) {
-            const theirRequest = emptyRequest(model, system);
-            await theirs.processLlmRequest({ toolContext: adkContext(userContent), llmRequest: theirRequest } as any);
-            out.push(theirRequest);
-          }
-        }
-      }
-      return out;
-    });
-    const [ours] = examplesTool(examples) as [ExampleTool];
+    const theirRequests = await reference<LlmRequest[]>(`example-tool-block-${i + 1}`);
+    const [listed] = examplesTool(examples);
+    const ours = instructionToolOf(listed)!;
     assert.equal(ours.name, EXAMPLES_TOOL_NAME);
     let k = 0;
     for (const model of models) {
       for (const system of systems) {
         for (const [label, userContent] of contexts) {
           const ourRequest = emptyRequest(model, system);
-          await ours.processLlmRequest({ toolContext: adkContext(userContent), llmRequest: ourRequest } as any);
+          // The native request builder appends an InstructionTool's text after a blank line, as ADK's appendInstructions did.
+          const written = await ours.instruction(createToolContext({ userContent: userContent as any }));
+          if (written) ourRequest.config = { systemInstruction: system ? `${system}\n\n${written}` : written };
           assert.deepEqual(JSON.parse(JSON.stringify(ourRequest)), theirRequests[k++], `${model} · ${system ?? 'no system'} · ${label}`);
         }
       }
@@ -276,7 +208,7 @@ test('the examples InstructionTool writes the same block on the engine\'s own co
 
 // ── The remote agent tool ────────────────────────────────────────────────────
 
-test('the remote agent tool is an own Tool, and the ADK runtime gets the declaration it always had', async () => {
+test('the remote agent tool is an own Tool with its declaration', async () => {
   const params = { name: 'Oracle', description: 'A remote oracle', url: 'https://oracle.example.test' };
   const own = remoteAgentOwnTool(params);
   assert.ok(isTool(own));
@@ -285,16 +217,10 @@ test('the remote agent tool is an own Tool, and the ADK runtime gets the declara
     description: 'A remote oracle',
     parameters: { type: 'object', properties: { request: { type: 'string', description: 'What to ask Oracle.' } }, required: ['request'] },
   });
-  const adk = remoteAgentTool(params);
-  assert.ok(adk instanceof FunctionTool);
-  assert.ok(isTool(toolOf(adk)));
-  // What the hand-built FunctionTool declared, before this change.
-  assert.deepEqual(adk._getDeclaration(), {
-    name: 'Oracle',
-    description: 'A remote oracle',
-    parameters: { type: 'OBJECT', properties: { request: { type: 'STRING', description: 'What to ask Oracle.' } }, required: ['request'] },
-  });
-  assert.deepEqual(contractToolDeclaration(adk), own.declaration());
+  const registered = remoteAgentTool(params);
+  assert.ok(isTool(registered));
+  assert.equal(toolOf(registered), registered);
+  assert.deepEqual(contractToolDeclaration(registered), own.declaration());
   assert.equal(remoteAgentOwnTool({ ...params, description: '' }).declaration().description, 'Remote agent Oracle');
   // A call without a request is refused as text, before any network.
   assert.equal(await own.execute({}, createToolContext()), 'Error: Oracle needs a request.');
@@ -303,7 +229,7 @@ test('the remote agent tool is an own Tool, and the ADK runtime gets the declara
 
 // ── MCP tools ────────────────────────────────────────────────────────────────
 
-test("an MCP tool's parameters are what the ADK runtime declares for it, on either path", () => {
+test("an MCP tool's parameters are what the engine declares for it", () => {
   const inputSchema = {
     type: 'object',
     properties: {
@@ -326,8 +252,7 @@ test("an MCP tool's parameters are what the ADK runtime declares for it, on eith
     required: ['q'],
   });
   const own = { name: 'search', declaration: () => ({ name: 'search', description: 'Search.', parameters }), execute: async () => '' };
-  const adk = toFunctionTool(own);
-  assert.deepEqual(contractToolDeclaration(adk), contractToolDeclaration(own), 'the same declaration on both runtimes');
-  assert.deepEqual(contractToolDeclaration(own, { strict: true }), contractToolDeclaration(adk, { strict: true }));
+  assert.deepEqual(contractToolDeclaration(own), { name: 'search', description: 'Search.', parameters });
+  assert.equal(contractToolDeclaration(own, { strict: true })?.name, 'search');
   assert.deepEqual(mcpToolParameters(undefined), { type: 'object', properties: {}, required: [] });
 });

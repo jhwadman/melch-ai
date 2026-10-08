@@ -3,7 +3,7 @@
  *
  * WHY this file exists:
  *   Proof of the tool-contract layer (lib/tools/toolContract.ts): the SAME seven
- *   definitions the evidence syndicates consume as ADK FunctionTools are
+ *   definitions the evidence syndicates consume as the engine's own Tools are
  *   served here to any MCP client — Claude, an IDE, someone's own app dialing
  *   SSE — with the tools/list schemas DERIVED from the zod contracts, not
  *   hand-written. Define once, serve anywhere; if a schema changes in

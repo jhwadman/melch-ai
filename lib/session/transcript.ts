@@ -4,7 +4,8 @@
  * ── The problem this solves ───────────────────────────────────────────────
  * Under plan-dispatch every route runs as its OWN root agent (XScout,
  * Conversationalist, FinancialAnalyst) against ONE shared session. Sharing
- * the session is necessary but not sufficient: ADK decides how a stored
+ * the session is necessary but not sufficient: the history builder
+ * (lib/runtime/native/history.ts, ADK's rule) decides how a stored
  * event is rendered into a prompt by comparing `event.author` against the
  * agent that is running, and every prior event fails that comparison the
  * moment the route changes. `convertForeignEvent` then rewrites each one to
@@ -28,7 +29,7 @@
  * 400-character, tool-less flash-lite route that could do nothing with it.
  *
  * ── The fix ───────────────────────────────────────────────────────────────
- * Project the stored transcript before ADK ever sees it: rewrite each past
+ * Project the stored transcript before the history builder sees it: rewrite each past
  * agent turn to the CURRENT agent's name so it survives as a real
  * `role: "model"` turn, label it with the desk that spoke, and drop what no
  * successor can use — thoughts, tool calls, tool results.
@@ -41,19 +42,8 @@
  * long-term memory ingestion reads.
  */
 
-import { BaseSessionService } from '../adkPeer.ts';
-import type {
-  CreateSessionRequest,
-  GetSessionRequest,
-  ListSessionsRequest,
-  ListSessionsResponse,
-  DeleteSessionRequest,
-  Session,
-  Event,
-} from '@google/adk';
-
-import { asAdkSessionService, asSessionService, isAdkSessionService, isSessionService } from '../runtime/adkSessionBridge.ts';
 import type { TurnEvent } from '../runtime/events.ts';
+import type { TurnEvent as Event } from '../runtime/events.ts';
 import { applyEvent } from '../runtime/sessions.ts';
 import type {
   CreateSessionRequest as EngineCreateSessionRequest,
@@ -70,7 +60,7 @@ export interface ProjectionOptions {
   /**
    * Where the interrupted turn starts, when this read resumes one (ADR 0028):
    * events from that index on are returned verbatim, tool calls included, so
-   * ADK finds the call an approval answers. Called with the real events.
+   * the loop finds the call an approval answers. Called with the real events.
    */
   rawFrom?: (events: Event[]) => number | undefined;
   /**
@@ -112,11 +102,11 @@ export const DEFAULT_MAX_STORED_PAYLOAD_CHARS = 2_000;
  *
  * Excluded, deliberately:
  *  - `thought: true` parts — another agent's reasoning is not conversation,
- *    and ADK's own foreign-event conversion leaks it as user speech.
+ *    and the foreign-event conversion (ADK's) leaks it as user speech.
  *  - function calls and their results — the successor cannot re-enter that
  *    tool loop, and the payloads dwarf the answers they produced.
  *  - `toolCall` / `toolResponse` parts (the camelCase shape some providers
- *    emit) — invisible to ADK's `part.functionCall` checks, so they survive
+ *    emit) — invisible to the conversion's `part.functionCall` checks, so they survive
  *    its conversion untouched and arrive as empty noise.
  */
 function spokenText(event: Event): string {
@@ -136,14 +126,14 @@ function elide(text: string, limit: number): string {
  * Render a stored transcript as history the given agent can read.
  *
  * User events pass through untouched. Every agent event becomes a
- * `role: "model"` turn ATTRIBUTED to `forAgent`, which is what keeps ADK
- * from rewriting it into "For context:" user text — with the original
+ * `role: "model"` turn ATTRIBUTED to `forAgent`, which is what keeps the
+ * history builder from rewriting it into "For context:" user text — with the original
  * author kept as a visible `[Name]` label when it was a different desk, so
  * attribution survives without costing the turn structure.
  *
  * Events that said nothing out loud (a pure tool call, a pure tool result)
  * disappear entirely. Calls and their responses are dropped together, so
- * ADK's function-response pairing never sees a widowed half.
+ * the loop's function-response pairing (ADK's) never sees a widowed half.
  *
  * Pure and synchronous — see tests/transcript.test.ts.
  */
@@ -234,8 +224,9 @@ export function projectTranscript(
  *
  * ── What survives ─────────────────────────────────────────────────────────
  * A trimmed response KEEPS its shape: `id` and `name` are preserved and only
- * the body is replaced, because ADK pairs calls to responses by id
- * (`rearrangeEventsForLatestFunctionResponse` throws on a widowed half), so
+ * the body is replaced, because the loop pairs calls to responses by id,
+ * as ADK's `rearrangeEventsForLatestFunctionResponse` did (it threw on a
+ * widowed half), so
  * an elided result must remain a result. The marker records what was dropped
  * and how big it was, for an operator reading the row and for the model that
  * replays it. Its size is grouped en-US on any server, so the stored text
@@ -290,7 +281,7 @@ export function trimEventForStorage(
     }
 
     // Both spellings occur: `functionResponse` is ADK's, `toolResponse` comes
-    // from providers whose parts ADK passes through untouched.
+    // from providers whose parts the history builder passes through untouched.
     const key = out.functionResponse ? 'functionResponse' : out.toolResponse ? 'toolResponse' : null;
     if (!key) return out;
 
@@ -371,28 +362,18 @@ export function renderTranscriptDigest(
  *
  * Construct one per turn — it is bound to a single agent name.
  *
- * It has both faces of a session store (ADR 0058): ADK's BaseSessionService
- * for the ADK runtime, and the engine's SessionService (`get`, `append`, …,
- * lib/runtime/sessions.ts) for the native one. The store underneath may be
- * either, or both; lib/runtime/adkSessionBridge.ts supplies a face it lacks.
+ * It is the engine's SessionService (`get`, `append`, …,
+ * lib/runtime/sessions.ts) over another one.
  */
-export class ProjectedSessionService extends BaseSessionService implements SessionService {
-  private readonly inner: BaseSessionService;
+export class ProjectedSessionService implements SessionService {
   private readonly own: SessionService;
   private readonly forAgent: string;
   private readonly options: ProjectionOptions;
-  /** Real sessions handed out by `getSession` and `get`, keyed by identity. */
-  private readonly stored = new Map<string, Session | EngineSession>();
+  /** Real sessions handed out by `get`, keyed by identity. */
+  private readonly stored = new Map<string, EngineSession>();
 
-  constructor(inner: BaseSessionService | SessionService, forAgent: string, options: ProjectionOptions = {}) {
-    super();
-    // Anything that is not an engine-only store is taken as ADK's, as it
-    // always was, so the ADK face reaches the same object it did.
-    const engineOnly = isSessionService(inner) && !isAdkSessionService(inner);
-    this.inner = engineOnly ? asAdkSessionService(inner) : (inner as BaseSessionService);
-    // A bridge is unwrapped to the store it wraps, so the engine face of an
-    // engine store never goes through ADK's base service (ADR 0102).
-    this.own = asSessionService(inner);
+  constructor(inner: SessionService, forAgent: string, options: ProjectionOptions = {}) {
+    this.own = inner;
     this.forAgent = forAgent;
     this.options = options;
   }
@@ -408,8 +389,6 @@ export class ProjectedSessionService extends BaseSessionService implements Sessi
       ? projectTranscript(events, this.forAgent, this.options)
       : [...projectTranscript(events.slice(0, rawFrom), this.forAgent, this.options), ...events.slice(rawFrom)];
   }
-
-  // ── The engine's interface ─────────────────────────────────────────────────
 
   async create(request: EngineCreateSessionRequest): Promise<EngineSession> {
     return this.own.create(request);
@@ -444,39 +423,4 @@ export class ProjectedSessionService extends BaseSessionService implements Sessi
     return this.own.append(real, event);
   }
 
-  // ── ADK's BaseSessionService ───────────────────────────────────────────────
-
-  async createSession(request: CreateSessionRequest): Promise<Session> {
-    return this.inner.createSession(request);
-  }
-
-  async listSessions(request: ListSessionsRequest): Promise<ListSessionsResponse> {
-    return this.inner.listSessions(request);
-  }
-
-  async deleteSession(request: DeleteSessionRequest): Promise<void> {
-    this.stored.delete(this.key(request.appName, request.userId, request.sessionId));
-    return this.inner.deleteSession(request);
-  }
-
-  async getSession(request: GetSessionRequest): Promise<Session | undefined> {
-    const real = await this.inner.getSession(request);
-    if (!real) return undefined;
-    this.stored.set(this.key(request.appName, request.userId, request.sessionId), real);
-    return { ...real, events: this.project(real.events) };
-  }
-
-  async appendEvent(request: { session: Session; event: Event }): Promise<Event> {
-    const { session, event } = request;
-    if (event.partial) return event;
-
-    // The runner's view (projected) — base class merges state deltas.
-    await super.appendEvent({ session, event });
-
-    // The durable record (real), persisted by the wrapped service.
-    const real = this.stored.get(this.key(session.appName, session.userId, session.id)) as Session | undefined;
-    await this.inner.appendEvent({ session: real && real !== session ? real : session, event });
-
-    return event;
-  }
 }

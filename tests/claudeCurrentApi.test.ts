@@ -1,8 +1,8 @@
 /**
  * tests/claudeCurrentApi.test.ts — the request Claude gets on each model
  * generation (lib/models/claudeModels.ts, ADR 0049), from a ModelRequest
- * through ClaudeAdapter (lib/models/claudeAdapter.ts), the adapter both
- * runtimes call.
+ * through ClaudeAdapter (lib/models/claudeAdapter.ts), the adapter the
+ * model step calls.
  *
  * Offline: tests/helpers/claudeCapture.ts stubs fetch, records the URL,
  * headers and body, and answers in the Messages API's own shape (a 400
@@ -21,11 +21,10 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Content } from '@google/genai';
-import type { Event } from '@google/adk';
+import type { TurnEvent } from '../lib/runtime/events.ts';
 
 import { THINKING_STATE_KIND } from '../lib/models/claudeAdapter.ts';
-import type { ClaudeModelRequest } from '../lib/models/claudeAdapter.ts';
-import { claudeGeneration, claudeReasoningFromConfig, THINKING_BINDING_BETA } from '../lib/models/claudeModels.ts';
+import { claudeGeneration, THINKING_BINDING_BETA } from '../lib/models/claudeModels.ts';
 import { capabilityOf, platformCell } from '../lib/models/capabilities.ts';
 import { setSdkImporter } from '../lib/models/endpoints.ts';
 import { contentsToMessages } from '../lib/models/genaiMapping.ts';
@@ -99,10 +98,6 @@ test('adaptive era: a level is adaptive thinking at that effort, summarized, und
   assert.deepEqual([high.body.output_config.effort, high.body.max_tokens], ['high', 16384 + 2048]);
   const budget = await capture(request('claude-opus-5-5', { reasoning: { budget_tokens: 5000 } }));
   assert.deepEqual([budget.body.output_config.effort, budget.body.max_tokens], ['medium', 5000 + 2048]);
-  // The older spelling's effort word passes through, xhigh included: the ADK
-  // path hands it to the adapter as claudeReasoning (ADR 0055).
-  const xhigh = await capture({ ...request('claude-opus-5-5'), claudeReasoning: claudeReasoningFromConfig({ reasoningEffort: 'xhigh' }) } as ClaudeModelRequest);
-  assert.deepEqual([xhigh.body.output_config.effort, xhigh.body.max_tokens], ['xhigh', 16384 + 2048]);
 });
 
 test('`none` is each model\'s off switch at low effort, or low effort where it has none', async () => {
@@ -245,7 +240,7 @@ function resumedTurn(model: string): Message[] {
     { role: 'user', parts: [{ functionResponse: { id: 'c2', name: 'write_record', response: { ok: true } } }] },
   ];
   // The Supabase row's form, read back: trimmed, then a JSON round trip.
-  const stored: Content[] = events.map((content) => JSON.parse(JSON.stringify(trimEventForStorage({ content } as unknown as Event))).content);
+  const stored: Content[] = events.map((content) => JSON.parse(JSON.stringify(trimEventForStorage({ content } as unknown as TurnEvent))).content);
   assert.match(JSON.stringify(stored[2]), /chars dropped before storage/);
   return contentsToMessages(stored).messages;
 }

@@ -366,7 +366,7 @@ test('the contract and every module it imports name no @google/* specifier', () 
 });
 
 test('the specifier scan sees real imports and skips comments (control)', () => {
-  assert.ok(specifiersOf('lib/models/claudeLlm.ts').includes('@google/adk'));
+  assert.ok(specifiersOf('lib/models/geminiAdapter.ts').includes('@google/genai'));
   // providerState.ts names @google/genai in its comments only.
   assert.ok(fs.readFileSync(path.resolve(ROOT, 'lib/models/providerState.ts'), 'utf8').includes('@google/genai'));
   assert.deepEqual(specifiersOf('lib/models/providerState.ts'), []);

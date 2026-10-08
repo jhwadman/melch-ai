@@ -159,8 +159,7 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   // Conversation content stays out of stdout unless the operator opts in:
   // the root span carries the full user message and answer.
   if (process.env.OTEL_CONSOLE_SPANS === undefined) process.env.OTEL_CONSOLE_SPANS = 'false';
-  // The engine's level, which ADK's logger follows: ADK's INFO/DEBUG logs
-  // carry raw event JSON, so keep them quiet.
+  // The engine's level: INFO/DEBUG lines carry raw event JSON, so keep them quiet.
   setLogLevel('warn');
 
   const publicUrl = process.env.PUBLIC_URL?.trim() || undefined;

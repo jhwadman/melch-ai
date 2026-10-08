@@ -1,16 +1,15 @@
 /**
  * lib/runtime/native/compaction.ts — context compaction on the native loop:
- * the YAML's `context:` block, run as ADK runs it (ADR 0033, ADR 0045).
+ * the YAML's `context:` block, run as ADK ran it (ADR 0033, ADR 0045).
  *
  * WHY this file exists:
- *   On the ADK runtime `context:` compiles to ADK's TokenBasedContextCompactor
- *   with an LlmSummarizer (lib/compile.ts), which ADK's
- *   ContextCompactorRequestProcessor runs before every model step of the
- *   agent. A session either runtime wrote must be one the other continues,
- *   so this is that compactor and that summarizer, rule for rule
- *   (context/token_based_context_compactor.js, context/compaction_utils.js
- *   and context/summarizers/llm_summarizer.js in @google/adk 2.2), and the
- *   event it stores is the one ADK stores:
+ *   Under ADK `context:` compiled to ADK's TokenBasedContextCompactor with
+ *   an LlmSummarizer, which ADK's ContextCompactorRequestProcessor ran
+ *   before every model step of the agent. A session ADK wrote must be one
+ *   the loop continues, so this is that compactor and that summarizer, rule
+ *   for rule (context/token_based_context_compactor.js,
+ *   context/compaction_utils.js and context/summarizers/llm_summarizer.js in
+ *   Google ADK 2.2), and the event it stores is the one ADK stored:
  *
  *   - WHEN. Before each model step, over the session's active events (the
  *     latest compaction and what follows it, in the run's isolation scope).
@@ -28,7 +27,7 @@
  *     per event `[Event i - Author: <author>]`, its text (thoughts aside) and
  *     a blank line. No system prompt, no tools, not streamed. It goes to
  *     `summary_model` (default the agent's own model), as a leaf adapter
- *     with no fallback, through traceLlmGeneration as the shim calls it: the
+ *     with no fallback, through traceLlmGeneration: the
  *     llm.request span, under the agent span and outside any model.call,
  *     and the turn's charge (ADR 0053, ADR 0076). The summary is the first
  *     response's first part's text and each later response's; a first
@@ -47,7 +46,7 @@
  * the engine installs implements them.
  */
 
-import type { LlmRequest, LlmResponse } from '@google/adk';
+import type { LlmRequest, LlmResponse } from '../../models/genaiMapping.ts';
 
 import type { ModelAdapter, ModelRequest } from '../../models/contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
@@ -147,7 +146,7 @@ function textOf(event: TurnEvent): string {
     .join('');
 }
 
-/** The one request the summarizer sends, as the shim maps ADK's LlmRequest for it. */
+/** The one request the summarizer sends, as genaiMapping maps the genai-shaped request for it. */
 export function summaryRequest(events: readonly TurnEvent[], model: string, signal?: AbortSignal): ModelRequest {
   let formatted = '';
   events.forEach((event, i) => {

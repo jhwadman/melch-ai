@@ -2,8 +2,8 @@
 syndicate_name: "Multi-Modal Image Production Workflow"
 memory_system: "session-only"
 
-# WHY generate_image and inspect_image are FunctionTools, not subagents:
-#   AgentTool converts all subagent traffic to plain text, so binary inlineData
+# WHY generate_image and inspect_image are tools, not subagents:
+#   A subagent call carries only text, so binary inlineData
 #   (image bytes) is silently dropped in either direction. generateImageTool
 #   calls @google/genai directly, captures inlineData, writes the file to disk,
 #   and returns the saved path; inspectImageTool reads that file back and runs

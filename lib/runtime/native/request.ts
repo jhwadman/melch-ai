@@ -3,16 +3,15 @@
  * built from an agent and its session (ADR 0045, ADR 0066).
  *
  * WHY this file exists:
- *   The native runtime calls a ModelAdapter (lib/models/contract.ts) with a
- *   ModelRequest it builds itself, with no LlmRequest in between. A session
- *   moves between the runtimes and an agent must behave the same on either,
- *   so the request is the one the ADK runtime hands the same adapter for
- *   the same agent and session: what ADK's LlmAgent request processors and
- *   tools build, read through the shim's mapping (llmRequestToModelRequest,
- *   lib/models/genaiMapping.ts). tests/nativeStep.test.ts asserts that on
- *   whole syndicates.
+ *   The native loop calls a ModelAdapter (lib/models/contract.ts) with a
+ *   ModelRequest it builds itself, with no LlmRequest in between. An agent
+ *   must behave as it did under ADK, so the request is the one ADK handed
+ *   the same adapter for the same agent and session: what ADK's LlmAgent
+ *   request processors and tools built, read as genaiMapping reads it
+ *   (llmRequestToModelRequest, lib/models/genaiMapping.ts).
+ *   tests/nativeStep.test.ts asserts that on whole syndicates.
  *
- * THE REQUEST, in the order ADK builds it:
+ * THE REQUEST, in the order ADK built it:
  *   1. The agent's generateContentConfig, and its output schema when it has
  *      no tools (or the model takes a schema beside tools: Gemini 2 and
  *      later on Vertex AI).
@@ -38,7 +37,7 @@
  *   4. The tools, in the agent's order, a toolset expanded to its tools:
  *      each client-side tool's declaration (contractToolDeclaration), at
  *      most one per name, the later one winning; each server-side tool
- *      where the ADK runtime sends it (web_search everywhere, url_context
+ *      where ADK sent it (web_search everywhere, url_context
  *      and google_search on Gemini, x_search and collections_search on
  *      xAI); `code_execution` first among Gemini's own tools; and the
  *      set_model_response tool when (2) asked for it, then the caller's
@@ -47,23 +46,24 @@
  *      set_model_response's place and the output schema is never the
  *      response schema (lib/runtime/native/taskMode.ts).
  *   5. Tool choice, the output schema or JSON mode, reasoning and sampling,
- *      read from the config by the mapping's own readers.
+ *      read from the config by genaiMapping's own readers.
  *
  * WHAT IT DOES NOT DO (later tickets): resume an approval or an input
  * request (ADK's confirmation and input processors run tools before the
  * request; WS2-7), add transfer_to_agent
  * (compiled syndicates never set subAgents; they delegate through subagent tools, delegate.ts),
  * artifacts in an
- * instruction (no runtime has an artifact service), and an ADK tool's own
+ * instruction (the engine has no artifact service), and an ADK-shaped tool's own
  * processLlmRequest side effects beyond its declaration (an own Tool says
  * what it writes through `instruction`).
  *
  * ADK STAYS OUT OF THIS FILE'S OWN LOGIC: it reads tools by marker and by
- * the own-tool symbols (lib/tools/tool.ts), and only lib/models/
- * genaiMapping.ts, which stored history needs anyway (ADR 0048 item 8),
- * names @google/*. An ADK tool or toolset an agent still carries (an
- * AgentTool, an MCP or OpenAPI tool) is read through its declaration and
- * `getTools`, by shape, as is the engine's own skills toolset.
+ * shape (lib/tools/tool.ts), and only lib/models/genaiMapping.ts, which
+ * stored history needs anyway (ADR 0048 item 8), names @google/*. A toolset
+ * is expanded through `getTools`, by shape, as is the engine's own skills
+ * toolset. An ADK tool (anything with runAsync) reaching the request, listed,
+ * yielded by a toolset or passed in `extraTools`, is refused, naming 1.0.0
+ * and defineTool, as registerTool refuses one (ADR 0107).
  */
 
 import type { JsonSchema, Message, ModelRequest, NativeTool, ToolDeclaration } from '../../models/contract.ts';
@@ -102,8 +102,8 @@ export interface NativeAgent {
   globalInstruction?: string | ((ctx: InstructionContext) => string | Promise<string>);
   /**
    * In the agent's order: own Tools and defineTool contracts, InstructionTools,
-   * NativeToolMarkers, and during the dual period the ADK tools and toolsets
-   * an agent may still list (their own-tool symbols are read first).
+   * NativeToolMarkers, and any other object an outside caller lists (its
+   * own-tool symbol is read first).
    */
   tools?: readonly unknown[];
   /** The answer's schema, as the YAML spells it (lowercase or Gemini's dialect). */
@@ -412,9 +412,9 @@ function formatValue(value: unknown): string {
  * `template` with each `{key}` naming a state key replaced by the value in
  * `state` (a string as it is, anything else as JSON). `{key?}` is optional
  * and becomes empty when the key is absent; a required key that is absent
- * fails, as on the ADK runtime. A placeholder that names no state key
- * (`{ "a": 1 }` in an example) stays as it is. `{artifact.x}` fails: no
- * runtime of this engine has an artifact service. Own keys only: a key such
+ * fails, as it did under ADK. A placeholder that names no state key
+ * (`{ "a": 1 }` in an example) stays as it is. `{artifact.x}` fails: the
+ * engine has no artifact service. Own keys only: a key such
  * as `constructor` is absent unless the state holds it.
  *
  * With a workflow `scope` (a workflow agent node's run), ADK 2.2's two
@@ -494,6 +494,17 @@ async function resolveInstruction(
   return injectSessionState(instruction ?? '', ctx.state, scope);
 }
 
+/** An ADK tool (anything with runAsync), read by shape: the engine refuses it. */
+function isAdkTool(tool: unknown): boolean {
+  return isObject(tool) && 'runAsync' in tool;
+}
+
+/** The error an ADK tool reaching a model request throws, as registerTool's refusal words it. */
+function adkToolRefused(tool: unknown): Error {
+  const name = String((tool as { name?: unknown }).name ?? '<unnamed>');
+  return new Error(`model request: '${name}' is an ADK tool, which melchizedek-agents 1.0.0 no longer runs (ADR 0107); define it with defineTool (melchizedek-agents) instead`);
+}
+
 /** A toolset (the skills harness, an MCP toolset): something that yields tools, and is not one. */
 export function isToolset(value: unknown): value is { getTools(ctx?: unknown): Promise<unknown[]> } {
   if (!isObject(value)) return false;
@@ -501,7 +512,7 @@ export function isToolset(value: unknown): value is { getTools(ctx?: unknown): P
   return !('runAsync' in value) && !isTool(value) && typeof value._getDeclaration !== 'function';
 }
 
-/** Where the ADK runtime sends each server-side tool for this model (lib/tools/*Tool.ts processLlmRequest). */
+/** Where each server-side tool goes for this model, as ADK's tools placed it in their processLlmRequest. */
 type NativePlacement = { in: 'dict' } | { in: 'config'; as: NativeTool } | { in: 'none' };
 
 /**
@@ -535,8 +546,8 @@ function placementOf(native: NativeTool, model: string, configTools: number): Na
 
 /**
  * The ModelRequest the native loop sends for `agent` now, with the
- * client-side tools it declares. Throws where the ADK runtime throws
- * building the same request: a required state key that is absent, a
+ * client-side tools it declares. Throws where ADK threw building the same
+ * request: a required state key that is absent, a
  * Gemini-only tool on another model, a config field LlmAgent refuses.
  */
 export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext): Promise<BuiltRequest> {
@@ -623,6 +634,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   for (const union of all) {
     const expanded = isToolset(union) ? await union.getTools(toolsetContext) : [union];
     for (const listedTool of expanded) {
+      if (isAdkTool(listedTool)) throw adkToolRefused(listedTool);
       const native = nativeToolOf(listedTool);
       if (native) {
         const declaredSoFar = [...dict.values()].filter((e) => e.declaration).length;
@@ -652,7 +664,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
       }
     }
   }
-  // ADK runs each tool's processLlmRequest in turn; its instruction lands in that order.
+  // As ADK ran each tool's processLlmRequest in turn, each instruction lands in that order.
   for (const text of instructionTexts) {
     const written = await text();
     if (written) system = appendInstructions(system, [written]);
@@ -660,7 +672,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   // ...and what it adds to the history (load_skill_resource's binary file, ADR 0083), after the history.
   for (const write of contentWriters) await write();
 
-  // 5. Everything the config says, read as the shim's mapping reads it.
+  // 5. Everything the config says, read as genaiMapping reads it.
   const { toolChoice, strict } = toolChoiceOf(cfg);
   const tools: ToolDeclaration[] = [];
   const declared = new Map<string, unknown>();

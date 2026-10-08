@@ -1,7 +1,7 @@
 /**
  * tests/sessionPaging.test.ts — the list paging contract on the Supabase
- * session service, through both of its faces: ADK's `listSessions` and the
- * engine's `list` (lib/runtime/sessions.ts, ADR 0058).
+ * session service, through the engine's `list` (lib/runtime/sessions.ts,
+ * ADR 0058).
  *
  * A request carries `limit` with either `page` (1-based, takes precedence)
  * or `offset` (0-based), plus an optional sort, and the response must report
@@ -69,11 +69,11 @@ const figures = (res: { page: number; limit: number; totalItems: number; totalPa
   totalPages: res.totalPages,
 });
 
-test('listSessions: no paging asked for means one page of everything, in the order rows were created', async () => {
+test('list: no paging asked for means one page of everything, in the order rows were created', async () => {
   const { client, seen } = stubClient([row('a'), row('b')], 2);
   const service = new SupabaseSessionService(client);
 
-  const res = await service.listSessions({ appName: 'app', userId: 'user' });
+  const res = await service.list({ appName: 'app', userId: 'user' });
 
   assert.equal(res.sessions.length, 2);
   assert.equal(res.sessions[0].id, 'a', 'the composite key is unwrapped');
@@ -89,11 +89,11 @@ test('listSessions: no paging asked for means one page of everything, in the ord
   );
 });
 
-test('listSessions: page wins over offset, totals describe the whole set, and ties order by id', async () => {
+test('list: page wins over offset, totals describe the whole set, and ties order by id', async () => {
   const { client, seen } = stubClient([row('c')], 25);
   const service = new SupabaseSessionService(client);
 
-  const res = await service.listSessions({
+  const res = await service.list({
     appName: 'app',
     userId: 'user',
     limit: 10,
@@ -110,11 +110,11 @@ test('listSessions: page wins over offset, totals describe the whole set, and ti
   assert.deepEqual(figures(res), { page: 3, limit: 10, totalItems: 25, totalPages: 3 }, 'totals count every matching row, not the slice');
 });
 
-test('listSessions: offset alone is honoured, and a partial last page still counts', async () => {
+test('list: offset alone is honoured, and a partial last page still counts', async () => {
   const { client, seen } = stubClient([row('d')], 7);
   const service = new SupabaseSessionService(client);
 
-  const res = await service.listSessions({
+  const res = await service.list({
     appName: 'app',
     userId: 'user',
     limit: 3,
@@ -126,7 +126,7 @@ test('listSessions: offset alone is honoured, and a partial last page still coun
   assert.equal(res.totalPages, 3, '7 rows at size 3 is three pages, not two');
 });
 
-test('list: the engine face sends the same request and reports listPage’s figures', async () => {
+test('list: every request reports listPage’s figures', async () => {
   const requests = [
     { appName: 'app', userId: 'user' },
     { appName: 'app', userId: 'user', limit: 10, page: 3, offset: 99, order: 'desc' as const },
@@ -135,13 +135,8 @@ test('list: the engine face sends the same request and reports listPage’s figu
     { appName: 'app', userId: 'user', limit: 2.9, offset: -4 },
   ];
   for (const request of requests) {
-    const viaAdk = stubClient([row('a')], 7);
-    const viaEngine = stubClient([row('a')], 7);
-    const adk = await new SupabaseSessionService(viaAdk.client).listSessions(request);
-    const engine = await new SupabaseSessionService(viaEngine.client).list(request);
-    assert.deepEqual(viaEngine.seen, viaAdk.seen, `${JSON.stringify(request)}: one query`);
-    assert.deepEqual(JSON.parse(JSON.stringify(engine)), JSON.parse(JSON.stringify(adk)), `${JSON.stringify(request)}: one answer`);
-    assert.deepEqual(figures(engine), listPage(7, request));
+    const engine = await new SupabaseSessionService(stubClient([row('a')], 7).client).list(request);
+    assert.deepEqual(figures(engine), listPage(7, request), JSON.stringify(request));
   }
   // An empty listing is still one page.
   const empty = await new SupabaseSessionService(stubClient([], 0).client).list({ appName: 'app', userId: 'user', limit: 5 });

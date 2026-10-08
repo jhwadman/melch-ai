@@ -1,8 +1,8 @@
 /**
  * tests/claudeAdapter.test.ts — Claude on the engine's own model contract
  * (lib/models/claudeAdapter.ts, WS1-4, ADR 0055): the adapter reads a
- * ModelRequest and yields ModelResponses, and ClaudeLlm is that adapter
- * behind the ADK shim.
+ * ModelRequest and yields ModelResponses, traced and mapped as the native
+ * model step traces and stores them.
  *
  * Offline: globalThis.fetch is replaced by a stub that records the URL,
  * headers and body the real Anthropic SDK sends, and answers in the Messages
@@ -12,27 +12,22 @@
  * What is proved here:
  *   - the request-body assertions of tests/claudeCurrentApi.test.ts,
  *     tests/claudeVision.test.ts and tests/reasoningState.test.ts hold for
- *     ModelRequest inputs, and each ModelRequest's body equals the one
- *     ClaudeLlm sends for the LlmRequest the compiler or ADK would build;
+ *     ModelRequest inputs;
  *   - what the contract adds: tool choice and its weakening, strict tools,
- *     native tools it drops, tool results as ADK stores them;
+ *     native tools it drops, tool results as the session stores them;
  *   - the responses: partials and one final, signed blocks on the part they
  *     preceded, usage, finish reasons, grounding, and every failure as a
  *     final, never a throw;
- *   - ClaudeLlm's older reasoning spelling, which only the ADK path reads.
+ *   - the contract's reasoning as each generation reads it, and the two
+ *     readings of it (claudeReasoningOf, claudeReasoningFromConfig) agreeing.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { setLogLevel, LogLevel } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
 
 import { ClaudeAdapter, STRUCTURED_OUTPUT_TOOL, THINKING_STATE_KIND, anthropicTools } from '../lib/models/claudeAdapter.ts';
-import type { ClaudeModelRequest } from '../lib/models/claudeAdapter.ts';
-import { ClaudeLlm, buildAnthropicTools } from '../lib/models/claudeLlm.ts';
 import { THINKING_BINDING_BETA, claudeReasoningFromConfig, claudeReasoningOf } from '../lib/models/claudeModels.ts';
-import { AdkShim } from '../lib/models/adkShim.ts';
 import type {
   FinalModelResponse,
   Message,
@@ -44,37 +39,24 @@ import type {
   ToolDeclaration,
 } from '../lib/models/contract.ts';
 import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY } from '../lib/models/errorResponse.ts';
+import { modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
+import type { LlmResponse } from '../lib/models/genaiMapping.ts';
 import { reasoningConfig } from '../lib/compile.ts';
-import { onSpanEnd } from '../lib/observability/tracer.ts';
-import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
-
-setLogLevel(LogLevel.ERROR);
+import { onSpanEnd, traceLlmGeneration } from '../lib/observability/tracer.ts';
 
 const FIXTURE_KEY = 'fixture-ant-test-0123456789abcdef'; // gitleaks:allow (test fixture)
 const ENV = ['ANTHROPIC_API_KEY', 'ANTHROPIC_PLATFORM', 'ANTHROPIC_BASE_URL', 'AWS_REGION', 'ANTHROPIC_MODEL_MAP'];
 const BUDGET_ERA = ['claude-sonnet-4-6', 'claude-haiku-4-5'];
 const ADAPTIVE_ERA = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-fable-5-1'];
-const EVERY_ROW = [...BUDGET_ERA, 'claude-opus-4-7', 'claude-opus-4-8', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5', 'claude-haiku-5-5', ...ADAPTIVE_ERA];
 
 const DROP_BLOCK = { prefix_mismatch_behavior: 'drop_block' };
 const ADAPTIVE_THINKING = { type: 'adaptive', display: 'summarized', block_binding: DROP_BLOCK };
 const SCHEMA = { type: 'object', properties: { verdict: { type: 'string' } }, required: ['verdict'] };
-const GEMINI_SCHEMA = { type: 'OBJECT', properties: { verdict: { type: 'STRING' } }, required: ['verdict'] };
 
 const hello: Message[] = [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }];
 
 function modelRequest(model: string, extra: Partial<ModelRequest> = {}): ModelRequest {
   return { model, messages: hello, ...extra };
-}
-
-function llmRequest(model: string, config: Record<string, unknown> = {}, contents?: LlmRequest['contents']): LlmRequest {
-  return {
-    model,
-    contents: contents ?? [{ role: 'user', parts: [{ text: 'hello' }] }],
-    liveConnectConfig: {} as any,
-    toolsDict: {},
-    config,
-  } as LlmRequest;
 }
 
 interface Captured {
@@ -85,22 +67,18 @@ interface Captured {
   calls: number;
   /** What the adapter yielded. */
   out: ModelResponse[];
-  /** What ADK received through the shim. */
+  /** What the model step stores: each response mapped (modelResponseToLlmResponse). */
   llm: LlmResponse[];
   warnings: string[];
   span: Record<string, unknown>;
 }
 
-/** The shim around an adapter, handing it `request` exactly, so it runs inside the llm.request span. */
-class Fixed extends AdkShim {
-  readonly #request: ModelRequest;
-  constructor(adapter: ModelAdapter, request: ModelRequest) {
-    super(adapter, { model: request.model });
-    this.#request = request;
+/** Runs an adapter on `request` inside the llm.request span, as the model step does (ADR 0053), yielding each response mapped. */
+function traced(adapter: ModelAdapter, request: ModelRequest): AsyncGenerator<LlmResponse, void> {
+  async function* mapped(): AsyncGenerator<LlmResponse, void> {
+    for await (const r of adapter.generate(request)) yield modelResponseToLlmResponse(r);
   }
-  protected override toModelRequest(): ModelRequest {
-    return this.#request;
-  }
+  return traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, mapped());
 }
 
 /** Records what an adapter yields while passing it on. */
@@ -171,7 +149,7 @@ async function withStub<T>(reply: Reply | undefined, model: string, run: (seen: 
   }
 }
 
-/** Sends one ModelRequest through a ClaudeAdapter, inside the shim's span; records the request and the responses. */
+/** Sends one ModelRequest through a ClaudeAdapter, inside the llm.request span; records the request and the responses. */
 async function capture(request: ModelRequest, opts: { reply?: Reply; adapter?: ClaudeAdapter; env?: Record<string, string> } = {}): Promise<Captured> {
   const warnings: string[] = [];
   const spans: Record<string, unknown>[] = [];
@@ -188,7 +166,7 @@ async function capture(request: ModelRequest, opts: { reply?: Reply; adapter?: C
       request.model,
       async (seen) => {
         const adapter = opts.adapter ?? new ClaudeAdapter({ model: request.model });
-        for await (const r of new Fixed(recording(adapter, out), request).generateContentAsync({} as LlmRequest)) llm.push(r);
+        for await (const r of traced(recording(adapter, out), request)) llm.push(r);
         const s = seen();
         return { url: s?.url ?? '', headers: s?.headers ?? new Headers(), body: s?.body, calls: s?.calls ?? 0, out, llm, warnings, span: spans.at(-1) ?? {} };
       },
@@ -198,16 +176,6 @@ async function capture(request: ModelRequest, opts: { reply?: Reply; adapter?: C
     off();
     console.warn = originalWarn;
   }
-}
-
-/** The body ClaudeLlm sends for an LlmRequest. */
-async function llmBody(model: string, req: LlmRequest): Promise<any> {
-  return withStub(undefined, model, async (seen) => {
-    for await (const _ of new ClaudeLlm({ model }).generateContentAsync(req)) {
-      // drain; the 400 is expected
-    }
-    return seen()?.body;
-  });
 }
 
 const betas = (c: Captured) => (c.headers.get('anthropic-beta') ?? '').split(',').filter(Boolean);
@@ -285,17 +253,6 @@ test('no reasoning set: the model\'s own default, made readable where it thinks'
   }
 });
 
-test('every row and every setting: the ModelRequest\'s body is the one ClaudeLlm sends for the compiler\'s LlmRequest', async () => {
-  const settings: Array<ReasoningSetting | undefined> = [undefined, 'none', 'low', 'medium', 'high', { budget_tokens: 5000 }, { budget_tokens: 0 }];
-  for (const model of EVERY_ROW) {
-    for (const setting of settings) {
-      const viaContract = (await capture(modelRequest(model, setting === undefined ? {} : { reasoning: setting }))).body;
-      const viaAdk = await llmBody(model, llmRequest(model, setting === undefined ? {} : reasoningConfig(model, setting)));
-      assert.deepEqual(viaContract, viaAdk, `${model} ${JSON.stringify(setting)}`);
-    }
-  }
-});
-
 test('no sampling parameter is sent on any generation; maxOutputTokens is the ceiling, raised to fit thinking', async () => {
   for (const model of [...BUDGET_ERA, ...ADAPTIVE_ERA]) {
     const c = await capture(modelRequest(model, { reasoning: 'low', sampling: { temperature: 0.2, topP: 0.9, maxOutputTokens: 1000, stop: ['END'] } }));
@@ -322,7 +279,6 @@ test('budget era: structured output is a forced tool, offered under auto when th
     assert.ok(c.body.tools.some((t: any) => t.name === 'structured_output' && t.input_schema.properties.verdict), model);
     assert.equal(c.body.output_config, undefined, model);
     assert.equal(c.span['llm.structured_output'], 'forced_tool', model);
-    assert.deepEqual(c.body, await llmBody(model, llmRequest(model, { responseSchema: GEMINI_SCHEMA })), model);
   }
   const thinking = await capture(modelRequest('claude-sonnet-4-6', { outputSchema: SCHEMA, reasoning: 'low' }));
   assert.equal(thinking.body.tool_choice, undefined);
@@ -347,15 +303,11 @@ test('adaptive era: structured output is output_config.format beside the effort,
   }
 });
 
-test("outputFormat 'json' sends nothing: the Messages API has no JSON mode, and ClaudeLlm never sent one (ADR 0061)", async () => {
+test("outputFormat 'json' sends nothing: the Messages API has no JSON mode (ADR 0061)", async () => {
   for (const model of ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-opus-5-5']) {
     const plain = await capture(modelRequest(model, { reasoning: 'low' }));
     const json = await capture(modelRequest(model, { reasoning: 'low', outputFormat: 'json' }));
     assert.deepEqual(json.body, plain.body, model);
-    // The ADK path: responseMimeType alone changes nothing, as before the adapter.
-    const adkPlain = await llmBody(model, llmRequest(model, { reasoningEffort: 'low' }));
-    const adkJson = await llmBody(model, llmRequest(model, { reasoningEffort: 'low', responseMimeType: 'application/json' }));
-    assert.deepEqual(adkJson, adkPlain, model);
   }
 });
 
@@ -529,16 +481,7 @@ test('system messages join the system prompt; a tool message is one user message
   ]);
 });
 
-test('a tool result\'s content is the JSON ADK stores, so both runtimes send the same bytes', async () => {
-  const contents: LlmRequest['contents'] = [
-    { role: 'user', parts: [{ text: 'go' }] },
-    { role: 'model', parts: [{ functionCall: { id: 'c1', name: 'a', args: {} } }, { functionCall: { id: 'c2', name: 'b', args: {} } }] },
-    { role: 'user', parts: [
-      { functionResponse: { id: 'c1', name: 'a', response: { result: 'plain text' } } },
-      { functionResponse: { id: 'c2', name: 'b', response: { rows: [1, 2], total: 2 } } },
-    ] },
-  ];
-  const viaAdk = await llmBody('claude-sonnet-4-6', llmRequest('claude-sonnet-4-6', {}, contents));
+test('a tool result\'s content is the JSON of the stored function response: a string result as {"result": ...}, an object as it is', async () => {
   const viaContract = await capture(
     modelRequest('claude-sonnet-4-6', {
       messages: [
@@ -551,20 +494,15 @@ test('a tool result\'s content is the JSON ADK stores, so both runtimes send the
       ],
     }),
   );
-  assert.deepEqual(viaContract.body, viaAdk);
-  assert.deepEqual(viaAdk.messages[2].content.map((b: any) => b.content), ['{"result":"plain text"}', '{"rows":[1,2],"total":2}']);
+  assert.deepEqual(viaContract.body.messages[2].content.map((b: any) => b.content), ['{"result":"plain text"}', '{"rows":[1,2],"total":2}']);
 });
 
-test('tools: lowercase schemas as given, web_search as Anthropic\'s server tool, the same list ClaudeLlm builds', async () => {
+test('tools: lowercase schemas as given, web_search as Anthropic\'s server tool', async () => {
   const tools = anthropicTools({ tools: [lookup], nativeTools: ['web_search'] });
   assert.deepEqual(tools, [
     { name: 'lookup', description: 'Look a record up', input_schema: lookup.parameters },
     { type: 'web_search_20250305', name: 'web_search', max_uses: 5 },
   ]);
-  const req = llmRequest('claude-sonnet-4-6');
-  req.toolsDict['lookup'] = { name: 'lookup', description: 'Look a record up', parameters: { type: 'OBJECT', properties: { id: { type: 'INTEGER' }, note: { type: 'STRING' } }, required: ['id'] } } as any;
-  req.toolsDict['web_search'] = WEB_SEARCH;
-  assert.deepEqual(buildAnthropicTools(req), tools);
 
   const c = await capture(modelRequest('claude-sonnet-4-6', { tools: [lookup], nativeTools: ['web_search'] }));
   assert.deepEqual(c.body.tools, tools);
@@ -702,7 +640,7 @@ test('non-streamed: one thinking partial, then the final with the signed blocks 
       usage: { inputTokens: 170, outputTokens: 40, cacheReadTokens: 60, cacheWriteTokens: 10 },
     },
   ]);
-  // Through the shim, as ADK stores it.
+  // Mapped, as the model step stores it.
   const final = c.llm.at(-1)!;
   assert.deepEqual(final.content?.parts?.[0], { text: 'Asking Scout.', providerState: signedBy('claude-sonnet-4-6', THINKING, REDACTED) });
   assert.deepEqual(final.usageMetadata, { promptTokenCount: 170, candidatesTokenCount: 40, cachedContentTokenCount: 60, totalTokenCount: 210 });
@@ -777,11 +715,7 @@ test('web search grounding: the queries that ran and the cited pages, with the s
     searchQueries: [{ tool: 'web_search', query: 'tallest tower' }],
   });
   assert.deepEqual(c.llm.at(-1)?.groundingMetadata, { webSearchQueries: ['tallest tower'], groundingChunks: [{ web: { uri: 'https://example.test/tower', title: 'Tower' } }] });
-  // ClaudeLlm, the shim the registry serves, carries it too, so the A2A
-  // server lists Claude's web sources as it does Gemini's.
-  const viaClaudeLlm = (new ClaudeLlm({ model: 'claude-opus-5-5' }) as unknown as { toLlmResponse(r: ModelResponse): LlmResponse }).toLlmResponse(finalOf(c));
-  assert.deepEqual(viaClaudeLlm.groundingMetadata, c.llm.at(-1)?.groundingMetadata);
-  assert.equal(viaClaudeLlm.turnComplete, true, 'the rest of the final is kept');
+  assert.equal(c.llm.at(-1)?.turnComplete, true, 'the rest of the final is kept');
 });
 
 // ── Failures are finals ──────────────────────────────────────────────────────
@@ -828,29 +762,9 @@ test('the signal: an aborted request is never sent; one aborted in flight ends a
   assert.deepEqual([finalOf(d).error?.code, finalOf(d).error?.retryable], ['ANTHROPIC_ERROR', false]);
 });
 
-// ── ClaudeLlm: the shim, and the older reasoning spelling only it reads ───────
+// ── Reasoning ────────────────────────────────────────────────────────────────
 
-test('ClaudeLlm is the shim around a ClaudeAdapter for its model', () => {
-  const llm = new ClaudeLlm({ model: 'claude-sonnet-4-6', apiKey: FIXTURE_KEY });
-  assert.ok(llm instanceof AdkShim);
-  assert.ok(llm.adapter instanceof ClaudeAdapter);
-  assert.equal(llm.adapter.model, 'claude-sonnet-4-6');
-  assert.equal(llm.adapter.provider, 'anthropic');
-  assert.deepEqual(ClaudeLlm.supportedModels, [/^claude-.+/]);
-});
-
-test('the older spelling: ClaudeLlm reads it as ADR 0049 does, which the contract\'s reasoning cannot say in full', async () => {
-  // xhigh passes through on the ADK path; the contract has no level for it.
-  const xhigh = await llmBody('claude-opus-5-5', llmRequest('claude-opus-5-5', { reasoningEffort: 'xhigh' }));
-  assert.deepEqual([xhigh.output_config.effort, xhigh.max_tokens], ['xhigh', 16384 + 2048]);
-  const xhighContract = await capture({ ...modelRequest('claude-opus-5-5'), claudeReasoning: { effort: 'xhigh' } } as ClaudeModelRequest);
-  assert.deepEqual(xhighContract.body, xhigh, 'the extension is all the adapter needs');
-  // minimal is low there (ADR 0049); on the contract, minimal reads as none (ADR 0047).
-  const minimal = await llmBody('claude-sonnet-5-5', llmRequest('claude-sonnet-5-5', { reasoningEffort: 'minimal' }));
-  assert.deepEqual([minimal.thinking.type, minimal.output_config.effort], ['adaptive', 'low']);
-  // A budget-era model reads the budget alone: an effort word without one adds no thinking there.
-  const wordOnly = await llmBody('claude-sonnet-4-6', llmRequest('claude-sonnet-4-6', { reasoningEffort: 'high' }));
-  assert.equal(wordOnly.thinking, undefined);
+test('the contract maps a level to its budget on a budget-era model (ADR 0049)', async () => {
   const levelOnContract = await capture(modelRequest('claude-sonnet-4-6', { reasoning: 'high' }));
   assert.deepEqual(levelOnContract.body.thinking, { type: 'enabled', budget_tokens: 16384 }, 'the contract maps a level to its budget');
 });

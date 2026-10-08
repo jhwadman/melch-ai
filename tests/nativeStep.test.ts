@@ -3,11 +3,12 @@
  * (lib/runtime/native/step.ts, lib/runtime/native/request.ts, WS2-5a,
  * ADR 0066).
  *
- * The parity cases run a syndicate on the ADK runtime with a scripted
- * adapter behind the shim (the request the shim's toModelRequest hands it),
- * then rebuild each of those calls on the native step from the same session
- * as it stood before the call: the adapter must be handed the same request,
- * and the step must store the same event for the same answer. Then the
+ * The parity cases read a syndicate's run as ADK 2.2 recorded it with a
+ * scripted adapter behind the pre-1.0 shim (the request the shim handed it,
+ * tests/fixtures/adk-reference/nativestep), then rebuild each of those calls
+ * on the native step from the same session as it stood before the call: the
+ * adapter must be handed the same request, and the step must store the same
+ * event for the same answer. Then the
  * turn's controls (step limit, deadline, cancel), the span, streaming, and
  * the instruction's state placeholders. Offline: scripted adapters only.
  */
@@ -24,7 +25,6 @@ import type { ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
-import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import type { TurnControl } from '../lib/runtime/turnControl.ts';
 import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
@@ -39,15 +39,11 @@ import type { ModelStepOptions } from '../lib/runtime/native/step.ts';
 import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
 import { instructionToolOf, toolOf } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
-import { ScriptedModel, answer, failure, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { ScriptedModel, answer, failure, toolCall, untilAborted } from './helpers/scriptedModel.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
-// ADK's side of each parity case is recorded (tests/fixtures/adk-reference/nativestep); ADK runs only under ADK_REFERENCE=live|record.
+// ADK's side of each parity case, as ADK 2.2 recorded it (tests/fixtures/adk-reference/nativestep).
 const reference = adkReferences('nativeStep');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 const APP = 'native-step';
 const USER = 'u1';
@@ -70,8 +66,7 @@ registerTool(
   { override: true },
 );
 
-// ── The ADK side: a syndicate run behind the shim ────────────────────────────
-
+// ── The ADK side: a syndicate's run, recorded ────────────────────────────────
 
 /**
  * A one-agent syndicate, retries at their defaults: ADK's reflect-and-retry
@@ -86,41 +81,10 @@ function syndicate(orchestrator: Record<string, unknown>): SyndicateYamlConfig {
   ) as SyndicateYamlConfig;
 }
 
-/** Each call the adapter took on the ADK runtime: the request it was handed (its signal aside) and what it answered. */
+/** Each call the adapter took in ADK's recorded run: the request it was handed (its signal aside) and what it answered. */
 interface AdkCall {
   request: Omit<ModelRequest, 'signal'>;
   responses: ModelResponse[];
-}
-
-async function runOnAdk(
-  config: SyndicateYamlConfig,
-  script: (request: ModelRequest, call: number) => ModelResponse | ModelResponse[],
-  messages: string[],
-): Promise<{ calls: AdkCall[]; events: TurnEvent[] }> {
-  const calls: AdkCall[] = [];
-  const model = new ScriptedModel('scripted/boss', (request, n) => {
-    const out = script(request, n);
-    calls.push({ request: withoutSignal(request), responses: Array.isArray(out) ? out : [out] });
-    return out;
-  });
-  const { InMemorySessionService } = await import('@google/adk');
-  const sessionService = new InMemorySessionService();
-  for (const text of messages) {
-    await runSyndicateTurn({
-      config,
-      parts: [{ text }],
-      appName: APP,
-      userId: USER,
-      sessionId: 's1',
-      sessionService,
-      compile: { resolveModel: shimResolver({ boss: model }), log: () => {} },
-      trace: false,
-      // The reference is ADK's: pinned, now that native is the default (ADR 0102).
-      runtime: 'adk',
-    });
-  }
-  const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 's1' });
-  return { calls, events: JSON.parse(JSON.stringify(session?.events ?? [])) as TurnEvent[] };
 }
 
 // ── The native side: the same agent, from the same YAML ──────────────────────
@@ -143,18 +107,20 @@ const withoutSignal = ({ signal, ...rest }: ModelRequest) => (assert.ok(signal i
 const comparable = (event: TurnEvent | undefined) => JSON.parse(JSON.stringify({ ...event, id: '<id>', timestamp: 0 }));
 
 /**
- * Runs the syndicate on ADK, then each of its model calls on the native
- * step: same request to the adapter, same event stored. Returns the native
- * requests, for case-specific asserts.
+ * Reads the syndicate's recorded ADK run, then runs each of its model calls
+ * on the native step: same request to the adapter, same event stored.
+ * `_script` and `_messages` say what the recorded run's adapter answered and
+ * what the user sent; the recording holds both. Returns the native requests,
+ * for case-specific asserts.
  */
 async function assertParity(
   name: string,
   orchestrator: Record<string, unknown>,
-  script: (request: ModelRequest, call: number) => ModelResponse | ModelResponse[],
-  messages: string[],
+  _script: (request: ModelRequest, call: number) => ModelResponse | ModelResponse[],
+  _messages: string[],
 ): Promise<ModelRequest[]> {
   const config = syndicate(orchestrator);
-  const adk = await reference(name, () => runOnAdk(config, script, messages));
+  const adk = await reference<{ calls: AdkCall[]; events: TurnEvent[] }>(name);
   const agent = await nativeAgentOf(config);
   const modelEvents = adk.events.map((e, i) => [e, i] as const).filter(([e]) => e.content?.role === 'model');
   assert.equal(modelEvents.length, adk.calls.length, 'one stored model event per call');
@@ -403,7 +369,7 @@ async function spansDuring(model: string, fn: () => Promise<unknown>): Promise<R
   return spans;
 }
 
-test('the step opens one llm.request span, as the shim does, and charges the turn', async () => {
+test('the step opens one llm.request span and charges the turn', async () => {
   const control = createTurnControl();
   const adapter = new ScriptedModel('scripted/span-native', () => answer('x', { inputTokens: 9, outputTokens: 4, thinkingTokens: 1 }), 'anthropic');
   const [span, ...more] = await spansDuring('scripted/span-native', () =>
@@ -414,7 +380,7 @@ test('the step opens one llm.request span, as the shim does, and charges the tur
   assert.equal(span.attributes['llm.provider'], 'anthropic');
   assert.equal(span.attributes['gen_ai.request.model'], 'scripted/span-native');
   assert.equal(span.attributes['llm.tokens.input'], 9);
-  assert.equal(span.attributes['llm.tokens.output'], 3, 'Gemini’s meaning: output less thinking, as on the shim');
+  assert.equal(span.attributes['llm.tokens.output'], 3, 'Gemini’s meaning: output less thinking');
   assert.equal(span.attributes['llm.tokens.thinking'], 1);
   assert.deepEqual([control.llmCalls, control.inputTokens, control.outputTokens, control.thinkingTokens], [1, 9, 3, 1]);
   control.dispose();
@@ -468,4 +434,17 @@ test('a Gemini-only tool on another model is refused, as ADK refuses it', async 
     invocationId: 'e-1',
   });
   assert.deepEqual(gemini.request.nativeTools, ['code_execution', 'url_context', 'web_search']);
+});
+
+test('an ADK tool from a toolset or in extraTools is refused, naming 1.0.0', async () => {
+  const { session } = await freshSession();
+  const adkTool = { name: 'legacy_lookup', description: 'Look up.', runAsync: async () => 'never' };
+  const refused = /model request: 'legacy_lookup' is an ADK tool, which melchizedek-agents 1\.0\.0 no longer runs \(ADR 0107\); define it with defineTool/;
+  const toolset = { name: 'legacy_set', getTools: async () => [adkTool] };
+  await assert.rejects(buildModelRequest(plainAgent({ tools: [toolset] }), { session, invocationId: 'e-1' }), refused);
+  await assert.rejects(buildModelRequest(plainAgent(), { session, invocationId: 'e-1', extraTools: [adkTool] }), refused);
+  // An own toolset's own Tool still builds.
+  const ownSet = { name: 'own_set', getTools: async () => resolveTools(['native_step_lookup']).map(own) };
+  const built = await buildModelRequest(plainAgent({ tools: [ownSet] }), { session, invocationId: 'e-1' });
+  assert.deepEqual(built.request.tools?.map((t) => t.name), ['native_step_lookup']);
 });

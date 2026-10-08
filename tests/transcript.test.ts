@@ -9,9 +9,9 @@
  * thought, and 35 KB of raw tool JSON, all indistinguishable from something
  * the human had typed. The session was shared; the conversation was not.
  *
- * The last cases run a two-route conversation through runSyndicateTurn on
- * both runtimes (tests/helpers/runtime.ts): the next route must read the
- * previous route's answer the same way on each, and across them.
+ * The last cases run a two-route conversation through runSyndicateTurn: the
+ * next route must read the previous route's answer as a model turn, as it
+ * did in the all-ADK conversation ADK 2.2 recorded.
  *
  * So the load-bearing assertion below is the boring one: a past agent turn
  * must come out as `role: "model"`. Everything else follows from it.
@@ -19,13 +19,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { InMemorySessionService } from '@google/adk';
-import type { Event } from '@google/adk';
 import { ProjectedSessionService, projectTranscript, renderTranscriptDigest, trimEventForStorage } from '../lib/session/transcript.ts';
 import { SupabaseSessionService } from '../lib/session/supabaseSessionService.ts';
-import { asSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import { createTurnEvent } from '../lib/runtime/events.ts';
-import type { TurnEvent, TurnEventInit } from '../lib/runtime/events.ts';
+import type { TurnEvent, TurnEvent as Event, TurnEventInit } from '../lib/runtime/events.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { SessionService } from '../lib/runtime/sessions.ts';
 import { fakeSupabase } from './helpers/fakeSupabase.ts';
@@ -36,12 +33,10 @@ import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
-import { acrossRuntimes, forEachRuntime, runtimeOption } from './helpers/runtime.ts';
-import type { RuntimeName } from './helpers/runtime.ts';
 import { adkReferences } from './helpers/adkReference.ts';
 
-// The all-ADK conversation the cross-runtime case is held to is recorded
-// (tests/fixtures/adk-reference/transcript); it runs only under ADK_REFERENCE=live|record.
+// The all-ADK conversation the turn case is held to, as ADK 2.2 recorded it
+// (tests/fixtures/adk-reference/transcript).
 const reference = adkReferences('transcript');
 
 const user = (text: string): Event => ({ author: 'user', content: { role: 'user', parts: [{ text }] } } as Event);
@@ -69,7 +64,7 @@ test('a past agent turn survives as a model turn, not as user text', () => {
   assert.equal(answer!.content!.role, 'model');
 });
 
-test('a foreign turn is re-authored to the running agent so ADK keeps it as a model turn', () => {
+test('a foreign turn is re-authored to the running agent so the history keeps it as a model turn', () => {
   // ADK's getContents rewrites any event whose author differs from the
   // running agent into `role: "user"` prefixed "For context:". Re-authoring
   // is the whole mechanism — if this regresses, the prompt silently flattens.
@@ -331,12 +326,11 @@ async function seeded(store: SessionService): Promise<void> {
 
 for (const [name, make] of [
   ['an engine store', () => new InProcessSessionService()],
-  ['an ADK store', () => new InMemorySessionService()],
-  ['a store with both faces', () => new SupabaseSessionService(fakeSupabase().client)],
+  ['a durable store', () => new SupabaseSessionService(fakeSupabase().client)],
 ] as const) {
   test(`the projection is an engine store over ${name}: get projects history, append lands in both views`, async () => {
     const inner = make();
-    const store = asSessionService(inner);
+    const store: SessionService = inner;
     await seeded(store);
     const projected: SessionService = new ProjectedSessionService(inner, 'Conversationalist');
 
@@ -374,18 +368,16 @@ for (const [name, make] of [
   });
 }
 
-test('the engine face replays the interrupted turn raw, as the ADK face does', async () => {
+test('the projection replays the interrupted turn raw', async () => {
   const store = new InProcessSessionService();
   await seeded(store);
   const projected = new ProjectedSessionService(store, 'Analyst', { rawFrom: () => 1 });
   const viaEngine = (await projected.get(KEY))!;
-  const viaAdk = (await projected.getSession(KEY))!;
-  assert.equal(JSON.stringify(viaEngine.events), JSON.stringify(viaAdk.events));
   assert.ok(JSON.stringify(viaEngine.events).includes('load_memory'), 'the raw tail keeps its tool call');
   assert.equal(viaEngine.events[0]!.author, 'user');
 });
 
-// ── Through a turn, on both runtimes ─────────────────────────────────────────
+// ── Through a turn ───────────────────────────────────────────────────────────
 
 registerTool(
   'transcript_quotes',
@@ -404,8 +396,8 @@ const deskConfig = (): SyndicateYamlConfig =>
     dispatch: { default_route: 'Conversationalist' },
   }) as unknown as SyndicateYamlConfig;
 
-/** Two turns on one store: the Analyst answers with a tool, then the Conversationalist; each turn on `on(i)`. */
-async function deskConversation(on: (turn: number) => RuntimeName | undefined) {
+/** Two turns on one store: the Analyst answers with a tool, then the Conversationalist. */
+async function deskConversation() {
   const models = {
     router: new ScriptedModel('scripted/router', (req) =>
       answer(/neglecting/.test(requestTexts(req).at(-1) ?? '') ? '{"route":"Conversationalist","reason":"chat"}' : '{"route":"Analyst","reason":"a ticker"}'),
@@ -415,11 +407,9 @@ async function deskConversation(on: (turn: number) => RuntimeName | undefined) {
     ),
     chat: new ScriptedModel('scripted/chat', () => answer('Noted.')),
   };
-  const sessionService = new InMemorySessionService();
-  for (const [i, text] of ['Should I buy MU on Monday?', 'You are neglecting AI and security.'].entries()) {
-    const runtime = on(i);
+  const sessionService = new InProcessSessionService();
+  for (const text of ['Should I buy MU on Monday?', 'You are neglecting AI and security.']) {
     const r = await runSyndicateTurn({
-      ...(runtime ? { runtime } : runtimeOption()),
       config: deskConfig(),
       parts: [{ text }],
       appName: 'desk',
@@ -437,8 +427,8 @@ async function deskConversation(on: (turn: number) => RuntimeName | undefined) {
 /** The Conversationalist's request: every message, as role and the text it carries. */
 const seenByChat = (request: ModelRequest) => request.messages.map((m) => ({ role: m.role, parts: m.parts.map((p) => (p.type === 'text' ? p.text : p.type)) }));
 
-forEachRuntime('through a turn: the next route reads the previous route\'s answer as a model turn, without its tool traffic', async () => {
-  const request = await deskConversation(() => undefined);
+test('through a turn: the next route reads the previous route\'s answer as a model turn, without its tool traffic', async () => {
+  const request = await deskConversation();
   const seen = seenByChat(request);
   const answerTurn = seen.find((m) => m.parts.some((p) => /accumulate under \$130/.test(String(p))));
   assert.ok(answerTurn, 'the Analyst\'s answer reaches the Conversationalist');
@@ -448,12 +438,7 @@ forEachRuntime('through a turn: the next route reads the previous route\'s answe
   assert.ok(!seen.some((m) => m.parts.some((p) => p === 'toolCall' || p === 'toolResult')), 'no tool traffic');
 });
 
-/** Both turns on ADK: what the Conversationalist saw there, recorded once for both directions. */
-let allAdk: Promise<ReturnType<typeof seenByChat>> | undefined;
-const seenOnAdk = () => (allAdk ??= reference('desk-conversation-all-adk', async () => seenByChat(await deskConversation(() => 'adk'))));
-
-acrossRuntimes('through a turn: a route on one runtime reads what a route on the other wrote, as on one runtime', async (writer, reader) => {
-  const onAdk = await seenOnAdk();
-  const crossed = seenByChat(await deskConversation((i) => (i === 0 ? writer : reader)));
-  assert.deepEqual(crossed, onAdk);
+test('through a turn: the next route reads what the previous route wrote as it did in the recorded all-ADK conversation', async () => {
+  const onAdk = await reference<ReturnType<typeof seenByChat>>('desk-conversation-all-adk');
+  assert.deepEqual(seenByChat(await deskConversation()), onAdk);
 });

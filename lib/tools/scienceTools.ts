@@ -1,9 +1,9 @@
 /**
  * lib/tools/scienceTools.ts — the clinical-evidence tools, defined as tool
  * CONTRACTS (lib/tools/toolContract.ts): one zod schema per tool is the single
- * source of truth, from which both deployment surfaces derive — the ADK
- * FunctionTools consumed by lib/toolRegistry.ts, and the MCP tools/list entries
- * served by scripts/science_mcp_server.ts.
+ * source of truth, from which both deployment surfaces derive — the own Tools
+ * consumed by lib/toolRegistry.ts, and the MCP tools/list entries served by
+ * scripts/science_mcp_server.ts.
  *
  * Ported from the science desk (2026-09-08). The four source clients under
  * lib/tools/science/ are that desk's, verbatim: Europe PMC (literature and
@@ -305,10 +305,8 @@ export const SCIENCE_TOOL_CONTRACTS: readonly ToolContract<any>[] = [
   checkRetractionContract,
 ];
 
-// No `export const …Tool = toFunctionTool(…)` line here on purpose.
-// lib/toolRegistry.ts derives the ADK FunctionTools itself, straight from
-// SCIENCE_TOOL_CONTRACTS — the same shape lib/tools/wikiTools.ts uses. Seven
-// eagerly-built duplicates used to sit here that nothing imported, so every
-// consumer of this module (the MCP server and scripts/wiki/build.ts among them,
-// neither of which wants ADK tools at all) paid for seven schema conversions
-// and seven FunctionTool constructions at import time.
+// No `export const …Tool = asTool(…)` line here on purpose.
+// lib/toolRegistry.ts derives the registry's tools itself, straight from
+// SCIENCE_TOOL_CONTRACTS — the same shape lib/tools/wikiTools.ts uses — so a
+// consumer of this module that wants only the contracts (the MCP server,
+// scripts/wiki/build.ts) builds nothing else at import time.

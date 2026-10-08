@@ -1,50 +1,41 @@
 /**
  * tests/responsesAdapter.test.ts — GPT and Grok on the engine's own model
  * contract (lib/models/gptAdapter.ts, lib/models/grokAdapter.ts, ADR 0048),
- * and GptLlm/GrokLlm as the ADK shim around them (ADR 0053, ADR 0056).
+ * traced and mapped as the native model step traces and stores them
+ * (ADR 0053).
  *
  * Offline: the adapters talk to a fetch stub that answers in the Responses
  * API's own wire format (JSON, or SSE when the request streams), so the real
  * openai SDK builds and parses everything. Keys are fixtures.
  *
  * What is proved here:
- *   - a ModelRequest reaches the wire as the LlmRequest the ADK path sent
- *     did: the request-body assertions of models.test.ts,
- *     reasoningKey.test.ts, responsesReasoningState.test.ts and
- *     endpoints.test.ts, made against ModelRequest inputs, and GptLlm and
- *     GptAdapter sending the same body for the same conversation;
+ *   - the request-body assertions of models.test.ts, reasoningKey.test.ts,
+ *     responsesReasoningState.test.ts and endpoints.test.ts, made against
+ *     ModelRequest inputs;
  *   - grok-4.6 takes an effort and replays its reasoning, as 4.5 and 4.7 do;
  *   - a reply becomes partials and one final in the contract's meanings:
  *     usage with reasoning inside the output, grounding, finish reasons;
  *   - every failure is a final; an in-stream failure carries a retry
  *     verdict when its event names a status or an error type; an abort ends
  *     the call at once and is never retryable;
- *   - on the ADK path, GptLlm keeps the Responses usage meaning (the turn's
- *     and the ledger's output count include reasoning, as before), the
- *     server-side tool record on customMetadata, and groundingMetadata for
- *     the A2A server's web sources.
+ *   - traced as the model step traces it, a call charges the turn output
+ *     less reasoning and the reasoning on its own, and the mapped final
+ *     carries groundingMetadata for the A2A server's web sources.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LogLevel, setLogLevel } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
 
 import type { FinalModelResponse, Message, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { GptAdapter, REASONING_STATE_KIND, responsesInput, responsesServerTools, streamErrorDecision } from '../lib/models/gptAdapter.ts';
 import { GrokAdapter } from '../lib/models/grokAdapter.ts';
-import { GptLlm, buildResponsesInput } from '../lib/models/gptLlm.ts';
-import { GrokLlm } from '../lib/models/grokLlm.ts';
-import { adkShim } from '../lib/models/adkShim.ts';
-import { isRetryableErrorResponse } from '../lib/models/errorResponse.ts';
-import { withProviderState } from '../lib/models/providerState.ts';
+import { modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
+import type { LlmResponse } from '../lib/models/genaiMapping.ts';
+import type { ModelAdapter } from '../lib/models/contract.ts';
+import { traceLlmGeneration } from '../lib/observability/tracer.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
-import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
-import { X_SEARCH } from '../lib/tools/xSearchTool.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const OPENAI_KEY = 'fixture-openai-0123456789abcdef'; // gitleaks:allow (test fixture)
 const XAI_KEY = 'fixture-xai-0123456789abcdef'; // gitleaks:allow (test fixture)
@@ -165,9 +156,9 @@ async function bodyOf(adapter: GptAdapter, req: ModelRequest): Promise<any> {
   });
 }
 
-// ── The request: the ADK path's assertions against ModelRequest inputs ──────
+// ── The request ──────────────────────────────────────────────────────────────
 
-test('a conversation: instructions, call ids round-tripped, input_text, and the result as the ADK path sent it', () => {
+test('a conversation: instructions, call ids round-tripped, input_text, and the result in genai\'s functionResponse envelope', () => {
   const messages: Message[] = [
     { role: 'system', parts: [{ type: 'text', text: 'Be concise.' }] },
     user('What is 2+2?'),
@@ -182,20 +173,6 @@ test('a conversation: instructions, call ids round-tripped, input_text, and the 
   assert.equal(output!.call_id, 'call_abc'); // the Responses API requires the match
   assert.equal(output!.output, '{"result":4}', "genai's functionResponse.response, as before");
   assert.equal(input.find((i) => i.role === 'user')!.content[0].type, 'input_text');
-
-  // The same conversation from an LlmRequest gives the same items.
-  const llmRequest = {
-    model: 'gpt-5-mini',
-    contents: [
-      { role: 'system', parts: [{ text: 'Be concise.' }] },
-      { role: 'user', parts: [{ text: 'What is 2+2?' }] },
-      { role: 'model', parts: [{ functionCall: { id: 'call_abc', name: 'calc', args: { a: 2 } } }] },
-      { role: 'user', parts: [{ functionResponse: { id: 'call_abc', name: 'calc', response: { result: 4 } } }] },
-    ],
-    toolsDict: {},
-    liveConnectConfig: {},
-  } as unknown as LlmRequest;
-  assert.deepEqual(buildResponsesInput(llmRequest).input, input);
 
   // A failed tool says so in its output; system text joins the request's own.
   const failedTool = responsesInput({
@@ -344,7 +321,7 @@ test('reasoning: each vendor maps the setting to its own field; grok-4.6 takes a
   }
 });
 
-test('sampling and structured output: as the ADK path sent them, with top_p beside temperature', async () => {
+test('sampling and structured output: the ceiling, temperature with top_p beside it, and a strict schema', async () => {
   const sampling = { temperature: 0.2, topP: 0.9, maxOutputTokens: 512, stop: ['END'] };
   const schema = { type: 'object', properties: { verdict: { type: 'string' }, note: { type: 'string' } }, required: ['verdict'] };
   let body = await bodyOf(gpt('gpt-4o'), request('gpt-4o', { sampling, outputSchema: schema }));
@@ -379,38 +356,8 @@ test("JSON mode (outputFormat 'json', ADR 0061): text.format json_object on GPT 
   assert.ok(!('text' in (await bodyOf(gpt('gpt-4o'), request('gpt-4o')))), 'plain text sends no format');
 });
 
-test('the ADK path: responseMimeType application/json without a schema is JSON mode on GptLlm and GrokLlm, as before WS1-5', async () => {
-  const adkBody = (llm: GptLlm, config: Record<string, unknown>) =>
-    withFetch([400, 400], async (sent) => {
-      await collect(llm.generateContentAsync({ ...llmRequestOf(llm.model), config } as LlmRequest));
-      return sent[0].body;
-    });
-  const json = { responseMimeType: 'application/json' };
-  const gptLlm = () => new GptLlm({ model: 'gpt-5-mini', apiKey: OPENAI_KEY, endpoint: DIRECT });
-  const grokLlm = () => new GrokLlm({ model: 'grok-4.7', apiKey: XAI_KEY });
-  assert.deepEqual((await adkBody(gptLlm(), json)).text, { format: { type: 'json_object' } });
-  assert.deepEqual((await adkBody(grokLlm(), json)).text, { format: { type: 'json_object' } });
-  const schema = { ...json, responseSchema: { type: 'OBJECT', properties: { verdict: { type: 'STRING' } }, required: ['verdict'] } };
-  assert.equal((await adkBody(gptLlm(), schema)).text.format.type, 'json_schema');
-  assert.ok(!('text' in (await adkBody(grokLlm(), {}))));
-});
-
-test('GptLlm and GptAdapter send the same body for the same conversation', async () => {
+test('a conversation with a replayed reasoning item: the item before its call, the text after it', async () => {
   const state = { provider: 'openai', kind: REASONING_STATE_KIND, model: 'gpt-5-mini', payload: [R1] };
-  const llmRequest = {
-    model: 'gpt-5-mini',
-    contents: [
-      { role: 'user', parts: [{ text: 'find it' }] },
-      { role: 'model', parts: [{ text: 'Thinking it over.', thought: true }, { text: 'Let me ask Scout.' }, withProviderState({ functionCall: { id: 'call_1', name: 'Scout', args: { request: 'attic' } } }, state)] },
-      { role: 'user', parts: [{ functionResponse: { id: 'call_1', name: 'Scout', response: { result: 'found' } } }] },
-    ],
-    toolsDict: {
-      Scout: { name: 'Scout', description: 'Finds things', parameters: { type: 'OBJECT', properties: { request: { type: 'STRING' } }, required: ['request'] } },
-      web_search: WEB_SEARCH,
-    },
-    config: { systemInstruction: 'Delegate to Scout.', reasoningEffort: 'low', maxOutputTokens: 900 },
-    liveConnectConfig: {},
-  } as unknown as LlmRequest;
   const modelRequest: ModelRequest = {
     model: 'gpt-5-mini',
     system: 'Delegate to Scout.',
@@ -431,28 +378,12 @@ test('GptLlm and GptAdapter send the same body for the same conversation', async
     reasoning: 'low',
     sampling: { maxOutputTokens: 900 },
   };
-  const viaLlm = await withFetch([400, 400], async (sent) => {
-    await collect(new GptLlm({ model: 'gpt-5-mini', apiKey: OPENAI_KEY, endpoint: DIRECT }).generateContentAsync(llmRequest));
-    return sent[0].body;
-  });
   const viaAdapter = await bodyOf(gpt(), modelRequest);
-  assert.deepEqual(viaAdapter, viaLlm);
-  // And it is the body the ADK path built: the item replayed before its call, the text after it.
   assert.deepEqual(
     viaAdapter.input.map((i: any) => i.type ?? i.role),
     ['user', 'assistant', 'reasoning', 'function_call', 'function_call_output'],
   );
   assert.deepEqual(viaAdapter.reasoning, { summary: 'auto', effort: 'low' });
-
-  // Grok, with its native tools from the sentinels.
-  const grokLlmRequest = { ...llmRequest, model: 'grok-4.7', toolsDict: { ...llmRequest.toolsDict, x_search: X_SEARCH }, config: {} } as unknown as LlmRequest;
-  const grokRequest: ModelRequest = { ...modelRequest, model: 'grok-4.7', system: undefined, nativeTools: ['web_search', 'x_search'], reasoning: undefined, sampling: undefined };
-  delete grokRequest.system;
-  const grokViaLlm = await withFetch([400], async (sent) => {
-    await collect(new GrokLlm({ model: 'grok-4.7', apiKey: XAI_KEY }).generateContentAsync(grokLlmRequest));
-    return sent[0].body;
-  });
-  assert.deepEqual(await bodyOf(grok(), grokRequest), grokViaLlm);
 });
 
 // ── Reasoning across a tool loop, on the contract ───────────────────────────
@@ -526,7 +457,7 @@ test('replay: only this turn, this model and this provider; order kept; an item 
   assert.ok(!responsesInput({ messages: [user('q'), { role: 'assistant', parts: [call('c1', stateOf([R1]))] }, result('c1')] }).input.some((i) => i.type === 'reasoning'));
 
   // A message that replays keeps text before a call that carries nothing of its own;
-  // one that does not replay puts its calls first, as the ADK path built it.
+  // one that does not replay puts its calls first.
   const textThenCall = (state?: ReturnType<typeof stateOf>): Message[] => [
     user('q'),
     { role: 'assistant', parts: [{ type: 'text', text: 'Asking.', ...(state ? { providerState: state } : {}) }, call('c1')] },
@@ -667,13 +598,6 @@ test('in-stream failures carry a retry verdict when the event names a status or 
       assert.deepEqual(final.parts, [], `${label}: no half answer is stored`);
     });
   }
-  // The verdict reaches FallbackLlm on the ADK path.
-  await withFetch([{ sse: sseOf([failedEvent('server_error')]) }], async () => {
-    const out = await collect(new GptLlm({ model: 'gpt-4o', apiKey: OPENAI_KEY, endpoint: DIRECT }).generateContentAsync(llmRequestOf('gpt-4o'), true));
-    const last = out.at(-1)!;
-    assert.equal(last.errorCode, 'OPENAI_STREAM_ERROR');
-    assert.equal(isRetryableErrorResponse(last), true);
-  });
   assert.deepEqual(streamErrorDecision({ type: 'error', error: { type: 'server_error' } }), { retryable: true });
   assert.deepEqual(streamErrorDecision(undefined), { retryable: false });
 });
@@ -700,32 +624,27 @@ test('an abort ends the call at once, with the ordinary code and never retryable
   });
 });
 
-// ── The ADK path: GptLlm and GrokLlm around the adapters ─────────────────────
+// ── Traced as the model step traces it ───────────────────────────────────────
 
-function llmRequestOf(model: string, toolsDict: Record<string, unknown> = {}): LlmRequest {
-  return { model, contents: [{ role: 'user', parts: [{ text: 'hello' }] }], toolsDict, config: {}, liveConnectConfig: {} } as unknown as LlmRequest;
+/** Runs an adapter on `request` inside the llm.request span, as the model step does (ADR 0053), yielding each response mapped. */
+function traced(adapter: ModelAdapter, request: ModelRequest): AsyncGenerator<LlmResponse, void> {
+  async function* mapped(): AsyncGenerator<LlmResponse, void> {
+    for await (const r of adapter.generate(request)) yield modelResponseToLlmResponse(r);
+  }
+  return traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, mapped());
 }
 
-test('GptLlm keeps the Responses usage meaning: the turn and the ledger count reasoning inside the output, as before', async () => {
-  const run = async (llm: { generateContentAsync(r: LlmRequest, s?: boolean): AsyncGenerator<LlmResponse, void> }) => {
-    const control = createTurnControl({ maxLlmCalls: 5 });
-    const out = await withFetch([responseOf([outputMessage('hi')])], () => runWithTurnControl(control, () => collect(llm.generateContentAsync(llmRequestOf('gpt-5-mini')))));
-    const counts = [control.inputTokens, control.outputTokens, control.thinkingTokens];
-    control.dispose();
-    return { usage: out.at(-1)!.usageMetadata, counts };
-  };
-  const gptLlm = await run(new GptLlm({ model: 'gpt-5-mini', apiKey: OPENAI_KEY, endpoint: DIRECT }));
-  assert.equal(gptLlm.usage?.candidatesTokenCount, 7, 'output_tokens, reasoning included');
-  assert.equal(gptLlm.usage?.thoughtsTokenCount, 4);
-  assert.equal(gptLlm.usage?.promptTokenCount, 12);
-  assert.equal(gptLlm.usage?.totalTokenCount, 19);
-  assert.deepEqual(gptLlm.counts, [12, 7, 4]);
-  // The bare shim writes Gemini's meaning, reasoning excluded: why GptLlm overrides it.
-  const bare = await run(adkShim(gpt()));
-  assert.deepEqual(bare.counts, [12, 3, 4]);
+test("the turn's charge: output less reasoning, and the reasoning on its own (Gemini's meaning, as every adapter's call is charged)", async () => {
+  const control = createTurnControl({ maxLlmCalls: 5 });
+  const out = await withFetch([responseOf([outputMessage('hi')])], () => runWithTurnControl(control, () => collect(traced(gpt(), request('gpt-5-mini')))));
+  const counts = [control.inputTokens, control.outputTokens, control.thinkingTokens];
+  control.dispose();
+  assert.equal(out.at(-1)!.usageMetadata?.thoughtsTokenCount, 4);
+  assert.equal(out.at(-1)!.usageMetadata?.promptTokenCount, 12);
+  assert.deepEqual(counts, [12, 3, 4]);
 });
 
-test('GrokLlm events keep the server-side tool record, and carry groundingMetadata for the web sources', async () => {
+test('a Grok final, mapped, carries groundingMetadata for the web sources', async () => {
   const reply = responseOf(
     [
       { id: 'ws_1', type: 'web_search_call', status: 'completed', action: { type: 'search', query: 'NVDA', sources: [{ type: 'url', url: 'https://example.com/' }] } },
@@ -736,13 +655,9 @@ test('GrokLlm events keep the server-side tool record, and carry groundingMetada
   );
   for (const stream of [false, true]) {
     await withFetch([reply], async () => {
-      const out = await collect(new GrokLlm({ model: 'grok-4.7', apiKey: XAI_KEY }).generateContentAsync(llmRequestOf('grok-4.7', { web_search: WEB_SEARCH }), stream));
+      const out = await collect(traced(grok(), request('grok-4.7', { stream, nativeTools: ['web_search'] })));
       const final = out.at(-1) as LlmResponse;
       assert.equal(final.turnComplete, true);
-      assert.deepEqual(final.customMetadata?.['responses.server_tool_calls'], [
-        { name: 'web_search', args: { type: 'search', query: 'NVDA' }, status: 'completed', sources: ['https://example.com/'] },
-      ]);
-      assert.deepEqual(final.customMetadata?.['responses.server_tool_usage'], { total: 1, web_search_calls: 1 });
       assert.deepEqual(final.groundingMetadata?.groundingChunks, [{ web: { uri: 'https://example.com/', title: 'Example' } }]);
       assert.equal(final.content?.parts?.[0]?.text, 'Down 0.4%.');
     });

@@ -7,10 +7,10 @@
  *   agent: its own turns as they are, the person's words as they are,
  *   another agent's turns retold as context, approvals and credential
  *   requests left out, and a tool's late answer moved next to the call it
- *   answers. ADK's content processor does this on the ADK runtime
- *   (agents/processors/content_processor_utils.js in @google/adk 2.2), and a
- *   session one runtime wrote must read the same on the other, so this is
- *   that processor, rule for rule, over TurnEvents:
+ *   answers. ADK's content processor did this
+ *   (agents/processors/content_processor_utils.js in Google ADK 2.2), and a
+ *   session ADK wrote must read as it did, so this is that processor, rule
+ *   for rule, over TurnEvents:
  *
  *   - includeContents `default`: every visible event; `none`: from the
  *     latest message by the person or by another agent, reaching back to
@@ -30,8 +30,7 @@
  *   The contents are deep copies, so nothing here changes a stored event.
  *
  * The result is genai-shaped content, as stored. The request builder maps it
- * to the model contract through lib/models/genaiMapping.ts, the same mapping
- * the ADK shim applies, so both runtimes hand an adapter the same messages.
+ * to the model contract through lib/models/genaiMapping.ts.
  */
 
 import type { TurnContent, TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';

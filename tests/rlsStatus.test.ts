@@ -10,7 +10,7 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
-import { InMemorySessionService } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { evaluatePostgresRls, evaluateRlsRows } from '../lib/storage/rlsStatus.ts';
@@ -44,7 +44,7 @@ async function boot(status: RlsHardeningStatus, requireHardenedDb: boolean) {
     defaultSyndicate: 'assistant.yaml',
     servedAgents: ['assistant.yaml'],
     serverSecret: 'test-secret-0123456789abcdef0123456789', // gitleaks:allow (test fixture)
-    storage: { sessionService: new InMemorySessionService(), schemaVersion: async () => SHIPPED, rlsHardening: async () => status },
+    storage: { sessionService: new InProcessSessionService(), schemaVersion: async () => SHIPPED, rlsHardening: async () => status },
     requireHardenedDb,
     log: (m) => logs.push(m),
     warn: (m) => warnings.push(m),

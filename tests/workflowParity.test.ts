@@ -13,10 +13,10 @@
  *      virtual clock (tests/helpers/virtualClock.ts), and a node two
  *      branches trigger; and, with the pause, an agent node's
  *      user turn stored ahead of an ask_user request started in the same
- *      pass, as ADK appends the turn straight to the session. Closer
- *      finishes race on both runtimes and are not pinned. The scripts wait
- *      on the virtual clock, so a finish order is the profile's timeline on
- *      every runtime however loaded the machine is.
+ *      pass, as ADK appended the turn straight to the session. Closer
+ *      finishes race and are not pinned. The scripts wait on the virtual
+ *      clock, so a finish order is the profile's timeline however loaded
+ *      the machine is.
  *   4. A compaction event a node agent stores carries the node stamp
  *      (enrichNodeEvent), and outside task mode the summary as its output,
  *      as ADK's node runner and maybeSetOutput write it.
@@ -24,19 +24,18 @@
  *      stores the node-error event ADK's workflow writes, and a node that
  *      reported its own error stores none.
  *
- * Parity cases run one workflow syndicate on ADK (runSyndicateTurn, runtime
- * adk), on the scheduler with agentNodeRuntime driven by hand, and through
- * the native turn (runSyndicateTurn, runtime native), with the same
- * scripted models (tests/helpers/workflowParity.ts), and compare the stored
- * events (ids and times aside), every model's requests, the routes, the
- * output and the progress lines. No network.
+ * Parity cases run one workflow syndicate on the scheduler with
+ * agentNodeRuntime driven by hand, and through the turn (runSyndicateTurn),
+ * with the same scripted models (tests/helpers/workflowParity.ts), and
+ * compare against ADK 2.2's run as recorded in
+ * tests/fixtures/adk-reference/workflowparity: the stored events (ids and
+ * times aside), every model's requests, the routes, the output and the
+ * progress lines. No network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 
 import { createTurnEvent } from '../lib/runtime/events.ts';
@@ -50,38 +49,15 @@ import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
 import { answer, failure, requestTexts, toolCall } from './helpers/scriptedModel.ts';
 import { virtualClock } from './helpers/virtualClock.ts';
 import { agent, adkSide, bothAgree, comparable, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
-// ADK's side of each case is recorded (tests/fixtures/adk-reference/workflowparity); ADK runs only under ADK_REFERENCE=live|record.
+// ADK's side of each case is recorded (tests/fixtures/adk-reference/workflowparity).
 const reference = adkReferences('workflowParity');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── 1. Workflow placeholders ─────────────────────────────────────────────────
 
-/** ADK's own injectSessionState, called with a context shaped like the one runLlmAgentAsNode builds. Live only. */
-async function adkInject(template: string, state: Record<string, unknown>, scope?: WorkflowInstructionScope): Promise<string> {
-  const { injectSessionState: adk } = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/agents/instructions.js')).href);
-  return adk(template, { invocationContext: { session: { state }, ...(scope ? { workflowInstructionScope: scope } : {}) } });
-}
-
-/** ADK's injectSessionState over each template, recorded: its text, or what it threw (as String(error)). */
-const adkInjected = (name: string, templates: string[], state: Record<string, unknown>, scope?: (i: number) => WorkflowInstructionScope | undefined) =>
-  reference(name, async () => {
-    const out: Array<{ text?: string; threw?: string }> = [];
-    for (const [i, template] of templates.entries()) {
-      try {
-        out.push({ text: await adkInject(template, state, scope?.(i)) });
-      } catch (e) {
-        out.push({ threw: String(e) });
-      }
-    }
-    return out;
-  });
+/** ADK's injectSessionState over each template, as recorded: its text, or what it threw (as String(error)). */
+const adkInjected = (name: string) => reference<Array<{ text?: string; threw?: string }>>(name);
 
 const SCOPE: WorkflowInstructionScope = {
   input: { topic: 'cats', who: 'kids', n: 3, obj: { a: 1 }, empty: '', nil: null },
@@ -108,12 +84,12 @@ const TEMPLATES = [
 ];
 
 test("workflow placeholders: the same text as ADK's injectSessionState, with and without a scope", async () => {
-  const scoped = await adkInjected('placeholders-with-a-scope', TEMPLATES, STATE, () => SCOPE);
+  const scoped = await adkInjected('placeholders-with-a-scope');
   for (const [i, template] of TEMPLATES.entries()) {
     assert.equal(scoped[i]?.threw, undefined, `ADK fills it with a scope: ${template}`);
     assert.equal(injectSessionState(template, STATE, SCOPE), scoped[i]?.text, `with a scope: ${template}`);
   }
-  const unscoped = await adkInjected('placeholders-without-a-scope', TEMPLATES, STATE);
+  const unscoped = await adkInjected('placeholders-without-a-scope');
   for (const [i, template] of TEMPLATES.entries()) {
     // Without a scope a workflow key is not a key at all; a thrown error is compared as its message.
     let ours: string | Error;
@@ -131,7 +107,7 @@ test("workflow placeholders: the same text as ADK's injectSessionState, with and
 test('workflow placeholders: a non-object input fills nothing, an array input reads its own keys, as on ADK', async () => {
   const inputs = ['cats', 3, null, undefined, ['a', 'b'], { role: 'user', parts: [{ text: 'x' }] }];
   const template = '{input.topic} {input.length} {input.role?} {input.parts}';
-  const theirs = await adkInjected('placeholders-non-object-input', inputs.map(() => template), {}, (i) => ({ input: inputs[i], outputsByNode: {} }));
+  const theirs = await adkInjected('placeholders-non-object-input');
   for (const [i, input] of inputs.entries()) {
     const scope = { input, outputsByNode: {} };
     assert.equal(theirs[i]?.threw, undefined, `ADK fills it: ${JSON.stringify(input)}`);
@@ -293,10 +269,7 @@ test("a map of an empty list, of a non-list input and of object items stores ADK
 test("nodeOutputContent is ADK's toContent", async () => {
   const values = ['x', ['a', 'b'], [], [1], ['a', { text: 'b' }], ['a', null], { text: 't', extra: 1 }, { k: 1 }, 3, true, { role: 'user', parts: [{ text: 'c' }] }, [{ functionCall: { name: 'f' } }], null, undefined];
   // ADK's toContent of each value, recorded as { content } (absent for undefined).
-  const theirs = await reference('to-content', async () => {
-    const { toContent } = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/workflow/base_node.js')).href);
-    return values.map((value) => ({ content: toContent(value) }));
-  });
+  const theirs = await reference<unknown[]>('to-content');
   for (const [i, value] of values.entries()) assert.deepEqual(JSON.parse(JSON.stringify({ content: nodeOutputContent(value) })), theirs[i], JSON.stringify(value));
 });
 
@@ -391,7 +364,7 @@ function fanOutScripts(d: Profile) {
   };
 }
 
-/** Each event's finish time in a profile: no two closer than 20 ms, so the order is the timeline's on both runtimes. */
+/** Each event's finish time in a profile: no two closer than 20 ms, so the order is the timeline's. */
 function timeline(d: Profile): number[] {
   const aCall = d.a;
   const aAnswer = aCall + d.tool + d.a;
@@ -446,7 +419,7 @@ async function withTickingClock<T>(fn: () => Promise<T>): Promise<T> {
 /** Lead → Worker → Last, Worker compacting before its first step: Lead's answer reports a prompt past the threshold. */
 function compactingChain(worker: Record<string, unknown>) {
   const cfg = workflowConfig({ edges: [['START', 'Lead', 'Worker', 'Last']] }, [agent('Worker', worker), agent('Last')], agent('Lead'));
-  // The schema keeps `context:` to a delegate orchestrator; the runtimes compile it on any agent, so the case sets it after validation.
+  // The schema keeps `context:` to a delegate orchestrator; the compile takes it on any agent, so the case sets it after validation.
   (cfg.subagents as unknown as Array<Record<string, unknown>>)[0]!.context = { compact_after_tokens: 100, keep_recent_events: 1, summary_model: 'scripted/sum' };
   return cfg;
 }
@@ -504,7 +477,7 @@ test('a node that gives up: the native turn stores the node-error event ADK writ
   // A tool node whose input is not JSON throws ADK's TypeError: a thrown error, reported once by the workflow.
   const cfg = workflowConfig({ edges: [['START', 'Triage', 'Lookup', 'Reader']], nodes: { Lookup: { tool: 'parity_lookup' } } }, [agent('Reader')]);
   const scripts = { triage: () => answer('not json'), reader: () => answer('never') };
-  const adk = await adkSide(reference, 'node-gives-up', cfg, scripts, 'go');
+  const adk = await adkSide(reference, 'node-gives-up');
   const turn = await onNativeTurn(cfg, scripts, 'go');
   assert.equal(adk.status, 'failed');
   assert.equal(turn.status, 'failed');
@@ -523,7 +496,7 @@ test("an agent node that reports errors: each attempt's event, retried, then giv
   assert.equal(turn.events.filter((e) => e.errorCode === '503').length, 1);
 
   const down = { triage: () => answer('bug'), fixer: () => failure({ code: '500', message: 'down' }) };
-  const adk = await adkSide(reference, 'agent-node-reports-errors-given-up', cfg, down, 'go');
+  const adk = await adkSide(reference, 'agent-node-reports-errors-given-up');
   const native = await onNativeTurn(cfg, down, 'go');
   assert.equal(native.status, 'failed');
   assert.equal(native.error, adk.error);

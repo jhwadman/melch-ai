@@ -4,14 +4,14 @@
  *
  * WHY this file exists:
  *   A DELEGATE syndicate (lib/compile.ts) lists each subagent on its
- *   orchestrator as ADK's AgentTool. The native loop (agentLoop.ts) runs
- *   the same delegation without ADK, and a session either runtime wrote must
- *   be one the other continues, so a delegated call stores what ADK's
- *   AgentTool stores, ids and times aside. tests/nativeDelegate.test.ts runs
- *   the boundary suite's delegation cases, a nested syndicate and the
- *   council example both ways and compares every session.
+ *   orchestrator as a tool, as ADK's AgentTool did. The native loop
+ *   (agentLoop.ts) runs the delegation, and a session ADK wrote must be one
+ *   the loop continues, so a delegated call stores what ADK's AgentTool
+ *   stored, ids and times aside. tests/nativeDelegate.test.ts runs the
+ *   boundary suite's delegation cases, a nested syndicate and the council
+ *   example and compares every session with ADK's recorded one.
  *
- * ONE CALL, AS ADK'S AgentTool RUNS IT:
+ * ONE CALL, AS ADK'S AgentTool RAN IT:
  *   1. The message: `{ role: 'user', parts: [{ text: args.request }] }`.
  *   2. The subagent's session: the one under the subagent's own name as the
  *      app name, with the caller's user id and session id. It is created on
@@ -62,8 +62,8 @@
  * says nothing) stays in lib/runtime/syndicateTurn.ts: it reads the drained
  * run, whichever runtime produced it.
  *
- * ADK stays out of this file: an ADK AgentTool is recognized by ADK's global
- * symbol only to refuse it, with a message naming what to list instead.
+ * ADK stays out of this file: a delegated call runs only the agent a
+ * subagent tool holds under SUBAGENT (subagentTool).
  */
 
 import { randomUUID } from 'node:crypto';
@@ -84,13 +84,10 @@ import { SelfCorrection } from './selfCorrection.ts';
 /** Where a subagent tool keeps the agent it runs. A global symbol, so a second copy of this module still finds it. */
 export const SUBAGENT: unique symbol = Symbol.for('melchizedek.subagent');
 
-/** ADK's own mark on an AgentTool (agent_tool.js). */
-const ADK_AGENT_TOOL = Symbol.for('google.adk.agentTool');
-
 /** Where a workflow subagent tool keeps the graph it runs. */
 export const WORKFLOW_SUBAGENT: unique symbol = Symbol.for('melchizedek.workflowSubagent');
 
-/** A subagent listed on its caller as a tool: the declaration ADK's AgentTool gives it, and the agent the call runs. */
+/** A subagent listed on its caller as a tool: the declaration ADK's AgentTool gave it, and the agent the call runs. */
 export interface SubagentTool extends Tool {
   readonly [SUBAGENT]: NativeAgent;
 }
@@ -139,12 +136,12 @@ export interface WorkflowSubagent {
   walk(run: WorkflowSubagentRun): AsyncGenerator<TurnEvent, unknown>;
 }
 
-/** A nested workflow listed on its caller as a tool: the declaration ADK's AgentTool gives a Workflow, and the graph the call walks. */
+/** A nested workflow listed on its caller as a tool: the declaration ADK's AgentTool gave a Workflow, and the graph the call walks. */
 export interface WorkflowSubagentTool extends Tool {
   readonly [WORKFLOW_SUBAGENT]: WorkflowSubagent;
 }
 
-/** `workflow` as a tool its caller lists, as lib/compileAdk.ts lists a nested Workflow as an AgentTool: one string `request`. Only the native loop runs it. */
+/** `workflow` as a tool its caller lists, declared as ADK's AgentTool declared a nested Workflow: one string `request`. */
 export function workflowSubagentTool(workflow: WorkflowSubagent): WorkflowSubagentTool {
   return {
     name: workflow.name,
@@ -169,17 +166,12 @@ export function workflowSubagentOf(tool: unknown): WorkflowSubagent | undefined 
 
 /**
  * The agent a delegated call runs: the one a subagent tool (or anything
- * carrying SUBAGENT) holds, else undefined. Throws for an ADK AgentTool that
- * carries none: its LlmAgent cannot run on the native loop.
+ * carrying SUBAGENT) holds, else undefined.
  */
 export function subagentOf(tool: unknown): NativeAgent | undefined {
   if (!tool || typeof tool !== 'object') return undefined;
   const agent = (tool as Record<PropertyKey, unknown>)[SUBAGENT];
   if (agent && typeof agent === 'object') return agent as NativeAgent;
-  if ((tool as Record<PropertyKey, unknown>)[ADK_AGENT_TOOL] === true) {
-    const name = (tool as { name?: unknown }).name;
-    throw new Error(`${String(name)}: an ADK AgentTool cannot run on the native loop; list subagentTool(agent) (lib/runtime/native/delegate.ts)`);
-  }
   return undefined;
 }
 

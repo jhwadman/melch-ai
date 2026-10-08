@@ -3,9 +3,6 @@
  * (OPS-04): a caller's W3C traceparent is linked from the turn's root span
  * (never adopted: the turn's own trace id stays unique), and every
  * task record carries its task id and trace id. Offline: a scripted model.
- *
- * The cases that run a turn run on both runtimes, through
- * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -17,16 +14,13 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import type { A2AApp } from '../lib/a2a/app.ts';
 import { validTraceparent } from '../lib/observability/tracer.ts';
 import type { TaskRecord } from '../lib/observability/metrics.ts';
 import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
-import { forEachRuntime } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const SECRET = 'test-secret-0123456789abcdef0123456789'; // gitleaks:allow (test fixture)
 const dir = mkdtempSync(join(tmpdir(), 'melch-trace-'));
@@ -42,7 +36,7 @@ before(async () => {
   built = await createA2AApp({
     defaultSyndicate: 'echo.yaml',
     serverSecret: SECRET,
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     onTaskEnd: (r) => records.push(r),
     resolveModel: () => new ScriptedLlm('scripted/echo', () => text('ok')),
     log: () => {},
@@ -79,7 +73,7 @@ test('validTraceparent accepts W3C version 00 and refuses anything else', () => 
   assert.equal(validTraceparent(undefined), undefined);
 });
 
-forEachRuntime("a caller's traceparent is linked, never adopted: the turn keeps a trace id of its own", async () => {
+test("a caller's traceparent is linked, never adopted: the turn keeps a trace id of its own", async () => {
   records.length = 0;
   const taskId = await send({ traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01' });
   const r = records.at(-1)!;
@@ -89,7 +83,7 @@ forEachRuntime("a caller's traceparent is linked, never adopted: the turn keeps 
   assert.equal(r.taskId, taskId);
 });
 
-forEachRuntime('two requests naming the same traceparent still get two distinct trace ids', async () => {
+test('two requests naming the same traceparent still get two distinct trace ids', async () => {
   records.length = 0;
   const tp = '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01';
   await Promise.all([send({ traceparent: tp }), send({ traceparent: tp })]);
@@ -97,7 +91,7 @@ forEachRuntime('two requests naming the same traceparent still get two distinct 
   assert.equal(new Set(ids).size, 2, `distinct: ${ids.join(', ')}`);
 });
 
-forEachRuntime('without a traceparent (or with a malformed one) the task still gets its own trace id', async () => {
+test('without a traceparent (or with a malformed one) the task still gets its own trace id', async () => {
   records.length = 0;
   await send({ traceparent: 'not-a-trace' });
   const r = records.at(-1)!;

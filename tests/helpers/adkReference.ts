@@ -1,61 +1,34 @@
 /**
- * tests/helpers/adkReference.ts — ADK's reference behaviour, frozen (WS5-2a).
+ * tests/helpers/adkReference.ts — ADK's reference behaviour, recorded
+ * (WS5-2a, ADR 0108).
  *
- * The parity suites prove the native runtime does what ADK did: each case runs
- * ADK's side (the adk runtime, ADK's Runner, its scripted models) and holds the
- * native side equal to it. 1.0.0 removes ADK (ADR 0045), so every such
- * comparison reads ADK's side from a recorded fixture instead:
+ * The parity suites prove the runtime does what ADK did: each case holds the
+ * engine's side equal to ADK's, as WS5-2a recorded it against ADK 2.2 before
+ * 1.0.0 removed ADK (ADR 0107):
  *
  *   const reference = adkReferences('nativeStep');
- *   const adk = await reference('plain-agent-two-turns', () => runOnAdk(...));
+ *   const adk = await reference('plain-agent-two-turns');
  *
- * `live` is the ADK side exactly as the test ran it before, returning what the
- * test compares (already normalised as the test normalises it). What happens
- * depends on ADK_REFERENCE:
+ * The value is read from tests/fixtures/adk-reference/<suite>/<case>.json.
+ * The recordings are data: nothing re-records them, since there is no ADK to
+ * run. A suite whose engine side changes on purpose updates the fixture in
+ * the same change and says why.
  *
- *   unset (or `fixture`) — `live` never runs; the value is read from
- *     tests/fixtures/adk-reference/<suite>/<case>.json. ADK need not be
- *     installed.
- *   `live`   — `live` runs against the installed ADK and its value is
- *     returned, passed through the same canonical form a fixture stores, so a
- *     green live run proves the fixtures' shape is enough.
- *   `record` — as `live`, and the value is written to the fixture (under
- *     ADK_REFERENCE_DIR when set: the drift check records into a scratch
- *     directory and compares). scripts/ci/record_adk_references.ts drives it.
- *
- * The canonical form is JSON, made deterministic: every UUID (in a value or a
- * key) becomes a fixed one in order of first appearance; the id of every
- * stored event (an object with string `id`, `invocationId` and `author`)
- * becomes `ev000001`, …, wherever that string appears, and its `timestamp`
- * 2026-01-01 plus one second per event in that order; any other time field
- * (`timestamp`, `startTime`, `endTime`) holding a stored event's original
- * time takes that event's new time. Nothing else is rewritten: a value that still differs between two
- * recordings is the suite's to normalise, and the drift check says which.
- *
- * WS5-2b deletes `live`, `record`, the recorder and every `live` callback with
- * ADK; the fixture branch is what stays.
+ * The canonical form the recordings were written in is JSON, made
+ * deterministic: every UUID (in a value or a key) becomes a fixed one in
+ * order of first appearance; the id of every stored event (an object with
+ * string `id`, `invocationId` and `author`) becomes `ev000001`, …, wherever
+ * that string appears, and its `timestamp` 2026-01-01 plus one second per
+ * event in that order; any other time field (`timestamp`, `startTime`,
+ * `endTime`) holding a stored event's original time takes that event's new
+ * time. A suite passes its own side through `canonical` before comparing.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export type ReferenceMode = 'fixture' | 'live' | 'record';
-
 export const REFERENCE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'adk-reference');
-
-/** How the ADK side is obtained in this process (ADK_REFERENCE). */
-export function referenceMode(): ReferenceMode {
-  const mode = process.env.ADK_REFERENCE ?? 'fixture';
-  if (mode === '' || mode === 'fixture') return 'fixture';
-  if (mode === 'live' || mode === 'record') return mode;
-  throw new Error(`ADK_REFERENCE must be unset, 'fixture', 'live' or 'record'; got '${mode}'`);
-}
-
-/** True when the ADK side runs (live or record): a suite gates its ADK-only setup on it. */
-export const runsAdk = (): boolean => referenceMode() !== 'fixture';
-
-const outputDir = (): string => process.env.ADK_REFERENCE_DIR || REFERENCE_DIR;
 
 /** A case name as a file name: lower case, runs of anything but [a-z0-9] as one dash, no leading or trailing dash. */
 export function caseSlug(name: string): string {
@@ -140,42 +113,22 @@ export interface ReferenceFile<T = unknown> {
   reference: T;
 }
 
-const written = new Set<string>();
-
-async function adkVersion(): Promise<string> {
-  const { createRequire } = await import('node:module');
-  return (createRequire(import.meta.url)('@google/adk/package.json') as { version: string }).version;
+/** Reads one case's recorded ADK side (see the header). */
+export async function adkReference<T>(suite: string, name: string): Promise<T> {
+  const path = referencePath(suite, name);
+  let body: string;
+  try {
+    body = readFileSync(path, 'utf8');
+  } catch {
+    throw new Error(`no ADK reference recorded for ${suite} / ${name} (${path})`);
+  }
+  return (JSON.parse(body) as ReferenceFile<T>).reference;
 }
 
-/** Reads, runs or records one case's ADK side (see the header). */
-export async function adkReference<T>(suite: string, name: string, live: () => T | Promise<T>): Promise<T> {
-  const mode = referenceMode();
-  if (mode === 'fixture') {
-    const path = referencePath(suite, name);
-    let body: string;
-    try {
-      body = readFileSync(path, 'utf8');
-    } catch {
-      throw new Error(`no ADK reference recorded for ${suite} / ${name} (${path}); record it with ADK installed: npm run fixtures:adk:record`);
-    }
-    return (JSON.parse(body) as ReferenceFile<T>).reference;
-  }
-  const value = canonical(await live());
-  if (mode === 'record') {
-    const path = referencePath(suite, name, outputDir());
-    if (written.has(path)) throw new Error(`two reference cases write ${path}: give them distinct names`);
-    written.add(path);
-    const file: ReferenceFile<T> = { suite, case: name, recordedBy: 'scripts/ci/record_adk_references.ts', adkVersion: await adkVersion(), reference: value };
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, `${JSON.stringify(file, null, 2)}\n`);
-  }
-  return value;
-}
-
-/** One suite's references: a case name and its live ADK side. */
-export type AdkReference = <T>(name: string, live: () => T | Promise<T>) => Promise<T>;
+/** One suite's references: a case name to its recorded ADK side. */
+export type AdkReference = <T>(name: string) => Promise<T>;
 
 /** `adkReference` bound to one suite. */
 export function adkReferences(suite: string): AdkReference {
-  return (name, live) => adkReference(suite, name, live);
+  return (name) => adkReference(suite, name);
 }

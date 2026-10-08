@@ -5,15 +5,13 @@
  * captured fetch. These paths are not verified against the live clouds.
  *
  * The adapters are driven on the engine's contract (ClaudeAdapter,
- * GptAdapter, resolveAdapter): a ModelRequest in, the wire body out. Their
- * ADK shims (ClaudeLlm, GptLlm) send the same bodies
- * (tests/shimBodies.test.ts).
+ * GptAdapter, GeminiAdapter, resolveAdapter): a ModelRequest in, the wire
+ * body out.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { setLogLevel, LogLevel } from '@google/adk';
 
 import {
   azureBaseURL,
@@ -27,11 +25,11 @@ import {
 import type { FinalModelResponse, ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { ClaudeAdapter } from '../lib/models/claudeAdapter.ts';
 import { GptAdapter } from '../lib/models/gptAdapter.ts';
-import { TracedGemini, resolveAdapter, resolveModel } from '../lib/models/registry.ts';
+import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
+import type { GeminiClientFactory } from '../lib/models/geminiAdapter.ts';
+import { resolveAdapter, resolveModel } from '../lib/models/registry.ts';
 import { capabilityOf, describeCapabilities } from '../lib/models/capabilities.ts';
 import { endpointRows } from '../lib/doctor.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const ENV_KEYS = [
   'GEMINI_PLATFORM', 'ANTHROPIC_PLATFORM', 'OPENAI_PLATFORM', 'GOOGLE_GENAI_USE_VERTEXAI',
@@ -226,15 +224,28 @@ test('an OpenAI-compatible proxy: OPENAI_BASE_URL, or an endpoint from the crede
   assert.equal(seen.headers.get('authorization'), 'Bearer fixture-tenant-key');
 });
 
-test('Gemini on Vertex AI: the ADK client in Vertex mode, no AI Studio key sent', () => {
+test('Gemini on Vertex AI: the genai client in Vertex mode, no AI Studio key sent', async () => {
   withEnv({ GEMINI_PLATFORM: 'vertex', GOOGLE_CLOUD_PROJECT: 'acme', GOOGLE_CLOUD_LOCATION: 'europe-west4', GOOGLE_GENAI_API_KEY: 'fixture-genai-0123456789' });
-  const g = new TracedGemini({ model: 'gemini-x' }) as any;
-  assert.equal(g.vertexai, true);
-  assert.equal(g.project, 'acme');
-  assert.equal(g.location, 'europe-west4');
-  const byok = resolveModel('gemini-x', { apiKey: 'fixture-caller-0123456789' }) as any;
-  assert.equal(byok.vertexai, true);
-  assert.equal(byok.apiKey, undefined, "a caller's AI Studio key is not sent to Vertex AI");
+  /** The client options each adapter built its client from; the fake client answers "ok". */
+  const built: unknown[] = [];
+  const clientFactory: GeminiClientFactory = (options) => {
+    built.push(options);
+    const response = { candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'STOP' }] } as any;
+    return {
+      models: {
+        generateContent: async () => response,
+        generateContentStream: async () => (async function* () { yield response; })(),
+      },
+    };
+  };
+  assert.equal(finalOf(await drain(new GeminiAdapter({ model: 'gemini-x', clientFactory }).generate(req('gemini-x')))).error, undefined);
+  // A caller's own AI Studio key (BYOK) is not sent to Vertex AI either.
+  assert.ok(resolveModel('gemini-x', { apiKey: 'fixture-caller-0123456789' }) instanceof GeminiAdapter);
+  await drain(new GeminiAdapter({ model: 'gemini-x', apiKey: 'fixture-caller-0123456789', clientFactory }).generate(req('gemini-x')));
+  assert.deepEqual(built, [
+    { vertexai: true, project: 'acme', location: 'europe-west4' },
+    { vertexai: true, project: 'acme', location: 'europe-west4' },
+  ]);
 });
 
 test('the capability report and matrix state the platform and what it drops', () => {

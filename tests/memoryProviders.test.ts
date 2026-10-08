@@ -1,7 +1,7 @@
 /**
  * tests/memoryProviders.test.ts — what computes memory is configurable
  * (ADR 0020): extraction on any model id through the adapters, embeddings on
- * Gemini or any OpenAI-compatible endpoint. Offline: fake adapters and a
+ * Gemini or any OpenAI-compatible endpoint. Offline: scripted adapters and a
  * stubbed fetch.
  */
 
@@ -14,41 +14,27 @@ import {
   modelExtractor,
   openAiCompatibleEmbedder,
 } from '../lib/memory/providers.ts';
+import { ScriptedModel, answer, failure } from './helpers/scriptedModel.ts';
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
-function fakeAdapter(responses: any[], seen: any[] = []) {
-  return {
-    async *generateContentAsync(req: any) {
-      seen.push(req);
-      for (const r of responses) yield r;
-    },
-  };
-}
-
 test('modelExtractor returns the final text, skipping partials and thoughts', async () => {
-  const seen: any[] = [];
-  const extractor = modelExtractor({
-    model: 'claude-sonnet-4-6',
-    resolve: () =>
-      fakeAdapter(
-        [
-          { partial: true, content: { parts: [{ text: 'streamed' }] } },
-          { content: { parts: [{ text: 'thinking…', thought: true }, { text: '[FACT] one' }] } },
-        ],
-        seen,
-      ),
-  });
+  const adapter = new ScriptedModel('claude-sonnet-4-6', () => [
+    { partial: true, parts: [{ type: 'thinking', text: 'thinking…' }, { type: 'text', text: 'streamed' }] },
+    answer('[FACT] one'),
+  ]);
+  const extractor = modelExtractor({ model: 'claude-sonnet-4-6', resolve: () => adapter });
   assert.equal(await extractor.extract('PROMPT'), '[FACT] one');
-  assert.equal(seen[0].model, 'claude-sonnet-4-6');
-  assert.equal(seen[0].contents[0].parts[0].text, 'PROMPT');
-  assert.equal(seen[0].config.temperature, 0.1);
+  const seen = adapter.requests[0]!;
+  assert.equal(seen.model, 'claude-sonnet-4-6');
+  assert.deepEqual(seen.messages[0], { role: 'user', parts: [{ type: 'text', text: 'PROMPT' }] });
+  assert.equal(seen.sampling?.temperature, 0.1);
 });
 
 test('modelExtractor throws on an adapter error so the turns stay pending', async () => {
   const extractor = modelExtractor({
     model: 'gpt-5-mini',
-    resolve: () => fakeAdapter([{ errorCode: 'RATE_LIMITED', errorMessage: '429' }]),
+    resolve: () => new ScriptedModel('gpt-5-mini', () => failure({ code: 'RATE_LIMITED', message: '429' })),
   });
   await assert.rejects(extractor.extract('x'), /gpt-5-mini: RATE_LIMITED — 429/);
 });

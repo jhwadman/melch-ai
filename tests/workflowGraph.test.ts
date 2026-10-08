@@ -1,18 +1,17 @@
 /**
  * tests/workflowGraph.test.ts — the engine-owned workflow graph
- * (lib/workflow/graph.ts) against today's ADK compile (lib/workflow.ts).
+ * (lib/workflow/graph.ts) against ADK's compile, as recorded.
  *
  * Every workflow fixture of the suite (tests/workflow.test.ts and every
  * shipped syndicate with a `workflow:` block), plus a few shapes those do
  * not cover, builds the same node set (names, order) and edge set (from,
- * to, route, order) as the `Workflow` graph `compileWorkflow` hands ADK.
- * Every validation error today's path raises — the schema's rules
- * (validateSyndicateConfig) and ADK's graph rules (compileWorkflow) — is
- * raised by the graph builder with the same message. And the module
- * imports no ADK value. The ADK compile's side (its graph's shape, its
- * messages) is recorded in tests/fixtures/adk-reference/workflowgraph
- * (tests/helpers/adkReference.ts); ADK runs it live only under
- * ADK_REFERENCE=live|record. No models run, no network.
+ * to, route, order) as the `Workflow` graph ADK 2.2's compile built. Every
+ * validation error that path raised — the schema's rules
+ * (validateSyndicateConfig) and ADK's graph rules — is raised by the graph
+ * builder with the same message. And the module imports no ADK value. The
+ * ADK compile's side (its graph's shape, its messages) was recorded in
+ * tests/fixtures/adk-reference/workflowgraph by WS5-2a, before 1.0.0
+ * removed ADK (tests/helpers/adkReference.ts). No models run, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -26,19 +25,15 @@ import { z } from 'zod';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
-import { compileWorkflow, isWorkflowSyndicate } from '../lib/workflow.ts';
+import { isWorkflowSyndicate } from '../lib/workflow.ts';
 import { SyndicateValidationError, validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { WorkflowGraphError, buildWorkflowGraph } from '../lib/workflow/graph.ts';
 import type { EdgeRoute, WorkflowGraph } from '../lib/workflow/graph.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
 // The ADK compile's side of each comparison is recorded (tests/fixtures/adk-reference/workflowgraph).
 const reference = adkReferences('workflowGraph');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -72,32 +67,11 @@ const graphShape = (g: WorkflowGraph): Shape => ({
   nodes: [...g.nodes.keys()],
   edges: g.edges.map((e) => `${e.from} -> ${e.to}${showRoute(e.route)}`),
 });
-/** What today's compile builds: ADK's own Graph inside the Workflow. Live only (inside a reference). */
-async function liveAdkShape(cfg: SyndicateYamlConfig): Promise<Shape> {
-  const { DEFAULT_ROUTE } = await import('@google/adk');
-  const { workflow } = await compileWorkflow(cfg);
-  const graph = (workflow as any).graph;
-  return {
-    nodes: graph.nodes.map((n: any) => n.name),
-    edges: graph.edges.map((e: any) => {
-      const r = e.route;
-      const route = r === null || r === undefined ? '' : r === DEFAULT_ROUTE ? ' [default]' : ` [${String(r)}]`;
-      return `${e.fromNode.name} -> ${e.toNode.name}${route}`;
-    }),
-  };
-}
+/** The ADK compile's graph for case `name`, as recorded. */
+const adkShape = (name: string, _cfg?: SyndicateYamlConfig): Promise<Shape> => reference<Shape>(name);
 
-/** The ADK compile's graph for case `name`: recorded, or (ADK_REFERENCE=live|record) compiled. */
-const adkShape = (name: string, cfg: SyndicateYamlConfig): Promise<Shape> => reference(name, () => liveAdkShape(cfg));
-
-/** The ADK compile's verdict on a config for case `name`: its error message, or that it accepted it. Recorded, or compiled live. */
-const adkCompileVerdict = (name: string, cfg: SyndicateYamlConfig): Promise<{ accepted: true } | { message: string }> =>
-  reference(name, () =>
-    compileWorkflow(cfg).then(
-      () => ({ accepted: true as const }),
-      (e: Error) => ({ message: e.message }),
-    ),
-  );
+/** The ADK compile's verdict on a config for case `name`, as recorded: its error message, or that it accepted it. */
+const adkCompileVerdict = (name: string, _cfg?: SyndicateYamlConfig): Promise<{ accepted: true } | { message: string }> => reference(name);
 
 // Every workflow block in tests/workflow.test.ts, by the test it comes from,
 // then shapes that suite does not exercise.
@@ -280,7 +254,7 @@ test('validation: every rule the schema enforces on a workflow block, with the s
   assert.throws(() => buildWorkflowGraph(r as unknown as SyndicateYamlConfig), { message: `workflow.edges[0][2] — 'Sbu' is not an agent or a declared node (did you mean "Sub"?)` });
 });
 
-test('validation: no workflow block, with compileWorkflow\'s message', async () => {
+test('validation: no workflow block, with the recorded message', async () => {
   const cfg = valid({ syndicate_name: 'Plain', orchestrator: { name: 'Lead', model: MODEL, instruction: 'x' } });
   assert.deepEqual(await adkCompileVerdict('no-workflow-block', cfg), { message: 'Plain: no workflow block' });
   assert.throws(() => buildWorkflowGraph(cfg), { message: 'Plain: no workflow block' });
@@ -301,7 +275,7 @@ const GRAPH_CASES: Array<[string, Record<string, unknown>]> = [
 ];
 
 for (const [name, r] of GRAPH_CASES) {
-  test(`validation: ${name}, with the ADK compile's message`, async () => {
+  test(`validation: ${name}, with the recorded message`, async () => {
     const cfg = valid(r);
     const verdict = await adkCompileVerdict(`graph-rule-${name}`, cfg);
     if (!('message' in verdict)) assert.fail('the ADK compile accepts it');
@@ -313,7 +287,7 @@ for (const [name, r] of GRAPH_CASES) {
 
 // ── No ADK ───────────────────────────────────────────────────────────────────
 
-test('lib/workflow/graph.ts reaches ADK through no value import', () => {
+test('lib/workflow/graph.ts reaches no @google/ package through a value import', () => {
   const seen = new Set<string>();
   const offenders: string[] = [];
   const visit = (file: string) => {
@@ -323,11 +297,11 @@ test('lib/workflow/graph.ts reaches ADK through no value import', () => {
     for (const [statement] of src.matchAll(/^import\s[^;]*;/gm)) {
       if (/^import\s+type\s/.test(statement)) continue;
       const spec = /from\s+'([^']*)'/.exec(statement)?.[1] ?? '';
-      if (spec.startsWith('@google/adk') || spec.startsWith('@google/genai')) offenders.push(`${path.relative(ROOT, file)}: ${spec}`);
+      if (spec.startsWith('@google/')) offenders.push(`${path.relative(ROOT, file)}: ${spec}`);
       if (spec.startsWith('.')) visit(path.resolve(path.dirname(file), spec));
     }
   };
   visit(path.join(ROOT, 'lib/workflow/graph.ts'));
   assert.deepEqual(offenders, []);
-  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'lib/workflow/graph.ts'), 'utf8'), /@google\/adk/);
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'lib/workflow/graph.ts'), 'utf8'), /@google\//);
 });

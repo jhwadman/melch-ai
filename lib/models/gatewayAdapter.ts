@@ -8,7 +8,7 @@
  *   (lib/models/gateway.ts owns that decision). It extends the
  *   chat-completions base (lib/models/chatCompletionsAdapter.ts) the way
  *   Ollama does, because chat completions is the one dialect every gateway
- *   serves. Under ADK it runs behind GatewayLlm (lib/models/gatewayLlm.ts).
+ *   serves.
  *
  * WHAT STAYS TRUE THROUGH THE GATEWAY:
  *   - Attribution. `provider` is the YAML id's provider (anthropic, openai,

@@ -58,6 +58,8 @@ None of these is fixed by leaving ADK; all of them are fixed by owning the seam.
 
 > **Note (2026-10-08):** Release 0.20.0 makes the engine's native runtime the default and `@google/adk` an optional peer ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)). ADK is no longer the runtime: it is an optional one, kept for this release as a rollback (`MELCHIZEDEK_RUNTIME=adk`) and removed at 1.0.0, as [ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md) plans. Item 1's seam stands, and both runtimes run behind it; items 2, 3 and 5 stand; item 4 applies only while the adk runtime ships.
 
+> **Note (2026-10-08):** Release 1.0.0 removes ADK ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)). The seam of item 1 stands with one runtime behind it, the engine's own; items 2, 3 and 5 stand; item 4 no longer applies.
+
 ## Alternatives considered
 
 - **"Strictly A2A": every agent its own A2A server.** Rejected. It adds an HTTP hop, auth and a failure mode to every delegation, and A2A still needs a runtime inside each agent.

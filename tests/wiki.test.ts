@@ -21,7 +21,7 @@ import assert from 'node:assert';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { setLogLevel, LogLevel } from '@google/adk';
+import { setLogLevel } from '../lib/runtime/logging.ts';
 
 import {
   actorSchema,
@@ -79,7 +79,7 @@ import {
   wikiSearchContract,
 } from '../lib/tools/wikiTools.ts';
 
-setLogLevel(LogLevel.WARN);
+setLogLevel('warn');
 
 const CTX = { actor: 'process:wiki-build', date: '2026-07-26' };
 

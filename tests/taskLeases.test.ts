@@ -9,7 +9,7 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemorySessionService } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 
@@ -22,7 +22,7 @@ test('leases: reaped at boot, renewed on a heartbeat, stopped on shutdown', asyn
     servedAgents: ['assistant.yaml'],
     serverSecret: 'test-secret-0123456789abcdef0123456789', // gitleaks:allow (test fixture)
     storage: {
-      sessionService: new InMemorySessionService(),
+      sessionService: new InProcessSessionService(),
       leases: { ttlMs: 3000, reap: async () => (++reaps === 1 ? 2 : 0), renew: async () => ++renewals },
     },
     log: () => {},

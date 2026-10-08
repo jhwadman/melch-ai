@@ -1,6 +1,6 @@
 /**
- * lib/compile.ts — the one YAML → agent compiler: a runtime-neutral
- * AgentSpec, and the ADK agent graph built from it.
+ * lib/compile.ts — the one YAML → agent compiler: an AgentSpec per agent,
+ * which lib/compileNative.ts turns into what the runtime runs.
  *
  * WHY this file exists:
  *   The A2A server carried this logic as two closures inside its executor,
@@ -12,37 +12,31 @@
  *   So the compiler moved here and both callers import it.
  *
  * What it does NOT own: model resolution and nested-config loading. Both are
- * injected, because the two callers differ precisely there:
- *   - the A2A server resolves `model` to a provider INSTANCE carrying the
+ * injected, because the callers differ precisely there:
+ *   - the A2A server resolves `model` to a ModelAdapter carrying the
  *     caller's BYOK key (lib/models/registry.ts resolveModel);
- *   - the observatory passes the model id through as a string (the
- *     LLMRegistry routes it) and loads nested syndicates with its
- *     per-variant overrides already applied.
+ *   - the observatory passes the model id through as a string (the loop
+ *     resolves it, lib/models/registry.ts resolveAdapter) and loads nested
+ *     syndicates with its per-variant overrides already applied.
  *
  * ── Two orchestration methods, one compiler ───────────────────────────────
- * DELEGATE (no `dispatch:` block): every subagent becomes an AgentTool on
- * the orchestrator. PLAN-DISPATCH (`dispatch:` present): the orchestrator
+ * DELEGATE (no `dispatch:` block): every subagent becomes a delegation tool
+ * on the orchestrator. PLAN-DISPATCH (`dispatch:` present): the orchestrator
  * is compiled WITHOUT subagent tools — it is a pure classifier — and the
- * caller runs `compileSubagent(route)` directly for the chosen route. Both
- * paths build subagents through the same function, so the agent a route
- * dispatches to is identical to the one DELEGATE would have wrapped.
+ * turn runner compiles the chosen route's own spec. Both paths build
+ * subagents through the same function, so the agent a route dispatches to
+ * is identical to the one DELEGATE would have delegated to.
  * Contract and rationale: lib/dispatch.ts.
  *
- * ── One spec, two runtimes (ADR 0073) ─────────────────────────────────────
- * compileSpec and compileSubagentSpec do the work every runtime shares:
- * resolve and gate the tools, append the skills index, resolve the model
- * once, build the generateContentConfig. The result is an AgentSpec.
- * lib/compileAdk.ts builds ADK's LlmAgent from it (compileGraph and
- * compileSubagent are spec + compileAdk), and lib/compileNative.ts builds
- * the native loop's NativeAgent (ADR 0045). runSyndicateTurn picks one by
- * MELCHIZEDEK_RUNTIME or its `runtime` option.
+ * ── The spec (ADR 0073, ADR 0107) ─────────────────────────────────────────
+ * compileSpec and compileSubagentSpec resolve and gate the tools, append the
+ * skills index, resolve the model once and build the generateContentConfig.
+ * The result is an AgentSpec; lib/compileNative.ts builds the loop's
+ * NativeAgent from it.
  */
 
-import { BaseLlm, FunctionTool } from './adkPeer.ts';
-import type { BaseTool, Context, LlmAgent, RunAsyncToolRequest } from '@google/adk';
 import { relative } from 'node:path';
 
-import { compileAdk } from './compileAdk.ts';
 import { isDispatchSyndicate } from './dispatch.ts';
 import { isWorkflowSyndicate, nodeKind } from './workflowConfig.ts';
 import { loadSyndicate, nestedLoader } from './loadSyndicate.ts';
@@ -51,7 +45,8 @@ import { REASONING_OLDER_SPELLING } from './syndicateSchema.ts';
 import { reasoningConfig } from './models/reasoning.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
-import { toAdkInstructionTool, toAdkToolset } from './tools/adkTool.ts';
+import { requireApproval, toolOf } from './tools/tool.ts';
+import type { ModelAdapter } from './models/contract.ts';
 import { examplesInstructionTool } from './tools/examples.ts';
 import type { ExampleConfig } from './tools/examples.ts';
 import { capabilitySummary, describeCapabilities } from './models/capabilities.ts';
@@ -62,12 +57,12 @@ import type { OpenApiConfig } from './tools/openapiTools.ts';
 
 export interface CompileOptions {
   /**
-   * Turns the YAML `model` string into what LlmAgent receives. Default:
-   * identity — the string goes straight to ADK's LLMRegistry, which needs
-   * `registerAvailableProviders()` to have run (lib/models/registry.ts).
-   * The A2A server substitutes a BYOK instance factory here.
+   * Turns the YAML `model` string into what the agent runs on: a model id,
+   * or a ModelAdapter (lib/models/contract.ts). Default: identity — the id
+   * resolves through lib/models/registry.ts resolveAdapter when the agent
+   * first calls it. The A2A server substitutes a BYOK adapter factory here.
    */
-  resolveModel?: (model: string | undefined) => string | BaseLlm | undefined;
+  resolveModel?: (model: string | undefined) => string | ModelAdapter | undefined;
   /**
    * Loads a nested `yaml_reference:` syndicate. Default: `loadSyndicate(ref)`
    * with no bindings — the same call the server makes. The observatory wraps
@@ -78,15 +73,9 @@ export interface CompileOptions {
   onUnknownTool?: (name: string) => void;
   /** Progress/diagnostic line sink (nested loads, MCP discovery). */
   log?: (message: string) => void;
-  /**
-   * Node settings for an agent compiled as a workflow node (lib/workflow.ts):
-   * ADK's `retryConfig` and `timeout`, which an LlmAgent takes only at
-   * construction. Called with the agent's name; undefined means none.
-   */
-  nodeConfig?: (agentName: string) => Record<string, unknown> | undefined;
 }
 
-/** generateContentConfig as every entrypoint has always sent it to ADK. */
+/** generateContentConfig as every entrypoint sends it: server-side tool invocations on. */
 function withServerSideToolInvocations(
   generateContentConfig: Record<string, unknown> | undefined,
 ): Record<string, unknown> {
@@ -103,7 +92,7 @@ function withServerSideToolInvocations(
 // ── Reasoning (ADR 0047) ─────────────────────────────────────────────────────
 
 // REASONING_BUDGETS and reasoningConfig live in lib/models/reasoning.ts, so a
-// model adapter can map `reasoning:` without importing the compiler (and ADK).
+// model adapter can map `reasoning:` without importing the compiler.
 export { REASONING_BUDGETS, reasoningConfig } from './models/reasoning.ts';
 
 /**
@@ -127,10 +116,13 @@ export function withReasoning(
 
 /** The model id an agent runs on, from its YAML or its resolved adapter. */
 function modelIdOf(yamlModel: string | undefined, resolved: unknown): string | undefined {
-  return yamlModel ?? (typeof resolved === 'string' ? resolved : resolved instanceof BaseLlm ? resolved.model : undefined);
+  if (yamlModel !== undefined) return yamlModel;
+  if (typeof resolved === 'string') return resolved;
+  const own = resolved && typeof resolved === 'object' ? (resolved as { model?: unknown }).model : undefined;
+  return typeof own === 'string' ? own : undefined;
 }
 
-/** An agent's `context:` block and its default, owned by the native compactor (ADR 0033); compileAdk hands the same values to ADK's. */
+/** An agent's `context:` block and its default, owned by the compactor (ADR 0033). */
 export type { ContextConfig } from './runtime/native/compaction.ts';
 import type { ContextConfig } from './runtime/native/compaction.ts';
 export { DEFAULT_KEEP_RECENT_EVENTS } from './runtime/native/compaction.ts';
@@ -154,45 +146,6 @@ function logCapabilities(
   if (line) opts.log(`capability · ${line}`);
 }
 
-/**
- * A copy of a FunctionTool that runs only after a person approves the call
- * (ADR 0028). ADK's own gate does the work: the call raises an
- * `adk_request_confirmation` interrupt pinning the call and its arguments,
- * and only an approval bound to that exact call runs it. The original stays
- * ungated for every other agent that lists the same tool.
- */
-export function requireApprovalOn(tool: FunctionTool): FunctionTool {
-  const gated = Object.create(tool) as FunctionTool;
-  Object.defineProperty(gated, 'requireConfirmation', { value: true, enumerable: false });
-  return gated;
-}
-
-/**
- * A copy of an ADK BaseTool that runs only after a person approves the
- * call: the same confirmation interrupt FunctionTool's own gate raises, so
- * the turn pauses and resumes exactly as ADR 0028 says. The engine no
- * longer uses it: an OpenAPI operation is a FunctionTool over an own Tool
- * (ADR 0067) and takes requireApprovalOn like every registry tool.
- * @deprecated Gate a FunctionTool with requireApprovalOn, or an own Tool
- * with requireApproval (lib/tools/tool.ts).
- */
-export function requireApprovalOnBaseTool<T extends BaseTool>(tool: T): T {
-  const gated = Object.create(tool) as T;
-  Object.defineProperty(gated, 'runAsync', {
-    value: async (request: RunAsyncToolRequest) => {
-      const ctx = request.toolContext as Context & { actions: { skipSummarization?: boolean } };
-      if (!ctx.toolConfirmation) {
-        ctx.requestConfirmation({ hint: `Approval is required before ${tool.name} runs.`, payload: request.args });
-        ctx.actions.skipSummarization = true;
-        return { error: 'This call requires approval, please approve or reject.' };
-      }
-      if (!ctx.toolConfirmation.confirmed) return { error: 'This call was rejected.' };
-      return tool.runAsync(request);
-    },
-  });
-  return gated;
-}
-
 function gateTools(tools: unknown[], names: string[] | undefined, agentName: string): unknown[] {
   if (!names?.length) return tools;
   const wanted = new Set(names);
@@ -204,11 +157,12 @@ function gateTools(tools: unknown[], names: string[] | undefined, agentName: str
     const match = [...wanted].find((w) => w === name || (operationId !== undefined && namesTool(w, { name, operation: { operationId } })));
     if (!match) return t;
     wanted.delete(match);
-    // An OpenAPI operation is a FunctionTool over an own Tool (ADR 0067): one gate for both.
-    if (!(t instanceof FunctionTool)) {
-      throw new Error(`${agentName}: '${name}' cannot require approval — only function tools from the registry and OpenAPI operations can be gated (ADR 0028).`);
+    // A registry tool, an OpenAPI operation and an MCP tool are own Tools (ADR 0067): one gate for all.
+    const own = toolOf(t);
+    if (!own) {
+      throw new Error(`${agentName}: '${name}' cannot require approval — only function tools from the registry, OpenAPI operations and MCP tools can be gated (ADR 0028).`);
     }
-    return requireApprovalOn(t);
+    return requireApproval(own);
   });
   if (wanted.size) {
     // Fail closed: a gate on a tool that did not resolve must not leave an
@@ -226,14 +180,13 @@ export function declaresApprovals(config: SyndicateYamlConfig): boolean {
 export type { ExampleConfig };
 
 /**
- * An agent's `examples:` as the ADK tool for their InstructionTool
- * (lib/tools/examples.ts): never called by the model, it adds the exchanges
- * to every request's instruction as few-shot examples, in the words ADK's
- * ExampleTool used.
+ * An agent's `examples:` as their InstructionTool (lib/tools/examples.ts):
+ * never called by the model, it adds the exchanges to every request's
+ * instruction as few-shot examples, in the words ADK's ExampleTool used.
  */
 export function examplesTool(examples: ExampleConfig[] | undefined): unknown[] {
   const tool = examplesInstructionTool(examples);
-  return tool ? [toAdkInstructionTool(tool)] : [];
+  return tool ? [tool] : [];
 }
 
 async function resolveAgentTools(
@@ -295,8 +248,7 @@ async function withSkills(
   const count = Object.keys(harness.skills).length;
   opts.log?.(`skills · ${agentName}: ${count} skill${count === 1 ? '' : 's'} from ${skills.dir}${skills.scripts === 'local' ? ' · scripts run after approval' : ''}`);
   for (const problem of harness.problems) opts.log?.(`⚠ skills · ${skills.dir}: not loaded — ${problem}`);
-  // The ADK face of the engine's own toolset; compileNative reads the toolset back (toolsetOf).
-  return { instruction: `${instruction.trimEnd()}\n\n${harness.instruction}`, tools: [...tools, toAdkToolset(harness.toolset)] };
+  return { instruction: `${instruction.trimEnd()}\n\n${harness.instruction}`, tools: [...tools, harness.toolset] };
 }
 
 /** True when a turn running this agent directly may pause for a person (ADR 0028). */
@@ -308,10 +260,9 @@ export function agentGates(agent: { require_approval?: string[]; skills?: Skills
 
 /**
  * One entry of an agent's tool list, in the order the model sees it.
- * `tool` is a resolved tool as the registry gives it: during the dual
- * period an ADK object that carries its own Tool or InstructionTool
- * (lib/tools/adkTool.ts), an MCP tool or the skills toolset, gated by
- * require_approval where the YAML says so. `agent` is a delegated subagent
+ * `tool` is a resolved tool as the registry gives it: an own Tool,
+ * InstructionTool, NativeToolMarker or Toolset (lib/tools/tool.ts), gated
+ * by require_approval where the YAML says so. `agent` is a delegated subagent
  * (DELEGATE mode), `remote` a subagent served over A2A, `workflow` a
  * `yaml_reference` to a workflow syndicate, whose whole graph is the tool
  * (ADR 0098).
@@ -323,11 +274,10 @@ export type SpecTool =
   | { kind: 'workflow'; workflow: WorkflowSpec };
 
 /**
- * A workflow syndicate, compiled for either runtime: lib/workflow.ts builds
- * ADK's Workflow from it, lib/compileNative.ts the native walk's graph and
- * agents. Nested as a subagent (a `yaml_reference` in DELEGATE mode), the
- * graph runs under the entry's name and description, and that name is the
- * root of every node path, as ADK names a Workflow's nodes after it.
+ * A workflow syndicate, compiled: lib/compileNative.ts builds the walk's
+ * graph and agents from it. Nested as a subagent (a `yaml_reference` in
+ * DELEGATE mode), the graph runs under the entry's name and description,
+ * and that name is the root of every node path.
  */
 export interface WorkflowSpec {
   /** The workflow's name: the syndicate's, or the subagent entry's when nested. */
@@ -341,7 +291,7 @@ export interface WorkflowSpec {
   /**
    * Every node that is a `yaml_reference` to a workflow syndicate, with its
    * YAML entry: the nested graph under the entry's name (ADR 0106). The
-   * native walk runs it as the node, on its own child session; ADK refuses it.
+   * walk runs it as the node, on its own child session.
    */
   workflows: Array<{ yaml: SubagentYamlConfig; workflow: WorkflowSpec }>;
   /** The registry entry for a tool node's tool name, or undefined (CompileOptions.onUnknownTool applies). */
@@ -349,8 +299,7 @@ export interface WorkflowSpec {
 }
 
 /**
- * One YAML agent, compiled, for either runtime: what lib/compileAdk.ts
- * turns into ADK's LlmAgent and lib/compileNative.ts into the native loop's
+ * One YAML agent, compiled: what lib/compileNative.ts turns into the loop's
  * NativeAgent. Built once per agent by compileSpec and compileSubagentSpec:
  * the tools resolved (OpenAPI operations built, MCP tools listed) and
  * gated, the skills index appended to the instruction, the model resolved
@@ -366,14 +315,14 @@ export interface AgentSpec {
   resolvedModel?: unknown;
   /** The id the agent runs on: the YAML's, else the resolved adapter's. */
   modelId?: string;
-  /** `fallback_model:`, unresolved: each runtime resolves it where it calls it. */
+  /** `fallback_model:`, unresolved: the loop resolves it where it calls it. */
   fallbackModel?: string;
   /** The YAML instruction, with the skills index appended when the agent has `skills:`. */
   instruction: string;
   globalInstruction?: string;
   tools: SpecTool[];
   outputSchema?: Record<string, unknown>;
-  /** The YAML's config with `reasoning:` mapped in and server-side tool invocations on, as both runtimes send it. */
+  /** The YAML's config with `reasoning:` mapped in and server-side tool invocations on. */
   generateContentConfig: Record<string, unknown>;
   includeContents?: 'default' | 'none';
   outputKey?: string;
@@ -483,7 +432,7 @@ function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlCo
  *
  * A nested workflow runs inside its caller's tool call, so a pause inside it
  * could not reach the caller (ADR 0028, as for any nested syndicate): an
- * `ask_user` node is refused by name here, on both runtimes.
+ * `ask_user` node is refused by name here.
  */
 export async function compileWorkflowSpec(
   config: SyndicateYamlConfig,
@@ -597,7 +546,7 @@ export async function compileSubagentSpec(subCfg: SubagentYamlConfig, opts: Comp
 /**
  * The spec of a syndicate's orchestrator. In DELEGATE mode its subagents
  * come first among its tools, as delegations; in PLAN-DISPATCH mode it gets
- * none (ADK refuses outputSchema + AgentTool on one agent — see
+ * none (a classifier answers with its outputSchema — see
  * config/agents/critic.yaml), and the caller dispatches to a route's own
  * spec itself.
  */
@@ -614,7 +563,7 @@ export async function compileSpec(
   // a delegated tool (ADR 0098), a dispatch route or a workflow node (ADR
   // 0106), through compileEntrySpec, which never compiles one here.
   if (config.workflow) {
-    throw new Error(`${config.syndicate_name}: a workflow syndicate is compiled with compileWorkflow (lib/workflow.ts), not compileGraph`);
+    throw new Error(`${config.syndicate_name}: a workflow syndicate is compiled with compileWorkflowSpec, not compileSpec`);
   }
   const delegated: SpecTool[] = isDispatchSyndicate(config)
     ? []
@@ -651,32 +600,3 @@ export async function compileSpec(
   );
 }
 
-// ── The ADK runtime's agents (lib/compileAdk.ts) ─────────────────────────────
-
-/**
- * Builds ONE runnable ADK agent from a subagent entry: its spec, as
- * lib/compileAdk.ts builds it. A workflow node's settings
- * (CompileOptions.nodeConfig) apply to a local agent, not to a nested
- * syndicate's orchestrator.
- */
-export async function compileSubagent(
-  subCfg: SubagentYamlConfig,
-  opts: CompileOptions = {},
-): Promise<LlmAgent> {
-  const spec = await compileSubagentSpec(subCfg, opts);
-  return compileAdk(spec, opts, subCfg.yaml_reference ? {} : (opts.nodeConfig?.(subCfg.name) ?? {}));
-}
-
-/**
- * Compiles a syndicate's orchestrator for the ADK runtime. In DELEGATE mode
- * its subagents are attached as AgentTools; in PLAN-DISPATCH mode it gets
- * none, and the caller dispatches to `compileSubagent(route)` itself.
- */
-export async function compileGraph(
-  config: SyndicateYamlConfig,
-  opts: CompileOptions = {},
-  overrideName?: string,
-  overrideDescription?: string,
-): Promise<LlmAgent> {
-  return compileAdk(await compileSpec(config, opts, overrideName, overrideDescription), opts);
-}

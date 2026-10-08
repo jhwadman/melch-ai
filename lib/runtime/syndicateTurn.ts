@@ -15,9 +15,10 @@
  * one copy. Surfaces differ only in what they do with the result: the server
  * publishes A2A events, the REPL prints, the harness records.
  *
- * It is also the seam that keeps Google ADK an implementation detail: a
+ * It is also the seam that keeps the runtime an implementation detail: a
  * caller hands in YAML config and plain text parts and gets plain data back.
- * The ADK Runner, LlmAgent and event shapes stay on this side of the line.
+ * The agent loop, the compiled agents and the event shapes stay on this side
+ * of the line (ADR 0024).
  *
  * ── Controls ──────────────────────────────────────────────────────────────
  * Every turn runs under a TurnControl (lib/runtime/turnControl.ts): the
@@ -26,42 +27,40 @@
  * time, and an outer AbortSignal cancels it. All three abort the provider
  * request in flight, not just the loop around it.
  *
- * ── Runtimes (ADR 0045, ADR 0073, ADR 0102) ───────────────────────────────
- * Each agent of a turn runs on the engine's own agent loop (the default
- * since 0.20.0) or on ADK's Runner: the turn's `runtime` option, else
- * MELCHIZEDEK_RUNTIME. Both compile the same AgentSpec (lib/compile.ts),
- * store the same events and drain through drainAgentStream, so everything
- * else here is shared. What native does not run yet fails before any model
- * call, naming the feature (lib/runtime/nativeTurn.ts). The adk runtime
- * needs @google/adk installed; without it, a turn asked to run there fails
- * before the session is touched, naming the package (lib/adkPeer.ts).
+ * ── The runtime (ADR 0045, ADR 0073, ADR 0107) ────────────────────────────
+ * Every agent of a turn runs on the engine's own agent loop
+ * (lib/runtime/native/agentLoop.ts), compiled from its AgentSpec
+ * (lib/compile.ts, lib/compileNative.ts); a workflow syndicate walks on the
+ * engine's scheduler (lib/workflow/turn.ts). The sessions are the engine's
+ * SessionService (lib/runtime/sessions.ts) and long-term memory its
+ * MemoryService (lib/runtime/memoryService.ts). The stored events are the
+ * JSON ADK wrote, so a conversation stored before 1.0.0 resumes. What the
+ * runtime does not run fails before any model call, naming the feature
+ * (lib/runtime/nativeTurn.ts). The ADK runtime 1.0.0 removed is refused by
+ * name (lib/runtime/runtimeFlag.ts).
  */
-
-import type { BasePlugin } from '@google/adk';
-import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
 import { randomUUID } from 'node:crypto';
 
 import { DEFAULT_MAX_STEPS } from '../config.ts';
-import { agentGates, compileEntrySpec, compileGraph, compileSpec, compileWorkflowSpec, declaresApprovals, workflowAgentSpecs, workflowEntryNames } from '../compile.ts';
+import { agentGates, compileEntrySpec, compileSpec, compileWorkflowSpec, declaresApprovals, workflowAgentSpecs } from '../compile.ts';
 import type { AgentSpec, WorkflowSpec } from '../compile.ts';
-import { compileAdk } from '../compileAdk.ts';
 import { compileNative, compileNativeWorkflow, nativeAdapterFor } from '../compileNative.ts';
 import type { NativeWorkflow } from '../compileNative.ts';
 import type { ModelAdapter } from '../models/contract.ts';
 import type { NativeAgent } from './native/request.ts';
 import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
-import { asAdkSessionService, asSessionService } from './adkSessionBridge.ts';
-import { requireAdk } from '../adkPeer.ts';
 import { createTurnEvent, getFunctionCalls, getFunctionResponses } from './events.ts';
 import type { TurnEvent } from './events.ts';
 import { InProcessSessionService, TEMP_STATE_PREFIX } from './sessions.ts';
+import type { SessionService } from './sessions.ts';
+import type { MemoryService } from './memoryService.ts';
 import type { WorkflowGraph } from '../workflow/graph.ts';
 import { UnsupportedWorkflowResumeError } from '../workflow/resume.ts';
 import { runNativeWorkflow } from '../workflow/turn.ts';
 import { NODE_RUN_LIMIT, NodeRunLimitError } from '../workflow/scheduler.ts';
 import { SelfCorrection } from './native/selfCorrection.ts';
-import { UnsupportedOnRuntimeError, chooseRuntime } from './runtimeFlag.ts';
+import { chooseRuntime } from './runtimeFlag.ts';
 import type { RuntimeName } from './runtimeFlag.ts';
 import { pinnedCredentialStore } from '../tools/auth.ts';
 import type { ToolCredentials } from '../tools/oauthConsent.ts';
@@ -70,13 +69,14 @@ import type { PendingConsent } from './credentials.ts';
 export { CREDENTIAL_REQUEST, credentialResponsePart, describeConsent, pendingConsent } from './credentials.ts';
 export type { PendingConsent } from './credentials.ts';
 export type { ToolCredentials } from '../tools/oauthConsent.ts';
-export { chooseRuntime, describeRuntime, runtimeSetting, DEFAULT_RUNTIME, RUNTIMES, UnsupportedOnRuntimeError } from './runtimeFlag.ts';
+export { chooseRuntime, describeRuntime, runtimeSetting, DEFAULT_RUNTIME, RUNTIMES, RuntimeRemovedError, UnsupportedOnRuntimeError } from './runtimeFlag.ts';
 export type { RuntimeName, RuntimeSource } from './runtimeFlag.ts';
-export { AdkNotInstalledError, adkInstalled } from '../adkPeer.ts';
-// A turn's session store with no ADK: runSyndicateTurn takes it as asAdkSessionService(new InProcessSessionService()) (ADR 0102).
+// The session store a turn takes when nothing durable is configured, and the engine's interfaces (ADR 0107).
 export { InProcessSessionService } from './sessions.ts';
-export { asAdkSessionService, asSessionService } from './adkSessionBridge.ts';
-import { ROUTE_STEP_SUFFIX, assembleWorkflow, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
+export type { Session, SessionKey, SessionService } from './sessions.ts';
+export type { MemoryEntry, MemoryIngestOptions, MemorySearchRequest, MemorySearchResult, MemoryService } from './memoryService.ts';
+export type { TurnEvent } from './events.ts';
+import { ROUTE_STEP_SUFFIX, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
 import type { PendingInput } from '../workflow.ts';
 export { describeInput } from '../workflow.ts';
 export type { PendingInput } from '../workflow.ts';
@@ -87,7 +87,6 @@ import { collectGrounding, describeGrounding, newGroundingState, webSourcesLine 
 import { resolveGuards } from '../guards/index.ts';
 import { collectGuards, nestedLoader } from '../loadSyndicate.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from '../loadSyndicate.ts';
-import { registerAvailableProviders } from '../models/registry.ts';
 import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
 import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
@@ -113,7 +112,7 @@ export interface TurnEvents {
    *  notes, web sources. The A2A server publishes these as `[STATUS]` lines. */
   onProgress?(text: string): void;
   /** Every raw event of the answering agent, in order (the REPL prints them). */
-  onEvent?(event: Event): void;
+  onEvent?(event: TurnEvent): void;
   /**
    * A chunk of the answering agent's reply as the model writes it. Fires only
    * with `streaming: true`, never for the dispatch classifier, and never for
@@ -150,18 +149,23 @@ export interface SyndicateTurnOptions {
   appName: string;
   userId: string;
   sessionId: string;
-  sessionService: BaseSessionService;
-  /** Handed to the Runner so `load_memory` / `preload_memory` can recall. */
-  memoryService?: BaseMemoryService;
+  /** Where the conversation lives: the engine's SessionService (InProcessSessionService, PostgresSessionService, SupabaseSessionService). */
+  sessionService: SessionService;
+  /** Long-term memory, so `load_memory` / `preload_memory` can recall: the engine's MemoryService. */
+  memoryService?: MemoryService;
   /** Model resolution, unknown-tool handling, nested loading. */
   compile?: CompileOptions;
-  /** Applied to every compiled agent before it runs (eval tool replay). ADK runtime only. */
-  transformAgent?: (agent: LlmAgent) => LlmAgent;
   /**
-   * The runtime that runs the turn's agents: `native` (the engine's own
-   * loop) or `adk` (Google ADK's Runner, which needs @google/adk installed).
-   * Default: MELCHIZEDEK_RUNTIME, else `native`. A feature native does not
-   * run yet throws UnsupportedOnRuntimeError before any model call.
+   * Transformed ADK agents before they ran (eval tool replay). The ADK
+   * runtime it served was removed in 1.0.0: any value throws
+   * UnsupportedOnRuntimeError before the session is touched.
+   */
+  transformAgent?: (agent: never) => unknown;
+  /**
+   * The runtime that runs the turn's agents: `native`, the only one since
+   * 1.0.0. Default: MELCHIZEDEK_RUNTIME, else `native`; `adk` throws
+   * RuntimeRemovedError. A feature the runtime does not run throws
+   * UnsupportedOnRuntimeError before any model call.
    */
   runtime?: RuntimeName;
   /** Plan-dispatch only: skip the classifier and run this route. Overrides
@@ -283,27 +287,8 @@ const CLASSIFIER_PREAMBLE =
 
 // ── Self-correction (ADR 0034) ───────────────────────────────────────────────
 
-// The defaults live with the native loop's self-correction, so both runtimes read one pair.
+// The defaults live with the loop's self-correction (lib/runtime/native/selfCorrection.ts).
 export { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './native/selfCorrection.ts';
-
-/**
- * ADK's reflect-and-retry plugins, on by default. The model plugin turns a
- * reply ADK marks malformed (MALFORMED_FUNCTION_CALL) into a retry with
- * guidance instead of a failed turn; the tool plugin answers a tool that
- * threw with structured guidance and caps its retries. Every retry is a
- * model call under the turn's max_steps. Fresh instances per run: their
- * counters are per invocation, but a run is the unit a surface reasons in.
- */
-export function retryPlugins(retries: { model_errors?: number; tool_errors?: number } | undefined): BasePlugin[] {
-  const model = retries?.model_errors ?? DEFAULT_MODEL_ERROR_RETRIES;
-  const tool = retries?.tool_errors ?? DEFAULT_TOOL_ERROR_RETRIES;
-  const plugins: BasePlugin[] = [];
-  if (model <= 0 && tool <= 0) return plugins;
-  const { ReflectAndRetryModelPlugin, ReflectAndRetryToolPlugin } = requireAdk("ADK's retry plugins (retryPlugins)");
-  if (model > 0) plugins.push(new ReflectAndRetryModelPlugin({ maxRetries: model }));
-  if (tool > 0) plugins.push(new ReflectAndRetryToolPlugin({ maxRetries: tool, throwExceptionIfRetryExceeded: false }));
-  return plugins;
-}
 
 // ── Draining one agent's stream ──────────────────────────────────────────────
 
@@ -318,14 +303,14 @@ function formatToolArgs(args: Record<string, unknown> | undefined): string {
 }
 
 /**
- * Drains one ADK event stream into a DrainedRun. The answer is the LAST
+ * Drains one agent's event stream into a DrainedRun. The answer is the LAST
  * event's text, not every event's: a tool-using agent narrates between
  * calls, and accumulating glued that narration to the front of its report.
  * Within one event parts are joined, and `partial` events (streaming chunks)
  * append. Thinking never counts as answer text.
  */
 export async function drainAgentStream(
-  stream: AsyncIterable<Event>,
+  stream: AsyncIterable<TurnEvent>,
   opts: {
     events?: TurnEvents;
     /** Publish per-tool progress lines. */
@@ -409,7 +394,7 @@ export async function drainAgentStream(
       d.tokens.thinking += e.usageMetadata.thoughtsTokenCount ?? 0;
     }
 
-    const calls = getFunctionCalls(event as unknown as TurnEvent);
+    const calls = getFunctionCalls(event);
     // Text streamed before a tool call was narration, not the answer.
     if (streamed && calls.length) {
       ev.onTextReset?.();
@@ -440,7 +425,7 @@ export async function drainAgentStream(
       if (opts.publishToolStatus) ev.onProgress?.(`Invoking tool: ${name}`);
     }
 
-    for (const resp of getFunctionResponses(event as unknown as TurnEvent)) {
+    for (const resp of getFunctionResponses(event)) {
       const r = resp as any;
       const name: string = r.name ?? r.functionResponse?.name ?? '';
       const content = r.response ?? r.functionResponse?.response ?? {};
@@ -511,14 +496,8 @@ export function echoesToolName(text: string, toolNames: Iterable<string>): boole
  */
 export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<SyndicateTurnResult> {
   const { config } = opts;
-  // A model id given as a string resolves through ADK's LLMRegistry. Without
-  // the framework's adapters registered there, Gemini would be ADK's own
-  // class, which bypasses traceLlmGeneration: no max_steps, no cancel. A
-  // caller that resolves models itself (the A2A server) is left alone.
+  // `native` is the only runtime; `adk` (removed in 1.0.0) throws RuntimeRemovedError here, before the session is touched.
   const runtime = chooseRuntime(opts.runtime);
-  // The adk runtime without @google/adk installed fails here, naming the package (ADR 0102).
-  if (runtime === 'adk') requireAdk("The adk runtime (MELCHIZEDEK_RUNTIME=adk, or the turn's runtime option)");
-  if (!opts.compile?.resolveModel) registerAvailableProviders();
   const control = createTurnControl({
     maxLlmCalls: opts.maxLlmCalls ?? config.max_steps ?? DEFAULT_MAX_STEPS,
     deadlineMs: opts.deadlineMs,
@@ -533,7 +512,6 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
 
 /** A compiled agent, for the runtime that runs it. */
 type TurnAgent =
-  | { runtime: 'adk'; agent: LlmAgent }
   | { runtime: 'native'; agent: NativeAgent; adapterFor: (model: string) => ModelAdapter }
   | NativeWorkflowAgent;
 
@@ -550,11 +528,10 @@ interface NativeWorkflowAgent {
 
 /**
  * A workflow syndicate for the native runtime: its graph, every agent
- * compiled for native from the same specs ADK's compileWorkflow builds its
- * agents from (compileWorkflowSpec, then compileNativeWorkflow), one adapter
- * lookup that knows every agent's models, and the registry's lookup for tool
- * nodes. A tool node ADK's compile refuses (an unregistered or long-running
- * tool) is refused here, before any model call, with ADK's message.
+ * compiled from its specs (compileWorkflowSpec, then compileNativeWorkflow),
+ * one adapter lookup that knows every agent's models, and the registry's
+ * lookup for tool nodes. An unregistered or long-running tool node is
+ * refused here, before any model call.
  */
 async function compileNativeWorkflowAgent(config: SyndicateYamlConfig, opts: CompileOptions): Promise<NativeWorkflowAgent> {
   return nativeWorkflowAgent(await compileWorkflowSpec(config, opts), opts);
@@ -569,50 +546,30 @@ function nativeWorkflowAgent(spec: WorkflowSpec, opts: CompileOptions): NativeWo
 async function runTurnInner(
   opts: SyndicateTurnOptions,
   control: ReturnType<typeof createTurnControl>,
-  runtime: RuntimeName,
+  _runtime: RuntimeName,
 ): Promise<SyndicateTurnResult> {
   const { config, appName, userId, sessionId, sessionService } = opts;
   const ev = opts.events ?? {};
   // Nested references load from the definition's bundle when it has one
   // (a registry version, ADR 0018 item 6), else from files.
   const compileOpts: CompileOptions = { ...opts.compile, loadNested: opts.compile?.loadNested ?? nestedLoader(config) };
-  const transform = opts.transformAgent ?? ((a: LlmAgent) => a);
   const subagentNames = new Set((config.subagents ?? []).map((s) => s.name));
   const trace = opts.trace === false ? undefined : opts.trace ?? {};
   let parts = opts.parts.map((p) => (typeof p === 'string' ? { text: p } : p));
   const messageText = parts.map((p: any) => (typeof p.text === 'string' ? p.text : '')).join('\n');
-  const native = runtime === 'native';
-  // What native does not run yet fails here, before the session is touched.
-  if (native) refuseOnNative(config, { isWorkflow: isWorkflowSyndicate(config), transformAgent: opts.transformAgent });
-  // ADK pauses a gated call in a workflow node, but its resume reruns the node from its input, so the
-  // pinned call never runs: approvals on workflow nodes run on native only (ADR 0098).
-  // Skill scripts pause on the same approval, so they are refused with it, by name (ADR 0106).
-  if (!native && isWorkflowSyndicate(config) && declaresApprovals(config)) {
-    const scripted = [config.orchestrator, ...(config.subagents ?? [])].find((a) => a?.skills?.scripts === 'local');
-    const feature = scripted ? `skill scripts (run_skill_script, an approval pause) on a workflow node (${scripted.name})` : 'an approval gate (require_approval) on a workflow node';
-    throw new UnsupportedOnRuntimeError(feature, 'adk', config.syndicate_name || 'syndicate');
-  }
-  // ADK runs a nested Workflow inline in the caller's session; the engine runs a workflow node's graph on a child
-  // session, which only the native walk does (ADR 0106).
-  if (!native && isWorkflowSyndicate(config)) {
-    const nested = workflowEntryNames(config, compileOpts)[0];
-    if (nested) throw new UnsupportedOnRuntimeError(`a workflow syndicate as a workflow node (${nested})`, 'adk', config.syndicate_name || 'syndicate');
-  }
+  // What the runtime does not run fails here, before the session is touched.
+  refuseOnNative(config, { isWorkflow: isWorkflowSyndicate(config), transformAgent: opts.transformAgent });
   const nativeOf = (spec: AgentSpec): TurnAgent => ({ runtime: 'native', agent: compileNative(spec), adapterFor: nativeAdapterFor(compileOpts, spec) });
-  /** The orchestrator (a DELEGATE root, or a dispatch classifier) for the turn's runtime. */
-  const compileRoot = async (): Promise<TurnAgent> =>
-    native ? nativeOf(await compileSpec(config, compileOpts)) : { runtime: 'adk', agent: transform(await compileGraph(config, compileOpts)) };
-  /** A dispatch route for the turn's runtime: one agent, or a nested workflow's whole graph (ADR 0106). */
+  /** The orchestrator (a DELEGATE root, or a dispatch classifier). */
+  const compileRoot = async (): Promise<TurnAgent> => nativeOf(await compileSpec(config, compileOpts));
+  /** A dispatch route: one agent, or a nested workflow's whole graph (ADR 0106). */
   const compileRoute = async (routeCfg: SubagentYamlConfig): Promise<TurnAgent & { workflow?: WorkflowSpec }> => {
     const entry = await compileEntrySpec(routeCfg, compileOpts);
-    if (entry.kind === 'workflow') {
-      const agent: TurnAgent = native ? nativeWorkflowAgent(entry.workflow, compileOpts) : { runtime: 'adk', agent: assembleWorkflow(entry.workflow, compileOpts, transform).workflow as unknown as LlmAgent };
-      return { ...agent, workflow: entry.workflow };
-    }
-    return native ? nativeOf(entry.spec) : { runtime: 'adk', agent: transform(compileAdk(entry.spec, compileOpts)) };
+    if (entry.kind === 'workflow') return { ...nativeWorkflowAgent(entry.workflow, compileOpts), workflow: entry.workflow };
+    return nativeOf(entry.spec);
   };
-  // Native self-correction (ADR 0075): one per turn, from the YAML's retries:, as the ADK path installs retryPlugins.
-  const selfCorrection = native ? new SelfCorrection(config.retries) : undefined;
+  // Self-correction (ADR 0075): one per turn, from the YAML's retries:.
+  const selfCorrection = new SelfCorrection(config.retries);
 
   const result: SyndicateTurnResult = {
     status: 'completed',
@@ -640,11 +597,11 @@ async function runTurnInner(
   };
 
   // ── Session ────────────────────────────────────────────────────────────────
-  const existing = await sessionService.getSession({ appName, userId, sessionId });
+  const existing = await sessionService.get({ appName, userId, sessionId });
   if (existing) {
     result.resumedSession = true;
   } else {
-    await sessionService.createSession({ appName, userId, sessionId });
+    await sessionService.create({ appName, userId, sessionId });
   }
 
   // A guard rewrites the answer after it is complete, so a guarded
@@ -670,9 +627,7 @@ async function runTurnInner(
   // ── Consent (lib/runtime/credentials.ts, ADR 0085) ────────────────────────
   // While a call waits for an OAuth grant, the next message resumes it once
   // the callback has stored the grant; until then it repeats the request and
-  // runs nothing. Only the native loop resumes it: ADK's auth preprocessor
-  // would exchange a code carried in the message, which this engine never
-  // puts there.
+  // runs nothing.
   const credentialStore = opts.toolCredentials ? pinnedCredentialStore(opts.toolCredentials.store, appName) : undefined;
   const consentPause = (pending: PendingConsent): SyndicateTurnResult => {
     result.status = 'input-required';
@@ -685,9 +640,6 @@ async function runTurnInner(
   if (!decision && !isWorkflowSyndicate(config)) {
     const open = pendingConsent(existing?.events ?? []);
     if (open) {
-      if (!native) {
-        throw new UnsupportedOnRuntimeError('resuming an OAuth consent (adk_request_credential)', 'adk', config.syndicate_name || open.agent || 'syndicate');
-      }
       if (!credentialStore) {
         result.status = 'failed';
         result.error = { code: 'CONSENT_UNAVAILABLE', message: `A call waits for a ${open.provider} authorization, but this turn has no credential store.` };
@@ -709,9 +661,8 @@ async function runTurnInner(
   // ── Questions (lib/runtime/questions.ts) ───────────────────────────────────
   // While an agent's `ask_user` call is open, a plain-text message is its
   // answer: it becomes that call's response, and the agent that asked
-  // resumes its own tool loop, on either runtime (the native loop reads the
-  // response from its history, as ADK's content processor does; ADR 0079).
-  // A workflow's pauses are ADK's own business.
+  // resumes its own tool loop (the loop reads the response from its history;
+  // ADR 0079). A workflow's pauses are its walk's own business.
   let answering: { agent: string; id: string } | undefined;
   if (!decision && !granting && !isWorkflowSyndicate(config)) {
     const question = pendingQuestion(existing?.events ?? []);
@@ -732,14 +683,14 @@ async function runTurnInner(
         : undefined;
   /** After the answering run: is a call now waiting for a grant? */
   const awaitingConsent = async (agentName: string): Promise<PendingConsent | undefined> => {
-    if (!opts.toolCredentials?.consent || !native) return undefined;
-    const after = await sessionService.getSession({ appName, userId, sessionId });
+    if (!opts.toolCredentials?.consent) return undefined;
+    const after = await sessionService.get({ appName, userId, sessionId });
     const pending = pendingConsent(after?.events ?? []);
     return pending && pending.agent === agentName ? pending : undefined;
   };
   /** After the answering run: is a gated call now waiting? */
   const awaitingApproval = async (agentName: string): Promise<PendingApproval | undefined> => {
-    const after = await sessionService.getSession({ appName, userId, sessionId });
+    const after = await sessionService.get({ appName, userId, sessionId });
     const pending = pendingApproval(after?.events ?? []);
     return pending && pending.agent === agentName ? pending : undefined;
   };
@@ -768,7 +719,7 @@ async function runTurnInner(
     /** The app the session is filed under; default the turn's. A workflow route walks on its child session (ADR 0106). */
     appName?: string;
     userParts: any[];
-    sessions: BaseSessionService;
+    sessions: SessionService;
     stage: TurnStage;
     route?: RouteResolution;
     publishToolStatus: boolean;
@@ -777,7 +728,7 @@ async function runTurnInner(
     /** Workflow runs collect node errors instead of stopping on the first. */
     errorPolicy?: 'fail' | 'collect';
   }): Promise<DrainedRun> => {
-    let stream: AsyncIterable<Event>;
+    let stream: AsyncIterable<TurnEvent>;
     if (params.agent.runtime === 'native-workflow') {
       // The engine's scheduler walks the graph (lib/workflow/turn.ts): the same events, the same drain.
       stream = runNativeWorkflow({
@@ -786,7 +737,7 @@ async function runTurnInner(
         adapterFor: params.agent.adapterFor,
         resolveTool: params.agent.resolveTool,
         workflows: params.agent.workflows,
-        sessions: asSessionService(params.sessions),
+        sessions: params.sessions,
         appName: params.appName ?? appName,
         userId,
         sessionId: params.sid,
@@ -797,8 +748,8 @@ async function runTurnInner(
         ...(selfCorrection ? { selfCorrection } : {}),
         ...(credentialStore ? { credentials: credentialStore } : {}),
         ...(compileOpts.log ? { log: compileOpts.log } : {}),
-      }) as unknown as AsyncIterable<Event>;
-    } else if (params.agent.runtime === 'native') {
+      });
+    } else {
       // The engine's own loop (lib/runtime/nativeTurn.ts): the same events, the same drain.
       stream = runNativeAgent({
         agent: params.agent.agent,
@@ -815,28 +766,11 @@ async function runTurnInner(
         // Tool credentials and the consent step (ADR 0072, ADR 0085); the classifier's lane lists no tools.
         ...(credentialStore ? { credentials: credentialStore } : {}),
         ...(opts.toolCredentials?.consent && params.stage !== 'classify' ? { consent: opts.toolCredentials.consent } : {}),
-        // The fallback's notice goes where compile's FallbackLlm sends it on ADK.
         ...(compileOpts.log ? { log: compileOpts.log } : {}),
-      }) as unknown as AsyncIterable<Event>;
-    } else {
-      const { Runner, StreamingMode } = requireAdk('The adk runtime');
-      const runner = new Runner({
-        agent: params.agent.agent,
-        appName: params.appName ?? appName,
-        sessionService: params.sessions,
-        plugins: retryPlugins(config.retries),
-        ...(opts.memoryService ? { memoryService: opts.memoryService } : {}),
-      });
-      stream = runner.runAsync({
-        userId,
-        sessionId: params.sid,
-        newMessage: { role: 'user', parts: params.userParts },
-        abortSignal: control.signal,
-        ...(opts.streaming ? { runConfig: { streamingMode: StreamingMode.SSE } as any } : {}),
       });
     }
     if (trace) {
-      stream = traceAgentRun(stream as AsyncIterableIterator<Event>, {
+      stream = traceAgentRun(stream as AsyncIterableIterator<TurnEvent>, {
         syndicateName: trace.syndicateName ?? config.syndicate_name ?? appName,
         bindings: trace.bindings ?? config.variables ?? {},
         input: params.userParts,
@@ -889,7 +823,7 @@ async function runTurnInner(
    * gave up fails the turn NODE_FAILED, as a workflow turn does.
    */
   const runWorkflowRoute = async (route: string, agent: TurnAgent, resolution: RouteResolution): Promise<{ answer: DrainedRun } | { failed: SyndicateTurnResult }> => {
-    const store = asSessionService(sessionService);
+    const store = sessionService;
     const key = { appName, userId, sessionId };
     const shared = await store.get(key);
     if (!shared) throw new Error(`Session not found: ${sessionId} (appName=${appName}, userId=${userId})`);
@@ -957,12 +891,9 @@ async function runTurnInner(
       // conversation the next specialist reads.
       const routerAgent = await compileRoot();
       const routerSid = `${sessionId}::route`;
-      // ADK's in-memory store on adk; the engine's on native, which needs no ADK.
-      const routerSessions: BaseSessionService = native
-        ? asAdkSessionService(new InProcessSessionService())
-        : new (requireAdk('The adk runtime').InMemorySessionService)();
-      await routerSessions.createSession({ appName, userId, sessionId: routerSid });
-      const shared = await sessionService.getSession({ appName, userId, sessionId });
+      const routerSessions = new InProcessSessionService();
+      await routerSessions.create({ appName, userId, sessionId: routerSid });
+      const shared = await sessionService.get({ appName, userId, sessionId });
       const digest = renderTranscriptDigest(shared?.events ?? []);
       const routerParts = digest
         ? [{ text: `${CLASSIFIER_PREAMBLE}${digest}\n\n--- MESSAGE TO CLASSIFY ---\n${messageText}` }]
@@ -1001,8 +932,8 @@ async function runTurnInner(
       answer = await runRemoteRoute(routeCfg.name, routeCfg.a2a_agent_url, messageText, sessionId, control, ev);
     } else {
       // The route answers directly in the SHARED session, read through a
-      // projection: ADK would otherwise render other agents' turns as user
-      // speech mixed with their tool payloads (lib/session/transcript.ts).
+      // projection: other agents' turns would otherwise read as user speech
+      // mixed with their tool payloads (lib/session/transcript.ts).
       const routeAgent = await compileRoute(routeCfg);
       if (routeAgent.workflow) {
         // A workflow route walks its whole graph on its own child session (ADR 0106).
@@ -1014,7 +945,7 @@ async function runTurnInner(
         sid: sessionId,
         userParts: parts,
         // Resuming an approval or answering a question: the interrupted turn
-        // is replayed raw, so ADK finds the call the message answers.
+        // is replayed raw, so the loop finds the call the message answers.
         sessions: new ProjectedSessionService(
           sessionService,
           routeCfg.name,
@@ -1059,9 +990,8 @@ async function runTurnInner(
   } else if (isWorkflowSyndicate(config)) {
     // ══ WORKFLOW ═════════════════════════════════════════════════════════
     // The syndicate is a graph (lib/workflow.ts): every agent a node, run
-    // in the shared session by ADK's Workflow, or on native by the engine's
-    // scheduler (lib/workflow/turn.ts, ADR 0095); both store the same events
-    // and drain through the same reader. A node agent sees only its input
+    // in the shared session by the engine's scheduler (lib/workflow/turn.ts,
+    // ADR 0095), drained through the same reader as any agent. A node agent sees only its input
     // unless its YAML says otherwise, so no projection is needed. An
     // `ask_user` node ends the turn input-required; the next message
     // resumes the graph where it waited.
@@ -1071,9 +1001,7 @@ async function runTurnInner(
       const open = pendingApproval(existing?.events ?? []);
       if (open) return pause(open);
     }
-    const workflowAgent: TurnAgent = native
-      ? await compileNativeWorkflowAgent(config, compileOpts)
-      : { runtime: 'adk', agent: (await compileWorkflow(config, compileOpts, transform)).workflow as unknown as LlmAgent };
+    const workflowAgent: TurnAgent = await compileNativeWorkflowAgent(config, compileOpts);
     try {
       answer = await runAgent({
         agent: workflowAgent,
@@ -1091,8 +1019,8 @@ async function runTurnInner(
       if (!last) throw err;
       result.status = 'failed';
       result.failedStage = 'workflow';
-      // A pause only ADK can resume fails the turn on native rather than walking afresh (ADR 0094, ADR 0095).
-      // The walk's node-run ceiling ends the turn by its own code, with a progress line (ADR 0105, native only).
+      // A pause the walk cannot resume fails the turn rather than walking afresh (ADR 0094, ADR 0095).
+      // The walk's node-run ceiling ends the turn by its own code, with a progress line (ADR 0105).
       const code = last instanceof UnsupportedWorkflowResumeError ? 'RESUME_UNSUPPORTED' : last instanceof NodeRunLimitError ? NODE_RUN_LIMIT : 'NODE_FAILED';
       if (last instanceof NodeRunLimitError) ev.onProgress?.(`Stopped: the workflow reached its limit of ${last.limit} node runs`);
       result.error = { code, message: last.message };
@@ -1107,7 +1035,7 @@ async function runTurnInner(
     }
     // A gated call paused its node, and the walk with it (ADR 0098): the next message answers it.
     if (declaresApprovals(config)) {
-      const after = await sessionService.getSession({ appName, userId, sessionId });
+      const after = await sessionService.get({ appName, userId, sessionId });
       const pending = pendingApproval(after?.events ?? []);
       if (pending) return pause(pending);
     }
@@ -1129,7 +1057,7 @@ async function runTurnInner(
     }
   } else {
     // ══ DELEGATE ═════════════════════════════════════════════════════════
-    // Subagents are AgentTools; the orchestrator relays the answer it got.
+    // Subagents are delegation tools; the orchestrator relays the answer it got.
     const orchestrator = await compileRoot();
     let drained: DrainedRun | undefined;
     answer = await runAgent({
@@ -1256,20 +1184,15 @@ function emptyRun(error?: { code: string; message: string }): DrainedRun {
 
 // ── Long-term memory after a turn ────────────────────────────────────────────
 
-/** A memory service that can take per-syndicate extraction rules (the
- *  Supabase service does; the base interface does not declare them). */
-interface RuledMemoryService extends BaseMemoryService {
-  addSessionToMemory(session: any, extractionRules?: string, options?: { extractionModel?: string }): Promise<void>;
-}
-
 /**
- * Distils the conversation into long-term memory. Call it after the answer
- * has been delivered — it never delays the reply, and a failure here never
- * fails the turn. Returns false when there was nothing to ingest.
+ * Distils the conversation into long-term memory (MemoryService.ingest).
+ * Call it after the answer has been delivered — it never delays the reply,
+ * and a failure here never fails the turn. Returns false when there was
+ * nothing to ingest.
  */
 export async function ingestTurnMemory(params: {
-  memoryService: BaseMemoryService;
-  sessionService: BaseSessionService;
+  memoryService: MemoryService;
+  sessionService: SessionService;
   appName: string;
   userId: string;
   sessionId: string;
@@ -1277,14 +1200,15 @@ export async function ingestTurnMemory(params: {
   /** The syndicate's memory_extraction_model, when it declares one. */
   extractionModel?: string;
 }): Promise<boolean> {
-  const session = await params.sessionService.getSession({
+  const session = await params.sessionService.get({
     appName: params.appName,
     userId: params.userId,
     sessionId: params.sessionId,
   });
   if (!session || session.events.length === 0) return false;
-  await (params.memoryService as RuledMemoryService).addSessionToMemory(session, params.extractionRules, {
-    extractionModel: params.extractionModel,
+  await params.memoryService.ingest(session, {
+    ...(params.extractionRules !== undefined ? { extractionRules: params.extractionRules } : {}),
+    ...(params.extractionModel !== undefined ? { extractionModel: params.extractionModel } : {}),
   });
   return true;
 }

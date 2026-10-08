@@ -5,8 +5,11 @@
  * output is answered by the fallback; a request's own error, a cancellation
  * and a call that failed midway are not; the breaker trips and recovers on an
  * injected clock; the fallback gets its own model id and the caller's
- * reasoning setting; and one breaker serves both wrappers. Offline: scripted
- * adapters.
+ * reasoning setting. Then `fallback_model` in a turn, where the model step
+ * applies the same rules (lib/runtime/native/agentLoop.ts): a failure
+ * arrives either as a throw or as a failed final carrying the retry verdict,
+ * and both are held to them; and one breaker serves the turn and
+ * FallbackAdapter. Offline: scripted adapters.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -15,16 +18,18 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { setLogLevel, LogLevel } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
-
 import type { FinalModelResponse, ModelAdapter, ModelError, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { FallbackAdapter, isProviderError } from '../lib/models/fallbackAdapter.ts';
-import { FallbackLlm } from '../lib/models/fallback.ts';
 import { circuitOpen, resetCircuits, setBreakerClock } from '../lib/models/circuitBreaker.ts';
-import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
-
-setLogLevel(LogLevel.ERROR);
+import { errorDecision, errorText, withRetryVerdict } from '../lib/models/errorResponse.ts';
+import { providerForModel } from '../lib/models/providerMap.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
+import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import type { LlmResponse } from './helpers/scriptedLlm.ts';
+import { answer as scriptedAnswer } from './helpers/scriptedModel.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -259,26 +264,174 @@ test('the wrapper reports the primary’s provider and model', () => {
   assert.equal(adapter.model, 'claude-sonnet-4-6');
 });
 
-// ── One breaker, both paths ──────────────────────────────────────────────────
+// ── fallback_model in a turn ─────────────────────────────────────────────────
 
 const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
 
-async function drain(llm: FallbackLlm): Promise<LlmResponse[]> {
-  const out: LlmResponse[] = [];
-  for await (const r of llm.generateContentAsync({ contents: [] } as unknown as LlmRequest)) out.push(r);
-  return out;
+/** Yields an answer, then throws: a stream that fails midway. */
+function midstreamFailure(model: string): ModelAdapter & { calls: number } {
+  const adapter: ModelAdapter & { calls: number } = {
+    model,
+    provider: 'scripted',
+    calls: 0,
+    async *generate() {
+      adapter.calls += 1;
+      yield scriptedAnswer('half an answer');
+      throw httpError(503);
+    },
+  };
+  return adapter;
 }
 
-test('a provider tripped on the ADK path is skipped on the contract path', async () => {
-  process.env.MODEL_BREAKER_THRESHOLD = '2';
-  const adkPrimary = new ScriptedLlm('claude-sonnet-4-6', () => {
+function turnConfig(model = 'scripted/primary', fallback = 'scripted/backup'): SyndicateYamlConfig {
+  return validateSyndicateConfig(
+    { syndicate_name: 'S', orchestrator: { name: 'Main', model, fallback_model: fallback, instruction: 'Answer.' }, subagents: [] },
+    't',
+  ) as SyndicateYamlConfig;
+}
+
+/** One turn whose orchestrator runs `scripted/primary` with `scripted/backup` as its fallback_model. */
+const turn = (models: Record<string, ModelAdapter>, config: SyndicateYamlConfig = turnConfig()) =>
+  runSyndicateTurn({
+    config,
+    parts: [{ text: 'hello' }],
+    appName: 'a',
+    userId: 'u',
+    sessionId: crypto.randomUUID(),
+    sessionService: new InProcessSessionService(),
+    compile: { resolveModel: scriptedResolver(models as Record<string, ScriptedLlm>), log: () => {} },
+    trace: false,
+  });
+
+test('a turn: a thrown provider-side failure is answered by the fallback model', async () => {
+  const primary = new ScriptedLlm('scripted/primary', () => {
     throw httpError(503);
   });
-  const adkBackup = new ScriptedLlm('gpt-5-mini', () => text('from the backup'));
-  const llm = new FallbackLlm(adkPrimary, adkBackup, () => {});
-  await drain(llm);
-  await drain(llm);
-  assert.equal(adkPrimary.calls, 2);
+  const backup = new ScriptedLlm('scripted/backup', () => text('from the backup'));
+  const r = await turn({ primary, backup });
+  assert.equal(r.status, 'completed', r.error?.message);
+  assert.match(r.text ?? '', /from the backup/);
+  assert.deepEqual([primary.calls, backup.calls], [1, 1]);
+});
+
+test("a turn: the request's own error (a thrown 400) is not redirected to the fallback", async () => {
+  const primary = new ScriptedLlm('scripted/primary', () => {
+    throw httpError(400);
+  });
+  const backup = new ScriptedLlm('scripted/backup', () => text('never'));
+  const r = await turn({ primary, backup });
+  assert.equal(r.status, 'failed');
+  assert.equal(backup.calls, 0);
+});
+
+test('a turn: a stream that already produced text is never replayed on the fallback', async () => {
+  const primary = midstreamFailure('scripted/primary');
+  const backup = new ScriptedLlm('scripted/backup', () => text('never'));
+  const r = await turn({ primary, backup });
+  assert.equal(r.status, 'failed');
+  assert.equal(primary.calls, 1);
+  assert.equal(backup.calls, 0);
+});
+
+test('a turn: after MODEL_BREAKER_THRESHOLD failures the primary is skipped until the cooldown ends', async () => {
+  process.env.MODEL_BREAKER_THRESHOLD = '2';
+  const primary = new ScriptedLlm('scripted/primary', () => {
+    throw httpError(503);
+  });
+  const backup = new ScriptedLlm('scripted/backup', () => text('from the backup'));
+  await turn({ primary, backup });
+  await turn({ primary, backup });
+  assert.equal(primary.calls, 2);
+  const third = await turn({ primary, backup });
+  assert.equal(third.status, 'completed');
+  assert.equal(primary.calls, 2, 'the open circuit skips the primary');
+  assert.equal(backup.calls, 3);
+});
+
+test('schema: fallback_model is a model id on any agent', () => {
+  assert.throws(
+    () => validateSyndicateConfig({ syndicate_name: 'S', orchestrator: { name: 'M', model: 'gemini-x', fallback_model: '', instruction: 'i' }, subagents: [] }, 't'),
+    /fallback_model/,
+  );
+});
+
+/** An error response as an adapter's failed final maps to once a provider call has failed with `status`. */
+const errorResponse = (status: number) => {
+  const err = httpError(status);
+  return withRetryVerdict({ errorCode: 'SCRIPTED_ERROR', errorMessage: errorText(err) }, errorDecision(err));
+};
+const PRIMARY_PROVIDER = providerForModel('scripted/primary');
+
+test('a turn: a retryable failed final is answered by the fallback, and the breaker counts the failure', async () => {
+  process.env.MODEL_BREAKER_THRESHOLD = '1';
+  const primary = new ScriptedLlm('scripted/primary', () => errorResponse(503));
+  const backup = new ScriptedLlm('scripted/backup', () => text('from the backup'));
+  const r = await turn({ primary, backup });
+  assert.equal(r.status, 'completed', r.error?.message);
+  assert.match(r.text ?? '', /from the backup/);
+  assert.equal(r.error, undefined, 'the redirected error is never yielded');
+  assert.deepEqual([primary.calls, backup.calls], [1, 1]);
+  assert.equal(circuitOpen(PRIMARY_PROVIDER), true, 'the failure was recorded on the breaker');
+});
+
+test('a turn: a non-retryable failed final is passed on, and is never recorded as a success', async () => {
+  process.env.MODEL_BREAKER_THRESHOLD = '2';
+  const statuses = [503, 400, 503];
+  const primary = new ScriptedLlm('scripted/primary', (_req, n) => errorResponse(statuses[n - 1]));
+  const backup = new ScriptedLlm('scripted/backup', () => text('from the backup'));
+
+  assert.equal((await turn({ primary, backup })).status, 'completed');
+  const second = await turn({ primary, backup });
+  assert.equal(second.status, 'failed');
+  assert.equal(second.error?.code, 'SCRIPTED_ERROR', 'the error reaches the caller as it is');
+  assert.equal(backup.calls, 1, 'a 400 is not redirected');
+  assert.equal(circuitOpen(PRIMARY_PROVIDER), false);
+
+  assert.equal((await turn({ primary, backup })).status, 'completed');
+  assert.equal(circuitOpen(PRIMARY_PROVIDER), true, 'the 400 did not reset the count: two failures opened it');
+});
+
+test('a turn: a failed final after content is passed on, never replayed on the fallback', async () => {
+  process.env.MODEL_BREAKER_THRESHOLD = '1';
+  const partial = { content: { role: 'model', parts: [{ text: 'half an answer' }] }, partial: true } as LlmResponse;
+  const primary = new ScriptedLlm('scripted/primary', () => [partial, errorResponse(503)]);
+  const backup = new ScriptedLlm('scripted/backup', () => text('never'));
+  const r = await turn({ primary, backup });
+  assert.equal(r.status, 'failed');
+  assert.equal(r.error?.code, 'SCRIPTED_ERROR');
+  assert.equal(backup.calls, 0);
+  assert.equal(circuitOpen(PRIMARY_PROVIDER), true, 'the provider still failed, and counts');
+});
+
+test('a turn: only a step with content counts as a success', async () => {
+  process.env.MODEL_BREAKER_THRESHOLD = '2';
+  const replies: LlmResponse[] = [errorResponse(503), { turnComplete: true } as LlmResponse, errorResponse(503), text('back'), errorResponse(503)];
+  const primary = new ScriptedLlm('scripted/primary', (_req, n) => replies[n - 1]);
+  const backup = new ScriptedLlm('scripted/backup', () => text('from the backup'));
+  await turn({ primary, backup });
+  await turn({ primary, backup }); // nothing produced: not a success
+  await turn({ primary, backup });
+  assert.equal(circuitOpen(PRIMARY_PROVIDER), true, 'the empty step did not reset the count');
+
+  resetCircuits();
+  await turn({ primary, backup }); // an answer: a success
+  await turn({ primary, backup });
+  assert.equal(circuitOpen(PRIMARY_PROVIDER), false, 'one failure after a success is under the threshold');
+});
+
+// ── One breaker, the turn and FallbackAdapter ────────────────────────────────
+
+test('a provider tripped in a turn is skipped by FallbackAdapter', async () => {
+  process.env.MODEL_BREAKER_THRESHOLD = '2';
+  const turnPrimary = new ScriptedLlm('claude-sonnet-4-6', () => {
+    throw httpError(503);
+  });
+  const turnBackup = new ScriptedLlm('gpt-5-mini', () => text('from the backup'));
+  const models = { 'claude-sonnet-4-6': turnPrimary, 'gpt-5-mini': turnBackup };
+  const config = turnConfig('claude-sonnet-4-6', 'gpt-5-mini');
+  await turn(models, config);
+  await turn(models, config);
+  assert.equal(turnPrimary.calls, 2);
 
   const primary = primaryOf(() => [answer('never')]);
   const fallback = backup();
@@ -286,21 +439,22 @@ test('a provider tripped on the ADK path is skipped on the contract path', async
   assert.deepEqual([primary.calls, fallback.calls], [0, 1]);
 });
 
-test('a provider tripped on the contract path is skipped on the ADK path, on the same clock', async () => {
+test('a provider tripped by FallbackAdapter is skipped in a turn, on the same clock', async () => {
   process.env.MODEL_BREAKER_THRESHOLD = '2';
-  // Far from Date.now(): FallbackLlm sees the circuit open only if it reads the breaker's clock.
+  // Far from Date.now(): the turn sees the circuit open only if it reads the breaker's clock.
   restoreClock = setBreakerClock(() => 42);
   const adapter = new FallbackAdapter(primaryOf(() => [overloaded()]), backup(), { log: () => {} });
   await collect(adapter);
   await collect(adapter);
 
-  const adkPrimary = new ScriptedLlm('claude-sonnet-4-6', () => text('never'));
-  const adkBackup = new ScriptedLlm('gpt-5-mini', () => text('from the backup'));
-  await drain(new FallbackLlm(adkPrimary, adkBackup, () => {}));
-  assert.deepEqual([adkPrimary.calls, adkBackup.calls], [0, 1]);
+  const turnPrimary = new ScriptedLlm('claude-sonnet-4-6', () => text('never'));
+  const turnBackup = new ScriptedLlm('gpt-5-mini', () => text('from the backup'));
+  const r = await turn({ 'claude-sonnet-4-6': turnPrimary, 'gpt-5-mini': turnBackup }, turnConfig('claude-sonnet-4-6', 'gpt-5-mini'));
+  assert.equal(r.status, 'completed', r.error?.message);
+  assert.deepEqual([turnPrimary.calls, turnBackup.calls], [0, 1]);
 });
 
-// ── The contract path stays off ADK ──────────────────────────────────────────
+// ── The contract path imports no SDK ─────────────────────────────────────────
 
 test('the contract-level wrapper imports nothing from @google/*', () => {
   const seen = new Set<string>();

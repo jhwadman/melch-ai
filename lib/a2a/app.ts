@@ -27,10 +27,15 @@
  * durable when Supabase is configured. Run one replica, or put sticky
  * routing in front, until the task store is durable.
  *
- * Stores (ADR 0080): `storage` takes a session store and a memory service
- * with either face, the engine's or ADK's. In-process sessions are the
- * engine's InProcessSessionService. A `resolveModel` may still return an ADK
- * model instance: its type is CompileOptions'.
+ * Stores (ADR 0080, ADR 0107): `storage` takes the engine's SessionService
+ * and MemoryService. In-process sessions are the engine's
+ * InProcessSessionService. A `resolveModel` returns a model id or a
+ * ModelAdapter: its type is CompileOptions'.
+ *
+ * MELCHIZEDEK_RUNTIME and GEMINI_ADAPTER are read before anything else:
+ * `adk`, the runtime 1.0.0 removed, stops the server at startup
+ * (RuntimeRemovedError), and so does GEMINI_ADAPTER=adk, the removed ADK
+ * Gemini adapter (geminiAdapterSetting, lib/models/adapterResolver.ts).
  */
 
 import express from 'express';
@@ -45,9 +50,11 @@ import { duplicateInterfacesForLegacy } from '@a2a-js/sdk/compat/v0_3';
 import type { TaskStore } from '@a2a-js/sdk/server';
 import { agentCardHandler, jsonRpcHandler, restHandler } from '@a2a-js/sdk/server/express';
 import type { CompileOptions } from '../compile.ts';
-import type { EitherSessionService } from '../runtime/adkSessionBridge.ts';
-import type { EitherMemoryService } from '../runtime/adkMemoryBridge.ts';
+import type { SessionService } from '../runtime/sessions.ts';
+import type { MemoryService } from '../runtime/memoryService.ts';
 import { InProcessSessionService } from '../runtime/sessions.ts';
+import { runtimeSetting } from '../runtime/runtimeFlag.ts';
+import { geminiAdapterSetting } from '../models/adapterResolver.ts';
 
 import { loadSyndicate, loadSyndicateFromRegistry } from '../loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
@@ -199,10 +206,10 @@ export interface A2AAppOptions {
    * agent id (default: in-process).
    */
   storage?: {
-    /** The engine's SessionService or ADK's BaseSessionService (ADR 0080). */
-    sessionService: EitherSessionService;
-    /** The engine's MemoryService or ADK's BaseMemoryService. */
-    memoryService?: EitherMemoryService;
+    /** The engine's SessionService (ADR 0080, ADR 0107). */
+    sessionService: SessionService;
+    /** The engine's MemoryService. */
+    memoryService?: MemoryService;
     taskStore?: (agentId: string) => TaskStore;
     /** Erase everything stored for a scope (DELETE /memory). Without it the route answers 501. */
     erase?: (scopeKey: string, options: { namespace?: string; includeNested?: boolean }) => Promise<EraseCounts>;
@@ -360,8 +367,8 @@ export interface A2AAppOptions {
    * Model resolution per request. Default: lib/models/registry.ts with the
    * caller's X-API-Key scoped to its X-Provider. Override to route through
    * your own gateway or credential store. Returns what
-   * CompileOptions.resolveModel returns: a model id, or a model instance
-   * (an ADK BaseLlm while the ADK runtime ships).
+   * CompileOptions.resolveModel returns: a model id, or a ModelAdapter
+   * (lib/models/contract.ts).
    */
   resolveModel?: (modelName: string | undefined, ctx: A2AContext) => ResolvedModel;
   /** Bindings applied at every config load (e.g. current_date). */
@@ -542,6 +549,9 @@ export function memoryAppName(cfg: SyndicateYamlConfig): string {
 }
 
 export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
+  // A deployment still configured for the removed adk runtime fails here, naming 1.0.0 (ADR 0107).
+  runtimeSetting();
+  geminiAdapterSetting();
   const log = options.log ?? ((m: string) => console.log(`[A2A] ${m}`));
   const warn = options.warn ?? ((m: string) => console.warn(`[A2A] ⚠ ${m}`));
   const bindings = options.bindings ?? (() => ({
@@ -564,8 +574,8 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     : loadSyndicate(options.defaultSyndicate, { bindings: bindings() });
 
   // ── Persistence ────────────────────────────────────────────────────────────
-  let durableSessions: EitherSessionService | undefined;
-  let memoryService: EitherMemoryService | undefined;
+  let durableSessions: SessionService | undefined;
+  let memoryService: MemoryService | undefined;
   let erase: NonNullable<A2AAppOptions['storage']>['erase'];
   let readSchemaVersion: (() => Promise<number | null>) | undefined;
   let checkHardening: (() => Promise<RlsHardeningStatus>) | undefined;
@@ -682,8 +692,8 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     const mode = cfg.memory_system;
     const sessionService = mode === 'internal-only' || !durableSessions ? internalSessions : durableSessions;
     // Pinned to the syndicate's namespace (ADR 0020), so every agent the
-    // turn reaches — including AgentTool children, which run under their own
-    // ADK app name — recalls and stores in the root syndicate's memory.
+    // turn reaches — including subagents, which run under their own app
+    // name — recalls and stores in the root syndicate's memory.
     const memory = mode === 'long-term' && memoryService ? namespacedMemoryService(memoryService, memoryAppName(cfg)) : undefined;
     if (memory) warnMemoryFlow(cfg);
     if (mode === 'long-term' && !memoryService) {
@@ -734,7 +744,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   // memory_retention_days has its namespace pruned when first loaded, then
   // daily. Keyed by namespace, so syndicates sharing one prune it once.
   const retentionTimers = new Map<string, NodeJS.Timeout>();
-  const scheduleRetention = (cfg: SyndicateYamlConfig, memory: EitherMemoryService | undefined) => {
+  const scheduleRetention = (cfg: SyndicateYamlConfig, memory: MemoryService | undefined) => {
     const days = cfg.memory_retention_days;
     const namespace = cfg.memory_namespace;
     const prune = (memory as { pruneExpired?: (ns: string, d: number) => Promise<number | null> } | undefined)?.pruneExpired;

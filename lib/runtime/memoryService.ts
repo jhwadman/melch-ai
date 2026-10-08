@@ -3,11 +3,9 @@
  * (ADR 0045, ADR 0052).
  *
  * WHY this file exists:
- *   The native runtime asks long-term memory for what it needs through this
- *   interface, never through ADK's BaseMemoryService. The engine's service
- *   (lib/memory/supabaseMemoryService.ts) implements it, and also ADK's
- *   interface, whose methods hand their arguments to this one's, so the ADK
- *   runtime reaches the same logic (ADR 0059). The shapes include the
+ *   The engine asks long-term memory for what it needs through this
+ *   interface. The engine's service (lib/memory/supabaseMemoryService.ts)
+ *   implements it (ADR 0059, ADR 0107). The shapes include the
  *   extras: per-syndicate extraction rules and model, erasure, retention and
  *   the boot-time dimension check, which the A2A server reaches by name
  *   (lib/a2a/app.ts). The memory tools reach `search` through the tool
@@ -34,7 +32,7 @@ export interface MemorySearchRequest {
   query: string;
 }
 
-/** One recalled memory: the same JSON as ADK's `MemoryEntry`, so a recall reads the same on either runtime. */
+/** One recalled memory: the same JSON as ADK's `MemoryEntry`, so a recall reads as it did under ADK. */
 export interface MemoryEntry {
   /** The fact as text, in one part. A superseded fact says so in its text. */
   content: TurnContent;

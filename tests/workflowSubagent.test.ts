@@ -2,13 +2,11 @@
  * tests/workflowSubagent.test.ts — a workflow syndicate as another
  * syndicate's subagent (WS4-7, ADR 0098): a delegated `yaml_reference` to a
  * workflow syndicate runs the whole graph as the subagent tool, and the
- * graph's last event's text is the tool's answer. On ADK the Workflow is
- * wrapped in ADK's own AgentTool (lib/compileAdk.ts); on native the call
- * walks the graph with the engine's scheduler on the child session
- * (lib/runtime/native/delegate.ts, lib/compileNative.ts). Every case runs on
- * both runtimes, and the parity case holds the native sessions and requests
- * to ADK's: ADK's side recorded in tests/fixtures/adk-reference/workflowsubagent
- * (tests/helpers/adkReference.ts), run live only under ADK_REFERENCE=live|record.
+ * graph's last event's text is the tool's answer. The call walks the graph
+ * with the engine's scheduler on the child session
+ * (lib/runtime/native/delegate.ts, lib/compileNative.ts). The parity case
+ * holds the sessions and requests to ADK's, as ADK 2.2 recorded them in
+ * tests/fixtures/adk-reference/workflowsubagent (tests/helpers/adkReference.ts).
  * Scripted models, in-memory sessions, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -20,17 +18,13 @@ import { compileSpec } from '../lib/compile.ts';
 import { compileNative } from '../lib/compileNative.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
-import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import { workflowSubagentOf } from '../lib/runtime/native/delegate.ts';
-import { chooseRuntime } from '../lib/runtime/runtimeFlag.ts';
-import type { RuntimeName } from '../lib/runtime/runtimeFlag.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { adkReferences } from './helpers/adkReference.ts';
-import { forEachRuntime, runtimeOption, testRuntime } from './helpers/runtime.ts';
 import { ScriptedModel, answer, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
 import { virtualClock } from './helpers/virtualClock.ts';
@@ -38,14 +32,6 @@ import { comparable, requestsOf } from './helpers/workflowParity.ts';
 
 // ADK's side of the parity case is recorded (tests/fixtures/adk-reference/workflowsubagent).
 const reference = adkReferences('workflowSubagent');
-
-/** ADK's own in-memory store for a turn on the adk runtime (quiet); the engine's otherwise, as a consumer without ADK holds it. */
-async function sessionServiceFor(runtime: RuntimeName) {
-  if (runtime !== 'adk') return asAdkSessionService(new InProcessSessionService());
-  const { InMemorySessionService, LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-  return new InMemorySessionService();
-}
 
 /** The clock a slow script waits on: a finish order is the scripts' timeline, never a race of real timers (tests/helpers/virtualClock.ts). */
 const clock = virtualClock();
@@ -102,11 +88,10 @@ interface Run {
   childEvents: TurnEvent[];
 }
 
-async function runDesk(nested: SyndicateYamlConfig = pipeline(), runtime?: 'adk' | 'native'): Promise<Run> {
+async function runDesk(nested: SyndicateYamlConfig = pipeline()): Promise<Run> {
   const models = Object.fromEntries(Object.entries(scripts()).map(([key, script]) => [key, new ScriptedModel(`scripted/${key}`, script)]));
-  const sessionService = await sessionServiceFor(chooseRuntime(runtime ?? testRuntime()));
+  const sessionService = new InProcessSessionService();
   const result = await runSyndicateTurn({
-    ...(runtime ? { runtime } : runtimeOption()),
     config: caller(),
     parts: [{ text: 'write me something on cats' }],
     appName: 'app',
@@ -116,11 +101,11 @@ async function runDesk(nested: SyndicateYamlConfig = pipeline(), runtime?: 'adk'
     compile: { resolveModel: shimResolver(models), loadNested: () => nested, log: () => {} },
     trace: false,
   });
-  const read = async (appName: string) => JSON.parse(JSON.stringify((await sessionService.getSession({ appName, userId: 'u', sessionId: 's' }))?.events ?? [])) as TurnEvent[];
+  const read = async (appName: string) => JSON.parse(JSON.stringify((await sessionService.get({ appName, userId: 'u', sessionId: 's' }))?.events ?? [])) as TurnEvent[];
   return { result, models, callerEvents: await read('app'), childEvents: await read('Writer') };
 }
 
-forEachRuntime('a delegated yaml_reference to a workflow syndicate runs the whole graph; its last output is the tool’s answer', async () => {
+test('a delegated yaml_reference to a workflow syndicate runs the whole graph; its last output is the tool’s answer', async () => {
   const { result, models, childEvents } = await runDesk();
   assert.equal(result.status, 'completed', result.error?.message);
   const final = 'edited({"Write":"draft(plan(an article on cats))","Check":"claims(plan(an article on cats))"})';
@@ -128,24 +113,15 @@ forEachRuntime('a delegated yaml_reference to a workflow syndicate runs the whol
   assert.ok(result.text.includes(JSON.stringify(final).slice(1, -1)), `the boss received the graph's last output: ${result.text}`);
   for (const key of ['plan', 'write', 'check', 'edit']) assert.equal(models[key]!.calls, 1, `${key} ran once`);
   assert.equal(lastText(models.plan!.requests[0]!), 'an article on cats', 'the first node gets the call’s request');
-  // The child session is the entry's, as ADK's AgentTool keeps it; every node path is rooted at the entry's name.
+  // The child session is the entry's; every node path is rooted at the entry's name.
   const paths = [...new Set(childEvents.map((e) => e.nodeInfo?.path).filter(Boolean))];
   assert.deepEqual(paths.sort(), ['Writer.Both', 'Writer.Check', 'Writer.Edit', 'Writer.Plan', 'Writer.Write']);
   assert.equal(childEvents.filter((e) => e.output !== undefined).at(-1)?.output, final);
 });
 
-test('the nested workflow stores the same sessions and sends the same requests on both runtimes', async () => {
-  const adk = await reference('nested-workflow-sessions-and-requests', async () => {
-    const run = await runDesk(pipeline(), 'adk');
-    return {
-      status: run.result.status,
-      text: run.result.text,
-      childEvents: run.childEvents,
-      callerEvents: run.callerEvents,
-      requests: Object.fromEntries(Object.entries(run.models).map(([key, m]) => [key, requestsOf(m)])),
-    };
-  });
-  const native = await runDesk(pipeline(), 'native');
+test('the nested workflow stores the same sessions and sends the same requests as ADK recorded', async () => {
+  const adk = await reference<{ status: string; text: string; childEvents: TurnEvent[]; callerEvents: TurnEvent[]; requests: Record<string, unknown> }>('nested-workflow-sessions-and-requests');
+  const native = await runDesk(pipeline());
   assert.equal(native.result.status, adk.status);
   assert.equal(native.result.text, adk.text);
   assert.deepEqual(comparable(native.childEvents), comparable(adk.childEvents), 'the child session');
@@ -155,7 +131,7 @@ test('the nested workflow stores the same sessions and sends the same requests o
   }
 });
 
-forEachRuntime('a nested workflow with an ask_user node is refused by name before any model call', async () => {
+test('a nested workflow with an ask_user node is refused by name before any model call', async () => {
   const nested = validateSyndicateConfig(
     {
       syndicate_name: 'Pipeline',
@@ -169,7 +145,7 @@ forEachRuntime('a nested workflow with an ask_user node is refused by name befor
   await assert.rejects(runDesk(nested), /pipeline\.yaml: the ask_user node 'Confirm' pauses for a person, which a workflow nested in another syndicate \(Writer\) cannot carry to its caller/);
 });
 
-test('compile: the nested workflow is one tool, under the entry’s name and description, on both runtimes', async () => {
+test('compile: the nested workflow is one tool, under the entry’s name and description', async () => {
   const models = Object.fromEntries(Object.keys(scripts()).map((key) => [key, new ScriptedModel(`scripted/${key}`, () => answer(''))]));
   const spec = await compileSpec(caller(), { resolveModel: shimResolver(models), loadNested: () => pipeline(), log: () => {} });
   const entry = spec.tools.find((t) => t.kind === 'workflow');

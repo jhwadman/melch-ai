@@ -2,7 +2,7 @@
  * lib/memory/erase.ts — erase a scope from every store (ADR 0020 item 7).
  *
  * One call to `melchizedek_erase_scope` (db/migrations/0002_erase_scope.sql),
- * which deletes memory facts, sessions (with the per-subagent rows ADK writes
+ * which deletes memory facts, sessions (with the per-subagent rows kept
  * beside them), the ledger's turns, spans, payloads, verdicts and labels, the
  * scope's durable A2A tasks for those conversations, its memory ingestion
  * markers, (without a namespace) its task tools' list and jobs

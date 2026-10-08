@@ -77,12 +77,12 @@ test('the erase migration covers every store, revokes PUBLIC, and requires a sco
 test('namespacedMemoryService pins searches and ingestion to the root namespace', async () => {
   const seen: any[] = [];
   const base = {
-    async searchMemory(req: any) {
+    async search(req: any) {
       seen.push(['search', req.appName, req.userId]);
       return { memories: [] };
     },
-    async addSessionToMemory(session: any, rules?: string) {
-      seen.push(['add', session.appName, session.userId, rules]);
+    async ingest(session: any, options?: { extractionRules?: string }) {
+      seen.push(['add', session.appName, session.userId, options?.extractionRules]);
     },
     async deleteUserMemory(key: string) {
       seen.push(['delete', key]);
@@ -91,8 +91,8 @@ test('namespacedMemoryService pins searches and ingestion to the root namespace'
   };
   const pinned = namespacedMemoryService(base as any, 'support_triage.k3f9q2a8');
   // A DELEGATE subagent searches under its own agent name; the pin overrides it.
-  await pinned.searchMemory({ appName: 'Scout', userId: 'u1', query: 'tea' });
-  await pinned.addSessionToMemory({ appName: 'Scout', userId: 'u1', id: 's', events: [] } as any, 'rules');
+  await pinned.search({ appName: 'Scout', userId: 'u1', query: 'tea' });
+  await pinned.ingest({ appName: 'Scout', userId: 'u1', id: 's', events: [] } as any, { extractionRules: 'rules' });
   assert.equal(await (pinned as any).deleteUserMemory('x/u1'), 1);
   assert.deepEqual(seen, [
     ['search', 'support_triage.k3f9q2a8', 'u1'],

@@ -354,7 +354,7 @@ export interface AgentNodeRuntime {
  * The scheduler's node runner for a syndicate's agents, and the store for
  * its route steps' events. Node user turns and route events are stored in
  * the order the walk reaches them, through one queue, so a route step's
- * event lands before its successor's input as on ADK.
+ * event lands before its successor's input, as ADK's recorded walks have it.
  */
 export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRuntime {
   const { agents, session, sessions, invocationId } = options;
@@ -416,8 +416,8 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
   return {
     runNode,
     onEvent,
-    // ADK's Runner stores what a node yields a few ticks after it is yielded, behind the user turns of nodes started in
-    // the same pass: queued one microtask later, which is still before the walk starts the node's successors.
+    // A node's event is stored a few ticks after it is yielded, behind the user turns of nodes started in the same
+    // pass, as ADK's Runner stored it: queued one microtask later, which is still before the walk starts the node's successors.
     store: (event) => Promise.resolve().then(() => enqueue(event, options.onEvent)),
     async settled() {
       await tail;

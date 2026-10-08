@@ -5,12 +5,12 @@
  * The request is built by the native step (buildModelRequest,
  * lib/runtime/native/request.ts) from the registry's tools or from a
  * compiled syndicate, then sent by GeminiAdapter (lib/models/geminiAdapter.ts)
- * through the real @google/genai SDK over a stubbed fetch, so each case
+ * through the real Gemini SDK over a stubbed fetch, so each case
  * asserts the body the Gemini API would receive:
  *   - google_search, web_search and url_context reach the adapter only as
  *     `nativeTools` entries, never as a function, and go on the wire as
- *     Gemini's `googleSearch` and `urlContext`; the ADK runtime still gets
- *     its own objects from the registry;
+ *     Gemini's `googleSearch` and `urlContext`; the registry holds them as
+ *     the shared markers (lib/tools/nativeTools.ts);
  *   - load_memory's declaration, load_memory's note and preload_memory's
  *     recalled block in the system instruction, and a two-step session in
  *     which the model calls load_memory and answers from its result;
@@ -24,14 +24,10 @@ import { afterEach, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { AgentTool, GOOGLE_SEARCH, LogLevel, setLogLevel } from '@google/adk';
 import { GoogleGenAI } from '@google/genai';
 import type { GoogleGenAIOptions } from '@google/genai';
 
-import { remoteAgentTool } from '../lib/a2a/remoteAgent.ts';
 import { compileSpec, compileSubagentSpec } from '../lib/compile.ts';
-import type { AgentSpec, SpecTool } from '../lib/compile.ts';
-import { compileAdk } from '../lib/compileAdk.ts';
 import { compileNative } from '../lib/compileNative.ts';
 import { isDispatchSyndicate } from '../lib/dispatch.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
@@ -49,10 +45,7 @@ import type { Session } from '../lib/runtime/sessions.ts';
 import { resolveTools } from '../lib/toolRegistry.ts';
 import { LOAD_MEMORY_INSTRUCTION } from '../lib/tools/memoryTools.ts';
 import { createToolContext, instructionToolOf, toolOf } from '../lib/tools/tool.ts';
-import { URL_CONTEXT } from '../lib/tools/urlContextTool.ts';
-import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
-
-setLogLevel(LogLevel.ERROR);
+import { GOOGLE_SEARCH_MARKER, URL_CONTEXT_MARKER, WEB_SEARCH_MARKER } from '../lib/tools/nativeTools.ts';
 
 const KEY = 'fixture-gemini-key-0123456789';
 const MODEL = 'gemini-3.5-flash-lite';
@@ -211,11 +204,11 @@ test('url_context and google_search are Gemini-only: another model gets no flag 
   );
 });
 
-test('the ADK runtime still receives its own objects from the registry', () => {
+test('the registry holds the server-side tools as the shared markers', () => {
   const [webSearch, urlContext, googleSearch] = resolveTools(['web_search', 'url_context', 'google_search']);
-  assert.equal(webSearch, WEB_SEARCH, 'web_search: the shared sentinel');
-  assert.equal(urlContext, URL_CONTEXT, 'url_context: the shared sentinel');
-  assert.equal(googleSearch, GOOGLE_SEARCH, "google_search: ADK's own GOOGLE_SEARCH");
+  assert.equal(webSearch, WEB_SEARCH_MARKER, 'web_search: the shared marker');
+  assert.equal(urlContext, URL_CONTEXT_MARKER, 'url_context: the shared marker');
+  assert.equal(googleSearch, GOOGLE_SEARCH_MARKER, 'google_search: the shared marker');
 });
 
 // ── Memory tools through GeminiAdapter ───────────────────────────────────────
@@ -318,27 +311,12 @@ test('a scripted session: Gemini calls load_memory, the result goes back as its 
 
 // ── The shipped syndicates' Gemini agents ────────────────────────────────────
 
-/**
- * A syndicate's root as the native step builds its request: the compile
- * split's NativeAgent (lib/compileNative.ts). Delegation does not run on
- * the native loop yet (WS2-6), so compileNative refuses a DELEGATE root;
- * here each delegated subagent is handed over as the AgentTool the ADK
- * runtime compiles it to, so the root's request declares it as ADK's does.
- */
-function nativeRootOf(spec: AgentSpec): NativeAgent {
-  const tools: SpecTool[] = spec.tools.map((entry) => {
-    if (entry.kind === 'agent') return { kind: 'tool', tool: new AgentTool({ agent: compileAdk(entry.agent) }) };
-    if (entry.kind === 'remote') return { kind: 'tool', tool: remoteAgentTool(entry) };
-    return entry;
-  });
-  return compileNative({ ...spec, tools });
-}
-
 /** Every agent of a shipped syndicate as the native step runs it. */
 async function nativeAgents(file: string): Promise<NativeAgent[]> {
   const config = loadSyndicate(path.join(EXAMPLES, file));
   const root = await compileSpec(config, { log: () => {} });
-  const out = [nativeRootOf(root)];
+  // The root as the native step builds its request: each delegated subagent is its subagentTool (lib/compileNative.ts).
+  const out = [compileNative(root)];
   for (const sub of config.subagents ?? []) {
     // The root delegates to this same subagent spec (delegate), or the dispatcher runs it.
     if (!isDispatchSyndicate(config)) assert.ok(root.tools.some((t) => t.kind === 'agent' && t.agent.name === sub.name), `${file}: ${sub.name} is the root's delegation`);

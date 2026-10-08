@@ -226,7 +226,7 @@ export function isRootSpan(span: ReadableSpan): boolean {
 export function isPayloadSpan(span: ReadableSpan): boolean {
   // One step's model call: ADK's call_llm always carries its payload; the
   // native loop's model.call carries it only for a call that did not fail
-  // (a failed call's payload is on its llm.request, below, on both runtimes).
+  // (a failed call's payload is on its llm.request, below, under either scheme).
   if (isModelCallSpan(span.name, scopeName(span))) return span.name === 'call_llm' || !!attrsOf(span)['llm.payload.response'];
   // Errored calls: ADK's call_llm span is unreliable on error (its end() is
   // skipped when the consumer stops at the error event, and traceCallLlm

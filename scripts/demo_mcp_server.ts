@@ -5,7 +5,7 @@
  *   config/agents/librarian.yaml demonstrates the point of MCP: an agent whose
  *   capabilities are not compiled in but DISCOVERED — the framework dials this
  *   server (lib/tools/mcpToolFactory.ts), lists its tools, and hands them to
- *   the Librarian subagent as live ADK tools. This server is the "site" whose
+ *   the Librarian subagent as live tools. This server is the "site" whose
  *   data the agent can then fetch and modify autonomously.
  *
  *   The dataset is a library catalog (demo/library.json). It exposes two read

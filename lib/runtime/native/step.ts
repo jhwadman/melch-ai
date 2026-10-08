@@ -4,28 +4,28 @@
  * model's answer as the event ADK would have stored (ADR 0045, ADR 0066).
  *
  * WHY this file exists:
- *   On the ADK runtime one step is LlmAgent.runOneStepAsync: build the
- *   request, call the model through the shim (lib/models/adkShim.ts), turn
- *   each response into an event, and let the Runner store the ones that are
- *   not partial. The native loop does the same with no ADK in the path, and
- *   a session either runtime wrote must be one the other can continue, so
- *   each piece matches:
+ *   Under ADK one step was LlmAgent.runOneStepAsync: build the request,
+ *   call the model, turn each response into an event, and let the Runner
+ *   store the ones that are not partial. The native loop does the same, and
+ *   a session ADK wrote must be one the loop can continue, so each piece
+ *   matches:
  *
  *   - THE CALL'S CONTROLS (ADR 0053). The native loop is the adapter's
  *     caller, so it charges the turn and opens the llm.request span, through
- *     the same traceLlmGeneration call the shim makes, with the adapter's
- *     provider, the agent's model id and the request. The step budget, the
- *     token charge and the span's attributes are therefore the same on both
- *     runtimes. A turn that has stopped (cancel, deadline, the step limit)
- *     gets no call and no event: ADK checks the run's signal before the call
- *     and after each response and returns without an event, and the turn
- *     runner reports the stop from the turn's control. So does this step.
+ *     traceLlmGeneration, with the adapter's provider, the agent's model id
+ *     and the request. A turn that has stopped (cancel, deadline, the step
+ *     limit) gets no call and no event: as ADK did, the step checks the
+ *     run's signal before the call and after each response and returns
+ *     without an event, and the turn
+ *     runner reports the stop from the turn's control.
  *   - THE EVENT. Each response becomes ADK's event for it: created before
  *     the call with the run's id, the agent as author and the branch, and
- *     merged with the response as the shim maps it (modelResponseToLlmResponse),
- *     a fresh id for every response after the first. For a Gemini adapter
+ *     merged with the response as genaiMapping maps it (modelResponseToLlmResponse),
+ *     a fresh id for every response after the first. A Responses adapter's
+ *     server-side tool calls ride on the final's customMetadata
+ *     (withServerTools), where the ledger counts them. For a Gemini adapter
  *     that stands for ADK's own Gemini (standsForAdkGemini), the event has no
- *     turnComplete, since ADK's Gemini writes none (ADR 0100). A tool call with no id
+ *     turnComplete, since ADK's Gemini wrote none (ADR 0100). A tool call with no id
  *     gets ADK's `adk-<uuid>`; a call to a long-running tool is listed in
  *     longRunningToolIds; a set_model_response call becomes its arguments as
  *     JSON text, ending the step (skipSummarization). An answer with no
@@ -40,12 +40,12 @@
  *     ADK's own Gemini would serve, which sends no toolsDict (ADR 0097).
  *     On a Gemini adapter the reflection call stored in a response's place
  *     carries its signature, or Gemini 3's placeholder (reflectionSigning,
- *     ADR 0103), where ADK stores it unsigned.
+ *     ADR 0103), where ADK stored it unsigned.
  *   - A THROWN FAILURE. The contract forbids an adapter to throw, but a
- *     leaf that does (an ADK-era model class) is read as ADK reads it. With
+ *     leaf that does is read as ADK read it. With
  *     a `redirect`, a provider-side failure (errorDecision, lib/models/
  *     errorResponse.ts) is handed to it as a retryable failed final, so the
- *     fallback answers when nothing was produced yet (FallbackLlm). Any
+ *     fallback answers when nothing was produced yet (ADR 0044). Any
  *     other thrown Error ends the step on ADK's error event for it
  *     (runAndHandleError): UNKNOWN_ERROR, or the code a JSON error message
  *     names, with the message, key-shaped text scrubbed. A throw that is
@@ -62,11 +62,12 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { LlmResponse } from '@google/adk';
+import type { LlmResponse } from '../../models/genaiMapping.ts';
 
 import type { FinalModelResponse, ModelAdapter, ModelError, ModelRequest, ModelResponse, ToolCallPart } from '../../models/contract.ts';
 import { errorDecision, errorText } from '../../models/errorResponse.ts';
 import { contractModelResponse, modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
+import { responsesServerTools } from '../../models/gptAdapter.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import { traceLlmGeneration } from '../../observability/tracer.ts';
 import type { MemoryService } from '../memoryService.ts';
@@ -107,7 +108,7 @@ export interface ModelStepOptions {
   /**
    * The model id the request is sent under. Default the agent's. A fallback
    * model answers the request built for the agent's own model, under its own
-   * id, as ADK's FallbackLlm sends it (ADR 0044).
+   * id (ADR 0044).
    */
   model?: string;
   /** Called on the final event just before it is stored: the loop saves the agent's outputKey here, as ADK does before its Runner appends. */
@@ -180,6 +181,26 @@ function isLongRunning(tool: unknown): boolean {
   return !!tool && typeof tool === 'object' && (tool as { isLongRunning?: unknown }).isLongRunning === true;
 }
 
+/**
+ * A Responses adapter's server-side tool record (web_search, x_search, ...)
+ * on the final's customMetadata, as `responses.server_tool_calls` and
+ * `responses.server_tool_usage`: the contract has no field for them, and the
+ * root span turns the calls into ToolCall events (lib/observability/
+ * tracer.ts, serverToolEvents), so adk_turns.tool_calls counts a searched
+ * answer. Read off the object the adapter yielded, which is what the record
+ * is keyed by (lib/models/gptAdapter.ts, responsesServerTools).
+ */
+function withServerTools(mapped: LlmResponse, yielded: ModelResponse): LlmResponse {
+  const record = responsesServerTools(yielded);
+  if (!record) return mapped;
+  const metadata = {
+    ...(record.calls.length > 0 ? { 'responses.server_tool_calls': record.calls } : {}),
+    ...(Object.keys(record.usage).length > 0 ? { 'responses.server_tool_usage': record.usage } : {}),
+  };
+  if (Object.keys(metadata).length === 0) return mapped;
+  return { ...mapped, customMetadata: { ...mapped.customMetadata, ...metadata } };
+}
+
 /** ADK's postprocess: whether a response makes an event at all. */
 function makesEvent(response: LlmResponse): boolean {
   const usageOnly = !response.content && !!response.usageMetadata;
@@ -204,9 +225,9 @@ function thrownModelError(err: Error): { code: string; message: string } {
 
 /**
  * One model step for `agent`. Never throws for a failed call: the error is
- * on the result and on the stored event, as on the ADK runtime, also when
- * the adapter throws an Error, which the contract forbids. Throws when the
- * request cannot be built (as ADK does).
+ * on the result and on the stored event, as ADK stored it, also when the
+ * adapter throws an Error, which the contract forbids. Throws when the
+ * request cannot be built (as ADK did).
  */
 export async function runModelStep(options: ModelStepOptions): Promise<ModelStepResult> {
   const { agent, session, sessions } = options;
@@ -238,20 +259,20 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
   const base = createTurnEvent({ invocationId: options.invocationId, author: agent.name, branch: options.branch });
   let next = { id: base.id, timestamp: base.timestamp };
 
-  // The tracer reads LlmResponses, as on the shim; the contract response each came from rides beside it.
+  // The tracer reads LlmResponses; the contract response each came from rides beside it.
   const sources = new WeakMap<LlmResponse, ModelResponse>();
   // What the adapter itself threw, as opposed to the store or a callback.
   let thrown: { error: unknown } | undefined;
-  // ADK's own Gemini writes no turnComplete, so its stand-in's events carry none (ADR 0100).
+  // ADK's own Gemini wrote no turnComplete, so its stand-in's events carry none (ADR 0100).
   const adkGemini = standsForAdkGemini(adapter);
   // How a reflection call stored in this adapter's place is signed (ADR 0103).
   const signing = reflectionSigning(adapter, request.model);
   async function* inner(): AsyncGenerator<LlmResponse, void> {
     try {
       for await (const unchecked of adapter.generate(request)) {
-        // The answer held to the contract, as the shim's mapping holds it (contractModelResponse): the step reads and stores the same parts.
+        // The answer held to the contract (contractModelResponse): the step reads and stores the same parts.
         const response = contractModelResponse(unchecked);
-        const mapped = modelResponseToLlmResponse(response);
+        const mapped = withServerTools(modelResponseToLlmResponse(response), unchecked);
         if (adkGemini) delete mapped.turnComplete;
         sources.set(mapped, response);
         yield mapped;
@@ -266,7 +287,7 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
   try {
     return await readResponses();
   } catch (err) {
-    // An adapter that threw (see the header): FallbackLlm's catch.
+    // An adapter that threw (see the header): the fallback's catch (ADR 0044).
     if (thrown?.error !== err || signal?.aborted) throw err;
     const decision = errorDecision(err);
     if (options.redirect && decision.retryable) {

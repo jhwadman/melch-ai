@@ -1,16 +1,16 @@
 /**
  * Shared compiler invariants — fully offline, no API keys, no network.
  *
- * lib/compile.ts is the one place a YAML syndicate becomes an ADK agent
- * graph; the A2A server and the observatory both call it. These tests pin
- * the contract both depend on: every shipped YAML compiles, DELEGATE mode
- * wraps subagents as tools, PLAN-DISPATCH compiles a tool-less classifier
- * while its routes still compile individually, nested yaml_reference
- * entries go through the injected loader, and model resolution is the
- * caller's business. Then the compile split (ADR 0073): one AgentSpec
- * builds ADK's LlmAgent and the native loop's NativeAgent, which send the
- * same first request; the runtime flag; and what native refuses at compile
- * time.
+ * lib/compile.ts is the one place a YAML syndicate becomes an AgentSpec,
+ * and lib/compileNative.ts the place a spec becomes the native loop's
+ * NativeAgent; the A2A server and the observatory both call them. These
+ * tests pin the contract both depend on: every shipped YAML compiles,
+ * PLAN-DISPATCH compiles a tool-less classifier while its routes still
+ * compile individually, nested yaml_reference entries go through the
+ * injected loader, and model resolution is the caller's business. Then the
+ * compile split (ADR 0073): the NativeAgent sends the first request ADK
+ * 2.2's LlmAgent sent for the same spec (recorded); the runtime flag; and
+ * what native refuses at compile time.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -18,11 +18,9 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { AgentTool, InMemorySessionService, LlmAgent, Runner } from '@google/adk';
 import { z } from 'zod';
-import { compileGraph, compileSpec, compileSubagent, compileSubagentSpec } from '../lib/compile.ts';
-import { compileAdk } from '../lib/compileAdk.ts';
-import { compileNative, nativeAdapterFor } from '../lib/compileNative.ts';
+import { compileSpec, compileSubagentSpec, compileWorkflowSpec } from '../lib/compile.ts';
+import { compileNative, compileNativeGraph, compileNativeSubagent, compileNativeWorkflow, nativeAdapterFor } from '../lib/compileNative.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ClaudeAdapter } from '../lib/models/claudeAdapter.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
@@ -30,21 +28,19 @@ import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
 import { subagentOf } from '../lib/runtime/native/delegate.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runNativeAgent } from '../lib/runtime/nativeTurn.ts';
-import { DEFAULT_RUNTIME, chooseRuntime, describeRuntime, runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
+import { DEFAULT_RUNTIME, RUNTIMES, RuntimeRemovedError, chooseRuntime, describeRuntime, runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, shimResolver } from './helpers/scriptedModel.ts';
-import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { isDispatchSyndicate } from '../lib/dispatch.ts';
-import { compileWorkflow, isWorkflowSyndicate } from '../lib/workflow.ts';
+import { isWorkflowSyndicate } from '../lib/workflow.ts';
 import { adkReferences, canonical } from './helpers/adkReference.ts';
 
-// ADK's side of the one-spec-two-runtimes case (its LlmAgent's first request under ADK's Runner) is
-// recorded (tests/fixtures/adk-reference/compile); it runs only under ADK_REFERENCE=live|record. The
-// static ADK import serves the compile-structure cases, whose subject is ADK's agent graph itself.
+// The recorded side of the one-spec case: the first request ADK 2.2's LlmAgent sent for the same spec
+// under ADK's Runner (tests/fixtures/adk-reference/compile).
 const reference = adkReferences('compile');
 
 const agentDirectory = join(process.cwd(), 'config', 'agents');
@@ -66,53 +62,39 @@ function usesMcp(filename: string, seen = new Set<string>()): boolean {
   );
 }
 
-test('every shipped syndicate compiles into an ADK agent graph', async (t) => {
+test('every shipped syndicate compiles into a native agent graph', async (t) => {
   for (const filename of agentFiles) {
     if (usesMcp(filename)) continue;
     await t.test(`${filename} compiles`, async () => {
       const config = loadSyndicate(filename);
       if (isWorkflowSyndicate(config)) {
-        // A graph: every agent a node, compiled by lib/workflow.ts.
-        const { workflow, agents } = await compileWorkflow(config);
+        // A graph: every agent a node, compiled by compileWorkflowSpec.
+        const workflow = compileNativeWorkflow(await compileWorkflowSpec(config));
         assert.strictEqual(workflow.name, config.syndicate_name);
-        assert.ok(agents.get(config.orchestrator.name) instanceof LlmAgent, 'the orchestrator is a node');
-        await assert.rejects(compileGraph(config), /compileWorkflow/);
+        assert.ok(workflow.agents.get(config.orchestrator.name), 'the orchestrator is a node');
+        await assert.rejects(compileSpec(config), /compileWorkflowSpec/);
         return;
       }
-      const root = await compileGraph(config);
-      assert.ok(root instanceof LlmAgent, 'root is an LlmAgent');
+      const root = await compileNativeGraph(config);
       assert.strictEqual(root.name, config.orchestrator.name);
     });
   }
 });
 
-test('DELEGATE mode attaches every subagent as an AgentTool', async () => {
-  const config = loadSyndicate('delegation.yaml');
-  assert.strictEqual(isDispatchSyndicate(config), false);
-  const root = await compileGraph(config);
-  const tools = (root as any).tools ?? [];
-  const agentTools = tools.filter((tool: unknown) => tool instanceof AgentTool);
-  assert.strictEqual(agentTools.length, config.subagents.length);
-  const names = agentTools.map((tool: any) => tool.name).sort();
-  assert.deepStrictEqual(names, config.subagents.map((s) => s.name).sort());
-});
-
 test('PLAN-DISPATCH compiles a tool-less classifier; routes compile on their own', async () => {
   const config = loadSyndicate('research.yaml');
   assert.strictEqual(isDispatchSyndicate(config), true);
-  const router = await compileGraph(config);
-  const routerTools = (router as any).tools ?? [];
+  const router = await compileNativeGraph(config);
   assert.strictEqual(
-    routerTools.filter((tool: unknown) => tool instanceof AgentTool).length,
+    (router.tools ?? []).filter((tool) => subagentOf(tool) !== undefined).length,
     0,
-    'a dispatch classifier must hold no subagent tools (ADK forbids outputSchema + AgentTool)',
+    'a dispatch classifier holds no subagent tools',
   );
-  assert.ok((router as any).outputSchema, 'the classifier carries its route schema');
+  assert.ok(router.outputSchema, 'the classifier carries its route schema');
 
   for (const sub of config.subagents) {
-    const agent = await compileSubagent(sub);
-    assert.ok(agent instanceof LlmAgent, `${sub.name} compiles`);
-    assert.strictEqual(agent.name, sub.name);
+    const agent = await compileNativeSubagent(sub);
+    assert.strictEqual(agent.name, sub.name, `${sub.name} compiles`);
   }
 });
 
@@ -121,7 +103,7 @@ test('nested yaml_reference entries load through the injected loader', async () 
   const ref = config.subagents.find((s) => s.yaml_reference);
   assert.ok(ref, 'fixture has a yaml_reference subagent');
   const seen: string[] = [];
-  const agent = await compileSubagent(ref!, {
+  const agent = await compileNativeSubagent(ref!, {
     loadNested: (file) => {
       seen.push(file);
       return loadSyndicate(file);
@@ -136,7 +118,7 @@ test('nested yaml_reference entries load through the injected loader', async () 
 test('model resolution is injected, not assumed', async () => {
   const config = loadSyndicate('delegation.yaml');
   const resolved: Array<string | undefined> = [];
-  await compileGraph(config, {
+  await compileSpec(config, {
     resolveModel: (model) => {
       resolved.push(model);
       return model;
@@ -151,11 +133,11 @@ test('unknown tool names are reported, never thrown', async () => {
   const config = loadSyndicate('delegation.yaml');
   config.orchestrator.tools = ['no_such_tool'];
   const unknown: string[] = [];
-  await compileGraph(config, { onUnknownTool: (name) => unknown.push(name) });
+  await compileSpec(config, { onUnknownTool: (name) => unknown.push(name) });
   assert.deepStrictEqual(unknown, ['no_such_tool']);
 });
 
-test('documented LlmAgent fields reach the compiled agent', async () => {
+test('documented agent fields reach the compiled agent', async () => {
   const config = {
     syndicate_name: 'Passthrough',
     orchestrator: {
@@ -168,11 +150,11 @@ test('documented LlmAgent fields reach the compiled agent', async () => {
     },
     subagents: [{ name: 'Sub', model: 'gemini-3.5-flash-lite', instruction: 'y', includeContents: 'none', disallowTransferToPeers: true }],
   } as any;
-  const root = (await compileGraph(config)) as any;
+  const root = (await compileNativeGraph(config)) as any;
   assert.strictEqual(root.includeContents, 'none');
   assert.strictEqual(root.outputKey, 'root_out');
   assert.strictEqual(root.globalInstruction, 'Be kind.');
-  const sub = (await compileSubagent(config.subagents[0])) as any;
+  const sub = (await compileNativeSubagent(config.subagents[0])) as any;
   assert.strictEqual(sub.includeContents, 'none');
   assert.strictEqual(sub.disallowTransferToPeers, true);
 });
@@ -188,9 +170,9 @@ test('reasoning compiles to the field each provider reads; an agent without it c
       { name: 'Plain', description: 'p', model: 'gpt-5-mini', instruction: 'y' },
     ],
   } as any;
-  const root = (await compileGraph(config)) as any;
+  const root = (await compileNativeGraph(config)) as any;
   assert.deepStrictEqual(root.generateContentConfig, { maxOutputTokens: 512, reasoningEffort: 'low', thinkingConfig: { thinkingLevel: 'LOW' }, toolConfig });
-  const compiled = async (i: number) => ((await compileSubagent(config.subagents[i])) as any).generateContentConfig;
+  const compiled = async (i: number) => ((await compileNativeSubagent(config.subagents[i])) as any).generateContentConfig;
   assert.deepStrictEqual(await compiled(0), { reasoningEffort: 'high', thinkingConfig: { thinkingBudget: 16384 }, toolConfig });
   // Neither key, or only the older spelling: exactly what compiled before.
   assert.deepStrictEqual(await compiled(1), { thinkingConfig: { thinkingLevel: 'MEDIUM', includeThoughts: false }, toolConfig });
@@ -200,24 +182,24 @@ test('reasoning compiles to the field each provider reads; an agent without it c
 test('reasoning maps for the model the resolver picks, and refuses the older spelling beside it', async () => {
   // A subagent with no model runs on whatever the resolver returns (on the server, a BYOK adapter).
   const inherit = { name: 'Inherit', description: 'i', instruction: 'y', reasoning: 'medium' } as any;
-  const viaInstance = (await compileSubagent(inherit, { resolveModel: () => new ClaudeLlm({ model: 'claude-sonnet-4-6' }) })) as any;
+  const viaInstance = (await compileNativeSubagent(inherit, { resolveModel: () => new ClaudeAdapter({ model: 'claude-sonnet-4-6' }) })) as any;
   assert.deepStrictEqual(viaInstance.generateContentConfig.thinkingConfig, { thinkingBudget: 8192 });
-  const viaString = (await compileSubagent(inherit, { resolveModel: () => 'kimi-k3' })) as any;
+  const viaString = (await compileNativeSubagent(inherit, { resolveModel: () => 'kimi-k3' })) as any;
   assert.strictEqual(viaString.generateContentConfig.reasoningEffort, 'high');
   assert.ok(!('thinkingConfig' in viaString.generateContentConfig));
 
   // A config built in code skips the loader; the compiler refuses the clash itself.
   const both = { name: 'Both', description: 'b', model: 'gpt-5-mini', instruction: 'y', reasoning: 'low', generateContentConfig: { reasoningEffort: 'high' } } as any;
-  await assert.rejects(compileSubagent(both), /Both: reasoning cannot be combined with generateContentConfig\.reasoningEffort/);
+  await assert.rejects(compileSubagentSpec(both), /Both: reasoning cannot be combined with generateContentConfig\.reasoningEffort/);
 });
 
 test('the intake template is stateless as its header promises', async () => {
   const config = loadSyndicate('intake_extractor.yaml');
-  const root = (await compileGraph(config)) as any;
+  const root = (await compileNativeGraph(config)) as any;
   assert.strictEqual(root.includeContents, 'none');
 });
 
-// ── One spec, two runtimes (WS2-10, ADR 0073) ────────────────────────────────
+// ── One spec, the recorded ADK request (WS2-10, ADR 0073) ────────────────────
 
 registerTool(
   'compile_split_lookup',
@@ -248,7 +230,7 @@ const splitFixture = (): SyndicateYamlConfig =>
     subagents: [],
   }) as unknown as SyndicateYamlConfig;
 
-test('one AgentSpec compiles on both paths, and the two agents send the same first request', async () => {
+test("one AgentSpec's NativeAgent sends the first request ADK's LlmAgent sent for it (recorded)", async () => {
   const requests: Record<string, ModelRequest[]> = {};
   const modelsFor = (runtime: string) => {
     const grader = new ScriptedModel('scripted/grader', (req) => {
@@ -261,20 +243,8 @@ test('one AgentSpec compiles on both paths, and the two agents send the same fir
   const message = { role: 'user', parts: [{ text: 'grade alpha' }] };
   const strip = ({ signal: _signal, ...rest }: ModelRequest) => rest;
 
-  // ADK: the spec's LlmAgent under ADK's Runner (recorded: its first request, signal aside, and the backup's calls).
-  const adk = await reference('one-spec-first-request', async () => {
-    const adkModels = modelsFor('adk');
-    const adkOpts = { resolveModel: shimResolver(adkModels), log: () => {} };
-    const adkSpec = await compileSpec(splitFixture(), adkOpts);
-    const adkAgent = compileAdk(adkSpec, adkOpts);
-    assert.ok(adkAgent instanceof LlmAgent);
-    const adkSessions = new InMemorySessionService();
-    await adkSessions.createSession({ appName: 'split', userId: 'u1', sessionId: 's1' });
-    const runner = new Runner({ agent: adkAgent, appName: 'split', sessionService: adkSessions });
-    for await (const _ of runner.runAsync({ userId: 'u1', sessionId: 's1', newMessage: message as any }));
-    const first = requests.adk?.[0];
-    return JSON.parse(JSON.stringify({ first: first && strip(first), backupCalls: adkModels.backup.calls })) as { first?: Omit<ModelRequest, 'signal'>; backupCalls: number };
-  });
+  // ADK 2.2: the spec's LlmAgent under ADK's Runner (recorded: its first request, signal aside, and the backup's calls).
+  const adk = await reference<{ first?: Omit<ModelRequest, 'signal'>; backupCalls: number }>('one-spec-first-request');
 
   // Native: the same fixture's spec as the loop's NativeAgent.
   const nativeOpts = { resolveModel: shimResolver(nativeModels), log: () => {} };
@@ -295,7 +265,7 @@ test('one AgentSpec compiles on both paths, and the two agents send the same fir
       userId: 'u1',
       sessionId: 's1',
       userParts: message.parts,
-      // The Runner above installs no reflect-and-retry plugins: self-correction off on both sides.
+      // The recorded Runner installed no reflect-and-retry plugins: self-correction off here too.
       selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
     }));
   });
@@ -303,7 +273,7 @@ test('one AgentSpec compiles on both paths, and the two agents send the same fir
 
   const adkFirst = adk.first;
   const nativeFirst = requests.native?.[0];
-  assert.ok(adkFirst && nativeFirst, 'both runtimes called the model');
+  assert.ok(adkFirst && nativeFirst, 'the recording and the native run both called the model');
   // In the recording's canonical form (adkReference.ts), so any ids line up.
   assert.deepStrictEqual(canonical({ first: strip(nativeFirst), backupCalls: nativeModels.backup.calls }).first, adkFirst);
   assert.deepStrictEqual(nativeFirst.tools?.map((t) => t.name), ['compile_split_lookup', 'load_memory', 'load_skill', 'load_skill_resource', 'set_model_response']);
@@ -311,11 +281,11 @@ test('one AgentSpec compiles on both paths, and the two agents send the same fir
   assert.strictEqual(adk.backupCalls + nativeModels.backup.calls, 0);
 });
 
-test('native adapters follow the resolver: a shim’s own adapter, and a BYOK key an ADK instance carries', () => {
+test('native adapters follow the resolver: a scripted model’s own adapter, and a BYOK adapter the resolver returns', () => {
   const grader = new ScriptedModel('scripted/grader', () => answer('x'));
   assert.strictEqual(nativeAdapterFor({ resolveModel: shimResolver({ grader }) })('scripted/grader'), grader);
 
-  // No Anthropic key in the environment, a gateway configured: only a key the instance carries routes direct.
+  // No Anthropic key in the environment, a gateway configured: only the adapter the resolver built with a key routes direct.
   const keys = ['ANTHROPIC_API_KEY', 'MODEL_GATEWAY', 'MODEL_GATEWAY_API_KEY', 'ANTHROPIC_PLATFORM'] as const;
   const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
   try {
@@ -324,10 +294,11 @@ test('native adapters follow the resolver: a shim’s own adapter, and a BYOK ke
     process.env.MODEL_GATEWAY = 'vercel';
     process.env.MODEL_GATEWAY_API_KEY = 'fixture-gateway-key-0123';
     const model = 'claude-sonnet-4-6';
-    const withKey = nativeAdapterFor({ resolveModel: () => ({ model, apiKey: 'fixture-byok-key-0123' }) as any })(model);
-    assert.ok(withKey instanceof ClaudeAdapter, 'the carried key pays: the direct adapter');
-    const withoutKey = nativeAdapterFor({ resolveModel: () => ({ model }) as any })(model);
-    assert.ok(withoutKey instanceof GatewayAdapter, 'no key carried: the environment decides');
+    const byok = new ClaudeAdapter({ model, apiKey: 'fixture-byok-key-0123' });
+    const withKey = nativeAdapterFor({ resolveModel: () => byok })(model);
+    assert.strictEqual(withKey, byok, 'the BYOK adapter pays: the direct adapter, as resolved');
+    const withoutKey = nativeAdapterFor({ resolveModel: () => model })(model);
+    assert.ok(withoutKey instanceof GatewayAdapter, 'an id alone: the environment decides');
   } finally {
     for (const k of keys) {
       if (saved[k] === undefined) delete process.env[k];
@@ -336,46 +307,48 @@ test('native adapters follow the resolver: a shim’s own adapter, and a BYOK ke
   }
 });
 
-test('the runtime flag: the turn option wins, then MELCHIZEDEK_RUNTIME, then native (ADR 0102)', () => {
+test('the runtime flag: native is the one runtime; adk names its removal in 1.0.0 (ADR 0107)', () => {
   assert.strictEqual(DEFAULT_RUNTIME, 'native');
+  assert.deepStrictEqual(RUNTIMES, ['native']);
   assert.strictEqual(chooseRuntime(undefined, {}), 'native');
-  assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'adk' }), 'adk');
-  assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: ' ADK ' }), 'adk');
   assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'native' }), 'native');
+  assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: ' Native ' }), 'native');
   assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: '' }), 'native');
-  assert.strictEqual(chooseRuntime('adk', { MELCHIZEDEK_RUNTIME: 'native' }), 'adk');
-  assert.strictEqual(chooseRuntime('native', { MELCHIZEDEK_RUNTIME: 'adk' }), 'native');
+  assert.strictEqual(chooseRuntime('native', {}), 'native');
+  assert.throws(() => chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'adk' }), (err: Error) => err instanceof RuntimeRemovedError && /1\.0\.0/.test(err.message));
+  assert.throws(() => chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: ' ADK ' }), RuntimeRemovedError);
+  assert.throws(() => chooseRuntime('adk', { MELCHIZEDEK_RUNTIME: 'native' }), RuntimeRemovedError);
+  assert.strictEqual(chooseRuntime('native', { MELCHIZEDEK_RUNTIME: 'adk' }), 'native', 'the option wins, and the environment is not read');
   assert.deepStrictEqual(describeRuntime(undefined, {}), { runtime: 'native', source: 'default' });
-  assert.deepStrictEqual(describeRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'adk' }), { runtime: 'adk', source: 'MELCHIZEDEK_RUNTIME' });
-  assert.deepStrictEqual(describeRuntime('adk', { MELCHIZEDEK_RUNTIME: 'native' }), { runtime: 'adk', source: 'option' });
+  assert.deepStrictEqual(describeRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'native' }), { runtime: 'native', source: 'MELCHIZEDEK_RUNTIME' });
+  assert.deepStrictEqual(describeRuntime('native', {}), { runtime: 'native', source: 'option' });
+  assert.throws(() => describeRuntime('adk', {}), RuntimeRemovedError);
   assert.strictEqual(runtimeSetting({}), undefined);
-  assert.throws(() => chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'langgraph' }), /MELCHIZEDEK_RUNTIME must be "adk" or "native"/);
-  assert.throws(() => chooseRuntime('loop', {}), /must be "adk" or "native"/);
+  assert.throws(() => runtimeSetting({ MELCHIZEDEK_RUNTIME: 'adk' }), RuntimeRemovedError);
+  assert.throws(() => chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'langgraph' }), /MELCHIZEDEK_RUNTIME must be "native"/);
+  assert.throws(() => chooseRuntime('loop', {}), /must be "native"/);
 });
 
-test('a delegation compiles both ways: an AgentTool on ADK, a subagentTool holding the subagent’s NativeAgent on native', async () => {
+test('a delegation compiles to a subagentTool holding the subagent’s NativeAgent', async () => {
   const config = loadSyndicate('delegation.yaml');
+  assert.strictEqual(isDispatchSyndicate(config), false);
   const spec = await compileSpec(config);
   const delegated = spec.tools.filter((t) => t.kind === 'agent');
   assert.deepStrictEqual(delegated.map((t) => (t.kind === 'agent' ? t.agent.name : '')), config.subagents.map((s) => s.name));
-  const adk = compileAdk(spec);
-  assert.deepStrictEqual((adk.tools ?? []).filter((t) => t instanceof AgentTool).map((t: any) => t.name), config.subagents.map((s) => s.name));
   const native = compileNative(spec);
   const subagents = (native.tools ?? []).map((t) => subagentOf(t)).filter((a) => a !== undefined);
   assert.deepStrictEqual(subagents.map((a) => a!.name), config.subagents.map((s) => s.name));
   assert.strictEqual(subagents[0]!.model, config.subagents[0]!.model, 'each subagent is its own compiled NativeAgent');
 });
 
-test('context: and mode: task compile for the native loop, and the same spec builds for ADK', async () => {
+test('context: and mode: task compile for the native loop', async () => {
   const base = { name: 'Solo', description: 'd', model: 'gemini-3.5-flash-lite', instruction: 'x' };
-  // Task mode runs on native (WS3-5): the spec builds both ways, mode carried.
+  // Task mode runs on native (WS3-5): mode carried.
   const task = await compileSubagentSpec({ ...base, mode: 'task' } as any);
   assert.strictEqual(compileNative(task).mode, 'task');
-  // context: compiles for the loop, which compacts as ADK does (WS2-9).
+  // context: compiles for the loop, which compacts as ADK did (WS2-9).
   const compaction = await compileSubagentSpec({ ...base, context: { compact_after_tokens: 1000, keep_recent_events: 2 } } as any);
   assert.deepStrictEqual(compileNative(compaction).context, { compact_after_tokens: 1000, keep_recent_events: 2 });
-  // The same spec builds for ADK.
-  assert.ok(compileAdk(task) instanceof LlmAgent);
 });
 
 test('a yaml_reference chain that reaches itself, or goes past 16 levels, is refused by name, never recursed until the stack gives out (WS5-5)', async () => {
@@ -409,4 +382,12 @@ test('a yaml_reference chain that reaches itself, or goes past 16 levels, is ref
   } as SyndicateYamlConfig;
   const spec = await compileSpec(twice, opts({ 'leaf.yaml': syndicateOf('Leaf') }));
   assert.equal(spec.tools.length, 2);
+});
+
+test('compileNative refuses an ADK tool (anything with runAsync) in a spec\'s tools, naming 1.0.0 and defineTool', () => {
+  const adkTool = { name: 'legacy_lookup', description: 'An ADK FunctionTool, by shape.', runAsync: async () => 'ran' };
+  assert.throws(
+    () => compileNative({ name: 'Lead', model: 'scripted/lead', instruction: 'x', tools: [{ kind: 'tool', tool: adkTool }], generateContentConfig: {} }),
+    (e: Error) => /compile: 'legacy_lookup' is an ADK tool/.test(e.message) && /1\.0\.0/.test(e.message) && /defineTool/.test(e.message),
+  );
 });

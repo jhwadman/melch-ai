@@ -3,10 +3,9 @@
  * (ADR 0047), from the YAML to the field each provider receives.
  *
  * Every case validates a one-agent syndicate, takes the agent's `reasoning:`
- * as the ModelRequest's `reasoning` (what both runtimes hand the adapter),
+ * as the ModelRequest's `reasoning` (what the runtime hands the adapter),
  * and sends it through that provider's contract adapter, asserting the
- * request body on the wire. Gemini goes through AdkGeminiAdapter, the
- * contract's Gemini until gate G3.
+ * request body on the wire. Gemini goes through the engine's GeminiAdapter.
  *
  * Offline: tests/helpers/capabilityInputs.ts stubs fetch to record the
  * request and answer 400, so no provider is called. Keys are fixture values
@@ -23,7 +22,7 @@ import path from 'node:path';
 import { runDoctor } from '../lib/doctor.ts';
 import { requiredCapabilities } from '../lib/models/capabilities.ts';
 import type { ModelRequest, ReasoningSetting } from '../lib/models/contract.ts';
-import { AdkGeminiAdapter } from '../lib/models/adkGeminiAdapter.ts';
+import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
 import { GrokAdapter } from '../lib/models/grokAdapter.ts';
 import { reasoningOf } from '../lib/models/genaiMapping.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
@@ -54,7 +53,7 @@ const wire = (row: AdapterRow, model: string, reasoning: unknown): Promise<any> 
 /** The same through the contract's Gemini. */
 const gemini = (model: string, reasoning: unknown): Promise<any> => {
   const req = request(model, reasoning);
-  return captureBody('gemini', () => new AdkGeminiAdapter({ model }).generate(req));
+  return captureBody('gemini', () => new GeminiAdapter({ model }).generate(req));
 };
 
 // ── One provider per test: the field on the wire ─────────────────────────────
@@ -106,7 +105,7 @@ test('Grok: a level replaces the pinned effort; unset keeps the pin', async () =
   assert.deepStrictEqual((await wire('xai', 'grok-4.7', undefined)).reasoning, { effort: 'medium' });
   // Grok 4.5/4.7 cannot stop reasoning: `none` is its lowest effort.
   assert.deepStrictEqual((await wire('xai', 'grok-4.5', 'none')).reasoning, { effort: 'low' });
-  // So is the older spelling's `none`, which xAI would reject: the ADK path reads it as `none` (reasoningOf).
+  // So is the older spelling's `none`, which xAI would reject: reasoningOf reads it as `none`.
   const older = new GrokAdapter({ model: 'grok-4.7', apiKey: FAKE_ENV.xai.XAI_API_KEY }).reasoningParam(reasoningOf({ reasoningEffort: 'none' } as any));
   assert.deepStrictEqual(older, { effort: 'low' });
 });

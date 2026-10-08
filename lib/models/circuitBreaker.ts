@@ -3,11 +3,11 @@
  * `fallback_model:` (ADR 0044).
  *
  * WHY its own module:
- *   Two wrappers answer a failing provider from an agent's fallback model:
- *   FallbackLlm (lib/models/fallback.ts) around two ADK BaseLlm adapters,
- *   and FallbackAdapter (lib/models/fallbackAdapter.ts) around two adapters
- *   on the engine's own contract (ADR 0048). Both read and write the circuits
- *   here, so a provider tripped on one path is skipped on the other.
+ *   FallbackAdapter (lib/models/fallbackAdapter.ts) answers a failing
+ *   provider from an agent's fallback model, around two adapters on the
+ *   engine's own contract (ADR 0048), and the native loop's own fallback
+ *   step does the same. Both read and write the circuits here, so a provider
+ *   tripped on one path is skipped on the other.
  *
  * THE RULES:
  *   - One circuit per provider id (lib/models/providerMap.ts), shared by

@@ -32,7 +32,7 @@ import type { EdgeElement, WorkflowNodeYaml } from './workflowConfig.ts';
 // ── Leaf rules ───────────────────────────────────────────────────────────────
 
 /**
- * ADK's own rule (validateAgentName in @google/adk base_agent): checked here
+ * ADK's agent-name rule (validateAgentName in ADK's base_agent), kept: checked here
  * so the error names the YAML key instead of surfacing from a constructor
  * mid-compile.
  */
@@ -624,7 +624,7 @@ function crossFieldProblems(raw: unknown): Problem[] {
 
   // Approval gates (ADR 0028): only tools the agent has, and only on agents
   // the turn runs directly — a delegated subagent runs inside a tool call,
-  // where ADK swallows the pause and the gated tool silently never runs.
+  // where the pause cannot reach the caller and the gated tool silently never runs.
   const gateProblems = (agent: Record<string, unknown>, path: (string | number)[], allowed: boolean) => {
     if (agent.require_approval === undefined) return;
     if (!allowed) {
@@ -841,7 +841,7 @@ function workflowProblems(raw: Record<string, unknown>, subs: unknown[]): Proble
     if (kind !== 'map' && (entry as WorkflowNodeYaml).max_parallel !== undefined) {
       out.push({ path: ['workflow', 'nodes', name, 'max_parallel'], message: 'max_parallel applies to map only' });
     }
-    // A map item runs under its agent's own modifiers, as on ADK (ADR 0089, ADR 0103): the map entry's would be applied by neither runtime.
+    // A map item runs under its agent's own modifiers, as on ADK (ADR 0089, ADR 0103): the map entry's would never be applied.
     if (kind === 'map') {
       for (const key of ['retry', 'timeout'] as const) {
         if ((entry as WorkflowNodeYaml)[key] === undefined) continue;

@@ -1,7 +1,9 @@
 /**
  * tests/fixtures/sessions/scenarios.ts — the conversations the session
- * fixtures freeze, shared by the generator (generate.ts, which writes them)
- * and tests/sessionFixtures.test.ts (which reads and resumes them).
+ * fixtures freeze. ADK 2.2 wrote the fixtures before 1.0.0 removed it (the
+ * generator went with it, ADR 0107); the JSON beside this file is data now,
+ * and tests/sessionFixtures.test.ts reads and resumes it with these
+ * scenarios' syndicates, tools and models.
  *
  * Each scenario is a syndicate, its scripted models and the messages that
  * drive it through runSyndicateTurn. A script answers from the REQUEST, not
@@ -10,14 +12,14 @@
  * Gemini sends them; ADK assigns the `adk-<uuid>` id the stored row holds.
  */
 
-import { FunctionTool } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
 import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from '../../../lib/loadSyndicate.ts';
 import { validateSyndicateConfig } from '../../../lib/syndicateSchema.ts';
 import { registerTool } from '../../../lib/toolRegistry.ts';
+import { defineTool } from '../../../lib/tools/toolContract.ts';
 import { ScriptedLlm, text } from '../../helpers/scriptedLlm.ts';
+import type { LlmRequest, LlmResponse } from '../../helpers/scriptedLlm.ts';
 
 export const APP = 'fixtures';
 export const USER = 'user-1';
@@ -44,10 +46,10 @@ export const FILING = [
 
 registerTool(
   SEND_NOTE,
-  new FunctionTool({
+  defineTool({
     name: SEND_NOTE,
     description: 'Send a note to an address.',
-    parameters: z.object({ to: z.string() }),
+    schema: z.object({ to: z.string() }),
     execute: async ({ to }) => {
       sentNotes.push(to);
       return `sent to ${to}`;
@@ -58,10 +60,10 @@ registerTool(
 
 registerTool(
   LOOKUP,
-  new FunctionTool({
+  defineTool({
     name: LOOKUP,
     description: 'Look up a ticker.',
-    parameters: z.object({ ticker: z.string() }),
+    schema: z.object({ ticker: z.string() }),
     execute: async ({ ticker }) => `${ticker}: 104.20 USD`,
   }),
   { override: true },
@@ -69,10 +71,10 @@ registerTool(
 
 registerTool(
   FETCH_FILING,
-  new FunctionTool({
+  defineTool({
     name: FETCH_FILING,
     description: "Fetch a company's latest quarterly filing.",
-    parameters: z.object({ ticker: z.string() }),
+    schema: z.object({ ticker: z.string() }),
     execute: async () => FILING,
   }),
   { override: true },

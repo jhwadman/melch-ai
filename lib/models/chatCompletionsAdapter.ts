@@ -11,9 +11,7 @@
  *   is a small subclass supplying the endpoint, the auth headers, the wire
  *   model name, its reasoning field, the tool choices it honours and its
  *   error wording (lib/models/ollamaAdapter.ts, kimiAdapter.ts,
- *   gatewayAdapter.ts). There is no ADK here: under ADK each adapter runs
- *   behind its shim class (OllamaLlm, KimiLlm, GatewayLlm, through
- *   OpenAiCompatibleLlm in lib/models/openAiCompatibleLlm.ts, ADR 0057).
+ *   gatewayAdapter.ts; ADR 0057).
  *   wiki/models/model-contract.md ("Chat completions") is the mapping spec.
  *
  * WHAT THE BASE PROVIDES (uniformly, for every subclass):
@@ -21,8 +19,8 @@
  *     message first; user text and inline images (data URIs; a URL blob is
  *     not sent); assistant text and tool_calls; one `tool` message per tool
  *     result, its content the result's JSON in the genai envelope ({ result }
- *     for a non-object, { error } for a failure), so the wire is what the ADK
- *     path sent. Thinking is never sent.
+ *     for a non-object, { error } for a failure), the wire ADK sent.
+ *     Thinking is never sent.
  *   - Tools as function tools, the schema as written (lowercase JSON Schema),
  *     its strict form with `strict: true` when the declaration asks.
  *     `toolChoice: 'none'` sends no tools; `required` and a named tool go as
@@ -84,26 +82,6 @@ import { currentTurnSignal } from '../runtime/turnControl.ts';
 
 // ── The request ──────────────────────────────────────────────────────────────
 
-/**
- * What an agent's older generateContentConfig spelling asks of a
- * chat-completions provider that the contract has no field for (ADR 0047;
- * "What the contract leaves out" in wiki/models/model-contract.md). Only the
- * ADK shim around these adapters sets it, from the LlmRequest, so an agent
- * keeps it on the ADK runtime; the native runtime never sets it.
- */
-export interface OlderSpelling {
-  /**
-   * An effort word that is not a contract level, such as Kimi K3's `max`,
-   * sent as `reasoning_effort` as written, in place of `reasoning`'s word.
-   */
-  reasoningEffort?: string;
-}
-
-/** A ModelRequest, plus what the ADK path carries beside the contract. */
-export interface ChatCompletionsRequest extends ModelRequest {
-  olderSpelling?: OlderSpelling;
-}
-
 // ── Wire types (the subset these providers implement) ────────────────────────
 
 type ChatContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
@@ -126,9 +104,9 @@ export interface ChatFailure {
 export const REASONING_CONTENT_KIND = 'reasoning_content';
 
 /**
- * The prefix of a call id the engine made when the provider returned none.
- * ADK uses it for its own ids and leaves such ids out of the requests it
- * builds, so on the ADK path the stored history reads as it did.
+ * The prefix of a call id the engine made when the provider returned none:
+ * ADK's prefix for its own ids, kept so sessions ADK wrote and sessions the
+ * engine writes read alike.
  */
 export const ENGINE_CALL_ID_PREFIX = 'adk-';
 
@@ -272,7 +250,7 @@ export function reasonsNotAtAll(setting: ReasoningSetting | undefined): boolean 
   return setting === 'none' || (typeof setting === 'object' && setting !== null && setting.budget_tokens <= 0);
 }
 
-/** A tool result as the tool message's content: the genai envelope, so the wire is what the ADK path sent. */
+/** A tool result as the tool message's content: the genai envelope, the wire ADK sent. */
 function resultContent(part: ToolResultPart): string {
   const response = part.isError ? { error: part.result } : isPlainObject(part.result) ? part.result : { result: part.result };
   return JSON.stringify(response);
@@ -415,17 +393,16 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
   /**
    * The body fields for the request's reasoning. Default: `reasoning_effort`
    * as the effort word ADR 0047 gives this model (lib/models/reasoning.ts),
-   * the field every chat-completions provider and gateway reads; the older
-   * spelling's word as written when the ADK path carries one; nothing when
-   * neither is set.
+   * the field every chat-completions provider and gateway reads; nothing
+   * when the request sets no reasoning.
    */
-  protected reasoningFields(model: string, setting: ReasoningSetting | undefined, olderWord: string | undefined): Record<string, unknown> {
-    const word = olderWord ?? (setting !== undefined ? (reasoningConfig(model, setting).reasoningEffort as string) : undefined);
+  protected reasoningFields(model: string, setting: ReasoningSetting | undefined): Record<string, unknown> {
+    const word = setting !== undefined ? (reasoningConfig(model, setting).reasoningEffort as string) : undefined;
     return word !== undefined ? { reasoning_effort: word } : {};
   }
 
   /** Provider-specific body fields, merged last. */
-  protected extraBodyFields(_request: ChatCompletionsRequest): Record<string, unknown> {
+  protected extraBodyFields(_request: ModelRequest): Record<string, unknown> {
     return {};
   }
 
@@ -524,7 +501,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
    * usage, so budgets and the ledger still count it. A request that already
    * asks for no reasoning is not retried.
    */
-  async *generate(request: ChatCompletionsRequest): AsyncGenerator<ModelResponse, void> {
+  async *generate(request: ModelRequest): AsyncGenerator<ModelResponse, void> {
     const model = request.model || this.model;
     const mayRetry = this.retriesWithoutThinking() && !reasonsNotAtAll(request.reasoning);
     let held: FinalModelResponse | undefined;
@@ -539,9 +516,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
 
     setLlmSpanAttribute('llm.retry_without_thinking', held.error?.code ?? true);
     this.#warnOnce('retry', `⚠ ${model} thought without answering (${held.error?.code}); retrying once with thinking off.`);
-    // The older spelling's effort word would ask for thinking again.
-    const { olderSpelling: _older, ...rest } = request;
-    const retry: ChatCompletionsRequest = { ...rest, reasoning: 'none' };
+    const retry: ModelRequest = { ...request, reasoning: 'none' };
     for await (const response of this.#attempt(retry, model)) {
       if (response.partial) {
         yield response;
@@ -552,7 +527,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     }
   }
 
-  async *#attempt(request: ChatCompletionsRequest, model: string): AsyncGenerator<ModelResponse, void> {
+  async *#attempt(request: ModelRequest, model: string): AsyncGenerator<ModelResponse, void> {
     const missing = this.missingRequirement();
     if (missing) {
       yield failure(missing, false);
@@ -631,7 +606,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
    * already streamed, because only finals are stored (contract.ts rule 2);
    * it never carries the thinking.
    */
-  async *#streamed(res: Response, request: ChatCompletionsRequest, model: string, signal: AbortSignal | undefined): AsyncGenerator<ModelResponse, void> {
+  async *#streamed(res: Response, request: ModelRequest, model: string, signal: AbortSignal | undefined): AsyncGenerator<ModelResponse, void> {
     const splitter = new ThinkStreamSplitter();
     const toolCalls = new Map<number, { id?: string; name?: string; args: string }>();
     let answer = '';
@@ -765,7 +740,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
   // ── The request body ───────────────────────────────────────────────────────
 
   /** The chat messages this adapter sends for a request, the system message first. */
-  messagesFor(request: ChatCompletionsRequest): ChatMessage[] {
+  messagesFor(request: ModelRequest): ChatMessage[] {
     return this.#messages(request, request.model || this.model);
   }
 
@@ -774,7 +749,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     return request.toolChoice === 'none' ? [] : (request.tools ?? []).map(functionTool);
   }
 
-  #body(request: ChatCompletionsRequest, model: string, stream: boolean): Record<string, unknown> {
+  #body(request: ModelRequest, model: string, stream: boolean): Record<string, unknown> {
     const choice: ToolChoice = request.toolChoice ?? 'auto';
     const tools = this.toolsFor(request);
     const sampling = request.sampling ?? {};
@@ -788,7 +763,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
       ...(sampling.topP !== undefined ? { top_p: sampling.topP } : {}),
       ...(sampling.maxOutputTokens !== undefined ? { max_tokens: sampling.maxOutputTokens } : {}),
       ...(sampling.stop?.length ? { stop: [...sampling.stop] } : {}),
-      ...this.reasoningFields(model, request.reasoning, request.olderSpelling?.reasoningEffort),
+      ...this.reasoningFields(model, request.reasoning),
       ...(tools.length > 0 ? { tools } : {}),
       ...(tools.length > 0 ? this.#toolChoice(choice, model, request.reasoning) : {}),
       ...this.#responseFormat(request),
@@ -821,7 +796,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
    * `outputFormat: 'json'` without a schema is JSON mode (ADR 0061); each
    * of Ollama, Kimi and the gateway takes it.
    */
-  #responseFormat(request: ChatCompletionsRequest): Record<string, unknown> {
+  #responseFormat(request: ModelRequest): Record<string, unknown> {
     if (request.outputSchema) {
       return { response_format: { type: 'json_schema', json_schema: { name: 'response', strict: true, schema: toStrictJsonSchema(request.outputSchema) } } };
     }
@@ -855,7 +830,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
   }
 
   /** The conversation as chat messages: see the header. */
-  #messages(request: ChatCompletionsRequest, model: string): ChatMessage[] {
+  #messages(request: ModelRequest, model: string): ChatMessage[] {
     const system: string[] = request.system ? [request.system] : [];
     const messages: ChatMessage[] = [];
     // reasoning_content goes back only on the current turn's tool loop, the

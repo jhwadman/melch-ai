@@ -3,10 +3,10 @@
  * the session and never in it (ADR 0071, ADR 0073).
  *
  * WHY this file exists:
- *   On the ADK runtime a tool's `state.set('temp:x', …)` writes into the
- *   live session object as well as the event's delta, so the next step of
- *   the same invocation reads it (an instruction's `{temp:x}`, a tool's
- *   `state.get`), and the store drops it when it saves the event. The
+ *   Under ADK a tool's `state.set('temp:x', …)` wrote into the live
+ *   session object as well as the event's delta, so the next step of the
+ *   same invocation read it (an instruction's `{temp:x}`, a tool's
+ *   `state.get`), and the store dropped it when it saved the event. The
  *   native loop applies a delta to the session only through the store
  *   (SessionService.append), which drops `temp:` keys as every store must.
  *   Writing them into the session object instead would reach a store that

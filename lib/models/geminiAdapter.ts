@@ -3,12 +3,11 @@
  * contract (lib/models/contract.ts, ADR 0048), on @google/genai directly.
  *
  * WHY this file exists:
- *   Gemini runs today through ADK's own Gemini class, wrapped as
- *   TracedGemini (lib/models/tracedGemini.ts). The native runtime (ADR 0045)
- *   needs Gemini as a contract ModelAdapter that shapes its own requests,
- *   aggregates its own stream and reports its own failures, with no ADK in
- *   the path. This is that adapter. resolveAdapter (lib/models/registry.ts)
- *   returns it only when asked (GEMINI_ADAPTER=engine) until gate G3.
+ *   The native loop (ADR 0045) needs Gemini as a contract ModelAdapter that
+ *   shapes its own requests, aggregates its own stream and reports its own
+ *   failures. This is that adapter, and the only Gemini adapter:
+ *   resolveAdapter (lib/models/adapterResolver.ts) returns it for every
+ *   Gemini id (ADR 0100, ADR 0107).
  *
  * THE MAPPING is the Gemini table of wiki/models/model-contract.md;
  * wiki/models/gemini-adapter.md records the choices made inside it:
@@ -208,8 +207,8 @@ export class GeminiAdapter implements ModelAdapter {
   }
 
   async *generate(request: ModelRequest): AsyncGenerator<ModelResponse, void> {
-    // The request's signal alone: the caller (the ADK shim, the native loop)
-    // passes the turn's (ADR 0053).
+    // The request's signal alone: the caller (the native loop) passes the
+    // turn's (ADR 0053).
     const signal = request.signal;
     const model = request.model || this.model;
     const reply = new ReplyBuilder(model, request.messages.length);
@@ -393,8 +392,8 @@ function buildRequest(request: ModelRequest, options: BuildOptions): BuiltReques
 
   let toolConfig = toolConfigFor(request);
   // Native tools beside function declarations: the response carries the
-  // server-side invocations, as the ADK path asks on every Gemini agent
-  // (lib/compile.ts). The SDK refuses the flag for Vertex AI.
+  // server-side invocations, as ADK asked on every Gemini agent. The SDK
+  // refuses the flag for Vertex AI.
   if (declared && native && options.geminiApi) toolConfig = { ...toolConfig, includeServerSideToolInvocations: true };
   if (toolConfig) config.toolConfig = toolConfig;
 

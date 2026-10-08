@@ -30,25 +30,12 @@ jobs:
       - run: npm ci
       - name: typecheck
         run: npx tsc --noEmit
-      # The turn-level suites run every case on both runtimes in each run
-      # (tests/helpers/runtime.ts). native is the default runtime (ADR 0102);
-      # the second run puts every other suite on adk, which stays covered
-      # until 1.0.0 removes it.
+      # One runtime, one run (ADR 0107). The parity suites compare the
+      # engine against ADK's recorded side (tests/fixtures/adk-reference),
+      # and the ADK-written session fixtures (tests/fixtures/sessions)
+      # resume: both are data, read by the suite itself.
       - name: offline test suite (no network, no keys)
         run: npm test
-      - name: offline test suite with adk as the runtime
-        env:
-          MELCHIZEDEK_RUNTIME: adk
-        run: npm test
-      - name: stored session shapes are unchanged
-        run: npm run fixtures:sessions:check
-      # The parity suites compare native against ADK's recorded side
-      # (tests/fixtures/adk-reference, tests/helpers/adkReference.ts). The
-      # check runs them again against live ADK, records into a scratch
-      # directory and fails on any byte of drift. 1.0.0 (WS5-2b) retires it
-      # with ADK; the recordings stay as the reference.
-      - name: ADK reference recordings are current
-        run: npm run fixtures:adk:check
       - name: coverage of lib/ (floor a few points under the measured 87.8 / 82.1 / 83.2)
         if: matrix.node == '24'
         run: >-
@@ -58,22 +45,19 @@ jobs:
           --test 'tests/**/*.test.ts'
       - name: build the package
         run: npm run build
-      # The tarball is consumed twice (ADR 0102): without @google/adk, the
-      # optional peer, a turn of a shipped example runs on native, the
-      # default; with it, the same turn runs on adk. The model is a scripted
-      # adapter behind the ADK shim, and fetch refuses every call, so
-      # nothing leaves the runner. The turn script is the repository's own
-      # (scripts/ci/consumer_turn.mjs), copied next to the consumer.
+      # The tarball is installed alone into an empty project (ADR 0107): no
+      # Google ADK may arrive with it. The consumer runs a turn of a shipped
+      # example and serves one A2A message, with a scripted ModelAdapter
+      # and fetch refusing every call, so nothing leaves the runner, and
+      # checks that MELCHIZEDEK_RUNTIME=adk is refused by name. The script
+      # is the repository's own (scripts/ci/consumer_turn.mjs), copied next
+      # to the consumer.
       - name: pack the tarball
         run: |
           set -euo pipefail
           npm pack --silent
           echo "TARBALL=$PWD/$(ls melchizedek-agents-*.tgz)" >> "$GITHUB_ENV"
-          echo "ADK_PIN=$(node -p "require('./package.json').devDependencies['@google/adk']")" >> "$GITHUB_ENV"
-      - name: consume the tarball without @google/adk (native, the default)
-        env:
-          EXPECT_RUNTIME: native
-          EXPECT_ADK: 'no'
+      - name: consume the tarball (no ADK installed)
         run: |
           set -euo pipefail
           CONSUMER="$(mktemp -d)"
@@ -81,30 +65,14 @@ jobs:
           cd "$CONSUMER"
           npm init -y >/dev/null
           npm install --no-audit --no-fund "$TARBALL"
-          if [ -e node_modules/@google/adk ]; then echo "@google/adk was installed, but it is an optional peer"; exit 1; fi
+          if [ -e node_modules/@google/adk ]; then echo "@google/adk was installed with the package"; exit 1; fi
           mkdir -p config/agents
           cp node_modules/melchizedek-agents/config/agents/examples/tutor.yaml config/agents/
           node consumer_turn.mjs
-          if MELCHIZEDEK_RUNTIME=adk node consumer_turn.mjs > adk.log 2>&1; then echo "adk ran without @google/adk"; exit 1; fi
-          grep -q 'needs @google/adk, which is not installed' adk.log
-          npx melchizedek-doctor --no-color | grep -E '^runtime +✓ native \(the default\) · @google/adk not installed'
+          if MELCHIZEDEK_RUNTIME=adk npx melchizedek-doctor --check --no-color > doctor-adk.log 2>&1; then echo "the doctor passed MELCHIZEDEK_RUNTIME=adk"; exit 1; fi
+          grep -q 'removed in melchizedek-agents 1.0.0' doctor-adk.log
+          npx melchizedek-doctor --no-color | grep -E '^runtime +✓ native \(the default\)'
           npx melchizedek-db print | head -1
-      - name: consume the tarball with @google/adk (MELCHIZEDEK_RUNTIME=adk)
-        env:
-          EXPECT_RUNTIME: adk
-          EXPECT_ADK: 'yes'
-          MELCHIZEDEK_RUNTIME: adk
-        run: |
-          set -euo pipefail
-          CONSUMER="$(mktemp -d)"
-          cp scripts/ci/consumer_turn.mjs "$CONSUMER/"
-          cd "$CONSUMER"
-          npm init -y >/dev/null
-          npm install --no-audit --no-fund "$TARBALL" "@google/adk@$ADK_PIN"
-          mkdir -p config/agents
-          cp node_modules/melchizedek-agents/config/agents/examples/tutor.yaml config/agents/
-          node consumer_turn.mjs
-          npx melchizedek-doctor --no-color | grep -E '^runtime +✓ adk \(MELCHIZEDEK_RUNTIME\) · @google/adk [0-9.]+ installed'
 
   postgres:
     name: storage integration (Postgres + pgvector)
@@ -144,16 +112,6 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
         run: node --disable-warning=DEP0040 --experimental-strip-types --test tests/postgresStorage.test.ts
-      - name: storage integration suite with adk as the runtime
-        env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
-          MELCHIZEDEK_RUNTIME: adk
-        run: node --disable-warning=DEP0040 --experimental-strip-types --test tests/postgresStorage.test.ts
-      # The test job's reference check skips this suite (no database there).
-      - name: the storage suite's ADK reference recording is current
-        env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
-        run: npm run fixtures:adk:check -- postgresStorage
 
   audit:
     runs-on: ubuntu-latest

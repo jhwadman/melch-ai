@@ -19,14 +19,6 @@
     },
     {
       "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
-      "to": "module:lib/models/fallback.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0044 Decision: \"the compiler wraps the agent's model in FallbackLlm (lib/models/fallback.ts)\"; only a retryable provider-side failure before any output redirects; Note (2026-10-07): the rule holds for error responses as well as throws, and only a call that yielded content counts as a success.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "to": "module:lib/models/fallbackAdapter.ts",
       "rel": "constrains",
       "evidence": "ADR 0044 Decision, What redirects: only a provider-side failure that retry.ts classifies retryable, \"redirected only if the primary had produced nothing yet\"; a 4xx, a canceled turn and a stream that failed midway are never redirected. FallbackAdapter applies these to a failed final's error.retryable and status.",
@@ -41,30 +33,6 @@
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07",
       "note": "In part: supersedes the deferral of owning the agent loop and ADK as the lasting runtime; the seam, turn-wide controls, boundary suite and A2A stance stand."
-    },
-    {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "module:lib/models/gptLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "module:lib/models/kimiLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0046 Consequences: \"The GPT, Grok and Kimi adapters carry their reasoning state through the same field under their own provider ids (openai, xai, moonshot).\" /models/provider-routing.md: \"Kimi turns the hook on for the ids Moonshot's thinking-model guide asks it of within a tool loop\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
-      "to": "module:lib/models/openAiCompatibleLlm.ts",
-      "rel": "constrains",
-      "evidence": "/models/provider-routing.md: \"The chat-completions base (lib/models/openAiCompatibleLlm.ts) carries reasoning_content behind one opt-in hook, replaysReasoningContent(), off by default ... sends it back as that assistant message's reasoning_content on the current turn's tool loop, for the same provider and model only.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
     },
     {
       "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
@@ -87,14 +55,6 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "depends_on",
       "evidence": "ADR 0047 maps reasoning: none on Ollama to reasoning_effort \"none\", the one value ADR 0027 found Ollama's /v1 endpoint honours; the model zoo's qwen_local relies on it.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
-      "to": "module:lib/models/claudeLlm.ts",
-      "rel": "depends_on",
-      "evidence": "ADR 0047: \"high stops at 16,384 because the Claude adapter raises max_tokens to at least the budget plus 2,048\", keeping a non-streaming request under the Anthropic SDK ceiling.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -148,36 +108,11 @@
     },
     {
       "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
-      "to": "module:lib/models/gptLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0050 Decision: reasoning ids \"send store: false and include: ['reasoning.encrypted_content']\"; each run of reasoning items rides verbatim on the part after it and is replayed before that part within the turn's tool loop.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
-      "to": "module:lib/models/grokLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0050 Decision, Which ids: \"xAI's grok-4.5 and grok-4.7, through the adapter hook replaysReasoning()\". Other grok ids send nothing new.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07"
-    },
-    {
-      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "to": "module:lib/models/providerState.ts",
       "rel": "depends_on",
       "evidence": "ADR 0050 Decision, Replay: \"currentTurnStart in lib/models/providerState.ts holds that rule for every adapter.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
-    },
-    {
-      "from": "/memory/architecture.md",
-      "to": "script:fixtures:sessions:check",
-      "rel": "explains",
-      "evidence": "/memory/architecture.md, Stored event shape: \"With `--check` it exits 1 when a fixture no longer matches what the runtime writes, which is what a dependency bump that changes the stored shape looks like. `npm run fixtures:sessions:check` runs that check, and CI's test job runs it after the offline suite on both Node versions.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-07",
-      "note": "The script runs tests/fixtures/sessions/generate.ts --check; the build links scripts only to source modules, so this edge is asserted."
     },
     {
       "from": "/operations/parity-harness.md",
@@ -312,14 +247,6 @@
     },
     {
       "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
-      "to": "module:lib/models/adkShim.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0053 Decision 2: \"On the ADK path the caller is AdkShim, which calls traceLlmGeneration exactly as the adapters above do, with the adapter's provider, the shim's model id and the LlmRequest.\" tests/adkShim.test.ts compares its refusals with ClaudeLlm, GptLlm and OllamaLlm.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "to": "module:lib/models/geminiAdapter.ts",
       "rel": "constrains",
       "evidence": "ADR 0053 Decision 1: \"An adapter on the contract never charges the turn and never opens llm.request. It honours request.signal, and it decorates the span that is open around it with setLlmSpanAttribute. GeminiAdapter already works this way.\"",
@@ -335,34 +262,10 @@
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0044-fallback-model-and-circuit-breaker.md",
-      "to": "module:lib/models/adkShim.ts",
-      "rel": "constrains",
-      "evidence": "FallbackLlm reads only customMetadata['error.retryable'] (lib/models/errorResponse.ts); the shim writes it through modelResponseToLlmResponse, and the boundary suite case \"shim: FallbackLlm answers a retryable error from the fallback, and passes a non-retryable one on\" holds it to ADR 0044's rules.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
-      "to": "module:lib/models/adkShim.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0045 Decision 4: the stored Event JSON never changes without an ADR. tests/syndicateTurn.test.ts runs every shim case twice and asserts the stored session history is the same as with the scripted ADK model, call ids aside.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
       "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "to": "module:lib/tools/tool.ts",
       "rel": "constrains",
       "evidence": "ADR 0051 §1 and §4: \"The module imports only a type from the model contract\" and \"tool.ts and toolContract.ts load nothing from @google/* at runtime\"; tests/toolContract.test.ts asserts it.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
-      "to": "module:lib/tools/adkTool.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0051 §4: \"lib/tools/adkTool.ts holds toFunctionTool(tool)\", the one place a Tool becomes an ADK FunctionTool, and §5: it keeps ADK's approval texts and long-running note so both runtimes store the same events.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -383,42 +286,10 @@
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0048-engine-owned-model-contract.md",
-      "to": "module:lib/models/adkGeminiAdapter.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0048 Decision 4: \"Exactly one final, which never holds thinking, ends every call. A failure is a final with error set, never a throw.\" Decision 5: \"GEMINI_ERROR is added for the failed call ADK throws.\" /models/adk-gemini-adapter.md: \"ADK's Gemini threw ... GEMINI_ERROR, with status when the error had one\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
-      "to": "module:lib/models/adkGeminiAdapter.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0045 Decision 3, G3: \"the Gemini row's evidence in the capability matrix changes from adk to test\". /models/adk-gemini-adapter.md: \"Once G3 is signed and GeminiAdapter serves the Gemini ids, this module is deleted.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "module:lib/models/adkGeminiAdapter.ts",
-      "to": "module:lib/models/geminiAdapter.ts",
-      "rel": "alternative_to",
-      "evidence": "/models/provider-routing.md: \"Until it passes its live run at gate G3 ..., the native runtime's Gemini is the temporary wrapper over ADK's Gemini (AdkGeminiAdapter)\". /models/adk-gemini-adapter.md, \"Where it differs from GeminiAdapter\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
       "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "to": "module:lib/models/geminiState.ts",
       "rel": "constrains",
       "evidence": "ADR 0046: \"Only an adapter of the same provider replays it, and only the kind it wrote\". lib/models/geminiState.ts header: the mapping and both Gemini adapters \"must spell them the same\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
-      "to": "module:lib/models/adkGeminiAdapter.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0053 Decision 1: \"An adapter on the contract never charges the turn and never opens llm.request. It honours request.signal, and it decorates the span that is open around it with setLlmSpanAttribute.\" /models/adk-gemini-adapter.md, The span: \"The adapter opens no llm.request span and never charges the turn's step budget\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -456,14 +327,6 @@
     },
     {
       "from": "/decisions/0058-session-stores-with-both-faces.md",
-      "to": "module:lib/runtime/adkSessionBridge.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0058 Decision 2: \"SessionServiceForAdk runs the ADK runtime on an engine store ... AdkSessionServiceForEngine gives the engine's interface to an ADK store ... It keeps the interface's meaning\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0058-session-stores-with-both-faces.md",
       "to": "module:lib/session/transcript.ts",
       "rel": "constrains",
       "evidence": "ADR 0058 Decision 1: \"SupabaseSessionService, PostgresSessionService and ProjectedSessionService implement SessionService ... and extend BaseSessionService\", and Decision 2: \"The projection takes either kind of store.\"",
@@ -475,22 +338,6 @@
       "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "rel": "depends_on",
       "evidence": "ADR 0058 Context: \"ADR 0052 gave the engine its own SessionService ... and named its methods differently from ADK's, so that one class could implement both during the dual-runtime period\"; Decision 1 relies on exactly that.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
-      "to": "module:lib/models/gptLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0056 Decision 2: \"GptLlm overrides it, and GrokLlm inherits the override\": on a final, candidatesTokenCount is the contract's outputTokens, reasoning included; the server-side calls go on customMetadata; groundingMetadata is left off. tests/responsesAdapter.test.ts asserts the turn's counts against a bare shim.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
-      "to": "module:lib/models/adkShim.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0056 Decision 1: \"AdkShim maps each response through a protected toLlmResponse(response), which is modelResponseToLlmResponse and runs inside the llm.request span, so the tracer reads its result.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -560,14 +407,6 @@
     },
     {
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
-      "to": "module:lib/tools/adkTool.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0059 §3: on the ADK runtime lib/tools/adkTool.ts appends the instruction text in processLlmRequest, \"joined exactly as ADK's own appendInstructions joins it\" (a FunctionTool subclass, or toAdkInstructionTool for an InstructionTool).",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "module:lib/memory/namespace.ts",
       "rel": "constrains",
       "evidence": "ADR 0059 §1: \"namespacedMemoryService pins the root namespace on search and ingest as it does on ADK's two methods\"; erase and retention pass through it unchanged.",
@@ -607,22 +446,6 @@
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
-      "to": "module:lib/models/claudeLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0055 Decision 2: \"ClaudeLlm is a subclass of AdkShim around it, keeping its name, its options (model, apiKey, endpoint), its static supportedModels, registerClaudeLlm() and buildAnthropicTools().\" Decision 4: \"ClaudeLlm adds claudeReasoningFromConfig(config), ADR 0049's reading\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
-      "to": "module:lib/models/adkShim.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0055 Decision 3: \"AdkShim maps the LlmRequest through a protected toModelRequest(llmRequest, options). A provider's ADK class may override it to add what its adapter reads on the ADK path only. It never removes or rewrites a contract field.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
       "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "to": "module:lib/models/claudeAdapter.ts",
       "rel": "constrains",
@@ -651,22 +474,6 @@
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "depends_on",
       "evidence": "ADR 0055 Context: the older spelling differs from \"ReasoningSetting ... (ADR 0047)\" and Alternatives: \"A provider-options bag on the request. ADR 0048 rejected it\"; Decision 1: \"ClaudeAdapter implements ModelAdapter ... on the contract's Anthropic table\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
-      "to": "module:lib/models/openAiCompatibleLlm.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0057 Decision 3: \"Its toLlmResponse writes candidatesTokenCount as the contract's outputTokens (reasoning included), sets finishReason only for a reply cut short ...\" tests/chatCompletionsAdapter.test.ts asserts llm.tokens.output 40 through KimiLlm against 15 through the plain shim.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
-      "to": "module:lib/models/adkShim.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0057 Decision 2: \"AdkShim gains two protected seams. toModelRequest(llmRequest, options) and toLlmResponse(response) are the genai mapping by default.\" generateContentAsync calls both.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -777,14 +584,6 @@
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0060-engine-owned-registry.md",
-      "to": "module:lib/models/tracedGemini.ts",
-      "rel": "explains",
-      "evidence": "ADR 0060 decision 5: TracedGemini moves to lib/models/tracedGemini.ts because AdkGeminiAdapter imports it and registry.ts builds AdkGeminiAdapter, which would be an import cycle.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
       "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "to": "module:lib/models/registry.ts",
       "rel": "constrains",
@@ -805,14 +604,6 @@
       "to": "module:lib/models/schemaNormalize.ts",
       "rel": "constrains",
       "evidence": "ADR 0062 §2: \"Every reader detects the marker, never the class or the shape.\" nativeToolOf \"reads it first, then ADK's own markers\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0062-server-side-tools-as-markers.md",
-      "to": "module:lib/tools/adkTool.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0062 §3: \"toAdkNativeTool(marker) returns the shared sentinel\" and \"toAdkTool() picks the wrapper for a Tool, a contract, an InstructionTool or a marker\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -1356,14 +1147,6 @@
     },
     {
       "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "to": "module:lib/compileAdk.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0073 Decision 1: \"compileAdk adds what only LlmAgent takes\"; compileGraph and compileSubagent are spec + compileAdk.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "to": "module:lib/compileNative.ts",
       "rel": "constrains",
       "evidence": "ADR 0073 Decision 3: delegation, context: and mode: task are \"refused by compileNative\" with UnsupportedOnRuntimeError.",
@@ -1540,25 +1323,9 @@
     },
     {
       "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
-      "to": "module:lib/runtime/adkMemoryBridge.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0080 Decision 2: a service with ADK's face passes through unchanged; MemoryServiceForAdk wraps one with only MemoryService and forwards deleteUserMemory, pruneExpired and verifyEmbeddingDimensions when present.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
       "to": "module:lib/runtime/logging.ts",
       "rel": "constrains",
       "evidence": "ADR 0080 Decision 5: \"The engine owns the log level, and ADK's logger follows it.\" Nothing is pushed until a surface sets a level.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
-      "to": "module:lib/compileAdk.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0080 Decision 5: \"lib/compileAdk.ts subscribes and sets ADK's logger to the same level.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -1711,14 +1478,6 @@
       "to": "module:lib/tools/skills/loader.ts",
       "rel": "constrains",
       "evidence": "ADR 0083 Decision 7: \"A resource over 8 MiB is skipped and reported, at most 1000 files per skill are read, and walks stop at 12 levels.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
-      "to": "module:lib/tools/adkTool.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0083 Decision 4: \"lib/compile.ts hands the ADK runtime toAdkToolset(toolset), a BaseToolset in lib/tools/adkTool.ts whose getTools passes ADK's ReadonlyContext through\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -2588,14 +2347,6 @@
     },
     {
       "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
-      "to": "module:lib/models/adkGeminiAdapter.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0100 Decision 5: AdkGeminiAdapter stays selectable (GEMINI_ADAPTER=adk) for the release that makes GeminiAdapter the default, and is deleted after one release with a version bump.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "depends_on",
       "evidence": "ADR 0100 Context: ADR 0097 left the schema dialect and turnComplete open; ADR 0100 decides both.",
@@ -2756,14 +2507,6 @@
     },
     {
       "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
-      "to": "module:lib/adkPeer.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0102 Decision 3: \"One module loads ADK. lib/adkPeer.ts tries await import('@google/adk') once ... Every other module takes ADK's values from it\".",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
       "to": "module:lib/runtime/runtimeFlag.ts",
       "rel": "constrains",
       "evidence": "ADR 0102 Decision 1: \"DEFAULT_RUNTIME in lib/runtime/runtimeFlag.ts is native; a turn's runtime option, else MELCHIZEDEK_RUNTIME, else native.\"",
@@ -2895,6 +2638,86 @@
       "to": "/overview/native-loop.md",
       "rel": "explains",
       "evidence": "wiki/overview/native-loop.md \"ADK's recorded side\": the parity suites compare native against tests/fixtures/adk-reference (ADR 0108).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0107 carries out ADR 0045's plan: 1.0.0 removes ADK, its runtime path and its peer dependency, with the soak ADR 0045 asked for waived by the owner on 2026-10-08.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0107 builds on ADR 0102's native default and optional ADK peer: production ran on native from 0.20.0, which is the evidence that stood in for the soak.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0107: the parity suites keep comparing native against ADK's side recorded under ADR 0108 in tests/fixtures/adk-reference/, which is what lets ADK leave the dev dependencies.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0107 removes the optional ADK peer and lib/adkPeer.ts that ADR 0102 kept; MELCHIZEDEK_RUNTIME=adk becomes an error naming 1.0.0.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "/overview/native-loop.md",
+      "rel": "explains",
+      "evidence": "ADR 0107 records why the engine's own agent loop is the one runtime from 1.0.0 (lib/runtime/native/agentLoop.ts behind runSyndicateTurn).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0107 Decision: native is the only runtime; MELCHIZEDEK_RUNTIME=native is a no-op and adk throws RuntimeRemovedError naming 1.0.0 (lib/runtime/runtimeFlag.ts).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "env:MELCHIZEDEK_RUNTIME",
+      "rel": "constrains",
+      "evidence": "ADR 0107 Decision: MELCHIZEDEK_RUNTIME=adk is a startup error naming 1.0.0; native is accepted and changes nothing.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "env:GEMINI_ADAPTER",
+      "rel": "constrains",
+      "evidence": "ADR 0107 Decision: GEMINI_ADAPTER=adk is an error naming 1.0.0 (createA2AApp stops at startup); engine is an accepted no-op.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0107: registerTool refuses an ADK tool (anything with runAsync) with an error naming 1.0.0 and defineTool.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "file:tests/helpers/adkReference.ts",
+      "rel": "explains",
+      "evidence": "ADR 0108 records the reference design; tests/helpers/adkReference.ts keeps only its fixture branch, reading ADK's recorded side from tests/fixtures/adk-reference/.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     }

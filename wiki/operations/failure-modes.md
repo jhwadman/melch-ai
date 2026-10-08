@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: Failure modes
-description: The named errors newcomers actually hit — model-tier 503s, the gemini-2.5-flash tool-context 400, stale-orchestrator synthesis, the two A2A auth rejections, a thinking model that fills Ollama's context window, an ADK-only path without the optional @google/adk peer or a feature one runtime refuses, and a turn that fails on malformed or forged input (an approval answer that does not bind, a response to a call no agent made, a nested syndicate that reaches itself) — with their fixes.
+description: The named errors newcomers actually hit — model-tier 503s, the gemini-2.5-flash tool-context 400, stale-orchestrator synthesis, the two A2A auth rejections, a thinking model that fills Ollama's context window, a leftover MELCHIZEDEK_RUNTIME=adk or a feature the runtime refuses, and a turn that fails on malformed or forged input (an approval answer that does not bind, a response to a call no agent made, a nested syndicate that reaches itself) — with their fixes.
 tags:
   - operations
   - troubleshooting
@@ -19,7 +19,7 @@ sources:
   - resource: lib/a2a/executor.ts
   - resource: lib/runtime/native/interrupts.ts
   - resource: lib/compile.ts
-  - resource: lib/adkPeer.ts
+  - resource: lib/models/adapterResolver.ts
   - resource: lib/runtime/runtimeFlag.ts
 ---
 
@@ -51,11 +51,11 @@ The request carries no bearer, or one the configured `A2A_AUTH` does not accept:
 
 A turn stopped by its controls: the YAML's `max_steps` counts model calls across every agent the turn reaches, `A2A_TASK_TIMEOUT_MS` bounds wall-clock time, and `tasks/cancel` stops it. The provider call in flight is aborted, not left running.
 
-## `AdkNotInstalledError` / `UnsupportedOnRuntimeError`
+## `RuntimeRemovedError` / `UnsupportedOnRuntimeError`
 
-`<feature> needs @google/adk, which is not installed`: something asked for an ADK-only path in a process without the optional `@google/adk` peer ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)) — the `adk` runtime (`MELCHIZEDEK_RUNTIME=adk` or a turn's `runtime: 'adk'`), `compileGraph`/`compileSubagent`, `compileWorkflow`, the retry plugins or `GEMINI_ADAPTER=adk`. It fails before any model call. Fix: unset `MELCHIZEDEK_RUNTIME` (or set it to `native`, the default), or install `@google/adk@~2.2.0` beside the package. The `adk` runtime and the peer leave at 1.0.0.
+`MELCHIZEDEK_RUNTIME is "adk", but the adk runtime was removed in melchizedek-agents 1.0.0`: the environment, or a turn's `runtime: 'adk'`, names the Google ADK runtime, which the engine does not have ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)). The A2A server (`createA2AApp`), `melchizedek-chat` and the worker refuse to start with it, `runSyndicateTurn` throws it, and the doctor reports it as a problem. Fix: unset `MELCHIZEDEK_RUNTIME` (or set it to `native`). `GEMINI_ADAPTER=adk` fails the same way at model resolution; unset it (or set it to `engine`).
 
-`<where>: <feature> is not supported on the <runtime> runtime yet`: a feature that runtime refuses, also before any model call ([native loop](/overview/native-loop.md#the-runtime-flag)). Native refuses a caller's `transformAgent`, an `ask_user` tool on a workflow node's agent (use an `ask_user` node), and an ADK model class from `resolveModel` with no contract adapter behind it (wrap the adapter in `adkShim`). The `adk` runtime refuses approval gates on workflow nodes and resuming an OAuth consent. The message names the other runtime to run it on.
+`<where>: <feature> is not supported on the native runtime`: a feature the runtime refuses, before any model call ([native loop](/overview/native-loop.md#the-runtime-flag)). It refuses a caller's `transformAgent` (it transformed ADK agents), an `ask_user` tool on a workflow node's agent (use an `ask_user` node), and an ADK model class from `resolveModel` (return a model id or a `ModelAdapter` from `melchizedek-agents/model` instead).
 
 ## `Unknown agent '<id>'` (404) and `is unavailable` (503)
 
@@ -67,14 +67,14 @@ Only seen when `MODEL_GATEWAY` is set ([provider routing](/models/provider-routi
 
 ## `OLLAMA_MAX_TOKENS` / `<PROVIDER>_EMPTY_RESPONSE` — thinking, but no answer
 
-A thinking model (the qwen3 and qwen3.5 families) writes its scratchpad first, and the scratchpad shares the context window with the prompt. Ollama loads a model with a 4,096-token window unless the Modelfile says otherwise, and its OpenAI-compatible `/v1` endpoint — the one the adapter uses — ignores `num_ctx` and the `options` object entirely. On a constraint-dense prompt such as the model zoo's explainer, `qwen3.5:9b` can think for 3,700+ tokens, fill the window and stop with `finish_reason: "length"` before the reply starts. The chat-completions adapter (`lib/models/chatCompletionsAdapter.ts`) turns that into `OLLAMA_MAX_TOKENS` (`<PROVIDER>_MAX_TOKENS` on a gateway) carrying the turn's token usage; a model that stops after thinking with nothing to say gets `<PROVIDER>_EMPTY_RESPONSE`. Without the error, ADK would drop the empty final response, warn "The last event is partial, which is not expected", and the turn would end with empty text. The Ollama adapter first retries the turn once with thinking off (`reasoning: none`, sent as `reasoning_effort: "none"`, both attempts' tokens counted), so on Ollama the error means the retry failed too; `OLLAMA_RETRY_WITHOUT_THINKING=false` turns the retry off. Two remedies work on Ollama: `reasoning: none` on the agent, which turns thinking off (on Ollama 0.31 `"low"` does not bound a qwen3.5 scratchpad, and `think: false` is ignored on `/v1`); or a larger window, set where Ollama reads it — a Modelfile with `PARAMETER num_ctx 32768` built with `ollama create`, or `OLLAMA_CONTEXT_LENGTH=32768` on the `ollama serve` process. `ollama ps` shows the window a loaded model actually has in its CONTEXT column. A reply that started but was cut off keeps its text and is marked `finishReason: MAX_TOKENS`; the `llm.request` span records `llm.finish_reason` either way.
+A thinking model (the qwen3 and qwen3.5 families) writes its scratchpad first, and the scratchpad shares the context window with the prompt. Ollama loads a model with a 4,096-token window unless the Modelfile says otherwise, and its OpenAI-compatible `/v1` endpoint — the one the adapter uses — ignores `num_ctx` and the `options` object entirely. On a constraint-dense prompt such as the model zoo's explainer, `qwen3.5:9b` can think for 3,700+ tokens, fill the window and stop with `finish_reason: "length"` before the reply starts. The chat-completions adapter (`lib/models/chatCompletionsAdapter.ts`) turns that into `OLLAMA_MAX_TOKENS` (`<PROVIDER>_MAX_TOKENS` on a gateway) carrying the turn's token usage; a model that stops after thinking with nothing to say gets `<PROVIDER>_EMPTY_RESPONSE`. Without the error, the turn would end with empty text. The Ollama adapter first retries the turn once with thinking off (`reasoning: none`, sent as `reasoning_effort: "none"`, both attempts' tokens counted), so on Ollama the error means the retry failed too; `OLLAMA_RETRY_WITHOUT_THINKING=false` turns the retry off. Two remedies work on Ollama: `reasoning: none` on the agent, which turns thinking off (on Ollama 0.31 `"low"` does not bound a qwen3.5 scratchpad, and `think: false` is ignored on `/v1`); or a larger window, set where Ollama reads it — a Modelfile with `PARAMETER num_ctx 32768` built with `ollama create`, or `OLLAMA_CONTEXT_LENGTH=32768` on the `ollama serve` process. `ollama ps` shows the window a loaded model actually has in its CONTEXT column. A reply that started but was cut off keeps its text and is marked `finishReason: MAX_TOKENS`; the `llm.request` span records `llm.finish_reason` either way.
 
 ## A turn that fails on malformed or forged input
 
 What a hostile model answer, tool result, message or store can do to the native loop, and what stops it, is [native loop security](/operations/native-loop-security.md). Three failures a caller can see:
 
 - **`IntentMismatchError` (`Tool confirmation rejected for function call '<id>': <reason>.`)**: an approval answer that does not bind to the call it pins. `untrusted_request` means the message carried the request itself; `arguments_mismatch` or `tool_name_mismatch` that the stored request or the call changed. Nothing ran. Over A2A the executor builds the answer, so this means the stored session was altered.
-- **`No function call event found for function responses ids: <id>`**: the message carried a function response to a call no agent made, from a library caller's parts. The turn fails on both runtimes; the next message runs.
+- **`No function call event found for function responses ids: <id>`**: the message carried a function response to a call no agent made, from a library caller's parts. The turn fails; the next message runs.
 - **`NO_PENDING_APPROVAL`**: the answer names no approval open in this conversation (a replay, or another session's id).
 
 A nested syndicate that reaches itself fails at compile with `<ref>: a nested syndicate reaches itself (<chain>)`; fix the `yaml_reference` chain.

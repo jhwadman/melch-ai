@@ -2,20 +2,19 @@
  * tests/workflowScheduler.test.ts — the engine's own workflow scheduler
  * (lib/workflow/scheduler.ts) against ADK's Workflow on the same graph.
  *
- * Each case builds one syndicate's graph twice: `buildWorkflowGraph` for the
- * scheduler, and today's `compileWorkflow` (lib/workflow.ts) for ADK, with
- * every agent swapped for a stub FunctionNode of the same name (ADK's walk is
- * recorded in tests/fixtures/adk-reference/workflowscheduler and run live
- * only under ADK_REFERENCE=live|record: tests/helpers/adkReference.ts). The stubs
- * are the same on both sides (an output from the input, an optional delay),
- * so the two walks are compared on what a scheduler decides: which node
- * runs when, on which input, on which branch, and what the workflow
- * outputs. A stub's delay is on a virtual clock (tests/helpers/
- * virtualClock.ts), one per side, so the order is the delays' timeline on
- * both sides however loaded the machine is; a stub that races a real timer
- * (a node timeout, a retry's backoff) waits on real time instead. The
- * orders ADK records are also pinned as literals, so an ADK upgrade that
- * changes them fails here by name. No models run, no network.
+ * Each case builds one syndicate's graph with `buildWorkflowGraph` and walks
+ * it with the scheduler, every agent a stub, and holds the walk to ADK 2.2's
+ * on the same graph: ADK's compile with every agent swapped for a stub
+ * FunctionNode of the same name, as recorded in
+ * tests/fixtures/adk-reference/workflowscheduler (tests/helpers/adkReference.ts).
+ * The stubs are the ones ADK's walk ran (an output from the input, an
+ * optional delay), so the walks are compared on what a scheduler decides:
+ * which node runs when, on which input, on which branch, and what the
+ * workflow outputs. A stub's delay is on a virtual clock (tests/helpers/
+ * virtualClock.ts), so the order is the delays' timeline however loaded the
+ * machine is; a stub that races a real timer (a node timeout, a retry's
+ * backoff) waits on real time instead. The orders ADK recorded are also
+ * pinned as literals. No models run, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -23,12 +22,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { LlmAgent } from '@google/adk';
+import { fileURLToPath } from 'node:url';
 
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
-import { toRetryConfig } from '../lib/workflowConfig.ts';
 import { virtualClock } from './helpers/virtualClock.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import {
@@ -44,13 +41,10 @@ import {
 } from '../lib/workflow/scheduler.ts';
 import type { NodeRun, SchedulerEvent, WorkflowRun } from '../lib/workflow/scheduler.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
+// ADK's side of each case is recorded (tests/fixtures/adk-reference/workflowscheduler).
 const reference = adkReferences('workflowScheduler');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL = 'gemini-3.5-flash-lite';
@@ -119,7 +113,7 @@ const storedEvent = (event: unknown) => {
 const nodeError = (path: string, branch: string | undefined, node: string, code: string, message: string, gaveUp?: { errorType?: string; attempt?: number }) =>
   `${path}@${branch ?? '-'} ${node} [${code}] ${message}${gaveUp ? ` (${gaveUp.errorType} after ${gaveUp.attempt})` : ''}`;
 
-/** The stub table as one function both sides call, each side on its own clock; `calls` records `name <- input`. */
+/** The stub table as one function the walk calls, on its own clock; `calls` records `name <- input`. */
 function stubRunner(stubs: Stubs, calls: string[]) {
   const counts = new Map<string, number>();
   const clock = virtualClock();
@@ -136,59 +130,8 @@ function stubRunner(stubs: Stubs, calls: string[]) {
 
 const completion = (path: string, output: unknown, branch: string | undefined) => `${path} = ${JSON.stringify(output)} @${branch ?? '-'}`;
 
-/**
- * ADK's walk: the real compile, every agent a stub FunctionNode carrying the
- * agent's node modifiers (retry, timeout) as the compiled agent does, run by
- * ADK's Runner. Live: only inside a reference's live callback.
- */
-async function runOnAdk(cfg: SyndicateYamlConfig, stubs: Stubs, input: string): Promise<Record_> {
-  const { FunctionNode, InMemorySessionService, Runner, createEvent } = await import('@google/adk');
-  const { compileWorkflow } = await import('../lib/workflow.ts');
-  const calls: string[] = [];
-  const run = stubRunner(stubs, calls);
-  const toStub = (a: LlmAgent) =>
-    new FunctionNode(
-      a.name,
-      async (_ctx: unknown, nodeInput: unknown) => {
-        const out = await run(a.name, nodeInput);
-        return out instanceof Reported ? createEvent({ errorCode: out.code, errorMessage: out.message }) : out;
-      },
-      { retryConfig: (a as any).retryConfig, timeout: (a as any).timeout },
-    ) as unknown as LlmAgent;
-  const { workflow } = await compileWorkflow(cfg, {}, toStub);
-  const sessionService = new InMemorySessionService();
-  await sessionService.createSession({ appName: 'sched', userId: 'u', sessionId: 's' });
-  const runner = new Runner({ agent: workflow as any, appName: 'sched', sessionService });
-  const completions: string[] = [];
-  const nodeErrors: string[] = [];
-  const errorEvents: string[] = [];
-  // The Runner yields no event for the workflow's own output; it is the one terminal node's, as ADK's finalize takes it.
-  const terminals = new Set(buildWorkflowGraph(cfg).terminals.map((n) => `${cfg.syndicate_name}.${n}`));
-  let output: unknown;
-  let error: string | undefined;
-  try {
-    for await (const ev of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: { role: 'user', parts: [{ text: input }] } })) {
-      const e = ev as any;
-      const p = e.nodeInfo?.path as string | undefined;
-      // An error as runSyndicateTurn's drain reads it (errorPolicy 'collect').
-      if ((e.errorCode || e.errorMessage) && e.errorCode !== 'STOP') {
-        nodeErrors.push(nodeError(p ?? '', ev.branch, e.author, String(e.errorCode), String(e.errorMessage), e.isNodeError ? { errorType: e.errorType, attempt: e.attemptCount } : undefined));
-        if (e.isNodeError) errorEvents.push(storedEvent(e));
-        continue;
-      }
-      if (e.output === undefined || !p) continue;
-      if (terminals.has(p)) output = e.output;
-      completions.push(completion(p, e.output, ev.branch));
-    }
-  } catch (err) {
-    error = `${(err as Error).name}: ${(err as Error).message}`;
-    output = undefined;
-  }
-  return { calls, completions, output, nodeErrors, errorEvents, ...(error ? { error } : {}) };
-}
-
-/** ADK's record of case `name`: the recording, or (ADK_REFERENCE=live|record) the walk on ADK's Runner. */
-const adkRecord = (name: string, cfg: SyndicateYamlConfig, stubs: Stubs, input = 'go'): Promise<Record_> => reference(name, () => runOnAdk(cfg, stubs, input));
+/** ADK's record of case `name`, as recorded. */
+const adkRecord = (name: string): Promise<Record_> => reference<Record_>(name);
 
 /** A record in JSON's form, as a recording holds ADK's (an `undefined`-valued key dropped, an undefined list item null). */
 const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -211,7 +154,7 @@ async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs, input: string, 
       },
       onEvent: (e) => {
         events?.push(e);
-        // ADK writes no event for a node whose output is undefined; the record leaves it out on both sides.
+        // ADK writes no event for a node whose output is undefined; the record leaves it out.
         if ((e.type === 'node_end' || e.type === 'item_end') && e.output !== undefined) completions.push(completion(e.path, e.output, e.branch));
         if (e.type === 'node_error') nodeErrors.push(nodeError(e.path, e.branch, e.node, e.code, e.message, e.source === 'workflow' ? { errorType: e.errorType, attempt: e.attempt } : undefined));
         if (e.type === 'node_error' && e.source === 'workflow') errorEvents.push(storedEvent(nodeErrorEvent(e, 'e-native')));
@@ -228,7 +171,7 @@ async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs, input: string, 
 
 /** Holds the scheduler's record equal to ADK's (in JSON's form) and returns the scheduler's. */
 async function bothAgree(name: string, cfg: SyndicateYamlConfig, stubs: Stubs, input = 'go'): Promise<Record_> {
-  const adk = await adkRecord(name, cfg, stubs, input);
+  const adk = await adkRecord(name);
   const native = await runNative(cfg, stubs, input);
   assert.deepEqual(asJson(native), adk);
   return native;
@@ -263,7 +206,7 @@ const SIX_ORDERS: Array<[string, Stubs, string[]]> = [
 
 for (const [profile, stubs, expected] of SIX_ORDERS) {
   test(`six-node fan-out and join completes in ADK's recorded order: ${profile}`, async () => {
-    const adk = await adkRecord(`six-node-${profile}`, SIX, stubs);
+    const adk = await adkRecord(`six-node-${profile}`);
     const pinned = adk.completions.map((c) => c.slice('Six.'.length, c.indexOf(' ')));
     assert.deepEqual(pinned, expected, 'ADK records the pinned order');
 
@@ -303,7 +246,7 @@ const FANIN = syndicate('FanIn', ['Lead', 'A', 'B', 'C', 'After', 'Echo'], {
 test('a join waits for every predecessor, however late, and keys their outputs in edge order', async () => {
   const stubs: Stubs = { A: { delay: 30 }, B: { delay: 5 }, C: { delay: 15 }, Echo: { output: () => undefined } };
   const events: SchedulerEvent[] = [];
-  const adk = await adkRecord('join-waits-for-every-predecessor', FANIN, stubs);
+  const adk = await adkRecord('join-waits-for-every-predecessor');
   const native = await runNative(FANIN, stubs, 'go', events);
   assert.deepEqual(asJson(native), adk);
   const ends = events.filter((e) => e.type === 'node_end').map((e) => e.node);
@@ -339,7 +282,7 @@ for (const maxParallel of [1, 2, undefined]) {
   test(`map runs one worker per item under max_parallel ${maxParallel ?? `(default ${DEFAULT_MAX_PARALLEL})`}, outputs by index`, async () => {
     const cfg = mapSyndicate(maxParallel);
     const events: SchedulerEvent[] = [];
-    const adk = await adkRecord(`map-max-parallel-${maxParallel ?? 'default'}`, cfg, MAP_STUBS);
+    const adk = await adkRecord(`map-max-parallel-${maxParallel ?? 'default'}`);
     const native = await runNative(cfg, MAP_STUBS, 'go', events);
     assert.deepEqual(asJson(native), adk);
     assert.equal(native.output, 'w:a,w:b,w:c,w:d,w:e');
@@ -389,7 +332,7 @@ for (const [route, expected] of [
     // Several terminals: only one may produce output, so the others output nothing here.
     for (const n of ['Bug', 'Feature', 'Other']) stubs[n] = { output: () => undefined };
     const events: SchedulerEvent[] = [];
-    const adk = await adkRecord(`routing-${route}`, ROUTED, stubs);
+    const adk = await adkRecord(`routing-${route}`);
     const native = await runNative(ROUTED, stubs, 'go', events);
     assert.deepEqual(asJson(native), adk);
     assert.deepEqual(events.filter((e) => e.type === 'node_end').map((e) => e.node), expected);
@@ -414,7 +357,7 @@ test('max_concurrency bounds the nodes running at once, in ADK\'s order', async 
   // Finish times B 5, C 25, A 80 ms on the virtual clock.
   const stubs: Stubs = { A: { delay: 80 }, B: { delay: 5 }, C: { delay: 20 } };
   const events: SchedulerEvent[] = [];
-  const adk = await adkRecord('max-concurrency', cfg, stubs);
+  const adk = await adkRecord('max-concurrency');
   const native = await runNative(cfg, stubs, 'go', events);
   assert.deepEqual(asJson(native), adk);
   let running = 0;
@@ -515,14 +458,14 @@ test('streamWorkflowGraph yields every event in order, then the run', async () =
   assert.equal(step.value.output, 'Publisher');
 });
 
-// ── Retry, timeout and node errors (ADR 0030 on both sides, WS4-2b) ──────────
+// ── Retry, timeout and node errors (ADR 0030, WS4-2b) ───────────────────────
 
 const retrying = (retry: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
   syndicate('R', ['Triage', 'Fixer'], { edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { retry: { initial_delay: 0.001, ...retry }, ...extra } } });
 
-/** Run both sides, require the same record, and return it with the scheduler's own result. */
+/** Run the scheduler, require ADK's recorded record, and return it with the scheduler's own result. */
 async function bothAgreeOn(name: string, cfg: SyndicateYamlConfig, stubs: Stubs): Promise<{ record: Record_; run?: WorkflowRun; events: SchedulerEvent[] }> {
-  const adk = await adkRecord(name, cfg, stubs);
+  const adk = await adkRecord(name);
   const events: SchedulerEvent[] = [];
   const runs: WorkflowRun[] = [];
   const native = await runNative(cfg, stubs, 'go', events, runs);
@@ -585,7 +528,7 @@ test('retry: a node that keeps throwing gives up after max_attempts; the walk re
   ]);
 });
 
-test('retry.exceptions from the YAML: only a named error is retried, on ADK (its retryConfig) and on the scheduler alike', async () => {
+test('retry.exceptions from the YAML: only a named error is retried by the scheduler, as by ADK', async () => {
   const typeError: Stubs = { Fixer: { output: () => { throw new TypeError('bad'); } } };
   const named = await bothAgreeOn('retry-exceptions-named', retrying({ max_attempts: 3, jitter: 0, exceptions: ['TypeError'] }), typeError);
   assert.equal(named.record.calls.filter((c) => c.startsWith('Fixer')).length, 3, 'a named error is retried');
@@ -594,11 +537,10 @@ test('retry.exceptions from the YAML: only a named error is retried, on ADK (its
   assert.deepEqual(other.record.nodeErrors, ['R.Fixer@- Fixer [UNKNOWN_ERROR] bad (TypeError after 1)']);
 });
 
-test('retry.exceptions and retry.jitter: the schema takes them, the graph keeps them, and ADK gets them in its retryConfig', () => {
+test('retry.exceptions and retry.jitter: the schema takes them, and the graph keeps them', () => {
   const cfg = retrying({ max_attempts: 2, jitter: 0, exceptions: ['TypeError', 'NodeTimeoutError'] });
   const fixer = buildWorkflowGraph(cfg).nodes.get('Fixer') as { settings: { retry?: Record<string, unknown> } };
   assert.deepEqual(fixer.settings.retry, { initial_delay: 0.001, max_attempts: 2, jitter: 0, exceptions: ['TypeError', 'NodeTimeoutError'] });
-  assert.deepEqual(toRetryConfig(fixer.settings.retry), { maxAttempts: 2, initialDelay: 0.001, jitter: 0, exceptions: ['TypeError', 'NodeTimeoutError'] });
   for (const [retry, message] of [
     [{ exceptions: [] }, /workflow\.nodes\.Fixer\.retry\.exceptions/],
     [{ exceptions: ['not a name'] }, /an error name, such as TypeError/],
@@ -679,7 +621,7 @@ test('max_concurrency counts a retrying node as running, in ADK\'s order', async
     C: { delay: 5, realTime: true },
   };
   const events: SchedulerEvent[] = [];
-  const adk = await adkRecord('max-concurrency-retrying', bounded({ A: { retry: { max_attempts: 2, initial_delay: 0.001 } } }), stubs);
+  const adk = await adkRecord('max-concurrency-retrying');
   const native = await runNative(bounded({ A: { retry: { max_attempts: 2, initial_delay: 0.001 } } }), stubs, 'go', events);
   assert.deepEqual(asJson(native), adk);
   let running = 0;
@@ -711,34 +653,7 @@ test('which errors retry, and the backoff, are ADK\'s (retry_utils)', async () =
   const RETRIES: Array<Record<string, number>> = [{}, { initial_delay: 0.5, backoff_factor: 3, max_delay: 4 }, { initial_delay: 2, max_delay: 3, jitter: 0 }, { jitter: 0.5 }];
   const DELAY_ATTEMPTS = [1, 2, 4, 9];
   // ADK's retry_utils over the same inputs, in the loops' order, recorded.
-  const theirs = await reference('retry-utils', async () => {
-    const adkRetry = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/workflow/utils/retry_utils.js')).href);
-    const names: string[] = [];
-    const retries: boolean[] = [];
-    const delays: number[] = [];
-    for (const error of ERRORS) {
-      names.push(adkRetry.errorName(error));
-      for (const exceptions of EXCEPTIONS) {
-        for (const attempts of ATTEMPTS) {
-          for (const max of MAXES) retries.push(adkRetry.shouldRetryNode({ error, retryConfig: { maxAttempts: max, exceptions }, nodeState: { attemptCount: attempts } }));
-        }
-      }
-    }
-    for (const r of RANDOMS) {
-      for (const retry of RETRIES) {
-        for (const attempts of DELAY_ATTEMPTS) {
-          delays.push(
-            adkRetry.getRetryDelaySeconds({
-              retryConfig: { initialDelay: retry.initial_delay, maxDelay: retry.max_delay, backoffFactor: retry.backoff_factor, jitter: retry.jitter },
-              nodeState: { attemptCount: attempts },
-              randomFn: () => r,
-            }),
-          );
-        }
-      }
-    }
-    return { names, retries, delays };
-  });
+  const theirs = await reference<{ names: string[]; retries: boolean[]; delays: number[] }>('retry-utils');
   let retryAt = 0;
   for (const [i, error] of ERRORS.entries()) {
     assert.equal(errorName(error), theirs.names[i]);
@@ -848,7 +763,7 @@ test('abort while a timed node runs: the attempt ends at once with InvocationAbo
 
 // ── No ADK ───────────────────────────────────────────────────────────────────
 
-test('lib/workflow/scheduler.ts reaches ADK through no value import', () => {
+test('lib/workflow/scheduler.ts reaches no @google/ package through a value import', () => {
   const seen = new Set<string>();
   const offenders: string[] = [];
   const visit = (file: string) => {
@@ -858,11 +773,11 @@ test('lib/workflow/scheduler.ts reaches ADK through no value import', () => {
     for (const [statement] of src.matchAll(/^import\s[^;]*;/gm)) {
       if (/^import\s+type\s/.test(statement)) continue;
       const spec = /from\s+'([^']*)'/.exec(statement)?.[1] ?? '';
-      if (spec.startsWith('@google/adk') || spec.startsWith('@google/genai')) offenders.push(`${path.relative(ROOT, file)}: ${spec}`);
+      if (spec.startsWith('@google/')) offenders.push(`${path.relative(ROOT, file)}: ${spec}`);
       if (spec.startsWith('.')) visit(path.resolve(path.dirname(file), spec));
     }
   };
   visit(path.join(ROOT, 'lib/workflow/scheduler.ts'));
   assert.deepEqual(offenders, []);
-  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'lib/workflow/scheduler.ts'), 'utf8'), /@google\/adk/);
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'lib/workflow/scheduler.ts'), 'utf8'), /@google\//);
 });

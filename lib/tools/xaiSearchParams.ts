@@ -3,11 +3,8 @@
  * server-side search tools, read from the environment at request-build time.
  *
  * WHY its own module: GrokAdapter (lib/models/grokAdapter.ts) reads these
- * on the engine's own contract, and the tool modules that also export them
- * (webSearchTool.ts, xSearchTool.ts, collectionsSearchTool.ts) extend ADK's
- * BaseTool. Here they import nothing, so the `melchizedek-agents/model`
- * entry reaches no @google/adk. The tool modules re-export each reader under
- * its old name.
+ * on the engine's own contract, and they import nothing, so the
+ * `melchizedek-agents/model` entry stays a leaf.
  *
  * THE DOCTRINE (unchanged): constraints are deployment configuration, never
  * YAML, so the YAML stays shareable. Misconfiguration degrades with a

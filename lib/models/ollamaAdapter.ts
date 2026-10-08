@@ -11,8 +11,8 @@
  *   local inference. The chat-completions translation is the shared base
  *   (lib/models/chatCompletionsAdapter.ts); this adapter supplies Ollama's
  *   endpoint, its wire model name and its error wording.
- *   Under ADK it runs behind OllamaLlm (lib/models/ollamaLlm.ts), which any
- *   agent with model: "ollama/<model>" routes to.
+ *   Any agent with model: "ollama/<model>" resolves to it (resolveAdapter,
+ *   lib/models/adapterResolver.ts).
  *
  * HOW TO ENABLE:
  *   1. Install Ollama (https://ollama.com — macOS: brew install ollama)
@@ -21,7 +21,7 @@
  *        ollama pull qwen3.5:9b      # the default recommendation
  *        ollama pull qwen3.5:4b      # lighter; teaching and small machines
  *   3. Set model: "ollama/qwen3.5:9b" in your YAML. No API key needed —
- *      registerAvailableProviders() registers this provider unconditionally.
+ *      the provider is always available (logProviderStatuses() reports it).
  *   Optional: OLLAMA_BASE_URL in .env overrides the default endpoint
  *   (http://localhost:11434/v1 — Ollama's OpenAI-compatible API).
  *

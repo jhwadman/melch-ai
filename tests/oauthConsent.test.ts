@@ -24,25 +24,20 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
 import express from 'express';
 
 import { consentCallback, createA2AApp } from '../lib/a2a/app.ts';
-import { adkShim } from '../lib/models/adkShim.ts';
 import type { AuditEvent } from '../lib/observability/audit.ts';
-import { pendingConsent } from '../lib/runtime/credentials.ts';
-import { UnsupportedOnRuntimeError, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
-import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import { servedThroughShim } from '../lib/runtime/native/selfCorrection.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { aesGcmCipher } from '../lib/tools/credentialCipher.ts';
 import { credentialStore, memoryCredentialRows } from '../lib/tools/credentialStore.ts';
 import { ConsentError, memoryConsentStates, oauthConsent, s256Challenge } from '../lib/tools/oauthConsent.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
-import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
-
-setLogLevel(LogLevel.ERROR);
+import { ScriptedModel, answer, lastToolResult, toolCall } from './helpers/scriptedModel.ts';
 
 // ── The mock provider ────────────────────────────────────────────────────────
 
@@ -170,7 +165,7 @@ process.env.MELCHIZEDEK_AGENTS_DIR = dir;
 /** Callers by bearer token: the A2A identity plug point, and what the callback consults. */
 const CALLERS: Record<string, string> = { 'tok-alice': 'alice', 'tok-mallory': 'mallory' };
 
-const sessions = new InMemorySessionService();
+const sessions = new InProcessSessionService();
 const rows = memoryCredentialRows();
 const audits: AuditEvent[] = [];
 const store = credentialStore({ rows, cipher: aesGcmCipher(randomBytes(32)), audit: (e) => audits.push(e) });
@@ -204,7 +199,7 @@ before(async () => {
     },
     identityScheme: { type: 'bearer', description: 'test callers' },
     toolCredentials: { store, consent },
-    resolveModel: () => adkShim(boss),
+    resolveModel: () => servedThroughShim(boss),
     log: (m) => logs.push(m),
     warn: (m) => logs.push(m),
   });
@@ -250,7 +245,7 @@ async function callback(url: URL | string, token?: string): Promise<{ status: nu
 }
 
 async function storedEvents(contextId: string): Promise<unknown[]> {
-  const session = await sessions.getSession({ appName: 'melchizedek-a2a', userId: 'alice', sessionId: contextId });
+  const session = await sessions.get({ appName: 'melchizedek-a2a', userId: 'alice', sessionId: contextId });
   return (session?.events ?? []) as unknown[];
 }
 
@@ -270,7 +265,7 @@ test('a call without a grant pauses; the callback completes the flow with PKCE; 
   assert.equal(request.provider, 'github');
   assert.equal(request.agent, 'Boss');
   assert.deepEqual(request.scopes, ['repo:read']);
-  assert.ok(request.consent_id.startsWith('adk-'), 'the request is ADK\'s own adk_request_credential call');
+  assert.ok(request.consent_id.startsWith('adk-'), 'the request is an adk_request_credential call');
   assert.match(request.state, /^[A-Za-z0-9_-]{43}$/);
   const auth = new URL(request.authorization_url);
   assert.equal(auth.origin + auth.pathname, `${provider.base}/authorize`);
@@ -335,7 +330,7 @@ test('a call without a grant pauses; the callback completes the flow with PKCE; 
   assert.equal(authorizedRuns, 1, 'the paused call did not run again');
   assert.equal(allRuns, 2);
 
-  // The stored events: ADK's request shape, and no value anywhere.
+  // The stored events: the adk_request_credential request shape, and no value anywhere.
   const events = await storedEvents(first.contextId);
   const json = JSON.stringify(events);
   for (const s of provider.secrets()) assert.ok(!json.includes(s), 'no token, code, verifier or client secret in any event');
@@ -489,44 +484,4 @@ test('behind a server secret the callback asks the authenticator only once the b
   } finally {
     s.close();
   }
-});
-
-// ── Runtimes ─────────────────────────────────────────────────────────────────
-
-test('a consent opened on native is refused on the ADK runtime, with UnsupportedOnRuntimeError, before any model call', async () => {
-  const sessionService = new InMemorySessionService();
-  const config = {
-    syndicate_name: 'Desk',
-    orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Help.', tools: ['gh_whoami'] },
-    subagents: [],
-  } as unknown as SyndicateYamlConfig;
-  const local = credentialStore({ rows: memoryCredentialRows(), cipher: aesGcmCipher(randomBytes(32)) });
-  const consent = oauthConsent({
-    providers: { github: { authorizationUrl: `${provider.base}/authorize`, tokenUrl: `${provider.base}/token`, clientId: CLIENT_ID } },
-    redirectUri: 'https://agents.example.com/oauth/callback',
-    credentials: local,
-  });
-  const model = new ScriptedModel('scripted/boss', () => toolCall('gh_whoami', {}, 'call-gh'));
-  const turn = (runtime: 'adk' | 'native') =>
-    runSyndicateTurn({
-      config,
-      parts: [{ text: 'who am I?' }],
-      appName: 'Desk',
-      userId: 'bob',
-      sessionId: 'rt',
-      sessionService,
-      compile: { resolveModel: shimResolver({ boss: model }), log: () => {} },
-      trace: false,
-      runtime,
-      toolCredentials: { store: local, consent },
-    });
-  const paused = await turn('native');
-  assert.equal(paused.status, 'input-required');
-  assert.equal(paused.consent?.provider, 'github');
-  assert.equal(paused.consent?.functionCallId, 'call-gh');
-  const session = await sessionService.getSession({ appName: 'Desk', userId: 'bob', sessionId: 'rt' });
-  assert.equal(pendingConsent(session?.events ?? [])?.id, paused.consent?.id);
-  const calls = model.calls;
-  await assert.rejects(turn('adk'), (e: unknown) => e instanceof UnsupportedOnRuntimeError && /adk_request_credential/.test(e.message));
-  assert.equal(model.calls, calls, 'no model call');
 });

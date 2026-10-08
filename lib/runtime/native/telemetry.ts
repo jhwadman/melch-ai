@@ -4,12 +4,12 @@
  *
  * WHY this file exists:
  *   The ledger (lib/observability/supabaseSpanExporter.ts) is a projection of
- *   a turn's spans. On the ADK runtime, ADK opens `invoke_agent <name>`
- *   around an agent's run, `call_llm` around each step's model call and
- *   `execute_tool <name>` around each tool call; the tracer reads them to
- *   attribute a model call to its agent and to sum tool time, and the
- *   exporter reads `call_llm` for the payload tier. A native run writes the
- *   same ledger rows because the loop opens the same three spans under the
+ *   a turn's spans. ADK opened `invoke_agent <name>` around an agent's run,
+ *   `call_llm` around each step's model call and `execute_tool <name>`
+ *   around each tool call; the tracer reads them to attribute a model call
+ *   to its agent and to sum tool time, and the exporter reads `call_llm`
+ *   for the payload tier (rows written before 1.0.0). A run writes the same
+ *   ledger rows because the loop opens the same three spans under the
  *   engine's own names and scope:
  *
  *     agent.invoke <name>   the agent's run (runAgentLoop), parent of the rest
@@ -18,18 +18,18 @@
  *     tool.execute <name>   one tool call; a step's calls run side by side
  *
  *   All three are in scope `melchizedek.runtime`, which the console exporter
- *   keeps quiet as it keeps ADK's (OTEL_CONSOLE_ALL_SPANS prints them).
+ *   keeps quiet as it kept ADK's (OTEL_CONSOLE_ALL_SPANS prints them).
  *
  * WHAT A SPAN CARRIES:
- *   gen_ai.* attributes as ADK sets them (operation, agent, conversation,
+ *   gen_ai.* attributes as ADK set them (operation, agent, conversation,
  *   tool name and call id, request model, usage, finish reason), and on
  *   model.call the provider the answering adapter names (`gen_ai.system`),
- *   where ADK's call_llm names its own scope. A model step that did not fail
+ *   where ADK's call_llm named its own scope. A model step that did not fail
  *   carries its payload as the engine holds it: `llm.payload.request` (the
  *   ModelRequest, its signal left out) and `llm.payload.response` (the
  *   adapter's final response). A failed step carries none: its llm.request
- *   span carries the failed call's payload, as on the ADK runtime, where a
- *   failed call_llm never ends. With TELEMETRY_PAYLOADS=off no payload is
+ *   span carries the failed call's payload, as under ADK, where a failed
+ *   call_llm never ended. With TELEMETRY_PAYLOADS=off no payload is
  *   recorded at all. Tool spans carry no arguments and no results: the root
  *   span's ToolCall/ToolResponse events are where the ledger keeps those.
  *

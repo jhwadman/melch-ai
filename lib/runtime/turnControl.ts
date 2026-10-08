@@ -4,19 +4,19 @@
  * the turn reaches.
  *
  * WHY an AsyncLocalStorage and not a Runner parameter:
- *   ADK's own ceiling (`runConfig.maxLlmCalls`, default 500) is counted per
- *   Runner, and every AgentTool builds a NEW Runner for its subagent without
- *   forwarding the run config — so in DELEGATE mode each subagent call starts
- *   with a fresh 500, and the real bound on a turn is multiplicative. Before
- *   this module the YAML's `max_steps` was passed as `maxSteps`, a parameter
- *   ADK does not have, so it bounded nothing at all.
+ *   ADK's own ceiling (`runConfig.maxLlmCalls`, default 500) was counted per
+ *   Runner, and every AgentTool built a NEW Runner for its subagent without
+ *   forwarding the run config — so in DELEGATE mode each subagent call
+ *   started with a fresh 500, and the real bound on a turn was
+ *   multiplicative. Before this module the YAML's `max_steps` was passed as
+ *   `maxSteps`, a parameter ADK did not have, so it bounded nothing at all.
  *
  *   Every model call in this framework, on every provider, goes through
  *   `traceLlmGeneration` (lib/observability/tracer.ts). That wrapper charges
  *   the budget here, so one counter sees the orchestrator, every subagent,
  *   and every nested syndicate in the turn. The context is carried by
- *   AsyncLocalStorage, which follows the calls ADK makes on our behalf —
- *   including the subagent Runners — without any of them knowing about it.
+ *   AsyncLocalStorage, which follows every call the loop makes — including
+ *   each subagent's child loop — without any of them knowing about it.
  *
  *   The same context carries the turn's AbortSignal, so adapters can hand it
  *   to their provider SDK and a cancel or a deadline stops the HTTP call in

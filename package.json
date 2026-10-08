@@ -1,7 +1,7 @@
 {
   "name": "melchizedek-agents",
-  "version": "0.20.0",
-  "description": "A multi-model, multi-agent orchestration framework — YAML-defined syndicates on the engine's own agent loop (Google ADK optional until 1.0), Supabase session persistence, pgvector long-term memory. Companion repo to the lyceumagents.com curriculum.",
+  "version": "1.0.0",
+  "description": "A multi-model, multi-agent orchestration framework — YAML-defined syndicates on the engine's own agent loop, Supabase or Postgres session persistence, pgvector long-term memory. Companion repo to the lyceumagents.com curriculum.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/jhwadman/melch-ai/issues"
   },
-  "//": "adk + genai are pinned exact in dev: newer genai minors change response part shapes and silently break the chat printer. Bump deliberately, verify a live run, then update the pin. adk itself is an OPTIONAL PEER dependency since 0.20.0 (ADR 0102): the native runtime, the default, needs none of it; a consumer on MELCHIZEDEK_RUNTIME=adk installs it, and their app owns the ADK instance so the model registry is a singleton. lib/adkPeer.ts is the one module that loads it. The adk peer range is capped to the tested minor (~2.2.0): a new adk minor can pull a second genai copy, so the range widens only after a release is tested against it.",
+  "//": "genai is pinned exact: newer genai minors change response part shapes and silently break the chat printer. Bump deliberately, verify a live run, then update the pin. Since 1.0.0 the engine runs on its own agent loop and has no Google ADK dependency of any kind (ADR 0107); @google/genai is used only by the Gemini adapter, the image tools and memory embeddings.",
   "engines": {
     "node": ">=22.6.0"
   },
@@ -113,9 +113,6 @@
     "schema:gen": "node --disable-warning=DEP0040 --experimental-strip-types scripts/gen_syndicate_schema.ts",
     "start:a2a": "node --disable-warning=DEP0040 --experimental-strip-types scripts/a2a_server.ts",
     "test": "node --disable-warning=DEP0040 --experimental-strip-types --test tests/**/*.test.ts",
-    "fixtures:sessions:check": "node --disable-warning=DEP0040 --experimental-strip-types tests/fixtures/sessions/generate.ts --check",
-    "fixtures:adk:record": "node --disable-warning=DEP0040 --experimental-strip-types scripts/ci/record_adk_references.ts",
-    "fixtures:adk:check": "node --disable-warning=DEP0040 --experimental-strip-types scripts/ci/record_adk_references.ts --check",
     "init": "node --disable-warning=DEP0040 --experimental-strip-types scripts/init.ts",
     "db": "node --disable-warning=DEP0040 --experimental-strip-types scripts/db.ts",
     "registry": "node --disable-warning=DEP0040 --experimental-strip-types scripts/registry.ts",
@@ -131,7 +128,6 @@
     "@anthropic-ai/bedrock-sdk": ">=0.20.0",
     "@anthropic-ai/vertex-sdk": ">=0.11.0",
     "@azure/identity": ">=4.0.0",
-    "@google/adk": "~2.2.0",
     "redis": ">=4.6.0"
   },
   "dependencies": {
@@ -155,7 +151,6 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@google/adk": "2.2.0",
     "@types/pg": "^8.23.1",
     "@types/express": "^5.0.6",
     "@types/node": "^22",
@@ -168,9 +163,6 @@
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/bedrock-sdk": {
-      "optional": true
-    },
-    "@google/adk": {
       "optional": true
     },
     "@anthropic-ai/vertex-sdk": {

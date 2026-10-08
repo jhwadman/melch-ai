@@ -21,7 +21,7 @@ sources:
 
 # Workflow agent node
 
-`lib/workflow/agentNode.ts` runs an agent of a `workflow:` syndicate as a node of the [workflow scheduler](/overview/workflow-scheduler.md), on the [native loop](/overview/native-loop.md). It is ADK 2.2's `runLlmAgentAsNode` and the part of its node runner that stamps events, rule for rule, so a session the native walk writes holds the events ADK's holds. `lib/workflow/route.ts` holds the route rule both runtimes use. Why the node is a loop hook, and why the route step stores an event, is [ADR 0090](/decisions/0090-workflow-agent-node-on-the-native-loop.md). How the instruction placeholders, the join and map events and a node's compaction match ADK is [ADR 0093](/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md). On the native runtime the turn runner chains it with the tool and ask_user runners for every workflow turn ([the native turn](/overview/workflow-scheduler.md#the-native-turn), [ADR 0095](/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)).
+`lib/workflow/agentNode.ts` runs an agent of a `workflow:` syndicate as a node of the [workflow scheduler](/overview/workflow-scheduler.md), on the [native loop](/overview/native-loop.md). It is ADK 2.2's `runLlmAgentAsNode` and the part of its node runner that stamps events, rule for rule, so a session the native walk writes holds the events ADK's holds. `lib/workflow/route.ts` holds the route rule. Why the node is a loop hook, and why the route step stores an event, is [ADR 0090](/decisions/0090-workflow-agent-node-on-the-native-loop.md). How the instruction placeholders, the join and map events and a node's compaction match ADK is [ADR 0093](/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md). The turn runner chains it with the tool and ask_user runners for every workflow turn ([the native turn](/overview/workflow-scheduler.md#the-native-turn), [ADR 0095](/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)).
 
 ## One node
 
@@ -49,11 +49,11 @@ The node's path is `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>` fo
 - `store(event)`: stores another runner's event on the same queue; the tool node runner's `onEvent` passes its event here;
 - `settled()`: resolves once every queued event is stored.
 
-A node's user turn and the events of route steps, joins and maps are stored through one queue, in the order the walk reaches them, so each lands before its successor's input, as on ADK. A node's user turn is queued as the node starts, as ADK's `runLlmAgentAsNode` appends it straight to the session; an event another runner hands to `store` (a tool node's, an ask_user request) is queued a microtask later, as ADK's Runner stores what a node yields behind the turns of nodes started in the same pass, and still before the walk starts that node's successors. Under concurrent fan-out the events of the branches land in ADK's order whenever their finish times are apart; finishes in the same instant race on both runtimes. `onEvent` (the option) receives every stored event in order; fed through `drainAgentStream`, they print the progress lines ADK's do, which name declared nodes only, never the root or a route step. `onPartial` receives each partial event a node agent's loop yields with streaming on; it is never stored.
+A node's user turn and the events of route steps, joins and maps are stored through one queue, in the order the walk reaches them, so each lands before its successor's input, as on ADK. A node's user turn is queued as the node starts, as ADK's `runLlmAgentAsNode` appends it straight to the session; an event another runner hands to `store` (a tool node's, an ask_user request) is queued a microtask later, as ADK's Runner stores what a node yields behind the turns of nodes started in the same pass, and still before the walk starts that node's successors. Under concurrent fan-out the events of the branches land in ADK's order whenever their finish times are apart; finishes in the same instant race, as they did on ADK. `onEvent` (the option) receives every stored event in order; fed through `drainAgentStream`, they print the progress lines ADK's do, which name declared nodes only, never the root or a route step. `onPartial` receives each partial event a node agent's loop yields with streaming on; it is never stored.
 
 ## Route derivation
 
-`routeOf(output, routeKey = 'route')` is the one rule; `lib/workflowConfig.ts` re-exports it for the ADK path:
+`routeOf(output, routeKey = 'route')` is the one rule; `lib/workflowConfig.ts` re-exports it:
 
 - an object output: its `routeKey` property, trimmed; `''` when absent or null;
 - a string: the text, trimmed. JSON an agent writes without an output schema is text, as ADK keeps it, so it routes on the whole text and usually takes the `default` edge;
@@ -90,9 +90,9 @@ A gate on a workflow node's agent ([ADR 0098](/decisions/0098-workflow-subagent-
 - an earlier resume already continued the node (another node's approval was the one answered since): the output its run stored after the requests is the node's (`outputAfter`), and nothing runs;
 - some request has no decision: the node raises the open requests again on one event of the new run (`waitAgain`) and waits, so the next message's resume still finds the walk paused.
 
-ADK's `runLlmAgentAsNode` stores the input again on the rerun and starts the agent afresh, so the pinned call never runs there. `runSyndicateTurn` refuses a gated workflow on ADK.
+This is the engine's own: ADK's `runLlmAgentAsNode` stored the input again on a rerun and started the agent afresh, so a pinned call never ran there, and the engine never ran a gated workflow on ADK.
 
-A skill script is the same pause: `run_skill_script` on a node agent with `skills.scripts: local` raises its `adk_request_confirmation` request, the node waits, and the decision runs the script once or refuses it, with ADR 0086's minimal environment ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)). The adk runtime refuses it by name, and the schema refuses it on an agent a map runs. `tests/workflowSkillScripts.test.ts` runs a real script on a node.
+A skill script is the same pause: `run_skill_script` on a node agent with `skills.scripts: local` raises its `adk_request_confirmation` request, the node waits, and the decision runs the script once or refuses it, with ADR 0086's minimal environment ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)). The schema refuses it on an agent a map runs. `tests/workflowSkillScripts.test.ts` runs a real script on a node.
 
 An agent node that names a nested workflow syndicate is not an agent run: `agentNodeRuntime` hands it to `runWorkflowNode` ([Workflow scheduler](/overview/workflow-scheduler.md#as-a-route-or-a-node)).
 
@@ -102,7 +102,7 @@ An agent node that names a nested workflow syndicate is not an agent run: `agent
 
 ## Parity with ADK
 
-`tests/workflowAgentNode.test.ts` takes each case's ADK side (`runSyndicateTurn`, runtime `adk`) from its recording ([ADR 0108](/decisions/0108-adk-reference-recorded-by-the-parity-suites.md); live under `ADK_REFERENCE=live`) and runs it on the scheduler with `agentNodeRuntime`, with the same scripted models. It compares the stored events (ids and times aside), every model's requests, the routes, the workflow's output and the progress lines. The cases: a text route, a route no key names (the default), a JSON route on `route_key` with an output schema, JSON text without one, a task-mode node routing on its `finish_task` output, an agent with `includeContents: default`, a chain through `toolNodeRunner` (an agent routes to a tool node whose result the next agent reads), and a node whose model fails.
+`tests/workflowAgentNode.test.ts` takes each case's ADK side from its recording in `tests/fixtures/adk-reference/` ([ADR 0108](/decisions/0108-adk-reference-recorded-by-the-parity-suites.md)) and runs it on the scheduler with `agentNodeRuntime`, with the same scripted models. It compares the stored events (ids and times aside), every model's requests, the routes, the workflow's output and the progress lines. The cases: a text route, a route no key names (the default), a JSON route on `route_key` with an output schema, JSON text without one, a task-mode node routing on its `finish_task` output, an agent with `includeContents: default`, a chain through `toolNodeRunner` (an agent routes to a tool node whose result the next agent reads), and a node whose model fails.
 
 `tests/workflowParity.test.ts` holds the same comparison, through the shared harness `tests/helpers/workflowParity.ts`, for:
 
@@ -111,4 +111,4 @@ An agent node that names a nested workflow syndicate is not an agent run: `agent
 - concurrent fan-out: three branches at once (an agent that calls a tool and routes on, a tool node, a map) joined, under three delay profiles that keep any two finish times 20 ms apart, and a node two branches trigger;
 - compaction: a plain and a task-mode node that compact before their step.
 
-The scripted models and the slow tool in these cases, and the slow scripts of `tests/workflowApprovals.test.ts` and `tests/workflowSubagent.test.ts`, wait on the virtual clock of `tests/helpers/virtualClock.ts`, as the scheduler suite's stubs do ([Workflow scheduler](/overview/workflow-scheduler.md#parity-with-adk)): a finish order is the profile's timeline on every runtime, never a race of real timers.
+The scripted models and the slow tool in these cases, and the slow scripts of `tests/workflowApprovals.test.ts` and `tests/workflowSubagent.test.ts`, wait on the virtual clock of `tests/helpers/virtualClock.ts`, as the scheduler suite's stubs do ([Workflow scheduler](/overview/workflow-scheduler.md#parity-with-adk)): a finish order is the profile's timeline, never a race of real timers.

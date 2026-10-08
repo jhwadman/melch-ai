@@ -4,11 +4,6 @@
  * the engine's contract (lib/models/contract.ts), and the harness that
  * captures the body an adapter posts for one.
  *
- * The same inputs drive the ADK path's shim classes in
- * tests/shimBodies.test.ts, which asserts that each sends the body its
- * contract adapter sends, so a matrix cell proven on the contract holds on
- * the ADK path too.
- *
  * Offline: globalThis.fetch is replaced by a stub that records the request
  * and answers 400, so no provider is called and no SDK retries, or answers
  * with Gemini's JSON where a Gemini cell's claim covers the answer. Keys are
@@ -19,7 +14,6 @@
  */
 
 import assert from 'node:assert';
-import { AgentTool, LlmAgent } from '@google/adk';
 
 import type { MatrixRow } from '../../lib/models/capabilities.ts';
 import type {
@@ -40,6 +34,7 @@ import { KimiAdapter } from '../../lib/models/kimiAdapter.ts';
 import { OllamaAdapter } from '../../lib/models/ollamaAdapter.ts';
 import { GatewayAdapter } from '../../lib/models/gatewayAdapter.ts';
 import { contractToolDeclaration } from '../../lib/models/schemaNormalize.ts';
+import { subagentTool } from '../../lib/runtime/native/delegate.ts';
 import { resolveTools } from '../../lib/toolRegistry.ts';
 
 export type AdapterRow = Exclude<MatrixRow, 'gemini'>;
@@ -109,11 +104,7 @@ export function adapterFor(row: AdapterRow, model = MODEL[row]): ModelAdapter {
   }
 }
 
-/**
- * Gemini's fixture key, for both Gemini paths: the engine's GeminiAdapter,
- * which the matrix's Gemini row is asserted on (ADR 0100), and the ADK path's
- * Gemini (tests/shimBodies.test.ts).
- */
+/** Gemini's fixture key, for the engine's GeminiAdapter, which the matrix's Gemini row is asserted on (ADR 0100). */
 export const GEMINI_ENV = { GOOGLE_GENAI_API_KEY: 'fixture-genai-0123456789abcdef' }; // gitleaks:allow (test fixture)
 
 /** One request an adapter posted: where it went and its JSON body. */
@@ -135,8 +126,8 @@ const rejected: Reply = () =>
 /**
  * Runs `send` with the row's fixture env (every other key cleared) and fetch
  * stubbed to answer with `reply` (default a 400); returns every request
- * posted and everything `send` yielded. A call that throws (ADK's Gemini
- * throws the 400) is drained like one that yields its error.
+ * posted and everything `send` yielded. A call that throws on the 400 is
+ * drained like one that yields its error.
  */
 export async function captureExchange<T>(
   row: AdapterRow | 'gemini',
@@ -158,7 +149,7 @@ export async function captureExchange<T>(
   try {
     for await (const value of send()) yielded.push(value);
   } catch {
-    // ADK's Gemini throws the 400; the body is what is asserted
+    // a call that throws on the 400; the body is what is asserted
   } finally {
     globalThis.fetch = originalFetch;
     for (const k of ALL_ENV) {
@@ -206,10 +197,10 @@ function declared(tool: unknown): ToolDeclaration {
   return declaration;
 }
 
-/** A real ADK AgentTool and the registry's load_memory: what a syndicate that delegates and declares memory sends. */
+/** A subagent tool (the engine's delegation declaration) and the registry's load_memory: what a syndicate that delegates and declares memory sends. */
 export function delegationTools(): ToolDeclaration[] {
-  const sub = new LlmAgent({ name: 'Scout', description: 'Finds things', model: 'gemini-3.5-flash-lite', instruction: 'x' });
-  return [declared(new AgentTool({ agent: sub })), declared(resolveTools(['load_memory'])[0])];
+  const sub = subagentTool({ name: 'Scout', description: 'Finds things', model: 'gemini-3.5-flash-lite', instruction: 'x' });
+  return [declared(sub), declared(resolveTools(['load_memory'])[0])];
 }
 
 export function withDelegationTools(row: AdapterRow): ModelRequest {

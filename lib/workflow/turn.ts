@@ -2,28 +2,27 @@
  * lib/workflow/turn.ts — one turn of a workflow syndicate on the native
  * runtime: the message stored, the graph walked by the engine's scheduler,
  * and every event the walk stores yielded in the order it was stored, the
- * node inputs aside, as ADK's Runner yields them (ADR 0095).
+ * node inputs aside, as ADK's Runner yielded them (ADR 0095).
  *
  * WHY this file exists:
- *   runSyndicateTurn (lib/runtime/syndicateTurn.ts) runs a workflow on ADK
- *   by handing ADK's Workflow to its Runner and draining the events the
- *   Runner yields (drainAgentStream). On the native runtime it hands this
- *   generator to the same drain, under the same root span, so the progress
- *   lines, onProgress calls, node errors, the paused input and the ledger
- *   rows come out of one reader on both runtimes. Everything a node does is
+ *   runSyndicateTurn (lib/runtime/syndicateTurn.ts) hands this generator to
+ *   the turn's reader (drainAgentStream), under the turn's root span, as it
+ *   once handed ADK's Runner stream, so the progress lines, onProgress
+ *   calls, node errors, the paused input and the ledger rows come out of
+ *   the one reader every turn uses. Everything a node does is
  *   the WS4 modules': the scheduler (scheduler.ts), agent nodes on the
  *   native loop (agentNode.ts), tool nodes (toolNode.ts), ask_user nodes and
  *   the workflow's pause record (pause.ts), and the resume rebuilt from the
  *   session (resume.ts). This file wires them for one turn, as ADK's Runner
- *   and Workflow wire theirs:
+ *   and Workflow wired theirs:
  *
  *   1. THE MESSAGE. Stored as the user's event under a new `e-` invocation
- *      id, before the walk, as the Runner stores it (runNativeAgent does the
+ *      id, before the walk, as the Runner stored it (runNativeAgent does the
  *      same for one agent). A turn whose signal aborted first stores nothing.
  *   2. THE START. workflowResume rebuilds every node's prior runs and the
- *      answers from the session, as ADK's rehydration does on every message:
+ *      answers from the session, as ADK's rehydration did on every message:
  *      with nothing paused every node runs fresh. The walk's input is the
- *      message's text, not its content, as ADK hands its root workflow, and
+ *      message's text, not its content, as ADK handed its root workflow, and
  *      that text is what the workflow's pause record keeps. A pause only ADK
  *      can resume (UnsupportedWorkflowResumeError) fails the turn; it never
  *      walks afresh and asks the person again.
@@ -32,18 +31,18 @@
  *      turn's signal. Every event a runner stores goes through the agent
  *      node runtime's one queue, in walk order: node inputs, the agents'
  *      events, tool and ask_user events, route steps, joins and maps, and
- *      the node-error event ADK writes for a node that gave up
+ *      the node-error event ADK wrote for a node that gave up
  *      (nodeErrorEvent, on the scheduler's `workflow` node_error). A node's
- *      input turn is stored and not yielded, as ADK's Runner never yields
+ *      input turn is stored and not yielded, as ADK's Runner never yielded
  *      it; a node agent's partial (streamed) event is yielded and not
- *      stored, as the Runner yields it.
+ *      stored, as the Runner yielded it.
  *   4. THE END. A paused walk stores the workflow's own record
  *      (workflowPauseEvent) after every node's event. A walk the turn
  *      stopped (InvocationAbortedError, or any failure once the signal
- *      fired) ends quietly, as ADK's Runner ends an aborted run: the turn
+ *      fired) ends quietly, as ADK's Runner ended an aborted run: the turn
  *      runner reads the stop reason from its control. A node that gave up
  *      rethrows its error once every event is stored and yielded, as ADK's
- *      Runner throws it.
+ *      Runner threw it.
  *   5. THE SPANS. `workflow.invoke <name>` around the walk, `node.execute
  *      <name>` around each node run (the scheduler's traceNode hook), and
  *      `tool.execute <name>` around a tool node's call
@@ -53,11 +52,12 @@
  *
  * WHAT IT REFUSES before any model call: refuseUnrunnableNodes throws, for
  * a tool node, ADK's compile-time refusals (an unregistered tool, a
- * long-running one). A pause raised inside an agent node is refused by
+ * long-running one), and an ADK tool (anything with runAsync), which 1.0.0
+ * no longer runs. A pause raised inside an agent node is refused by
  * runAgentNode by name.
  *
  * It imports nothing from ADK: the caller passes the tool lookup (the
- * registry builds ADK's tools) and the store as the engine's interface.
+ * registry's own Tools) and the store as the engine's interface.
  * The message, the answers and every stored event are data the walk
  * carries, never instructions this module acts on.
  */
@@ -207,7 +207,7 @@ export interface NativeWorkflowEnd {
 }
 
 /**
- * Throws, before any model call, what ADK's compileWorkflow throws for a
+ * Throws, before any model call, what ADK's workflow compile threw for a
  * tool node: an unregistered tool, or a long-running one (ADR 0091).
  */
 export function refuseUnrunnableNodes(graph: WorkflowGraph, resolveTool: (name: string) => unknown): void {
@@ -220,7 +220,7 @@ const isAborted = (error: unknown): boolean => error instanceof InvocationAborte
  * Runs one turn of the workflow: stores the message, walks the graph (a
  * resume when the session holds a paused walk), and yields every event the
  * walk stores, in the order stored, but the node inputs (ADK's Runner
- * yields none of them). Returns how the walk ended, or
+ * yielded none of them). Returns how the walk ended, or
  * undefined when the signal fired before the message was stored. Throws
  * the error a node gave up with (after its events), ADK's message for a
  * reply that answers nothing, and UnsupportedWorkflowResumeError.
@@ -264,7 +264,7 @@ export async function* runNativeWorkflow(params: NativeWorkflowParams): AsyncGen
       queue.push(event);
       wake?.();
     },
-    // A node agent's streamed text, yielded as ADK's Runner yields its partial events.
+    // A node agent's streamed text, yielded as ADK's Runner yielded its partial events.
     onPartial: (event) => {
       queue.push(event);
       wake?.();
@@ -340,7 +340,7 @@ export async function* runNativeWorkflow(params: NativeWorkflowParams): AsyncGen
       end = { run };
     },
     (error: unknown) => {
-      // ADK's Runner ends an aborted run without an error; the turn's control holds why.
+      // An aborted run ends without an error, as ADK's Runner ended one; the turn's control holds why.
       if (isAborted(error) || signal?.aborted) end = { stopped: true };
       else failure = { error };
     },

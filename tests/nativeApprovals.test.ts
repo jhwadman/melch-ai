@@ -2,9 +2,10 @@
  * tests/nativeApprovals.test.ts — approvals on the native loop (WS2-7a,
  * lib/runtime/native/interrupts.ts, ADR 0028, ADR 0077).
  *
- * Each parity case runs a two-turn conversation on the ADK runtime
- * (runSyndicateTurn, a scripted adapter behind the shim): a turn whose gated
- * call opens an approval, then a message answering it. Then the same
+ * Each parity case reads a two-turn conversation as ADK 2.2 ran it through
+ * runSyndicateTurn, recorded (tests/fixtures/adk-reference/nativeapprovals):
+ * a turn whose gated call opens an approval, then a message answering it.
+ * Then the same
  * conversation on the native loop (runAgentLoop), its answer naming the
  * request the loop stored. The stores must hold the same events, ids and
  * times aside, and the gated tool must run the same number of times.
@@ -21,10 +22,9 @@ import assert from 'node:assert/strict';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { z } from 'zod';
 
-import { requireApprovalOn } from '../lib/compile.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter, ModelResponse } from '../lib/models/contract.ts';
-import { resetCircuits } from '../lib/models/fallback.ts';
+import { resetCircuits } from '../lib/models/circuitBreaker.ts';
 import { onSpanEnd } from '../lib/observability/tracer.ts';
 import { APPROVAL_REQUEST, approvalResponsePart, pendingApproval } from '../lib/runtime/approvals.ts';
 import type { PendingApproval } from '../lib/runtime/approvals.ts';
@@ -36,25 +36,22 @@ import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { Session } from '../lib/runtime/sessions.ts';
-import { drainAgentStream, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { drainAgentStream } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
-import { toolOf } from '../lib/tools/tool.ts';
+import { requireApproval, toolOf } from '../lib/tools/tool.ts';
+import type { Tool } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { APP as FIXTURE_APP, SEND_NOTE, USER as FIXTURE_USER, scenario, sentNotes } from './fixtures/sessions/scenarios.ts';
-import { conversation, loadFixture, seedSessions } from './helpers/sessionFixtures.ts';
-import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
+import { conversation, loadFixture } from './helpers/sessionFixtures.ts';
+import { ScriptedModel, answer, lastToolResult, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
-// ADK's side of each parity case is recorded (tests/fixtures/adk-reference/nativeapprovals); ADK runs only under ADK_REFERENCE=live|record.
+// ADK's side of each parity case, as ADK 2.2 recorded it (tests/fixtures/adk-reference/nativeapprovals).
 const reference = adkReferences('nativeApprovals');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 /** Stored events as pendingApproval reads them. */
 type Stored = Parameters<typeof pendingApproval>[0];
@@ -97,7 +94,7 @@ registerTool(
   { override: true },
 );
 
-// ── The two runtimes ─────────────────────────────────────────────────────────
+// ── ADK's recorded side and the native loop ──────────────────────────────────
 
 function syndicate(orchestrator: Record<string, unknown>, extra: Record<string, unknown> = {}): SyndicateYamlConfig {
   return validateSyndicateConfig(
@@ -114,8 +111,8 @@ function nativeAgentOf(o: SyndicateYamlConfig['orchestrator']): NativeAgent {
     model: o.model as string,
     instruction: o.instruction ?? '',
     tools: resolveTools(o.tools).map((t) => {
-      const listed = gated.has(t.name) ? requireApprovalOn(t) : t;
-      return toolOf(listed) ?? listed;
+      const own = toolOf(t) ?? t;
+      return gated.has(t.name) ? requireApproval(own as Tool) : own;
     }),
     generateContentConfig: { toolConfig: { includeServerSideToolInvocations: true } },
   };
@@ -136,15 +133,6 @@ interface Conversation {
   tamper?: (events: TurnEvent[]) => void;
 }
 
-/** ADK's store holding `events`, as a store hands a session back (live only). */
-async function adkStoreOf(events: TurnEvent[]) {
-  const { InMemorySessionService } = await import('@google/adk');
-  const service = new InMemorySessionService();
-  const session = await service.createSession({ appName: APP, userId: USER, sessionId: SESSION });
-  for (const event of structuredClone(events)) await service.appendEvent({ session, event: event as any });
-  return service;
-}
-
 async function nativeStoreOf(events: TurnEvent[]): Promise<{ sessions: InProcessSessionService; session: Session }> {
   const sessions = new InProcessSessionService();
   const session = await sessions.create({ appName: APP, userId: USER, sessionId: SESSION });
@@ -157,49 +145,10 @@ const json = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 /** ADK's run as recorded: each turn's status, what the second turn threw (name and message), the stored events, each model's call count. */
 interface AdkRun {
   results: Array<Pick<SyndicateTurnResult, 'status'>>;
-  /** What the second turn threw, if it threw (ADK throws its IntentMismatchError out of the turn). */
+  /** What the second turn threw, if it threw (ADK threw its IntentMismatchError out of the turn). */
   thrown?: { name: string; message: string };
   events: TurnEvent[];
   calls: Record<string, number>;
-}
-
-/** ADK's side, live: the conversation through runSyndicateTurn on the adk runtime. */
-async function runOnAdk(c: Conversation): Promise<AdkRun> {
-  const models = build(c.scripts);
-  const { InMemorySessionService } = await import('@google/adk');
-  const sessionService = new InMemorySessionService();
-  const turn = (service: InstanceType<typeof InMemorySessionService>, parts: any[]) =>
-    runSyndicateTurn({
-      config: c.config,
-      parts,
-      appName: APP,
-      userId: USER,
-      sessionId: SESSION,
-      sessionService: service,
-      compile: { resolveModel: shimResolver(models), log: () => {} },
-      trace: false,
-      // The reference is ADK's: pinned, now that native is the default (ADR 0102).
-      runtime: 'adk',
-    });
-  const results = [await turn(sessionService, c.first ?? [{ text: 'tell ops' }])];
-  const opened = json((await sessionService.getSession({ appName: APP, userId: USER, sessionId: SESSION }))?.events ?? []) as unknown as TurnEvent[];
-  const pending = pendingApproval(opened as unknown as Stored);
-  assert.ok(pending, 'ADK opened an approval');
-  c.tamper?.(opened);
-  const resumed = await adkStoreOf(opened);
-  let thrown: unknown;
-  try {
-    results.push(await turn(resumed, c.answer(pending)));
-  } catch (e) {
-    thrown = e;
-  }
-  const events = json((await resumed.getSession({ appName: APP, userId: USER, sessionId: SESSION }))?.events ?? []) as unknown as TurnEvent[];
-  return {
-    results: results.map((r) => ({ status: r.status })),
-    events,
-    calls: Object.fromEntries(Object.entries(models).map(([key, m]) => [key, m.calls])),
-    ...(thrown ? { thrown: { name: (thrown as Error).name, message: (thrown as Error).message } } : {}),
-  };
 }
 
 interface NativeRun {
@@ -290,8 +239,8 @@ function comparable(events: TurnEvent[]): unknown {
 }
 
 /**
- * Takes ADK's side of case `name` (recorded, or live: with what its tools
- * did, the notes sent and the disks wiped), runs it on the native loop; the
+ * Takes ADK's recorded side of case `name` (with what its tools did, the
+ * notes sent and the disks wiped), runs it on the native loop; the
  * stores must hold the same events, each model must be called as often, and
  * each tool must have run as often.
  */
@@ -300,12 +249,7 @@ async function assertParity(
   c: Conversation,
 ): Promise<{ adk: AdkRun & { sent: string[]; wipes: number }; native: NativeRun; sentOnAdk: string[]; sentNatively: string[]; wipesNatively: number }> {
   resetCircuits();
-  const adk = await reference(name, async () => {
-    sent.length = 0;
-    wipes = 0;
-    const run = await runOnAdk(c);
-    return { ...run, sent: [...sent], wipes };
-  });
+  const adk = await reference<AdkRun & { sent: string[]; wipes: number }>(name);
   const sentOnAdk = adk.sent;
   sent.length = 0;
   wipes = 0;
@@ -355,7 +299,7 @@ test('an answer as JSON under `response` reads as the same confirmation', async 
   assert.deepEqual(sentNatively, ['ops@acme.test']);
 });
 
-test('pinned arguments changed in the store: refused on both runtimes, nothing runs and nothing more is stored', async () => {
+test('pinned arguments changed in the store: refused as ADK refused it, nothing runs and nothing more is stored', async () => {
   const tamper = (events: TurnEvent[]) => {
     for (const e of events) {
       for (const p of e.content?.parts ?? []) {
@@ -405,7 +349,7 @@ test('a confirmed call that throws: self-correction counts a first failure, the 
     scripts: { boss: (_req, n) => (n === 1 ? toolCall('native_approval_wipe', { disk: 'd1' }, 'call-wipe-1') : answer('it is busy')) },
     answer: (p) => [approvalResponsePart(p.id, true)],
   });
-  assert.deepEqual([adk.wipes, wipesNatively], [1, 1], 'once per runtime');
+  assert.deepEqual([adk.wipes, wipesNatively], [1, 1], 'once on each side');
   const failed = native.events.find((e) => e.author === 'Boss' && e.content?.parts?.some((p) => p.functionResponse?.id === 'call-wipe-1'));
   const response = failed?.content?.parts?.[0]?.functionResponse?.response as Record<string, unknown>;
   assert.equal(response.retry_count, 1);
@@ -474,26 +418,8 @@ test('fixture 03: an approval ADK stored resumes on the native loop, runs the pi
   };
   const message = [approvalResponsePart(pending.id, true)];
 
-  // ADK resumes it (recorded, or live).
-  const adk = await reference('fixture-03-resume', async () => {
-    sentNotes.length = 0;
-    const adkModels = build({ boss: script });
-    const adkStore = await seedSessions(f);
-    const result = await runSyndicateTurn({
-      config: s.config,
-      parts: message,
-      appName: FIXTURE_APP,
-      userId: FIXTURE_USER,
-      sessionId: s.sessionId,
-      sessionService: adkStore,
-      compile: { resolveModel: shimResolver(adkModels), log: () => {} },
-      trace: false,
-      // The reference is ADK's: pinned, now that native is the default (ADR 0102).
-      runtime: 'adk',
-    });
-    const events = json((await adkStore.getSession({ appName: FIXTURE_APP, userId: FIXTURE_USER, sessionId: s.sessionId }))?.events ?? []) as unknown as TurnEvent[];
-    return { status: result.status, ...(result.error ? { error: result.error.message } : {}), sent: [...sentNotes], events };
-  });
+  // ADK resumes it (recorded).
+  const adk = await reference<{ status: string; error?: string; sent: string[]; events: TurnEvent[] }>('fixture-03-resume');
   assert.equal(adk.status, 'completed', adk.error);
   assert.deepEqual(adk.sent, ['ops@acme.test']);
   const adkEvents = adk.events;

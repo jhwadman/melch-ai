@@ -17,7 +17,8 @@ import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import core from '@opentelemetry/core';
 const { ExportResultCode } = core;
 
-import type { Event, LlmResponse } from '@google/adk';
+import type { LlmResponse } from '../models/genaiMapping.ts';
+import type { TurnEvent as Event } from '../runtime/events.ts';
 import type { ModelRequest } from '../models/contract.ts';
 
 import {
@@ -29,7 +30,7 @@ import {
  * Optional OTLP export for a live trace viewer (Phoenix, Langfuse, Grafana
  * Tempo, Jaeger — anything that speaks OTLP/HTTP). Set
  * OTEL_EXPORTER_OTLP_ENDPOINT (e.g. http://localhost:6006 for Phoenix) and
- * every span — ADK's included, so the viewer gets the waterfall — is also
+ * every span — the loop's included, so the viewer gets the waterfall — is also
  * sent there. OTEL_EXPORTER_OTLP_HEADERS is honoured by the exporter itself
  * (api keys); OTEL_SERVICE_NAME names the service (default "melchizedek").
  * OTEL_EXPORT_CONTENT decides how much conversation leaves with the spans:
@@ -88,10 +89,10 @@ export function onSpanEnd(
   return () => spanEndListeners.delete(listener);
 }
 
-// ADK's own spans (scope "gcp.vertex.agent": invocation, invoke_agent,
-// call_llm, execute_tool) carry the FULL model request and response as
-// attributes, and so does the native loop's model.call (scope
-// "melchizedek.runtime": agent.invoke, model.call, tool.execute). They reach
+// The native loop's spans (scope "melchizedek.runtime": agent.invoke,
+// model.call, tool.execute) carry the FULL model request and response as
+// attributes, as ADK's spans (scope "gcp.vertex.agent") did before 1.0.0
+// removed ADK; both scopes stay quiet. They reach
 // the in-process listeners — that is how per-agent attribution and the
 // observatory work — but are not printed unless asked: on a server they would
 // put every prompt into the log stream.
@@ -155,10 +156,11 @@ class JsonConsoleExporter implements SpanExporter {
 }
 
 // ── Span lineage (per-agent attribution) ─────────────────────────────────────
-// ADK wraps every agent turn in an `invoke_agent <name>` span and every model
-// call in a `call_llm` child of it; our llm.request span is a child of THAT.
-// The native loop does the same as `agent.invoke <name>` and `model.call`
-// (lib/runtime/native/telemetry.ts); lineage.ts reads both schemes.
+// The native loop wraps every agent turn in an `agent.invoke <name>` span and
+// every model call in a `model.call` child of it (lib/runtime/native/
+// telemetry.ts); our llm.request span is a child of THAT. lineage.ts also
+// reads ADK's scheme (`invoke_agent <name>`, `call_llm`), which spans
+// recorded before 1.0.0 carry.
 // A span cannot read its parent's name through the OTEL API, so a processor
 // records each span's name and parent at start, and llm.request walks up the
 // chain to find the agent it belongs to. This is what fills the `agent`
@@ -215,7 +217,7 @@ class SpanLineageProcessor {
     const parent: string | undefined =
       span.parentSpanContext?.spanId ?? span.parentSpanId ?? undefined;
     spanLineage.set(ctx.spanId, { name: span.name, parent });
-    // The model-call span (ADK's call_llm, the loop's model.call: the one
+    // The model-call span (the loop's model.call, ADK's call_llm before 1.0.0: the one
     // carrying the full request/response payloads) learns its agent the same
     // way llm.request does, so a payload row can be attributed without
     // re-walking the tree later.
@@ -260,49 +262,10 @@ export function agentForSpan(spanId: string | undefined): string | null {
   return null;
 }
 
-/**
- * Hands the provider to ADK's private copy of @opentelemetry/api.
- *
- * WHY: @google/adk pins its own @opentelemetry/api (nested under its
- * node_modules) and creates its tracer at module-import time —
- * `trace.getTracer("gcp.vertex.agent")` in telemetry/tracing.js. That call
- * runs BEFORE any entrypoint can register a provider, so it binds to that
- * copy's ProxyTracerProvider, whose delegate is only ever set by a
- * `setGlobalTracerProvider` call made through the SAME copy. Ours goes
- * through the top-level copy; the global registration is shared (it lives
- * on a well-known Symbol), but the proxy's delegate is not. Result: every
- * ADK span — invoke_agent, call_llm, execute_tool — was a no-op, and
- * llm.request spans had no parent. Setting the delegate on ADK's proxy
- * fixes both: ADK spans now export, and the context manager (global,
- * shared) threads our llm.request spans under ADK's call_llm.
- *
- * `_proxyTracerProvider` is a private field of TraceAPI; this is the only
- * place that touches it, it is guarded, and a failure just means ADK spans
- * stay invisible — as they were.
- */
-function adoptAdkTracerApi(provider: any): boolean {
-  try {
-    const requireHere = createRequire(import.meta.url);
-    const adkEntry = requireHere.resolve('@google/adk');
-    const adkApi = createRequire(adkEntry)('@opentelemetry/api');
-    if (adkApi?.trace === trace) return true;
-    const proxy = adkApi?.trace?._proxyTracerProvider;
-    if (proxy && typeof proxy.setDelegate === 'function') {
-      proxy.setDelegate(provider);
-      return true;
-    }
-  } catch {
-    /* ADK not installed or its api copy changed shape — see WHY above */
-  }
-  return false;
-}
-
 export function initializeTracing() {
   if (isOtelInitialized) return;
 
-  // Set up the global OpenTelemetry provider
-  // Since we register this globally, any internal ADK spans (e.g. tool calls, model calls)
-  // will also automatically route to this provider and show up in the console.
+  // Set up the global OpenTelemetry provider.
   const spanProcessors: any[] = [
     new SpanLineageProcessor(),
     new SimpleSpanProcessor(new JsonConsoleExporter()),
@@ -339,7 +302,6 @@ export function initializeTracing() {
   // span it starts is a no-op and the ledger silently stays empty. Point our
   // own proxy too; with one shared copy this repeats what register() did.
   (trace as any)._proxyTracerProvider?.setDelegate?.(provider);
-  adoptAdkTracerApi(provider);
   tracerProvider = provider;
 
   isOtelInitialized = true;
@@ -393,7 +355,7 @@ export interface TraceMetadata {
   traceparent?: string;
   /**
    * Identity of the turn. These are what make a stored turn joinable to
-   * its session row (`adk_sessions.id` = app:user:session) and to the ADK
+   * its session row (`adk_sessions.id` = app:user:session) and to the stored
    * events of the same invocation; without them a trace and a session can
    * only be matched by timestamp and luck.
    */
@@ -415,12 +377,15 @@ export interface TraceMetadata {
 }
 
 /**
- * Wraps an ADK `Runner.runAsync` stream with a root OpenTelemetry span.
- * Accumulates token counts, records variables (bindings) and the raw input/output.
+ * traceAgentRun (below) wraps a turn's event stream with a root
+ * OpenTelemetry span. It accumulates token counts, records variables
+ * (bindings) and the raw input/output.
  */
 /**
  * ToolCall/ToolResponse span events for the server-side tool calls a
- * Responses adapter (gptLlm.ts) carried on a final event's customMetadata.
+ * Responses adapter's response carried on a final event's customMetadata
+ * (`responses.server_tool_calls`, which the native step writes from
+ * lib/models/gptAdapter.ts's responsesServerTools).
  * Pure, so the projection is testable without an OTEL provider. Partial
  * (streamed) events carry none and repeat nothing.
  */
@@ -588,7 +553,7 @@ export async function* traceAgentRun(
 
       // Server-side tools (xAI web_search/x_search via the Responses
       // adapters) run inside one model call and never surface as
-      // functionCall parts. gptLlm.ts carries them on the final response's
+      // functionCall parts. A final event carries them in its
       // customMetadata; recording them here is what makes adk_turns.tool_calls
       // count a searched Grok answer instead of reporting zero.
       for (const e of serverToolEvents(ev)) span.addEvent(e.name, e.attributes);
@@ -639,17 +604,15 @@ export interface LlmCallMeta {
   /**
    * The request as the engine's model contract holds it (lib/models/
    * contract.ts), attached to the span as `llm.payload.request`, without its
-   * abort signal, ONLY when the call errors. ADK's own call_llm payload
-   * capture is lost on error — the consumer stops pulling after the error
-   * event, so that span's end() (not in a finally) never runs and the
-   * exporter never sees it. This span always ends, so an errored call keeps
-   * its request + error body in adk_payloads regardless.
+   * abort signal, ONLY when the call errors. This span ends in a finally,
+   * so an errored call keeps its request and error body in adk_payloads
+   * even when the consumer stops pulling after the error event.
    *
-   * The caller of a contract adapter (the ADK shim) passes the ModelRequest
-   * it hands the adapter. An ADK adapter passes a function that maps its
-   * LlmRequest (llmRequestToModelRequest, lib/models/genaiMapping.ts), so
-   * the mapping runs only for a failed call. A mapping that throws records
-   * no request.
+   * The caller of a contract adapter (the native step) passes the
+   * ModelRequest it hands the adapter. A caller holding a genai-shaped
+   * request passes a function that maps it (llmRequestToModelRequest,
+   * lib/models/genaiMapping.ts), so the mapping runs only for a failed call.
+   * A mapping that throws records no request.
    */
   request?: ModelRequest | (() => ModelRequest);
   /**
@@ -708,13 +671,13 @@ function refineErrorCode(code: string, message: string): string {
  * Wraps one adapter `generateContentAsync` invocation in an `llm.request`
  * span — one span per model call, for EVERY provider. Records provider,
  * model, input/output/thinking token counts, latency, and a truncated
- * thinking summary as a span event. Adapters call this around their own
- * generator; TracedGemini (lib/models/tracedGemini.ts) does the same for Gemini,
- * so per-request telemetry is uniform across the fleet, and the ADK shim
- * (lib/models/adkShim.ts) does it for an adapter on the model contract,
- * which opens no span of its own (ADR 0053). The request it records is a
- * ModelRequest: the one the shim hands its adapter, or an ADK adapter's
- * LlmRequest mapped to one when the call fails.
+ * thinking summary as a span event. The adapter's caller calls this around
+ * the adapter's generator (the native step, lib/runtime/native/step.ts, and
+ * the summarizer and memory extractor), since an adapter on the model
+ * contract opens no span of its own (ADR 0053), so per-request telemetry is
+ * uniform across the fleet. The request it records is a ModelRequest: the
+ * one the caller hands its adapter, or a genai-shaped request mapped to one
+ * when the call fails.
  *
  * Adapters can decorate the active llm.request span with extra attributes
  * (e.g. llm.web_search.native) via setLlmSpanAttribute below.

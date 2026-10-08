@@ -28,11 +28,12 @@
  *      `longRunningToolIds`, and the workflow's input in `agentState`. The
  *      caller stores it after the walk, as it stores nodeErrorEvent.
  *
- * Serialized, both events are the JSON ADK stores, key for key
+ * Serialized, both events are the JSON ADK stored, key for key
  * (tests/workflowPause.test.ts compares them), so the turn runner's reader
- * (drainAgentStream, inputRequestFrom) reads the same `result.input` from
- * either runtime, and the resume (lib/workflow/resume.ts) rebuilds the node states from
- * them as ADK's rehydration does.
+ * (drainAgentStream, inputRequestFrom) reads the same `result.input` from a
+ * pause ADK stored as from one the engine stored, and the resume
+ * (lib/workflow/resume.ts) rebuilds the node states from them as ADK's
+ * rehydration did.
  *
  * THE RESUME (ADR 0094). A resumed walk (lib/workflow/resume.ts) reruns
  * the paused node on the input it recorded, with the answers in

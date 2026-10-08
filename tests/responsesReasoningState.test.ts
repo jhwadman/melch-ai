@@ -1,46 +1,43 @@
 /**
  * tests/responsesReasoningState.test.ts — GPT and Grok (the Responses API
  * adapters) carry their reasoning across the steps of a tool loop
- * (lib/models/gptLlm.ts, lib/models/grokLlm.ts, ADR 0046).
+ * (lib/models/gptAdapter.ts, lib/models/grokAdapter.ts, ADR 0046).
  *
  * Offline: the adapters talk to a fetch stub that answers in the Responses
  * API's own wire format (JSON, or SSE when the request streams), so the real
  * openai SDK parses real-shaped responses. Keys are fixtures.
  *
  * What is proved here:
- *   - reasoning ids send `store: false` and ask for encrypted reasoning;
- *     other ids send neither;
- *   - through a REAL ADK Runner, the reasoning item a step returned rides on
- *     its function call and goes back verbatim, immediately before that
- *     function_call, on the next request of the loop (streamed and not);
+ *   - through runSyndicateTurn on the native loop, the reasoning item a step
+ *     returned rides on its function call and goes back verbatim,
+ *     immediately before that function_call, on the next request of the
+ *     loop (streamed and not);
  *   - a model switch between steps drops it, within a provider and across;
- *   - only the current turn's tool loop replays, and a run of reasoning that
- *     a server-side tool call followed is not carried;
- *   - the guarded 400 retry drops the reasoning additions and keeps
- *     `store: false`;
+ *   - a non-reasoning id neither replays nor writes it, and a run of
+ *     reasoning that a server-side tool call followed is not carried;
  *   - the shared turn-start rule (currentTurnStart), including -1 when no
  *     user content opens the turn, as GPT's and Kimi's requests show it.
+ * What a request asks for (store: false, encrypted reasoning), the replay's
+ * placement and scope, and the guarded 400 retry are
+ * tests/responsesAdapter.test.ts's.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { BaseLlm, InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
-import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
 
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import { GptLlm, REASONING_STATE_KIND, buildResponsesInput } from '../lib/models/gptLlm.ts';
-import { GrokLlm } from '../lib/models/grokLlm.ts';
-import { KimiLlm } from '../lib/models/kimiLlm.ts';
-import { REASONING_CONTENT_KIND } from '../lib/models/openAiCompatibleLlm.ts';
-import { currentTurnStart, withProviderState } from '../lib/models/providerState.ts';
+import type { Message, ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
+import { GptAdapter, REASONING_STATE_KIND } from '../lib/models/gptAdapter.ts';
+import { GrokAdapter } from '../lib/models/grokAdapter.ts';
+import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
+import { REASONING_CONTENT_KIND } from '../lib/models/chatCompletionsAdapter.ts';
+import { currentTurnStart } from '../lib/models/providerState.ts';
 import type { ProviderState } from '../lib/models/providerState.ts';
 import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
-import { assertRefusesModelClass, forEachRuntime } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const APP = 'test-app';
 const USER = 'u1';
@@ -126,56 +123,48 @@ async function withResponses<T>(
   }
 }
 
-const gpt = (model = 'gpt-5-mini') => new GptLlm({ model, apiKey: OPENAI_KEY });
-const grok = (model = 'grok-4.7') => new GrokLlm({ model, apiKey: XAI_KEY });
+const gpt = (model = 'gpt-5-mini') => new GptAdapter({ model, apiKey: OPENAI_KEY });
+const grok = (model = 'grok-4.7') => new GrokAdapter({ model, apiKey: XAI_KEY });
 
-function delegateConfig(): SyndicateYamlConfig {
+function delegateConfig(bossModel: string): SyndicateYamlConfig {
   return {
     syndicate_name: 'Test',
-    orchestrator: { name: 'Boss', model: 'boss', instruction: 'Delegate to Scout.', reasoning: 'low' },
+    orchestrator: { name: 'Boss', model: bossModel, instruction: 'Delegate to Scout.', reasoning: 'low' },
     subagents: [{ name: 'Scout', model: 'scout', instruction: 'Answer.', description: 'Finds things' }],
   } as SyndicateYamlConfig;
 }
 
-function turn(models: Record<string, BaseLlm>, sessions = new InMemorySessionService(), streaming = false) {
+function turn(boss: ModelAdapter, sessions = new InProcessSessionService(), streaming = false) {
+  const subagent = scout();
   return runSyndicateTurn({
-    config: delegateConfig(),
+    config: delegateConfig(boss.model),
     parts: [{ text: 'find the thing' }],
     appName: APP,
     userId: USER,
     sessionId: 's1',
     sessionService: sessions,
-    compile: {
-      resolveModel: (id: string | undefined) => {
-        const m = models[id ?? ''];
-        if (!m) throw new Error(`no model '${id}'`);
-        return m;
-      },
-    },
+    compile: { resolveModel: (id: string | undefined) => (id === 'scout' ? subagent : boss) },
     trace: false,
     streaming,
   });
 }
 
-/**
- * A resolver that returns an ADK model class which is neither the shim nor
- * Gemini (StepSwitch here) is refused on native before any model call
- * (ADR 0088): these cases run on ADK, and on native assert the refusal.
- */
 /** One model per step, in order: a model switch between steps, as a fallback makes one. */
-class StepSwitch extends BaseLlm {
-  private calls = 0;
-  private readonly steps: BaseLlm[];
-  constructor(steps: BaseLlm[]) {
-    super({ model: 'scripted/switch' });
-    this.steps = steps;
+class StepSwitch implements ModelAdapter {
+  readonly model = 'scripted/switch';
+  #calls = 0;
+  #current: ModelAdapter;
+  readonly #steps: ModelAdapter[];
+  constructor(steps: ModelAdapter[]) {
+    this.#steps = steps;
+    this.#current = steps[0];
   }
-  async *generateContentAsync(request: LlmRequest, stream?: boolean, signal?: AbortSignal): AsyncGenerator<LlmResponse, void> {
-    const model = this.steps[Math.min(this.calls++, this.steps.length - 1)];
-    yield* model.generateContentAsync(request, stream, signal);
+  get provider(): string {
+    return this.#current.provider;
   }
-  async connect(): Promise<BaseLlmConnection> {
-    throw new Error('no live connections');
+  generate(request: ModelRequest): AsyncIterable<ModelResponse> {
+    this.#current = this.#steps[Math.min(this.#calls++, this.#steps.length - 1)];
+    return this.#current.generate({ ...request, model: this.#current.model });
   }
 }
 
@@ -184,40 +173,28 @@ const scout = () => new ScriptedLlm('scout', () => text('it is in the attic'));
 /** The index of the function_call item for `callId` in a request's input. */
 const callIndex = (input: any[], callId: string) => input.findIndex((i) => i.type === 'function_call' && i.call_id === callId);
 
-// ── What a request asks for ──────────────────────────────────────────────────
+/** Every response an adapter yields for `request`. */
+async function collect(adapter: ModelAdapter, request: ModelRequest): Promise<ModelResponse[]> {
+  const out: ModelResponse[] = [];
+  for await (const r of adapter.generate(request)) out.push(r);
+  return out;
+}
 
-test('store: false and encrypted reasoning are sent for reasoning ids, and neither for other ids', async () => {
-  const bodyOf = async (llm: GptLlm) =>
-    withResponses([400, 400], async (sent) => {
-      const req = { model: llm.model, contents: [{ role: 'user', parts: [{ text: 'hello' }] }], toolsDict: {}, config: {}, liveConnectConfig: {} };
-      for await (const _ of llm.generateContentAsync(req as unknown as LlmRequest, false)) {
-        // drain; the 400 surfaces as an error response
-      }
-      return sent[0].body;
-    });
+const finalOf = (out: ModelResponse[]) => {
+  const final = out.find((r) => !r.partial);
+  assert.ok(final && !final.partial, 'a final');
+  return final;
+};
 
-  for (const llm of [gpt('gpt-5-mini'), gpt('gpt-5.1'), gpt('o4-mini'), grok('grok-4.5'), grok('grok-4.7')]) {
-    const body = await bodyOf(llm);
-    assert.strictEqual(body.store, false, `${llm.model}: store`);
-    assert.deepStrictEqual(body.include, INCLUDE, `${llm.model}: include`);
-    assert.ok(body.reasoning, `${llm.model}: the reasoning param stays`);
-  }
-  for (const llm of [gpt('gpt-4o'), gpt('gpt-4.1-mini'), grok('grok-4-1-fast-reasoning'), grok('grok-3')]) {
-    const body = await bodyOf(llm);
-    assert.ok(!('store' in body), `${llm.model} sent store`);
-    assert.ok(!('include' in body), `${llm.model} sent include`);
-  }
-});
-
-// ── The tool loop through a real ADK Runner ──────────────────────────────────
+// ── The tool loop through runSyndicateTurn on the native loop ────────────────
 
 for (const streaming of [false, true]) {
-  test(`gpt (${streaming ? 'streamed' : 'non-streamed'}): the second request carries the reasoning item immediately before its function_call`, async () => {
-    const sessions = new InMemorySessionService();
+  test(`native turn, gpt (${streaming ? 'streamed' : 'non-streamed'}): the second request carries the reasoning item immediately before its function_call`, async () => {
+    const sessions = new InProcessSessionService();
     await withResponses(
       [responseOf([R1, functionCall('call_1')]), responseOf([outputMessage('Scout says: it is in the attic')])],
       async (sent) => {
-        const r = await turn({ boss: gpt(), scout: scout() }, sessions, streaming);
+        const r = await turn(gpt(), sessions, streaming);
         assert.equal(r.status, 'completed', JSON.stringify(r.error));
         assert.equal(r.text, 'Scout says: it is in the attic');
 
@@ -241,7 +218,7 @@ for (const streaming of [false, true]) {
         assert.ok(!JSON.stringify(second.input).includes('providerState'));
 
         // Stored with the event, on the call part.
-        const session = await sessions.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+        const session = await sessions.get({ appName: APP, userId: USER, sessionId: 's1' });
         const stored = (session?.events ?? []).flatMap((e) => e.content?.parts ?? []).find((p: any) => p.functionCall?.name === 'Scout') as any;
         assert.deepStrictEqual(stored.providerState, { provider: 'openai', kind: REASONING_STATE_KIND, model: 'gpt-5-mini', payload: [R1] });
       },
@@ -249,19 +226,19 @@ for (const streaming of [false, true]) {
   });
 }
 
-test('grok: the same loop replays under the xai provider id', async () => {
-  const sessions = new InMemorySessionService();
+test('native turn, grok: the same loop replays under the xai provider id', async () => {
+  const sessions = new InProcessSessionService();
   await withResponses(
     [responseOf([R1, functionCall('call_1')], 'grok-4.7'), responseOf([outputMessage('Scout says: it is in the attic')], 'grok-4.7')],
     async (sent) => {
-      const r = await turn({ boss: grok('grok-4.7'), scout: scout() }, sessions);
+      const r = await turn(grok('grok-4.7'), sessions);
       assert.equal(r.status, 'completed', JSON.stringify(r.error));
       assert.ok(sent.every((s) => s.host === 'api.x.ai'));
       const second = sent[1].body;
       assert.strictEqual(second.store, false);
       assert.deepStrictEqual(second.include, INCLUDE);
       assert.deepStrictEqual(second.input[callIndex(second.input, 'call_1') - 1], R1);
-      const session = await sessions.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+      const session = await sessions.get({ appName: APP, userId: USER, sessionId: 's1' });
       const stored = (session?.events ?? []).flatMap((e) => e.content?.parts ?? []).find((p: any) => p.functionCall) as any;
       assert.equal(stored.providerState.provider, 'xai');
       assert.equal(stored.providerState.model, 'grok-4.7');
@@ -271,7 +248,7 @@ test('grok: the same loop replays under the xai provider id', async () => {
 
 // ── A model switch between steps drops the state ─────────────────────────────
 
-forEachRuntime('model switch: another GPT model, or Grok, gets the call without the reasoning item', async (runtime) => {
+test('native turn, model switch: another GPT model, or Grok, gets the call without the reasoning item', async () => {
   for (const [label, next, host] of [
     ['gpt-5-mini → gpt-5', gpt('gpt-5'), 'api.openai.com'],
     ['gpt-5-mini → grok-4.7', grok('grok-4.7'), 'api.x.ai'],
@@ -279,14 +256,9 @@ forEachRuntime('model switch: another GPT model, or Grok, gets the call without 
     await withResponses(
       [responseOf([R1, functionCall('call_1')]), responseOf([outputMessage('Scout says: it is in the attic')])],
       async (sent) => {
-        const boss = new StepSwitch([gpt('gpt-5-mini'), next]);
-        if (runtime === 'native') {
-          await assertRefusesModelClass(turn({ boss, scout: scout() }), 'StepSwitch');
-          assert.equal(sent.length, 0, `${label}: no model was called`);
-          return;
-        }
-        const r = await turn({ boss, scout: scout() });
+        const r = await turn(new StepSwitch([gpt('gpt-5-mini'), next]));
         assert.equal(r.status, 'completed', `${label}: ${JSON.stringify(r.error)}`);
+        assert.equal(sent[0].host, 'api.openai.com', label);
         assert.equal(sent[1].host, host, label);
         const second = sent[1].body;
         assert.ok(callIndex(second.input, 'call_1') >= 0, `${label}: the call itself is replayed`);
@@ -300,87 +272,24 @@ forEachRuntime('model switch: another GPT model, or Grok, gets the call without 
 });
 
 test('a non-reasoning id neither replays nor writes reasoning state', async () => {
-  // Another provider's state in the history is ignored, and a reasoning item
+  // Another model's state in the history is ignored, and a reasoning item
   // in a gpt-4o reply (it should not return one) is not carried.
   const state: ProviderState = { provider: 'openai', kind: REASONING_STATE_KIND, model: 'gpt-4o', payload: [R1] };
   await withResponses([responseOf([reasoningItem(2), outputMessage('done')], 'gpt-4o')], async (sent) => {
-    const req = {
+    const out = await collect(gpt('gpt-4o'), {
       model: 'gpt-4o',
-      contents: [
-        { role: 'user', parts: [{ text: 'find it' }] },
-        { role: 'model', parts: [withProviderState({ functionCall: { id: 'call_1', name: 'Scout', args: {} } }, state)] },
-        { role: 'user', parts: [{ functionResponse: { id: 'call_1', name: 'Scout', response: { result: 'found' } } }] },
+      messages: [
+        { role: 'user', parts: [{ type: 'text', text: 'find it' }] },
+        { role: 'assistant', parts: [{ type: 'toolCall', id: 'call_1', name: 'Scout', args: {}, providerState: state }] },
+        { role: 'tool', parts: [{ type: 'toolResult', id: 'call_1', name: 'Scout', result: 'found' }] },
       ],
-      toolsDict: {},
-      config: {},
-      liveConnectConfig: {},
-    } as unknown as LlmRequest;
-    const out: LlmResponse[] = [];
-    for await (const r of gpt('gpt-4o').generateContentAsync(req, false)) out.push(r);
+    });
+    assert.ok(callIndex(sent[0].body.input, 'call_1') >= 0, 'the call is sent');
     assert.ok(!sent[0].body.input.some((i: any) => i.type === 'reasoning'));
-    const final = out.find((r) => r.turnComplete)!;
-    assert.ok(!(final.content!.parts![0] as any).providerState);
+    const final = finalOf(out);
+    assert.ok(final.parts.length > 0, JSON.stringify(final));
+    assert.ok(final.parts.every((p) => p.providerState === undefined));
   });
-});
-
-// ── Placement and scope ──────────────────────────────────────────────────────
-
-const stateOf = (items: unknown[], model = 'gpt-5-mini'): ProviderState => ({ provider: 'openai', kind: REASONING_STATE_KIND, model, payload: items });
-const fc = (id: string, items?: unknown[], model?: string) => {
-  const part = { functionCall: { id, name: 'Scout', args: {} } };
-  return items ? withProviderState(part, stateOf(items, model)) : part;
-};
-const fr = (id: string) => ({ functionResponse: { id, name: 'Scout', response: { result: 'found' } } });
-/** The input items for `contents`, replaying as gpt-5-mini does; `null` builds without replay. */
-const inputOf = (contents: unknown[], replay: { provider: string; model: string } | null = { provider: 'openai', model: 'gpt-5-mini' }) =>
-  buildResponsesInput({ model: 'gpt-5-mini', contents, toolsDict: {}, config: {}, liveConnectConfig: {} } as unknown as LlmRequest, replay ?? undefined).input;
-
-test('only the current turn\'s tool loop replays; earlier turns, other models and other providers do not', () => {
-  const R0 = reasoningItem(0);
-  const input = inputOf([
-    { role: 'user', parts: [{ text: 'first question' }] },
-    { role: 'model', parts: [fc('c0', [R0])] },
-    { role: 'user', parts: [fr('c0')] },
-    { role: 'model', parts: [withProviderState({ text: 'First answer.' }, stateOf([reasoningItem(9)]))] },
-    { role: 'user', parts: [{ text: 'second question' }] },
-    { role: 'model', parts: [fc('c1', [R1])] },
-    { role: 'user', parts: [fr('c1')] },
-    { role: 'model', parts: [fc('c2', [reasoningItem(2)], 'gpt-5')] },
-    { role: 'user', parts: [fr('c2')] },
-    { role: 'model', parts: [withProviderState(fc('c3'), { provider: 'xai', kind: REASONING_STATE_KIND, model: 'gpt-5-mini', payload: [reasoningItem(3)] })] },
-    { role: 'user', parts: [fr('c3')] },
-  ]);
-  const reasoning = input.filter((i) => i.type === 'reasoning').map((i) => i.id);
-  assert.deepStrictEqual(reasoning, ['rs_fixture_1'], 'only this turn, this model, this provider');
-  assert.deepStrictEqual(input[callIndex(input, 'c1') - 1], R1);
-  // Without `replay` nothing is sent back at all.
-  assert.ok(!inputOf([{ role: 'user', parts: [{ text: 'q' }] }, { role: 'model', parts: [fc('c1', [R1])] }, { role: 'user', parts: [fr('c1')] }], null).some((i) => i.type === 'reasoning'));
-});
-
-test('a reasoning run before text keeps the model\'s order of message and call', () => {
-  const R2 = reasoningItem(2);
-  const input = inputOf([
-    { role: 'user', parts: [{ text: 'find it' }] },
-    { role: 'model', parts: [withProviderState({ text: 'Let me ask Scout.' }, stateOf([R1])), fc('c1', [R2])] },
-    { role: 'user', parts: [fr('c1')] },
-  ]);
-  assert.deepStrictEqual(
-    input.map((i) => i.type ?? i.role),
-    ['user', 'reasoning', 'assistant', 'reasoning', 'function_call', 'function_call_output'],
-  );
-  assert.deepStrictEqual(input[1], R1);
-  assert.equal(input[2].content[0].text, 'Let me ask Scout.');
-  assert.deepStrictEqual(input[3], R2);
-});
-
-test('a reasoning item without encrypted content is not replayed (store: false keeps nothing to point at)', () => {
-  const bare = { id: 'rs_bare', type: 'reasoning', summary: [] };
-  const input = inputOf([
-    { role: 'user', parts: [{ text: 'find it' }] },
-    { role: 'model', parts: [fc('c1', [bare, R1])] },
-    { role: 'user', parts: [fr('c1')] },
-  ]);
-  assert.deepStrictEqual(input.filter((i) => i.type === 'reasoning'), [R1]);
 });
 
 // ── Writing the state ────────────────────────────────────────────────────────
@@ -397,49 +306,20 @@ test('each run rides on the part right after it; a run a server-side tool call f
     functionCall('call_1'),
   ];
   await withResponses([responseOf(output, 'grok-4.7')], async () => {
-    const req = { model: 'grok-4.7', contents: [{ role: 'user', parts: [{ text: 'find it' }] }], toolsDict: {}, config: {}, liveConnectConfig: {} };
-    const out: LlmResponse[] = [];
-    for await (const r of grok('grok-4.7').generateContentAsync(req as unknown as LlmRequest, false)) out.push(r);
-    const parts = out.find((r) => r.turnComplete)!.content!.parts as any[];
+    const out = await collect(grok('grok-4.7'), { model: 'grok-4.7', messages: [{ role: 'user', parts: [{ type: 'text', text: 'find it' }] }] });
+    const parts = finalOf(out).parts as any[];
     assert.equal(parts[0].text, 'Searching done.');
     assert.ok(!parts[0].providerState, 'the run before the search is not carried');
     assert.deepStrictEqual(parts[1].providerState, { provider: 'xai', kind: REASONING_STATE_KIND, model: 'grok-4.7', payload: [R2] });
     // The summary still surfaces as display-only thinking.
-    assert.ok(out.some((r) => r.partial && (r.content?.parts?.[0] as any)?.thought));
-  });
-});
-
-// ── The guarded retry ────────────────────────────────────────────────────────
-
-test('a 400 is retried once without the reasoning additions, and store: false stays', async () => {
-  await withResponses([400, responseOf([outputMessage('done')])], async (sent) => {
-    const req = {
-      model: 'gpt-5-mini',
-      contents: [
-        { role: 'user', parts: [{ text: 'find it' }] },
-        { role: 'model', parts: [fc('c1', [R1])] },
-        { role: 'user', parts: [fr('c1')] },
-      ],
-      toolsDict: {},
-      config: {},
-      liveConnectConfig: {},
-    } as unknown as LlmRequest;
-    const out: LlmResponse[] = [];
-    for await (const r of gpt().generateContentAsync(req, false)) out.push(r);
-    assert.equal(sent.length, 2);
-    assert.deepStrictEqual(sent[0].body.input[callIndex(sent[0].body.input, 'c1') - 1], R1);
-    const retry = sent[1].body;
-    assert.ok(!('reasoning' in retry) && !('include' in retry));
-    assert.ok(!retry.input.some((i: any) => i.type === 'reasoning'));
-    assert.ok(callIndex(retry.input, 'c1') >= 0, 'the call itself stays');
-    assert.strictEqual(retry.store, false);
-    assert.equal((out.find((r) => r.turnComplete)!.content!.parts![0] as any).text, 'done');
+    assert.ok(out.some((r) => r.partial && r.parts[0]?.type === 'thinking'));
   });
 });
 
 // ── The shared turn-start rule ───────────────────────────────────────────────
 
 test('currentTurnStart: the last user content that is not purely tool results', () => {
+  const fr = (id: string) => ({ functionResponse: { id, name: 'Scout', response: { result: 'found' } } });
   const u = (t: string) => ({ role: 'user', parts: [{ text: t }] });
   const m = { role: 'model', parts: [{ functionCall: { name: 'f', args: {} } }] };
   const r = { role: 'user', parts: [{ functionResponse: { name: 'f', response: {} } }] };
@@ -455,27 +335,23 @@ test('currentTurnStart: the last user content that is not purely tool results', 
 });
 
 test('currentTurnStart -1 on the wire: with no user content opening the turn, GPT and Kimi replay the first model content', async () => {
-  const result = { role: 'user', parts: [{ functionResponse: { id: 'c1', name: 'Scout', response: { result: 'x' } } }] };
-  const loop = (model: string, state: ProviderState) =>
-    ({
-      model,
-      contents: [{ role: 'model', parts: [withProviderState({ functionCall: { id: 'c1', name: 'Scout', args: {} } }, state)] }, result],
-      liveConnectConfig: {},
-      toolsDict: {},
-      config: {},
-    }) as unknown as LlmRequest;
-  const firstBody = (llm: BaseLlm, request: LlmRequest) =>
+  const loop = (model: string, state: ProviderState): ModelRequest => ({
+    model,
+    messages: [
+      { role: 'assistant', parts: [{ type: 'toolCall', id: 'c1', name: 'Scout', args: {}, providerState: state }] },
+      { role: 'tool', parts: [{ type: 'toolResult', id: 'c1', name: 'Scout', result: 'x' }] },
+    ] satisfies Message[],
+  });
+  const firstBody = (adapter: ModelAdapter, request: ModelRequest) =>
     withResponses([], async (sent) => {
-      for await (const _ of llm.generateContentAsync(request, false)) {
-        // drain; the 400 surfaces as an error response
-      }
+      await collect(adapter, request); // the 400 surfaces as an error final
       return sent[0].body;
     });
 
   const gptBody = await firstBody(gpt(), loop('gpt-5-mini', { provider: 'openai', kind: REASONING_STATE_KIND, model: 'gpt-5-mini', payload: [R1] }));
   assert.deepStrictEqual(gptBody.input[callIndex(gptBody.input, 'c1') - 1], R1);
 
-  const kimi = new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY });
+  const kimi = new KimiAdapter({ model: 'kimi-k3', apiKey: MOONSHOT_KEY });
   const kimiBody = await firstBody(kimi, loop('kimi-k3', { provider: 'moonshot', kind: REASONING_CONTENT_KIND, model: 'kimi-k3', payload: 'step one' }));
   const assistant = kimiBody.messages.find((m: any) => m.role === 'assistant');
   assert.equal(assistant.reasoning_content, 'step one');

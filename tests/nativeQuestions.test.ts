@@ -2,16 +2,16 @@
  * tests/nativeQuestions.test.ts — questions (`ask_user`) directly on the
  * native loop (WS2-7b, lib/runtime/questions.ts, ADR 0079).
  *
- * A conversation runs on the ADK runtime (runSyndicateTurn, a scripted
- * adapter behind the shim): a turn whose model asks, then the answer, which
- * the turn runner stores as the call's function response. Then the same
- * conversation on runAgentLoop, each user event as ADK stored it. The stores
- * must hold the same events, ids and times aside: the loop pauses on the
- * open call, and the answer resumes the agent's own tool loop with no
- * request processor acting (ADK's request-input processor resumes node-tool
- * calls only). Then the question ADK stored in session fixture 04 (WS0-6),
- * answered on the loop and through runSyndicateTurn on native. Offline:
- * scripted adapters.
+ * A conversation as ADK 2.2 ran it through runSyndicateTurn, recorded
+ * (tests/fixtures/adk-reference/nativequestions): a turn whose model asks,
+ * then the answer, which the turn runner stored as the call's function
+ * response. Then the same conversation on runAgentLoop, each user event as
+ * ADK stored it. The stores must hold the same events, ids and times aside:
+ * the loop pauses on the open call, and the answer resumes the agent's own
+ * tool loop with no request processor acting (ADK's request-input processor
+ * resumed node-tool calls only). Then the question ADK stored in session
+ * fixture 04 (WS0-6), answered on the loop and through runSyndicateTurn.
+ * Offline: scripted adapters.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -20,14 +20,13 @@ import assert from 'node:assert/strict';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter, ModelRequest } from '../lib/models/contract.ts';
-import { resetCircuits } from '../lib/models/fallback.ts';
+import { resetCircuits } from '../lib/models/circuitBreaker.ts';
 import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
 import { runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
 import type { AgentLoopEnd } from '../lib/runtime/native/agentLoop.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { pendingQuestion, questionAnswerPart } from '../lib/runtime/questions.ts';
-import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { Session } from '../lib/runtime/sessions.ts';
 import { drainAgentStream, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
@@ -39,14 +38,10 @@ import { APP as FIXTURE_APP, USER as FIXTURE_USER, scenario } from './fixtures/s
 import { conversation, loadFixture, seedSessions } from './helpers/sessionFixtures.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
-// ADK's side of each parity case is recorded (tests/fixtures/adk-reference/nativequestions); ADK runs only under ADK_REFERENCE=live|record.
+// ADK's side of each parity case, as ADK 2.2 recorded it (tests/fixtures/adk-reference/nativequestions).
 const reference = adkReferences('nativeQuestions');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 /** Stored events as pendingQuestion reads them. */
 type Stored = Parameters<typeof pendingQuestion>[0];
@@ -123,30 +118,8 @@ const askThenUse: ModelScript = (req, n) =>
 
 test('ask, then answer: the loop pauses on the open call, the answer resumes its tool loop, and it stores what ADK stores', async () => {
   resetCircuits();
-  // ADK's side (recorded, or live): each turn's status and the stored events.
-  const adk = await reference('ask-then-answer', async () => {
-    const { InMemorySessionService } = await import('@google/adk');
-    const adkModel = new ScriptedModel('scripted/boss', askThenUse);
-    const sessionService = new InMemorySessionService();
-    const statuses: string[] = [];
-    for (const text of ['pay the invoice', 'work']) {
-      const result = await runSyndicateTurn({
-        config,
-        parts: [{ text }],
-        appName: APP,
-        userId: USER,
-        sessionId: SESSION,
-        sessionService,
-        compile: { resolveModel: shimResolver({ boss: adkModel }), log: () => {} },
-        trace: false,
-        // The reference is ADK's: pinned, now that native is the default (ADR 0102).
-        runtime: 'adk',
-      });
-      statuses.push(result.status);
-    }
-    const events = json((await sessionService.getSession({ appName: APP, userId: USER, sessionId: SESSION }))?.events ?? []) as unknown as TurnEvent[];
-    return { statuses, events };
-  });
+  // ADK's side (recorded): each turn's status and the stored events.
+  const adk = await reference<{ statuses: string[]; events: TurnEvent[] }>('ask-then-answer');
   assert.deepEqual(adk.statuses, ['input-required', 'completed']);
   const adkEvents = adk.events;
   const [asked, answered] = adkEvents.filter((e) => e.author === 'user') as [TurnEvent, TurnEvent];
@@ -175,7 +148,7 @@ test('ask, then answer: the loop pauses on the open call, the answer resumes its
   assert.equal(pendingQuestion(nativeEvents as unknown as Stored), undefined);
 });
 
-test('fixture 04: a question ADK stored is answered on the native loop, and through runSyndicateTurn on native, as ADK answers it', async () => {
+test('fixture 04: a question ADK stored is answered on the native loop, and through runSyndicateTurn, as ADK answers it', async () => {
   const f = loadFixture('04-open-question');
   const s = scenario(f.fixture);
   const row = conversation(f);
@@ -184,7 +157,7 @@ test('fixture 04: a question ADK stored is answered on the native loop, and thro
   assert.match(question.id, /^adk-/, 'the model gave no id; ADK minted one');
   const script: ModelScript = (req) => answer(`using ${JSON.stringify(lastToolResult(req)?.result)}`);
   type Store = Parameters<typeof seedSessions>[1] & {};
-  const turn = (runtime: 'adk' | 'native', model: ScriptedModel, sessionService: Store) =>
+  const turn = (model: ScriptedModel, sessionService: Store) =>
     runSyndicateTurn({
       config: s.config,
       parts: [{ text: 'work' }],
@@ -194,27 +167,20 @@ test('fixture 04: a question ADK stored is answered on the native loop, and thro
       sessionService,
       compile: { resolveModel: shimResolver({ boss: model }), log: () => {} },
       trace: false,
-      runtime,
     });
   const storedAfter = async (service: Store) =>
-    json((await service.getSession({ appName: FIXTURE_APP, userId: FIXTURE_USER, sessionId: s.sessionId }))?.events ?? []) as unknown as TurnEvent[];
+    json((await service.get({ appName: FIXTURE_APP, userId: FIXTURE_USER, sessionId: s.sessionId }))?.events ?? []) as unknown as TurnEvent[];
 
-  // ADK's side (recorded, or live): the stored events first (the fixture's ids lead, so they keep their numbers), the result, the request sent.
-  const adk = await reference('fixture-04-answer', async () => {
-    const adkModel = new ScriptedModel('scripted/boss', script);
-    const adkStore = await seedSessions(f);
-    const result = await turn('adk', adkModel, adkStore);
-    const { signal: _s, ...request } = adkModel.requests[0] as ModelRequest;
-    return { events: await storedAfter(adkStore), status: result.status, ...(result.error ? { error: result.error.message } : {}), text: result.text, request: json(request) };
-  });
+  // ADK's side (recorded): the stored events (the fixture's ids lead, so they keep their numbers), the result, the request sent.
+  const adk = await reference<{ events: TurnEvent[]; status: string; error?: string; text: string; request: unknown }>('fixture-04-answer');
   assert.equal(adk.status, 'completed', adk.error);
   assert.equal(adk.text, 'using "work"');
   const adkEvents = adk.events;
 
-  // Through the turn runner on native, on the engine's own store (ADR 0102).
+  // Through the turn runner, on the engine's own store (ADR 0102).
   const turnModel = new ScriptedModel('scripted/boss', script);
-  const turnStore = await seedSessions(f, asAdkSessionService(new InProcessSessionService()));
-  const nativeResult = await turn('native', turnModel, turnStore);
+  const turnStore = await seedSessions(f);
+  const nativeResult = await turn(turnModel, turnStore);
   assert.equal(nativeResult.status, 'completed', nativeResult.error?.message);
   assert.equal(nativeResult.text, adk.text);
   assert.equal(turnModel.calls, 1);

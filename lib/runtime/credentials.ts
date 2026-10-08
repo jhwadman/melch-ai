@@ -18,7 +18,7 @@
  * (lib/runtime/native/interrupts.ts grantedCalls). Until the grant is
  * stored, a message repeats the request and runs nothing.
  */
-import type { Event } from '@google/adk';
+import type { TurnEvent as Event } from './events.ts';
 
 /** ADK's name for the credential request (REQUEST_CREDENTIAL_FUNCTION_CALL_NAME). */
 export const CREDENTIAL_REQUEST = 'adk_request_credential';

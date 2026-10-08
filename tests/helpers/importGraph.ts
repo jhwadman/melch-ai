@@ -2,7 +2,7 @@
  * tests/helpers/importGraph.ts — which modules a source file names, and
  * every module reachable from it through relative imports. A suite uses it
  * to prove a module is a leaf: that nothing it loads, directly or through
- * another module, names a package such as @google/adk.
+ * another module, names a given package (any @google/ one, say).
  *
  * A scan of the source, not a resolver: type-only imports count as imports,
  * and comments are skipped, so a module that mentions a package in its

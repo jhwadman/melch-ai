@@ -1,21 +1,20 @@
 /**
  * tests/toolContract.test.ts — the engine's own tool base (lib/tools/tool.ts,
- * lib/tools/toolContract.ts, ADR 0051) and its ADK wrapper
- * (lib/tools/adkTool.ts).
+ * lib/tools/toolContract.ts, ADR 0051).
  *
  * Asserted:
  *   - defineTool makes a Tool: a declaration in the model contract's shape,
  *     and an execute that validates once and hands the handler a complete
  *     ToolContext on every surface. It is still a ToolContract.
  *   - The context: state reads see writes, writes land in stateDelta, the
- *     approval request is recorded, and ADK's Context reads through.
+ *     approval request is recorded.
  *   - requireApproval, the long-running marker and result capping.
  *   - The WS1-9 follow-ups: a zod default is optional to the model on every
  *     path, toGeminiSchema walks by keyword, and a record keeps its value
- *     schema on both paths.
- *   - Every registry tool that declares a function is an own Tool behind its
- *     FunctionTool, and preload_memory is an own InstructionTool behind its
- *     ADK tool.
+ *     schema.
+ *   - Every registry tool that declares a function is an own Tool, and
+ *     preload_memory is an own InstructionTool. registerTool refuses an ADK
+ *     tool, which 1.0.0 no longer runs.
  *   - tool.ts and toolContract.ts import nothing from @google/* at runtime.
  *
  * Offline: no model is called.
@@ -27,12 +26,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { Context, FunctionTool, ToolConfirmation } from '@google/adk';
 
-import { requireApprovalOn } from '../lib/compile.ts';
-import { contractToolDeclaration, toolDeclarationFor } from '../lib/models/schemaNormalize.ts';
+import { contractToolDeclaration } from '../lib/models/schemaNormalize.ts';
 import { RESERVED_TOOL_NAMES, registerTool, registeredToolNames, resolveTools } from '../lib/toolRegistry.ts';
-import { adkToolContext, toFunctionTool } from '../lib/tools/adkTool.ts';
 import { MAX_MCP_RESULT_CHARS } from '../lib/tools/mcpToolFactory.ts';
 import { MAX_RESULT_CHARS as OPENAPI_RESULT_CHARS } from '../lib/tools/openapiTools.ts';
 import {
@@ -62,25 +58,12 @@ import { askUserTool } from '../lib/runtime/questions.ts';
 import { adkReferences } from './helpers/adkReference.ts';
 
 // ADK's long-running note, the reference for LONG_RUNNING_NOTE, is recorded
-// (tests/fixtures/adk-reference/toolcontract); ADK's LongRunningFunctionTool runs only under ADK_REFERENCE=live|record.
+// (tests/fixtures/adk-reference/toolcontract) by ADK 2.2's LongRunningFunctionTool.
 const reference = adkReferences('toolContract');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 type Node = Record<string, any>;
-
-/** A real ADK Context over a hand-built invocation, as ADK builds one per call. */
-function adkContext(opts: { state?: Record<string, unknown>; confirmation?: ToolConfirmation; signal?: AbortSignal } = {}): Context {
-  const invocationContext = {
-    invocationId: 'inv-1',
-    userId: 'scope-a',
-    appName: 'desk',
-    session: { id: 's1', appName: 'desk', userId: 'scope-a', state: opts.state ?? {}, events: [] },
-    agent: { name: 'Boss' },
-    abortSignal: opts.signal,
-  };
-  return new Context({ invocationContext: invocationContext as any, functionCallId: 'call-1', toolConfirmation: opts.confirmation });
-}
 
 const LOOKUP = defineTool({
   name: 'lookup',
@@ -183,49 +166,6 @@ test('toToolContext keeps a complete context and completes a partial one', () =>
   assert.equal(typeof toToolContext(undefined).requestConfirmation, 'function');
 });
 
-test("ADK's Context reads through: ids, state, delta, actions, confirmation, signal", () => {
-  const abort = new AbortController();
-  const adk = adkContext({ state: { seen: 1 }, signal: abort.signal });
-  const ctx = adkToolContext(adk);
-  assert.deepEqual(
-    [ctx.invocationId, ctx.agentName, ctx.functionCallId, ctx.userId, ctx.appName, ctx.sessionId],
-    ['inv-1', 'Boss', 'call-1', 'scope-a', 'desk', 's1'],
-  );
-  assert.equal(ctx.state.get('seen'), 1);
-  ctx.state.set('note', 'x');
-  assert.equal(adk.actions.stateDelta.note, 'x', "the write lands in ADK's delta");
-  assert.equal(ctx.stateDelta, adk.actions.stateDelta);
-  ctx.actions.skipSummarization = true;
-  assert.equal(adk.actions.skipSummarization, true);
-  assert.equal(ctx.confirmation, undefined);
-  ctx.requestConfirmation({ hint: 'approve?' });
-  assert.equal(adk.actions.requestedToolConfirmations['call-1']?.hint, 'approve?');
-  assert.equal(ctx.signal, abort.signal);
-  const answered = adkToolContext(adkContext({ confirmation: new ToolConfirmation({ confirmed: true, payload: { ok: 1 } }) }));
-  assert.deepEqual(answered.confirmation, { confirmed: true, hint: '', payload: { ok: 1 } });
-  assert.equal(typeof adkToolContext(undefined).requestConfirmation, 'function', 'outside a run, a standalone context');
-});
-
-test('a Tool run through its FunctionTool writes state and actions on the ADK event', async () => {
-  const writer = defineTool({
-    name: 'writer',
-    description: 'Writes a note.',
-    schema: z.object({ note: z.string() }),
-    execute: async ({ note }, ctx) => {
-      ctx.state.set('last_note', note);
-      ctx.actions.skipSummarization = true;
-      return `saved ${note} for ${ctx.userId} in ${ctx.agentName}`;
-    },
-  });
-  const adk = adkContext();
-  const result = await toFunctionTool(writer).runAsync({ args: { note: 'hi' }, toolContext: adk });
-  assert.equal(result, 'saved hi for scope-a in Boss');
-  assert.deepEqual(adk.actions.stateDelta, { last_note: 'hi' });
-  assert.equal(adk.actions.skipSummarization, true);
-  // Invalid arguments come back as the readable error, as before.
-  assert.match(String(await toFunctionTool(writer).runAsync({ args: {}, toolContext: adkContext() })), /^Error: invalid arguments for writer: note: /);
-});
-
 // ── Approval ─────────────────────────────────────────────────────────────────
 
 test('requireApproval: the first call asks, a refusal refuses, an approval runs', async () => {
@@ -247,28 +187,9 @@ test('requireApproval: the first call asks, a refusal refuses, an approval runs'
   assert.equal(runs, 1);
 });
 
-test("a gated Tool on the ADK runtime uses FunctionTool's own gate, with the same texts", async () => {
-  let runs = 0;
-  const send = defineTool({ name: 'send', description: 'Sends.', schema: z.object({ to: z.string() }), execute: async ({ to }) => (runs++, `sent to ${to}`) });
-  const adkGated = toFunctionTool(requireApproval(send));
-  assert.ok(adkGated instanceof FunctionTool, 'compile.ts gates only FunctionTools');
-  const asking = adkContext();
-  assert.deepEqual(await adkGated.runAsync({ args: { to: 'a' }, toolContext: asking }), { error: APPROVAL_TEXTS.pending });
-  assert.equal(asking.actions.requestedToolConfirmations['call-1']?.hint, APPROVAL_TEXTS.hint('send'));
-  const approved = adkContext({ confirmation: new ToolConfirmation({ confirmed: true }) });
-  const refused = adkContext({ confirmation: new ToolConfirmation({ confirmed: false }) });
-  assert.deepEqual(await adkGated.runAsync({ args: { to: 'a' }, toolContext: refused }), { error: APPROVAL_TEXTS.rejected });
-  assert.equal(await adkGated.runAsync({ args: { to: 'a' }, toolContext: approved }), 'sent to a');
-  assert.equal(runs, 1, 'the Tool ran once: both gates read the same answer');
-  // compile.ts gates a registry tool on the ADK side; toolOf keeps that gate on the way back.
-  const back = toolOf(requireApprovalOn(toFunctionTool(send)))!;
-  assert.equal(back.requiresApproval, true);
-  assert.equal(toolOf(toFunctionTool(send)), send);
-});
-
 // ── Long-running ─────────────────────────────────────────────────────────────
 
-test("a long-running Tool declares ADK's note and stays pending on the ADK runtime", async () => {
+test("a long-running Tool declares ADK's note and answers nothing, so the run waits", async () => {
   const wait = defineTool({
     name: 'wait_for_it',
     description: 'Waits.',
@@ -282,26 +203,21 @@ test("a long-running Tool declares ADK's note and stays pending on the ADK runti
   assert.ok(isLongRunning(wait));
   assert.ok(!isLongRunning(LOOKUP));
   assert.equal(wait.declaration().description, `Waits.${LONG_RUNNING_NOTE}`);
-  // The note is ADK's own, word for word.
-  const adkOwn = await reference('long-running-note', async () => {
-    const { LongRunningFunctionTool } = await import('@google/adk');
-    return { description: new LongRunningFunctionTool({ name: 'wait_for_it', description: 'Waits.', execute: async () => null })._getDeclaration().description };
-  });
+  // The note is ADK's own, word for word, as ADK 2.2 recorded it.
+  const adkOwn = await reference<{ description: string }>('long-running-note');
   assert.equal(wait.declaration().description, adkOwn.description);
 
-  const adkTool = toFunctionTool(wait);
-  assert.equal(adkTool.isLongRunning, true);
-  assert.deepEqual(contractToolDeclaration(adkTool), wait.declaration());
-  const adk = adkContext();
-  assert.equal(await adkTool.runAsync({ args: { q: 'x' }, toolContext: adk }), undefined, 'no response: ADK waits for one');
-  assert.equal(adk.actions.skipSummarization, true);
+  assert.deepEqual(contractToolDeclaration(wait), wait.declaration());
+  const ctx = createToolContext();
+  assert.equal(await wait.execute({ q: 'x' }, ctx), undefined, 'no response: the run waits for one');
+  assert.equal(ctx.actions.skipSummarization, true);
 });
 
-test('ask_user is a long-running own Tool behind its registry FunctionTool', async () => {
+test('ask_user is a long-running own Tool in the registry', async () => {
   assert.ok(isTool(askUserTool) && isLongRunning(askUserTool));
   const [registered] = resolveTools(['ask_user']);
   assert.equal(toolOf(registered), askUserTool);
-  assert.equal((registered as FunctionTool).isLongRunning, true);
+  assert.equal(isLongRunning(registered), true);
   assert.deepEqual(contractToolDeclaration(registered), askUserTool.declaration());
   assert.ok(askUserTool.declaration().description.endsWith(LONG_RUNNING_NOTE));
   const ctx = createToolContext();
@@ -350,10 +266,8 @@ test('a field with a default is optional to the model on every path', () => {
   assert.deepEqual(toMcpToolDefinition(FOLLOW_UPS).inputSchema.required, standard.required);
   const direct = FOLLOW_UPS.declaration().parameters as Node;
   assert.deepEqual(direct.required, standard.required);
-  const viaAdk = (toFunctionTool(FOLLOW_UPS)._getDeclaration().parameters ?? {}) as Node;
-  assert.deepEqual(viaAdk.required, standard.required);
-  assert.deepEqual(viaAdk.properties.nested.required, ['default']);
-  assert.deepEqual(toolDeclarationFor(toFunctionTool(FOLLOW_UPS))!.parameters.required, standard.required);
+  assert.deepEqual(direct.properties.nested.required, ['default']);
+  assert.deepEqual((contractToolDeclaration(FOLLOW_UPS)!.parameters as Node).required, standard.required);
 });
 
 test('toGeminiSchema walks by keyword: a property named additionalProperties or default survives', () => {
@@ -370,46 +284,40 @@ test('toGeminiSchema walks by keyword: a property named additionalProperties or 
     properties: { t: { type: 'STRING', enum: ['object'], const: { type: 'x' } } },
   });
   assert.deepEqual(toGeminiSchema('nope'), { type: 'OBJECT', properties: {} });
-  // The ADK declaration and the direct one name the same properties.
-  const viaAdk = contractToolDeclaration(toFunctionTool(FOLLOW_UPS))!;
-  assert.deepEqual(viaAdk, FOLLOW_UPS.declaration());
+  // The contract declaration and the Tool's own one name the same properties.
+  assert.deepEqual(contractToolDeclaration(FOLLOW_UPS), FOLLOW_UPS.declaration());
 });
 
-test('a record keeps its value schema on both paths', () => {
+test('a record keeps its value schema in the Gemini dialect and the contract', () => {
   const gemini = toGeminiSchema(toStandardJsonSchema(FOLLOW_UPS)) as Node;
   // Gemini refuses `propertyNames` with a 400 and accepts the value schema (live, 2026-10-08).
   assert.deepEqual(gemini.properties.counts, { type: 'OBJECT', additionalProperties: { type: 'NUMBER' } });
   const direct = FOLLOW_UPS.declaration().parameters as Node;
   assert.deepEqual(direct.properties.counts, { type: 'object', additionalProperties: { type: 'number' } }, 'keys are strings in JSON: propertyNames adds nothing');
-  assert.deepEqual((contractToolDeclaration(toFunctionTool(FOLLOW_UPS))!.parameters as Node).properties.counts, direct.properties.counts);
-  assert.deepEqual(
-    (toolDeclarationFor(toFunctionTool(FOLLOW_UPS))!.parameters as Node).properties.counts,
-    direct.properties.counts,
-    "and the ADK path's non-Gemini adapters see it too",
-  );
-  // A strict object's `additionalProperties: false` is still left out of the ADK dialect.
+  assert.deepEqual((contractToolDeclaration(FOLLOW_UPS)!.parameters as Node).properties.counts, direct.properties.counts);
+  // A strict object's `additionalProperties: false` is still left out of the Gemini dialect.
   const closed = toGeminiSchema(z.toJSONSchema(z.strictObject({ a: z.string() }), { io: 'input' }));
   assert.equal('additionalProperties' in closed, false);
 });
 
 // ── The registry ─────────────────────────────────────────────────────────────
 
-test('every registry tool that declares a function is an own Tool behind its FunctionTool', async () => {
+test('every registry tool that declares a function is an own Tool', async () => {
   const own: string[] = [];
   for (const name of registeredToolNames()) {
-    const [adkTool] = resolveTools([name]);
-    const declared = contractToolDeclaration(adkTool);
+    const [registered] = resolveTools([name]);
+    const declared = contractToolDeclaration(registered);
     if (!declared) {
-      // A server-side sentinel, or preload_memory: an own InstructionTool.
-      assert.equal(toolOf(adkTool), undefined, `${name} declares nothing, so it is no Tool`);
-      if (name === 'preload_memory') assert.equal(instructionToolOf(adkTool)?.name, 'preload_memory');
+      // A server-side marker, or preload_memory: an own InstructionTool.
+      assert.equal(toolOf(registered), undefined, `${name} declares nothing, so it is no Tool`);
+      if (name === 'preload_memory') assert.equal(instructionToolOf(registered)?.name, 'preload_memory');
       continue;
     }
-    const tool = toolOf(adkTool);
+    const tool = toolOf(registered);
     assert.ok(tool, `${name} is built through the tool base`);
-    assert.ok(adkTool instanceof FunctionTool, `${name} reaches ADK as a FunctionTool`);
+    assert.equal(tool, registered, `${name} is held as the Tool itself`);
     assert.equal(tool!.name, name);
-    assert.deepEqual(declared, tool!.declaration(), `${name}: the ADK path declares what the Tool declares`);
+    assert.deepEqual(declared, tool!.declaration(), `${name}: the contract declaration is what the Tool declares`);
     own.push(name);
   }
   for (const name of ['ask_user', 'generate_image', 'inspect_image', 'load_memory', 'web_extract', 'x_api_search', 'wiki_read', 'task_add', 'search_literature']) {
@@ -417,21 +325,35 @@ test('every registry tool that declares a function is an own Tool behind its Fun
   }
 });
 
-test('registerTool takes a defineTool contract, a hand-built Tool, or an ADK tool', async () => {
+test('registerTool takes a defineTool contract or a hand-built Tool', async () => {
   const handBuilt: Tool = {
     name: 'probe_hand_built_tool',
     declaration: () => ({ name: 'probe_hand_built_tool', description: 'Echoes.', parameters: { type: 'object', properties: { s: { type: 'string' } } } }),
     execute: async (args: Record<string, unknown>, ctx: ToolContext) => `${String(args.s)} for ${ctx.userId}`,
   };
   registerTool('probe_hand_built_tool', handBuilt);
-  const [adkTool] = resolveTools(['probe_hand_built_tool']);
-  assert.ok(adkTool instanceof FunctionTool);
-  assert.equal(toolOf(adkTool), handBuilt);
-  assert.equal(await (adkTool as FunctionTool).runAsync({ args: { s: 'x' }, toolContext: adkContext() }), 'x for scope-a');
-  assert.deepEqual((adkTool as FunctionTool)._getDeclaration().parameters, { type: 'OBJECT', properties: { s: { type: 'STRING' } } });
+  const [registered] = resolveTools(['probe_hand_built_tool']);
+  assert.equal(registered, handBuilt);
+  assert.equal(toolOf(registered), handBuilt);
+  assert.equal(await toolOf(registered)!.execute({ s: 'x' }, createToolContext({ userId: 'scope-a' })), 'x for scope-a');
+  assert.deepEqual(contractToolDeclaration(registered)!.parameters, { type: 'object', properties: { s: { type: 'string' } } });
 
   registerTool('probe_defined_tool', LOOKUP);
   assert.equal(toolOf(resolveTools(['probe_defined_tool'])[0]), LOOKUP);
+});
+
+test('registerTool refuses an ADK tool, naming 1.0.0 and defineTool, and an object that is no tool', () => {
+  const adkShaped = {
+    name: 'probe_adk_tool',
+    description: 'An ADK FunctionTool, by shape.',
+    runAsync: async () => 'ran',
+    _getDeclaration: () => ({ name: 'probe_adk_tool', description: 'An ADK FunctionTool, by shape.' }),
+  };
+  assert.throws(() => registerTool('probe_adk_tool', adkShaped), (err: Error) => /1\.0\.0/.test(err.message) && /defineTool/.test(err.message));
+  assert.throws(() => registerTool('probe_not_a_tool', { name: 'probe_not_a_tool', description: 'Nothing to run.' }), /is not a tool/);
+  assert.throws(() => registerTool('probe_not_an_object', 'lookup'), /is not a tool/);
+  assert.ok(!registeredToolNames().includes('probe_adk_tool'));
+  assert.ok(!registeredToolNames().includes('probe_not_a_tool'));
 });
 
 test('registerTool refuses the framework\'s reserved names, as the registry name or the tool\'s own (0.20.0)', () => {
@@ -524,9 +446,9 @@ test('tool.ts and toolContract.ts load nothing from @google/* at runtime', () =>
 });
 
 test('the scan sees runtime imports and skips type-only ones (control)', () => {
-  const adk = runtimeSpecifiers(path.resolve(ROOT, 'lib/tools/adkTool.ts'));
-  assert.ok(adk.includes('../adkPeer.ts'), 'the boundary module loads ADK, through lib/adkPeer.ts (ADR 0102)');
-  assert.ok(!adk.includes('@google/genai'), 'its genai import is type-only');
+  // genaiMapping.ts imports two values from @google/genai, and its types in a separate `import type`.
+  const mapping = runtimeSpecifiers(path.resolve(ROOT, 'lib/models/genaiMapping.ts'));
+  assert.equal(mapping.filter((s) => s === '@google/genai').length, 1, 'the value import is seen, the type-only one skipped');
   assert.ok(fs.readFileSync(path.resolve(ROOT, 'lib/tools/toolContract.ts'), 'utf8').includes("from '../models/contract.ts'"));
   assert.ok(!runtimeSpecifiers(path.resolve(ROOT, 'lib/tools/toolContract.ts')).includes('../models/contract.ts'));
 });

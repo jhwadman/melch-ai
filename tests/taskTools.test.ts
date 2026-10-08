@@ -167,23 +167,17 @@ test('an unreadable store is an Error string, never a throw', async () => {
 });
 
 // ── Backends and callers ────────────────────────────────────────────────────
-test('a tool call carries its caller from the ADK invocation', async () => {
-  const { toolCallContextFrom } = await import('../lib/tools/toolContract.ts');
-  const { toFunctionTool } = await import('../lib/tools/adkTool.ts');
-  assert.deepEqual(toolCallContextFrom({ invocationContext: { userId: 'scope-a', appName: 'desk', session: { id: 's1' } } }), {
-    userId: 'scope-a',
-    appName: 'desk',
-    sessionId: 's1',
-  });
-  assert.equal(toolCallContextFrom(undefined), undefined);
+test('a tool call carries its caller from the tool context', async () => {
+  const { defineTool } = await import('../lib/tools/toolContract.ts');
+  const { createToolContext } = await import('../lib/tools/tool.ts');
   const seen: unknown[] = [];
-  const tool = toFunctionTool({
+  const tool = defineTool({
     name: 'probe',
     description: 'probe',
     schema: (await import('zod')).z.object({}),
-    execute: async (_input, context) => (seen.push(context), 'ok'),
+    execute: async (_input, context) => (seen.push({ userId: context?.userId, appName: context?.appName, sessionId: context?.sessionId }), 'ok'),
   });
-  await (tool as any).execute({}, { invocationContext: { userId: 'scope-b', appName: 'x', session: { id: 'y' } } });
+  await tool.execute({}, createToolContext({ userId: 'scope-b', appName: 'x', sessionId: 'y' }));
   assert.deepEqual(seen, [{ userId: 'scope-b', appName: 'x', sessionId: 'y' }]);
 });
 

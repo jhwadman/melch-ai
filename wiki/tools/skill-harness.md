@@ -1,7 +1,7 @@
 ---
 type: tool
 title: Skill harness
-description: "The `skills:` agent key: a directory of Agent Skills held the way a coding harness holds them — the frontmatter index injected into the instruction, one SKILL.md and one file read on demand, `allowed-tools` honoured under the YAML's permit, and a skill's scripts run only after a person approves each run. Built on the engine's own tool base, the same on both runtimes."
+description: "The `skills:` agent key: a directory of Agent Skills held the way a coding harness holds them — the frontmatter index injected into the instruction, one SKILL.md and one file read on demand, `allowed-tools` honoured under the YAML's permit, and a skill's scripts run only after a person approves each run. Built on the engine's own tool base."
 tags:
   - tools
   - skills
@@ -26,7 +26,7 @@ sources:
 
 # Skill harness
 
-An agent whose YAML carries a `skills:` block holds a directory of Agent Skills (the open SKILL.md standard: one subdirectory per skill, named as its frontmatter names it, holding `SKILL.md` and optionally `references/`, `assets/` and `scripts/`) the way Claude Code, Codex or Gemini CLI hold theirs ([ADR 0029](/decisions/0029-skills-read-like-a-harness.md)). The harness is the engine's own: its parser, loader, executor and tools import nothing from ADK, the native loop runs them directly, and the optional adk runtime runs them through the one tool adapter ([ADR 0083](/decisions/0083-skills-harness-on-the-own-tool-base.md)).
+An agent whose YAML carries a `skills:` block holds a directory of Agent Skills (the open SKILL.md standard: one subdirectory per skill, named as its frontmatter names it, holding `SKILL.md` and optionally `references/`, `assets/` and `scripts/`) the way Claude Code, Codex or Gemini CLI hold theirs ([ADR 0029](/decisions/0029-skills-read-like-a-harness.md)). The harness is the engine's own: its parser, loader, executor and tools import nothing from ADK, and the native loop runs them directly ([ADR 0083](/decisions/0083-skills-harness-on-the-own-tool-base.md)).
 
 ```yaml
 orchestrator:
@@ -61,7 +61,7 @@ orchestrator:
 | `lib/tools/skills/tools.ts` | `SkillToolset` and the four tools. |
 | `lib/tools/skillToolset.ts` | what `lib/compile.ts` calls: `buildSkillHarness`, `loadSkillSuite`, `skillSuiteProblems`, `skillsInstruction`, `HarnessSkillToolset`. |
 
-`SkillToolset` is an own **Toolset** (`lib/tools/tool.ts`): its `getTools(ctx)` lists the harness tools, then the permitted tools the agent's loaded skills name, read from the session state key `_adk_activated_skill_<agent>`. `lib/compile.ts` hands the adk runtime its `toAdkToolset` form; `compileNative` reads the Toolset back (`toolsetOf`), and the native loop expands it before every request and when an approval resumes.
+`SkillToolset` is an own **Toolset** (`lib/tools/tool.ts`): its `getTools(ctx)` lists the harness tools, then the permitted tools the agent's loaded skills name, read from the session state key `_adk_activated_skill_<agent>`. `compileNative` hands the Toolset to the native loop, which expands it before every request and when an approval resumes.
 
 ## Loading, and what is bounded
 
@@ -79,7 +79,7 @@ No regular expression runs on file text: the delimiters are found by position, a
 
 ## Scripts and approval
 
-A script run raises the confirmation interrupt `require_approval` raises ([ADR 0028](/decisions/0028-approval-gates.md)), with its own hint naming the skill, the script and the arguments: the turn ends `input-required`, the A2A task carries the pending call to the client, and `melchizedek-chat` asks `Approve …? [y/N]` at its next prompt; a one-shot run reports the stop and exits 2. An approval binds to that exact call, and one opened on either runtime resumes on the other. The schema allows `scripts: local` only where the pause can reach the caller: the orchestrator, a plan-dispatch route, or a workflow node's agent other than one a map runs. On a workflow node the run pauses the node and the walk, and only the native runtime resumes it; the adk runtime refuses it by name ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)).
+A script run raises the confirmation interrupt `require_approval` raises ([ADR 0028](/decisions/0028-approval-gates.md)), with its own hint naming the skill, the script and the arguments: the turn ends `input-required`, the A2A task carries the pending call to the client, and `melchizedek-chat` asks `Approve …? [y/N]` at its next prompt; a one-shot run reports the stop and exits 2. An approval binds to that exact call, and one stored in a conversation ADK wrote resumes too. The schema allows `scripts: local` only where the pause can reach the caller: the orchestrator, a plan-dispatch route, or a workflow node's agent other than one a map runs. On a workflow node the run pauses the node and the walk, and the walk resumes it ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)).
 
 What an approved run is: a fresh private temp directory as its working directory, every file the skill ships staged in it at its path, and a wrapper starting the script under this Node, `python3` or `bash` (PowerShell or cmd on Windows). The arguments are passed as `--key value` argv pairs, never through a shell string. The child runs as the server's user, with network access and that user's file access: nothing sandboxes it. It is killed after 120 seconds. Files it wrote come back as `outputFiles` and are copied into a private output directory without overwriting. The executor belongs to the toolset, never to the agent, so model-written code never runs: the only code that runs is a file the operator installed.
 
@@ -95,14 +95,14 @@ A script never sees the server's environment ([ADR 0086](/decisions/0086-skill-s
 
 A listed name the server does not have is absent. A name looks like a secret when a segment between underscores is one of `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASS`, `PWD`, `CREDENTIAL`, `AUTH`, `BEARER`, `COOKIE`, `SESSION`, `PRIVATE`, `SIGNATURE`, `SALT`, `HEADERS`, `DSN`, `DATABASE`, `REDIS`, `CONNECTION` (and their plurals and short forms), or it contains `SECRET`, `TOKEN`, `PASSWORD`, `PASSWD`, `APIKEY`, `CREDENTIAL` or `PRIVATE` anywhere. The check compares strings and runs no regular expression. Every credential in `.env.example` is secret-shaped. `env` and `secret_env` are validation errors without `scripts: local`. Nothing else in the server's environment crosses: provider keys, `DATABASE_URL`, `A2A_SERVER_SECRET`, `NODE_OPTIONS` and the like stay out unless named.
 
-stdout and stderr are each kept up to 20,000 characters (`SCRIPT_OUTPUT_CHAR_LIMIT`), decoded as UTF-8 across chunk boundaries. The rest is counted, not held, and the stream ends with `[stdout truncated: N more characters not shown (the limit is 20000)]` (or `stderr`). The engine's own lines, a process error and `Code execution timed out after 120 seconds.`, follow the capped stderr, so the model always reads them. The executor is shared, so both runtimes behave the same.
+stdout and stderr are each kept up to 20,000 characters (`SCRIPT_OUTPUT_CHAR_LIMIT`), decoded as UTF-8 across chunk boundaries. The rest is counted, not held, and the stream ends with `[stdout truncated: N more characters not shown (the limit is 20000)]` (or `stderr`). The engine's own lines, a process error and `Code execution timed out after 120 seconds.`, follow the capped stderr, so the model always reads them. Every surface runs the one executor.
 
 ## The Harness
 
-[`harness.yaml`](/agents/harness.md) is the specimen: a generic agent whose mandate is choose (a `/name` prefix forces a skill), read before following, follow as written, run when allowed, check a deliverable through a tool-free Checker against the rules the skill states, and cite the skills followed. `variables.skills_dir` defaults to this repository's own [suite](/operations/agent-skills.md), so `npm run syndicate:harness` answers how to run, author, serve and remember with the framework; `-- --bind skills_dir=.claude/skills` points it at a project's shelf. It runs on `runtime: 'native'` as on ADK, storing the same events.
+[`harness.yaml`](/agents/harness.md) is the specimen: a generic agent whose mandate is choose (a `/name` prefix forces a skill), read before following, follow as written, run when allowed, check a deliverable through a tool-free Checker against the rules the skill states, and cite the skills followed. `variables.skills_dir` defaults to this repository's own [suite](/operations/agent-skills.md), so `npm run syndicate:harness` answers how to run, author, serve and remember with the framework; `-- --bind skills_dir=.claude/skills` points it at a project's shelf. It stores the events ADK's harness stored.
 
 ## Exposure
 
 The skills directory is a trust decision the YAML makes visible: a skill is operator-installed procedure, which is why the agent follows it, and it is still text that grants no tool the YAML did not list and runs no script a person did not approve. Point `dir` only at skills you would let a person follow; enable `scripts: local` only on a machine where you would run them, since they run with the server's permissions. A script reads only the base allowlist and the names the YAML lists; a credential it gets is listed under `secret_env` for a reviewer to see. A skill's text and a script's output reach the model as data, and the Harness's instruction says so. Every name and path a model sends is looked up among the skill's own loaded files, never on a prototype, so no call reads a file the skill did not ship.
 
-Not honoured: `disable-model-invocation` and `context: fork`. Tests: `tests/skillHarness.test.ts` (both runtimes, the example, the import graph), `tests/skillScriptEnv.test.ts` (the environment, the cap, the schema, an approved run on both runtimes) and `tests/skillHarnessParity.test.ts` (the capture, ADK's loader read live, the bounds), offline against `tests/fixtures/skills/` and `tests/fixtures/skills-parity/`.
+Not honoured: `disable-model-invocation` and `context: fork`. Tests: `tests/skillHarness.test.ts` (the harness through a turn, the example, the import graph), `tests/skillScriptEnv.test.ts` (the environment, the cap, the schema, an approved run) and `tests/skillHarnessParity.test.ts` (the capture, ADK's loader as recorded in `tests/fixtures/adk-reference/`, the bounds), offline against `tests/fixtures/skills/` and `tests/fixtures/skills-parity/`.

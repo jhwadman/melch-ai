@@ -42,8 +42,7 @@
 import { z } from 'zod';
 
 import { checkHost } from '../net/addressGuard.ts';
-import { toFunctionTool } from './adkTool.ts';
-import { defineTool } from './toolContract.ts';
+import { asTool, defineTool } from './toolContract.ts';
 
 export const WEB_EXTRACT_TOOL_NAME = 'web_extract';
 
@@ -477,5 +476,5 @@ export const webExtractContract = defineTool({
   },
 });
 
-/** ADK surface, ready for the registry. */
-export const webExtractTool = toFunctionTool(webExtractContract);
+/** The own Tool, ready for the registry. */
+export const webExtractTool = asTool(webExtractContract);

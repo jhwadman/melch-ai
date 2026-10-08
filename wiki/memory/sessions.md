@@ -1,7 +1,7 @@
 ---
 type: schema
 title: Sessions and events
-description: "The engine's own types for what a session stores and how a store is reached (lib/runtime/events.ts, sessions.ts, memoryService.ts): TurnEvent as the stored ADK Event JSON, the parse that carries every field, ADK's semantics for reading and making events, SessionService with one meaning across stores, the in-process store, the durable stores and the projection with both session interfaces, the bridge for a store with one (adkSessionBridge.ts), and MemoryService."
+description: "The engine's own types for what a session stores and how a store is reached (lib/runtime/events.ts, sessions.ts, memoryService.ts): TurnEvent as the stored ADK Event JSON, the parse that carries every field, ADK's semantics for reading and making events, SessionService with one meaning across stores, the in-process store, the durable stores and the projection, and MemoryService."
 tags:
   - memory
   - runtime
@@ -13,13 +13,11 @@ sources:
   - resource: lib/runtime/events.ts
   - resource: lib/runtime/sessions.ts
   - resource: lib/runtime/memoryService.ts
-  - resource: lib/runtime/adkSessionBridge.ts
-  - resource: lib/runtime/adkMemoryBridge.ts
   - resource: lib/session/supabaseSessionService.ts
   - resource: lib/storage/postgres/sessionService.ts
   - resource: lib/session/transcript.ts
   - resource: tests/events.test.ts
-  - resource: tests/adkSessionBridge.test.ts
+  - resource: tests/postgresStorage.test.ts
   - resource: lib/memory/supabaseMemoryService.ts
   - resource: tests/memoryTools.test.ts
   - resource: tests/helpers/importGraph.ts
@@ -33,7 +31,7 @@ Three modules hold the engine's own types for sessions and memory ([ADR 0045](/d
 - `lib/runtime/sessions.ts`: the `SessionService` interface, the rules every store applies, and `InProcessSessionService`.
 - `lib/runtime/memoryService.ts`: the `MemoryService` interface.
 
-The native runtime reads and writes sessions through them. The ADK runtime still uses ADK's types. The Supabase and Postgres session services and the transcript projection implement `SessionService` beside ADK's `BaseSessionService`, on the same rows, and `lib/runtime/adkSessionBridge.ts` gives a store that has only one of the two the other ([two faces, one store](#two-faces-one-store)). Long-term memory implements both `MemoryService` and ADK's `BaseMemoryService` ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)). Each of the three modules imports only types, and nothing in its import graph names `@google/*`. None of the four modules is in the package's `exports` map.
+The native runtime, the engine's only one ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), reads and writes sessions through them, and `runSyndicateTurn`'s `sessionService` and `memoryService` options take these interfaces. The Supabase and Postgres session services and the transcript projection implement `SessionService` ([the durable stores](#the-durable-stores)), and long-term memory implements `MemoryService` ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)). Each of the three modules imports only types, and nothing in its import graph names `@google/*`. The package barrel exports their types (`SessionService`, `Session`, `SessionKey`, `MemoryService`, `MemoryEntry`, `MemoryIngestOptions`, `MemorySearchRequest`, `MemorySearchResult`, `TurnEvent`).
 
 ## The event
 
@@ -49,7 +47,7 @@ The fields the engine reads:
 | `content` | `{ role, parts }`. A part holds `text` (with `thought: true` for reasoning), `functionCall` `{ id, name, args }`, `functionResponse` `{ id, name, response }`, `inlineData`, `fileData`, `executableCode` or `codeExecutionResult`. It may also carry Gemini's `thoughtSignature` and another provider's `providerState` ([ADR 0046](/decisions/0046-provider-reasoning-state-on-the-part.md)). Absent on an event that only carries actions. |
 | `actions` | `stateDelta`, `artifactDelta`, `requestedAuthConfigs`, `requestedToolConfirmations` (the four dictionaries ADK writes on every event), and `skipSummarization`, `transferToAgent`, `escalate`, `agentState`, `endOfAgent`. |
 | `partial` | A streaming fragment: shown, never stored. |
-| `turnComplete` | The model finished this response. Written by the ADK shim's mapping; absent on a Gemini model's events where ADK's own Gemini serves it, and on the native runtime's events for the same model ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)). Nothing reads it. |
+| `turnComplete` | The model finished this response. Written by the native step's mapping; absent on a Gemini model's events, as ADK's own Gemini wrote none ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)). Nothing reads it. |
 | `timestamp` | Milliseconds since the epoch. |
 | `customMetadata` | Labels an adapter attaches, JSON only. |
 | `longRunningToolIds` | This event's calls that wait for a person. |
@@ -85,9 +83,9 @@ A `Session` is the same JSON as ADK's: `id`, `appName`, `userId`, `state`, `even
 - `delete(key)` deletes the session and its events, and does nothing for one that does not exist.
 - `append(session, event)` records the event in the caller's session and in the store, and returns the event as stored.
 
-The names are not ADK's, so a store can implement this interface beside ADK's base class.
+The names are not ADK's (`createSession`, `getSession`, `appendEvent`): code written against ADK's session service calls `create`, `get` and `append` instead.
 
-`applyEvent(session, event)` holds the rules every store applies on append, as ADK's base service does:
+`applyEvent(session, event)` holds the rules every store applies on append, as ADK's base service did:
 
 1. A partial event is returned as it is, and nothing changes.
 2. The stored event's `stateDelta` loses its `temp:` keys. The caller's event is never changed.
@@ -97,7 +95,7 @@ The names are not ADK's, so a store can implement this interface beside ADK's ba
 
 ### One meaning across stores
 
-ADK's services and the engine's durable stores disagree in places. The interface takes the durable stores' meaning, and where the two durable stores differ, the Postgres store's:
+ADK's in-memory service and the engine's durable stores disagree in places. The interface takes the durable stores' meaning, and where the two durable stores differ, the Postgres store's:
 
 | | The interface | ADK's in-memory store |
 |---|---|---|
@@ -111,16 +109,12 @@ No syndicate writes an `app:` or `user:` key.
 
 A list without a user id lists every user's sessions of the app, in every store. A list orders by last update, then id, when an order is asked for, and in the order the sessions were created otherwise.
 
-### Two faces, one store
+### The durable stores
 
-ADR 0052 named the interface's methods differently from ADK's so that one class can implement both until ADK leaves at 1.0 ([ADR 0058](/decisions/0058-session-stores-with-both-faces.md)):
+- **`SupabaseSessionService`** (`lib/session/supabaseSessionService.ts`) and **`PostgresSessionService`** (`lib/storage/postgres/sessionService.ts`) implement `SessionService` on the rows ADK's services wrote, so a conversation stored before 1.0.0 resumes ([ADR 0058](/decisions/0058-session-stores-with-both-faces.md)). The Supabase store creates with `ON CONFLICT DO NOTHING`. On Postgres, an event whose id the caller's session already holds replaces its row in place. Neither the schema nor the stored JSON changes ([sessions in Postgres](/memory/architecture.md)).
+- **`ProjectedSessionService`** (`lib/session/transcript.ts`) takes an engine `SessionService` and implements it. `get` projects the history for one agent, and `append` writes both the projected session the runtime holds and the real session underneath.
 
-- **`SupabaseSessionService`** (`lib/session/supabaseSessionService.ts`) and **`PostgresSessionService`** (`lib/storage/postgres/sessionService.ts`) implement both. ADK's methods call the engine's, so each store states its rules once. The exception is `appendEvent`, which applies the event to the runner's session through ADK's base service, keeping ADK's state write-order check and the event the runner yields as ADK leaves it. It then records the event as `append` does. The Supabase store creates with `ON CONFLICT DO NOTHING`. On Postgres, an event whose id the caller's session already holds replaces its row in place. Neither the schema nor the stored JSON changes ([sessions in Postgres](/memory/architecture.md)).
-- **`ProjectedSessionService`** (`lib/session/transcript.ts`) has both faces too. `get` projects the history for one agent, and `append` writes both the projected session the runtime holds and the real session underneath. It takes a store with either face, or both.
-- **The bridge** (`lib/runtime/adkSessionBridge.ts`) adapts a store that has only one face. `SessionServiceForAdk` runs the ADK runtime on an engine store such as `InProcessSessionService`, and `AdkSessionServiceForEngine` gives the engine's interface to an ADK store such as ADK's `InMemorySessionService`. Through the bridge, the engine keeps the interface's meaning: a create keeps an existing session, a read is filtered by `selectEvents`, and paging is `listPage`'s. `asAdkSessionService` and `asSessionService` return a store as it is when it already has the face asked for, and a bridge as the store it wraps, so a store bridged one way and back is itself. `EitherSessionService` (and `AdkSessionService`, ADK's type by another name) is what a surface that takes a store from its caller types it as: the A2A executor and app, and the REPL, take either face and ask the bridge for the one they need ([ADR 0080](/decisions/0080-surfaces-on-the-engines-own-interfaces.md)).
-- **The memory bridge** (`lib/runtime/adkMemoryBridge.ts`) does the same for memory. A service with ADK's face, the engine's own service among them, passes through `asAdkMemoryService` unchanged. A service with only the engine's `MemoryService` gets `MemoryServiceForAdk`, whose `searchMemory` and `addSessionToMemory` hand their arguments, extraction rules and model included, to `search` and `ingest`, and which forwards `deleteUserMemory`, `pruneExpired` and `verifyEmbeddingDimensions` when the service has them. It imports ADK's types only.
-
-The ADK face of an engine store applies an event to the runner's session through ADK's base service and gives the store a copy of the session as it stood. The engine face of an ADK store applies the event through `applyEvent` and gives ADK's store copies of the session and the event, because ADK's base service rewrites both in place.
+Every surface that takes a store from its caller (the A2A executor and app, the REPL, the worker) takes the engine's interface and hands it to the turn runner as it is ([ADR 0080](/decisions/0080-surfaces-on-the-engines-own-interfaces.md)).
 
 Nothing but the stores and the layers that forward to them lists sessions: no route, tool or turn does. A listing across users is therefore reachable only by code that holds the store.
 
@@ -136,19 +130,19 @@ Nothing but the stores and the layers that forward to them lists sessions: no ro
 - `search({ appName, userId, query })` returns `{ memories }`, best first, in the JSON of ADK's `MemoryEntry`: `content`, `author`, `timestamp` (ISO 8601).
 - `deleteUserMemory`, `pruneExpired` and `verifyEmbeddingDimensions` are optional, with the names the A2A server already calls them by.
 
-Every fact is filed under `<appName>/<userId>`, and a search reads that silo alone. `appName` is the memory namespace, which the runtime pins to the root syndicate's ([ADR 0020](/decisions/0020-memory-contract.md)): `namespacedMemoryService` replaces the app name on `search` and `ingest`, as on ADK's `searchMemory` and `addSessionToMemory`, and passes erase and retention through unchanged.
+Every fact is filed under `<appName>/<userId>`, and a search reads that silo alone. `appName` is the memory namespace, which the runtime pins to the root syndicate's ([ADR 0020](/decisions/0020-memory-contract.md)): `namespacedMemoryService` replaces the app name on `search` and `ingest`, and passes erase and retention through unchanged.
 
-`SupabaseVectorMemoryService` implements this interface. Its ADK methods hand their arguments to `ingest` and `search`, so either runtime reaches the same logic. A tool reaches memory through its context's `searchMemory(query)`, which `createToolContext` builds from the run's `memory` and searches the context's own `appName` and `userId` only ([tool contracts](/tools/tool-contracts.md)).
+`SupabaseVectorMemoryService` implements this interface. A tool reaches memory through its context's `searchMemory(query)`, which `createToolContext` builds from the run's `memory` and searches the context's own `appName` and `userId` only ([tool contracts](/tools/tool-contracts.md)).
 
 ## What proves it
 
-`tests/memoryTools.test.ts` drives `MemoryService` directly, pinned and per user, with ingestion, recall, erase and retention, and runs the memory tools over it with no ADK object in the path. `tests/memoryIngestion.test.ts` runs every at-least-once test through both `ingest` and ADK's `addSessionToMemory`.
+`tests/memoryTools.test.ts` drives `MemoryService` directly, pinned and per user, with ingestion, recall, erase and retention, and runs the memory tools over it. `tests/memoryIngestion.test.ts` runs every at-least-once test through `ingest`.
 
 `tests/events.test.ts`:
 
 - **Fixtures.** Every [session fixture](/memory/architecture.md) parses as `TurnEvent[]` and serializes back to the file's exact bytes, in both stored forms. Every field stored there is one `TurnEvent` declares, at every level. Every fixture replays through the in-process store with its events unchanged and its state rebuilt.
-- **ADK parity.** On every fixture event and a dozen edge cases, the helpers give ADK's answers, and `createTurnEvent` gives `createEvent`'s JSON. `applyEvent` leaves a session as ADK's base service does. An ADK `Event` and `Session` assign to `TurnEvent` and `Session` without a cast, which `npx tsc --noEmit` checks.
+- **ADK parity.** On every fixture event and a dozen edge cases, the helpers give ADK's answers, and `createTurnEvent` gives `createEvent`'s JSON, both as recorded from ADK 2.2 in `tests/fixtures/adk-reference/events` ([ADR 0108](/decisions/0108-adk-reference-recorded-by-the-parity-suites.md)). `applyEvent` leaves a session as ADK's base service did.
 - **Parse errors.** The parse names the failing path and never the value.
 - **Leaves.** The three modules load nothing at run time and reach no `@google/*` module. The scan is `tests/helpers/importGraph.ts`.
 
-`tests/adkSessionBridge.test.ts` proves the stores and the bridge. An ADK `Runner` turn, an engine read and append, and a second `Runner` turn share one conversation on a Supabase row (on an in-memory stand-in for supabase-js, `tests/helpers/fakeSupabase.ts`), on an engine store through the bridge, and on ADK's store through the bridge. The Supabase store keeps a conversation on a second create, writes the event's timestamp, and lists every user's sessions without a user id. The engine face of ADK's store keeps the interface's meaning where ADK's has another. On Postgres, an event whose id the session holds replaces its row. The test also fails if anything outside the stores and their forwarders lists sessions. `tests/postgresStorage.test.ts` runs the same two-runtime turn and the interface's rules on real Postgres rows, in CI's storage integration job. `tests/transcript.test.ts` covers the projection's engine face over each kind of store, and `tests/sessionPaging.test.ts` covers the query both faces send.
+The store suites hold the durable stores to the interface: on a Supabase row (on an in-memory stand-in for supabase-js, `tests/helpers/fakeSupabase.ts`) the store keeps a conversation on a second create, writes the event's timestamp, and lists every user's sessions without a user id; on Postgres, an event whose id the session holds replaces its row; and nothing outside the stores and their forwarders lists sessions. `tests/postgresStorage.test.ts` runs turns and the interface's rules on real Postgres rows, in CI's storage integration job. `tests/transcript.test.ts` covers the projection over each kind of store, and `tests/sessionPaging.test.ts` covers the paging query.

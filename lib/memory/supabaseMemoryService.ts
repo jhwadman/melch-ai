@@ -1,24 +1,14 @@
 /**
  * lib/memory/supabaseMemoryService.ts — long-term memory over pgvector
- * (ADR 0020), on the engine's own interface and on ADK's.
+ * (ADR 0020), on the engine's own interface (ADR 0107).
  *
  * The class implements the engine's MemoryService (lib/runtime/memoryService.ts:
  * `ingest`, `search`, and the optional `deleteUserMemory`, `pruneExpired`
- * and `verifyEmbeddingDimensions`, ADR 0052), which the native runtime and
- * the engine's own memory tools (lib/tools/memoryTools.ts) call. It also
- * implements ADK's BaseMemoryService, whose `addSessionToMemory` and
- * `searchMemory` the ADK runtime's Runner, the turn runner's ingestion
- * (ingestTurnMemory) and the A2A server call: each is one line that hands
- * its arguments to `ingest` or `search`, so both runtimes reach the same
- * logic and the same silos (ADR 0059).
+ * and `verifyEmbeddingDimensions`, ADR 0052), which the runtime, the turn
+ * runner's ingestion (ingestTurnMemory), the A2A server and the engine's
+ * memory tools (lib/tools/memoryTools.ts) call (ADR 0059).
  */
 
-import type {
-	BaseMemoryService,
-	SearchMemoryRequest,
-	SearchMemoryResponse,
-	Session as AdkSession,
-} from '@google/adk';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TurnEvent } from '../runtime/events.ts';
 import type {
@@ -129,7 +119,7 @@ export const MEMORY_DEDUP_SIMILARITY = 0.93;
 /**
  * Which of a session's events still need ingesting.
  *
- * The A2A server is stateless, so `addSessionToMemory` runs after EVERY task
+ * The A2A server is stateless, so `ingest` runs after EVERY task
  * with the WHOLE session — an N-turn conversation was being extracted N times
  * over a growing transcript. That produced 13 EPISODE records narrating the
  * same session and one balance stored six ways. A high-water mark per session
@@ -164,7 +154,7 @@ const MONTH_NAMES = [
 	'july', 'august', 'september', 'october', 'november', 'december',
 ];
 
-export class SupabaseVectorMemoryService implements MemoryService, BaseMemoryService {
+export class SupabaseVectorMemoryService implements MemoryService {
 	private extractor: MemoryExtractor;
 	private embedder: Embedder;
 	private store: MemoryStore;
@@ -221,28 +211,13 @@ export class SupabaseVectorMemoryService implements MemoryService, BaseMemorySer
 	}
 
 	/**
-	 * ADK's name for `ingest`, which the ADK runtime and the A2A server call.
-	 *
-	 * @param extractionRules Optional domain rules appended to the shared
-	 *   extraction prompt for THIS consumer only. The prompt is global (the
-	 *   patient advocate uses the same one), so anything domain-specific —
-	 *   "never store a market quote" — arrives here rather than being edited
-	 *   into it. Declared as `memory_extraction_rules` on the served syndicate.
-	 */
-	async addSessionToMemory(
-		session: AdkSession,
-		extractionRules?: string,
-		options: { extractionModel?: string } = {},
-	): Promise<void> {
-		return this.ingest(session, { extractionRules, extractionModel: options.extractionModel });
-	}
-
-	/**
 	 * Distils the session's events not yet ingested into facts filed under
 	 * `<appName>/<userId>`. Throws when a step fails, leaving those events
 	 * pending for the next ingestion (ADR 0020 item 6).
 	 *
-	 * @param options.extractionRules The syndicate's `memory_extraction_rules`.
+	 * @param options.extractionRules The syndicate's `memory_extraction_rules`:
+	 *   domain rules appended to the shared extraction prompt for this
+	 *   syndicate only ("never store a market quote").
 	 * @param options.extractionModel The syndicate's `memory_extraction_model`.
 	 */
 	async ingest(session: Session, options: MemoryIngestOptions = {}): Promise<void> {
@@ -338,15 +313,6 @@ export class SupabaseVectorMemoryService implements MemoryService, BaseMemorySer
 
 		console.log(`[MemoryService] Deleted ${count} fact(s) for user key: ${userKey}`);
 		return count;
-	}
-
-	/**
-	 * ADK's name for `search`, which ADK's Context.searchMemory calls. The
-	 * entries are the same JSON as ADK's MemoryEntry; only genai's types name
-	 * a few part fields as enums, hence the cast.
-	 */
-	async searchMemory(request: SearchMemoryRequest): Promise<SearchMemoryResponse> {
-		return (await this.search(request)) as unknown as SearchMemoryResponse;
 	}
 
 	/** The facts most relevant to the query, from the `<appName>/<userId>` silo only. */

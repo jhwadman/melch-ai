@@ -1,6 +1,6 @@
 /**
  * lib/toolRegistry.ts — single source of truth mapping YAML tool names to
- * live ADK tool instances.
+ * the engine's own tools.
  *
  * WHY this exists:
  *   a2a_server.ts and syndicate_chat.ts each carried an identical `resolveTools`
@@ -8,18 +8,14 @@
  *   here means a newly added tool is available to every entrypoint at once.
  *
  * Every client-side tool here is an own Tool (lib/tools/tool.ts), defined
- * once, and the ADK runtime receives the FunctionTool toFunctionTool
- * (lib/tools/adkTool.ts) makes of it; toolOf() reads the Tool back from it.
- * preload_memory is an own InstructionTool, which the ADK runtime receives
- * through toAdkInstructionTool; instructionToolOf() reads it back. The
- * server-side tools are own NativeToolMarkers (lib/tools/nativeTools.ts),
- * which the ADK runtime receives as the sentinels toAdkNativeTool names;
- * nativeToolMarkerOf() reads the NativeTool back from either (ADR 0062).
+ * once (a defineTool contract is its own Tool). preload_memory is an own
+ * InstructionTool. The server-side tools are own NativeToolMarkers
+ * (lib/tools/nativeTools.ts, ADR 0062), which the provider runs.
  */
 
 import { generateImageTool } from './tools/generateImageTool.ts';
 import { inspectImageTool } from './tools/inspectImageTool.ts';
-import { toAdkInstructionTool, toAdkTool, toFunctionTool } from './tools/adkTool.ts';
+import { asTool } from './tools/toolContract.ts';
 import { loadMemoryTool, preloadMemoryTool } from './tools/memoryTools.ts';
 import {
   COLLECTIONS_SEARCH_MARKER,
@@ -28,7 +24,7 @@ import {
   WEB_SEARCH_MARKER,
   X_SEARCH_MARKER,
 } from './tools/nativeTools.ts';
-import { isInstructionTool, isNativeToolMarker, isTool, toolOf } from './tools/tool.ts';
+import { isInstructionTool, isNativeToolMarker, isOwnToolset, isTool, toolOf } from './tools/tool.ts';
 import { webExtractTool } from './tools/webExtractTool.ts';
 import { WIKI_AGENT_TOOL_CONTRACTS } from './tools/wikiTools.ts';
 import { SCIENCE_TOOL_CONTRACTS } from './tools/scienceTools.ts';
@@ -43,7 +39,7 @@ import { xApiSearchTool } from './tools/xApiSearchTool.ts';
 const WIKI_TOOLS = Object.fromEntries(
   WIKI_AGENT_TOOL_CONTRACTS.map((contract) => [
     contract.name,
-    toFunctionTool(contract),
+    asTool(contract),
   ]),
 );
 
@@ -51,7 +47,7 @@ const WIKI_TOOLS = Object.fromEntries(
 // registry lookups, derived from their contracts the same way, so the YAML
 // name IS the contract name. research.yaml declares them.
 const SCIENCE_TOOLS = Object.fromEntries(
-  SCIENCE_TOOL_CONTRACTS.map((contract) => [contract.name, toFunctionTool(contract)]),
+  SCIENCE_TOOL_CONTRACTS.map((contract) => [contract.name, asTool(contract)]),
 );
 
 // Task list + background-job queue (lib/tools/taskTools.ts): a single-user
@@ -59,7 +55,7 @@ const SCIENCE_TOOLS = Object.fromEntries(
 // tools only write the queue; scripts/assistant_worker.ts runs the jobs.
 // assistant.yaml declares them.
 const TASK_TOOLS = Object.fromEntries(
-  TASK_TOOL_CONTRACTS.map((contract) => [contract.name, toFunctionTool(contract)]),
+  TASK_TOOL_CONTRACTS.map((contract) => [contract.name, asTool(contract)]),
 );
 
 // The built-in tools. The wiki build reads these keys from this literal.
@@ -73,33 +69,33 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   // Provider-agnostic web search: routes to the model's NATIVE search
   // (Gemini grounding / Anthropic / OpenAI / xAI); omitted with a warning
   // for local models. Prefer this in new YAMLs.
-  web_search: toAdkTool(WEB_SEARCH_MARKER),
+  web_search: WEB_SEARCH_MARKER,
   // Deterministic complement to web_search: client-side URL → clean-text
   // reading (keyless — works on every provider, including local Ollama).
   // augustin.yaml and librarian-style research agents declare it.
   web_extract: webExtractTool,
   // Gemini reads URLs in the conversation server-side; a no-op (reported as
-  // dropped by the doctor) on other providers. lib/tools/urlContextTool.ts.
-  url_context: toAdkTool(URL_CONTEXT_MARKER),
-  x_search: toAdkTool(X_SEARCH_MARKER),
+  // dropped by the doctor) on other providers. lib/tools/nativeTools.ts.
+  url_context: URL_CONTEXT_MARKER,
+  x_search: X_SEARCH_MARKER,
   // X API v2 recent search as a client-side contract, photos transcribed
   // inline — runs on every provider; needs X_BEARER_TOKEN in the server env.
   x_api_search: xApiSearchTool,
   // xAI-only: semantic search over hosted Collections (XAI_COLLECTION_IDS).
-  collections_search: toAdkTool(COLLECTIONS_SEARCH_MARKER),
-  // Gemini-only ADK grounding tool, kept for backward compatibility.
-  google_search: toAdkTool(GOOGLE_SEARCH_MARKER),
+  collections_search: COLLECTIONS_SEARCH_MARKER,
+  // Gemini-only grounding, kept for backward compatibility.
+  google_search: GOOGLE_SEARCH_MARKER,
   generate_image: generateImageTool,
   inspect_image: inspectImageTool,
   // Ask the person mid-turn (lib/runtime/questions.ts): a long-running call
   // that ends the turn input-required; the next message is its answer. Only
   // on an agent the turn runs directly (the schema enforces it).
-  ask_user: toFunctionTool(askUserTool),
+  ask_user: asTool(askUserTool),
   // Long-term memory (lib/tools/memoryTools.ts, ADR 0059): explicit recall
   // by query, and recall written into the instruction before each request.
   // Both reach the run's memory service, pinned to the root namespace.
-  load_memory: toFunctionTool(loadMemoryTool),
-  preload_memory: toAdkInstructionTool(preloadMemoryTool),
+  load_memory: asTool(loadMemoryTool),
+  preload_memory: preloadMemoryTool,
 };
 
 // Null-prototype copy (as GUARD_MAP is): resolution and registration go
@@ -107,7 +103,7 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
 const TOOL_MAP: Record<string, unknown> = Object.assign(Object.create(null), BUILTIN_TOOLS);
 
 /**
- * Resolve an array of tool-name strings to live ADK tool instances.
+ * Resolve an array of tool-name strings to the registered tools.
  * Unknown names are skipped; `onUnknown` (if provided) is invoked for each so
  * callers can log in their own format.
  */
@@ -170,11 +166,10 @@ function reservedNameOf(name: string, tool: unknown): string | undefined {
  * node_modules is not an option. Registering is the same deliberate act of
  * exposure as listing a tool above — it happens in your code, where a
  * reviewer reads it. Pass a `defineTool` contract (lib/tools/toolContract.ts),
- * any own Tool, InstructionTool or NativeToolMarker (lib/tools/tool.ts), or
- * a ready ADK tool. A contract or Tool reaches the ADK runtime through
- * toFunctionTool, an InstructionTool through toAdkInstructionTool, a
- * NativeToolMarker as its sentinel (toAdkTool, lib/tools/adkTool.ts).
- * Replacing a built-in requires `{ override: true }`. A reserved framework
+ * or any own Tool, InstructionTool, NativeToolMarker or Toolset
+ * (lib/tools/tool.ts). An ADK tool (anything with `runAsync`) is refused:
+ * the ADK runtime that ran one left in 1.0.0 (ADR 0107); wrap its logic in
+ * defineTool. Replacing a built-in requires `{ override: true }`. A reserved framework
  * name (RESERVED_TOOL_NAMES), as the registry name or the tool's own, is
  * refused whatever the options say.
  */
@@ -194,10 +189,14 @@ export function registerTool(
     throw new Error(`registerTool: '${name}' is already registered (pass { override: true } to replace it)`);
   }
   const t = tool as Record<string, unknown>;
-  const isContract = !!t && typeof t === 'object' && 'schema' in t && typeof t.execute === 'function' && !('runAsync' in t);
-  TOOL_MAP[name] = isContract || isTool(tool) || isInstructionTool(tool) || isNativeToolMarker(tool)
-    ? toAdkTool(tool as any)
-    : tool;
+  if (!t || typeof t !== 'object') throw new Error(`registerTool: '${name}' is not a tool`);
+  if ('runAsync' in t) {
+    throw new Error(`registerTool: '${name}' is an ADK tool, which melchizedek-agents 1.0.0 no longer runs (ADR 0107); define it with defineTool (melchizedek-agents) instead`);
+  }
+  const isContract = 'schema' in t && typeof t.execute === 'function';
+  if (isContract && !isTool(tool)) TOOL_MAP[name] = asTool(tool as any);
+  else if (isTool(tool) || isInstructionTool(tool) || isNativeToolMarker(tool) || isOwnToolset(tool)) TOOL_MAP[name] = tool;
+  else throw new Error(`registerTool: '${name}' is not a tool (pass a defineTool contract, or an own Tool, InstructionTool, NativeToolMarker or Toolset)`);
 }
 
 /** Names a YAML can declare under `tools:` right now. */

@@ -6,8 +6,8 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     # A dependency PR must pass CI (both Node lines) before it is merged.
-    # @google/adk and @google/genai are pinned exact on purpose: bump them
-    # deliberately, after a live run (see the model-routing skill).
+    # @google/genai is pinned exact on purpose: bump it deliberately, after
+    # a live run (see the model-routing skill).
     groups:
       opentelemetry:
         patterns: ['@opentelemetry/*']

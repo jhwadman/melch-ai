@@ -4,8 +4,7 @@
  * over a list, a tool node, the ask_user pause and its resume on the next
  * message, retries and a node that gives up, a turn the deadline stops,
  * what is refused before any model call, the schema's rules, and the
- * shipped example. Every turn-level case runs on both runtimes
- * (forEachRuntime): ADK's Workflow, and the engine's scheduler
+ * shipped example. Every turn-level case runs the engine's scheduler
  * (lib/workflow/turn.ts, ADR 0095). Scripted models, in-memory sessions,
  * no network.
  */
@@ -13,31 +12,29 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FunctionTool, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { z } from 'zod';
 
-import { compileGraph } from '../lib/compile.ts';
+import { compileWorkflowSpec } from '../lib/compile.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
-import { compileWorkflow, isWorkflowSyndicate, routeOf } from '../lib/workflow.ts';
+import { isWorkflowSyndicate, routeOf } from '../lib/workflow.ts';
+import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
 import { SyndicateValidationError, validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { createTurnEvent } from '../lib/runtime/events.ts';
 import { UnsupportedOnRuntimeError } from '../lib/runtime/runtimeFlag.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
 import { ScriptedModel, answer, shimResolver, streamedAnswer, untilAborted } from './helpers/scriptedModel.ts';
-import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 registerTool(
   'workflow_test_lookup',
-  new FunctionTool({
+  defineTool({
     name: 'workflow_test_lookup',
     description: 'Look something up.',
-    parameters: z.object({ q: z.string() }),
+    schema: z.object({ q: z.string() }),
     execute: async ({ q }) => `found ${q}`,
   }),
   { override: true },
@@ -57,9 +54,9 @@ function config(workflow: Record<string, unknown>, subagents: Record<string, unk
 }
 
 function runner(cfg: SyndicateYamlConfig, models: Record<string, ScriptedLlm>, events: Record<string, unknown> = {}) {
-  const sessionService = new InMemorySessionService();
+  const sessionService = new InProcessSessionService();
   return (parts: any[]) =>
-    runSyndicateTurn({ ...runtimeOption(), config: cfg, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver(models) }, trace: false, events });
+    runSyndicateTurn({ config: cfg, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver(models) }, trace: false, events });
 }
 
 test('routeOf: a JSON key, else the trimmed text', () => {
@@ -71,7 +68,7 @@ test('routeOf: a JSON key, else the trimmed text', () => {
   assert.equal(routeOf(undefined), '');
 });
 
-forEachRuntime('a chain routes on an agent\'s text, with a default for what nothing matched', async () => {
+test('a chain routes on an agent\'s text, with a default for what nothing matched', async () => {
   const cfg = config(
     { edges: [['START', 'Triage', { bug: 'Fixer', default: 'Other' }]] },
     [agent('Fixer'), agent('Other')],
@@ -95,7 +92,7 @@ forEachRuntime('a chain routes on an agent\'s text, with a default for what noth
   assert.equal(r2.text, 'other weird');
 });
 
-forEachRuntime('a JSON output routes on route_key and reaches the next node as JSON', async () => {
+test('a JSON output routes on route_key and reaches the next node as JSON', async () => {
   const cfg = config(
     { edges: [['START', 'Planner', { article: 'Writer', default: 'Answerer' }]], nodes: { Planner: { route_key: 'kind' } } },
     [agent('Writer'), agent('Answerer')],
@@ -110,7 +107,7 @@ forEachRuntime('a JSON output routes on route_key and reaches the next node as J
   assert.equal(answerer.calls, 0);
 });
 
-forEachRuntime('fan-out runs both, a join hands the next node every output by name', async () => {
+test('fan-out runs both, a join hands the next node every output by name', async () => {
   const cfg = config(
     { edges: [['START', 'Triage', ['Writer', 'Checker']], [['Writer', 'Checker'], 'Both', 'Editor']], nodes: { Both: { join: true } } },
     [agent('Writer'), agent('Checker'), agent('Editor')],
@@ -125,7 +122,7 @@ forEachRuntime('fan-out runs both, a join hands the next node every output by na
   assert.equal(editor.calls, 1, 'the join fires once');
 });
 
-forEachRuntime('a map node runs an agent per item under its YAML name and outputs the list', async () => {
+test('a map node runs an agent per item under its YAML name and outputs the list', async () => {
   const cfg = config(
     { edges: [['START', 'Lister', 'Each', 'Merge']], nodes: { Each: { map: 'Summarizer', max_parallel: 2 } } },
     [agent('Summarizer'), agent('Merge')],
@@ -142,7 +139,7 @@ forEachRuntime('a map node runs an agent per item under its YAML name and output
   assert.ok(seen.includes('Each'), `events name the map node: ${[...new Set(seen)].join(', ')}`);
 });
 
-forEachRuntime('a tool node runs a registry tool on the node input', async () => {
+test('a tool node runs a registry tool on the node input', async () => {
   const cfg = config({ edges: [['START', 'Triage', 'Lookup', 'Reader']], nodes: { Lookup: { tool: 'workflow_test_lookup' } } }, [agent('Reader')]);
   const triage = new ScriptedLlm('scripted/triage', () => text('{"q":"needle"}'));
   const reader = new ScriptedLlm('scripted/reader', (req) => text(`read ${lastText(req)}`));
@@ -151,7 +148,7 @@ forEachRuntime('a tool node runs a registry tool on the node input', async () =>
   assert.equal(r.text, 'read {"result":"found needle"}');
 });
 
-forEachRuntime('ask_user pauses the turn; the next message answers, and the next node gets reply and input', async () => {
+test('ask_user pauses the turn; the next message answers, and the next node gets reply and input', async () => {
   const cfg = config(
     { edges: [['START', 'Triage', 'Confirm', 'Publisher']], nodes: { Confirm: { ask_user: 'Publish?' } } },
     [agent('Publisher')],
@@ -180,7 +177,7 @@ forEachRuntime('ask_user pauses the turn; the next message answers, and the next
   assert.equal(triage.calls, 2);
 });
 
-forEachRuntime('a node with retry recovers from a model error; the attempt is recorded, not fatal', async () => {
+test('a node with retry recovers from a model error; the attempt is recorded, not fatal', async () => {
   const cfg = config({ edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { retry: { max_attempts: 3, initial_delay: 0.01, max_delay: 0.02 } } } }, [agent('Fixer')]);
   const triage = new ScriptedLlm('scripted/triage', () => text('bug'));
   let attempts = 0;
@@ -192,7 +189,7 @@ forEachRuntime('a node with retry recovers from a model error; the attempt is re
   assert.deepEqual(r.answer?.nodeErrors.map((e) => [e.node, e.code]), [['Fixer', '503']]);
 });
 
-forEachRuntime('a node that gives up fails the turn and names itself', async () => {
+test('a node that gives up fails the turn and names itself', async () => {
   const cfg = config({ edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { retry: { max_attempts: 1 } } } }, [agent('Fixer')]);
   const triage = new ScriptedLlm('scripted/triage', () => text('bug'));
   const fixer = new ScriptedLlm('scripted/fixer', () => ({ errorCode: '500', errorMessage: 'down' }) as any);
@@ -203,24 +200,24 @@ forEachRuntime('a node that gives up fails the turn and names itself', async () 
   assert.match(`${r.error?.message}`, /Fixer|down/);
 });
 
-forEachRuntime('streaming: a node agent\'s text reaches onTextDelta as it is written', async () => {
+test('streaming: a node agent\'s text reaches onTextDelta as it is written', async () => {
   const cfg = config({ edges: [['START', 'Triage', 'Fixer']] }, [agent('Fixer')]);
   const models = { triage: new ScriptedModel('scripted/triage', () => answer('bug')), fixer: new ScriptedModel('scripted/fixer', () => streamedAnswer('fi', 'xed')) };
   const deltas: string[] = [];
-  const r = await runSyndicateTurn({ ...runtimeOption(), streaming: true, config: cfg, parts: [{ text: 'go' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false, events: { onTextDelta: (d: string) => deltas.push(d) } });
+  const r = await runSyndicateTurn({ streaming: true, config: cfg, parts: [{ text: 'go' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InProcessSessionService(), compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false, events: { onTextDelta: (d: string) => deltas.push(d) } });
   assert.equal(r.status, 'completed');
   assert.equal(r.text, 'fixed');
   assert.deepEqual(deltas, ['fi', 'xed']);
 });
 
-forEachRuntime('a deadline stops the walk: the turn fails with the stop reason, and no later node runs', async () => {
+test('a deadline stops the walk: the turn fails with the stop reason, and no later node runs', async () => {
   const cfg = config({ edges: [['START', 'Triage', 'Fixer', 'Other']] }, [agent('Fixer'), agent('Other')]);
   const models = {
     triage: new ScriptedModel('scripted/triage', () => answer('bug')),
     fixer: new ScriptedModel('scripted/fixer', (_r, _n, signal) => untilAborted(signal)),
     other: new ScriptedModel('scripted/other', () => answer('never')),
   };
-  const r = await runSyndicateTurn({ ...runtimeOption(), config: cfg, parts: [{ text: 'go' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false, deadlineMs: 150 });
+  const r = await runSyndicateTurn({ config: cfg, parts: [{ text: 'go' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InProcessSessionService(), compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false, deadlineMs: 150 });
   assert.equal(r.status, 'failed');
   assert.equal(r.stopReason, 'deadline');
   assert.equal(r.error?.code, 'DEADLINE_EXCEEDED');
@@ -228,7 +225,7 @@ forEachRuntime('a deadline stops the walk: the turn fails with the stop reason, 
   assert.equal(models.other.calls, 0);
 });
 
-forEachRuntime('a long-running tool node is refused before any model call, with ADK\'s message', async () => {
+test('a long-running tool node is refused before any model call, with ADK\'s message', async () => {
   const cfg = config({ edges: [['START', 'Triage', 'Wait', 'Reader']], nodes: { Wait: { tool: 'workflow_test_long' } } }, [agent('Reader')]);
   const triage = new ScriptedLlm('scripted/triage', () => text('{"q":"x"}'));
   const reader = new ScriptedLlm('scripted/reader', () => text('read'));
@@ -237,11 +234,11 @@ forEachRuntime('a long-running tool node is refused before any model call, with 
 });
 
 test('native: an ask_user tool on a workflow node is refused by name before any model call (a config the schema did not check)', async () => {
-  // validateSyndicateConfig refuses it on both runtimes; a caller that hands in an unchecked config is refused here.
+  // validateSyndicateConfig refuses it; a caller that hands in an unchecked config is refused here.
   const cfg = { ...config({ edges: [['START', 'Triage', 'Fixer']] }, [agent('Fixer')]), subagents: [agent('Fixer', { tools: ['ask_user'] })] } as SyndicateYamlConfig;
   const triage = new ScriptedLlm('scripted/triage', () => text('bug'));
   await assert.rejects(
-    runSyndicateTurn({ runtime: 'native', config: cfg, parts: [{ text: 'go' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: scriptedResolver({ triage }) }, trace: false }),
+    runSyndicateTurn({ config: cfg, parts: [{ text: 'go' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InProcessSessionService(), compile: { resolveModel: scriptedResolver({ triage }) }, trace: false }),
     (e: unknown) => e instanceof UnsupportedOnRuntimeError && /an ask_user tool on a workflow node \(Fixer; use an ask_user node\)/.test(e.message),
   );
   assert.equal(triage.calls, 0);
@@ -249,25 +246,25 @@ test('native: an ask_user tool on a workflow node is refused by name before any 
 
 test('native: a pause raised inside an agent node fails the resume by name; the walk does not start afresh', async () => {
   const cfg = config({ edges: [['START', 'Triage', 'Fixer']] }, [agent('Fixer')]);
-  const sessionService = new InMemorySessionService();
-  const session = await sessionService.createSession({ appName: 'app', userId: 'u', sessionId: 's' });
-  // As ADK stores an OAuth consent raised inside the Triage node, then the workflow's own pause record.
+  const sessionService = new InProcessSessionService();
+  const session = await sessionService.create({ appName: 'app', userId: 'u', sessionId: 's' });
+  // As ADK 2.2 stored an OAuth consent raised inside the Triage node, then the workflow's own pause record.
   const stored = [
     createTurnEvent({ invocationId: 'e-1', author: 'user', content: { role: 'user', parts: [{ text: 'go' }] } }),
     { ...createTurnEvent({ invocationId: 'e-1', author: 'Triage', content: { role: 'model', parts: [{ functionCall: { name: 'adk_request_credential', id: 'q', args: {} } }] } }), longRunningToolIds: ['q'], nodeInfo: { path: 'Graph.Triage' } },
     { ...createTurnEvent({ invocationId: 'e-1', author: 'Graph' }), longRunningToolIds: ['q'], nodeInfo: { path: 'Graph' } },
   ];
-  for (const event of stored) await sessionService.appendEvent({ session, event: event as any });
+  for (const event of stored) await sessionService.append(session, event as any);
   const triage = new ScriptedLlm('scripted/triage', () => text('bug'));
   const fixer = new ScriptedLlm('scripted/fixer', () => text('fixed'));
-  const r = await runSyndicateTurn({ runtime: 'native', config: cfg, parts: [{ text: 'granted' }], appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ triage, fixer }) }, trace: false });
+  const r = await runSyndicateTurn({ config: cfg, parts: [{ text: 'granted' }], appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ triage, fixer }) }, trace: false });
   assert.equal(r.status, 'failed');
   assert.equal(r.failedStage, 'workflow');
   assert.equal(r.error?.code, 'RESUME_UNSUPPORTED');
   assert.match(r.error?.message ?? '', /'Graph\.Triage' was raised inside an agent node/);
   assert.equal(triage.calls + fixer.calls, 0, 'nothing ran: the person is not asked again');
-  const after = await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' });
-  assert.equal(after!.events.length, stored.length + 1, 'only the message is stored, as the Runner stores it before the walk');
+  const after = await sessionService.get({ appName: 'app', userId: 'u', sessionId: 's' });
+  assert.equal(after!.events.length, stored.length + 1, 'only the message is stored, before the walk');
 });
 
 test('schema: the rules a graph must keep', () => {
@@ -325,14 +322,14 @@ test('schema: the rules a graph must keep', () => {
   );
 });
 
-test('the shipped example is a graph: it compiles with its nodes under their YAML names, and compileGraph refuses it', async () => {
+test('the shipped example is a graph: its spec and graph hold every node under its YAML name', async () => {
   const cfg = loadSyndicate('examples/pipeline.yaml');
   assert.ok(isWorkflowSyndicate(cfg));
-  const { workflow, agents, nodes } = await compileWorkflow(cfg);
-  assert.equal(workflow.name, 'Editorial Pipeline');
-  assert.deepEqual([...agents.keys()].sort(), ['Answerer', 'Checker', 'Editor', 'Planner', 'Publisher', 'Writer']);
-  assert.deepEqual([...nodes.keys()].sort(), ['Answerer', 'Both', 'Checker', 'Confirm', 'Editor', 'Planner', 'Publisher', 'Writer']);
-  assert.equal((agents.get('Editor') as any).retryConfig?.maxAttempts, 2, 'node modifiers reach the agent');
-  await assert.rejects(compileGraph(cfg), /compileWorkflow/);
+  const spec = await compileWorkflowSpec(cfg);
+  assert.equal(spec.name, 'Editorial Pipeline');
+  assert.deepEqual(spec.agents.map((a) => a.yaml.name).sort(), ['Answerer', 'Checker', 'Editor', 'Planner', 'Publisher', 'Writer']);
+  const graph = buildWorkflowGraph(cfg);
+  assert.deepEqual([...graph.nodes.keys()].filter((n) => n !== '__START__' && !n.endsWith('__route')).sort(), ['Answerer', 'Both', 'Checker', 'Confirm', 'Editor', 'Planner', 'Publisher', 'Writer']);
+  assert.equal((graph.nodes.get('Editor') as { settings?: { retry?: { max_attempts?: number } } }).settings?.retry?.max_attempts, 2, 'node modifiers reach the node');
   assert.equal(isWorkflowSyndicate(loadSyndicate('examples/council.yaml')), false);
 });

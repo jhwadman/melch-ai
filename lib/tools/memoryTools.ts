@@ -5,9 +5,8 @@
  * WHY this file exists:
  *   A syndicate with `memory_system: long-term` reaches its memory through
  *   two YAML tool names. Both were ADK's own objects (LOAD_MEMORY and
- *   PRELOAD_MEMORY), which only ADK's loop can run. Here they are the
- *   engine's, so the native runtime runs them, and the ADK runtime runs the
- *   same objects through lib/tools/adkTool.ts:
+ *   PRELOAD_MEMORY), which only ADK's loop could run. Here they are the
+ *   engine's, and the native loop runs them:
  *
  *     load_memory     a Tool the model calls with a query. It returns the
  *                     facts recalled for it, and while the run has memory it
@@ -18,8 +17,8 @@
  *
  * WORD FOR WORD: the declaration, the note, the result's shape and the
  * recalled block are what ADK's LoadMemoryTool and PreloadMemoryTool
- * produced, so a model reads the same request on either runtime
- * (tests/memoryTools.test.ts compares them with ADK's own tools).
+ * produced, so a model reads the request it read before 1.0.0
+ * (tests/memoryTools.test.ts holds them to ADK's recorded output).
  *
  * WHOSE MEMORY: both search through the context's `searchMemory`, which is
  * bound to the run's own `<appName>/<userId>` silo; a query can choose what
@@ -45,7 +44,7 @@ you to look up the memory, you should call load_memory function with a query.`;
 /** What load_memory and ADK's LoadMemoryTool say when the run has no memory service. */
 export const NO_MEMORY_SERVICE = 'Memory service is not initialized.';
 
-/** A memory's text: its parts' texts joined by a space, a part without text counting as empty, as ADK joins them. */
+/** A memory's text: its parts' texts joined by a space, a part without text counting as empty, as ADK joined them. */
 export function memoryText(memory: MemoryEntry): string {
   return memory.content.parts?.map((p) => p.text ?? '').join(' ') ?? '';
 }

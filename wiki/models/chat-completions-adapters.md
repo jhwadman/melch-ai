@@ -1,7 +1,7 @@
 ---
 type: model-provider
 title: Chat-completions adapters
-description: "ChatCompletionsAdapter (lib/models/chatCompletionsAdapter.ts) and the Ollama, Kimi and gateway adapters on it: the OpenAI chat-completions wire behind the engine's model contract. What each provider supplies, the think-block splitter, reasoning_content replay, the retry without thinking, tool choice, failures, and the ADK shims (OllamaLlm, KimiLlm, GatewayLlm) that keep the ADK path's shape and the ledger's counts. Two questions only a live run answers."
+description: "ChatCompletionsAdapter (lib/models/chatCompletionsAdapter.ts) and the Ollama, Kimi and gateway adapters on it: the OpenAI chat-completions wire behind the engine's model contract. What each provider supplies, the think-block splitter, reasoning_content replay, the retry without thinking, tool choice, failures, and the event the native step stores. Two questions only a live run answers."
 tags:
   - models
   - runtime
@@ -14,16 +14,12 @@ sources:
   - resource: lib/models/ollamaAdapter.ts
   - resource: lib/models/kimiAdapter.ts
   - resource: lib/models/gatewayAdapter.ts
-  - resource: lib/models/openAiCompatibleLlm.ts
-  - resource: lib/models/ollamaLlm.ts
-  - resource: lib/models/kimiLlm.ts
-  - resource: lib/models/gatewayLlm.ts
   - resource: tests/chatCompletionsAdapter.test.ts
 ---
 
 # Chat-completions adapters
 
-Moonshot (Kimi), Ollama and the hosted gateways speak OpenAI chat completions, so one base serves all three. `ChatCompletionsAdapter` in `lib/models/chatCompletionsAdapter.ts` implements the contract's `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)): it reads a `ModelRequest`, posts one chat-completions body, and yields thinking and text partials and one final. Nothing in it imports ADK. The field-by-field mapping is the chat-completions table of the [model contract](/models/model-contract.md).
+Moonshot (Kimi), Ollama and the hosted gateways speak OpenAI chat completions, so one base serves all three. `ChatCompletionsAdapter` in `lib/models/chatCompletionsAdapter.ts` implements the contract's `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)): it reads a `ModelRequest`, posts one chat-completions body, and yields thinking and text partials and one final. The field-by-field mapping is the chat-completions table of the [model contract](/models/model-contract.md).
 
 | Adapter | Module | `provider` | Endpoint | Forced tool choice |
 |---|---|---|---|---|
@@ -49,21 +45,16 @@ Structured output is `response_format`: a schema goes as strict `json_schema`, i
 - **`reasoning_content` on a tool loop (Kimi, [ADR 0046](/decisions/0046-provider-reasoning-state-on-the-part.md)).** The response's `reasoning_content` is written as `providerState` (`kind: 'reasoning_content'`, with the model) on the final's first part, and sent back as that assistant message's `reasoning_content` on the current turn's later steps, for the same provider and model. Earlier turns' is not sent. `<think>` blocks and Ollama's `reasoning` field are never carried.
 - **No answer after thinking ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)).** A completion with reasoning, or with `finish_reason: "length"`, and neither text nor a tool call is an error final, `<ID>_MAX_TOKENS` or `<ID>_EMPTY_RESPONSE`, with its usage. The hint names `reasoning: none`, and the older spelling too. A bare empty completion is a final with no parts and no error. A reply cut short keeps its text, as `max_tokens`.
 - **The retry without thinking (Ollama).** Such an error is held back and the request is sent once more with `reasoning: none`. Only the second attempt's final is yielded, with both attempts' usage summed. A request that already asks for none is not retried, and `OLLAMA_RETRY_WITHOUT_THINKING=false` turns the retry off.
-- **Tool calls.** Arguments that do not parse to an object are kept as `{ raw }`. A call the provider returned without an id gets `adk-<conversation length>-<index>-<name>`. On the ADK path ADK leaves `adk-` ids out of the next request, as it does its own, so the stored history reads as before.
+- **Tool calls.** Arguments that do not parse to an object are kept as `{ raw }`. A call the provider returned without an id gets `adk-<conversation length>-<index>-<name>`. The native loop's history leaves `adk-` ids out of the next request (`lib/runtime/native/history.ts`), as ADK did with its own, so the stored history reads the same either way.
 - **Usage** is in the contract's meaning: `completion_tokens` is the output, the reasoning included, and `reasoning_tokens` the thinking part of it.
 
 ## Failures
 
 Every failure is a final with `error` set, never a throw: a missing key or gateway before any request, a non-2xx status with `status` and `retryable` from the status, and an unreachable endpoint with `retryable` from the error (a reset is, a refused connection is not). Transient statuses are retried on the request, before any byte is read (`lib/models/retry.ts`), with `llm.retries` on the span. The request's signal, or the turn's when it carries none, aborts the fetch and the SSE read. An aborted call ends at once with the adapter's unreachable code and is never retryable, even when its last status was a 503. Messages pass the key scrubber.
 
-## On the adk runtime: the shims
+## The caller and the stored event
 
-`OllamaLlm`, `KimiLlm` and `GatewayLlm` are the ADK classes the adk runtime's registry constructs and registers; on the default native runtime the loop calls the adapters directly. Each is a subclass of `OpenAiCompatibleLlm`, which is an [ADK shim](/models/adk-shim.md) around its adapter, so the shim charges the turn and opens the `llm.request` span ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)). `OpenAiCompatibleLlm` overrides the shim's two seams, the response hook `GptLlm` also overrides ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)) and the request seam ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)):
-
-- **The request** carries `olderSpelling`, what an agent's older `generateContentConfig` spelling asks that the contract has no field for: an effort word that is no level (Kimi K3's `max`, `xhigh`), sent as written. A word that is a level rides in `reasoning`, and JSON mode without a schema in `outputFormat`, which the genai mapping reads from `responseMimeType`.
-- **The response** keeps the shape these classes always yielded. `candidatesTokenCount` is the provider's `completion_tokens`, reasoning included, so `llm.tokens.output`, the turn's output charge and the ledger's `output_tokens` count what they always counted; the shim's default would write Gemini's meaning and drop the thinking from them. A finish reason is set only for a reply cut short (`MAX_TOKENS`), a final with no parts keeps its empty `content`, and an HTTP failure keeps `status` and `retryable` beside the verdict in `customMetadata`.
-
-`buildMessages(llmRequest)` and `buildTools(llmRequest)` on the shim return what the adapter sends for an `LlmRequest`.
+The native loop's model step calls the adapters directly: it charges the turn and opens the `llm.request` span ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), and stores each final as the event ADK would store, in Gemini's usage meanings ([model contract](/models/model-contract.md#the-response)). The adapters take the contract's `ModelRequest` alone: 1.0.0 removed the `olderSpelling` extension ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), so an effort word that is no level (Kimi K3's `max`, `xhigh`) is not sent. Events that ADK's `OllamaLlm`, `KimiLlm` and `GatewayLlm` stored before 1.0.0 count reasoning inside `candidatesTokenCount`.
 
 ## What only a live run can confirm
 
@@ -74,4 +65,4 @@ The offline tests pin the wire for both of these; the answers need Moonshot.
 
 ## Tests
 
-`tests/chatCompletionsAdapter.test.ts` drives each adapter with `ModelRequest`s and asserts the request bodies the ADK-path tests assert for the old classes: the reasoning field per provider and generation, the `reasoning_content` replay and what skips it, tools, history, structured output and JSON mode, streaming, and native tools dropped. It also covers the think-block splitter on both paths, the retry without thinking, tool choice, usage, every failure kind and the abort, and the shims' seams: the older spelling on the wire, the final's shape, and the ledger's counts beside the default shim's. `tests/models.test.ts`, `capabilityMatrix.test.ts`, `gateway.test.ts`, `modelRetry.test.ts` and `reasoningKey.test.ts` (each provider's field for a YAML's `reasoning:`) drive the adapters with ModelRequests too, and `tests/shimBodies.test.ts` holds `OllamaLlm`, `KimiLlm` and `GatewayLlm` to their adapters' bodies for every capability-matrix input. The ADK-path suites (`kimiReasoningState.test.ts`, `errorResponse.test.ts`) run the shims.
+`tests/chatCompletionsAdapter.test.ts` drives each adapter with `ModelRequest`s and asserts the request bodies: the reasoning field per provider and generation, the `reasoning_content` replay and what skips it, tools, history, structured output and JSON mode, streaming, and native tools dropped. It also covers the think-block splitter on both paths, the retry without thinking, tool choice, usage, every failure kind and the abort, and the older spelling on the wire. `tests/models.test.ts`, `capabilityMatrix.test.ts`, `gateway.test.ts`, `modelRetry.test.ts` and `reasoningKey.test.ts` (each provider's field for a YAML's `reasoning:`) drive the adapters with ModelRequests too, and `kimiReasoningState.test.ts` carries Kimi's `reasoning_content` across a tool loop.

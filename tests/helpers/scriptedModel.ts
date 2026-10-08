@@ -1,9 +1,9 @@
 /**
  * tests/helpers/scriptedModel.ts — a deterministic model adapter on the
- * engine's own contract (lib/models/contract.ts), for offline tests. Behind
- * the ADK shim (lib/models/adkShim.ts) it runs a turn under ADK, charged and
- * traced the way every adapter is. ScriptedLlm (./scriptedLlm.ts) is that
- * shim around one, for a script written in ADK's terms.
+ * engine's own contract (lib/models/contract.ts), for offline tests. The
+ * loop charges and traces its calls the way it does every adapter's.
+ * ScriptedLlm (./scriptedLlm.ts) wraps one for a script written in genai's
+ * terms.
  *
  * A script is a function from (request, call number, signal) to the
  * responses of that call; it may be async and may await the request's
@@ -22,8 +22,7 @@ import type {
   ToolResultPart,
   Usage,
 } from '../../lib/models/contract.ts';
-import { adkShim } from '../../lib/models/adkShim.ts';
-import type { AdkShim } from '../../lib/models/adkShim.ts';
+import { servedThroughShim } from '../../lib/runtime/native/selfCorrection.ts';
 
 export type ModelScript = (
   request: ModelRequest,
@@ -101,13 +100,16 @@ export function lastToolResult(request: ModelRequest): ToolResultPart | undefine
 
 /**
  * A model resolver for compile options: each YAML model id `scripted/<key>`
- * gets the ScriptedModel registered under <key>, behind the ADK shim.
+ * gets the ScriptedModel registered under <key>, marked as a caller's
+ * adapter (servedThroughShim, lib/runtime/native/selfCorrection.ts), as it
+ * was when it reached the loop through the pre-1.0 shim: a Gemini-provider
+ * model is told of the reflection tool, as the recorded references expect.
  */
 export function shimResolver(models: Record<string, ScriptedModel>) {
-  return (id: string | undefined): AdkShim => {
+  return (id: string | undefined): ScriptedModel => {
     const key = (id ?? '').replace(/^scripted\//, '');
     const m = models[key];
     if (!m) throw new Error(`no scripted model '${id}'`);
-    return adkShim(m);
+    return servedThroughShim(m);
   };
 }

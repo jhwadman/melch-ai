@@ -7,38 +7,42 @@
  * real SDKs parse real-shaped responses (JSON and SSE). Keys are fixtures.
  *
  * What is proved here:
- *   - the field survives a REAL ADK Runner: from the model's event into the
- *     next LlmRequest.contents of the tool loop, and into storage (in memory,
- *     and the serialized rows of the Supabase and Postgres services);
- *   - Claude writes its signed thinking blocks into it on both the streamed
- *     and the non-streamed path, and the second request of a tool loop opens
- *     the assistant message with them, verbatim, before its tool_use;
- *   - a model switch between steps drops the state in both directions.
+ *   - the field survives runSyndicateTurn on the native loop: from the
+ *     model's event into the next request of the tool loop, and into storage
+ *     (in process, and the serialized rows of the Supabase and Postgres
+ *     services);
+ *   - ClaudeAdapter writes its signed thinking blocks into it on both the
+ *     streamed and the non-streamed path, and the second request of a tool
+ *     loop opens the assistant message with them, verbatim, before its
+ *     tool_use;
+ *   - a model switch between steps drops the state in both directions, and
+ *     no other adapter puts an anthropic state on its wire.
+ * Which steps Claude replays (the current turn's, its own model's) is
+ * tests/claudeAdapter.test.ts's.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { BaseLlm, Gemini, InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
-import type { BaseLlmConnection, Event, LlmRequest, LlmResponse } from '@google/adk';
 
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import type { TurnEvent } from '../lib/runtime/events.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import { ClaudeLlm, THINKING_STATE_KIND } from '../lib/models/claudeLlm.ts';
-import { GptLlm } from '../lib/models/gptLlm.ts';
-import { KimiLlm } from '../lib/models/kimiLlm.ts';
-import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
+import type { ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
+import { ClaudeAdapter, THINKING_STATE_KIND } from '../lib/models/claudeAdapter.ts';
+import { GptAdapter } from '../lib/models/gptAdapter.ts';
+import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
+import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
+import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
 import { providerStateOf, withProviderState } from '../lib/models/providerState.ts';
 import type { ProviderState } from '../lib/models/providerState.ts';
 import { projectTranscript, trimEventForStorage } from '../lib/session/transcript.ts';
 import { SupabaseSessionService } from '../lib/session/supabaseSessionService.ts';
 import { PostgresSessionService } from '../lib/storage/postgres/sessionService.ts';
 import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
-import { assertRefusesModelClass, forEachRuntime } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
-
+import type { LlmRequest, LlmResponse } from './helpers/scriptedLlm.ts';
 const APP = 'test-app';
 const USER = 'u1';
 const FIXTURE_KEY = 'fixture-ant-test-0123456789abcdef'; // gitleaks:allow (test fixture)
@@ -52,12 +56,12 @@ const REDACTED = { type: 'redacted_thinking', data: 'redacted-fixture-blob-1' };
 /** The state a scripted model writes (any provider's shape will do here). */
 const STATE: ProviderState = { provider: 'anthropic', kind: THINKING_STATE_KIND, payload: [THINKING] };
 
-function delegateConfig(boss: { thinking?: boolean } = {}): SyndicateYamlConfig {
+function delegateConfig(boss: { thinking?: boolean; model?: string } = {}): SyndicateYamlConfig {
   return {
     syndicate_name: 'Test',
     orchestrator: {
       name: 'Boss',
-      model: 'scripted/boss',
+      model: boss.model ?? 'scripted/boss',
       instruction: 'Delegate to Scout.',
       ...(boss.thinking ? { generateContentConfig: { thinkingConfig: { thinkingBudget: 2048 } } } : {}),
     },
@@ -65,7 +69,9 @@ function delegateConfig(boss: { thinking?: boolean } = {}): SyndicateYamlConfig 
   } as SyndicateYamlConfig;
 }
 
-function turn(config: SyndicateYamlConfig, models: Record<string, BaseLlm>, sessionService = new InMemorySessionService(), streaming = false) {
+/** A turn whose Boss is `models.boss` and whose Scout is `models.scout`, whatever ids the YAML names. */
+function turn(config: SyndicateYamlConfig, models: { boss: ModelAdapter; scout: ModelAdapter }, sessionService = new InProcessSessionService(), streaming = false) {
+  const scripted = scriptedResolver(models as any);
   return runSyndicateTurn({
     config,
     parts: [{ text: 'find the thing' }],
@@ -73,15 +79,15 @@ function turn(config: SyndicateYamlConfig, models: Record<string, BaseLlm>, sess
     userId: USER,
     sessionId: 's1',
     sessionService,
-    compile: { resolveModel: scriptedResolver(models as any) },
+    compile: { resolveModel: (id: string | undefined) => (id === config.orchestrator.model ? models.boss : scripted(id)) },
     trace: false,
     streaming,
   });
 }
 
 /** Every part of the stored session's events. */
-async function storedParts(sessions: InMemorySessionService): Promise<any[]> {
-  const s = await sessions.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+async function storedParts(sessions: InProcessSessionService): Promise<any[]> {
+  const s = await sessions.get({ appName: APP, userId: USER, sessionId: 's1' });
   return (s?.events ?? []).flatMap((e) => e.content?.parts ?? []);
 }
 
@@ -178,33 +184,37 @@ async function withProviders<T>(
   }
 }
 
-const claude = () => new ClaudeLlm({ model: 'claude-sonnet-4-6', apiKey: FIXTURE_KEY });
+const claude = () => new ClaudeAdapter({ model: 'claude-sonnet-4-6', apiKey: FIXTURE_KEY });
 
-/**
- * A resolver that returns an ADK model class which is neither the shim nor
- * Gemini (StepSwitch here) is refused on native before any model call
- * (ADR 0088): these cases run on ADK, and on native assert the refusal.
- */
 /** One model per step, in order: a model switch between steps, as a fallback makes one. */
-class StepSwitch extends BaseLlm {
-  private calls = 0;
-  private readonly steps: BaseLlm[];
-  constructor(steps: BaseLlm[]) {
-    super({ model: 'scripted/switch' });
-    this.steps = steps;
+class StepSwitch implements ModelAdapter {
+  readonly model = 'scripted/switch';
+  #calls = 0;
+  #current: ModelAdapter;
+  readonly #steps: ModelAdapter[];
+  constructor(steps: ModelAdapter[]) {
+    this.#steps = steps;
+    this.#current = steps[0];
   }
-  async *generateContentAsync(request: LlmRequest, stream?: boolean, signal?: AbortSignal): AsyncGenerator<LlmResponse, void> {
-    const model = this.steps[Math.min(this.calls++, this.steps.length - 1)];
-    yield* model.generateContentAsync(request, stream, signal);
+  get provider(): string {
+    return this.#current.provider;
   }
-  async connect(): Promise<BaseLlmConnection> {
-    throw new Error('no live connections');
+  generate(request: ModelRequest): AsyncIterable<ModelResponse> {
+    this.#current = this.#steps[Math.min(this.#calls++, this.#steps.length - 1)];
+    return this.#current.generate({ ...request, model: this.#current.model });
   }
 }
 
-// ── The convention through a real ADK Runner ─────────────────────────────────
+/** Every response an adapter yields for `request`. */
+async function collect(adapter: ModelAdapter, request: ModelRequest): Promise<ModelResponse[]> {
+  const out: ModelResponse[] = [];
+  for await (const r of adapter.generate(request)) out.push(r);
+  return out;
+}
 
-test('convention: providerState on a functionCall part reaches the next request of the tool loop, and storage', async () => {
+// ── The convention through runSyndicateTurn on the native loop ───────────────
+
+test('convention (native turn): providerState on a functionCall part reaches the next request of the tool loop, and storage', async () => {
   const boss = new ScriptedLlm('scripted/boss', (_req, n) =>
     n === 1
       ? ({
@@ -216,23 +226,23 @@ test('convention: providerState on a functionCall part reaches the next request 
       : text('Scout says: it is in the attic'),
   );
   const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
-  const sessions = new InMemorySessionService();
+  const sessions = new InProcessSessionService();
 
   const r = await turn(delegateConfig(), { boss, scout }, sessions);
   assert.equal(r.status, 'completed');
   assert.equal(r.text, 'Scout says: it is in the attic');
 
-  // Into the next request: ADK copies event.content (deep clone) into contents.
+  // Into the next request: the loop replays the event's content.
   const second = callContent(boss.requests[1]);
   assert.ok(second, 'the second request replays the call');
   const callPart = second.parts.find((p: any) => p.functionCall);
   assert.deepEqual(callPart.providerState, STATE);
 
-  // Into storage: the in-memory session, and the serialized copy both
+  // Into storage: the in-process session, and the serialized copy both
   // durable services write (JSON, then the storage trim).
   const stored = (await storedParts(sessions)).find((p) => p.functionCall?.name === 'Scout');
   assert.deepEqual(stored.providerState, STATE);
-  const event = (await sessions.getSession({ appName: APP, userId: USER, sessionId: 's1' }))!.events.find((e) =>
+  const event = (await sessions.get({ appName: APP, userId: USER, sessionId: 's1' }))!.events.find((e) =>
     (e.content?.parts ?? []).some((p: any) => p.functionCall?.name === 'Scout'),
   )!;
   const row = trimEventForStorage(JSON.parse(JSON.stringify(event)));
@@ -255,13 +265,13 @@ test('convention: the durable session services write the field into their rows',
         { functionResponse: { name: 'Scout', id: 'c0', response: { result: 'x'.repeat(5_000) } } },
       ],
     },
-  } as unknown as Event;
+  } as unknown as TurnEvent;
 
   // Supabase: the whole events array, upserted.
   let upserted: any;
   const supabase = { from: () => ({ upsert: async (row: any) => ((upserted = row), { error: null }) }) };
   const supa = new SupabaseSessionService(supabase as any);
-  await supa.appendEvent({ session: { id: 's1', appName: APP, userId: USER, state: {}, events: [], lastUpdateTime: 0 } as any, event });
+  await supa.append({ id: 's1', appName: APP, userId: USER, state: {}, events: [], lastUpdateTime: 0 } as any, event);
   assert.deepEqual(upserted.events[0].content.parts[0].providerState, STATE);
   assert.match(JSON.stringify(upserted.events[0].content.parts[1]), /elided/);
 
@@ -275,8 +285,8 @@ test('convention: the durable session services write the field into their rows',
     },
     release: () => undefined,
   };
-  const pg = new PostgresSessionService({ connect: async () => client } as any);
-  await pg.appendEvent({ session: { id: 's1', appName: APP, userId: USER, state: {}, events: [], lastUpdateTime: 0 } as any, event });
+  const pg = new PostgresSessionService({ connect: async () => client, query: client.query } as any);
+  await pg.append({ id: 's1', appName: APP, userId: USER, state: {}, events: [], lastUpdateTime: 0 } as any, event);
   assert.deepEqual(inserted.content.parts[0].providerState, STATE);
 });
 
@@ -284,7 +294,7 @@ test('convention: the transcript projection drops the state with the rest of a p
   const events = [
     { author: 'user', content: { role: 'user', parts: [{ text: 'find it' }] } },
     { author: 'Boss', content: { role: 'model', parts: [withProviderState({ text: 'It is in the attic.' }, STATE)] } },
-  ] as Event[];
+  ] as TurnEvent[];
   const projected = projectTranscript(events, 'Boss');
   assert.equal(projected.length, 2);
   assert.deepEqual(projected[1].content!.parts, [{ text: 'It is in the attic.' }]);
@@ -306,16 +316,16 @@ test('providerStateOf reads only the named provider, kind and (when both name on
 // ── Claude: thinking with tool use, end to end ───────────────────────────────
 
 for (const streaming of [false, true]) {
-  test(`claude (${streaming ? 'streamed' : 'non-streamed'}): the second request opens the assistant message with the signed blocks, then the tool_use`, async () => {
+  test(`native turn, claude (${streaming ? 'streamed' : 'non-streamed'}): the second request opens the assistant message with the signed blocks, then the tool_use`, async () => {
     const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
-    const sessions = new InMemorySessionService();
+    const sessions = new InProcessSessionService();
     await withProviders(
       [
         message([THINKING, REDACTED, { type: 'tool_use', id: 'toolu_01', name: 'Scout', input: { request: 'look in the attic' } }], 'tool_use'),
         message([{ type: 'text', text: 'Scout says: it is in the attic' }]),
       ],
       async (sent) => {
-        const r = await turn(delegateConfig({ thinking: true }), { boss: claude(), scout }, sessions, streaming);
+        const r = await turn(delegateConfig({ thinking: true, model: 'claude-sonnet-4-6' }), { boss: claude(), scout }, sessions, streaming);
         assert.equal(r.status, 'completed', JSON.stringify(r.error));
         assert.equal(r.text, 'Scout says: it is in the attic');
 
@@ -348,103 +358,27 @@ for (const streaming of [false, true]) {
   });
 }
 
-/** The body ClaudeLlm sends for `contents` (the stub answers 400; only the body matters). */
-async function claudeBody(contents: LlmRequest['contents'], thinking = true): Promise<any> {
-  return withProviders([], async (sent) => {
-    const req = {
-      model: 'claude-sonnet-4-6',
-      contents,
-      liveConnectConfig: {},
-      toolsDict: {},
-      config: thinking ? { thinkingConfig: { thinkingBudget: 2048 } } : {},
-    } as unknown as LlmRequest;
-    for await (const _ of claude().generateContentAsync(req, false)) {
-      // drain
-    }
-    return sent.anthropic[0];
-  });
-}
-
-const call = (id: string, state?: ProviderState) =>
-  state ? withProviderState({ functionCall: { id, name: 'Scout', args: {} } }, state) : { functionCall: { id, name: 'Scout', args: {} } };
-const result = (id: string) => ({ functionResponse: { id, name: 'Scout', response: { result: 'ok' } } });
 const signed = (n: number): ProviderState => ({
   provider: 'anthropic',
   kind: THINKING_STATE_KIND,
   payload: [{ type: 'thinking', thinking: `step ${n}`, signature: `sig-${n}` }],
 });
 
-test('claude: every step of the current tool loop is replayed, in order; earlier turns are not', async () => {
-  const body = await claudeBody([
-    { role: 'user', parts: [{ text: 'first question' }] },
-    { role: 'model', parts: [{ text: 'old thought', thought: true } as any, call('t1', signed(0))] },
-    { role: 'user', parts: [result('t1')] },
-    { role: 'model', parts: [{ text: 'first answer' }] },
-    { role: 'user', parts: [{ text: 'second question' }] },
-    { role: 'model', parts: [call('c1', signed(1))] },
-    { role: 'user', parts: [result('c1')] },
-    { role: 'model', parts: [withProviderState({ text: 'Asking again.' }, signed(2)), call('c2')] },
-    { role: 'user', parts: [result('c2')] },
-  ]);
-  const assistants = body.messages.filter((m: any) => m.role === 'assistant');
-  // The earlier turn's tool_use goes without its blocks (dropped from the front).
-  assert.deepEqual(assistants[0].content.map((b: any) => b.type), ['tool_use']);
-  assert.deepEqual(assistants[2].content.map((b: any) => b.signature ?? b.type), ['sig-1', 'tool_use']);
-  // A block that preceded text stays before that text.
-  assert.deepEqual(assistants[3].content.map((b: any) => b.signature ?? b.type), ['sig-2', 'text', 'tool_use']);
-  assert.ok(body.thinking);
-  assert.ok(!JSON.stringify(body).includes('old thought'), 'display-only thought parts stay out of the request');
-});
-
-test('claude: another provider\'s state is ignored, and a step answering an unsigned tool call omits thinking', async () => {
-  const foreign: ProviderState = { provider: 'openai', kind: 'reasoning_items', payload: [{ type: 'reasoning', encrypted_content: 'enc-openai-1' }] };
-  const body = await claudeBody([
-    { role: 'user', parts: [{ text: 'find it' }] },
-    { role: 'model', parts: [call('c1', foreign)] },
-    { role: 'user', parts: [result('c1')] },
-  ]);
-  const assistant = body.messages.find((m: any) => m.role === 'assistant');
-  assert.deepEqual(assistant.content.map((b: any) => b.type), ['tool_use']);
-  assert.ok(!JSON.stringify(body).includes('enc-openai-1'));
-  // Anthropic rejects thinking on a loop whose tool call carries no signed block.
-  assert.equal(body.thinking, undefined);
-
-  // A plain new turn after it thinks again.
-  const next = await claudeBody([{ role: 'user', parts: [{ text: 'next question' }] }]);
-  assert.ok(next.thinking);
-});
-
-test('claude: another Claude model\'s signed blocks are dropped, and the step runs without thinking', async () => {
-  // Signed thinking is bound to the model that produced it: a fallback from
-  // one Claude model to another starts the loop's thinking afresh.
-  const body = await claudeBody([
-    { role: 'user', parts: [{ text: 'find it' }] },
-    { role: 'model', parts: [call('c1', { ...signed(1), model: 'claude-opus-4-6' })] },
-    { role: 'user', parts: [result('c1')] },
-  ]);
-  const assistant = body.messages.find((m: any) => m.role === 'assistant');
-  assert.deepEqual(assistant.content.map((b: any) => b.type), ['tool_use']);
-  assert.equal(body.thinking, undefined);
-
-  // The same state from this adapter's own model is replayed.
-  const own = await claudeBody([
-    { role: 'user', parts: [{ text: 'find it' }] },
-    { role: 'model', parts: [call('c1', { ...signed(1), model: 'claude-sonnet-4-6' })] },
-    { role: 'user', parts: [result('c1')] },
-  ]);
-  assert.equal(own.messages.find((m: any) => m.role === 'assistant').content[0].signature, 'sig-1');
-  assert.ok(own.thinking);
+/** A tool loop whose one call carries `state`, as a contract request. */
+const loopRequest = (model: string, state: ProviderState): ModelRequest => ({
+  model,
+  messages: [
+    { role: 'user', parts: [{ type: 'text', text: 'find it' }] },
+    { role: 'assistant', parts: [{ type: 'toolCall', id: 'c1', name: 'Scout', args: {}, providerState: state }] },
+    { role: 'tool', parts: [{ type: 'toolResult', id: 'c1', name: 'Scout', result: 'ok' }] },
+  ],
 });
 
 test('claude: without a thinking budget, a stored state is still replayed and nothing else changes', async () => {
-  const body = await claudeBody(
-    [
-      { role: 'user', parts: [{ text: 'find it' }] },
-      { role: 'model', parts: [call('c1', signed(1))] },
-      { role: 'user', parts: [result('c1')] },
-    ],
-    false,
-  );
+  const body = await withProviders([], async (sent) => {
+    await collect(claude(), loopRequest('claude-sonnet-4-6', signed(1))); // the 400 surfaces as an error final
+    return sent.anthropic[0];
+  });
   assert.equal(body.thinking, undefined);
   const assistant = body.messages.find((m: any) => m.role === 'assistant');
   assert.deepEqual(assistant.content.map((b: any) => b.signature ?? b.type), ['sig-1', 'tool_use']);
@@ -452,20 +386,16 @@ test('claude: without a thinking budget, a stored state is still replayed and no
 
 // ── A model switch between steps drops the state ─────────────────────────────
 
-forEachRuntime('model switch: Claude then a chat-completions model — the signed blocks never reach the other provider', async (runtime) => {
+test('native turn, model switch: Claude then a chat-completions model — the signed blocks never reach the other provider', async () => {
   const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
   await withProviders(
     [message([THINKING, { type: 'tool_use', id: 'toolu_01', name: 'Scout', input: { request: 'look' } }], 'tool_use')],
     async (sent) => {
-      const boss = new StepSwitch([claude(), new OllamaLlm({ model: 'ollama/qwen3:8b' })]);
-      if (runtime === 'native') {
-        await assertRefusesModelClass(turn(delegateConfig({ thinking: true }), { boss, scout }), 'StepSwitch');
-        assert.equal(sent.anthropic.length + sent.other.length, 0, 'no model was called');
-        return;
-      }
+      const boss = new StepSwitch([claude(), new OllamaAdapter({ model: 'ollama/qwen3:8b' })]);
       const r = await turn(delegateConfig({ thinking: true }), { boss, scout });
       assert.equal(r.status, 'completed', JSON.stringify(r.error));
       assert.equal(r.text, 'Scout says: it is in the attic');
+      assert.equal(sent.anthropic.length, 1);
       assert.equal(sent.other.length, 1);
       const wire = JSON.stringify(sent.other[0].body);
       assert.ok(wire.includes('look'), 'the tool call itself is replayed');
@@ -475,7 +405,7 @@ forEachRuntime('model switch: Claude then a chat-completions model — the signe
   );
 });
 
-forEachRuntime('model switch: another provider then Claude — Claude replays nothing foreign and runs the step without thinking', async (runtime) => {
+test('native turn, model switch: another provider then Claude — Claude replays nothing foreign and runs the step without thinking', async () => {
   const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
   const gptLike = new ScriptedLlm('scripted/gpt', () => ({
     content: {
@@ -490,13 +420,9 @@ forEachRuntime('model switch: another provider then Claude — Claude replays no
   }) as LlmResponse);
   await withProviders([message([{ type: 'text', text: 'Scout says: it is in the attic' }])], async (sent) => {
     const boss = new StepSwitch([gptLike, claude()]);
-    if (runtime === 'native') {
-      await assertRefusesModelClass(turn(delegateConfig({ thinking: true }), { boss, scout }), 'StepSwitch');
-      assert.equal(gptLike.calls + sent.anthropic.length, 0, 'no model was called');
-      return;
-    }
     const r = await turn(delegateConfig({ thinking: true }), { boss, scout });
     assert.equal(r.status, 'completed', JSON.stringify(r.error));
+    assert.equal(gptLike.calls, 1);
     const body = sent.anthropic[0];
     const assistant = body.messages.find((m: any) => m.role === 'assistant');
     assert.deepEqual(assistant.content.map((b: any) => b.type), ['tool_use']);
@@ -506,36 +432,19 @@ forEachRuntime('model switch: another provider then Claude — Claude replays no
 });
 
 test('other adapters ignore an anthropic state on the wire (Responses, chat-completions, Gemini)', async () => {
-  const req = (model: string) =>
-    ({
-      model,
-      contents: [
-        { role: 'user', parts: [{ text: 'find it' }] },
-        { role: 'model', parts: [call('c1', signed(7))] },
-        { role: 'user', parts: [result('c1')] },
-      ],
-      liveConnectConfig: {},
-      toolsDict: {},
-      config: {},
-    }) as unknown as LlmRequest;
-  const adapters: Array<[string, BaseLlm]> = [
-    ['gpt-5-mini', new GptLlm({ model: 'gpt-5-mini', apiKey: 'fixture-openai-0123456789abcdef' })], // gitleaks:allow (test fixture)
-    ['kimi-k3', new KimiLlm({ model: 'kimi-k3', apiKey: 'fixture-moonshot-0123456789abcdef' })], // gitleaks:allow (test fixture)
-    ['ollama/qwen3:8b', new OllamaLlm({ model: 'ollama/qwen3:8b' })],
-    ['gemini-3.5-flash-lite', new Gemini({ model: 'gemini-3.5-flash-lite', apiKey: 'fixture-gemini-0123456789abcdef' })], // gitleaks:allow (test fixture)
+  const adapters: ModelAdapter[] = [
+    new GptAdapter({ model: 'gpt-5-mini', apiKey: 'fixture-openai-0123456789abcdef' }), // gitleaks:allow (test fixture)
+    new KimiAdapter({ model: 'kimi-k3', apiKey: 'fixture-moonshot-0123456789abcdef' }), // gitleaks:allow (test fixture)
+    new OllamaAdapter({ model: 'ollama/qwen3:8b' }),
+    new GeminiAdapter({ model: 'gemini-3.5-flash-lite', apiKey: 'fixture-gemini-0123456789abcdef', endpoint: { platform: 'direct' } }), // gitleaks:allow (test fixture)
   ];
-  for (const [model, llm] of adapters) {
+  for (const adapter of adapters) {
     await withProviders([], async (sent) => {
-      try {
-        for await (const _ of llm.generateContentAsync(req(model), false)) {
-          // drain; the 400 surfaces as an error response or a throw
-        }
-      } catch {
-        // Gemini throws on a 400; the body is already captured
-      }
-      assert.equal(sent.other.length >= 1, true, `${model}: no request was sent`);
+      await collect(adapter, loopRequest(adapter.model, signed(7))); // the 400 surfaces as an error final
+      assert.equal(sent.other.length >= 1, true, `${adapter.model}: no request was sent`);
       const wire = JSON.stringify(sent.other[0].body);
-      assert.ok(wire.length > 0 && !wire.includes('sig-7') && !wire.includes('providerState'), `${model} leaked the state: ${wire.slice(0, 300)}`);
+      assert.ok(wire.includes('Scout'), `${adapter.model}: the call itself is sent`);
+      assert.ok(!wire.includes('sig-7') && !wire.includes('providerState'), `${adapter.model} leaked the state: ${wire.slice(0, 300)}`);
     });
   }
 });

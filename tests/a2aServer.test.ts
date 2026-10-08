@@ -3,9 +3,7 @@
  * with scripted models and in-memory persistence. No network beyond
  * localhost and no provider calls. Covers the contract a client depends on:
  * health routes, auth, agent cards, a blocking send, session resumption by
- * message.contextId, cancellation, refused parts and unknown agents. The
- * cases that run a turn run on both runtimes, through MELCHIZEDEK_RUNTIME
- * (tests/helpers/runtime.ts).
+ * message.contextId, cancellation, refused parts and unknown agents.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -18,14 +16,12 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import type { A2AApp } from '../lib/a2a/app.ts';
+import { RuntimeRemovedError } from '../lib/runtime/syndicateTurn.ts';
 import { ScriptedLlm, hangUntilAborted, sentTexts, text } from './helpers/scriptedLlm.ts';
-import { forEachRuntime } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const SECRET = 'test-secret-0123456789abcdef0123456789'; // gitleaks:allow (test fixture)
 const dir = mkdtempSync(join(tmpdir(), 'melch-a2a-'));
@@ -65,7 +61,7 @@ before(async () => {
   built = await createA2AApp({
     defaultSyndicate: 'echo.yaml',
     serverSecret: SECRET,
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     keyMode: 'byok',
     resolveModel: (id) => models[(id ?? '').replace('scripted/', '')](),
     log: () => {},
@@ -135,7 +131,7 @@ test('a per-agent card advertises that agent’s own endpoint', async () => {
   assert.match(card.url, /\/slow\/a2a\/jsonrpc$/);
 });
 
-forEachRuntime('message/send returns the answer, and message.contextId resumes the session', async () => {
+test('message/send returns the answer, and message.contextId resumes the session', async () => {
   const contextId = `ctx-${crypto.randomUUID()}`;
   const first = await rpc('/a2a/jsonrpc', 'message/send', message('hello there', contextId));
   assert.equal(first.status, 200);
@@ -151,7 +147,7 @@ test('a file part is refused rather than silently blanked', async () => {
   assert.equal(r.body.result.status.state, 'rejected');
 });
 
-forEachRuntime('tasks/cancel stops a running task', async () => {
+test('tasks/cancel stops a running task', async () => {
   const sent = await rpc('/slow/a2a/jsonrpc', 'message/send', { ...message('wait'), configuration: { blocking: false } });
   const taskId = sent.body.result.id;
   assert.ok(taskId);
@@ -172,7 +168,7 @@ test('an unknown agent is a generic 404 that leaks no server path', async () => 
 async function serve(options: Record<string, unknown>) {
   const app = await createA2AApp({
     defaultSyndicate: 'echo.yaml',
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     resolveModel: (id: string | undefined) => models[(id ?? '').replace('scripted/', '')](),
     log: () => {},
     warn: () => {},
@@ -194,7 +190,7 @@ async function send(url: string, headers: Record<string, string>, text: string, 
   return { status: res.status, body: (await res.json()) as any };
 }
 
-forEachRuntime('server key mode needs no X-API-Key, and X-User-Id scopes the conversation', async () => {
+test('server key mode needs no X-API-Key, and X-User-Id scopes the conversation', async () => {
   const { srv, url } = await serve({ keyMode: 'server' });
   try {
     const ctx = `ctx-${crypto.randomUUID()}`;
@@ -210,7 +206,7 @@ forEachRuntime('server key mode needs no X-API-Key, and X-User-Id scopes the con
   }
 });
 
-forEachRuntime('resolveRequest supplies the scope key and can refuse a request', async () => {
+test('resolveRequest supplies the scope key and can refuse a request', async () => {
   const { srv, url } = await serve({
     resolveRequest: (req: any) => (req.headers['x-test-token'] === 'ok' ? { scopeKey: 'tenant-7/user-1' } : undefined),
   });
@@ -252,7 +248,7 @@ test('registry:<id> without a registry is a clean not-found, never a file substi
   }
 });
 
-forEachRuntime('an A2A 1.0 client gets the 1.0 card and can send with SendMessage', async () => {
+test('an A2A 1.0 client gets the 1.0 card and can send with SendMessage', async () => {
   const v1 = { ...auth, 'A2A-Version': '1.0', 'Content-Type': 'application/json', 'X-API-Key': 'caller-key' };
   const card = (await (await fetch(`${base}/.well-known/agent-card.json`, { headers: v1 })).json()) as any;
   assert.ok(Array.isArray(card.supportedInterfaces), '1.0 cards list supportedInterfaces');
@@ -275,7 +271,7 @@ forEachRuntime('an A2A 1.0 client gets the 1.0 card and can send with SendMessag
   assert.match(JSON.stringify(task.status.message), /hello from 1\.0/);
 });
 
-forEachRuntime('a task belongs to the caller that created it', async () => {
+test('a task belongs to the caller that created it', async () => {
   const { srv, url } = await serve({ keyMode: 'server' });
   const rpcAs = async (user: string, method: string, params: unknown) => {
     const res = await fetch(`${url}/slow/a2a/jsonrpc`, {
@@ -298,5 +294,29 @@ forEachRuntime('a task belongs to the caller that created it', async () => {
     await rpcAs('alice', 'tasks/cancel', { id: taskId });
   } finally {
     srv.close();
+  }
+});
+
+test('MELCHIZEDEK_RUNTIME=adk stops the server at startup: RuntimeRemovedError names 1.0.0', async () => {
+  const had = Object.hasOwn(process.env, 'MELCHIZEDEK_RUNTIME');
+  const saved = process.env.MELCHIZEDEK_RUNTIME;
+  process.env.MELCHIZEDEK_RUNTIME = 'adk';
+  try {
+    await assert.rejects(serve({ keyMode: 'server' }), (e: unknown) => e instanceof RuntimeRemovedError && e.runtime === 'adk' && e.message.includes('1.0.0'));
+  } finally {
+    if (had) process.env.MELCHIZEDEK_RUNTIME = saved;
+    else delete process.env.MELCHIZEDEK_RUNTIME;
+  }
+});
+
+test('GEMINI_ADAPTER=adk stops the server at startup, naming 1.0.0', async () => {
+  const had = Object.hasOwn(process.env, 'GEMINI_ADAPTER');
+  const saved = process.env.GEMINI_ADAPTER;
+  process.env.GEMINI_ADAPTER = 'adk';
+  try {
+    await assert.rejects(serve({ keyMode: 'server' }), (e: unknown) => e instanceof Error && /GEMINI_ADAPTER/.test(e.message) && e.message.includes('1.0.0'));
+  } finally {
+    if (had) process.env.GEMINI_ADAPTER = saved;
+    else delete process.env.GEMINI_ADAPTER;
   }
 });

@@ -6,16 +6,17 @@ description: How a tool is written, validated and exposed — one defineTool con
 # The tool contract
 
 A tool is **one object, defined once**: name, description, zod schema,
-`execute`. `lib/tools/toolContract.ts` derives both wire dialects from it —
+`execute`. `defineTool` (`lib/tools/toolContract.ts`) makes it the engine's own
+`Tool` (`lib/tools/tool.ts`), and every surface derives from that —
 
 ```
-defineTool(...) ──► toFunctionTool()       ADK / syndicate agents
+defineTool(...) ──► declaration()          syndicate agents (the native loop)
                └──► toMcpToolDefinition()  MCP tools/list entry
 ```
 
 The zod schema is the single source of truth. zod v4's `z.toJSONSchema()` emits
 standard JSON Schema (what MCP and every non-Gemini provider want), and
-`toGeminiSchema()` derives the ADK dialect from that. Hand-writing a schema in
+`toGeminiSchema()` derives Gemini's dialect from that. Hand-writing a schema in
 either dialect reintroduces the drift this file was built to end.
 
 ## Writing one

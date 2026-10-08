@@ -5,10 +5,8 @@
  * swallowed and the watermark moved past turns that were never distilled.
  * Offline: a fake model client and a fake Supabase client.
  *
- * Every ingestion test runs twice (ADR 0020 item 6, ADR 0059): through ADK's
- * `addSessionToMemory`, which the ADK runtime and the A2A server call, and
- * through the engine's own `MemoryService.ingest`, which the native runtime
- * calls. Both must keep the same promise.
+ * Every ingestion test runs through the engine's own `MemoryService.ingest`,
+ * which the runtime and the A2A server call (ADR 0020 item 6, ADR 0059).
  */
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -16,10 +14,9 @@ import { SupabaseVectorMemoryService } from '../lib/memory/supabaseMemoryService
 import type { Embedder, MemoryExtractor } from '../lib/memory/providers.ts';
 import type { MemoryService } from '../lib/runtime/memoryService.ts';
 
-/** One ingestion, through either interface. */
+/** One ingestion, through the engine's interface. */
 type Ingest = (svc: SupabaseVectorMemoryService, session: any, rules?: string, extractionModel?: string) => Promise<void>;
 const VIA: Array<[string, Ingest]> = [
-  ['ADK addSessionToMemory', (svc, s, rules, model) => svc.addSessionToMemory(s, rules, { extractionModel: model })],
   ['engine ingest', (svc, s, rules, model) => (svc as MemoryService).ingest(s, { extractionRules: rules, extractionModel: model })],
 ];
 

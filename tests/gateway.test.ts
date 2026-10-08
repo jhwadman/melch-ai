@@ -8,13 +8,11 @@
  * capability report that names what a path drops.
  *
  * The gateway's request is asserted on the engine's contract: GatewayAdapter
- * given a ModelRequest. GatewayLlm, its ADK shim, sends the same body
- * (tests/shimBodies.test.ts).
+ * given a ModelRequest.
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { setLogLevel, LogLevel } from '@google/adk';
 
 import {
   GATEWAYS,
@@ -25,15 +23,10 @@ import {
 } from '../lib/models/gateway.ts';
 import { describeCapabilities, capabilitySummary } from '../lib/models/capabilities.ts';
 import { providerStatuses, resolveAdapter, resolveModel } from '../lib/models/registry.ts';
-import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
-import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
-import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
 import type { ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
 import { ClaudeAdapter } from '../lib/models/claudeAdapter.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
-
-setLogLevel(LogLevel.WARN);
 
 const ENV_KEYS = [
   'GOOGLE_GENAI_API_KEY',
@@ -199,20 +192,20 @@ test('resolveAdapter and resolveModel return the gateway adapter only when the d
   withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
     assert.ok(resolveAdapter('claude-sonnet-4-6') instanceof GatewayAdapter);
     assert.ok(resolveAdapter('ollama/qwen3:8b') instanceof OllamaAdapter);
-    assert.ok(resolveModel('claude-sonnet-4-6') instanceof GatewayLlm);
-    assert.ok(resolveModel('ollama/qwen3:8b') instanceof OllamaLlm);
+    assert.ok(resolveModel('claude-sonnet-4-6') instanceof GatewayAdapter);
+    assert.ok(resolveModel('ollama/qwen3:8b') instanceof OllamaAdapter);
   });
   withEnv({ ANTHROPIC_API_KEY: 'a', MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
     assert.ok(resolveAdapter('claude-sonnet-4-6') instanceof ClaudeAdapter);
-    assert.ok(resolveModel('claude-sonnet-4-6') instanceof ClaudeLlm);
+    assert.ok(resolveModel('claude-sonnet-4-6') instanceof ClaudeAdapter);
   });
 });
 
 test('a BYOK key for the caller provider stays direct', () => {
   withEnv({ MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, () => {
     assert.ok(resolveAdapter('claude-sonnet-4-6', { apiKey: 'caller', keyProvider: 'anthropic' }) instanceof ClaudeAdapter);
-    const llm = resolveModel('claude-sonnet-4-6', { apiKey: 'caller', defaultProvider: 'anthropic' });
-    assert.ok(llm instanceof ClaudeLlm);
+    const model = resolveModel('claude-sonnet-4-6', { apiKey: 'caller', defaultProvider: 'anthropic' });
+    assert.ok(model instanceof ClaudeAdapter);
   });
 });
 

@@ -1,6 +1,6 @@
 ---
 name: package-surface
-description: The published npm surface of melchizedek-agents — the exports map, the barrel, the peer dependency, versioning and publishing. Use whenever a change alters what consumers can import, before bumping a version, and before any npm publish.
+description: The published npm surface of melchizedek-agents — the exports map, the barrel, the dependencies, versioning and publishing. Use whenever a change alters what consumers can import, before bumping a version, and before any npm publish.
 ---
 
 # The package surface
@@ -26,20 +26,27 @@ Each needs a **version bump** in `package.json` and a **CHANGELOG entry**,
 written in the same change. Breaking changes go first in the entry, under
 "Breaking — read before upgrading".
 
-## The peer dependency is deliberate
+## The dependencies are deliberate
 
-Since 0.20.0 `@google/adk` is an **optional** peer (ADR 0102): the native
-runtime, the default, loads none of it, and `lib/adkPeer.ts` is the one
-module that tries to. Never import a value from `@google/adk` anywhere else
-(a type-only import is fine); reach ADK through `adkPeer.ts`'s exports or
-`requireAdk(feature)`. `tests/optionalAdk.test.ts` fails when a path the
-native runtime needs loads it.
+The package has **no Google ADK dependency** of any kind (ADR 0107): 1.0.0
+removed the ADK runtime, its optional peer and its dev dependency, and every
+turn runs on the engine's own agent loop. Do not add it back, as a value
+import, a type import, or an entry in `package.json`.
 
-It is a **peer**, not a dependency: the consumer's app owns the ADK
-instance so the model registry stays a singleton. Two ADK copies in one
-process means a registry that does not see half its own models. Moving it to
-`dependencies` would be a silent breaking change for every consumer
-(ADR 0007).
+`@google/genai` is a **dependency**, pinned exact, and only three things
+reach it: the Gemini adapter (`lib/models/geminiAdapter.ts`, with the genai
+mapping it speaks in `lib/models/genaiMapping.ts`), the image tools
+(`generate_image`, `inspect_image`, and `x_api_search`'s photo
+transcription) and memory embeddings (`lib/memory/providers.ts`).
+`tests/importGraph.test.ts` enforces that list from source: a new module
+that imports `@google/genai`, or any other `@google/*` package, fails it.
+Route a new Gemini need through one of those modules, or add it to the
+suite's allowlist with its reason in the same change.
+
+The peers (redis, the Bedrock and Vertex SDKs, `@azure/identity`) are
+**optional**: a consumer installs one only for the feature that loads it.
+Moving a package between `dependencies` and `peerDependencies` is a surface
+change (above).
 
 ## Before publishing
 

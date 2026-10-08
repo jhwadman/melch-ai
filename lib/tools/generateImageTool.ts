@@ -12,7 +12,7 @@
  *   sees the path and relays it to the user.
  *
  * The contract is an own Tool (lib/tools/tool.ts); `generateImageTool` is the
- * FunctionTool the ADK runtime runs, made from it by toFunctionTool.
+ * own Tool the registry lists, made from it by asTool.
  */
 
 import { GoogleGenAI } from '@google/genai';
@@ -20,8 +20,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
 
-import { toFunctionTool } from './adkTool.ts';
-import { defineTool } from './toolContract.ts';
+import { asTool, defineTool } from './toolContract.ts';
 
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
@@ -123,5 +122,5 @@ export const generateImageContract = defineTool({
   },
 });
 
-/** ADK surface, ready for the registry. */
-export const generateImageTool = toFunctionTool(generateImageContract);
+/** The own Tool, ready for the registry. */
+export const generateImageTool = asTool(generateImageContract);

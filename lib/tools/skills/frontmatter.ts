@@ -7,8 +7,8 @@
  *   frontmatter (the open Agent Skills standard): `name`, `description`,
  *   and optionally `license`, `compatibility`, `allowed-tools` and
  *   `metadata`. The harness read it through ADK's loader until WS3-3. This
- *   module reads it the same way, so a skill loads to the same object on
- *   either runtime and the frontmatter a model sees in load_skill's result
+ *   module reads it the same way, so a skill loads to the same object it
+ *   did under ADK and the frontmatter a model sees in load_skill's result
  *   does not change:
  *   - the frontmatter is the text between the opening `---` and the next
  *     `---`, wherever it falls, and the body is everything after that,

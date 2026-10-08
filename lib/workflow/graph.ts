@@ -8,14 +8,14 @@
  * that are unconditional, keyed to a route, or the `default` route, and the
  * workflow's `max_concurrency`. It imports nothing from ADK.
  *
- * It is the same graph `compileWorkflow` (lib/workflow.ts) hands ADK's
- * `Workflow`: the same node names in the same order, the same edges in the
- * same order with the same routes (tests/workflowGraph.test.ts holds the
- * two together on every workflow fixture). The engine's own scheduler,
+ * It is the graph ADK's `Workflow` was built from before 1.0.0: the same
+ * node names in the same order, the same edges in the same order with the
+ * same routes (tests/workflowGraph.test.ts holds it to the recorded graphs
+ * of every workflow fixture). The engine's own scheduler,
  * lib/workflow/scheduler.ts, runs it (ADR 0087).
  *
  * ── Validation ────────────────────────────────────────────────────────────
- * Two passes, each raising the message today's path raises:
+ * Two passes, each raising the message ADK's path raised:
  *   1. The block's cross-field rules — every name an agent or a declared
  *      node, `START` opening a chain, a routing map after the node it
  *      routes, a declared node exactly one kind, the reserved `__route`
@@ -27,8 +27,7 @@
  *      `START` present, without routes and without incoming edges, every
  *      node reachable from `START`, no duplicate edge, one `default` per
  *      node, no unconditional cycle. Same messages ADK's graph validation
- *      throws when `compileWorkflow` builds the `Workflow`, first problem
- *      only, as ADK does.
+ *      threw when it built the `Workflow`, first problem only, as ADK did.
  * The schema's type checks (an edge chain of at least two elements, a name
  * that is a non-empty string) are not repeated: the input is a syndicate
  * that has passed `validateSyndicateConfig`, or one shaped like it. Whether
@@ -45,7 +44,7 @@ import type { EdgeElement, RetryYaml, WorkflowConfig, WorkflowNodeYaml } from '.
 
 /**
  * The entry node's name in the graph. The YAML writes it `START`; the graph
- * names it as the ADK compile does, so a node path read from an ADK-written
+ * names it as ADK's compile did, so a node path read from an ADK-written
  * workflow event names the same node here.
  */
 export const START_NODE = '__START__';
@@ -181,7 +180,7 @@ export class WorkflowGraphError extends Error {
 /**
  * The graph a workflow syndicate declares. Throws `WorkflowGraphError` on a
  * rule the block breaks, and an `Error` when the syndicate has no
- * `workflow:` block, with `compileWorkflow`'s message.
+ * `workflow:` block, with the message ADK's workflow compile gave.
  */
 export function buildWorkflowGraph(config: SyndicateYamlConfig): WorkflowGraph {
   if (!isWorkflowSyndicate(config)) throw new Error(`${config.syndicate_name}: no workflow block`);
@@ -209,7 +208,7 @@ export function buildWorkflowGraph(config: SyndicateYamlConfig): WorkflowGraph {
     return step;
   };
 
-  // The chains as compileWorkflow hands them to ADK: a name, a list of names,
+  // The chains as ADK's workflow compile read them: a name, a list of names,
   // or a routing map, with the route step inserted before each map.
   type Element = { names: string[] } | { map: Array<[string, string[]]> };
   const edges: GraphEdge[] = [];
@@ -358,7 +357,7 @@ export function workflowConfigProblems(raw: Record<string, unknown>, subs: unkno
     if (kind !== 'map' && (entry as WorkflowNodeYaml).max_parallel !== undefined) {
       out.push({ path: ['workflow', 'nodes', name, 'max_parallel'], message: 'max_parallel applies to map only' });
     }
-    // A map item runs under its agent's own modifiers, as on ADK (ADR 0089, ADR 0103): the map entry's would be applied by neither runtime.
+    // A map item runs under its agent's own modifiers, as ADK ran it (ADR 0089, ADR 0103): the map entry's would never be applied.
     if (kind === 'map') {
       for (const key of ['retry', 'timeout'] as const) {
         if ((entry as WorkflowNodeYaml)[key] === undefined) continue;

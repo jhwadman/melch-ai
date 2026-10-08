@@ -1,9 +1,8 @@
 /**
  * tests/modelRetry.test.ts — the shared transient-failure policy
  * (lib/models/retry.ts) and the adapters that use it directly: the
- * chat-completions base (Ollama, gateways) and Gemini's two contract
- * adapters, AdkGeminiAdapter over TracedGemini's retries and the engine's
- * own GeminiAdapter. Each is driven on the engine's contract: a ModelRequest
+ * chat-completions base (Ollama, gateways) and the engine's own
+ * GeminiAdapter. Each is driven on the engine's contract: a ModelRequest
  * in, the wire requests and the final out.
  *
  * Offline: every provider call hits a stubbed `globalThis.fetch`, and the
@@ -13,7 +12,6 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { setLogLevel, LogLevel } from '@google/adk';
 
 import {
   DEFAULT_RETRY_POLICY,
@@ -33,12 +31,9 @@ import {
 import type { FinalModelResponse, ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
 import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
-import { AdkGeminiAdapter } from '../lib/models/adkGeminiAdapter.ts';
 import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
 import { DEFAULT_GROK_TIMEOUT_MS, grokTimeoutMs } from '../lib/models/grokAdapter.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const FAST = { baseDelayMs: 1, maxDelayMs: 2, maxRetryAfterMs: 50 };
 
@@ -447,13 +442,8 @@ function withGeminiEnv<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
-/**
- * Gemini's two contract adapters: AdkGeminiAdapter, the one the registry
- * serves until gate G3, over TracedGemini's retries (lib/models/tracedGemini.ts);
- * and the engine's GeminiAdapter on @google/genai.
- */
+/** Gemini's contract adapter, the engine's GeminiAdapter on @google/genai. */
 const GEMINI_ADAPTERS: Array<[string, (model: string) => ModelAdapter]> = [
-  ['AdkGeminiAdapter', (model) => new AdkGeminiAdapter({ model, apiKey: 'test-key' })],
   ['GeminiAdapter', (model) => new GeminiAdapter({ model, apiKey: 'test-key' })],
 ];
 

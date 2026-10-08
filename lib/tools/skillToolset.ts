@@ -30,8 +30,7 @@
  * THE PIECES (lib/tools/skills/, no ADK import): frontmatter.ts reads and
  *   checks a SKILL.md, loader.ts loads a directory of skills, executor.ts
  *   runs a script on this machine, tools.ts holds the tools and the
- *   SkillToolset. The ADK runtime runs the toolset through
- *   lib/tools/adkTool.ts (toAdkToolset), as it runs every own Tool.
+ *   SkillToolset. The native loop expands the toolset before each request.
  *
  * WHAT RUNS: only scripts shipped in a skill's `scripts/` directory, on
  *   the local executor (`skills.scripts: local`), after approval. The

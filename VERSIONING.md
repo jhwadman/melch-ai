@@ -46,6 +46,7 @@ backup (DOCUMENTATION §6).
 ## Runtimes and dependencies
 
 - **Node.js:** the active LTS lines, 22 and 24. CI runs both.
-- **`@google/adk`** is a peer dependency. The range covers the minor that
-  has been tested, and widens only after a release is tested against the
-  new one.
+- **Google ADK** is not a dependency: 1.0.0 removed it
+  ([ADR 0107](wiki/decisions/0107-release-1-0-0-removes-adk.md)).
+  `@google/genai` is a regular dependency, used by the Gemini adapter, the
+  image tools and memory embeddings.

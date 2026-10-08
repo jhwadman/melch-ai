@@ -5,8 +5,9 @@
  * WHY: some providers want back, on the next request of a tool loop, state
  * only they can read: Anthropic's signed `thinking` and `redacted_thinking`
  * blocks, OpenAI's and xAI's reasoning items, Moonshot's reasoning_content.
- * ADK's request is built from each event's `content` alone (event metadata
- * never reaches it), and @google/genai serializes a part field by field, so
+ * A request is built from each event's `content` alone (event metadata
+ * never reaches it, as with ADK), and @google/genai serializes a part field
+ * by field, so
  * the state rides as one extra field on a part the model actually produced:
  *
  *     { functionCall: {...}, providerState: { provider, kind, payload } }

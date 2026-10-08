@@ -6,7 +6,7 @@
  * config/agents/model_zoo.yaml, purely by reading each agent's `model:`
  * string and letting lib/models/registry.ts route it. Each agent runs as a
  * one-agent syndicate through runSyndicateTurn, the turn runner every
- * surface uses, so the demo follows MELCHIZEDEK_RUNTIME (adk or native):
+ * surface uses, on the engine's own loop:
  *
  *   ollama/qwen3:8b → Ollama (local)      claude-* → Anthropic
  *   grok-*          → xAI                 gpt-*    → OpenAI
@@ -37,16 +37,15 @@ import { loadEnv } from '../lib/loadEnv.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import {
-  registerAvailableProviders,
+  logProviderStatuses,
   providerForModel,
   PROVIDERS,
 } from '../lib/models/registry.ts';
 import { onSpanEnd, flushTracing } from '../lib/observability/tracer.ts';
-import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
-import { WEB_SEARCH_TOOL_NAME } from '../lib/tools/webSearchTool.ts';
+import { WEB_SEARCH_MARKER } from '../lib/tools/nativeTools.ts';
 
 const c = {
   reset: '\x1b[0m',
@@ -80,7 +79,7 @@ async function ollamaReachable(): Promise<{ up: boolean; detail: string }> {
 async function main(): Promise<void> {
   loadEnv(import.meta.url);
 
-  // The engine's level (ADK's logger follows it): keep the demo readable.
+  // The engine's level: keep the demo readable.
   setLogLevel('warn');
 
   const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -89,7 +88,7 @@ async function main(): Promise<void> {
   const prompt = promptWords.length > 0 ? promptWords.join(' ') : DEFAULT_PROMPT;
 
   // One call: every adapter whose credentials exist becomes routable.
-  const statuses = registerAvailableProviders();
+  const statuses = logProviderStatuses();
   const availability = new Map(statuses.map((s) => [s.provider, s]));
   const ollama = await ollamaReachable();
 
@@ -132,7 +131,7 @@ async function main(): Promise<void> {
     const agentConfig = {
       syndicate_name: `model-zoo/${sub.name}`,
       max_steps: config.max_steps,
-      orchestrator: { ...sub, ...(withSearch ? { tools: [WEB_SEARCH_TOOL_NAME] } : {}) },
+      orchestrator: { ...sub, ...(withSearch ? { tools: [WEB_SEARCH_MARKER.name] } : {}) },
       subagents: [],
     } as unknown as SyndicateYamlConfig;
 
@@ -150,7 +149,7 @@ async function main(): Promise<void> {
         appName: 'model-zoo-demo',
         userId: 'demo-user',
         sessionId: randomUUID(),
-        sessionService: asAdkSessionService(new InProcessSessionService()),
+        sessionService: new InProcessSessionService(),
         trace: { syndicateName: `model-zoo/${sub.name}` },
         events: {
           onEvent: (event) => {

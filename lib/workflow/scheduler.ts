@@ -18,8 +18,8 @@
  *
  * ── The same walk as ADK's Workflow ──────────────────────────────────────
  * The loop is ADK 2.2's (`Workflow.runLoop`, workflow/workflow.js), step for
- * step, so a graph completes in the order ADK records for it
- * (tests/workflowScheduler.test.ts runs both and compares):
+ * step, so a graph completes in the order ADK recorded for it
+ * (tests/workflowScheduler.test.ts compares the walk with the recording):
  *
  *   - Triggers are buffered per node, in the order they were pushed. Each
  *     pass starts every buffered node that is not already running, in the
@@ -350,8 +350,8 @@ export class InvocationAbortedError extends Error {
 }
 
 /**
- * The walk reached its node-run ceiling (ADR 0105). Native only: ADK's
- * Workflow has no ceiling, so on the adk runtime the turn's deadline is the
+ * The walk reached its node-run ceiling (ADR 0105). The engine's own:
+ * ADK's Workflow had no ceiling, and the turn's deadline was the only
  * bound. Its `code` is the reported error's code and the turn's.
  */
 export class NodeRunLimitError extends Error {
@@ -747,8 +747,8 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
         const outstanding = [...pending.values()];
         pending.clear();
         // A run that still finishes during the shutdown has written its output
-        // on ADK (its node emits it), so it ends here too, in settle order,
-        // and triggers nothing.
+        // (its node emits it, as ADK's recorded walks show), so it ends here
+        // too, in settle order, and triggers nothing.
         await Promise.all(
           outstanding.map((run) => run.then((late) => ('result' in late ? (paused(late.result) ? wait(late.name, late.result) : complete(late.name, late.result, late.resumed)) : undefined))),
         );

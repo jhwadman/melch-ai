@@ -7,11 +7,12 @@
  * fallbacks always, a deterministic sample otherwise, off means off), the
  * exporter's wait-for-the-root buffering in both arrival orders, the
  * dead-letter spool on insert failure, and the provenance hashes. And the
- * llm.request span itself: the contract wrapper over ADK's Gemini
- * (AdkGeminiAdapter), behind the ADK shim that opens its span, records the
- * attributes TracedGemini records for the same exchange, and a failed call's
- * payload records its request as a ModelRequest (traceLlmGeneration,
- * lib/observability/tracer.ts).
+ * llm.request span itself: the engine's GeminiAdapter, traced as the model
+ * step traces it, records the attributes a Gemini exchange carries, and a
+ * failed call's payload records its request as a ModelRequest
+ * (traceLlmGeneration, lib/observability/tracer.ts). And a turn's counts: a
+ * Gemini orchestrator's tool loop over a delegation charges each call it
+ * makes.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -20,17 +21,18 @@ import assert from 'node:assert';
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { LogLevel, setLogLevel } from '@google/adk';
-import type { LlmResponse } from '@google/adk';
 
-import { AdkGeminiAdapter } from '../lib/models/adkGeminiAdapter.ts';
-import { adkShim } from '../lib/models/adkShim.ts';
-import type { ModelRequest } from '../lib/models/contract.ts';
-import { modelRequestToLlmRequest } from '../lib/models/genaiMapping.ts';
-import { TracedGemini } from '../lib/models/registry.ts';
+import type { ModelAdapter, ModelRequest } from '../lib/models/contract.ts';
+import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
+import { modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
+import type { LlmResponse } from '../lib/models/genaiMapping.ts';
 import { setRetryPolicyOverrides } from '../lib/models/retry.ts';
 import { onSpanEnd, traceLlmGeneration } from '../lib/observability/tracer.ts';
 import { ScriptedLlm } from './helpers/scriptedLlm.ts';
+import { ScriptedModel, answer } from './helpers/scriptedModel.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 
 import {
   SupabaseSpanExporter,
@@ -407,7 +409,6 @@ interface RecordedSpan {
 
 /** Runs `fn` with fetch answering `reply` and Gemini's environment cleared; returns the llm.request spans that ended. */
 async function geminiSpans(reply: () => Response, fn: () => Promise<void>): Promise<RecordedSpan[]> {
-  setLogLevel(LogLevel.ERROR);
   const saved = Object.fromEntries(GEMINI_ENV.map((k) => [k, process.env[k]]));
   for (const k of GEMINI_ENV) delete process.env[k];
   const restoreRetries = setRetryPolicyOverrides({ baseDelayMs: 1, maxDelayMs: 2, maxRetryAfterMs: 50 });
@@ -433,33 +434,25 @@ async function geminiSpans(reply: () => Response, fn: () => Promise<void>): Prom
 
 const geminiJson = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-/**
- * One exchange both ways under ADK: TracedGemini as it serves Gemini today,
- * and the contract wrapper behind the ADK shim, which opens the span for it
- * (ADR 0053), as the registry will run it.
- */
-async function bothWays(
-  request: ModelRequest,
-  reply: () => Response,
-): Promise<{ traced: RecordedSpan[]; wrapped: RecordedSpan[]; threw: unknown; responses: LlmResponse[] }> {
-  let threw: unknown;
-  const traced = await geminiSpans(reply, async () => {
-    const gemini = new TracedGemini({ model: GEMINI_MODEL, apiKey: GEMINI_KEY, endpoint: { platform: 'direct' } });
-    try {
-      for await (const _ of gemini.generateContentAsync(modelRequestToLlmRequest(request), request.stream)) void _;
-    } catch (err) {
-      threw = err; // ADK's Gemini throws on a failed call
-    }
-  });
-  const responses: LlmResponse[] = [];
-  const wrapped = await geminiSpans(reply, async () => {
-    const shim = adkShim(new AdkGeminiAdapter({ model: GEMINI_MODEL, apiKey: GEMINI_KEY, endpoint: { platform: 'direct' } }));
-    for await (const r of shim.generateContentAsync(modelRequestToLlmRequest(request), request.stream)) responses.push(r);
-  });
-  return { traced, wrapped, threw, responses };
+/** Runs an adapter on `request` inside the llm.request span, as the model step does (ADR 0053), yielding each response mapped. */
+function traced(adapter: ModelAdapter, request: ModelRequest): AsyncGenerator<LlmResponse, void> {
+  async function* mapped(): AsyncGenerator<LlmResponse, void> {
+    for await (const r of adapter.generate(request)) yield modelResponseToLlmResponse(r);
+  }
+  return traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, mapped());
 }
 
-test("the contract wrapper behind the ADK shim records the llm.request span TracedGemini records", async () => {
+/** One exchange through the engine's GeminiAdapter, traced as the model step traces it. */
+async function geminiCall(request: ModelRequest, reply: () => Response): Promise<{ wrapped: RecordedSpan[]; responses: LlmResponse[] }> {
+  const responses: LlmResponse[] = [];
+  const wrapped = await geminiSpans(reply, async () => {
+    const gemini = new GeminiAdapter({ model: GEMINI_MODEL, apiKey: GEMINI_KEY, endpoint: { platform: 'direct' } });
+    for await (const r of traced(gemini, request)) responses.push(r);
+  });
+  return { wrapped, responses };
+}
+
+test("a Gemini call's llm.request span: provider, model, native web search, the token counts and the thinking event", async () => {
   const request: ModelRequest = {
     model: GEMINI_MODEL,
     system: 'Be brief.',
@@ -468,7 +461,7 @@ test("the contract wrapper behind the ADK shim records the llm.request span Trac
     reasoning: 'high',
     stream: false,
   };
-  const { traced, wrapped } = await bothWays(request, () =>
+  const { wrapped: traced } = await geminiCall(request, () =>
     geminiJson({
       candidates: [
         {
@@ -481,13 +474,13 @@ test("the contract wrapper behind the ADK shim records the llm.request span Trac
     }),
   );
   assert.strictEqual(traced.length, 1);
-  assert.deepStrictEqual(wrapped, traced, 'the same attributes, values and events');
   assert.deepStrictEqual(traced[0].attributes, {
     'llm.provider': 'gemini',
     'llm.model': GEMINI_MODEL,
     'gen_ai.system': 'gemini',
     'gen_ai.request.model': GEMINI_MODEL,
     'llm.web_search.native': true,
+    'llm.finish_reason': 'STOP',
     'llm.tokens.input': 12,
     'llm.tokens.output': 4,
     'llm.tokens.thinking': 3,
@@ -497,33 +490,23 @@ test("the contract wrapper behind the ADK shim records the llm.request span Trac
   assert.deepStrictEqual(traced[0].events, ['llm.thinking']);
 });
 
-test('a failed Gemini call: the same attributes both ways, the code the contract names, the request a ModelRequest', async () => {
+test('a failed Gemini call: the code the contract names beside the HTTP status, the request a ModelRequest', async () => {
   const request: ModelRequest = {
     model: GEMINI_MODEL,
     system: 'Be brief.',
     messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
     stream: false,
   };
-  const { traced, wrapped, threw, responses } = await bothWays(request, () =>
+  const { wrapped, responses } = await geminiCall(request, () =>
     geminiJson({ error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } }, 503),
   );
-  assert.ok(threw, 'TracedGemini throws, as ADK does');
-  assert.strictEqual(responses.length, 1, 'the wrapper answers with one error response instead');
+  assert.strictEqual(responses.length, 1, 'one error response, never a throw');
   assert.strictEqual(responses[0].errorCode, 'GEMINI_ERROR');
-  assert.strictEqual(traced.length, 1);
   assert.strictEqual(wrapped.length, 1);
 
-  const before = traced[0].attributes;
   const after = wrapped[0].attributes;
-  assert.deepStrictEqual(Object.keys(after).sort(), Object.keys(before).sort(), 'the same attribute names');
-  for (const key of Object.keys(before)) {
-    if (key === 'llm.error_code' || key === 'llm.payload.response') continue;
-    assert.deepStrictEqual(after[key], before[key], key);
-  }
-  // The failed call's code: genai's status, read out of the thrown body, on
-  // the ADK path; the contract's GEMINI_ERROR beside llm.http_status, as
-  // every other adapter's error reads (ADR 0048).
-  assert.strictEqual(before['llm.error_code'], '503');
+  // The contract's GEMINI_ERROR beside llm.http_status, as every other
+  // adapter's error reads (ADR 0048).
   assert.strictEqual(after['llm.error_code'], 'GEMINI_ERROR');
   assert.strictEqual(after['llm.http_status'], 503);
   assert.strictEqual(after['llm.retries'], 2);
@@ -535,18 +518,16 @@ test('a failed Gemini call: the same attributes both ways, the code the contract
     stream: false,
   });
   assert.strictEqual(JSON.parse(String(after['llm.payload.response'])).customMetadata['error.retryable'], true);
-  assert.deepStrictEqual(traced[0].events, ['exception'], 'the ADK path records the throw');
   assert.deepStrictEqual(wrapped[0].events, [], 'the contract path throws nothing');
-  for (const attrs of [before, after]) assert.strictEqual(isPayloadSpan(span('llm.request', attrs)), true, 'a payload candidate');
+  assert.strictEqual(isPayloadSpan(span('llm.request', after)), true, 'a payload candidate');
 });
 
-test("an ADK adapter's failed call records its LlmRequest as a ModelRequest; a clean call records none", async () => {
-  const llmRequest = {
+test("a failed call records its ModelRequest; a clean call records none", async () => {
+  const request: ModelRequest = {
     model: 'scripted/x',
-    contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-    config: { systemInstruction: 'Be brief.' },
-    toolsDict: {},
-    liveConnectConfig: {},
+    system: 'Be brief.',
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
+    stream: false,
   };
   const spans: Array<Record<string, unknown>> = [];
   const off = onSpanEnd((s) => {
@@ -554,9 +535,9 @@ test("an ADK adapter's failed call records its LlmRequest as a ModelRequest; a c
   });
   try {
     const failing = new ScriptedLlm('scripted/x', () => ({ errorCode: 'BOOM', errorMessage: 'no' }) as LlmResponse);
-    for await (const _ of failing.generateContentAsync(structuredClone(llmRequest) as any)) void _;
+    for await (const _ of traced(failing, structuredClone(request))) void _;
     const clean = new ScriptedLlm('scripted/x', () => ({ content: { role: 'model', parts: [{ text: 'ok' }] } }) as LlmResponse);
-    for await (const _ of clean.generateContentAsync(structuredClone(llmRequest) as any)) void _;
+    for await (const _ of traced(clean, structuredClone(request))) void _;
 
     // The older field still records what it is given; a mapping that throws records no request.
     const errorOnce = async function* (): AsyncGenerator<LlmResponse, void> {
@@ -571,7 +552,6 @@ test("an ADK adapter's failed call records its LlmRequest as a ModelRequest; a c
     off();
   }
   assert.strictEqual(spans.length, 4);
-  // ScriptedLlm is the ADK shim, which always passes ADK's stream flag.
   assert.deepStrictEqual(JSON.parse(String(spans[0]['llm.payload.request'])), {
     model: 'scripted/x',
     system: 'Be brief.',
@@ -583,4 +563,50 @@ test("an ADK adapter's failed call records its LlmRequest as a ModelRequest; a c
   assert.deepStrictEqual(JSON.parse(String(spans[2]['llm.payload.request'])), { contents: 'as given' });
   assert.strictEqual(spans[3]['llm.payload.request'], undefined);
   assert.ok(spans[3]['llm.payload.response'], 'still a payload candidate, with its error');
+});
+
+// ── A turn's counts ──────────────────────────────────────────────────────────
+
+test('a turn on the GeminiAdapter delegates through a tool loop, and the turn charges every call: llmCalls and usage', async () => {
+  const sent: any[] = [];
+  const replies = [
+    { candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'Scout', args: { request: 'look in the attic' } } }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 5 } },
+    { candidates: [{ content: { role: 'model', parts: [{ text: 'Scout found it in the attic.' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 30, candidatesTokenCount: 7 } },
+  ];
+  const client = {
+    models: {
+      generateContent: async (params: unknown) => (sent.push(params), replies.shift() as any),
+      generateContentStream: async () => {
+        throw new Error('not streamed in this test');
+      },
+    },
+  };
+  const gemini = new GeminiAdapter({ model: 'gemini-3-flash', apiKey: 'fixture-gemini-key-0123456789', endpoint: { platform: 'direct' }, clientFactory: () => client as any });
+  const scout = new ScriptedModel('scripted/scout', () => answer('it is in the attic'));
+  const config = {
+    syndicate_name: 'Real',
+    orchestrator: { name: 'Boss', model: 'gemini-3-flash', instruction: 'Delegate to Scout.' },
+    subagents: [{ name: 'Scout', model: 'scripted/scout', instruction: 'Answer.', description: 'Finds things' }],
+  } as unknown as SyndicateYamlConfig;
+
+  const r = await runSyndicateTurn({
+    config,
+    parts: [{ text: 'find the thing' }],
+    appName: 'a',
+    userId: 'u',
+    sessionId: 's',
+    sessionService: new InProcessSessionService(),
+    compile: { resolveModel: (id) => (id === 'gemini-3-flash' ? gemini : scout) },
+    trace: false,
+  });
+  assert.equal(r.status, 'completed', r.error?.message);
+  assert.equal(r.text, 'Scout found it in the attic.');
+  assert.deepEqual(r.answer?.delegations, ['Scout']);
+  assert.equal(r.llmCalls, 3);
+  assert.deepEqual([r.usage.inputTokens, r.usage.outputTokens], [50, 12], 'both Gemini calls are charged; the scout reported none');
+
+  assert.equal(sent.length, 2);
+  assert.match(sent[0].config.systemInstruction.parts.map((p: any) => p.text).join(' '), /Delegate to Scout\./);
+  const results = sent[1].contents.flatMap((c: any) => c.parts).filter((p: any) => p.functionResponse);
+  assert.deepEqual(results.map((p: any) => [p.functionResponse.name, p.functionResponse.response]), [['Scout', { result: 'it is in the attic' }]]);
 });
