@@ -1,0 +1,206 @@
+/**
+ * lib/runtime/native/interrupts.ts — approvals on the native loop: the
+ * answer to an `adk_request_confirmation` call runs or refuses the pinned
+ * call before the next model step (WS2-7a, ADR 0028, ADR 0077).
+ *
+ * WHY this file exists:
+ *   A tool that requires approval does not run when called. The loop
+ *   (agentLoop.ts) stores ADK's `adk_request_confirmation` call in place of
+ *   the response, pinning the original call and its arguments, and the run
+ *   ends paused. The person's answer arrives as the next user message: a
+ *   function response to that call carrying `{ confirmed }`. On the ADK
+ *   runtime, LlmAgent's request-confirmation processor reads it before every
+ *   model step and runs the pinned call with the confirmation. This file is
+ *   that processor, case for case, so an approval opened on either runtime
+ *   resumes on the other and both store the same events.
+ *
+ * BEFORE EACH STEP, AS ADK'S PROCESSOR RUNS IT:
+ *   1. The answers: the function responses named `adk_request_confirmation`
+ *      in the latest user event (events on another branch left out), each
+ *      read as `{ confirmed, hint, payload }`, or as JSON under `response`.
+ *      None: nothing happens, and the step goes on as usual.
+ *   2. The gates they answer: every `adk_request_confirmation` call whose id
+ *      an answer names. A request authored by the user is refused
+ *      (`untrusted_request`); one authored by another agent is skipped; one
+ *      whose pinned call has no id or name is refused (`malformed_request`);
+ *      one this agent has already answered the pinned call after is skipped,
+ *      so a later step never runs the call again.
+ *   3. The binding. The pinned call must be one this agent made, by id
+ *      (`unknown_original_call`); its tool must be the agent's
+ *      (`unregistered_tool`); the name and the arguments must equal the
+ *      call's as the model made it (`tool_name_mismatch`,
+ *      `arguments_mismatch`); and the tool must require approval, or have
+ *      asked for it (`confirmation_not_required`). A refusal throws ADK's
+ *      IntentMismatchError text and nothing runs.
+ *   4. The bound calls run through the loop's own call path with the
+ *      confirmation in their context: an approved call runs its tool, a
+ *      refused one answers ADK's refusal. Their response is stored as its
+ *      own event before the step builds its request, so the model reads it.
+ *
+ * Not here: a plain-text "yes" as an answer (ADK's plainTextToolConfirmation,
+ * which no surface turns on), and answers delivered by a remote peer (ADK's
+ * remoteDelivered, which no surface sets). ask_user's resume is WS2-7b.
+ *
+ * ADK stays out of this file: an ADK tool an agent still lists is asked
+ * whether it gates through its own checkRequireConfirmation, by shape.
+ */
+
+import { isDeepStrictEqual } from 'node:util';
+
+import { nativeToolOf } from '../../models/schemaNormalize.ts';
+import { instructionToolOf, isTool, toolOf } from '../../tools/tool.ts';
+import type { ToolConfirmation } from '../../tools/tool.ts';
+import { getFunctionCalls, getFunctionResponses } from '../events.ts';
+import type { TurnEvent, TurnFunctionCall } from '../events.ts';
+import type { Session } from '../sessions.ts';
+import { REQUEST_CONFIRMATION_CALL, isSegmentPrefix } from './history.ts';
+import { isToolset } from './request.ts';
+import type { NativeAgent } from './request.ts';
+
+/** Why a confirmation does not bind to the call it pins: ADK's IntentMismatchError reasons. */
+export type IntentMismatchReason =
+  | 'untrusted_request'
+  | 'malformed_request'
+  | 'unknown_original_call'
+  | 'unregistered_tool'
+  | 'tool_name_mismatch'
+  | 'arguments_mismatch'
+  | 'confirmation_not_required';
+
+/** A confirmation that does not bind to its pinned call: ADK's IntentMismatchError, by name and text. */
+export class IntentMismatchError extends Error {
+  readonly reason: IntentMismatchReason;
+  readonly functionCallId?: string;
+  constructor(reason: IntentMismatchReason, functionCallId?: string) {
+    super(`Tool confirmation rejected${functionCallId ? ` for function call '${functionCallId}'` : ''}: ${reason}.`);
+    this.name = 'IntentMismatchError';
+    this.reason = reason;
+    if (functionCallId !== undefined) this.functionCallId = functionCallId;
+  }
+}
+
+/** The pinned calls an answer lets run, each with its confirmation, in the order the gates were stored. */
+export interface ApprovedCalls {
+  calls: TurnFunctionCall[];
+  confirmations: Map<string, ToolConfirmation>;
+  /** The agent's tools by name, as the loop runs calls against them. */
+  tools: Map<string, unknown>;
+}
+
+interface Scope {
+  session: Session;
+  invocationId: string;
+  branch?: string;
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** ADK's parseToolConfirmation: `{ confirmed, hint, payload }`, or the same as JSON under `response`. */
+function parseConfirmation(response: Record<string, unknown>): ToolConfirmation {
+  const keys = Object.keys(response);
+  const fields = (keys.length === 1 && keys[0] === 'response' ? JSON.parse(String(response.response)) : response) as Record<string, unknown>;
+  return { hint: typeof fields.hint === 'string' ? fields.hint : '', confirmed: fields.confirmed === true, payload: fields.payload };
+}
+
+/** Step 1: the answers in the latest user event, by the request id each names. */
+function answersIn(events: readonly TurnEvent[]): Map<string, ToolConfirmation> {
+  const answers = new Map<string, ToolConfirmation>();
+  let latest: TurnEvent | undefined;
+  for (let i = events.length - 1; i >= 0 && !latest; i--) if (events[i]?.author === 'user') latest = events[i];
+  if (!latest) return answers;
+  for (const r of getFunctionResponses(latest)) {
+    if (r.name !== REQUEST_CONFIRMATION_CALL || !r.id || !r.response) continue;
+    answers.set(r.id, parseConfirmation(r.response as Record<string, unknown>));
+  }
+  return answers;
+}
+
+/** The agent's callable tools by name, toolsets expanded, as ADK's canonicalTools lists them. */
+async function toolsOf(agent: NativeAgent, scope: Scope): Promise<Map<string, unknown>> {
+  const state = scope.session.state;
+  const toolsetContext = {
+    agentName: agent.name,
+    invocationId: scope.invocationId,
+    state: { get: (key: string) => state[key], has: (key: string) => Object.hasOwn(state, key) },
+  };
+  const tools = new Map<string, unknown>();
+  for (const union of agent.tools ?? []) {
+    const expanded = isToolset(union) ? await union.getTools(toolsetContext) : [union];
+    for (const listed of expanded) {
+      if (nativeToolOf(listed) || instructionToolOf(listed)) continue;
+      const name = (listed as { name?: unknown })?.name;
+      if (typeof name === 'string') tools.set(name, toolOf(listed) ?? listed);
+    }
+  }
+  return tools;
+}
+
+/** Whether `tool` gates the call: an own Tool's requiresApproval, an ADK tool's checkRequireConfirmation. */
+async function gates(tool: unknown, args: Record<string, unknown>, context: unknown): Promise<boolean> {
+  if (isTool(tool)) return tool.requiresApproval === true;
+  const check = (tool as { checkRequireConfirmation?: (a: unknown, c: unknown) => unknown }).checkRequireConfirmation;
+  return typeof check === 'function' ? (await check.call(tool, args, context)) === true : false;
+}
+
+/**
+ * The pinned calls the latest user message approves or refuses, bound to
+ * the calls this agent made; undefined when it answers no open request.
+ * Throws IntentMismatchError when an answer does not bind (nothing runs).
+ * `contextFor` makes the context a tool's gate check reads.
+ */
+export async function approvedCalls(agent: NativeAgent, scope: Scope, contextFor: (callId: string) => unknown): Promise<ApprovedCalls | undefined> {
+  const all = scope.session.events;
+  const events = scope.branch ? all.filter((e) => !e.branch || isSegmentPrefix(scope.branch, e.branch)) : all;
+  if (events.length === 0) return undefined;
+  const answers = answersIn(events);
+  if (answers.size === 0) return undefined;
+
+  // Step 2: the gates the answers name.
+  const candidates: Array<{ pinned: TurnFunctionCall; confirmation: ToolConfirmation }> = [];
+  for (const [index, event] of events.entries()) {
+    for (const call of getFunctionCalls(event)) {
+      const confirmation = call.id ? answers.get(call.id) : undefined;
+      if (!confirmation || call.name !== REQUEST_CONFIRMATION_CALL) continue;
+      if (event.author !== agent.name) {
+        if (event.author === 'user') throw new IntentMismatchError('untrusted_request', call.id);
+        continue;
+      }
+      const pinned = isRecord(call.args) ? call.args.originalFunctionCall : undefined;
+      if (!isRecord(pinned)) continue;
+      if (!pinned.id || !pinned.name) throw new IntentMismatchError('malformed_request', call.id);
+      const pinnedCall = pinned as TurnFunctionCall;
+      const answeredAfter = events
+        .slice(index + 1)
+        .some((e) => e.author === agent.name && getFunctionResponses(e).some((r) => r.id === pinnedCall.id));
+      if (!answeredAfter) candidates.push({ pinned: pinnedCall, confirmation });
+    }
+  }
+  if (candidates.length === 0) return undefined;
+
+  // Step 3: each pinned call bound to the call the agent made, by id, name and arguments.
+  const tools = await toolsOf(agent, scope);
+  const made = new Map<string, TurnFunctionCall>();
+  const requested = new Set<string>();
+  for (const event of events) {
+    if (event.author !== agent.name) continue;
+    for (const call of getFunctionCalls(event)) if (call.id && call.name !== REQUEST_CONFIRMATION_CALL) made.set(call.id, call);
+    for (const id of Object.keys(event.actions?.requestedToolConfirmations ?? {})) requested.add(id);
+  }
+  const bound = new Map<string, { call: TurnFunctionCall; confirmation: ToolConfirmation }>();
+  for (const { pinned, confirmation } of candidates) {
+    const id = pinned.id as string;
+    const original = made.get(id);
+    if (!original) throw new IntentMismatchError('unknown_original_call', id);
+    const tool = tools.get(pinned.name as string);
+    if (!tool) throw new IntentMismatchError('unregistered_tool', id);
+    if (original.name !== pinned.name) throw new IntentMismatchError('tool_name_mismatch', id);
+    if (!isDeepStrictEqual(original.args ?? {}, pinned.args ?? {})) throw new IntentMismatchError('arguments_mismatch', id);
+    if (!(await gates(tool, original.args ?? {}, contextFor(id))) && !requested.has(id)) throw new IntentMismatchError('confirmation_not_required', id);
+    bound.set(id, { call: pinned, confirmation });
+  }
+  return {
+    calls: [...bound.values()].map((b) => b.call),
+    confirmations: new Map([...bound].map(([id, b]) => [id, b.confirmation])),
+    tools,
+  };
+}

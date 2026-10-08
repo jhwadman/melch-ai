@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Native loop
-description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final, a subagent tool running the subagent as its own child loop. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, how a subagent runs, what a stopped or paused run records, and what the loop returns."
+description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final, a subagent tool running the subagent as its own child loop. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, how a subagent runs, what a stopped or paused run records, how an answered approval resumes, and what the loop returns."
 tags:
   - runtime
   - models
@@ -21,6 +21,8 @@ sources:
   - resource: tests/nativeDelegate.test.ts
   - resource: lib/runtime/native/telemetry.ts
   - resource: tests/nativeLedger.test.ts
+  - resource: lib/runtime/native/interrupts.ts
+  - resource: tests/nativeApprovals.test.ts
 ---
 
 # Native loop
@@ -32,6 +34,7 @@ Every piece matches the ADK runtime, so a session either runtime wrote is one th
 - `tests/nativeStep.test.ts` rebuilds each call on the native step from the session as it stood before the call. The adapter must be handed an equal request, and the store must hold an equal event.
 - `tests/nativeLoop.test.ts` runs the same conversation through `runAgentLoop`: every single-agent case of the boundary suite (`tests/syndicateTurn.test.ts`) and the loop's own cases. The store must hold the same events, ids and times aside, and `onTextDelta` must get the same deltas.
 - `tests/nativeLedger.test.ts` runs the same conversation both ways with tracing on and hands each run's spans to the ledger exporter. `adk_turns`, `adk_telemetry` and `adk_payloads` must hold the same rows (see [the spans](#the-spans)).
+- `tests/nativeApprovals.test.ts` runs two-turn approval conversations the same way: a gated call opens the approval, the next message answers it. The stores must hold the same events and the gated tool must run as often. It also resumes an approval ADK stored (the session fixtures) on the loop.
 - `tests/nativeDelegate.test.ts` does the same for delegation: the boundary suite's delegation cases, a nested syndicate and the council example. Every session must hold the same events (the caller's, and each subagent's own), and every model must be sent the same requests.
 
 ## The agent
@@ -71,7 +74,7 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
    - self-correction's reflection tool, `adk_handle_model_error`, comes last when the step has a `correction` (see [Self-correction](#self-correction)).
 5. **The rest.** Tool choice, the output schema or JSON mode, reasoning and sampling, each read by the shim mapping's own reader. `stream` is `false` unless the caller streams, and `signal` is the turn's.
 
-Not done by the step: resuming an approval or an input request (WS2-7), compaction (WS2-9), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), task mode (WS3-5), and an ADK tool's own request edits beyond its declaration.
+Not done by the step: resuming an input request (WS2-7b), compaction (WS2-9), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), task mode (WS3-5), and an ADK tool's own request edits beyond its declaration.
 
 ## The call
 
@@ -113,6 +116,7 @@ A caller may also send the request under another model id (`model`): a fallback 
 
 Each step:
 
+0. **An answered approval.** Before the model step, the loop runs the pinned calls the latest user message approves or refuses, and stores their response (see [Approvals](#approvals)).
 1. **The model step.** With `fallback_model`, the step runs once per leaf adapter, by FallbackLlm's rules ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). A retryable failure counts against the primary's circuit. When nothing was produced before it, the failure is not stored, and the fallback answers the same request under its own model id. An open circuit goes straight to the fallback.
 2. **The calls.** The answer's calls run in parallel, each with its own state delta and actions, and their results are kept in call order:
    - a result that is not an object is wrapped `{ result }`, an array `{ results }`;
@@ -124,7 +128,7 @@ Each step:
 
    A subagent tool runs the subagent as its own child loop (see [Delegation](#delegation)). An own Tool runs through `execute`. An ADK tool an agent still lists (a registry FunctionTool, the skills toolset's tools) runs through its `runAsync`, with a context shaped like ADK's. One call's response is its own event; several are merged into one, parts in call order, actions merged. Each call reads the state as the step left it, not the writes of another call in the same step.
    When the turn stopped while the calls ran, nothing is stored for them and the run ends `stopped`, as ADK drops the response.
-3. **An approval request ends the run.** In place of the response, the loop stores ADK's `adk_request_confirmation` call: the original call and the confirmation as its arguments, an `adk-` id listed in `longRunningToolIds`, and the response's actions.
+3. **An approval request ends the run.** In place of the response, the loop stores ADK's `adk_request_confirmation` call: the original call and the confirmation as its arguments, an `adk-` id listed in `longRunningToolIds`, and the response's actions. The response itself is not stored, so a parallel call beside the gated one has no response.
 4. **`outputKey`.** Each final event of the agent carries its text in `stateDelta` under the agent's `outputKey`, written before it is stored. With an output schema, the text is parsed and validated (`z.fromJSONSchema`), kept as text when it does not parse, and saved as parsed when it does not validate.
 5. **Go on or stop.** The loop steps again unless the step's last event is final (ADK's `isFinalResponse`, unless it is an empty metadata event after tool calls), the turn stopped the step, or the step stored nothing. ADK's own ceiling of 500 model calls applies when no turn control is lower.
 
@@ -166,6 +170,28 @@ ADK's quirks are kept on purpose, so both runtimes match:
 - through the model contract a malformed Gemini call is an error code, not a finish reason, so no adapter's response is retried for it on either runtime.
 
 
+## Approvals
+
+A tool listed in an agent's `require_approval` does not run when called ([ADR 0028](/decisions/0028-approval-gates.md)): the loop stores ADK's `adk_request_confirmation` call and the run ends `paused` (step 3 above). The person's answer is the next user message: a function response to that call carrying `{ confirmed }` (`approvalResponsePart`, `lib/runtime/approvals.ts`), or the same as JSON under `response`.
+
+`lib/runtime/native/interrupts.ts` reads it before every step, as ADK's request-confirmation processor does ([ADR 0077](/decisions/0077-native-approvals-port-the-confirmation-processor.md)):
+
+1. **The answers** are the `adk_request_confirmation` responses in the latest user event, events on another branch left out. With none, the step goes on as usual.
+2. **The gates** are the `adk_request_confirmation` calls whose ids the answers name:
+   - a request authored by the user is refused (`untrusted_request`);
+   - a request authored by another agent is skipped;
+   - a request whose pinned call has no id or name is refused (`malformed_request`);
+   - a request whose pinned call this agent has already answered is skipped, so a later step never runs the call again.
+3. **The binding.** Each pinned call must match a call this agent made, by id. Its tool must be one of the agent's tools. Its name and arguments must equal the call's. The tool must require approval, or have asked for it through `requestConfirmation`. A pinned call that fails a check is refused with ADK's `IntentMismatchError` text, "Tool confirmation rejected for function call '<id>': <reason>.", and nothing runs or is stored. The loop throws it, as the ADK runtime throws it out of the turn.
+4. **The run.** The bound calls go through the loop's own call path, with the answer in their context (`confirmation`, and `toolConfirmation` for an ADK tool):
+   - an approved call runs its tool;
+   - a refused call answers "This tool call is rejected.";
+   - self-correction and the `tool.execute` span apply as to any call, under the run's agent span.
+
+   Their response is stored as its own event before the step builds its request, so the model reads the result. Only the pinned call runs: a call that ran beside it in the paused step keeps no response.
+
+An approval opened on either runtime resumes on the other. A plain-text "yes" is not an answer (ADK's `plainTextToolConfirmation`, which no surface turns on).
+
 ## Delegation
 
 A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`: named for the agent, described by its description, with one string parameter `request`, as ADK's `AgentTool` declares it. A `yaml_reference` subagent is the nested syndicate's orchestrator under the entry's name and description, listing its own subagent tools. `runCall` asks `subagentOf(tool)` before the generic path, and `runSubagent` (`lib/runtime/native/delegate.ts`) runs the call as `AgentTool.runAsync` runs it ([ADR 0074](/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md)):
@@ -178,7 +204,7 @@ A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`
 
 Calls to subagents in one step run one after another, in call order, as ADK runs them. A pause inside a subagent (an `ask_user` call, an approval request) cannot reach the caller ([ADR 0028](/decisions/0028-approval-gates.md)): the child run ends paused, the call answers `''`, and the gated tool never runs. The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run from either runtime.
 
-Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), resuming an approval or a question (WS2-7a, WS2-7b), ADK's reflect-and-retry plugins (WS2-8; a throwing tool answers its error at once, as ADK does with `retries.tool_errors: 0`), compaction (WS2-9), tool spans (WS2-11), and an auth request a tool raises. A `temp:` key a tool writes is not visible to the next step's instruction placeholders.
+Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), resuming a question (WS2-7b), compaction (WS2-9), and an auth request a tool raises. A `temp:` key a tool writes is not visible to the next step's instruction placeholders.
 
 ## The spans
 

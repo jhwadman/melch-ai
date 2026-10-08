@@ -139,7 +139,7 @@ export interface ModelStepResult {
   tools: Map<string, unknown>;
 }
 
-function eitherSignal(...candidates: Array<AbortSignal | undefined>): AbortSignal | undefined {
+export function eitherSignal(...candidates: Array<AbortSignal | undefined>): AbortSignal | undefined {
   const signals = [...new Set(candidates.filter((s): s is AbortSignal => s !== undefined))];
   return signals.length <= 1 ? signals[0] : AbortSignal.any(signals);
 }
