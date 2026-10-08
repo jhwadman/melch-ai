@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 748,
-    "edges": 2270,
+    "nodes": 749,
+    "edges": 2280,
     "byKind": {
       "doc": 127,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 120,
+      "file": 121,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 451,
+      "links_to": 455,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 76,
@@ -36,17 +36,17 @@
       "imports": 554,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 496,
-      "constrains": 88,
+      "derives_from": 499,
+      "constrains": 90,
       "supersedes": 5,
-      "depends_on": 23,
+      "depends_on": 24,
       "explains": 5,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2147,
-      "inferred": 123
+      "extracted": 2154,
+      "inferred": 126
     },
     "isolated": 4
   },
@@ -1200,7 +1200,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1586
+        "words": 1630
       }
     },
     {
@@ -1332,7 +1332,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2406
+        "words": 2713
       }
     },
     {
@@ -3721,6 +3721,13 @@
       "kind": "file",
       "label": "geminiAdapter.test.ts",
       "source": "tests/geminiAdapter.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/geminiNativeTools.test.ts",
+      "kind": "file",
+      "label": "geminiNativeTools.test.ts",
+      "source": "tests/geminiNativeTools.test.ts",
       "attrs": {}
     },
     {
@@ -10364,6 +10371,13 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "file:tests/geminiNativeTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "file:tests/sessionFixtures.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -10430,56 +10444,63 @@
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:31"
+      "evidence": "/memory/architecture.md:32"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:49"
+      "evidence": "/memory/architecture.md:50"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:27"
+      "evidence": "/memory/architecture.md:28"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:27"
+      "evidence": "/memory/architecture.md:28"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:27"
+      "evidence": "/memory/architecture.md:28"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/models/gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:99"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:104"
+      "evidence": "/memory/architecture.md:107"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:104"
+      "evidence": "/memory/architecture.md:107"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:93"
+      "evidence": "/memory/architecture.md:94"
     },
     {
       "from": "/memory/schema.md",
@@ -11582,6 +11603,13 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "file:tests/geminiNativeTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "module:lib/models/contract.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -11603,94 +11631,122 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:33"
+      "evidence": "/models/gemini-adapter.md:35"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:21"
+      "evidence": "/models/gemini-adapter.md:23"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:82"
+      "evidence": "/models/gemini-adapter.md:84"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:55"
+      "evidence": "/models/gemini-adapter.md:57"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:21"
+      "evidence": "/models/gemini-adapter.md:23"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:64"
+      "evidence": "/models/gemini-adapter.md:66"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:121"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0060-engine-owned-registry.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:23"
+      "evidence": "/models/gemini-adapter.md:25"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0061-json-mode-on-the-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:51"
+      "evidence": "/models/gemini-adapter.md:53"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0062-server-side-tools-as-markers.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:118"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:53"
+      "evidence": "/models/gemini-adapter.md:55"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:23"
+      "evidence": "/models/gemini-adapter.md:25"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:64"
+      "evidence": "/models/gemini-adapter.md:66"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:25"
+      "evidence": "/models/gemini-adapter.md:27"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:23"
+      "evidence": "/models/gemini-adapter.md:25"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:118"
     },
     {
       "from": "/models/model-contract.md",
