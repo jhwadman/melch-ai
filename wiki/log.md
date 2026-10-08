@@ -3,6 +3,26 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/taskMode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md —constrains→ module:lib/runtime/native/taskMode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md —depends_on→ /decisions/0033-context-task-code.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/nativeTurn.ts
 
 by claude-code/claude-opus-5-5

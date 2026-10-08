@@ -357,8 +357,8 @@ test('a feature native does not run yet fails at compile time, naming the featur
     () => compileNative(compaction),
     (e: unknown) => e instanceof UnsupportedOnRuntimeError && e.runtime === 'native' && /Solo: context compaction \(context:, WS2-9\) is not supported on the native runtime yet/.test(e.message),
   );
+  // Task mode runs on native (WS3-5): the spec builds both ways, mode carried.
   const task = await compileSubagentSpec({ ...base, mode: 'task' } as any);
-  assert.throws(() => compileNative(task), /task mode \(mode: task, WS3-5\) is not supported on the native runtime yet/);
-  // The same spec builds for ADK.
+  assert.strictEqual(compileNative(task).mode, 'task');
   assert.ok(compileAdk(task) instanceof LlmAgent);
 });

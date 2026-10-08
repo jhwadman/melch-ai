@@ -39,15 +39,17 @@
  *      xAI); `code_execution` first among Gemini's own tools; and the
  *      set_model_response tool when (2) asked for it, then the caller's
  *      `extraTools` (self-correction's reflection tool, as ADK's plugin adds
- *      it to the toolsDict last).
+ *      it to the toolsDict last). In `mode: task`, finish_task takes
+ *      set_model_response's place and the output schema is never the
+ *      response schema (lib/runtime/native/taskMode.ts).
  *   5. Tool choice, the output schema or JSON mode, reasoning and sampling,
  *      read from the config by the mapping's own readers.
  *
  * WHAT IT DOES NOT DO (later tickets): resume an approval or an input
  * request (ADK's confirmation and input processors run tools before the
  * request; WS2-7), compact the history (WS2-9), add transfer_to_agent
- * (compiled syndicates never set subAgents; they delegate through subagent tools, delegate.ts), task mode
- * and finish_task (WS3-5), workflow placeholders and artifacts in an
+ * (compiled syndicates never set subAgents; they delegate through subagent tools, delegate.ts),
+ * workflow placeholders and artifacts in an
  * instruction (no runtime has an artifact service), and an ADK tool's own
  * processLlmRequest side effects beyond its declaration (an own Tool says
  * what it writes through `instruction`).
@@ -70,6 +72,7 @@ import type { Session } from '../sessions.ts';
 import { createToolContext, instructionToolOf, isTool, toolOf } from '../../tools/tool.ts';
 import type { InstructionTool, Tool, ToolContext } from '../../tools/tool.ts';
 import { convertCodeExecutionParts, projectHistory } from './history.ts';
+import { finishTaskTool } from './taskMode.ts';
 import { withStateOverlay } from './tempState.ts';
 
 // ── The agent ────────────────────────────────────────────────────────────────
@@ -107,7 +110,7 @@ export interface NativeAgent {
   disallowTransferToPeers?: boolean;
   /** `code_execution: gemini`: Gemini runs the code it writes. */
   codeExecution?: 'gemini';
-  /** `mode: task` (workflow nodes): not yet run by the native step (WS3-5). */
+  /** `mode: task` (workflow nodes): finish_task is declared after the agent's tools and the output schema is its parameters (lib/runtime/native/taskMode.ts). */
   mode?: 'task';
   /** The session-state key the agent's final answer is saved under (the loop writes it, lib/runtime/native/agentLoop.ts). */
   outputKey?: string;
@@ -402,7 +405,6 @@ function placementOf(native: NativeTool, model: string, configTools: number): Na
  * Gemini-only tool on another model, a config field LlmAgent refuses.
  */
 export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext): Promise<BuiltRequest> {
-  if (agent.mode === 'task') throw new Error(`${agent.name}: mode: task does not run on the native step yet (WS3-5)`);
   const model = agent.model;
   const cfg = { ...(agent.generateContentConfig ?? {}) } as Json;
   // LlmAgent's own refusals, so a config that cannot run under ADK cannot run here.
@@ -411,9 +413,10 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   if (cfg.responseSchema) throw new Error('Response schema must be set via LlmAgent.output_schema.');
 
   const listed = agent.tools ?? [];
+  const taskMode = agent.mode === 'task';
   const schemaWithTools = !!agent.outputSchema && listed.length > 0 && !outputSchemaWithTools(model);
-  // 1. Basic: the config, and the output schema where the model takes it.
-  if (agent.outputSchema && !schemaWithTools) {
+  // 1. Basic: the config, and the output schema where the model takes it (never in task mode: finish_task carries it).
+  if (agent.outputSchema && !schemaWithTools && !taskMode) {
     cfg.responseSchema = agent.outputSchema;
     cfg.responseMimeType = 'application/json';
   }
@@ -472,7 +475,10 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
     state: { get: (key: string) => state[key], has: (key: string) => Object.hasOwn(state, key) },
   };
   const all: unknown[] = [...listed];
-  if (schemaWithTools) all.push(setModelResponseTool(agent.outputSchema as Record<string, unknown>));
+  // Task mode (lib/runtime/native/taskMode.ts): finish_task in set_model_response's place. ADK's
+  // instruction processor still writes the set_model_response line above; LlmAgent adds no such tool.
+  if (taskMode) all.push(finishTaskTool(agent.outputSchema));
+  else if (schemaWithTools) all.push(setModelResponseTool(agent.outputSchema as Record<string, unknown>));
   if (ctx.extraTools) all.push(...ctx.extraTools);
 
   // One entry per name, in first-listed order, the later object winning (ADK's toolsDict).

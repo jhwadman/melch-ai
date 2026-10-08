@@ -6,6 +6,12 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **`mode: task` runs on the native runtime (ADR 0081).** It no longer
+  throws `UnsupportedOnRuntimeError`: the agent's requests declare
+  `finish_task` as ADK's do, and its answers are stored as ADK stores them.
+  A `workflow:` syndicate, where task-mode nodes live, is still refused on
+  native. `code_execution: gemini` runs on native with the same stored
+  events as on ADK. No change to the exports map.
 - **A turn can run on the native runtime (ADR 0073).** `runSyndicateTurn`
   takes an optional `runtime` (`'adk'` or `'native'`). Without it,
   `MELCHIZEDEK_RUNTIME` decides (`adk` or `native`), and without that, `adk`,

@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 784,
-    "edges": 2572,
+    "nodes": 786,
+    "edges": 2597,
     "byKind": {
-      "doc": 136,
+      "doc": 137,
       "provider": 6,
       "env": 105,
       "model": 8,
@@ -18,12 +18,12 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 174,
+      "module": 175,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 516,
+      "links_to": 522,
       "requires_env": 168,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 657,
+      "imports": 664,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 572,
-      "constrains": 113,
+      "derives_from": 579,
+      "constrains": 115,
       "supersedes": 6,
-      "depends_on": 48,
-      "explains": 10,
+      "depends_on": 50,
+      "explains": 11,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2393,
-      "inferred": 179
+      "extracted": 2413,
+      "inferred": 184
     },
     "isolated": 4
   },
@@ -1300,6 +1300,18 @@
       }
     },
     {
+      "id": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "kind": "doc",
+      "label": "ADR 0081: Task mode on the native loop is finish_task as an own tool and a task-node hook that ends the run on its answer",
+      "source": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 570
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1560,7 +1572,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3608
+        "words": 4024
       }
     },
     {
@@ -3818,7 +3830,8 @@
       "id": "file:tests/execution.test.ts",
       "kind": "file",
       "label": "execution.test.ts",
-      "source": "tests/execution.test.ts"
+      "source": "tests/execution.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/fallback.test.ts",
@@ -4321,7 +4334,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 132
+        "lines": 135
       }
     },
     {
@@ -4942,7 +4955,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 620
+        "lines": 638
       }
     },
     {
@@ -4969,7 +4982,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 551
+        "lines": 557
       }
     },
     {
@@ -4988,6 +5001,15 @@
       "source": "lib/runtime/native/step.ts",
       "attrs": {
         "lines": 267
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/taskMode.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/taskMode.ts",
+      "source": "lib/runtime/native/taskMode.ts",
+      "attrs": {
+        "lines": 155
       }
     },
     {
@@ -11342,6 +11364,62 @@
       "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:32"
     },
     {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "file:tests/execution.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md frontmatter"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md:25"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md:25"
+    },
+    {
+      "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md:25"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -13933,6 +14011,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/execution.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/nativeDelegate.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14017,6 +14102,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/native/telemetry.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14048,112 +14140,133 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:144"
+      "evidence": "/overview/native-loop.md:147"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:186"
+      "evidence": "/overview/native-loop.md:200"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:42"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:150"
+      "evidence": "/overview/native-loop.md:153"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:123"
+      "evidence": "/overview/native-loop.md:126"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:33"
+      "evidence": "/overview/native-loop.md:35"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:85"
+      "evidence": "/overview/native-loop.md:88"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:188"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:35"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:35"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:33"
+      "evidence": "/overview/native-loop.md:35"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:35"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:150"
+      "evidence": "/overview/native-loop.md:153"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:219"
+      "evidence": "/overview/native-loop.md:232"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:181"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:100"
+      "evidence": "/overview/native-loop.md:103"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:35"
+      "evidence": "/overview/native-loop.md:37"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:66"
+      "evidence": "/overview/native-loop.md:69"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:49"
+      "evidence": "/overview/native-loop.md:52"
     },
     {
       "from": "/protocols/a2a.md",
@@ -18987,6 +19100,13 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/runtime/native/telemetry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -19113,6 +19233,13 @@
     },
     {
       "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/runtime/native/taskMode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/runtime/native/tempState.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -19229,6 +19356,41 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/taskMode.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/taskMode.ts"
     },
     {
       "from": "module:lib/runtime/native/telemetry.ts",
