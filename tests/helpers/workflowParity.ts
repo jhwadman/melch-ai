@@ -139,9 +139,25 @@ export async function onNative(cfg: SyndicateYamlConfig, scripts: Scripts, text:
   return { status, ...(error ? { error } : {}), events, models, progress: await progressOf(yielded), routes: routesOf(events), output: terminalOutput(cfg, events) };
 }
 
-/** The stored events without what differs per run: ids, times, the invocation id, ADK's call ids. */
-export const comparable = (events: TurnEvent[]): unknown =>
-  JSON.parse(JSON.stringify(events.map((e) => ({ ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' }))), (_k, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v));
+/**
+ * The stored events without what differs per run: ids, times, the invocation
+ * id, ADK's call ids, and a compaction's span, which must be the times of
+ * stored events.
+ */
+export const comparable = (events: TurnEvent[]): unknown => {
+  const times = events.map((e) => e.timestamp);
+  return JSON.parse(
+    JSON.stringify(
+      events.map((e) => {
+        const compacted = e as TurnEvent & { isCompacted?: boolean; startTime?: number; endTime?: number };
+        if (!compacted.isCompacted) return { ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' };
+        assert.ok(times.includes(compacted.startTime!) && times.includes(compacted.endTime!), "a compaction's startTime and endTime are stored events' times");
+        return { ...e, id: '<id>', timestamp: 0, invocationId: '<inv>', startTime: 0, endTime: 0 };
+      }),
+    ),
+    (_k, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v),
+  );
+};
 
 /** Runs both sides and holds them equal: stored events, requests, routes, output, progress. */
 export async function bothAgree(cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<{ adk: Side; native: Side }> {

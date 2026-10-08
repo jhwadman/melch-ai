@@ -766,6 +766,9 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
     if (compacted) {
       // As ADK's Runner: a turn that stopped during the summary stores nothing and makes no step.
       if (ctx.signal?.aborted || currentTurnSignal()?.aborted) return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
+      // A workflow node's stamp (ADR 0093): ADK's node runner stamps the summary as it does every event its agent yields, and outside
+      // task mode its maybeSetOutput gives it the summary as output. The outputKey and task hooks never see it, as on ADK.
+      ctx.nodeStamp?.(compacted);
       yield await sessions.append(session, compacted);
     }
     if (steps >= MAX_LLM_CALLS) {

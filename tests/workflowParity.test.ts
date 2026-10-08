@@ -12,6 +12,9 @@
  *      under delay profiles that keep any two finish times 20 ms apart, and
  *      a node two branches trigger. Closer finishes race on both runtimes
  *      and are not pinned.
+ *   4. A compaction event a node agent stores carries the node stamp
+ *      (enrichNodeEvent), and outside task mode the summary as its output,
+ *      as ADK's node runner and maybeSetOutput write it.
  *
  * Parity cases run one workflow syndicate on ADK (runSyndicateTurn, runtime
  * adk) and on the scheduler with agentNodeRuntime, with the same scripted
@@ -384,4 +387,60 @@ test('a node two branches trigger runs once per trigger, its events in ADK\'s or
     native.events.filter((e) => e.author === 'D').map((e) => e.output),
     ['d c', 'd b'],
   );
+});
+
+// ── 4. A node agent's compaction carries the node stamp ──────────────────────
+
+/**
+ * Compaction compares event times, and a scripted turn stores several events
+ * in one millisecond; as in tests/compaction.test.ts, each reading of the
+ * clock is a millisecond after the last while `fn` runs.
+ */
+async function withTickingClock<T>(fn: () => Promise<T>): Promise<T> {
+  const realNow = Date.now;
+  let last = 0;
+  Date.now = () => (last = Math.max(realNow(), last + 1));
+  try {
+    return await fn();
+  } finally {
+    Date.now = realNow;
+  }
+}
+
+/** Lead → Worker → Last, Worker compacting before its first step: Lead's answer reports a prompt past the threshold. */
+function compactingChain(worker: Record<string, unknown>) {
+  const cfg = workflowConfig({ edges: [['START', 'Lead', 'Worker', 'Last']] }, [agent('Worker', worker), agent('Last')], agent('Lead'));
+  // The schema keeps `context:` to a delegate orchestrator; the runtimes compile it on any agent, so the case sets it after validation.
+  (cfg.subagents as unknown as Array<Record<string, unknown>>)[0]!.context = { compact_after_tokens: 100, keep_recent_events: 1, summary_model: 'scripted/sum' };
+  return cfg;
+}
+
+test("a node agent's compaction event carries the node's path, and outside task mode the summary as output, as on ADK", async () => {
+  const scripts = {
+    lead: () => answer('lead says hi', { inputTokens: 1000, outputTokens: 5 }),
+    worker: (req: Req) => answer(`w ${lastText(req)}`),
+    last: (req: Req) => answer(`l ${lastText(req)}`),
+    sum: () => answer('SUMMARY'),
+  };
+  const { native } = await withTickingClock(() => bothAgree(compactingChain({}), scripts, 'go'));
+  assert.equal(native.models.sum!.calls, 1, 'the Worker compacted once');
+  const compacted = native.events.find((e) => (e as { isCompacted?: boolean }).isCompacted)!;
+  assert.deepEqual(compacted.nodeInfo, { messageAsOutput: true, path: 'Graph.Worker', outputFor: ['Graph.Worker'] });
+  assert.equal(compacted.output, 'SUMMARY', "ADK's maybeSetOutput reads the summary as the node's output until its answer replaces it");
+  assert.equal(native.output, 'l w lead says hi');
+});
+
+test("a task-mode node's compaction event carries the node's path and no output, as on ADK", async () => {
+  const worker = { mode: 'task', outputSchema: { type: 'OBJECT', properties: { city: { type: 'STRING' } }, required: ['city'] } };
+  const scripts = {
+    lead: () => answer('Lyon, two nights', { inputTokens: 1000, outputTokens: 5 }),
+    worker: () => toolCall('finish_task', { city: 'Lyon' }, 'c1'),
+    last: (req: Req) => answer(`l ${lastText(req)}`),
+    sum: () => answer('SUMMARY'),
+  };
+  const { native } = await withTickingClock(() => bothAgree(compactingChain(worker), scripts, 'go'));
+  const compacted = native.events.find((e) => (e as { isCompacted?: boolean }).isCompacted)!;
+  assert.deepEqual(compacted.nodeInfo, { path: 'Graph.Worker' });
+  assert.equal(compacted.output, undefined);
+  assert.equal(native.output, 'l {"city":"Lyon"}');
 });
