@@ -25,14 +25,14 @@ Nothing in the registry uses it yet. Every model id is served by its ADK-path ad
 
 ## One call
 
-1. **Charge and span.** The call goes through `traceLlmGeneration` (`lib/observability/tracer.ts`), as every ADK-path adapter's call does, with the adapter's `provider`, the shim's model id and the `LlmRequest` ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)):
-   - A turn that is spent or stopped refuses the call with `STEP_LIMIT`, `DEADLINE_EXCEEDED` or `CANCELED`. The refusal is the same `LlmResponse` `ClaudeLlm`, `GptLlm` and the chat-completions adapters yield, and the adapter is never called.
-   - One `llm.request` span covers the call, with the same attributes as on any ADK-path adapter. The adapter adds its own with `setLlmSpanAttribute`, and they land on that span.
-   - The final's usage is charged to the turn.
-2. **The request.** `llmRequestToModelRequest` maps the `LlmRequest` with:
+1. **The request.** `llmRequestToModelRequest` maps the `LlmRequest` with:
    - `model`: the shim's id, not the id the request names;
    - `stream`: the flag ADK passed, `false` by default;
    - `signal`: one that aborts when the turn stops (`currentTurnSignal()`), when the signal ADK passed aborts, or when the request config's own `abortSignal` aborts, whichever comes first. With only one of them it is that signal, and with none there is no signal.
+2. **Charge and span.** The call goes through `traceLlmGeneration` (`lib/observability/tracer.ts`), as every ADK-path adapter's call does, with the adapter's `provider`, the shim's model id and that `ModelRequest`, which a failed call records as `llm.payload.request` without its signal ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)):
+   - A turn that is spent or stopped refuses the call with `STEP_LIMIT`, `DEADLINE_EXCEEDED` or `CANCELED`. The refusal is the same `LlmResponse` `ClaudeLlm`, `GptLlm` and the chat-completions adapters yield, and the adapter is never called.
+   - One `llm.request` span covers the call, with the same attributes as on any ADK-path adapter. The adapter adds its own with `setLlmSpanAttribute`, and they land on that span.
+   - The final's usage is charged to the turn.
 3. **The responses.** Each `ModelResponse` the adapter yields goes back through `modelResponseToLlmResponse`, in order. A partial is a `partial: true` response, and the final is `turnComplete: true` with Gemini's usage meanings and finish reason. A failed final carries `errorCode`, and its retry verdict in `customMetadata['error.retryable']`, which `FallbackLlm` reads.
 
 The shim does not repair an adapter that breaks the contract. A throw reaches ADK as a throw, as a Gemini failure does, and every response is mapped as it comes. `connect()` is refused, because live connections are outside the contract.

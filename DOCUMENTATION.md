@@ -461,6 +461,11 @@ runs the turn, an adapter on the contract runs behind `AdkShim`
 (`melchizedek-agents/models/adkShim`), an ADK `BaseLlm` that charges each
 call against `max_steps`, passes the turn's abort signal and opens the
 `llm.request` span, as the ADK-path adapters do (ADR 0053).
+Gemini has two adapters on the contract, neither registered yet:
+`melchizedek-agents/models/geminiAdapter` (`GeminiAdapter`, on
+`@google/genai` with no ADK) and, until that one passes its live parity
+run, `melchizedek-agents/models/adkGeminiAdapter` (`AdkGeminiAdapter`,
+a temporary wrapper that runs the request through `TracedGemini`).
 
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it
@@ -479,7 +484,10 @@ full-text `search` column; `adk_telemetry` — one row per `llm.request` /
 root span; and `adk_payloads` — full prompts and responses per model call,
 kept by policy (`TELEMETRY_PAYLOADS=off|errors|sample|all`,
 `TELEMETRY_PAYLOAD_SAMPLE`, `TELEMETRY_PAYLOAD_TTL_DAYS`) and expired by
-`melchizedek_prune_telemetry()`. The view `adk_turns_production` excludes
+`melchizedek_prune_telemetry()`. A row from a failed call's `llm.request`
+span holds the request in the model contract's shape (`model`, `system`,
+`messages`, `tools`, …), whichever adapter made the call; a row from ADK's
+own `call_llm` span holds ADK's request. The view `adk_turns_production` excludes
 eval and classifier turns. Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).
