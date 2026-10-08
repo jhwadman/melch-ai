@@ -64,14 +64,20 @@ const ALLOWED: Record<string, { reason: Reason; why: string }> = {
   'kimiReasoningState.test.ts': { reason: 'ADK runtime', why: 'Kimi’s reasoning_content through ADK’s runner and storage (ADR 0046).' },
 
   // ── ADK-path provider suites (their contract twins assert the same bodies) ─
-  'claudeCurrentApi.test.ts': { reason: 'ADK-path provider suite', why: 'ClaudeLlm per generation (ADR 0049); claudeAdapter.test.ts asserts the same bodies from ModelRequests.' },
-  'claudeVision.test.ts': { reason: 'ADK-path provider suite', why: 'ClaudeLlm’s image blocks and span; claudeAdapter.test.ts covers blobs on the contract.' },
   'tracedGeminiVertex.test.ts': { reason: 'ADK-path provider suite', why: 'TracedGemini drops includeServerSideToolInvocations on Vertex AI before ADK’s Gemini sees the request; the flag only exists on the ADK path.' },
-  'reasoningKey.test.ts': { reason: 'ADK-path provider suite', why: 'the compiler’s reasoning: config through each ADK class (ADR 0047).' },
 };
 
-/** The model suites this ticket moved onto the contract: never allowed back. */
-const ON_THE_CONTRACT = ['models.test.ts', 'capabilityMatrix.test.ts', 'endpoints.test.ts', 'gateway.test.ts', 'modelRetry.test.ts'];
+/** The model suites moved onto the contract (WS1-11, WS1-15): never allowed back. */
+const ON_THE_CONTRACT = [
+  'models.test.ts',
+  'capabilityMatrix.test.ts',
+  'endpoints.test.ts',
+  'gateway.test.ts',
+  'modelRetry.test.ts',
+  'claudeCurrentApi.test.ts',
+  'claudeVision.test.ts',
+  'reasoningKey.test.ts',
+];
 
 const BUILDS_LLM_REQUEST = /\bLlmRequest\b|\bmodelRequestToLlmRequest\b|\btoolsDict\b|\bliveConnectConfig\b/;
 

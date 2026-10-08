@@ -1097,6 +1097,38 @@
       "evidence": "ADR 0059: load_memory is an own Tool and preload_memory an InstructionTool; tests/geminiNativeTools.test.ts asserts the declaration, the note and the PAST_CONVERSATIONS block Gemini receives, and a session where Gemini calls load_memory.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0070 Decision 3: \"kimi-k3 honours auto, none and required, so a named tool goes as required. kimi-k2.6 honours all four when the request's reasoning is none\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0070 Decisions 1 and 2: toolChoiceModes(model, reasoning) receives the request's ReasoningSetting, and \"a refused named choice falls to required where required holds, else to auto\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0070 Context: the chat-completions adapters (ADR 0057) \"asked each subclass for the modes it honours per model\"; this record extends that hook with the reasoning.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/claudeCurrentApi.test.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0064 Decision 4 names claudeCurrentApi among the suites left for a later ticket; tests/llmRequestBoundary.test.ts now lists it in ON_THE_CONTRACT, so it may never build an LlmRequest again.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

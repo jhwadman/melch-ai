@@ -88,7 +88,8 @@ The adapter sets attributes on the active span and opens none: `llm.image.droppe
 
 ## What the offline tests assert
 
-- `tests/claudeCurrentApi.test.ts`, `tests/claudeVision.test.ts`, `tests/reasoningState.test.ts` and `tests/errorResponse.test.ts` drive `ClaudeLlm` with LlmRequests against a stubbed `fetch` or a fake platform client, and assert the body the real SDK sends.
+- `tests/claudeCurrentApi.test.ts` (each generation's thinking, effort, structured output, a resumed turn read back from stored rows, URL images and Bedrock) and `tests/claudeVision.test.ts` (image blocks and their drops) drive `ClaudeAdapter` with ModelRequests against a stubbed `fetch` or a fake platform client, inside an `llm.request` span (`tests/helpers/claudeCapture.ts`), and assert the body the real SDK sends.
+- `tests/reasoningState.test.ts` and `tests/errorResponse.test.ts` drive `ClaudeLlm` with LlmRequests: the reasoning state through ADK's runner and storage, and the error event `FallbackLlm` reads.
 - `tests/capabilityMatrix.test.ts`, `tests/endpoints.test.ts` and `tests/models.test.ts` drive `ClaudeAdapter` (and `anthropicTools`) with ModelRequests, Bedrock and the Vertex AI SDK check included. `tests/shimBodies.test.ts` holds `ClaudeLlm` to the adapter's body for every capability-matrix input, on Claude 4.6 and on Opus 5.5.
 - `tests/claudeAdapter.test.ts` drives `ClaudeAdapter` with ModelRequests and asserts the same bodies. On every generation and every reasoning setting, a ModelRequest's body equals the one `ClaudeLlm` sends for the LlmRequest the compiler builds. It also covers tool choice and its weakening, strict tools, dropped native tools, tool results, images, Bedrock, both response paths, finish reasons, grounding, every failure row and the abort, and the older spelling only `ClaudeLlm` reads.
 

@@ -30,6 +30,19 @@ the starter pack and the templates), not the repo's full history.
     `collectionIdsFromEnv` and `collectionsMaxResultsFromEnv`, which
     `tools/webSearchTool`, `tools/xSearchTool` and
     `tools/collectionsSearchTool` still re-export.
+- **Kimi forces a tool where Moonshot allows it** (checked live on
+  2026-10-08). `kimi-k3` sends `toolChoice: 'required'` as asked and a
+  named tool as `tool_choice: "required"` (Moonshot refuses a named tool
+  while K3 thinks, and K3 always thinks); `kimi-k2.6` sends both forced
+  modes as asked when `reasoning` is `none`, and weakens them to auto
+  otherwise. Other Kimi ids keep weakening both to auto. A weakened choice
+  is still marked `llm.tool_choice.weakened` on the span. In the
+  chat-completions base, a subclass's `toolChoiceModes` now also receives
+  the request's reasoning.
+- **Fix: `kimi-k2.7-code` with `reasoning: none`.** It sends no thinking
+  field (the model thinks at its default) instead of
+  `thinking: { type: 'disabled' }`, which Moonshot refuses for K2.7 Code
+  and its highspeed variant. `kimi-k2.6` still sends `disabled`.
 - **The genai mapping exports two more readers (ADR 0066).**
   `melchizedek-agents/models/genaiMapping` adds `toolChoiceOf` (an agent's
   function-calling mode as a `ToolChoice`, and `VALIDATED` as strict tools)

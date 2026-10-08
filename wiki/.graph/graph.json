@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 756,
-    "edges": 2340,
+    "nodes": 757,
+    "edges": 2351,
     "byKind": {
-      "doc": 129,
+      "doc": 130,
       "provider": 6,
       "env": 105,
       "model": 8,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 468,
+      "links_to": 471,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 76,
@@ -36,17 +36,17 @@
       "imports": 578,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 512,
-      "constrains": 95,
+      "derives_from": 516,
+      "constrains": 98,
       "supersedes": 6,
-      "depends_on": 28,
+      "depends_on": 29,
       "explains": 5,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2204,
-      "inferred": 136
+      "extracted": 2211,
+      "inferred": 140
     },
     "isolated": 4
   },
@@ -1216,6 +1216,18 @@
       }
     },
     {
+      "id": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "kind": "doc",
+      "label": "ADR 0070: Kimi forces a tool choice per model and per thinking, and a refused named choice falls to required",
+      "source": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 539
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1320,7 +1332,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1361
+        "words": 1382
       }
     },
     {
@@ -1332,7 +1344,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1223
+        "words": 1321
       }
     },
     {
@@ -1344,7 +1356,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1679
+        "words": 1727
       }
     },
     {
@@ -1368,7 +1380,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7792
+        "words": 7902
       }
     },
     {
@@ -1392,7 +1404,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1791
+        "words": 1799
       }
     },
     {
@@ -4348,7 +4360,7 @@
       "label": "lib/models/chatCompletionsAdapter.ts",
       "source": "lib/models/chatCompletionsAdapter.ts",
       "attrs": {
-        "lines": 966
+        "lines": 976
       }
     },
     {
@@ -4393,7 +4405,7 @@
       "label": "lib/models/contract.ts",
       "source": "lib/models/contract.ts",
       "attrs": {
-        "lines": 479
+        "lines": 480
       }
     },
     {
@@ -4528,7 +4540,7 @@
       "label": "lib/models/kimiAdapter.ts",
       "source": "lib/models/kimiAdapter.ts",
       "attrs": {
-        "lines": 198
+        "lines": 227
       }
     },
     {
@@ -10554,6 +10566,55 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0068-model-entry-without-adk.md:30"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "file:tests/chatCompletionsAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md frontmatter"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md frontmatter"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md frontmatter"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md frontmatter"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md:24"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md:24"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "/models/chat-completions-adapters.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md:24"
     },
     {
       "from": "/memory/architecture.md",

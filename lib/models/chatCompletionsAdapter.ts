@@ -26,8 +26,10 @@
  *   - Tools as function tools, the schema as written (lowercase JSON Schema),
  *     its strict form with `strict: true` when the declaration asks.
  *     `toolChoice: 'none'` sends no tools; `required` and a named tool go as
- *     `tool_choice` where the subclass says the provider honours them, and are
- *     otherwise weakened to auto with `llm.tool_choice.weakened` on the span.
+ *     `tool_choice` where the subclass says the provider honours them (per
+ *     model and the request's reasoning), and are otherwise weakened, with
+ *     `llm.tool_choice.weakened` on the span: a named tool to `required` where
+ *     that holds, else to auto.
  *   - Native tools: none run here. web_search is sent only where the subclass
  *     names body fields for it; every other one is dropped, marked on the span
  *     (`llm.capability.dropped`) with a one-time warning.
@@ -404,11 +406,14 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
   }
 
   /**
-   * The tool choices sent as asked (contract.ts ToolChoice). `auto` and
-   * `none` always hold (`none` by sending no tools); a mode left out is
-   * weakened to auto and marked on the span. Default: auto and none.
+   * The tool choices sent as asked (contract.ts ToolChoice), for this model
+   * and the request's reasoning (a provider may refuse forcing only while
+   * the model thinks). `auto` and `none` always hold (`none` by sending no
+   * tools); a mode left out is weakened and marked on the span: a named
+   * choice to `required` where `required` holds, anything else to auto.
+   * Default: auto and none.
    */
-  protected toolChoiceModes(_model: string): readonly ToolChoiceMode[] {
+  protected toolChoiceModes(_model: string, _reasoning: ReasoningSetting | undefined): readonly ToolChoiceMode[] {
     return ['auto', 'none'];
   }
 
@@ -790,7 +795,7 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
       ...(sampling.stop?.length ? { stop: [...sampling.stop] } : {}),
       ...this.reasoningFields(model, request.reasoning, request.olderSpelling?.reasoningEffort),
       ...(tools.length > 0 ? { tools } : {}),
-      ...(tools.length > 0 ? this.#toolChoice(choice, model) : {}),
+      ...(tools.length > 0 ? this.#toolChoice(choice, model, request.reasoning) : {}),
       ...this.#responseFormat(request),
       ...this.extraBodyFields(request),
     };
@@ -798,13 +803,18 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     return body;
   }
 
-  /** `tool_choice` for a forced choice the provider honours; otherwise nothing, and the span says it was weakened. */
-  #toolChoice(choice: ToolChoice, model: string): Record<string, unknown> {
+  /**
+   * `tool_choice` for a forced choice the provider honours. Otherwise the span
+   * says it was weakened, and a named choice goes as `required` where that
+   * holds (still a forced call, of some declared tool), anything else as auto.
+   */
+  #toolChoice(choice: ToolChoice, model: string, reasoning: ReasoningSetting | undefined): Record<string, unknown> {
     if (choice === 'auto' || choice === 'none') return {};
     const mode: ToolChoiceMode = choice === 'required' ? 'required' : 'named';
-    if (!this.toolChoiceModes(model).includes(mode)) {
+    const modes = this.toolChoiceModes(model, reasoning);
+    if (!modes.includes(mode)) {
       setLlmSpanAttribute('llm.tool_choice.weakened', mode);
-      return {};
+      return mode === 'named' && modes.includes('required') ? { tool_choice: 'required' } : {};
     }
     return { tool_choice: choice === 'required' ? 'required' : { type: 'function', function: { name: choice.name } } };
   }
