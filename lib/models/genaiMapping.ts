@@ -183,7 +183,7 @@ import type {
   Usage,
 } from './contract.ts';
 import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, errorText, withRetryVerdict } from './errorResponse.ts';
-import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
+import { GEMINI_PROVIDER, MINTED_CALL_ID_PREFIX, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
 import { reasoningConfig } from './reasoning.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './schemaNormalize.ts';
 
@@ -196,8 +196,8 @@ import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './s
 export { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND };
 /** providerState kind for a genai part the contract cannot hold exactly; the payload is the part. */
 export const GENAI_PART_KIND = 'genai_part';
-/** The prefix of an id the mapping made for a call or result that had none. */
-export const MINTED_CALL_ID_PREFIX = 'genai-noid-';
+/** The prefix of an id the mapping made for a call or result that had none (defined in lib/models/geminiState.ts). */
+export { MINTED_CALL_ID_PREFIX };
 
 /** A conversation as the contract holds it: the system prompt and the messages. */
 export interface ContractHistory {

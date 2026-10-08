@@ -6,6 +6,27 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **`GeminiAdapter` covers Gemini's own features (ADR 0065).** In
+  `melchizedek-agents/models/geminiAdapter` (which `resolveAdapter`
+  returns only with `GEMINI_ADAPTER=engine` until gate G3):
+  - Code execution (`executableCode`, `codeExecutionResult`) and
+    server-side `toolCall` / `toolResponse` parts ride whole on the next
+    output part as `providerState` of the new kind `CARRIED_PARTS_KIND`
+    (`carried_parts`, payload `CarriedParts`), and are replayed before it
+    within the current turn.
+  - `toolConfig.includeServerSideToolInvocations` is sent when native
+    tools sit beside function declarations, on the Gemini API only.
+  - Grounding citations carry the answer span each supports, and
+    urlContext's retrieved pages are cited.
+  - Call ids minted by the genai mapping (`genai-noid-`) stay off the wire,
+    as `adk-` ids do. `MINTED_CALL_ID_PREFIX` now lives in
+    `models/geminiState` and is still exported by `models/genaiMapping`.
+  - The adapter reads only `request.signal`; it no longer falls back to the
+    turn's signal (ADR 0053: the caller passes it).
+  - New option `placeholderSignatures` (default
+    `PLACEHOLDER_SIGNATURES_BY_DEFAULT`, false) sends Gemini's documented
+    placeholder `PLACEHOLDER_THOUGHT_SIGNATURE` on an unsigned current-turn
+    call.
 - **Fix: Gemini on Vertex AI.** The compiler asks every agent's config for
   `includeServerSideToolInvocations`, which `@google/genai` refuses on a
   Vertex AI client before sending anything ("only supported in Gemini

@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /models/gemini-adapter.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0065-gemini-carried-parts-and-server-side-invocations.md —explains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0065-gemini-carried-parts-and-server-side-invocations.md —depends_on→ /decisions/0046-provider-reasoning-state-on-the-part.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0065-gemini-carried-parts-and-server-side-invocations.md —constrains→ module:lib/models/geminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | module:lib/tools/openapi/parse.ts —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
 
 by claude-code/claude-opus-5-5
