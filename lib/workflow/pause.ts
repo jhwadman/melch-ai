@@ -53,6 +53,7 @@ import type { TurnEvent } from '../runtime/events.ts';
 import { INPUT_REQUEST } from '../workflowConfig.ts';
 import type { AskUserNode } from './graph.ts';
 import type { NodeResult, NodeRun, NodeRunner } from './scheduler.ts';
+import { nodeOutputContent } from './nodeEvents.ts';
 import { enrichNodeEvent } from './toolNode.ts';
 
 /** The arg ADK writes the response schema under. */
@@ -150,13 +151,13 @@ export function requestInputEvent(request: InputRequest): TurnEvent {
 
 /**
  * ADK's FunctionNode output event for a handler's value (base_node.js
- * toContent, function_node.js toEvent): the value as model text (a string as
- * it is, anything else as its JSON) and as the event's output, stamped.
+ * toContent, function_node.js toEvent): the value as its content
+ * (nodeOutputContent, the port of toContent; `{ reply, input }` is one model
+ * text part holding its JSON) and as the event's output, stamped.
  */
 export function answeredEvent(output: unknown, run: Pick<NodeRun, 'path' | 'branch'>, context: Pick<AskUserNodeContext, 'invocationId' | 'outputForAncestors' | 'isolationScope'>): TurnEvent {
   const name = run.path.slice(run.path.lastIndexOf('.') + 1);
-  const text = typeof output === 'string' ? output : JSON.stringify(output);
-  const event = createTurnEvent({ author: name, invocationId: context.invocationId, branch: run.branch, content: { role: 'model', parts: [{ text }] }, output });
+  const event = createTurnEvent({ author: name, invocationId: context.invocationId, branch: run.branch, content: nodeOutputContent(output), output });
   return enrichNodeEvent(event, run, context);
 }
 

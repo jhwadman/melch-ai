@@ -66,6 +66,7 @@ import { UnsupportedWorkflowResumeError } from '../lib/workflow/resume.ts';
 import type { StoredEvent } from '../lib/workflow/resume.ts';
 import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
 import type { NodeRun, SchedulerEvent, WorkflowRun } from '../lib/workflow/scheduler.ts';
+import { joinNodeEvent, mapNodeEvent } from '../lib/workflow/nodeEvents.ts';
 import { enrichNodeEvent } from '../lib/workflow/toolNode.ts';
 import { APP, USER, scenario } from './fixtures/sessions/scenarios.ts';
 import { conversation, loadFixture, pendingWorkflowInput as helperPendingWorkflowInput, seedSessions } from './helpers/sessionFixtures.ts';
@@ -262,6 +263,29 @@ test('a pause the scheduler opened stores the fixture\'s events, and resumes on 
   assert.equal(models.triage!.calls, 0);
 });
 
+test('after a resume, a node\'s workflow placeholders read what ADK\'s read: the input, and the outputs stored in this invocation only', async () => {
+  const f = loadFixture(FIXTURE);
+  const s = scenario(FIXTURE);
+  // ADR 0093's placeholders: {x.reply} from the input, <x.input from Confirm> from Confirm's output in this invocation,
+  // <x.draft from Triage> from a node whose output was stored in the paused invocation (none on ADK, so left as written).
+  const cfg = { ...s.config, subagents: s.config.subagents!.map((sub) => ({ ...sub, instruction: 'Publish {x.reply}: <x.input from Confirm> / <x.draft from Triage>.' })) } as SyndicateYamlConfig;
+  const stored = conversation(f).events as unknown as StoredEvent[];
+
+  const adkModels = fixtureModels();
+  const sessionService = await seedSessions(f);
+  const adk = await runSyndicateTurn({ runtime: 'adk', config: cfg, parts: [{ text: 'yes' }], appName: APP, userId: USER, sessionId: s.sessionId, sessionService, compile: { resolveModel: shimResolver(adkModels), log: () => {} }, trace: false });
+  assert.equal(adk.status, 'completed', adk.error?.message);
+  const adkStored = json((await sessionService.getSession({ appName: APP, userId: USER, sessionId: s.sessionId }))!.events.slice(stored.length)) as unknown as TurnEvent[];
+
+  const models = fixtureModels();
+  const { sessions, session } = await seedNative(f);
+  const native = await nativeTurn(cfg, models, sessions, session, 'yes', true);
+  assert.deepEqual(sorted(comparable(native.stored, stored)), sorted(comparable(adkStored, stored)));
+  const strip = (m: ScriptedModel) => m.requests.map(({ signal: _s, ...r }) => r);
+  assert.deepEqual(strip(models.publisher!), strip(adkModels.publisher!), 'the same instruction, filled the same way');
+  assert.match(JSON.stringify(models.publisher!.requests[0]), /Publish yes: the draft \/ <x\.draft from Triage>\./);
+});
+
 test('the test helper re-exports the library\'s pendingWorkflowInput', () => {
   assert.equal(helperPendingWorkflowInput, pendingWorkflowInput);
 });
@@ -357,6 +381,13 @@ async function nativeTurnOnEvents(cfg: SyndicateYamlConfig, stubs: Stubs, histor
       if (output !== undefined) events.push(stubEvent(r, name, output, invocationId));
       return { output };
     }),
+    // The events ADK stores for a join and a map (lib/workflow/nodeEvents.ts), as agentNodeRuntime stores them on node_end.
+    onEvent: (e) => {
+      if (e.type !== 'node_end') return;
+      const run = { name: e.node, path: e.path, branch: e.branch, invocationId, output: e.output };
+      const event = e.kind === 'join' ? joinNodeEvent(run) : e.kind === 'map' ? mapNodeEvent(run) : undefined;
+      if (event) events.push(event);
+    },
   }).catch((e: Error) => {
     error = e.message;
     return undefined;
@@ -443,6 +474,17 @@ test('a join after the paused node: the finished predecessor feeds the join from
   const { native } = await resumesAlike(cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
   assert.deepEqual(native.calls, ['Publisher']);
   assert.deepEqual(JSON.parse(String(native.run.output).replace(/^published /, '')), { Confirm: { reply: 'yes', input: 'the draft' }, Reader: 'read "the draft"' });
+});
+
+test('a map on the finished branch: completed from its stored list, no map event written again, and the join gets it, as on ADK', async () => {
+  const cfg = syndicate(
+    [['START', 'Triage', ['Confirm', 'Fan']], ['Confirm', 'Both'], ['Fan', 'Both'], ['Both', 'Publisher']],
+    { Confirm: { ask_user: 'Publish?' }, Fan: { map: 'Reader' }, Both: { join: true } },
+    ['Publisher', 'Reader'],
+  );
+  const { native } = await resumesAlike(cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
+  assert.deepEqual(native.calls, ['Publisher'], 'no map item ran again');
+  assert.deepEqual(JSON.parse(String(native.run.output).replace(/^published /, '')), { Confirm: { reply: 'yes', input: 'the draft' }, Fan: ['read "the draft"'] });
 });
 
 test('two ask_user nodes in a row: the second takes the first answer without asking, as ADK\'s compiled handler does', async () => {
