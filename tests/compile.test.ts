@@ -30,7 +30,7 @@ import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
 import { subagentOf } from '../lib/runtime/native/delegate.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runNativeAgent } from '../lib/runtime/nativeTurn.ts';
-import { chooseRuntime, runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
+import { DEFAULT_RUNTIME, chooseRuntime, describeRuntime, runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
@@ -325,13 +325,18 @@ test('native adapters follow the resolver: a shim’s own adapter, and a BYOK ke
   }
 });
 
-test('the runtime flag: the turn option wins, then MELCHIZEDEK_RUNTIME, then adk', () => {
-  assert.strictEqual(chooseRuntime(undefined, {}), 'adk');
+test('the runtime flag: the turn option wins, then MELCHIZEDEK_RUNTIME, then native (ADR 0102)', () => {
+  assert.strictEqual(DEFAULT_RUNTIME, 'native');
+  assert.strictEqual(chooseRuntime(undefined, {}), 'native');
+  assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'adk' }), 'adk');
+  assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: ' ADK ' }), 'adk');
   assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'native' }), 'native');
-  assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: ' Native ' }), 'native');
-  assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: '' }), 'adk');
+  assert.strictEqual(chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: '' }), 'native');
   assert.strictEqual(chooseRuntime('adk', { MELCHIZEDEK_RUNTIME: 'native' }), 'adk');
-  assert.strictEqual(chooseRuntime('native', {}), 'native');
+  assert.strictEqual(chooseRuntime('native', { MELCHIZEDEK_RUNTIME: 'adk' }), 'native');
+  assert.deepStrictEqual(describeRuntime(undefined, {}), { runtime: 'native', source: 'default' });
+  assert.deepStrictEqual(describeRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'adk' }), { runtime: 'adk', source: 'MELCHIZEDEK_RUNTIME' });
+  assert.deepStrictEqual(describeRuntime('adk', { MELCHIZEDEK_RUNTIME: 'native' }), { runtime: 'adk', source: 'option' });
   assert.strictEqual(runtimeSetting({}), undefined);
   assert.throws(() => chooseRuntime(undefined, { MELCHIZEDEK_RUNTIME: 'langgraph' }), /MELCHIZEDEK_RUNTIME must be "adk" or "native"/);
   assert.throws(() => chooseRuntime('loop', {}), /must be "adk" or "native"/);

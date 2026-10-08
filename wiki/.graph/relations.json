@@ -2753,6 +2753,54 @@
       "evidence": "ADR 0103 Decision 3 closes on native the open item ADR 0097 recorded: a Gemini 3 reflection call stored unsigned and the next request failing with the missing thought_signature 400.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0102 Decision 3: \"One module loads ADK. lib/adkPeer.ts tries await import('@google/adk') once ... Every other module takes ADK's values from it\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0102 Decision 1: \"DEFAULT_RUNTIME in lib/runtime/runtimeFlag.ts is native; a turn's runtime option, else MELCHIZEDEK_RUNTIME, else native.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0102 Decision 1: \"The registry's resolveAdapter gives a Gemini id GeminiAdapter by default ... GEMINI_ADAPTER=adk keeps AdkGeminiAdapter for this release.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0102 Decision 8: \"melchizedek-doctor opens with the runtime in use, its source, and whether @google/adk resolves (and its version), without loading it\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "rel": "explains",
+      "evidence": "ADR 0102 Context: 0.19.0 \"moved the default to 0.20.0 (ADR 0099), behind gate G3 and ADR 0045's stop rule\"; ADR 0102 is that flip.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0007-engine-as-package.md",
+      "rel": "explains",
+      "evidence": "ADR 0102 Decision 2: \"@google/adk is an optional peer (peerDependenciesMeta)\"; Alternatives: a synchronous require \"would load the CommonJS copy beside the consumer's ESM copy, two ADK registries in one process, which ADR 0007 exists to prevent.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

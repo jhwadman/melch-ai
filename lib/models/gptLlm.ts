@@ -34,7 +34,7 @@
  * are the adapter's own, run on the LlmRequest mapped to the contract.
  */
 
-import { LLMRegistry } from '@google/adk';
+import { requireAdk } from '../adkPeer.ts';
 import type { LlmRequest, LlmResponse } from '@google/adk';
 
 import { AdkShim } from './adkShim.ts';
@@ -161,5 +161,5 @@ export class GptLlm extends AdkShim {
  * registerAvailableProviders() when OPENAI_API_KEY is present.
  */
 export function registerGptLlm(): void {
-  LLMRegistry.register(GptLlm);
+  requireAdk("Registering a model class with ADK's LLMRegistry").LLMRegistry.register(GptLlm);
 }

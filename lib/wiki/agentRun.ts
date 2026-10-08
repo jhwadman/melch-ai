@@ -25,8 +25,9 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { InMemorySessionService, LlmAgent, Runner } from '@google/adk';
 import type { FunctionTool } from '@google/adk';
+
+import { requireAdk } from '../adkPeer.ts';
 
 import type { ModelAdapter } from '../models/contract.ts';
 import {
@@ -53,7 +54,7 @@ export interface WikiAgentRun {
   tools?: FunctionTool[];
   temperature?: number;
   maxOutputTokens?: number;
-  /** The runtime that runs the agent. Default: MELCHIZEDEK_RUNTIME, else adk. */
+  /** The runtime that runs the agent. Default: MELCHIZEDEK_RUNTIME, else native. */
   runtime?: RuntimeName;
   /** Native runtime only: the leaf adapter for a model id. Default resolveAdapter (lib/models/registry.ts). */
   adapterFor?: (model: string) => ModelAdapter;
@@ -141,6 +142,7 @@ export async function runWikiAgent(run: WikiAgentRun): Promise<WikiAgentResult> 
     );
   }
 
+  const { InMemorySessionService, LlmAgent, Runner } = requireAdk('A wiki agent on the adk runtime (MELCHIZEDEK_RUNTIME=adk)');
   registerAvailableProviders();
   const agent = new LlmAgent({
     name: run.name,

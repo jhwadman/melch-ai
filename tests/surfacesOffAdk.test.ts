@@ -70,7 +70,8 @@ function runtimeGraph(entry: string): Map<string, string[]> {
   return graph;
 }
 
-const isAdk = (specifier: string) => specifier === '@google/adk' || specifier.startsWith('@google/adk/');
+/** @google/adk itself, or lib/adkPeer.ts, the one module that loads it (ADR 0102). */
+const isAdk = (specifier: string) => specifier === '@google/adk' || specifier.startsWith('@google/adk/') || specifier.endsWith('/adkPeer.ts');
 
 test('the direct call loads no ADK: nothing in its runtime import graph names @google/adk', () => {
   const adk = [...runtimeGraph('scripts/direct_call.ts')].flatMap(([file, specs]) =>

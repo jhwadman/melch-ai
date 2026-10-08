@@ -29,6 +29,12 @@ export type {
 
 // ── Run it ──────────────────────────────────────────────────────────────────
 export { runSyndicateTurn, ingestTurnMemory } from './runtime/syndicateTurn.ts';
+// The runtime in use (native by default since 0.20.0) and the optional ADK peer (ADR 0102).
+export { DEFAULT_RUNTIME, describeRuntime, AdkNotInstalledError, adkInstalled } from './runtime/syndicateTurn.ts';
+export type { RuntimeName, RuntimeSource } from './runtime/syndicateTurn.ts';
+// An in-process session store that needs no ADK; runSyndicateTurn takes it through asAdkSessionService.
+export { InProcessSessionService } from './runtime/sessions.ts';
+export { asAdkSessionService, asSessionService } from './runtime/adkSessionBridge.ts';
 export { approvalResponsePart, pendingApproval, APPROVAL_REQUEST } from './runtime/approvals.ts';
 export type { PendingApproval } from './runtime/approvals.ts';
 export type {

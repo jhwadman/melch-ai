@@ -14,7 +14,7 @@
  * deployment's network is reachable through it. Page text arrives as model
  * input; treat it as data, as any fetched page.
  */
-import { BaseTool } from '@google/adk';
+import { BaseTool } from '../adkPeer.ts';
 import type { LlmRequest } from '@google/adk';
 
 import { providerForModel } from '../models/providerMap.ts';

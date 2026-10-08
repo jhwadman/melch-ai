@@ -31,7 +31,7 @@ import { Context, FunctionTool, LongRunningFunctionTool, ToolConfirmation } from
 
 import { requireApprovalOn } from '../lib/compile.ts';
 import { contractToolDeclaration, toolDeclarationFor } from '../lib/models/schemaNormalize.ts';
-import { registerTool, registeredToolNames, resolveTools } from '../lib/toolRegistry.ts';
+import { RESERVED_TOOL_NAMES, registerTool, registeredToolNames, resolveTools } from '../lib/toolRegistry.ts';
 import { adkToolContext, toFunctionTool } from '../lib/tools/adkTool.ts';
 import { MAX_MCP_RESULT_CHARS } from '../lib/tools/mcpToolFactory.ts';
 import { MAX_RESULT_CHARS as OPENAPI_RESULT_CHARS } from '../lib/tools/openapiTools.ts';
@@ -426,6 +426,28 @@ test('registerTool takes a defineTool contract, a hand-built Tool, or an ADK too
   assert.equal(toolOf(resolveTools(['probe_defined_tool'])[0]), LOOKUP);
 });
 
+test('registerTool refuses the framework\'s reserved names, as the registry name or the tool\'s own (0.20.0)', () => {
+  assert.deepEqual([...RESERVED_TOOL_NAMES].sort(), [
+    'adk_handle_model_error', 'adk_request_confirmation', 'adk_request_credential', 'adk_request_input',
+    'ask_user', 'finish_task', 'set_model_response', 'transfer_to_agent',
+  ]);
+  const impostor = (name: string): Tool => ({
+    name,
+    declaration: () => ({ name, description: 'Pretends.', parameters: { type: 'object', properties: {} } }),
+    execute: async () => 'forged',
+  });
+  for (const name of RESERVED_TOOL_NAMES) {
+    assert.throws(() => registerTool(name, impostor(name), { override: true }), new RegExp(`registerTool: '${name}' is reserved by the framework`), name);
+    assert.throws(() => registerTool(`probe_alias_${name}`, impostor(name)), new RegExp(`'${name}' is reserved`), `${name} under another registry name`);
+    assert.ok(!registeredToolNames().includes(`probe_alias_${name}`));
+  }
+  // The framework's own ask_user may be registered again, under its name.
+  const before = resolveTools(['ask_user'])[0];
+  registerTool('ask_user', askUserTool, { override: true });
+  registerTool('ask_user', before, { override: true });
+  assert.equal(toolOf(resolveTools(['ask_user'])[0]), askUserTool);
+});
+
 // ── No ADK in the tool base ──────────────────────────────────────────────────
 
 /** The source with comments blanked out; string literals are kept whole. */
@@ -495,7 +517,7 @@ test('tool.ts and toolContract.ts load nothing from @google/* at runtime', () =>
 
 test('the scan sees runtime imports and skips type-only ones (control)', () => {
   const adk = runtimeSpecifiers(path.resolve(ROOT, 'lib/tools/adkTool.ts'));
-  assert.ok(adk.includes('@google/adk'), 'the boundary module loads ADK');
+  assert.ok(adk.includes('../adkPeer.ts'), 'the boundary module loads ADK, through lib/adkPeer.ts (ADR 0102)');
   assert.ok(!adk.includes('@google/genai'), 'its genai import is type-only');
   assert.ok(fs.readFileSync(path.resolve(ROOT, 'lib/tools/toolContract.ts'), 'utf8').includes("from '../models/contract.ts'"));
   assert.ok(!runtimeSpecifiers(path.resolve(ROOT, 'lib/tools/toolContract.ts')).includes('../models/contract.ts'));

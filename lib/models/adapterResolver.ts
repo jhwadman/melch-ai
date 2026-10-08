@@ -11,12 +11,13 @@
  * and the contract adapter table live here; registry.ts imports them for
  * resolveModel and for its own resolveAdapter.
  *
- * GEMINI (ADR 0068): `adapterResolver(adkGemini)` takes the factory for the
- * temporary AdkGeminiAdapter from its caller. registry.ts passes one, so its
- * resolveAdapter keeps ADR 0060's default (`adk` until gate G3). The resolver
- * exported here has none: a Gemini id gets the engine's GeminiAdapter unless
- * `adk` is asked for, by the option or by GEMINI_ADAPTER=adk, which throws
- * and names the entry that has it.
+ * GEMINI (ADR 0068, ADR 0100): a Gemini id gets the engine's GeminiAdapter
+ * unless `adk` is asked for, by the option or by GEMINI_ADAPTER=adk.
+ * `adapterResolver(adkGemini)` takes the factory for the temporary
+ * AdkGeminiAdapter from its caller: registry.ts passes one, so `adk` works
+ * there for one release (with @google/adk installed). The resolver exported
+ * here has none, so asking it for `adk` throws and names the entry that has
+ * it.
  */
 
 import type { ModelAdapter } from './contract.ts';
@@ -112,8 +113,9 @@ export interface ResolveAdapterOptions {
   endpoint?: Partial<ProviderEndpoint>;
   /**
    * Which Gemini adapter a Gemini id gets. Default: GEMINI_ADAPTER, else
-   * `adk` through `melchizedek-agents/models/registry` and `engine` through
-   * `melchizedek-agents/model`, which has no `adk`.
+   * `engine` (since 0.20.0, ADR 0100). `adk` is available for one release
+   * through `melchizedek-agents/models/registry` with @google/adk installed;
+   * `melchizedek-agents/model` has no `adk`.
    */
   gemini?: GeminiAdapterChoice;
 }
@@ -144,9 +146,9 @@ const CONTRACT_ADAPTER: Record<Exclude<ProviderId, 'gemini'>, (r: Route) => Mode
 };
 
 /**
- * A resolver over the one prefix table. With `adkGemini`, a Gemini id gets
- * AdkGeminiAdapter unless `engine` is asked for (ADR 0060). Without it, a
- * Gemini id gets GeminiAdapter, and asking for `adk` throws (ADR 0068).
+ * A resolver over the one prefix table. A Gemini id gets GeminiAdapter
+ * unless `adk` is asked for (ADR 0100). With `adkGemini`, `adk` gets
+ * AdkGeminiAdapter (ADR 0060); without it, asking for `adk` throws (ADR 0068).
  */
 export function adapterResolver(adkGemini?: AdkGeminiFactory): AdapterResolver {
   const geminiFor = (r: Route, choice: GeminiAdapterChoice): ModelAdapter => {
@@ -166,7 +168,7 @@ export function adapterResolver(adkGemini?: AdkGeminiFactory): AdapterResolver {
     const route = routeFor(modelId, scopedKey(modelId, options.apiKey, keyProvider), options.endpoint);
     if (route.transport === 'gateway') return new GatewayAdapter({ model: modelId });
     if (route.provider === 'gemini') {
-      return geminiFor(route, options.gemini ?? geminiAdapterSetting() ?? (adkGemini ? 'adk' : 'engine'));
+      return geminiFor(route, options.gemini ?? geminiAdapterSetting() ?? 'engine');
     }
     return CONTRACT_ADAPTER[route.provider](route);
   }

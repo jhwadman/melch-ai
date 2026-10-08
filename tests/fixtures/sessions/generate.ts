@@ -105,6 +105,8 @@ async function generate(s: Scenario): Promise<SessionFixture[]> {
       sessionService: sessions,
       compile: { resolveModel: scriptedResolver(models) },
       trace: false,
+      // The fixtures are what the ADK runtime writes: pinned, now that native is the default (ADR 0102).
+      runtime: 'adk',
     });
     const want = i === s.turns.length - 1 ? s.endsWith : 'completed';
     if (r.status !== want) throw new Error(`${s.name}: turn ${i + 1} ended ${r.status}, expected ${want}${r.error ? ` (${r.error.code}: ${r.error.message})` : ''}`);

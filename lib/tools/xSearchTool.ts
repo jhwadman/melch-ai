@@ -34,7 +34,7 @@
  *   both lists are set the allowlist wins.
  */
 
-import { BaseTool } from '@google/adk';
+import { BaseTool } from '../adkPeer.ts';
 import type { LlmRequest } from '@google/adk';
 
 import { providerForModel } from '../models/providerMap.ts';

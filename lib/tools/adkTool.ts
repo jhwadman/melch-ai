@@ -39,7 +39,7 @@
  *   toAdkTool takes any of these and picks the wrapper.
  */
 
-import { BaseTool, BaseToolset, FunctionTool, GOOGLE_SEARCH } from '@google/adk';
+import { BaseTool, BaseToolset, FunctionTool, GOOGLE_SEARCH } from '../adkPeer.ts';
 import type { Context, LlmRequest, ReadonlyContext, ToolOptions, ToolProcessLlmRequest } from '@google/adk';
 import type { Schema } from '@google/genai';
 

@@ -66,17 +66,9 @@
  * record.
  */
 
-import {
-  DEFAULT_ROUTE,
-  FunctionNode,
-  JoinNode,
-  ParallelWorker,
-  RequestInput,
-  ToolNode,
-  Workflow,
-  createEvent,
-} from '@google/adk';
-import type { BaseNode, BaseTool, EdgeItem, LlmAgent } from '@google/adk';
+import type { BaseNode, BaseTool, EdgeItem, LlmAgent, Workflow } from '@google/adk';
+
+import { requireAdk } from './adkPeer.ts';
 
 import { compileWorkflowSpec } from './compile.ts';
 import type { CompileOptions, WorkflowSpec } from './compile.ts';
@@ -123,6 +115,10 @@ export function assembleWorkflow(
 ): CompiledWorkflow {
   const config = spec.config;
   if (!isWorkflowSyndicate(config)) throw new Error(`${config.syndicate_name}: no workflow block`);
+  // ADK's Workflow is the adk runtime's; the native walk (lib/workflow/turn.ts) needs none of this (ADR 0102).
+  const { DEFAULT_ROUTE, FunctionNode, JoinNode, ParallelWorker, RequestInput, ToolNode, Workflow, createEvent } = requireAdk(
+    "ADK's Workflow (a workflow syndicate on the adk runtime, compileWorkflow)",
+  );
   const wf = config.workflow;
   const nodeYaml = wf.nodes ?? {};
 

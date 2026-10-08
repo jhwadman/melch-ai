@@ -28,7 +28,7 @@ import {
   WEB_SEARCH_MARKER,
   X_SEARCH_MARKER,
 } from './tools/nativeTools.ts';
-import { isInstructionTool, isNativeToolMarker, isTool } from './tools/tool.ts';
+import { isInstructionTool, isNativeToolMarker, isTool, toolOf } from './tools/tool.ts';
 import { webExtractTool } from './tools/webExtractTool.ts';
 import { WIKI_AGENT_TOOL_CONTRACTS } from './tools/wikiTools.ts';
 import { SCIENCE_TOOL_CONTRACTS } from './tools/scienceTools.ts';
@@ -128,6 +128,41 @@ export function resolveTools(
 }
 
 /**
+ * Names the framework itself declares, calls or reads on the wire: the
+ * approval, credential and input interrupts, the reflection tool, delegation,
+ * structured output and task mode. A consumer's tool under one of them would
+ * be mistaken for the framework's own (a forged approval request, a fake
+ * transfer), so registerTool refuses them. `ask_user` is the framework's
+ * question tool; only that tool may be registered under it.
+ */
+export const RESERVED_TOOL_NAMES: readonly string[] = [
+  'adk_request_confirmation',
+  'adk_request_credential',
+  'adk_request_input',
+  'ask_user',
+  'adk_handle_model_error',
+  'transfer_to_agent',
+  'set_model_response',
+  'finish_task',
+];
+
+/** Whether `tool` is the framework's own ask_user (the own Tool, or the registry's wrapper of it). */
+function isFrameworkAskUser(tool: unknown): boolean {
+  return tool === askUserTool || tool === TOOL_MAP.ask_user || (!!tool && typeof tool === 'object' && toolOf(tool) === askUserTool);
+}
+
+/** The reserved name `name` or `tool` would take, if any. */
+function reservedNameOf(name: string, tool: unknown): string | undefined {
+  const own = tool && typeof tool === 'object' ? (tool as { name?: unknown }).name : undefined;
+  for (const candidate of [name, typeof own === 'string' ? own : undefined]) {
+    if (!candidate || !RESERVED_TOOL_NAMES.includes(candidate)) continue;
+    if (candidate === 'ask_user' && isFrameworkAskUser(tool)) continue;
+    return candidate;
+  }
+  return undefined;
+}
+
+/**
  * Make a tool resolvable by name from a syndicate YAML's `tools:` list.
  *
  * For package consumers: the registry is otherwise closed (YAML can name
@@ -139,7 +174,9 @@ export function resolveTools(
  * a ready ADK tool. A contract or Tool reaches the ADK runtime through
  * toFunctionTool, an InstructionTool through toAdkInstructionTool, a
  * NativeToolMarker as its sentinel (toAdkTool, lib/tools/adkTool.ts).
- * Replacing a built-in requires `{ override: true }`.
+ * Replacing a built-in requires `{ override: true }`. A reserved framework
+ * name (RESERVED_TOOL_NAMES), as the registry name or the tool's own, is
+ * refused whatever the options say.
  */
 export function registerTool(
   name: string,
@@ -148,6 +185,10 @@ export function registerTool(
 ): void {
   if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name)) {
     throw new Error(`registerTool: '${name}' is not a valid tool name`);
+  }
+  const reserved = reservedNameOf(name, tool);
+  if (reserved) {
+    throw new Error(`registerTool: '${reserved}' is reserved by the framework (${RESERVED_TOOL_NAMES.join(', ')}); register the tool under another name`);
   }
   if (Object.prototype.hasOwnProperty.call(TOOL_MAP, name) && !options.override) {
     throw new Error(`registerTool: '${name}' is already registered (pass { override: true } to replace it)`);

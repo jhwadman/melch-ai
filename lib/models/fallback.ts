@@ -31,7 +31,7 @@
  *     closes it. Its state is lib/models/circuitBreaker.ts, which the
  *     contract-level wrapper (lib/models/fallbackAdapter.ts) shares.
  */
-import { BaseLlm } from '@google/adk';
+import { BaseLlm } from '../adkPeer.ts';
 import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
 
 import { errorDecision, errorText, isRetryableErrorResponse } from './errorResponse.ts';

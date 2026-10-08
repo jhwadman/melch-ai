@@ -6,6 +6,89 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+Release 0.20.0: the native runtime is the default, and `@google/adk` is an
+optional peer (ADR 0102).
+
+### Breaking — read before upgrading
+
+- **Breaking: the native runtime is the default (WS5-1, ADR 0102).** A
+  turn with no `runtime` option and no `MELCHIZEDEK_RUNTIME` now runs on the
+  engine's own loop and scheduler (`DEFAULT_RUNTIME` is `native`), on every
+  surface: `runSyndicateTurn`, the A2A server, the bins, the wiki agents.
+  It stores the events the ADK runtime stores, and every session ADK wrote
+  resumes under it (`tests/sessionFixtures.test.ts`, ADR 0045's stop rule),
+  so a deployment that upgrades keeps its conversations. **To stay on ADK**
+  for this release: install `@google/adk@~2.2.0` beside the package and set
+  `MELCHIZEDEK_RUNTIME=adk` (or pass `runtime: 'adk'`); a conversation can
+  move between the runtimes either way. What differs on native: approval
+  gates on workflow nodes run on native only (ADR 0098); `context:`
+  compaction, `mode: task` and workflows run on the engine's ports of ADK's
+  compactor, task mode and scheduler (ADR 0078, ADR 0081, ADR 0087, ADR
+  0095); a Gemini agent is not shown the reflection tool and stores no
+  `turnComplete` (ADR 0097, ADR 0100); self-correction's reflection call on
+  Gemini 3 is signed (ADR 0103); a caller's `transformAgent` is ADK-only,
+  and an `ask_user` tool listed on a workflow agent node (rather than an
+  `ask_user` node) is refused, each with `UnsupportedOnRuntimeError` before
+  any model call (ADR 0073, ADR 0092). **1.0.0
+  removes the adk runtime** (ADR 0045).
+- **Breaking: `@google/adk` is an optional peer dependency.** npm no longer
+  installs it with the package; nothing on the native runtime loads it, and
+  `lib/adkPeer.ts` is the one module that tries to. Without it, everything
+  only ADK runs fails with the new `AdkNotInstalledError`, which names the
+  package and the install command: `MELCHIZEDEK_RUNTIME=adk`,
+  `compileGraph` / `compileSubagent` / `compileWorkflow`, `retryPlugins`,
+  `GEMINI_ADAPTER=adk`, a wiki agent on adk, and the ADK face of a tool, a
+  model shim or a session store (their `runAsync`, `generateContentAsync`,
+  `appendEvent`). The engine's classes that extend ADK's (the
+  `FunctionTool`s in the tool registry, the model shims, the session
+  stores) still construct and still carry their own Tool, adapter or store;
+  with ADK installed they are ADK's own classes, as before. An install of
+  ADK that fails to load for another reason is still an error. A
+  TypeScript consumer without ADK sees ADK's types in the declarations as
+  unresolved (use `skipLibCheck`). The package now uses a top-level
+  `await` to load the peer, so it cannot be `require()`d from CommonJS.
+- **Breaking: a Gemini id gets the engine's `GeminiAdapter` by default
+  (ADR 0100).** `resolveAdapter` from `melchizedek-agents/models/registry`
+  and `geminiAdapterChoice()` default to `engine`; `GEMINI_ADAPTER=adk`
+  (or `{ gemini: 'adk' }`) keeps `AdkGeminiAdapter` for this release, with
+  `@google/adk` installed. The adk runtime keeps `TracedGemini`.
+- **Breaking: `registerTool` refuses the framework's reserved names.**
+  `adk_request_confirmation`, `adk_request_credential`,
+  `adk_request_input`, `adk_handle_model_error`, `transfer_to_agent`,
+  `set_model_response`, `finish_task`, and `ask_user` unless it is the
+  framework's own tool, are refused as the registry name or the tool's own
+  name, with `{ override: true }` too: a tool under one of them would be
+  read as the framework's interrupt, delegation or answer.
+  `RESERVED_TOOL_NAMES` is exported from `melchizedek-agents/tools`.
+- **Breaking: a workflow `map:` node refuses `retry` and `timeout`
+  (ADR 0103).** Neither runtime ever applied them: each item of a map runs
+  under the mapped agent's own node entry, as ADK runs it. A YAML that set
+  them on the map entry loaded and silently ignored them; it is now refused
+  at load with `workflow.nodes.<Map>.retry — retry on a map node is not
+  applied: each item runs under its agent's own retry; set it on
+  nodes.<Agent>` (and the same for `timeout`). Move the keys to the mapped
+  agent's entry. No shipped example or template sets them.
+
+### Added and changed
+
+- **The doctor prints the runtime (ADR 0102).** `melchizedek-doctor` opens
+  with a `runtime` line: the runtime in use, where it came from
+  (`MELCHIZEDEK_RUNTIME` or the default) and whether `@google/adk` is
+  installed, with its version. `--check` also fails when
+  `MELCHIZEDEK_RUNTIME=adk` is set without ADK, or holds a value no turn
+  accepts. `runDoctor()` returns it as `runtime`, and `runtimeReport` is
+  exported from `lib/doctor.ts`.
+- **New exports.** From the barrel and `melchizedek-agents/runtime`:
+  `describeRuntime` (the runtime and its source), `RuntimeSource`,
+  `AdkNotInstalledError`, `adkInstalled`, `InProcessSessionService` (a
+  session store that needs no ADK) and `asAdkSessionService` /
+  `asSessionService`; the barrel also exports `DEFAULT_RUNTIME` and
+  `RuntimeName`. A turn without ADK takes
+  `sessionService: asAdkSessionService(new InProcessSessionService())`.
+  The exports map does not change.
+- **CI consumes the packed tarball twice**: without `@google/adk` a shipped
+  example's turn runs on native, and with it the same turn runs on adk.
+
 - **The native loop's security gate (WS5-5, ADR 0101).** A model's answer is
   now held to the model contract before either runtime stores it:
   `modelResponseToLlmResponse` in `melchizedek-agents/models/genaiMapping`
@@ -57,9 +140,8 @@ the starter pack and the templates), not the repo's full history.
   `melchizedek-agents/models/genaiMapping` is the mapping that writes them
   out. `scripts/gemini_engine_check.ts` is the live check gate G3 runs:
   grounding, code execution, a function tool beside server-side tools, and a
-  two-turn session, with `GeminiAdapter` on both runtimes. Defaults are
-  unchanged: Gemini on native still goes through ADK's Gemini unless
-  `GEMINI_ADAPTER=engine`.
+  two-turn session, with `GeminiAdapter` on both runtimes. `GeminiAdapter`
+  becomes the default in 0.20.0 (see Breaking above).
 
 - **A workflow syndicate can be a subagent, and a workflow node can carry
   an approval gate (WS4-7, ADR 0098).** A DELEGATE syndicate's
@@ -98,14 +180,6 @@ unchanged.
 
 ### Breaking — read before upgrading
 
-- **Breaking: a workflow `map:` node refuses `retry` and `timeout`
-  (ADR 0103).** Neither runtime ever applied them: each item of a map runs
-  under the mapped agent's own node entry, as ADK runs it. A YAML that set
-  them on the map entry loaded and silently ignored them; it is now refused
-  at load with `workflow.nodes.<Map>.retry — retry on a map node is not
-  applied: each item runs under its agent's own retry; set it on
-  nodes.<Agent>` (and the same for `timeout`). Move the keys to the mapped
-  agent's entry. No shipped example or template sets them.
 - **Breaking: a skill script no longer inherits the server's environment
   (ADR 0086).** An approved `run_skill_script` starts from PATH,
   HOME/USERPROFILE, TMPDIR/TEMP/TMP, LANG, LC_*, TZ, the user's name and

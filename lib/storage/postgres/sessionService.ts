@@ -35,7 +35,7 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { BaseSessionService } from '@google/adk';
+import { BaseSessionService } from '../../adkPeer.ts';
 import type {
   CreateSessionRequest as AdkCreateSessionRequest,
   DeleteSessionRequest as AdkDeleteSessionRequest,

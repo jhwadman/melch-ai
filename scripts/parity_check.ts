@@ -27,7 +27,7 @@
  * request body. Provider error text goes to the JSON file only, scrubbed of
  * key-shaped strings.
  *
- * MELCHIZEDEK_RUNTIME (adk | native, default adk) picks the runtime every
+ * MELCHIZEDEK_RUNTIME (adk | native, default the library's DEFAULT_RUNTIME) picks the runtime every
  * turn runs on (the turn's runtime option, ADR 0073), and the report records
  * it.
  *
@@ -75,6 +75,7 @@ import { toLowercaseJsonSchema } from '../lib/models/schemaNormalize.ts';
 import { patternRedactor } from '../lib/observability/redact.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
+import { DEFAULT_RUNTIME } from '../lib/runtime/runtimeFlag.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult, TurnEvents } from '../lib/runtime/syndicateTurn.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
@@ -326,7 +327,7 @@ async function runProvider(target: Target, opts: ParityOptions): Promise<Provide
         sessionService,
         ...(target.resolveModel ? { compile: { resolveModel: target.resolveModel } } : {}),
         deadlineMs: opts.turnTimeoutMs ?? DEFAULT_TURN_TIMEOUT_MS,
-        runtime: opts.runtime ?? 'adk',
+        runtime: opts.runtime ?? DEFAULT_RUNTIME,
         streaming,
         trace: { syndicateName: 'parity', attributes: { 'surface.name': target.transport === 'scripted' ? 'parity-scripted' : 'parity' } },
         events,
@@ -572,7 +573,7 @@ export async function runParity(opts: ParityOptions = {}): Promise<ParityReport>
     harness: 'parity',
     version: 1,
     mode: opts.scripted ? 'scripted' : 'live',
-    runtime: { requested: opts.runtime ?? 'adk', ran: opts.runtime ?? 'adk' },
+    runtime: { requested: opts.runtime ?? DEFAULT_RUNTIME, ran: opts.runtime ?? DEFAULT_RUNTIME },
     ...(opts.faults?.length ? { faults: [...opts.faults] } : {}),
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
@@ -587,10 +588,10 @@ export function exitCodeFor(report: ParityReport): number {
   return report.pass ? 0 : 1;
 }
 
-/** MELCHIZEDEK_RUNTIME, validated: adk (the default) or native. */
+/** MELCHIZEDEK_RUNTIME, validated: adk or native; unset means the library's default (DEFAULT_RUNTIME). */
 export function requestedRuntime(env: NodeJS.ProcessEnv = process.env): Runtime {
   const raw = (env.MELCHIZEDEK_RUNTIME ?? '').trim().toLowerCase();
-  if (!raw) return 'adk';
+  if (!raw) return DEFAULT_RUNTIME;
   if (raw === 'adk' || raw === 'native') return raw;
   throw new UsageError(`MELCHIZEDEK_RUNTIME must be adk or native (got '${raw.slice(0, 20)}')`);
 }

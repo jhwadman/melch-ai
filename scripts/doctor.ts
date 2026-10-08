@@ -6,7 +6,9 @@
  * examples/), resolves each agent's model to its provider under the current
  * .env, and prints: the provider, whether that path is funded (direct key,
  * gateway stand-in, or local), which declared server-side tools it keeps or
- * drops, and one verdict per syndicate. Closes with the env vars that would
+ * drops, and one verdict per syndicate. Says first which runtime a turn runs
+ * on (MELCHIZEDEK_RUNTIME, else native) and whether @google/adk, needed only
+ * for the adk runtime, is installed. Closes with the env vars that would
  * unlock the most, where to get each, and the first command to try.
  *
  * Read-only: never edits .env, never sends a request, never prints a key
@@ -98,4 +100,4 @@ if (json) {
   console.log(renderDoctor(result, { color: !noColor }));
 }
 
-if (check && result.counts.blocked > 0) process.exit(1);
+if (check && (result.counts.blocked > 0 || result.runtime.problem)) process.exit(1);

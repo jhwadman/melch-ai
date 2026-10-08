@@ -13,7 +13,7 @@
  *   contract, so lib/models/registry.ts and every caller are unchanged.
  */
 
-import { LLMRegistry } from '@google/adk';
+import { requireAdk } from '../adkPeer.ts';
 
 import { OllamaAdapter } from './ollamaAdapter.ts';
 import { OpenAiCompatibleLlm } from './openAiCompatibleLlm.ts';
@@ -45,5 +45,5 @@ export class OllamaLlm extends OpenAiCompatibleLlm {
  * OLLAMA_UNREACHABLE message that says how to start it.
  */
 export function registerOllamaLlm(): void {
-  LLMRegistry.register(OllamaLlm);
+  requireAdk("Registering a model class with ADK's LLMRegistry").LLMRegistry.register(OllamaLlm);
 }

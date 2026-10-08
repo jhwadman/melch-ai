@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 862,
-    "edges": 3333,
+    "nodes": 867,
+    "edges": 3398,
     "byKind": {
-      "doc": 166,
+      "doc": 167,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 153,
+      "file": 156,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 197,
+      "module": 198,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 697,
+      "links_to": 710,
       "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 810,
+      "imports": 840,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 833,
-      "constrains": 194,
+      "derives_from": 849,
+      "constrains": 198,
       "supersedes": 8,
       "depends_on": 106,
-      "explains": 31,
+      "explains": 33,
       "mitigates": 2,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2990,
-      "inferred": 343
+      "extracted": 3049,
+      "inferred": 349
     },
     "isolated": 4
   },
@@ -1601,6 +1601,18 @@
       }
     },
     {
+      "id": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "kind": "doc",
+      "label": "ADR 0102: 0.20.0 makes native the default runtime, and @google/adk an optional peer loaded in one module",
+      "source": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1128
+      }
+    },
+    {
       "id": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "kind": "doc",
       "label": "ADR 0103: A map entry refuses retry and timeout, a node's retry spells exceptions and jitter, and native signs the reflection call on Gemini",
@@ -1705,7 +1717,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1603
+        "words": 1583
       }
     },
     {
@@ -1753,7 +1765,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3508
+        "words": 3516
       }
     },
     {
@@ -1777,7 +1789,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4839
+        "words": 4840
       }
     },
     {
@@ -1825,7 +1837,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2924
+        "words": 2930
       }
     },
     {
@@ -1849,7 +1861,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1380
+        "words": 1412
       }
     },
     {
@@ -1861,7 +1873,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 501
+        "words": 515
       }
     },
     {
@@ -1885,7 +1897,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6729
+        "words": 6881
       }
     },
     {
@@ -2017,7 +2029,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2448
+        "words": 2501
       }
     },
     {
@@ -4098,6 +4110,12 @@
       "attrs": {}
     },
     {
+      "id": "file:scripts/ci/consumer_turn.mjs",
+      "kind": "file",
+      "label": "consumer_turn.mjs",
+      "source": "scripts/ci/consumer_turn.mjs"
+    },
+    {
       "id": "file:skills/README.md",
       "kind": "file",
       "label": "README.md",
@@ -4307,6 +4325,12 @@
       "source": "tests/helpers/virtualClock.ts"
     },
     {
+      "id": "file:tests/helpers/withoutAdk.ts",
+      "kind": "file",
+      "label": "withoutAdk.ts",
+      "source": "tests/helpers/withoutAdk.ts"
+    },
+    {
       "id": "file:tests/identity.test.ts",
       "kind": "file",
       "label": "identity.test.ts",
@@ -4423,10 +4447,17 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/optionalAdk.test.ts",
+      "kind": "file",
+      "label": "optionalAdk.test.ts",
+      "source": "tests/optionalAdk.test.ts"
+    },
+    {
       "id": "file:tests/packageSurface.test.ts",
       "kind": "file",
       "label": "packageSurface.test.ts",
-      "source": "tests/packageSurface.test.ts"
+      "source": "tests/packageSurface.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/parityHarness.test.ts",
@@ -4831,6 +4862,15 @@
       }
     },
     {
+      "id": "module:lib/adkPeer.ts",
+      "kind": "module",
+      "label": "lib/adkPeer.ts",
+      "source": "lib/adkPeer.ts",
+      "attrs": {
+        "lines": 284
+      }
+    },
+    {
       "id": "module:lib/compile.ts",
       "kind": "module",
       "label": "lib/compile.ts",
@@ -4845,7 +4885,7 @@
       "label": "lib/compileAdk.ts",
       "source": "lib/compileAdk.ts",
       "attrs": {
-        "lines": 147
+        "lines": 153
       }
     },
     {
@@ -4881,7 +4921,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 685
+        "lines": 763
       }
     },
     {
@@ -4917,7 +4957,7 @@
       "label": "lib/index.ts",
       "source": "lib/index.ts",
       "attrs": {
-        "lines": 122
+        "lines": 128
       }
     },
     {
@@ -4998,7 +5038,7 @@
       "label": "lib/models/adapterResolver.ts",
       "source": "lib/models/adapterResolver.ts",
       "attrs": {
-        "lines": 218
+        "lines": 220
       }
     },
     {
@@ -5007,7 +5047,7 @@
       "label": "lib/models/adkGeminiAdapter.ts",
       "source": "lib/models/adkGeminiAdapter.ts",
       "attrs": {
-        "lines": 405
+        "lines": 407
       }
     },
     {
@@ -5286,7 +5326,7 @@
       "label": "lib/models/registry.ts",
       "source": "lib/models/registry.ts",
       "attrs": {
-        "lines": 342
+        "lines": 347
       }
     },
     {
@@ -5619,7 +5659,7 @@
       "label": "lib/runtime/runtimeFlag.ts",
       "source": "lib/runtime/runtimeFlag.ts",
       "attrs": {
-        "lines": 59
+        "lines": 70
       }
     },
     {
@@ -5637,7 +5677,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1188
+        "lines": 1205
       }
     },
     {
@@ -5673,7 +5713,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 481
+        "lines": 483
       }
     },
     {
@@ -5781,7 +5821,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 166
+        "lines": 207
       }
     },
     {
@@ -6141,7 +6181,7 @@
       "label": "lib/wiki/agentRun.ts",
       "source": "lib/wiki/agentRun.ts",
       "attrs": {
-        "lines": 158
+        "lines": 160
       }
     },
     {
@@ -6249,7 +6289,7 @@
       "label": "lib/workflow.ts",
       "source": "lib/workflow.ts",
       "attrs": {
-        "lines": 234
+        "lines": 230
       }
     },
     {
@@ -6402,7 +6442,7 @@
       "label": "scripts/doctor.ts",
       "source": "scripts/doctor.ts",
       "attrs": {
-        "lines": 102
+        "lines": 104
       }
     },
     {
@@ -13986,6 +14026,167 @@
       "evidence": "/decisions/0101-native-loop-security-gate.md:27"
     },
     {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "file:.github/workflows/ci.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "file:package.json",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "file:scripts/ci/consumer_turn.mjs",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "file:tests/helpers/withoutAdk.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "file:tests/optionalAdk.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "file:tests/packageSurface.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "file:tests/sessionFixtures.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/compileAdk.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md frontmatter"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0007-engine-as-package.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md:39"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md:37"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md:42"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0058-session-stores-with-both-faces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md:42"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md:37"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md:37"
+    },
+    {
+      "from": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0102-native-default-and-optional-adk-peer.md:49"
+    },
+    {
       "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "to": "file:tests/geminiTurnParity.test.ts",
       "rel": "derives_from",
@@ -14890,6 +15091,13 @@
     },
     {
       "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:27"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -15544,7 +15752,14 @@
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:79"
+      "evidence": "/models/gemini-adapter.md:30"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:30"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -16041,7 +16256,14 @@
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:171"
+      "evidence": "/models/provider-routing.md:157"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:157"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16577,14 +16799,14 @@
     },
     {
       "from": "/operations/native-loop-security.md",
-      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/native-loop-security.md:34"
     },
     {
       "from": "/operations/native-loop-security.md",
-      "to": "/decisions/0101-native-loop-security-gate.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/native-loop-security.md:34"
@@ -16773,6 +16995,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:28"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -16858,6 +17087,13 @@
     {
       "from": "/overview/architecture.md",
       "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
+      "from": "/overview/architecture.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/architecture.md:27"
@@ -17315,7 +17551,7 @@
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:323"
+      "evidence": "/overview/native-loop.md:325"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17350,7 +17586,7 @@
       "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:308"
+      "evidence": "/overview/native-loop.md:310"
     },
     {
       "from": "/overview/native-loop.md",
@@ -17393,6 +17629,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:149"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:46"
     },
     {
       "from": "/overview/native-loop.md",
@@ -20364,6 +20607,13 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/compileAdk.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -20463,6 +20713,13 @@
     {
       "from": "module:lib/compileAdk.ts",
       "to": "module:lib/a2a/remoteAgent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileAdk.ts"
+    },
+    {
+      "from": "module:lib/compileAdk.ts",
+      "to": "module:lib/adkPeer.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/compileAdk.ts"
@@ -20651,6 +20908,13 @@
     },
     {
       "from": "module:lib/doctor.ts",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
       "to": "module:lib/syndicateSchema.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -20791,7 +21055,21 @@
     },
     {
       "from": "module:lib/index.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
       "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/index.ts"
+    },
+    {
+      "from": "module:lib/index.ts",
+      "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/index.ts"
@@ -21323,6 +21601,13 @@
     },
     {
       "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21397,6 +21682,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkShim.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkShim.ts"
     },
     {
       "from": "module:lib/models/adkShim.ts",
@@ -21582,6 +21874,13 @@
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/adkShim.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21757,6 +22056,13 @@
     },
     {
       "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallback.ts",
       "to": "module:lib/models/circuitBreaker.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21852,6 +22158,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gatewayAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayLlm.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gatewayLlm.ts"
     },
     {
       "from": "module:lib/models/gatewayLlm.ts",
@@ -22044,6 +22357,13 @@
     },
     {
       "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
       "to": "module:lib/models/adkShim.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -22149,6 +22469,13 @@
     },
     {
       "from": "module:lib/models/grokLlm.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokLlm.ts"
+    },
+    {
+      "from": "module:lib/models/grokLlm.ts",
       "to": "module:lib/models/gptLlm.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -22212,6 +22539,13 @@
     },
     {
       "from": "module:lib/models/kimiLlm.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiLlm.ts"
+    },
+    {
+      "from": "module:lib/models/kimiLlm.ts",
       "to": "module:lib/models/kimiAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -22244,6 +22578,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/ollamaAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/ollamaLlm.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/ollamaLlm.ts"
     },
     {
       "from": "module:lib/models/ollamaLlm.ts",
@@ -22335,6 +22676,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/reasoning.ts"
+    },
+    {
+      "from": "module:lib/models/registry.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/registry.ts"
     },
     {
       "from": "module:lib/models/registry.ts",
@@ -22468,6 +22816,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/schemaNormalize.ts"
+    },
+    {
+      "from": "module:lib/models/tracedGemini.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/tracedGemini.ts"
     },
     {
       "from": "module:lib/models/tracedGemini.ts",
@@ -22846,6 +23201,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/adkMemoryBridge.ts"
+    },
+    {
+      "from": "module:lib/runtime/adkSessionBridge.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/adkSessionBridge.ts"
     },
     {
       "from": "module:lib/runtime/adkSessionBridge.ts",
@@ -23626,6 +23988,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/compile.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23717,6 +24086,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/native/request.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23746,6 +24122,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -23808,6 +24191,13 @@
     },
     {
       "from": "module:lib/session/supabaseSessionService.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/session/supabaseSessionService.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23833,6 +24223,13 @@
       "rel": "reads_table",
       "tier": "extracted",
       "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/session/transcript.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/transcript.ts"
     },
     {
       "from": "module:lib/session/transcript.ts",
@@ -23994,6 +24391,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/memoryStore.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/sessionService.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/sessionService.ts"
     },
     {
       "from": "module:lib/storage/postgres/sessionService.ts",
@@ -24165,6 +24569,13 @@
     },
     {
       "from": "module:lib/tools/adkTool.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/adkTool.ts"
+    },
+    {
+      "from": "module:lib/tools/adkTool.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24232,6 +24643,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/adkTool.ts"
+    },
+    {
+      "from": "module:lib/tools/collectionsSearchTool.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/collectionsSearchTool.ts"
     },
     {
       "from": "module:lib/tools/collectionsSearchTool.ts",
@@ -24809,6 +25227,13 @@
     },
     {
       "from": "module:lib/tools/urlContextTool.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/urlContextTool.ts"
+    },
+    {
+      "from": "module:lib/tools/urlContextTool.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24855,6 +25280,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/webExtractTool.ts"
+    },
+    {
+      "from": "module:lib/tools/webSearchTool.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/webSearchTool.ts"
     },
     {
       "from": "module:lib/tools/webSearchTool.ts",
@@ -25033,6 +25465,13 @@
     },
     {
       "from": "module:lib/tools/xSearchTool.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/xSearchTool.ts"
+    },
+    {
+      "from": "module:lib/tools/xSearchTool.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25058,6 +25497,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/xSearchTool.ts"
+    },
+    {
+      "from": "module:lib/wiki/agentRun.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/wiki/agentRun.ts"
     },
     {
       "from": "module:lib/wiki/agentRun.ts",
@@ -25282,6 +25728,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/wiki/vault.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/adkPeer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
     },
     {
       "from": "module:lib/workflow.ts",

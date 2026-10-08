@@ -51,7 +51,7 @@
  * is charged and traced on its own, as today. A FallbackAdapter behind one
  * shim would make a redirected call one span and one charge.
  */
-import { BaseLlm } from '@google/adk';
+import { BaseLlm } from '../adkPeer.ts';
 import type { BaseLlmConnection, BaseLlmType, LlmRequest, LlmResponse } from '@google/adk';
 
 import type { ModelAdapter, ModelRequest, ModelResponse } from './contract.ts';

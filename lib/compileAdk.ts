@@ -21,7 +21,9 @@
  * load in any order.
  */
 
-import { AgentTool, BaseLlm, BuiltInCodeExecutor, LLMRegistry, LlmAgent, LlmSummarizer, LogLevel, TokenBasedContextCompactor, setLogLevel as setAdkLogLevel } from '@google/adk';
+import type { LlmAgent, LogLevel } from '@google/adk';
+
+import { BaseLlm, adk, requireAdk } from './adkPeer.ts';
 
 import { remoteAgentTool } from './a2a/remoteAgent.ts';
 import { assembleWorkflow } from './workflow.ts';
@@ -37,13 +39,14 @@ import { DEFAULT_KEEP_RECENT_EVENTS } from './runtime/native/compaction.ts';
  * ADK's logger follows the engine's level (lib/runtime/logging.ts, ADR
  * 0080), so a surface sets one level and never names ADK to quiet it.
  */
-const ADK_LOG_LEVELS: Record<LogLevelName, LogLevel> = {
-  debug: LogLevel.DEBUG,
-  info: LogLevel.INFO,
-  warn: LogLevel.WARN,
-  error: LogLevel.ERROR,
-};
-onLogLevel((level) => setAdkLogLevel(ADK_LOG_LEVELS[level]));
+if (adk) {
+  const { LogLevel: Level, setLogLevel } = adk;
+  const levels: Record<LogLevelName, LogLevel> = { debug: Level.DEBUG, info: Level.INFO, warn: Level.WARN, error: Level.ERROR };
+  onLogLevel((level) => setLogLevel(levels[level]));
+}
+
+/** What compileAdk builds needs @google/adk; without it, this names the package (ADR 0102). */
+const FEATURE = 'Compiling an agent for the ADK runtime (MELCHIZEDEK_RUNTIME=adk, compileGraph, compileSubagent)';
 
 /** Events kept verbatim after a compaction summary when `context:` names none: the native compactor's default. */
 export { DEFAULT_KEEP_RECENT_EVENTS };
@@ -77,6 +80,7 @@ function executionFields(
   cfg: { model?: string; codeExecution?: 'gemini'; context?: ContextConfig; mode?: 'task' },
   opts: CompileOptions,
 ): Record<string, unknown> {
+  const { BuiltInCodeExecutor, LLMRegistry, LlmSummarizer, TokenBasedContextCompactor } = requireAdk(FEATURE);
   const out: Record<string, unknown> = {};
   if (cfg.codeExecution === 'gemini') out.codeExecutor = new BuiltInCodeExecutor();
   if (cfg.mode) out.mode = cfg.mode;
@@ -110,6 +114,7 @@ function withFallback(primary: unknown, fallbackId: string | undefined, opts: Co
 
 /** The spec's tools as LlmAgent takes them: a delegated subagent (a nested workflow's Workflow included) as an AgentTool, a remote one as its A2A tool. */
 function adkTools(spec: AgentSpec, opts: CompileOptions): unknown[] {
+  const { AgentTool } = requireAdk(FEATURE);
   return spec.tools.map((entry) => {
     switch (entry.kind) {
       case 'tool':
@@ -130,6 +135,7 @@ function adkTools(spec: AgentSpec, opts: CompileOptions): unknown[] {
  * settings (CompileOptions.nodeConfig), which compileSubagent passes.
  */
 export function compileAdk(spec: AgentSpec, opts: CompileOptions = {}, extra: Record<string, unknown> = {}): LlmAgent {
+  const { LlmAgent } = requireAdk(FEATURE);
   const tools = adkTools(spec, opts);
   return new LlmAgent({
     name: spec.name,
