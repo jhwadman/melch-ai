@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 677,
-    "edges": 1651,
+    "nodes": 684,
+    "edges": 1679,
     "byKind": {
-      "doc": 105,
+      "doc": 107,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 98,
+      "file": 100,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 132,
+      "module": 135,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 261,
+      "links_to": 272,
       "requires_env": 162,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,19 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 395,
+      "imports": 399,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 320,
-      "constrains": 22,
+      "derives_from": 329,
+      "constrains": 25,
       "supersedes": 2,
-      "depends_on": 7,
+      "depends_on": 8,
       "explains": 2,
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1617,
-      "inferred": 34
+      "extracted": 1641,
+      "inferred": 38
     },
     "isolated": 4
   },
@@ -1011,6 +1011,18 @@
       }
     },
     {
+      "id": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "kind": "doc",
+      "label": "ADR 0052: The engine types the stored event as it is, and gives sessions and memory interfaces of its own",
+      "source": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 882
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1019,7 +1031,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1326
+        "words": 1352
       }
     },
     {
@@ -1032,6 +1044,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 12009
+      }
+    },
+    {
+      "id": "/memory/sessions.md",
+      "kind": "doc",
+      "label": "Sessions and events",
+      "source": "/memory/sessions.md",
+      "attrs": {
+        "type": "schema",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1541
       }
     },
     {
@@ -1103,7 +1127,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 5930
+        "words": 5947
       }
     },
     {
@@ -3366,6 +3390,13 @@
       "source": "tests/contractToolDeclarations.test.ts"
     },
     {
+      "id": "file:tests/events.test.ts",
+      "kind": "file",
+      "label": "events.test.ts",
+      "source": "tests/events.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/execution.test.ts",
       "kind": "file",
       "label": "execution.test.ts",
@@ -3406,6 +3437,12 @@
       "kind": "file",
       "label": "governance.test.ts",
       "source": "tests/governance.test.ts"
+    },
+    {
+      "id": "file:tests/helpers/importGraph.ts",
+      "kind": "file",
+      "label": "importGraph.ts",
+      "source": "tests/helpers/importGraph.ts"
     },
     {
       "id": "file:tests/identity.test.ts",
@@ -4162,12 +4199,39 @@
       }
     },
     {
+      "id": "module:lib/runtime/events.ts",
+      "kind": "module",
+      "label": "lib/runtime/events.ts",
+      "source": "lib/runtime/events.ts",
+      "attrs": {
+        "lines": 452
+      }
+    },
+    {
+      "id": "module:lib/runtime/memoryService.ts",
+      "kind": "module",
+      "label": "lib/runtime/memoryService.ts",
+      "source": "lib/runtime/memoryService.ts",
+      "attrs": {
+        "lines": 78
+      }
+    },
+    {
       "id": "module:lib/runtime/questions.ts",
       "kind": "module",
       "label": "lib/runtime/questions.ts",
       "source": "lib/runtime/questions.ts",
       "attrs": {
         "lines": 112
+      }
+    },
+    {
+      "id": "module:lib/runtime/sessions.ts",
+      "kind": "module",
+      "label": "lib/runtime/sessions.ts",
+      "source": "lib/runtime/sessions.ts",
+      "attrs": {
+        "lines": 306
       }
     },
     {
@@ -8524,6 +8588,48 @@
       "evidence": "/decisions/0050-responses-reasoning-replay-without-storage.md:28"
     },
     {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "file:tests/events.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md:24"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8606,6 +8712,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/architecture.md:25"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/memory/sessions.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:61"
     },
     {
       "from": "/memory/architecture.md",
@@ -8739,6 +8852,90 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/schema.md:2237"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "file:tests/events.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "file:tests/helpers/importGraph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:116"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:52"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:22"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:41"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:22"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/memory/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:32"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:32"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -9166,6 +9363,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/model-contract.md:201"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/memory/sessions.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:354"
     },
     {
       "from": "/models/model-contract.md",
@@ -13543,11 +13747,39 @@
       "evidence": "lib/registry.ts"
     },
     {
+      "from": "module:lib/runtime/events.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/events.ts"
+    },
+    {
+      "from": "module:lib/runtime/memoryService.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/memoryService.ts"
+    },
+    {
+      "from": "module:lib/runtime/memoryService.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/memoryService.ts"
+    },
+    {
       "from": "module:lib/runtime/questions.ts",
       "to": "module:lib/workflowConfig.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/questions.ts"
+    },
+    {
+      "from": "module:lib/runtime/sessions.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/sessions.ts"
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
