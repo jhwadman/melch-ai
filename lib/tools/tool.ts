@@ -28,7 +28,9 @@
  *     (ADR 0059);
  *   - `accessToken(provider)`, a valid third-party token for this user
  *     alone, when the run has a credential store (lib/tools/auth.ts,
- *     ADR 0072).
+ *     ADR 0072), and `requestCredential(provider)`, which pauses the turn
+ *     for the person's OAuth consent, when it also has a consent step
+ *     (lib/tools/oauthConsent.ts, ADR 0085).
  *
  * WRITING INTO THE INSTRUCTION (ADR 0059): a Tool may also add text to the
  * system instruction of each model request made for an agent that lists it
@@ -126,6 +128,18 @@ export interface ToolContext {
    * log. Present only when the run has a credential store (ADR 0072).
    */
   readonly accessToken?: ToolAccessToken;
+  /**
+   * Ask the person to grant this call access to `provider` (OAuth consent,
+   * ADR 0085). The runtime raises ADK's `adk_request_credential` interrupt
+   * for the call, the turn pauses with the authorization URL, and once the
+   * person has granted it their next message runs this call again, when
+   * `accessToken(provider)` returns their token. `accessToken` asks by itself
+   * when the person has not connected the provider, so most tools never
+   * call this. Present only on the native runtime, in a run with a consent
+   * step, for a call the turn runs directly (not inside a delegated
+   * subagent).
+   */
+  readonly requestCredential?: (provider: string) => Promise<void>;
 }
 
 // ── The tool ─────────────────────────────────────────────────────────────────
@@ -252,6 +266,15 @@ export const APPROVAL_TEXTS = {
     `Please approve or reject the tool call ${name}() by responding with a FunctionResponse with an expected ToolConfirmation payload.`,
   pending: 'This tool call requires confirmation, please approve or reject.',
   rejected: 'This tool call is rejected.',
+} as const;
+
+/**
+ * What a call that asked for a grant answers while the person grants it
+ * (ADR 0085): the model reads it if the turn goes on without the grant. It
+ * names the provider, never a URL, a state or a token.
+ */
+export const CONSENT_TEXTS = {
+  pending: (provider: string) => `This tool call needs access to the user's ${provider} account. The user has been asked to authorize it; the call runs again once they have.`,
 } as const;
 
 /**

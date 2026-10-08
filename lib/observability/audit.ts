@@ -24,7 +24,9 @@ export type AuditEventName =
   | 'credential.put'
   | 'credential.refresh'
   | 'credential.revoke'
-  | 'credential.erase';
+  | 'credential.erase'
+  /** An OAuth consent callback completed or refused (ADR 0085): provider, app and reason, never a code, state or token. */
+  | 'consent.callback';
 
 export interface AuditEvent {
   event: AuditEventName;

@@ -8,6 +8,10 @@
  * Middleware order, and why:
  *   1. /healthz, /readyz — unauthenticated, so a load balancer or
  *      Kubernetes probe needs no secret. They reveal nothing but liveness.
+ *   1b. The OAuth consent callback, when `toolCredentials.consent` is set
+ *      (ADR 0085): a provider redirects the person's browser to it, so it
+ *      cannot carry the bearer. Its own rate limit; the single-use state
+ *      nonce admits it.
  *   2. Failed-auth limiter — counts only 401s per IP, so the shared secret
  *      cannot be guessed online at whatever rate the host allows.
  *   3. Bearer check (when a secret is configured), constant-time.
@@ -78,6 +82,8 @@ import type { IdentityScheme } from './identity.ts';
 import type { Policy } from './policy.ts';
 import { createMetrics } from '../observability/metrics.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
+import { ConsentError } from '../tools/oauthConsent.ts';
+import type { OAuthConsent, ToolCredentials } from '../tools/oauthConsent.ts';
 const SURFACE_HEADERS = [
   ['x-surface', 'name'],
   ['x-surface-guild', 'guild'],
@@ -88,6 +94,90 @@ const SURFACE_HEADERS = [
 /** Agent ids address a config (file or "registry:<id>"): a safe charset only. */
 export function isValidAgentId(agentId: string): boolean {
   return /^[A-Za-z0-9_.:-]+$/.test(agentId) && !agentId.includes('..');
+}
+
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
+/** True when the request's bearer is `secret` (constant-time). */
+function bearerMatches(req: Request, secret: string): boolean {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return false;
+  const given = createHash('sha256').update(header.substring(7)).digest();
+  return timingSafeEqual(given, createHash('sha256').update(secret).digest());
+}
+
+/** The page the person's browser lands on: what happened, and nothing else (no code, state or token). */
+function consentPage(title: string, body: string): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title></head>`
+    + `<body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem;line-height:1.5"><h1 style="font-size:1.25rem">${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p></body></html>`;
+}
+
+/**
+ * The consent callback (ADR 0085): the provider's redirect, carrying `code`
+ * and `state` (or `error`). It never reads a redirect URI from the request,
+ * never logs the query, and answers a page that carries no value. The
+ * response is never cached and sends no referrer, since its URL holds the
+ * code.
+ */
+export function consentCallback(
+  consent: Pick<OAuthConsent, 'complete'>,
+  opts: {
+    resolveRequest?: A2AAppOptions['resolveRequest'];
+    /** The server's bearer secret, when it has one: the authenticator is consulted only behind it. */
+    serverSecret?: string;
+    requireCallerIdentity?: boolean;
+    log?: (m: string) => void;
+    warn?: (m: string) => void;
+  } = {},
+): RequestHandler {
+  return async (req: Request, res: Response) => {
+    res.set({
+      'Cache-Control': 'no-store',
+      Pragma: 'no-cache',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
+    // When the browser carries a credential the authenticator accepts, the caller must be the flow's user.
+    // Behind a server secret the authenticator is asked only once the secret matched, as on every other
+    // route: a trusted-header authenticator believes whoever reached it.
+    let callerUserId: string | undefined;
+    const gated = opts.serverSecret === undefined || bearerMatches(req, opts.serverSecret);
+    if (opts.resolveRequest && gated) {
+      try {
+        callerUserId = (await opts.resolveRequest(req))?.scopeKey;
+      } catch {
+        callerUserId = undefined;
+      }
+    }
+    if (opts.requireCallerIdentity && callerUserId === undefined) {
+      opts.warn?.('Consent callback refused: no authenticated caller.');
+      res.status(401).type('html').send(consentPage('Authorization not completed', 'Sign in, then open the authorization link again.'));
+      return;
+    }
+    try {
+      const done = await consent.complete({
+        state: req.query.state,
+        code: req.query.code,
+        error: req.query.error,
+        ...(callerUserId !== undefined ? { callerUserId } : {}),
+      });
+      opts.log?.(`✓ Consent callback: ${done.provider} granted (scope ${scopeHashOf(done.userId)})`);
+      res.status(200).type('html').send(consentPage('Authorization complete', 'You can close this window and send a message in your conversation to continue.'));
+    } catch (err: unknown) {
+      if (err instanceof ConsentError) {
+        opts.warn?.(`Consent callback refused: ${err.code}${err.provider ? ` (${err.provider})` : ''}`);
+        const status = err.code === 'exchange_failed' ? 502 : err.code === 'store_failed' ? 500 : err.code === 'wrong_user' ? 403 : 400;
+        res.status(status).type('html').send(consentPage('Authorization not completed', err.message));
+        return;
+      }
+      // Nothing from an unexpected error reaches the page or the log: it may carry a value.
+      opts.warn?.('Consent callback failed unexpectedly.');
+      res.status(500).type('html').send(consentPage('Authorization not completed', 'The authorization could not be completed. Ask the agent again for a new link.'));
+    }
+  };
 }
 
 /** What a model resolver returns, as the compiler takes it. */
@@ -197,6 +287,28 @@ export interface A2AAppOptions {
   memory?: { extractor?: MemoryExtractor; embedder?: Embedder };
   /** Adopter routes, mounted after authentication and before the A2A routes. */
   routes?: (app: Express) => void;
+  /**
+   * Tool credentials for every turn (ADR 0072): the sealed per-user store,
+   * and the OAuth consent step (ADR 0085, lib/tools/oauthConsent.ts). With
+   * `consent`, a call whose provider the user has not granted ends its task
+   * input-required with a `consent_request` data part, and the server mounts
+   * the consent callback (GET at the path of the consent's configured
+   * redirect URI): it completes the authorization-code flow with PKCE and
+   * stores the grant. The callback is reached by the person's browser, so it
+   * sits before the bearer check; it has its own rate limit, and when the
+   * request carries a credential the authenticator accepts, the caller must
+   * be the user the flow is for.
+   */
+  toolCredentials?: ToolCredentials & {
+    /** Callback requests per window per client IP. Default 30 per 15 minutes. */
+    callbackLimit?: { windowMs: number; max: number };
+    /**
+     * Refuse a callback whose request the authenticator does not accept
+     * (a deployment whose browsers carry the identity, behind a gateway).
+     * Default false: the state nonce alone binds the flow to its user.
+     */
+    requireCallerIdentity?: boolean;
+  };
   /** Refuse to start when Supabase hardening is missing (public deployments). */
   requireHardenedDb?: boolean;
   /** Wall-clock budget per task, ms. 0 = none. */
@@ -642,6 +754,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
       streamText: options.streamText,
       turnLock,
       turnLockWaitMs: options.turnLockWaitMs,
+      ...(options.toolCredentials ? { toolCredentials: { store: options.toolCredentials.store, ...(options.toolCredentials.consent ? { consent: options.toolCredentials.consent } : {}) } } : {}),
       limiter,
       agentId,
       policy: options.policy,
@@ -752,6 +865,33 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     }
     res.json({ status: 'ready', sessions: sessionBackend, inFlight: limiter.inFlight });
   });
+
+  // ── 1b. The OAuth consent callback (ADR 0085) ─────────────────────────────
+  // The provider redirects the person's browser here, so it cannot carry the
+  // A2A bearer: it sits before the bearer check, behind its own rate limit.
+  // The state nonce (single-use, expiring, bound to the user, the session
+  // and the paused call) is what admits it.
+  const consent = options.toolCredentials?.consent;
+  if (consent) {
+    const callbackLimit = options.toolCredentials?.callbackLimit ?? { windowMs: 15 * 60 * 1000, max: 30 };
+    app.get(
+      new URL(consent.redirectUri).pathname,
+      rateLimit({
+        windowMs: callbackLimit.windowMs,
+        max: callbackLimit.max,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many authorization attempts; try again later.' },
+      }),
+      consentCallback(consent, {
+        resolveRequest: options.resolveRequest,
+        ...(options.serverSecret ? { serverSecret: options.serverSecret } : {}),
+        requireCallerIdentity: options.toolCredentials?.requireCallerIdentity === true,
+        log,
+        warn,
+      }),
+    );
+  }
 
   // ── 2–3. Authentication ───────────────────────────────────────────────────
   const failWindow = options.authFailureLimit ?? { windowMs: 15 * 60 * 1000, max: 30 };

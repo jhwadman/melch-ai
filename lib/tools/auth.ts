@@ -21,8 +21,9 @@
  * WHOSE APP: the run pins it, as memory pins its namespace
  *   (`pinnedCredentialStore`, like namespacedMemoryService), so a delegated
  *   subagent, which ADK runs under its own app name, reads the root's
- *   credentials. The consent step that puts a token (WS6-3b) and the YAML
- *   that lets an agent use a provider (WS6-3c) come later; nothing here
+ *   credentials. The consent step that puts a token is
+ *   lib/tools/oauthConsent.ts (ADR 0085); the YAML that lets an agent use a
+ *   provider (WS6-3c) comes later; nothing here
  *   wires a tool to the store.
  *
  * A LEAF: types and plain functions, no runtime imports, so lib/tools/tool.ts

@@ -40,6 +40,9 @@ import type { PendingApproval } from '../runtime/approvals.ts';
 import { declaresApprovals } from '../compile.ts';
 import type { MessagePart, PendingInput, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
 import { describeInput } from '../runtime/syndicateTurn.ts';
+import { describeConsent } from '../runtime/credentials.ts';
+import type { PendingConsent } from '../runtime/credentials.ts';
+import type { ToolCredentials } from '../tools/oauthConsent.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
 import type { AuditSink } from '../observability/audit.ts';
 import type { Policy } from './policy.ts';
@@ -206,6 +209,8 @@ export interface ExecutorOptions {
   turnLock?: TurnLock;
   /** How long a second turn on a busy conversation waits, ms. Default 30 s. */
   turnLockWaitMs?: number;
+  /** Tool credentials and the consent step for every turn (ADR 0072, ADR 0085). */
+  toolCredentials?: ToolCredentials;
   log: (message: string) => void;
   warn: (message: string) => void;
 }
@@ -402,6 +407,46 @@ function publishApprovalRequest(eventBus: ExecutionEventBus, taskId: string, con
     content: {
       $case: 'data',
       value: { type: 'approval_request', approval_id: pending.id, agent: pending.agent, tool: pending.tool, args: pending.args },
+    },
+    metadata: undefined,
+    filename: '',
+    mediaType: 'application/json',
+  });
+  eventBus.publish(
+    AgentEvent.statusUpdate({
+      taskId,
+      contextId,
+      status: { state: TaskState.TASK_STATE_INPUT_REQUIRED, message, timestamp: new Date().toISOString() },
+      metadata: undefined,
+    }),
+  );
+}
+
+/**
+ * A call waits for an OAuth grant (ADR 0085): the task ends input-required,
+ * naming the provider, with a data part carrying the authorization URL and
+ * its state nonce. The person opens the URL; the server's callback stores
+ * the grant; the next message on the conversation resumes the call. The
+ * part carries no token, code or verifier.
+ */
+function publishConsentRequest(eventBus: ExecutionEventBus, taskId: string, contextId: string, pending: PendingConsent): void {
+  const message = statusMessage(
+    taskId,
+    contextId,
+    `Authorization needed: ${describeConsent(pending)}. Open ${pending.authUri} to authorize, then send any message on this conversation to continue.`,
+  );
+  message.parts.push({
+    content: {
+      $case: 'data',
+      value: {
+        type: 'consent_request',
+        consent_id: pending.id,
+        agent: pending.agent,
+        provider: pending.provider,
+        authorization_url: pending.authUri,
+        state: pending.state,
+        scopes: pending.scopes,
+      },
     },
     metadata: undefined,
     filename: '',
@@ -696,6 +741,7 @@ export class SyndicateExecutor implements AgentExecutor {
         compile: this.opts.compileFor(ctx),
         signal: slot.signal,
         deadlineMs: this.opts.taskTimeoutMs,
+        ...(this.opts.toolCredentials ? { toolCredentials: this.opts.toolCredentials } : {}),
         streaming: !!stream,
         trace: {
           taskId,
@@ -730,6 +776,12 @@ export class SyndicateExecutor implements AgentExecutor {
         log(`⏸ Task ${short} waiting for approval of ${result.approval.tool} after ${spent}`);
         publishApprovalRequest(eventBus, taskId, contextId, result.approval);
         await report(ctx, 'input-required', 'approval', u);
+        return;
+      }
+      if (result.status === 'input-required' && result.consent) {
+        log(`⏸ Task ${short} waiting for ${result.consent.provider} authorization after ${spent}`);
+        publishConsentRequest(eventBus, taskId, contextId, result.consent);
+        await report(ctx, 'input-required', 'consent', u);
         return;
       }
       if (result.status === 'input-required' && result.input) {
