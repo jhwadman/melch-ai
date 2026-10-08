@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Workflow scheduler
-description: "The engine's own walk of a workflow graph (lib/workflow/scheduler.ts): runWorkflowGraph runs a WorkflowGraph with ADK's Workflow loop. A node runs when a predecessor's completion triggers it, fan-out gives each target its own branch, a join waits for every predecessor, a map runs its agent per item under max_parallel, and outputs flow as inputs. Routes are matched in ADK's spelling of the key. Agent, tool and ask_user nodes and map items run through a runner the caller passes in. No ADK import. The native runtime does not call it yet."
+description: "The engine's own walk of a workflow graph (lib/workflow/scheduler.ts): runWorkflowGraph runs a WorkflowGraph with ADK's Workflow loop. A node runs when a predecessor's completion triggers it, fan-out gives each target its own branch, a join waits for every predecessor, a map runs its agent per item under max_parallel, and outputs flow as inputs. Routes are matched in ADK's spelling of the key. Agent, tool and ask_user nodes and map items run through a runner the caller passes in; toolNodeRunner (lib/workflow/toolNode.ts) is the runner for tool nodes and writes the event ADK's ToolNode writes. No ADK import. The native runtime does not call it yet."
 tags:
   - runtime
   - agents
@@ -12,12 +12,14 @@ generated:
 sources:
   - resource: lib/workflow/scheduler.ts
   - resource: lib/workflow/graph.ts
+  - resource: lib/workflow/toolNode.ts
   - resource: tests/workflowScheduler.test.ts
+  - resource: tests/workflowToolNode.test.ts
 ---
 
 # Workflow scheduler
 
-`lib/workflow/scheduler.ts` runs the [workflow graph](/overview/workflow-graph.md) that `buildWorkflowGraph` builds, without ADK. It walks the graph the way ADK 2.2's `Workflow` does, so a workflow completes in the order ADK records for it. Why it copies ADK's loop, and matches routes in ADK's spelling, is [ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md). The native runtime still refuses a workflow syndicate ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). Agent nodes and map items run on it through `agentNodeRuntime` ([Workflow agent node](/overview/workflow-agent-node.md)); the scheduler is the walk the native runtime will use once ask_user and tool nodes run on it too (WS4-4a, WS4-5) and the turn runner calls it (WS4-6).
+`lib/workflow/scheduler.ts` runs the [workflow graph](/overview/workflow-graph.md) that `buildWorkflowGraph` builds, without ADK. It walks the graph the way ADK 2.2's `Workflow` does, so a workflow completes in the order ADK records for it. Why it copies ADK's loop, and matches routes in ADK's spelling, is [ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md). The native runtime still refuses a workflow syndicate ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). Agent nodes and map items run on it through `agentNodeRuntime` ([Workflow agent node](/overview/workflow-agent-node.md)), and the runner for tool nodes is in place (below); the scheduler is the walk the native runtime will use once ask_user nodes run on it too (WS4-4a) and the turn runner calls it (WS4-6).
 
 ## The interface
 
@@ -58,6 +60,31 @@ Each pass starts every triggered node that is not already running, in the order 
 Only a join waits for all its predecessors. A plain node with two predecessors runs once per trigger. A trigger that arrives while the node is running runs after it.
 
 A fan-out gives each target its own branch (`Writer@1`). A successor keeps its predecessor's branch, and a join takes the common prefix of its predecessors' branches. A map item's branch is `<map's branch>.<agent>@<index>`. A map runs `min(max_parallel ?? 8, items)` workers, and each worker takes the next item. A non-list input is one item, and an empty list outputs `[]`. A node whose output is undefined passes `undefined` on and is left out of `outputs`, as in ADK. Two terminal nodes with output fail the run with ADK's message.
+
+## Tool nodes
+
+`lib/workflow/toolNode.ts` runs a `tool:` node as ADK 2.2's `ToolNode` does, with no ADK import. Why it writes its own event and takes the registry from its caller is [ADR 0091](/decisions/0091-workflow-tool-node-writes-adks-event.md).
+
+`toolNodeRunner(context, next)` is a `runNode` that runs tool nodes and hands every other run to `next`. `runToolNode(node, run, context)` runs one. The context carries:
+
+| field | is |
+|---|---|
+| `invocationId` | written on the event |
+| `resolveTool(name)` | the registry entry for the node's tool; the turn runner passes the registry's lookup |
+| `appName`, `userId`, `sessionId`, `userContent`, `memory`, `credentials` | what the tool's `ToolContext` reports, as in the agent loop |
+| `state()` | the session state the call reads when it runs |
+| `onEvent(event)` | receives the node's event before the run resolves |
+
+A run does four things:
+
+1. **Arguments from the input** (`coerceToolArgs`). A content's text, or a string, is parsed as JSON when it parses. A blank string or nothing is `{}`. A list, a number, or text that is not JSON throws ADK's `TypeError`, which fails the node.
+2. **One call**, id `<node path>:<run id>` (`Graph.Lookup:1`). An own Tool runs its approval gate, then `execute`, and a throw is named for the tool (`Error in tool 'lookup': …`). Another registered tool runs through `runAsync`. A throw answers `{ error }`, a result that is not an object answers `{ result }`, and a list answers `{ results }`. A long-running tool is refused.
+3. **One event**, the JSON ADK stores: a `user` content with the function response, the call's actions (its state writes, and an approval it asked for), the run's branch, `author` the node's name, `output` the response, and `nodeInfo { path, outputFor }` (`enrichNodeEvent`, ADK's node-runner enrichment).
+4. **The output** is the response object: the next node receives `{ result: 'found needle' }`.
+
+The progress lines come from that event. The turn runner's reader (`drainAgentStream`) prints `⇢ Node: Lookup` and `← Result: lookup — 25 chars`, and sends `Running node: Lookup` to `onProgress`, as it does for ADK's event.
+
+`tests/workflowToolNode.test.ts` runs the tool-node case of `tests/workflow.test.ts` on both sides. It also runs input mapping, a tool that throws, an own Tool on a branch of its own, a gated tool, and the refusals. Each case compares every event as stored (apart from its id, time and invocation id), every node's output, path and branch, the output, and the drained log and progress lines.
 
 ## What it does not do yet
 

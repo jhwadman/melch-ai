@@ -77,6 +77,8 @@ export function routeStepEvent(run: RouteStepRun): TurnEvent {
   });
   if (run.output !== undefined) event.output = run.output;
   if (run.route !== undefined) event.route = run.route as TurnRouteKey | TurnRouteKey[];
+  // What enrichNodeEvent (lib/workflow/toolNode.ts) writes on this event, kept here so this module stays a leaf:
+  // lib/workflowConfig.ts re-exports routeOf, and the schema and the ADK path import it.
   event.nodeInfo = { path: run.path, ...(run.output !== undefined ? { outputFor: [run.path] } : {}) };
   return event;
 }

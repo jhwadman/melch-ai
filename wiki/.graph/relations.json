@@ -1961,6 +1961,94 @@
       "evidence": "ADR 0088 Decision 3: pendingQuestion skips the calls in an event whose author is user.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0091 Decision 1-5: runToolNode is ADK's ToolNode for one run (ADK's input coercion, call id <node path>:<run id>, handleFunctionCallList's response rules), writes ADK's event itself with enrichNodeEvent, resolves the tool through the caller's resolveTool, and toolNodeRunner composes with the other runners; tests/workflowToolNode.test.ts holds it to ADK.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0091 Context: \"ADR 0087 left agent, tool and ask_user nodes to a runner the caller passes the scheduler. WS4-5 supplies the runner for tool: nodes.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0091 Context: \"Gate G4 of ADR 0045 needs the same behaviour without ADK, and the stored event JSON is one of the shapes ADR 0045 fixes.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-scheduler.md, section Tool nodes: toolNodeRunner's context, the four steps of a run (arguments, call, event, output), the progress lines drawn from the event, and the parity suite.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0090 Decision 1-3: runAgentNode stores the input as the user turn, runs includeContents none unless set, stamps each event through nodeStamp, and agentNodeRuntime chains through next and stores route-step events.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "module:lib/workflow/route.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0090 Decision 4: routeOf lives in lib/workflow/route.ts and both runtimes call it; JSON text without an output schema routes as text.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0090 Decision 1: AgentLoopContext.nodeStamp is called on each event before it is stored, after the outputKey and task hooks.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0090 Context: the scheduler hands agent nodes and map items to a runner the caller passes; WS4-3 supplies it for agents.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0090 Decision 2: a task-mode agent runs with taskNode, the hook ADR 0081 added; it closes ADR 0081's open point that the node runner writes nodeInfo.path and outputFor.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0090 Decision 1 and 3: the stamp uses enrichNodeEvent from lib/workflow/toolNode.ts, and the runtime chains with toolNodeRunner(context, next).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-agent-node.md documents runAgentNode, the node rules and agentNodeRuntime.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

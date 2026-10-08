@@ -30,7 +30,7 @@ sources:
 | includeContents | an agent whose YAML does not set `includeContents` runs with `none`, so it sees its input and nothing else of the session. The node runs a copy (`asNodeAgent`); the compiled agent is unchanged. |
 | task mode | a `mode: task` agent gets no user turn and keeps its `includeContents`; the loop runs it with `taskNode`, and it ends on `finish_task`'s successful answer ([ADR 0081](/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md)). |
 | the output | outside task mode, each stored model event with content and no function call carries `output`: its text without thought parts, parsed as JSON only when the agent has an output schema and the text parses; and `nodeInfo.messageAsOutput` (`eventOutput`, ADK's `maybeSetOutput`). The node's output is the last one an event carried. |
-| the stamp | every stored event gets `nodeInfo.path`, `nodeInfo.outputFor` when it carries an output, and the node's branch when it has none (ADK's `enrichEvent`). The loop applies it through `nodeStamp`, after the outputKey and task hooks. |
+| the stamp | every stored event gets `nodeInfo.path`, `nodeInfo.outputFor` when it carries an output, and the node's branch when it has none: ADK's `enrichEvent`, through `enrichNodeEvent`, the one port of it ([tool node](/overview/workflow-scheduler.md#tool-nodes)). The loop applies it through `nodeStamp`, after the outputKey and task hooks. |
 | failure | an event with an error code is the node's reported error. A run that ends with one and no output throws `NodeReportedError` with ADK's message. A run the turn stopped throws `NodeStoppedError`. A run that pauses on a person throws: interrupts inside a node are WS4-4a. |
 
 The node's path is `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>` for a map item, as the scheduler computes it.
@@ -41,6 +41,7 @@ The node's path is `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>` fo
 
 - `runNode`: runs agent nodes and map items; every other run goes to `next`, so it chains with `toolNodeRunner(context, next)` and, later, the ask_user runner;
 - `onEvent`: the scheduler's event hook; on a route step's `node_end` it stores the event ADK's route step stores;
+- `store(event)`: stores another runner's event on the same queue; the tool node runner's `onEvent` passes its event here;
 - `settled()`: resolves once every queued event is stored.
 
 A node's user turn and a route step's event are stored through one queue, in the order the walk reaches them, so a route event lands before its successor's input, as on ADK. `onEvent` (the option) receives every stored event in order; fed through `drainAgentStream`, they print the progress lines ADK's do, which name declared nodes only, never the root or a route step.
@@ -63,4 +64,4 @@ The scheduler matches the route against the keys in ADK's spelling and takes the
 
 ## Parity with ADK
 
-`tests/workflowAgentNode.test.ts` runs each case on ADK (`runSyndicateTurn`, runtime `adk`) and on the scheduler with `agentNodeRuntime`, with the same scripted models. It compares the stored events (ids and times aside), every model's requests, the routes, the workflow's output and the progress lines. The cases: a text route, a route no key names (the default), a JSON route on `route_key` with an output schema, JSON text without one, a task-mode node routing on its `finish_task` output, an agent with `includeContents: default`, and a node whose model fails.
+`tests/workflowAgentNode.test.ts` runs each case on ADK (`runSyndicateTurn`, runtime `adk`) and on the scheduler with `agentNodeRuntime`, with the same scripted models. It compares the stored events (ids and times aside), every model's requests, the routes, the workflow's output and the progress lines. The cases: a text route, a route no key names (the default), a JSON route on `route_key` with an output schema, JSON text without one, a task-mode node routing on its `finish_task` output, an agent with `includeContents: default`, a chain through `toolNodeRunner` (an agent routes to a tool node whose result the next agent reads), and a node whose model fails.

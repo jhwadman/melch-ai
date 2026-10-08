@@ -3,6 +3,50 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/workflow-agent-node.md —explains→ module:lib/workflow/agentNode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0090-workflow-agent-node-on-the-native-loop.md —depends_on→ /decisions/0091-workflow-tool-node-writes-adks-event.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0090-workflow-agent-node-on-the-native-loop.md —depends_on→ /decisions/0081-native-task-mode-ends-a-node-on-finish-task.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0090-workflow-agent-node-on-the-native-loop.md —depends_on→ /decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0090-workflow-agent-node-on-the-native-loop.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0090-workflow-agent-node-on-the-native-loop.md —constrains→ module:lib/workflow/route.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0090-workflow-agent-node-on-the-native-loop.md —constrains→ module:lib/workflow/agentNode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /overview/workflow-scheduler.md —explains→ module:lib/workflow/toolNode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0091-workflow-tool-node-writes-adks-event.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0091-workflow-tool-node-writes-adks-event.md —depends_on→ /decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0091-workflow-tool-node-writes-adks-event.md —constrains→ module:lib/workflow/toolNode.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0088-native-parity-followups.md —constrains→ module:lib/runtime/questions.ts
 
 by claude-code/claude-opus-5-5

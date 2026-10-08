@@ -35,6 +35,11 @@ import { NodeReportedError, agentNodeRuntime, asNodeAgent, eventOutput, nodeInpu
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
 import { routeOf, routeStepEvent } from '../lib/workflow/route.ts';
 import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
+import type { NodeRunner } from '../lib/workflow/scheduler.ts';
+import { toolNodeRunner } from '../lib/workflow/toolNode.ts';
+import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
+import { z } from 'zod';
 import { routeOf as configRouteOf } from '../lib/workflowConfig.ts';
 import { ScriptedModel, answer, failure, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
@@ -128,10 +133,15 @@ async function onNative(cfg: SyndicateYamlConfig, scripts: Scripts, text: string
     loop: { adapterFor: (model) => models[model.replace(/^scripted\//, '')] as ModelAdapter, stream: false, log: () => {} },
     onEvent: (e) => yielded.push(e),
   });
+  // The chain WS4-5 set: tool nodes first, everything else to the agent runtime; the tool's event on the same queue.
+  const runNode: NodeRunner = toolNodeRunner(
+    { invocationId, appName: 'app', userId: 'u', sessionId: 's', userContent, resolveTool: (name) => resolveTools([name])[0], state: () => session.state, onEvent: (e) => void runtime.store(e) },
+    runtime.runNode,
+  );
   let status = 'completed';
   let error: string | undefined;
   try {
-    await runWorkflowGraph(buildWorkflowGraph(cfg), { input: userContent, runNode: runtime.runNode, onEvent: runtime.onEvent });
+    await runWorkflowGraph(buildWorkflowGraph(cfg), { input: userContent, runNode, onEvent: runtime.onEvent });
   } catch (e) {
     status = 'failed';
     error = (e as Error).message;
@@ -305,6 +315,25 @@ test("an agent that sets includeContents: default sees the conversation, retold,
   const cfg = config({ edges: [['START', 'Triage', 'Reader']] }, [agent('Reader', { includeContents: 'default' })]);
   const { native } = await bothAgree(cfg, { triage: () => answer('brief'), reader: (req) => answer(`read ${requestTexts(req).length}`) }, 'start');
   assert.ok(requestTexts(native.models.reader!.requests[0]!).length > 1, 'more than its input');
+});
+
+registerTool(
+  'agent_node_lookup',
+  defineTool({ name: 'agent_node_lookup', description: 'Look something up.', schema: z.object({ q: z.string() }), execute: async ({ q }) => `found ${q}` }),
+  { override: true },
+);
+
+test('chained with the tool node runner: an agent routes, a tool node runs on its JSON, the next agent reads the result, as on ADK', async () => {
+  const cfg = config(
+    { edges: [['START', 'Planner', { look: 'Lookup', default: 'Reader' }], ['Lookup', 'Reader']], nodes: { Lookup: { tool: 'agent_node_lookup' } } },
+    [agent('Reader')],
+    agent('Planner', { outputSchema: { type: 'OBJECT', properties: { route: { type: 'STRING' }, q: { type: 'STRING' } } } }),
+  );
+  const scripts: Scripts = { planner: () => answer('{"route":"look","q":"cats"}'), reader: (req) => answer(`read ${lastText(req)}`) };
+  const { native } = await bothAgree(cfg, scripts, 'go');
+  assert.deepEqual(native.routes, { Planner__route: 'look' });
+  assert.equal(native.output, 'read {"result":"found cats"}');
+  assert.ok(native.progress.includes('Running node: Lookup'), native.progress.join(' | '));
 });
 
 test("a node whose model fails, with no output, fails the walk with ADK's NodeReportedError message", async () => {

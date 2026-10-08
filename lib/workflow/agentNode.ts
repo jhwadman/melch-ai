@@ -29,7 +29,8 @@
  *   5. THE STAMP. Every event the loop stores gets `nodeInfo.path` (the
  *      node's path, `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<i>`
  *      for a map item), `nodeInfo.outputFor` on an event with an output,
- *      and the node's branch when it has none (ADK's enrichEvent). The loop
+ *      and the node's branch when it has none (ADK's enrichEvent, the one
+ *      port in lib/workflow/toolNode.ts, enrichNodeEvent). The loop
  *      calls the stamp before it stores each event (`nodeStamp`), after the
  *      outputKey and task hooks, the order ADK applies them in.
  *   6. FAILURE. An event carrying an error code is the node's reported
@@ -57,6 +58,7 @@ import type { AgentLoopContext, AgentLoopEnd } from '../runtime/native/agentLoop
 import type { NativeAgent } from '../runtime/native/request.ts';
 import type { Session, SessionService } from '../runtime/sessions.ts';
 import { routeStepEvent } from './route.ts';
+import { enrichNodeEvent } from './toolNode.ts';
 import type { NodeResult, NodeRun, NodeRunner, SchedulerEvent } from './scheduler.ts';
 
 // ── Errors, as ADK names them ────────────────────────────────────────────────
@@ -134,7 +136,7 @@ interface NodeStampState {
 }
 
 /** The stamp the loop applies to each event before it stores it (rules 4 and 5). */
-function nodeStamp(agent: NativeAgent, run: Pick<NodeRun, 'path' | 'branch'>, state: NodeStampState): (event: TurnEvent) => void {
+function nodeStamp(agent: NativeAgent, run: Pick<NodeRun, 'path' | 'branch'>, invocationId: string, state: NodeStampState): (event: TurnEvent) => void {
   const taskMode = agent.mode === 'task';
   return (event) => {
     if (!taskMode) {
@@ -144,12 +146,8 @@ function nodeStamp(agent: NativeAgent, run: Pick<NodeRun, 'path' | 'branch'>, st
         event.nodeInfo = { ...(event.nodeInfo ?? {}), messageAsOutput: true };
       }
     }
-    event.nodeInfo = { ...(event.nodeInfo ?? {}), path: run.path };
-    if (event.output !== undefined) {
-      event.nodeInfo.outputFor = [run.path];
-      state.output = event.output;
-    }
-    if (run.branch !== undefined && event.branch === undefined) event.branch = run.branch;
+    enrichNodeEvent(event, run, { invocationId });
+    if (event.output !== undefined) state.output = event.output;
     if (event.errorCode !== undefined) state.reported = { errorCode: event.errorCode, ...(event.errorMessage !== undefined ? { errorMessage: event.errorMessage } : {}) };
   };
 }
@@ -199,7 +197,7 @@ export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input
     ...(run.branch !== undefined ? { branch: run.branch } : {}),
     signal: run.signal,
     taskNode: taskMode,
-    nodeStamp: nodeStamp(agent, run, state),
+    nodeStamp: nodeStamp(agent, run, invocationId, state),
   });
   let end: AgentLoopEnd;
   for (;;) {
@@ -237,6 +235,12 @@ export interface AgentNodeRuntime {
   runNode: NodeRunner;
   /** The scheduler's onEvent: stores the event ADK stores for each route step. */
   onEvent: (event: SchedulerEvent) => void;
+  /**
+   * Stores an event another runner of the chain made (a tool node's, through
+   * its context's onEvent) on the same queue, in walk order, and hands it to
+   * the `onEvent` option once stored.
+   */
+  store(event: TurnEvent): Promise<TurnEvent>;
   /** Resolves once every event queued for storage is stored; rejects with the first store error. */
   settled(): Promise<void>;
 }
@@ -295,6 +299,7 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
   return {
     runNode,
     onEvent,
+    store: (event) => enqueue(event, options.onEvent),
     async settled() {
       await tail;
       if (failure) throw failure.error;
