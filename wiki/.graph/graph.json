@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 833,
-    "edges": 2989,
+    "nodes": 836,
+    "edges": 3012,
     "byKind": {
-      "doc": 154,
+      "doc": 155,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 142,
+      "file": 143,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 191,
+      "module": 192,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 616,
+      "links_to": 619,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 751,
+      "imports": 755,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 712,
-      "constrains": 151,
+      "derives_from": 721,
+      "constrains": 155,
       "supersedes": 7,
-      "depends_on": 76,
-      "explains": 24,
+      "depends_on": 78,
+      "explains": 25,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2728,
-      "inferred": 261
+      "extracted": 2744,
+      "inferred": 268
     },
     "isolated": 4
   },
@@ -1481,6 +1481,18 @@
       }
     },
     {
+      "id": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "kind": "doc",
+      "label": "ADR 0093: A native workflow node fills ADK's workflow placeholders, joins and maps store ADK's events, and a node's compaction is stamped",
+      "source": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 855
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1741,7 +1753,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6025
+        "words": 6087
       }
     },
     {
@@ -1753,7 +1765,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 845
+        "words": 1340
       }
     },
     {
@@ -1777,7 +1789,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1802
+        "words": 1838
       }
     },
     {
@@ -4455,6 +4467,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/workflowParity.test.ts",
+      "kind": "file",
+      "label": "workflowParity.test.ts",
+      "source": "tests/workflowParity.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/workflowScheduler.test.ts",
       "kind": "file",
       "label": "workflowScheduler.test.ts",
@@ -5283,7 +5302,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 825
+        "lines": 828
       }
     },
     {
@@ -5328,7 +5347,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 569
+        "lines": 699
       }
     },
     {
@@ -5346,7 +5365,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 322
+        "lines": 325
       }
     },
     {
@@ -6030,7 +6049,7 @@
       "label": "lib/workflow/agentNode.ts",
       "source": "lib/workflow/agentNode.ts",
       "attrs": {
-        "lines": 309
+        "lines": 321
       }
     },
     {
@@ -6040,6 +6059,15 @@
       "source": "lib/workflow/graph.ts",
       "attrs": {
         "lines": 542
+      }
+    },
+    {
+      "id": "module:lib/workflow/nodeEvents.ts",
+      "kind": "module",
+      "label": "lib/workflow/nodeEvents.ts",
+      "source": "lib/workflow/nodeEvents.ts",
+      "attrs": {
+        "lines": 109
       }
     },
     {
@@ -6057,7 +6085,7 @@
       "label": "lib/workflow/scheduler.ts",
       "source": "lib/workflow/scheduler.ts",
       "attrs": {
-        "lines": 803
+        "lines": 806
       }
     },
     {
@@ -12901,6 +12929,62 @@
       "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md:24"
     },
     {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "file:tests/workflowParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/workflow/nodeEvents.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md frontmatter"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md:26"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md:26"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -15901,7 +15985,7 @@
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:135"
+      "evidence": "/overview/native-loop.md:76"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15926,6 +16010,13 @@
     },
     {
       "from": "/overview/workflow-agent-node.md",
+      "to": "file:tests/workflowParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
       "to": "module:lib/runtime/native/agentLoop.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -15933,7 +16024,21 @@
     },
     {
       "from": "/overview/workflow-agent-node.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
       "to": "module:lib/workflow/agentNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "module:lib/workflow/nodeEvents.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/overview/workflow-agent-node.md frontmatter"
@@ -15950,35 +16055,42 @@
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-agent-node.md:21"
+      "evidence": "/overview/workflow-agent-node.md:24"
     },
     {
       "from": "/overview/workflow-agent-node.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-agent-node.md:31"
+      "evidence": "/overview/workflow-agent-node.md:34"
     },
     {
       "from": "/overview/workflow-agent-node.md",
       "to": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-agent-node.md:21"
+      "evidence": "/overview/workflow-agent-node.md:24"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:24"
     },
     {
       "from": "/overview/workflow-agent-node.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-agent-node.md:21"
+      "evidence": "/overview/workflow-agent-node.md:24"
     },
     {
       "from": "/overview/workflow-agent-node.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-agent-node.md:21"
+      "evidence": "/overview/workflow-agent-node.md:24"
     },
     {
       "from": "/overview/workflow-graph.md",
@@ -23549,6 +23661,13 @@
     },
     {
       "from": "module:lib/workflow/agentNode.ts",
+      "to": "module:lib/workflow/nodeEvents.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/agentNode.ts"
+    },
+    {
+      "from": "module:lib/workflow/agentNode.ts",
       "to": "module:lib/workflow/route.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23588,6 +23707,27 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/graph.ts"
+    },
+    {
+      "from": "module:lib/workflow/nodeEvents.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/nodeEvents.ts"
+    },
+    {
+      "from": "module:lib/workflow/nodeEvents.ts",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/nodeEvents.ts"
+    },
+    {
+      "from": "module:lib/workflow/nodeEvents.ts",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/nodeEvents.ts"
     },
     {
       "from": "module:lib/workflow/route.ts",

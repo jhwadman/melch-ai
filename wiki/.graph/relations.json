@@ -2097,6 +2097,62 @@
       "evidence": "wiki/overview/workflow-scheduler.md section \"Retries, timeouts and node errors\" describes the loop, reported errors, giving up, abort and deadline, and map items as ADR 0089 decides them.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0093 Context: \"ADR 0090 put agent nodes on the native loop and left four differences from ADK open\"; this record closes them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0093 Context: \"ADR 0045's gate G4 needs the workflow suite on native, and a session one runtime writes must be one the other continues\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0093 Decision 1: \"injectSessionState(template, state, scope?) resolves keys in ADK's order (artifact, state, workflow field)\" with a linear hand scanner for <x.field from Node>.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/workflow/nodeEvents.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0093 Decision 2: \"lib/workflow/nodeEvents.ts holds joinNodeEvent, mapNodeEvent and nodeOutputContent (ADK's toContent with genai's _toParts), stamped through enrichNodeEvent\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0093 Decision 4: \"The loop calls ctx.nodeStamp on [the compaction event] before it stores it. The outputKey, task and temp-state hooks do not see it\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0093 Decision 2: \"The scheduler changes in one place: runMap returns no output once its signal aborted.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-agent-node.md sections \"The instruction\" and \"Join and map events\" describe the placeholders and the join and map events as ADR 0093 decides them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
