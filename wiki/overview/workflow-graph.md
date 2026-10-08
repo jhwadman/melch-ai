@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Workflow graph
-description: "The engine-owned model of a workflow: block (lib/workflow/graph.ts): buildWorkflowGraph turns the YAML chains into typed nodes (start, agent, join, map, tool, ask_user, and the hidden route step), edges that fire always, on a route key or on the default route, and max_concurrency, with no ADK import. It is the graph compileWorkflow hands ADK's Workflow, node for node and edge for edge, and it raises the schema's messages for the block's rules and ADK's messages for the graph's. The native scheduler runs it; until then nothing does."
+description: "The engine-owned model of a workflow: block (lib/workflow/graph.ts): buildWorkflowGraph turns the YAML chains into typed nodes (start, agent, join, map, tool, ask_user, and the hidden route step), edges that fire always, on a route key or on the default route, and max_concurrency, with no ADK import. It is the graph compileWorkflow hands ADK's Workflow, node for node and edge for edge, and it raises the schema's messages for the block's rules and ADK's messages for the graph's. The engine's own scheduler (lib/workflow/scheduler.ts) runs it."
 tags:
   - runtime
   - agents
@@ -19,7 +19,7 @@ sources:
 
 # Workflow graph
 
-A `workflow:` block ([ADR 0030](/decisions/0030-workflow-graphs.md)) writes a graph as chains of names. `lib/workflow/graph.ts` turns those chains into the graph a scheduler runs, without ADK: `buildWorkflowGraph(config)` returns a `WorkflowGraph`. The ADK runtime still compiles the block with `compileWorkflow` (`lib/workflow.ts`) and runs ADK's `Workflow`; the native runtime refuses a workflow syndicate until its scheduler runs this graph ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), WS4). Why the model mirrors the ADK compile, and where it does not, is [ADR 0082](/decisions/0082-workflow-graph-mirrors-the-adk-compile.md).
+A `workflow:` block ([ADR 0030](/decisions/0030-workflow-graphs.md)) writes a graph as chains of names. `lib/workflow/graph.ts` turns those chains into the graph a scheduler runs, without ADK: `buildWorkflowGraph(config)` returns a `WorkflowGraph`. The ADK runtime still compiles the block with `compileWorkflow` (`lib/workflow.ts`) and runs ADK's `Workflow`; the [workflow scheduler](/overview/workflow-scheduler.md) runs this graph without ADK, and the native runtime refuses a workflow syndicate until its node kinds run on it ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), WS4). Why the model mirrors the ADK compile, and where it does not, is [ADR 0082](/decisions/0082-workflow-graph-mirrors-the-adk-compile.md).
 
 ## The model
 
@@ -61,4 +61,4 @@ Some graphs pass the schema and fail the second pass, on either runtime: a node 
 
 `tests/workflowGraph.test.ts` holds the two together. For every workflow block in `tests/workflow.test.ts`, every shipped syndicate with a `workflow:` block (`config/agents/examples/pipeline.yaml`), and shapes that suite does not exercise (a routed tool node, integer and boolean route keys, fan-out on a route, fan-in to fan-out, a routed loop back), the graph's node names and edges, in order with their routes, equal the `Graph` inside the `Workflow` that `compileWorkflow` builds. Every case of the schema's workflow rules and every graph rule above raises the same message from both. The test also walks the module's imports and finds no ADK value import.
 
-ADK stores a routing-map key that spells an integer as a number, and `true` or `false` as a boolean, and compares routes as strings. So `01` and `1` are the same route on the ADK runtime. The model keeps the key as written; the duplicate-edge rule and its message use ADK's spelling, so the same graphs are refused.
+ADK stores a routing-map key that spells an integer as a number, and `true` or `false` as a boolean, and compares routes as strings. So `01` and `1` are the same route on the ADK runtime. The model keeps the key as written; the duplicate-edge rule and its message use ADK's spelling (`adkRouteString`), so the same graphs are refused, and the scheduler matches an emitted route in the same spelling ([ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md)).
