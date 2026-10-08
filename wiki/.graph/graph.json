@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 765,
-    "edges": 2390,
+    "nodes": 768,
+    "edges": 2420,
     "byKind": {
-      "doc": 131,
+      "doc": 132,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 124,
+      "file": 125,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 165,
+      "module": 166,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 481,
+      "links_to": 488,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 587,
+      "imports": 598,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 530,
-      "constrains": 101,
+      "derives_from": 536,
+      "constrains": 103,
       "supersedes": 6,
-      "depends_on": 31,
-      "explains": 5,
+      "depends_on": 34,
+      "explains": 6,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2245,
-      "inferred": 145
+      "extracted": 2269,
+      "inferred": 151
     },
     "isolated": 4
   },
@@ -1228,6 +1228,18 @@
       }
     },
     {
+      "id": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "kind": "doc",
+      "label": "ADR 0071: The native agent loop stores the events ADK stores, runs a step's calls in parallel, and runs a fallback as a second step",
+      "source": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 955
+      }
+    },
+    {
       "id": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "kind": "doc",
       "label": "ADR 0072: Tool credentials are sealed per app, user and provider, reached through the tool context, and erased with the user",
@@ -1500,7 +1512,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1004
+        "words": 1768
       }
     },
     {
@@ -3871,6 +3883,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nativeLoop.test.ts",
+      "kind": "file",
+      "label": "nativeLoop.test.ts",
+      "source": "tests/nativeLoop.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/nativeStep.test.ts",
       "kind": "file",
       "label": "nativeStep.test.ts",
@@ -4823,6 +4842,15 @@
       }
     },
     {
+      "id": "module:lib/runtime/native/agentLoop.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/agentLoop.ts",
+      "source": "lib/runtime/native/agentLoop.ts",
+      "attrs": {
+        "lines": 557
+      }
+    },
+    {
       "id": "module:lib/runtime/native/history.ts",
       "kind": "module",
       "label": "lib/runtime/native/history.ts",
@@ -4837,7 +4865,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 532
+        "lines": 536
       }
     },
     {
@@ -4846,7 +4874,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 214
+        "lines": 238
       }
     },
     {
@@ -10696,6 +10724,62 @@
       "evidence": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md:24"
     },
     {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "file:tests/nativeLoop.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md frontmatter"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "file:tests/syndicateTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md frontmatter"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md frontmatter"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md frontmatter"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md:37"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md:24"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md:37"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md:24"
+    },
+    {
       "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "to": "file:db/migrations/0013_tool_credentials.sql",
       "rel": "derives_from",
@@ -13364,7 +13448,21 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/nativeLoop.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/nativeStep.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md frontmatter"
@@ -13392,52 +13490,73 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:124"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:105"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:21"
+      "evidence": "/overview/native-loop.md:23"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:64"
+      "evidence": "/overview/native-loop.md:69"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:23"
+      "evidence": "/overview/native-loop.md:25"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:25"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:77"
+      "evidence": "/overview/native-loop.md:82"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:23"
+      "evidence": "/overview/native-loop.md:25"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:46"
+      "evidence": "/overview/native-loop.md:51"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:31"
+      "evidence": "/overview/native-loop.md:36"
     },
     {
       "from": "/protocols/a2a.md",
@@ -18114,6 +18233,83 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/memoryService.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
     },
     {
       "from": "module:lib/runtime/native/history.ts",

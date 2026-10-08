@@ -23,6 +23,30 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md —depends_on→ /decisions/0044-fallback-model-and-circuit-breaker.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md —depends_on→ /decisions/0066-native-step-sends-the-adk-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md —constrains→ module:lib/runtime/native/step.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/claudeCurrentApi.test.ts
 
 by claude-code/claude-opus-5-5
