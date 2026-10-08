@@ -288,6 +288,35 @@ the starter pack and the templates), not the repo's full history.
   to the new module `melchizedek-agents/models/reasoning`, so the adapter
   maps `reasoning:` without importing the compiler or ADK;
   `melchizedek-agents/compile` still exports both.
+- **A temporary Gemini adapter on the contract, over ADK's Gemini.** New
+  module `melchizedek-agents/models/adkGeminiAdapter`: `AdkGeminiAdapter`
+  (and `AdkGeminiAdapterOptions`) implements `ModelAdapter` by mapping the
+  request to an `LlmRequest` and running it through `TracedGemini` with its
+  retries. Every failure is a final response: a failed call is
+  `GEMINI_ERROR` with its status and retry verdict. Like every contract
+  adapter (ADR 0053) it opens no `llm.request` span and charges nothing;
+  behind `AdkShim` the span has `TracedGemini`'s attributes, with the
+  failed call's code as `GEMINI_ERROR` where `TracedGemini` records the
+  HTTP status. It serves Gemini on the native runtime until `GeminiAdapter`
+  passes its live parity run, and is removed after that. Nothing registers
+  it yet.
+  - `models/genaiMapping` adds the reverse directions:
+    `modelRequestToLlmRequest`, `llmResponseToModelResponse` (with the type
+    `ModelResponseOptions`) and `nativeToolsWithoutGeminiTool`.
+  - `TracedGemini` gains `generateWithRetries(llmRequest, stream?,
+    abortSignal?)`, the call that `generateContentAsync` wraps in its span.
+    Its spans are unchanged.
+  - `traceLlmGeneration`'s `LlmCallMeta` gains `request`: a `ModelRequest`,
+    or a function that returns one. `llmRequest` is deprecated and still
+    recorded when `request` is absent. Every adapter in the package and
+    `AdkShim` now pass `request`, so a failed call's `llm.payload.request`, and the
+    `adk_payloads.request` row made from it, hold the request in the model
+    contract's shape (`model`, `system`, `messages`, `tools`, …) instead of
+    ADK's (`contents`, `config`, `toolsDict`). The span's other attributes
+    are unchanged.
+  - `GEMINI_PROVIDER` and `THOUGHT_SIGNATURE_KIND` are defined once, in the
+    new module `melchizedek-agents/models/geminiState`. `models/genaiMapping`
+    and `models/geminiAdapter` still export both, with the same values.
 
 ## 0.18.0 — 2026-10-06
 

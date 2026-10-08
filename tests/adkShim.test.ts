@@ -248,7 +248,17 @@ test('a failed call marks its span with the error and the request, as on the ADK
   const [span] = await spansDuring('scripted/span-error', () => collect(adkShim(adapter).generateContentAsync(request())));
   assert.equal(span.attributes['llm.error_code'], 'SCRIPTED_ERROR');
   assert.equal(span.attributes['llm.error_message'], 'overloaded');
-  assert.match(String(span.attributes['llm.payload.request']), /hello/, 'the LlmRequest as sent');
+  assert.deepEqual(
+    JSON.parse(String(span.attributes['llm.payload.request'])),
+    {
+      model: 'scripted/span-error',
+      system: 'Answer briefly.',
+      messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
+      sampling: { temperature: 0.2 },
+      stream: false,
+    },
+    'the ModelRequest the adapter was given, less its signal',
+  );
   assert.match(String(span.attributes['llm.payload.response']), /error\.retryable/);
 });
 

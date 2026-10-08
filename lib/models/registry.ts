@@ -28,6 +28,7 @@ import type { BaseLlm, GeminiParams, LlmRequest, LlmResponse } from '@google/adk
 import { endpointFromEnv, endpointProblems, mergeEndpoint, platformModel, providerReady } from './endpoints.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
+import { llmRequestToModelRequest } from './genaiMapping.ts';
 import { errorStatus, retryUntilFirstYield } from './retry.ts';
 
 import {
@@ -114,16 +115,25 @@ export class TracedGemini extends Gemini {
     abortSignal?: AbortSignal,
   ): AsyncGenerator<LlmResponse, void> {
     yield* traceLlmGeneration(
-      { provider: 'gemini', model: this.model, llmRequest },
-      this.tagAndGenerate(llmRequest, stream, abortSignal ?? currentTurnSignal()),
+      {
+        provider: 'gemini',
+        model: this.model,
+        request: () => llmRequestToModelRequest(llmRequest, { model: llmRequest.model || this.model, stream }),
+      },
+      this.generateWithRetries(llmRequest, stream, abortSignal ?? currentTurnSignal()),
     );
   }
 
-  /** Tags the llm.request span (web_search = Gemini grounding), then
-   *  delegates to ADK's Gemini. Runs inside the span context. The abort
-   *  signal is forwarded so a canceled turn stops the request in flight
-   *  (ADK's Gemini puts it on the genai request config). */
-  private async *tagAndGenerate(
+  /**
+   * One call through ADK's Gemini with the shared retries, tagging whatever
+   * llm.request span is active (llm.web_search.native for Gemini grounding,
+   * llm.retries, llm.http_status). generateContentAsync opens that span
+   * around it; AdkGeminiAdapter (lib/models/adkGeminiAdapter.ts) runs it
+   * inside the span its own caller opens (ADR 0053). A failed call throws,
+   * as ADK's Gemini does. The abort signal is forwarded so a canceled turn stops the
+   * request in flight (ADK's Gemini puts it on the genai request config).
+   */
+  async *generateWithRetries(
     llmRequest: LlmRequest,
     stream?: boolean,
     abortSignal?: AbortSignal,

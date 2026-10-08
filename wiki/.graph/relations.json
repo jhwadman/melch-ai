@@ -383,6 +383,62 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/adkGeminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 4: \"Exactly one final, which never holds thinking, ends every call. A failure is a final with error set, never a throw.\" Decision 5: \"GEMINI_ERROR is added for the failed call ADK throws.\" /models/adk-gemini-adapter.md: \"ADK's Gemini threw ... GEMINI_ERROR, with status when the error had one\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/models/adkGeminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0045 Decision 3, G3: \"the Gemini row's evidence in the capability matrix changes from adk to test\". /models/adk-gemini-adapter.md: \"Once G3 is signed and GeminiAdapter serves the Gemini ids, this module is deleted.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "alternative_to",
+      "evidence": "/models/provider-routing.md: \"Until it passes its live run at gate G3 ..., the native runtime's Gemini is the temporary wrapper over ADK's Gemini (AdkGeminiAdapter)\". /models/adk-gemini-adapter.md, \"Where it differs from GeminiAdapter\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046: \"Only an adapter of the same provider replays it, and only the kind it wrote\". lib/models/geminiState.ts header: the mapping and both Gemini adapters \"must spell them the same\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/adkGeminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Decision 1: \"An adapter on the contract never charges the turn and never opens llm.request. It honours request.signal, and it decorates the span that is open around it with setLlmSpanAttribute.\" /models/adk-gemini-adapter.md, The span: \"The adapter opens no llm.request span and never charges the turn's step budget\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Note (2026-10-07): \"traceLlmGeneration now takes the request as a ModelRequest (WS1-8). The shim passes the one it hands the adapter, and every ADK-path adapter maps its LlmRequest to one, so item 2's refusals, charges and span attributes stay identical\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0009-observability-ledger.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0009 Note (2026-10-07): \"A failed call's own llm.request span also carries its request and error body (llm.payload.request, llm.payload.response) ... The request is written in the engine's model contract shape\". tracer.ts payloadRequest records the ModelRequest without its signal.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0058-session-stores-with-both-faces.md",
       "to": "module:lib/session/supabaseSessionService.ts",
       "rel": "constrains",
