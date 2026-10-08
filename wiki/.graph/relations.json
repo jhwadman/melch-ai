@@ -275,6 +275,40 @@
       "evidence": "ADR 0045 Decision 4: \"the stored Event JSON in adk_sessions.events and adk_session_events\" never changes without an ADR, and stop rule 1 needs every ADK-written fixture to resume under native; tests/genaiMapping.test.ts round-trips every fixture byte-equal.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0045 Decision 4: \"Four shapes never change without an ADR: the stored Event JSON in adk_sessions.events and adk_session_events\". TurnEvent is that JSON, typed, and tests/events.test.ts holds it to every fixture byte for byte.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0052 Decision 1: \"Nothing converts an event between the store and the runtime. A model call maps the content to the contract, as ADR 0048 item 8 sets out.\" The single mapping at the model boundary rests on ADR 0048 keeping genai Content in storage.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "module:lib/session/supabaseSessionService.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0052 Context: \"ADK's in-memory store resets a session created again under the same id, and so does the Supabase store, which upserts an empty events array.\" Decision 5: \"Where the two durable stores differ, it takes the Postgres store's, which never loses an event: a second create keeps the conversation.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "On SessionService (WS2-2) its create must keep an existing session, and its append applies events through applyEvent; today it resets on re-create."
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "module:lib/storage/postgres/sessionService.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0052 Decision 5 takes the Postgres store's meaning where the durable stores differ, and Consequences: \"A store moving onto SessionService (WS2-2) applies events through applyEvent and pages through listWindow and listPage.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "Its filtering, re-create and paging already match the interface; moving it onto SessionService keeps them."
     }
   ]
 }

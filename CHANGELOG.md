@@ -6,6 +6,13 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **The engine's own event, session and memory interfaces (ADR 0052).**
+  Internal modules for the native runtime, not in the exports map, so
+  nothing a consumer imports changes: `lib/runtime/events.ts` (`TurnEvent`,
+  the stored ADK Event JSON typed, with a parse that keeps every field and
+  ADK's `isFinal`), `lib/runtime/sessions.ts` (`SessionService` and an
+  in-process store) and `lib/runtime/memoryService.ts` (`MemoryService`).
+  Stored sessions and the session services are unchanged.
 - **The skills say what `reasoning:` does on each Claude generation (ADR 0049).**
   `melchizedek-models`, `melchizedek-author`, their briefs, `DOCUMENTATION.md`
   and `syndicateSchema.yaml` say that later Claude models take `reasoning:` as

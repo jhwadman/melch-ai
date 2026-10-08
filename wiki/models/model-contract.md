@@ -351,7 +351,7 @@ The compiler writes the effort word beside `thinkingConfig` from one setting, so
 
 An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. The ADK-path GPT and chat-completions adapters write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
 
-The stored Event JSON keeps its shape ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
+The stored Event JSON keeps its shape ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). The engine types a stored event as `TurnEvent` ([sessions and events](/memory/sessions.md)), whose content is this genai shape.
 
 ## What the contract leaves out
 
