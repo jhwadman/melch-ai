@@ -10,19 +10,18 @@
  * Every client-side tool here is an own Tool (lib/tools/tool.ts), defined
  * once, and the ADK runtime receives the FunctionTool toFunctionTool
  * (lib/tools/adkTool.ts) makes of it; toolOf() reads the Tool back from it.
- * The server-side sentinels and ADK's memory tools are ADK objects still.
+ * preload_memory is an own InstructionTool, which the ADK runtime receives
+ * through toAdkInstructionTool; instructionToolOf() reads it back. The
+ * server-side sentinels are ADK objects still.
  */
 
-import {
-  GOOGLE_SEARCH,
-  LOAD_MEMORY,
-  PRELOAD_MEMORY,
-} from '@google/adk';
+import { GOOGLE_SEARCH } from '@google/adk';
 import { COLLECTIONS_SEARCH } from './tools/collectionsSearchTool.ts';
 import { generateImageTool } from './tools/generateImageTool.ts';
 import { inspectImageTool } from './tools/inspectImageTool.ts';
-import { toFunctionTool } from './tools/adkTool.ts';
-import { isTool } from './tools/tool.ts';
+import { toAdkInstructionTool, toFunctionTool } from './tools/adkTool.ts';
+import { loadMemoryTool, preloadMemoryTool } from './tools/memoryTools.ts';
+import { isInstructionTool, isTool } from './tools/tool.ts';
 import { WEB_SEARCH } from './tools/webSearchTool.ts';
 import { webExtractTool } from './tools/webExtractTool.ts';
 import { WIKI_AGENT_TOOL_CONTRACTS } from './tools/wikiTools.ts';
@@ -92,8 +91,11 @@ const BUILTIN_TOOLS: Record<string, unknown> = {
   // that ends the turn input-required; the next message is its answer. Only
   // on an agent the turn runs directly (the schema enforces it).
   ask_user: toFunctionTool(askUserTool),
-  load_memory: LOAD_MEMORY,
-  preload_memory: PRELOAD_MEMORY,
+  // Long-term memory (lib/tools/memoryTools.ts, ADR 0059): explicit recall
+  // by query, and recall written into the instruction before each request.
+  // Both reach the run's memory service, pinned to the root namespace.
+  load_memory: toFunctionTool(loadMemoryTool),
+  preload_memory: toAdkInstructionTool(preloadMemoryTool),
 };
 
 // Null-prototype copy (as GUARD_MAP is): resolution and registration go
@@ -129,8 +131,9 @@ export function resolveTools(
  * node_modules is not an option. Registering is the same deliberate act of
  * exposure as listing a tool above — it happens in your code, where a
  * reviewer reads it. Pass a `defineTool` contract (lib/tools/toolContract.ts),
- * any own Tool (lib/tools/tool.ts), or a ready ADK tool. A contract or Tool
- * reaches the ADK runtime through toFunctionTool. Replacing a built-in
+ * any own Tool or InstructionTool (lib/tools/tool.ts), or a ready ADK tool.
+ * A contract or Tool reaches the ADK runtime through toFunctionTool, an
+ * InstructionTool through toAdkInstructionTool. Replacing a built-in
  * requires `{ override: true }`.
  */
 export function registerTool(
@@ -146,7 +149,9 @@ export function registerTool(
   }
   const t = tool as Record<string, unknown>;
   const isContract = !!t && typeof t === 'object' && 'schema' in t && typeof t.execute === 'function' && !('runAsync' in t);
-  TOOL_MAP[name] = isContract || isTool(tool) ? toFunctionTool(tool as any) : tool;
+  TOOL_MAP[name] = isContract || isTool(tool)
+    ? toFunctionTool(tool as any)
+    : isInstructionTool(tool) ? toAdkInstructionTool(tool) : tool;
 }
 
 /** Names a YAML can declare under `tools:` right now. */

@@ -6,6 +6,28 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Memory and its tools are the engine's own (ADR 0059).** Additions
+  only; the `exports` map is unchanged.
+  - `load_memory` and `preload_memory` are the engine's own tools, in the
+    new module `melchizedek-agents/tools/memoryTools` (`loadMemoryTool`,
+    `preloadMemoryTool`). A model reads the same declaration, the same
+    memory note and the same recalled block as with ADK's tools. Two
+    differences: a call without a string `query` returns the readable
+    error instead of searching, and a failed call's error reads
+    `Error in tool 'load_memory': …`, as every own tool's does.
+    `require_approval` can now gate `load_memory`.
+  - `melchizedek-agents/tools/tool`: `ToolContext` gains `userContent` and
+    `searchMemory(query)`, which searches the run's own silo only.
+    `createToolContext` takes `memory` and `userContent`. A `Tool` may have
+    `instruction(ctx)`, text for the system instruction of each request.
+    New: `InstructionTool` (a tool that only writes into the instruction),
+    `isInstructionTool` and `instructionToolOf`.
+  - `melchizedek-agents/tools/adkTool` gains `toAdkInstructionTool`, and
+    `registerTool` takes an `InstructionTool`.
+  - `SupabaseVectorMemoryService` implements the engine's `MemoryService`
+    (`ingest`, `search`) as well as ADK's `BaseMemoryService`, whose
+    methods behave as before. `namespacedMemoryService` takes either and
+    pins `search` and `ingest` too.
 - **Breaking for one import path: `toFunctionTool` moves to
   `melchizedek-agents/tools/adkTool` (ADR 0051).**
   `melchizedek-agents/tools/toolContract` no longer exports it, so that

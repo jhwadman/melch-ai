@@ -29,7 +29,7 @@ import { z } from 'zod';
 
 import type { JsonSchema, NativeTool, ToolDeclaration } from './contract.ts';
 import type { ToolContract } from '../tools/toolContract.ts';
-import { isTool } from '../tools/tool.ts';
+import { isInstructionTool, isTool } from '../tools/tool.ts';
 
 /**
  * Standard JSON Schema for what a caller may send a zod schema: its input
@@ -370,11 +370,12 @@ function isToolContract(tool: Record<string, unknown>): tool is Record<string, u
  *
  * With `strict`, the parameters take the strict form (toContractJsonSchema)
  * and the declaration carries `strict: true`. Returns undefined for a tool
- * that declares nothing (a server-side tool: see nativeToolOf, or
- * `preload_memory`, which only edits the request) and for one with no name.
+ * that declares nothing (a server-side tool: see nativeToolOf, or an
+ * InstructionTool such as `preload_memory`, which only writes into the
+ * instruction, as itself or as its ADK tool) and for one with no name.
  */
 export function contractToolDeclaration(tool: unknown, options: { strict?: boolean } = {}): ToolDeclaration | undefined {
-  if (!isPlainObject(tool)) return undefined;
+  if (!isPlainObject(tool) || isInstructionTool(tool)) return undefined;
   const strict = options.strict === true;
   let name: unknown;
   let description: unknown;

@@ -13,7 +13,9 @@ sources:
   - resource: lib/runtime/events.ts
   - resource: lib/runtime/sessions.ts
   - resource: lib/runtime/memoryService.ts
+  - resource: lib/memory/supabaseMemoryService.ts
   - resource: tests/events.test.ts
+  - resource: tests/memoryTools.test.ts
   - resource: tests/helpers/importGraph.ts
 ---
 
@@ -25,7 +27,7 @@ Three modules hold the engine's own types for sessions and memory ([ADR 0045](/d
 - `lib/runtime/sessions.ts`: the `SessionService` interface, the rules every store applies, and `InProcessSessionService`.
 - `lib/runtime/memoryService.ts`: the `MemoryService` interface.
 
-The native runtime reads and writes sessions through them. The ADK runtime still uses ADK's types. The Supabase and Postgres session services extend ADK's `BaseSessionService`, and long-term memory implements ADK's `BaseMemoryService`; none of them implements the engine's interfaces yet. Each module imports only types, and nothing in its import graph names `@google/*`. The modules are not in the package's `exports` map.
+The native runtime reads and writes sessions through them. The ADK runtime still uses ADK's types. The Supabase and Postgres session services extend ADK's `BaseSessionService` and do not implement `SessionService` yet. Long-term memory implements both `MemoryService` and ADK's `BaseMemoryService` ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)). Each module imports only types, and nothing in its import graph names `@google/*`. The modules are not in the package's `exports` map.
 
 ## The event
 
@@ -113,9 +115,13 @@ No syndicate writes an `app:` or `user:` key.
 - `search({ appName, userId, query })` returns `{ memories }`, best first, in the JSON of ADK's `MemoryEntry`: `content`, `author`, `timestamp` (ISO 8601).
 - `deleteUserMemory`, `pruneExpired` and `verifyEmbeddingDimensions` are optional, with the names the A2A server already calls them by.
 
-Every fact is filed under `<appName>/<userId>`, and a search reads that silo alone. `appName` is the memory namespace, which the runtime pins to the root syndicate's ([ADR 0020](/decisions/0020-memory-contract.md)).
+Every fact is filed under `<appName>/<userId>`, and a search reads that silo alone. `appName` is the memory namespace, which the runtime pins to the root syndicate's ([ADR 0020](/decisions/0020-memory-contract.md)): `namespacedMemoryService` replaces the app name on `search` and `ingest`, as on ADK's `searchMemory` and `addSessionToMemory`, and passes erase and retention through unchanged.
+
+`SupabaseVectorMemoryService` implements this interface. Its ADK methods hand their arguments to `ingest` and `search`, so either runtime reaches the same logic. A tool reaches memory through its context's `searchMemory(query)`, which `createToolContext` builds from the run's `memory` and searches the context's own `appName` and `userId` only ([tool contracts](/tools/tool-contracts.md)).
 
 ## What proves it
+
+`tests/memoryTools.test.ts` drives `MemoryService` directly, pinned and per user, with ingestion, recall, erase and retention, and runs the memory tools over it with no ADK object in the path. `tests/memoryIngestion.test.ts` runs every at-least-once test through both `ingest` and ADK's `addSessionToMemory`.
 
 `tests/events.test.ts`:
 

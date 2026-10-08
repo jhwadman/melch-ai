@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 698,
-    "edges": 1803,
+    "nodes": 701,
+    "edges": 1851,
     "byKind": {
-      "doc": 111,
+      "doc": 112,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 105,
+      "file": 106,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 140,
+      "module": 141,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 308,
+      "links_to": 322,
       "requires_env": 165,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 439,
+      "imports": 451,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 358,
-      "constrains": 39,
+      "derives_from": 372,
+      "constrains": 44,
       "supersedes": 2,
-      "depends_on": 9,
+      "depends_on": 12,
       "explains": 2,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1749,
-      "inferred": 54
+      "extracted": 1789,
+      "inferred": 62
     },
     "isolated": 4
   },
@@ -1020,7 +1020,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1197
+        "words": 1225
       }
     },
     {
@@ -1032,7 +1032,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 882
+        "words": 904
       }
     },
     {
@@ -1048,6 +1048,18 @@
       }
     },
     {
+      "id": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "kind": "doc",
+      "label": "ADR 0059: Memory and its tools are the engine's own: one service on both interfaces, recall through the tool context, and tools that write into the instruction",
+      "source": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1236
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1056,7 +1068,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1352
+        "words": 1555
       }
     },
     {
@@ -1080,7 +1092,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 1541
+        "words": 1651
       }
     },
     {
@@ -1356,7 +1368,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 773
+        "words": 1147
       }
     },
     {
@@ -3526,6 +3538,13 @@
       "source": "tests/mcpTools.test.ts"
     },
     {
+      "id": "file:tests/memoryTools.test.ts",
+      "kind": "file",
+      "label": "memoryTools.test.ts",
+      "source": "tests/memoryTools.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/modelContract.test.ts",
       "kind": "file",
       "label": "modelContract.test.ts",
@@ -3917,7 +3936,7 @@
       "label": "lib/memory/namespace.ts",
       "source": "lib/memory/namespace.ts",
       "attrs": {
-        "lines": 96
+        "lines": 97
       }
     },
     {
@@ -3944,7 +3963,7 @@
       "label": "lib/memory/supabaseMemoryService.ts",
       "source": "lib/memory/supabaseMemoryService.ts",
       "attrs": {
-        "lines": 709
+        "lines": 756
       }
     },
     {
@@ -3953,7 +3972,7 @@
       "label": "lib/models/adkGeminiAdapter.ts",
       "source": "lib/models/adkGeminiAdapter.ts",
       "attrs": {
-        "lines": 410
+        "lines": 405
       }
     },
     {
@@ -4187,7 +4206,7 @@
       "label": "lib/models/schemaNormalize.ts",
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
-        "lines": 446
+        "lines": 447
       }
     },
     {
@@ -4322,7 +4341,7 @@
       "label": "lib/runtime/memoryService.ts",
       "source": "lib/runtime/memoryService.ts",
       "attrs": {
-        "lines": 78
+        "lines": 79
       }
     },
     {
@@ -4475,7 +4494,7 @@
       "label": "lib/toolRegistry.ts",
       "source": "lib/toolRegistry.ts",
       "attrs": {
-        "lines": 156
+        "lines": 161
       }
     },
     {
@@ -4484,7 +4503,7 @@
       "label": "lib/tools/adkTool.ts",
       "source": "lib/tools/adkTool.ts",
       "attrs": {
-        "lines": 133
+        "lines": 215
       }
     },
     {
@@ -4530,6 +4549,15 @@
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
         "lines": 207
+      }
+    },
+    {
+      "id": "module:lib/tools/memoryTools.ts",
+      "kind": "module",
+      "label": "lib/tools/memoryTools.ts",
+      "source": "lib/tools/memoryTools.ts",
+      "attrs": {
+        "lines": 129
       }
     },
     {
@@ -4628,7 +4656,7 @@
       "label": "lib/tools/tool.ts",
       "source": "lib/tools/tool.ts",
       "attrs": {
-        "lines": 302
+        "lines": 385
       }
     },
     {
@@ -4637,7 +4665,7 @@
       "label": "lib/tools/toolContract.ts",
       "source": "lib/tools/toolContract.ts",
       "attrs": {
-        "lines": 238
+        "lines": 240
       }
     },
     {
@@ -8771,6 +8799,13 @@
       "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md:24"
     },
     {
+      "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md:52"
+    },
+    {
       "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "to": "file:tests/events.test.ts",
       "rel": "derives_from",
@@ -8811,6 +8846,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md:24"
+    },
+    {
+      "from": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0052-sessions-and-events-on-own-interfaces.md:55"
     },
     {
       "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
@@ -8876,6 +8918,104 @@
       "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:55"
     },
     {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "file:tests/memoryTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/memory/namespace.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/memory/supabaseMemoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/toolRegistry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:50"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:88"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0034-self-correction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:86"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:35"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:28"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0059-memory-on-the-engines-own-interfaces.md:28"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -8926,6 +9066,13 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "module:lib/session/transcript.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8940,45 +9087,66 @@
     },
     {
       "from": "/memory/architecture.md",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md frontmatter"
+    },
+    {
+      "from": "/memory/architecture.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:29"
+      "evidence": "/memory/architecture.md:31"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:47"
+      "evidence": "/memory/architecture.md:49"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:27"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:25"
+      "evidence": "/memory/architecture.md:27"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:61"
+      "evidence": "/memory/architecture.md:27"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:97"
+      "evidence": "/memory/architecture.md:104"
     },
     {
       "from": "/memory/architecture.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:97"
+      "evidence": "/memory/architecture.md:104"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:93"
     },
     {
       "from": "/memory/schema.md",
@@ -9115,6 +9283,20 @@
     },
     {
       "from": "/memory/sessions.md",
+      "to": "file:tests/memoryTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/memory/supabaseMemoryService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
       "to": "module:lib/runtime/events.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9139,49 +9321,63 @@
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:116"
+      "evidence": "/memory/sessions.md:118"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0030-workflow-graphs.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:52"
+      "evidence": "/memory/sessions.md:54"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:22"
+      "evidence": "/memory/sessions.md:24"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:41"
+      "evidence": "/memory/sessions.md:43"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:22"
+      "evidence": "/memory/sessions.md:24"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:30"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:32"
+      "evidence": "/memory/sessions.md:34"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:32"
+      "evidence": "/memory/sessions.md:34"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:120"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -11026,6 +11222,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "file:tests/memoryTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "file:tests/toolContract.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -11041,6 +11244,13 @@
     {
       "from": "/tools/tool-contracts.md",
       "to": "module:lib/tools/adkTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/memoryTools.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md frontmatter"
@@ -11064,70 +11274,84 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:32"
+      "evidence": "/tools/tool-contracts.md:34"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:29"
+      "evidence": "/tools/tool-contracts.md:31"
     },
     {
       "from": "/tools/tool-contracts.md",
-      "to": "/models/model-contract.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:23"
-    },
-    {
-      "from": "/tools/tool-contracts.md",
-      "to": "/models/provider-routing.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:45"
-    },
-    {
-      "from": "/tools/tool-contracts.md",
-      "to": "/protocols/mcp.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:49"
-    },
-    {
-      "from": "/tools/tool-contracts.md",
-      "to": "/tools/ask-user.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:34"
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "/memory/architecture.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:58"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:25"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:48"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/protocols/mcp.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:52"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/tools/ask-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:37"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/web-tools.md",
@@ -13125,6 +13349,13 @@
       "evidence": "lib/loadSyndicate.ts"
     },
     {
+      "from": "module:lib/memory/namespace.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/namespace.ts"
+    },
+    {
       "from": "module:lib/memory/providers.ts",
       "to": "module:lib/config.ts",
       "rel": "imports",
@@ -13253,6 +13484,27 @@
     {
       "from": "module:lib/memory/supabaseMemoryService.ts",
       "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/memory/supabaseMemoryService.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/memory/supabaseMemoryService.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/supabaseMemoryService.ts"
+    },
+    {
+      "from": "module:lib/memory/supabaseMemoryService.ts",
+      "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/memory/supabaseMemoryService.ts"
@@ -14855,6 +15107,13 @@
     },
     {
       "from": "module:lib/toolRegistry.ts",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/toolRegistry.ts",
       "to": "module:lib/tools/scienceTools.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -14915,6 +15174,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/tools/adkTool.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/adkTool.ts"
+    },
+    {
+      "from": "module:lib/tools/adkTool.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/adkTool.ts"
     },
     {
       "from": "module:lib/tools/adkTool.ts",
@@ -15069,6 +15342,27 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/memoryTools.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/memoryTools.ts"
+    },
+    {
+      "from": "module:lib/tools/memoryTools.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/memoryTools.ts"
+    },
+    {
+      "from": "module:lib/tools/memoryTools.ts",
+      "to": "module:lib/tools/toolContract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/memoryTools.ts"
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
@@ -15241,6 +15535,20 @@
     {
       "from": "module:lib/tools/tool.ts",
       "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/tool.ts"
+    },
+    {
+      "from": "module:lib/tools/tool.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/tool.ts"
+    },
+    {
+      "from": "module:lib/tools/tool.ts",
+      "to": "module:lib/runtime/memoryService.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/tool.ts"

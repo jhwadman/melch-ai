@@ -3,6 +3,38 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —depends_on→ /decisions/0020-memory-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —depends_on→ /decisions/0052-sessions-and-events-on-own-interfaces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/memory/namespace.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/tools/adkTool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/tools/tool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/memory/supabaseMemoryService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ module:lib/tools/memoryTools.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0009-observability-ledger.md —constrains→ module:lib/observability/tracer.ts
 
 by claude-code/claude-opus-5-5

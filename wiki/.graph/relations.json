@@ -437,6 +437,70 @@
       "evidence": "ADR 0009 Note (2026-10-07): \"A failed call's own llm.request span also carries its request and error body (llm.payload.request, llm.payload.response) ... The request is written in the engine's model contract shape\". tracer.ts payloadRequest records the ModelRequest without its signal.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/memoryTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §4: \"load_memory is a defineTool Tool with an instruction\", \"preload_memory is an InstructionTool\", and \"Their declaration, note, result and recalled block are ADK's, word for word.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/memory/supabaseMemoryService.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §1: \"SupabaseVectorMemoryService implements MemoryService and BaseMemoryService\"; ADK's addSessionToMemory and searchMemory \"each hand their arguments to the engine's method and return its result.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §2 and §3: ToolContext gains searchMemory, bound to \"the context's own <appName>/<userId> silo\", and userContent; a Tool may have instruction(ctx), and an InstructionTool has only a name and an instruction.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §3: on the ADK runtime lib/tools/adkTool.ts appends the instruction text in processLlmRequest, \"joined exactly as ADK's own appendInstructions joins it\" (a FunctionTool subclass, or toAdkInstructionTool for an InstructionTool).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "module:lib/memory/namespace.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059 §1: \"namespacedMemoryService pins the root namespace on search and ingest as it does on ADK's two methods\"; erase and retention pass through it unchanged.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0059 Context: \"ADR 0052 gave the engine its own MemoryService (lib/runtime/memoryService.ts)\", which §1 has the memory service implement.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0059 Context: ADR 0051 \"made every registry tool the engine's own except the two memory tools\"; §4 builds load_memory with defineTool and §3 extends ADR 0051's Tool and ToolContext.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0059 §1 and §2 keep ADR 0020's silos: facts under <memory_namespace>/<scopeKey>, the root namespace pinned (ADR 0020 item 3), and a tool's search bound to its own silo.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

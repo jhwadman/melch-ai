@@ -10,6 +10,8 @@ generated:
   at: 2026-07-26
 sources:
   - resource: lib/memory/supabaseMemoryService.ts
+  - resource: lib/runtime/memoryService.ts
+  - resource: lib/tools/memoryTools.ts
   - resource: lib/memory/README.md
   - resource: lib/memory/providers.ts
   - resource: lib/memory/store.ts
@@ -22,7 +24,7 @@ sources:
 
 # Memory architecture
 
-Long-term memory is `SupabaseVectorMemoryService` — the ADK `BaseMemoryService` contract backed by one Postgres table (`adk_memory_facts`, created by `db/migrations/0001_base.sql` and reproduced on the [schema page](/memory/schema.md)) with pgvector embeddings (768 dims by default).
+Long-term memory is `SupabaseVectorMemoryService`, backed by one Postgres table (`adk_memory_facts`, created by `db/migrations/0001_base.sql` and reproduced on the [schema page](/memory/schema.md)) with pgvector embeddings (768 dims by default). It implements the engine's own `MemoryService` ([sessions and events](/memory/sessions.md)), whose `ingest` and `search` hold the logic, and ADK's `BaseMemoryService`, whose `addSessionToMemory` and `searchMemory` hand their arguments to those two. The ADK runtime, the turn runner's ingestion and the A2A server call ADK's names; the native runtime and the engine's memory tools call the engine's. Both reach the same logic and the same silos ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)).
 
 ## What computes it
 
@@ -66,7 +68,7 @@ An orchestrator outside plan-dispatch reads its stored session unprojected, so i
 
 ## Write path
 
-`addSessionToMemory` serializes the session's events, then a low-temperature extraction model distills them into one-line records:
+`ingest` (ADK's `addSessionToMemory`) serializes the session's events, then a low-temperature extraction model distills them into one-line records:
 
 ```
 [TAG | date: | source: | status: | keys: ] fact text
@@ -88,11 +90,16 @@ A `CORRECTION` record carries a quote of what it supersedes. The service embeds 
 
 ## Recall
 
-`searchMemory` is hybrid: pgvector cosine (top 24 via the `match_memory_facts` RPC), then in-process re-ranking — boosts for index-key hits (+0.12), year (+0.08) and month (+0.10) matches parsed from the query, and active status (+0.05) — sliced to 10. Agents reach it by declaring `load_memory` / `preload_memory` in YAML with `memory_system: "long-term"`.
+`search` (ADK's `searchMemory`) is hybrid: pgvector cosine (top 24 via the `match_memory_facts` RPC), then in-process re-ranking — boosts for index-key hits (+0.12), year (+0.08) and month (+0.10) matches parsed from the query, and active status (+0.05) — sliced to 10. Agents reach it by declaring `load_memory` / `preload_memory` in YAML with `memory_system: "long-term"`. Both are the engine's own tools (`lib/tools/memoryTools.ts`, [tool contracts](/tools/tool-contracts.md)):
+
+- `preload_memory` searches with the first text part of the message that started the run and writes the recalled facts into the instruction before each request, inside a `<PAST_CONVERSATIONS>` block.
+- `load_memory` searches with a query the model chooses and returns the facts as text, and while the run has memory it adds a note to the instruction saying so.
+
+Both search through the tool context's `searchMemory`, bound to the run's own `<appName>/<userId>` silo, so a query chooses what to recall and never whose. A model reads the same declaration, note, results and block that ADK's tools of the same names produced.
 
 ## Boundaries
 
-Every row is siloed by `user_key = appName/userId`, where `appName` on the A2A server is the syndicate's `memory_namespace` (else `melchizedek-a2a`).
+Every row is siloed by `user_key = appName/userId`, where `appName` on the A2A server is the syndicate's `memory_namespace` (else `melchizedek-a2a`). `namespacedMemoryService` pins that namespace on every search and ingestion, through either interface's names, so a subagent running under its own name reads and writes the root syndicate's silo.
 
 Erasure comes in two sizes. The A2A server's `DELETE /memory` and `erase(scopeKey)` remove a scope from every store: facts, sessions, ledger rows and A2A tasks ([A2A](/protocols/a2a.md)). `deleteUserMemory(userKey)` removes one user key's facts only, leaving sessions and the ledger in place. Both **throw** on failure rather than silently doing nothing. How the whole framework fits around this: [architecture](/overview/architecture.md).
 

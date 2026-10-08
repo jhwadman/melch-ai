@@ -14,7 +14,8 @@
  *     path, toGeminiSchema walks by keyword, and a record keeps its value
  *     schema on both paths.
  *   - Every registry tool that declares a function is an own Tool behind its
- *     FunctionTool, except ADK's load_memory (WS2-3).
+ *     FunctionTool, and preload_memory is an own InstructionTool behind its
+ *     ADK tool.
  *   - tool.ts and toolContract.ts import nothing from @google/* at runtime.
  *
  * Offline: no model is called.
@@ -40,6 +41,7 @@ import {
   MAX_RESULT_CHARS,
   capResult,
   createToolContext,
+  instructionToolOf,
   isLongRunning,
   isTool,
   requireApproval,
@@ -389,9 +391,10 @@ test('every registry tool that declares a function is an own Tool behind its Fun
   for (const name of registeredToolNames()) {
     const [adkTool] = resolveTools([name]);
     const declared = contractToolDeclaration(adkTool);
-    if (!declared) continue; // a server-side sentinel or preload_memory
-    if (name === 'load_memory') {
-      assert.equal(toolOf(adkTool), undefined, "ADK's memory tool moves in WS2-3");
+    if (!declared) {
+      // A server-side sentinel, or preload_memory: an own InstructionTool.
+      assert.equal(toolOf(adkTool), undefined, `${name} declares nothing, so it is no Tool`);
+      if (name === 'preload_memory') assert.equal(instructionToolOf(adkTool)?.name, 'preload_memory');
       continue;
     }
     const tool = toolOf(adkTool);
@@ -401,7 +404,7 @@ test('every registry tool that declares a function is an own Tool behind its Fun
     assert.deepEqual(declared, tool!.declaration(), `${name}: the ADK path declares what the Tool declares`);
     own.push(name);
   }
-  for (const name of ['ask_user', 'generate_image', 'inspect_image', 'web_extract', 'x_api_search', 'wiki_read', 'task_add', 'search_literature']) {
+  for (const name of ['ask_user', 'generate_image', 'inspect_image', 'load_memory', 'web_extract', 'x_api_search', 'wiki_read', 'task_add', 'search_literature']) {
     assert.ok(own.includes(name), `${name} is an own Tool`);
   }
 });
