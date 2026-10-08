@@ -1,11 +1,14 @@
 /**
  * tests/redirects.test.ts — redirects followed one hop at a time under a
- * policy (lib/net/redirects.ts). Offline: a scripted fetch.
+ * policy (lib/net/redirects.ts), and the OpenAPI tools' policy
+ * (lib/tools/openapi/call.ts). Offline: a scripted fetch and a stub resolver.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { MAX_REDIRECTS, fetchWithRedirectPolicy, withRedirectGuard } from '../lib/net/redirects.ts';
+import { MAX_REDIRECTS, fetchWithRedirectPolicy } from '../lib/net/redirects.ts';
+import { setHostResolver } from '../lib/net/addressGuard.ts';
+import { OPENAPI_REDIRECTS } from '../lib/tools/openapi/call.ts';
 import type { RedirectPolicy } from '../lib/net/redirects.ts';
 
 type Seen = { url: string; method: string; headers: Record<string, string>; body: unknown; redirect?: string };
@@ -80,15 +83,67 @@ test('a chain longer than MAX_REDIRECTS is an error', async () => {
   await assert.rejects(fetchWithRedirectPolicy('https://a.example/0', {}, allowAll, fetchImpl), /more than 5 redirects/);
 });
 
-test('withRedirectGuard applies only inside its context and never to concurrent calls outside it', async () => {
-  const original = globalThis.fetch;
-  const { seen, fetchImpl } = scripted({ 'https://a.example/x': ok() });
-  globalThis.fetch = fetchImpl;
+// ── The OpenAPI tools' policy (lib/tools/openapi/call.ts) ──────────────────
+
+/** Names that resolve as the test says: public, private, link-local. */
+const resolver = async (host: string) => {
+  const table: Record<string, string> = {
+    'api.example.com': '93.184.216.34',
+    'cdn.example.net': '93.184.216.35',
+    'rebind.example.org': '10.0.0.7',
+    'meta.example.org': '169.254.169.254',
+    'v6meta.example.org': 'fe80::1',
+  };
+  if (!table[host]) throw new Error('ENOTFOUND');
+  return [{ address: table[host]! }];
+};
+
+test('OPENAPI_REDIRECTS: a hop to a private or link-local address is refused, as a literal and through DNS, and never fetched', async () => {
+  setHostResolver(resolver);
+  const env = process.env.ALLOW_PRIVATE_OPENAPI;
   try {
-    await withRedirectGuard(allowAll, () => fetch('https://a.example/x'));
-    await fetch('https://a.example/x');
-    assert.deepEqual(seen.map((s) => s.redirect), ['manual', undefined]);
+    for (const [target, reason] of [
+      ['http://169.254.169.254/latest/meta-data/', /refusing 169\.254\.169\.254: link-local\/metadata IPv4/],
+      ['http://[::ffff:169.254.169.254]/', /refusing \[::ffff:a9fe:a9fe\]: link-local\/metadata IPv4/],
+      ['http://10.1.2.3/', /refusing 10\.1\.2\.3: private IPv4/],
+      ['https://rebind.example.org/x', /refusing rebind\.example\.org: resolves to a private IPv4 address/],
+      ['https://meta.example.org/x', /refusing meta\.example\.org: resolves to a link-local\/metadata IPv4 address/],
+      ['https://v6meta.example.org/x', /resolves to a link-local IPv6 address/],
+      ['https://nowhere.example.org/x', /hostname does not resolve/],
+      ['file:///etc/passwd', /file: is not http\(s\)/],
+    ] as const) {
+      for (const allowPrivate of [undefined, 'true']) {
+        if (allowPrivate) process.env.ALLOW_PRIVATE_OPENAPI = allowPrivate;
+        else delete process.env.ALLOW_PRIVATE_OPENAPI;
+        const { seen, fetchImpl } = scripted({ 'https://api.example.com/a': to(target) });
+        await assert.rejects(
+          fetchWithRedirectPolicy('https://api.example.com/a', { headers: { Authorization: 'Bearer t' } }, OPENAPI_REDIRECTS, fetchImpl),
+          reason,
+          `${target} (ALLOW_PRIVATE_OPENAPI=${allowPrivate})`,
+        );
+        assert.equal(seen.length, 1, `${target}: the refused hop is never fetched`);
+      }
+    }
   } finally {
-    globalThis.fetch = original;
+    setHostResolver();
+    if (env === undefined) delete process.env.ALLOW_PRIVATE_OPENAPI;
+    else process.env.ALLOW_PRIVATE_OPENAPI = env;
+  }
+});
+
+test('OPENAPI_REDIRECTS: a hop to a public host is followed without the credential; a same-origin hop keeps it', async () => {
+  setHostResolver(resolver);
+  try {
+    const { seen, fetchImpl } = scripted({
+      'https://api.example.com/a': to('/b'),
+      'https://api.example.com/b': to('https://cdn.example.net/c'),
+      'https://cdn.example.net/c': ok('done'),
+    });
+    const res = await fetchWithRedirectPolicy('https://api.example.com/a', { headers: { Authorization: 'Bearer t', 'X-Api-Key': 'k' } }, OPENAPI_REDIRECTS, fetchImpl);
+    assert.equal(await res.text(), 'done');
+    assert.equal(seen[1]!.headers.authorization, 'Bearer t');
+    assert.deepEqual(seen[2]!.headers, {}, 'no credential crosses origins');
+  } finally {
+    setHostResolver();
   }
 });

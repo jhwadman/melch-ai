@@ -1,27 +1,24 @@
 /**
  * lib/net/redirects.ts — follow HTTP redirects one hop at a time, each hop
- * held to a policy, for code that calls `globalThis.fetch` itself.
+ * held to a policy, for code that makes its own requests.
  *
  * WHY: fetch follows redirects by default, so a guard that vets only the URL
  * a request starts at is bypassed by any server that answers 302: an allowed
  * public API with an open redirect can send a call to 169.254.169.254, and
  * fetch forwards every header but Authorization and Cookie (an API key in a
  * custom header crosses origins). web_extract follows redirects manually for
- * this reason; ADK's RestApiTool (the OpenAPI tools) calls globalThis.fetch
- * with no hook to pass a fetch of our own.
+ * this reason, and so do the OpenAPI tools (lib/tools/openapi/call.ts) and
+ * the MCP client (lib/tools/mcpToolFactory.ts), through this module.
  *
- * HOW: `withRedirectGuard(policy, fn)` runs `fn` in an AsyncLocalStorage
- * context. A wrapper installed on globalThis.fetch (once, and again if
- * something replaced it) applies the guard only inside such a context and
- * calls the original fetch untouched everywhere else, so no other request in
- * the process changes behaviour and concurrent calls never see each other's
- * policy. Inside the context every request uses `redirect: 'manual'`; each
- * hop's URL goes to `policy.hopProblem` before it is fetched, a hop to
- * another origin keeps only content-negotiation headers, and a chain longer
- * than MAX_REDIRECTS is an error. 303, and 301/302 after a POST, continue as
- * a GET without a body, as browsers do.
+ * HOW: `fetchWithRedirectPolicy(input, init, policy, fetch)` sends every
+ * request with `redirect: 'manual'`; each hop's URL goes to
+ * `policy.hopProblem` before it is fetched, a hop to another origin keeps
+ * only content-negotiation headers, and a chain longer than MAX_REDIRECTS is
+ * an error. 303, and 301/302 after a POST, continue as a GET without a body,
+ * as browsers do. The policy is a parameter of the call: nothing is
+ * installed on globalThis.fetch (ADR 0067 retired the context-scoped
+ * wrapper ADR 0036 put there while ADK made the OpenAPI requests).
  */
-import { AsyncLocalStorage } from 'node:async_hooks';
 
 export const MAX_REDIRECTS = 5;
 
@@ -84,26 +81,4 @@ export async function fetchWithRedirectPolicy(
     }
     url = next;
   }
-}
-
-const guardContext = new AsyncLocalStorage<RedirectPolicy>();
-const WRAPPED = Symbol.for('melchizedek.redirectGuardedFetch');
-
-/** Wrap whatever globalThis.fetch is now, unless it is already our wrapper. */
-function ensureInstalled(): void {
-  const current = globalThis.fetch as Fetch & { [WRAPPED]?: true };
-  if (current[WRAPPED]) return;
-  const inner = current;
-  const wrapped = ((input: string | URL | Request, init?: RequestInit) => {
-    const policy = guardContext.getStore();
-    return policy ? fetchWithRedirectPolicy(input, init, policy, inner) : inner(input, init);
-  }) as Fetch & { [WRAPPED]?: true };
-  wrapped[WRAPPED] = true;
-  globalThis.fetch = wrapped;
-}
-
-/** Run `fn` with every globalThis.fetch it makes following redirects under `policy`. */
-export function withRedirectGuard<T>(policy: RedirectPolicy, fn: () => Promise<T>): Promise<T> {
-  ensureInstalled();
-  return guardContext.run(policy, fn);
 }
