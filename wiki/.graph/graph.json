@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 790,
-    "edges": 2627,
+    "nodes": 792,
+    "edges": 2654,
     "byKind": {
-      "doc": 138,
+      "doc": 139,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 131,
+      "file": 132,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 528,
+      "links_to": 537,
       "requires_env": 168,
       "routes_to": 8,
       "defined_in": 77,
@@ -36,17 +36,18 @@
       "imports": 675,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 587,
-      "constrains": 117,
+      "derives_from": 599,
+      "constrains": 119,
       "supersedes": 6,
-      "depends_on": 52,
-      "explains": 12,
+      "depends_on": 54,
+      "explains": 13,
       "mitigates": 1,
-      "alternative_to": 1
+      "alternative_to": 1,
+      "contradicts": 1
     },
     "byTier": {
-      "extracted": 2438,
-      "inferred": 189
+      "extracted": 2459,
+      "inferred": 195
     },
     "isolated": 4
   },
@@ -1324,6 +1325,18 @@
       }
     },
     {
+      "id": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "kind": "doc",
+      "label": "ADR 0079: A question resumes on the native loop through its history, with no request processor, as on ADK",
+      "source": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 680
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1584,7 +1597,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4481
+        "words": 4726
       }
     },
     {
@@ -1620,7 +1633,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 265
+        "words": 309
       }
     },
     {
@@ -3997,6 +4010,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nativeQuestions.test.ts",
+      "kind": "file",
+      "label": "nativeQuestions.test.ts",
+      "source": "tests/nativeQuestions.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/nativeStep.test.ts",
       "kind": "file",
       "label": "nativeStep.test.ts",
@@ -4053,7 +4073,8 @@
       "id": "file:tests/questionsA2a.test.ts",
       "kind": "file",
       "label": "questionsA2a.test.ts",
-      "source": "tests/questionsA2a.test.ts"
+      "source": "tests/questionsA2a.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/readiness.test.ts",
@@ -4980,7 +5001,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 690
+        "lines": 695
       }
     },
     {
@@ -5016,7 +5037,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 207
+        "lines": 219
       }
     },
     {
@@ -5070,7 +5091,7 @@
       "label": "lib/runtime/nativeTurn.ts",
       "source": "lib/runtime/nativeTurn.ts",
       "attrs": {
-        "lines": 135
+        "lines": 136
       }
     },
     {
@@ -5079,7 +5100,7 @@
       "label": "lib/runtime/questions.ts",
       "source": "lib/runtime/questions.ts",
       "attrs": {
-        "lines": 115
+        "lines": 119
       }
     },
     {
@@ -11538,6 +11559,104 @@
       "evidence": "/decisions/0078-native-compaction-ports-adk-compactor.md:38"
     },
     {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "file:tests/nativeQuestions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "file:tests/nativeTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "file:tests/questions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "file:tests/questionsA2a.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md frontmatter"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "/decisions/0031-ask-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md:28"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md:49"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md:30"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md:30"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0079-native-questions-resume-through-the-history.md:30"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -14164,6 +14283,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/nativeQuestions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/nativeStep.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14262,6 +14388,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/runtimeFlag.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14272,133 +14405,147 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:150"
+      "evidence": "/overview/native-loop.md:152"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:204"
+      "evidence": "/overview/native-loop.md:206"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0031-ask-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:228"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:156"
+      "evidence": "/overview/native-loop.md:158"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:176"
+      "evidence": "/overview/native-loop.md:178"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:129"
+      "evidence": "/overview/native-loop.md:131"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:37"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:90"
+      "evidence": "/overview/native-loop.md:92"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:37"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:176"
+      "evidence": "/overview/native-loop.md:178"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:266"
+      "evidence": "/overview/native-loop.md:275"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:206"
+      "evidence": "/overview/native-loop.md:208"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:156"
+      "evidence": "/overview/native-loop.md:158"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:230"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:105"
+      "evidence": "/overview/native-loop.md:107"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:39"
+      "evidence": "/overview/native-loop.md:41"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:71"
+      "evidence": "/overview/native-loop.md:73"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:54"
+      "evidence": "/overview/native-loop.md:56"
     },
     {
       "from": "/protocols/a2a.md",
@@ -14584,6 +14731,13 @@
     },
     {
       "from": "/tools/ask-user.md",
+      "to": "file:tests/nativeQuestions.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md frontmatter"
+    },
+    {
+      "from": "/tools/ask-user.md",
       "to": "file:tests/questions.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -14615,21 +14769,35 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/ask-user.md:25"
+      "evidence": "/tools/ask-user.md:28"
     },
     {
       "from": "/tools/ask-user.md",
       "to": "/decisions/0030-workflow-graphs.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/ask-user.md:25"
+      "evidence": "/tools/ask-user.md:28"
     },
     {
       "from": "/tools/ask-user.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/ask-user.md:27"
+      "evidence": "/tools/ask-user.md:30"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:26"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:26"
     },
     {
       "from": "/tools/evidence-tools.md",

@@ -6,6 +6,14 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **A question is answered on the native runtime (ADR 0079).** On
+  `runtime: 'native'` (or `MELCHIZEDEK_RUNTIME=native`), a plain-text
+  message that answers an open `ask_user` call no longer throws
+  `UnsupportedOnRuntimeError`: it becomes the call's response and the agent
+  that asked resumes, in plan-dispatch the route, as on ADK. Both runtimes
+  store the same events, so a question opened on either is answered on the
+  other; `result.input` and the A2A `input_request` part are unchanged. No
+  change to the `exports` map.
 - **An approval resumes on the native runtime (ADR 0077).** On
   `runtime: 'native'`, a message carrying `approvalResponsePart(id, …)` runs
   or refuses the pinned call before the agent's next step, as on ADK, and

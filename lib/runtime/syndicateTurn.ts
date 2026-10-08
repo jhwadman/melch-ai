@@ -47,7 +47,7 @@ import type { ModelAdapter } from '../models/contract.ts';
 import type { NativeAgent } from './native/request.ts';
 import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
 import { SelfCorrection } from './native/selfCorrection.ts';
-import { chooseRuntime, unsupportedOnNative } from './runtimeFlag.ts';
+import { chooseRuntime } from './runtimeFlag.ts';
 import type { RuntimeName } from './runtimeFlag.ts';
 export { chooseRuntime, runtimeSetting, DEFAULT_RUNTIME, RUNTIMES, UnsupportedOnRuntimeError } from './runtimeFlag.ts';
 export type { RuntimeName } from './runtimeFlag.ts';
@@ -518,7 +518,6 @@ async function runTurnInner(
   /** A dispatch route for the turn's runtime. */
   const compileRoute = async (routeCfg: SubagentYamlConfig): Promise<TurnAgent> =>
     native ? nativeOf(await compileSubagentSpec(routeCfg, compileOpts)) : { runtime: 'adk', agent: transform(await compileSubagent(routeCfg, compileOpts)) };
-  const syndicateLabel = config.syndicate_name || config.orchestrator.name;
   // Native self-correction (ADR 0075): one per turn, from the YAML's retries:, as the ADK path installs retryPlugins.
   const selfCorrection = native ? new SelfCorrection(config.retries) : undefined;
 
@@ -578,13 +577,14 @@ async function runTurnInner(
   // ── Questions (lib/runtime/questions.ts) ───────────────────────────────────
   // While an agent's `ask_user` call is open, a plain-text message is its
   // answer: it becomes that call's response, and the agent that asked
-  // resumes its own tool loop. A workflow's pauses are ADK's own business.
+  // resumes its own tool loop, on either runtime (the native loop reads the
+  // response from its history, as ADK's content processor does; ADR 0079).
+  // A workflow's pauses are ADK's own business.
   let answering: { agent: string; id: string } | undefined;
   if (!decision && !isWorkflowSyndicate(config)) {
     const question = pendingQuestion(existing?.events ?? []);
     const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
     if (question && plainText) {
-      if (native) throw unsupportedOnNative(`answering ${question.node}'s question (WS2-7b)`, syndicateLabel);
       answering = { agent: question.node, id: question.id };
       parts = [questionAnswerPart(question.id, messageText)];
       ev.log?.(`✓ Answer to ${question.node}'s question`);

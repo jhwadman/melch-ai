@@ -1521,6 +1521,54 @@
       "evidence": "wiki/overview/native-loop.md \"Approvals\": the answers, the gates, the binding and the run of an answered approval.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0079 Decision 2: \"runSyndicateTurn answers a question on native as on adk\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0079 Decision 3: the request-input processor's port belongs in interrupts.ts, after request-confirmation and before compaction, when node tools run natively (WS4).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "depends_on",
+      "evidence": "ADR 0079 Decision 1: \"The first step's history (lib/runtime/native/history.ts, the content processor's port) puts the call and the answer side by side.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "/decisions/0031-ask-user.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0079 Context: the native loop resumes the ask_user call ADR 0031 defines, the answer stored as the call's function response.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0079-native-questions-resume-through-the-history.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "contradicts",
+      "evidence": "ADR 0077 Consequences expects \"a port of ADK's input-request processor beside this one in interrupts.ts\"; ADR 0079 finds that processor resumes node tools only and adds no port for ask_user.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"Questions\": how an answered ask_user call resumes on the native loop, and why no request processor acts on it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
