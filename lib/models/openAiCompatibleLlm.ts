@@ -142,8 +142,8 @@ export abstract class OpenAiCompatibleLlm extends AdkShim {
  * Stamps an HTTP error response with its numeric status and whether that
  * status is transient, and the same verdict in customMetadata
  * ('error.retryable', 'error.status'), where FallbackLlm reads it
- * (lib/models/errorResponse.ts). The chat-completions shims now get these
- * fields from their adapter's error final.
+ * (lib/models/errorResponse.ts). The chat-completions shims take these
+ * fields from their adapter's error final instead (toLlmResponse).
  */
 export function withHttpStatus(resp: LlmResponse, status: number): LlmResponse {
   setLlmSpanAttribute('llm.http_status', status);
