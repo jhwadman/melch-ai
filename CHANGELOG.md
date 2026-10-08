@@ -6,6 +6,13 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **The genai mapping exports two more readers (ADR 0066).**
+  `melchizedek-agents/models/genaiMapping` adds `toolChoiceOf` (an agent's
+  function-calling mode as a `ToolChoice`, and `VALIDATED` as strict tools)
+  and `samplingOf` (the sampling fields the contract carries). These are
+  additions under the existing `exports` map. The native loop's first piece,
+  one model step (`lib/runtime/native/`), is not in the `exports` map and
+  runs no turn yet.
 - **Web sources for Claude, GPT and Grok.** When one of these models
   searches the web, its events now carry `groundingMetadata`, so a turn's
   grounding and the A2A server's web-sources lines list the pages it used,
