@@ -18,12 +18,17 @@ import { BaseTool } from '@google/adk';
 import type { LlmRequest } from '@google/adk';
 
 import { providerForModel } from '../models/providerMap.ts';
+import { URL_CONTEXT_MARKER } from './nativeTools.ts';
+import { NATIVE_TOOL } from './tool.ts';
 
 export const URL_CONTEXT_TOOL_NAME = 'url_context';
 
+/** The ADK runtime's form of URL_CONTEXT_MARKER (lib/tools/nativeTools.ts), carrying its marker. */
 export class UrlContextTool extends BaseTool {
+  readonly [NATIVE_TOOL] = URL_CONTEXT_MARKER[NATIVE_TOOL];
+
   constructor() {
-    super({ name: URL_CONTEXT_TOOL_NAME, description: 'Gemini reads the pages at URLs in the conversation (server-side).' });
+    super({ name: URL_CONTEXT_TOOL_NAME, description: URL_CONTEXT_MARKER.description });
   }
 
   /** Never a client-side function tool. */

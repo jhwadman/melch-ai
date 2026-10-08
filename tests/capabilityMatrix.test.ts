@@ -427,3 +427,23 @@ test('renderCapabilityMatrix covers every row and capability, with numbered note
   const noted = Object.values(CAPABILITY_MATRIX).flatMap((r) => Object.values(r)).filter((c) => c.note).length;
   assert.ok(md.includes(`\n${noted}. `), 'one numbered note per annotated cell');
 });
+
+// ── Server-side tools by marker (ADR 0062) ───────────────────────────────────
+
+test('every adapter reads web_search by its marker: a foreign copy sends the same body as the sentinel', async () => {
+  // A second copy of the sentinel module: no class in common, the same global marker.
+  const foreign = {
+    name: 'web_search',
+    description: 'a copy',
+    [Symbol.for('melchizedek.nativeTool')]: 'web_search',
+    _getDeclaration: () => undefined,
+    runAsync: async () => undefined,
+  };
+  for (const row of ADAPTER_ROWS) {
+    const withOriginal = request(row);
+    withOriginal.toolsDict['web_search'] = WEB_SEARCH as any;
+    const withForeign = request(row);
+    withForeign.toolsDict['web_search'] = foreign as any;
+    assert.deepEqual(await capture(row, withForeign), await capture(row, withOriginal), `${row}: the marker decides`);
+  }
+});

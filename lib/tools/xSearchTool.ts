@@ -38,17 +38,17 @@ import { BaseTool } from '@google/adk';
 import type { LlmRequest } from '@google/adk';
 
 import { providerForModel } from '../models/providerMap.ts';
+import { X_SEARCH_MARKER } from './nativeTools.ts';
+import { NATIVE_TOOL, nativeToolMarkerOf } from './tool.ts';
 
 export const X_SEARCH_TOOL_NAME = 'x_search';
 
+/** The ADK runtime's form of X_SEARCH_MARKER (lib/tools/nativeTools.ts), carrying its marker. */
 export class XSearchTool extends BaseTool {
+  readonly [NATIVE_TOOL] = X_SEARCH_MARKER[NATIVE_TOOL];
+
   constructor() {
-    super({
-      name: X_SEARCH_TOOL_NAME,
-      description:
-        'Live search over X (Twitter) posts via xAI Agent Tools — ' +
-        'grok-* models only; a no-op sentinel on every other provider.',
-    });
+    super({ name: X_SEARCH_TOOL_NAME, description: X_SEARCH_MARKER.description });
   }
 
   /** Never a client-side function tool — xAI runs the search server-side. */
@@ -71,14 +71,14 @@ export class XSearchTool extends BaseTool {
 /** Shared instance, mirroring WEB_SEARCH. */
 export const X_SEARCH = new XSearchTool();
 
-/** True when the agent requested X search (xAI sentinel path). */
+/** True when the agent requested X search (xAI sentinel path), by marker. */
 export function wantsXSearch(llmRequest: LlmRequest): boolean {
-  return llmRequest.toolsDict?.[X_SEARCH_TOOL_NAME] instanceof XSearchTool;
+  return isXSearchSentinel(llmRequest.toolsDict?.[X_SEARCH_TOOL_NAME]);
 }
 
-/** Sentinel test used by the request builder to skip function-tool emission. */
+/** Sentinel test used by the request builder to skip function-tool emission: the x_search marker, on either form. */
 export function isXSearchSentinel(tool: unknown): boolean {
-  return tool instanceof XSearchTool;
+  return nativeToolMarkerOf(tool) === 'x_search';
 }
 
 /** xAI's documented ceiling on allowed_x_handles / excluded_x_handles. */

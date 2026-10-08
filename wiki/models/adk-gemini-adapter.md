@@ -12,6 +12,7 @@ generated:
 sources:
   - resource: lib/models/adkGeminiAdapter.ts
   - resource: lib/models/genaiMapping.ts
+  - resource: lib/models/tracedGemini.ts
   - resource: lib/models/registry.ts
   - resource: lib/models/adkShim.ts
   - resource: lib/observability/tracer.ts
@@ -21,9 +22,9 @@ sources:
 
 # Gemini wrapper over ADK
 
-`AdkGeminiAdapter` in `lib/models/adkGeminiAdapter.ts` is Gemini as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)) built on ADK's own `Gemini`: it maps the request to an `LlmRequest`, runs it through `TracedGemini` (`lib/models/registry.ts`), and maps each `LlmResponse` back.
+`AdkGeminiAdapter` in `lib/models/adkGeminiAdapter.ts` is Gemini as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)) built on ADK's own `Gemini`: it maps the request to an `LlmRequest`, runs it through `TracedGemini` (`lib/models/tracedGemini.ts`), and maps each `LlmResponse` back.
 
-It is temporary. The native loop ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls only `ModelAdapter`s, and the engine's own [Gemini adapter](/models/gemini-adapter.md) waits for its live run at gate G3. Until then Gemini on the native runtime goes through ADK's Gemini, which serves every Gemini id today, so every provider has a contract adapter before gate G1. Once G3 is signed and `GeminiAdapter` serves the Gemini ids, this module is deleted. Nothing registers it: the registry ticket does.
+It is temporary. The native loop ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls only `ModelAdapter`s, and the engine's own [Gemini adapter](/models/gemini-adapter.md) waits for its live run at gate G3. Until then Gemini on the native runtime goes through ADK's Gemini, which serves every Gemini id today, so every provider has a contract adapter before gate G1. Once G3 is signed and `GeminiAdapter` serves the Gemini ids, this module is deleted. `resolveAdapter` (`lib/models/registry.ts`) returns it for every Gemini id unless `GEMINI_ADAPTER=engine` or the option `{ gemini: 'engine' }` asks for `GeminiAdapter` ([provider routing](/models/provider-routing.md), [ADR 0060](/decisions/0060-engine-owned-registry.md)).
 
 ```ts
 new AdkGeminiAdapter({ model, apiKey?, endpoint? })

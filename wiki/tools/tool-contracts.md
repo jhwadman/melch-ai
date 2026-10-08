@@ -13,9 +13,12 @@ sources:
   - resource: lib/tools/toolContract.ts
   - resource: lib/tools/adkTool.ts
   - resource: lib/tools/memoryTools.ts
+  - resource: lib/tools/nativeTools.ts
+  - resource: lib/tools/examples.ts
   - resource: lib/models/schemaNormalize.ts
   - resource: tests/toolContract.test.ts
   - resource: tests/memoryTools.test.ts
+  - resource: tests/toolBaseRest.test.ts
 ---
 
 # Tool contracts
@@ -37,7 +40,11 @@ A native tool can reach three surfaces: the native runtime, the ADK runtime (a `
 - **The long-running marker.** A `longRunning` Tool's answer comes later ([ask the user](/tools/ask-user.md)). Its handler resolves to undefined while the answer is pending, and its description carries the note ADK's `LongRunningFunctionTool` appends, word for word.
 - **Result capping.** `capResult(result, max)` cuts a result and says so. `MAX_RESULT_CHARS` (20,000) is the one limit the OpenAPI and MCP tools already apply to their results. A contract caps its results only when it sets `maxResultChars`.
 
-`tool.ts` and `toolContract.ts` load nothing from `@google/*` at runtime, which `tests/toolContract.test.ts` asserts. `lib/tools/adkTool.ts` is the one module that turns a Tool into an ADK tool: the `FunctionTool` gets the Tool's declaration in Gemini's dialect and hands the Tool a `ToolContext` that reads through to ADK's `Context`, memory search included, and it carries the Tool, which `toolOf()` reads back. A Tool with an `instruction` becomes a `FunctionTool` subclass that appends the text in `processLlmRequest`, after declaring itself. An InstructionTool becomes a `BaseTool` that declares nothing and appends its text the same way (`toAdkInstructionTool`); `instructionToolOf()` reads it back. Both join the text as ADK's own `appendInstructions` does: after a blank line, or as the whole instruction when there is none.
+`tool.ts` and `toolContract.ts` load nothing from `@google/*` at runtime, which `tests/toolContract.test.ts` asserts. `lib/tools/adkTool.ts` is the one module that turns a Tool into an ADK tool: the `FunctionTool` gets the Tool's declaration in Gemini's dialect and hands the Tool a `ToolContext` that reads through to ADK's `Context`, memory search included, and it carries the Tool, which `toolOf()` reads back. A Tool with an `instruction` becomes a `FunctionTool` subclass that appends the text in `processLlmRequest`, after declaring itself. An InstructionTool becomes a `BaseTool` that declares nothing and appends its text the same way (`toAdkInstructionTool`); `instructionToolOf()` reads it back. Both join the text as ADK's own `appendInstructions` does: after a blank line, or as the whole instruction when there is none. A NativeToolMarker becomes the shared sentinel the ADK runtime runs for that server-side tool (`toAdkNativeTool`). `toAdkTool()` takes any of the four and picks the wrapper, and passes an ADK tool through.
+
+## Server-side tools are markers
+
+`web_search`, `x_search`, `url_context`, `collections_search` and `google_search` run on the provider's side, so they declare no function. Each is a **NativeToolMarker** (`lib/tools/tool.ts`, the instances in `lib/tools/nativeTools.ts`): a name, a description for a reader, and the `NativeTool` it stands for under the global symbol `melchizedek.nativeTool` ([ADR 0062](/decisions/0062-server-side-tools-as-markers.md)). `nativeToolMarkerOf()` reads it. The ADK runtime's sentinels (`lib/tools/webSearchTool.ts` and its siblings) carry the same symbol, and ADK's own `GOOGLE_SEARCH` is recognised by ADK's marker. `nativeToolOf()` in `lib/models/schemaNormalize.ts` and the `wants*`/`is*Sentinel` helpers read the marker, never the class or the name, so a client-side tool registered as `web_search` stays a client-side tool, and a second copy of a sentinel module still matches. Code execution is not a marker: it is the agent's `code_execution: gemini`.
 
 ## Validation
 
@@ -51,7 +58,11 @@ A defined Tool validates in its own `execute`. Arguments the schema refuses retu
 
 Defining a contract publishes nothing. An agent sees a tool only when its name is registered — in `lib/toolRegistry.ts`, or by a package consumer's own call to `registerTool(name, tool)` with a contract, an own Tool, an InstructionTool or an ADK tool — **and** declared in the syndicate YAML; an MCP client sees it only when a server script lists it in the `contracts` it passes to `serveContracts()` (`lib/tools/mcpServe.ts`; see [MCP](/protocols/mcp.md)). Every widening of the surface is a line of code someone chose; YAML can name only what code registered, never load it. The registry is a null-prototype map, so a name like `constructor` resolves to nothing and gets the unknown-tool warning.
 
-Every client-side tool the registry holds is an own Tool behind its `FunctionTool`. The [wiki tools](/tools/wiki-tools.md), the [clinical-evidence tools](/tools/evidence-tools.md), the [task tools](/tools/task-tools.md), the [web tools](/tools/web-tools.md)' `web_extract` and `x_api_search`, `generate_image`, `inspect_image`, `ask_user` and `load_memory` are contracts under this pattern. `preload_memory` is an own InstructionTool. The server-side search sentinels are ADK objects.
+Every client-side tool the registry holds is an own Tool behind its `FunctionTool`. The [wiki tools](/tools/wiki-tools.md), the [clinical-evidence tools](/tools/evidence-tools.md), the [task tools](/tools/task-tools.md), the [web tools](/tools/web-tools.md)' `web_extract` and `x_api_search`, `generate_image`, `inspect_image`, `ask_user` and `load_memory` are contracts under this pattern. `preload_memory` and an agent's `examples:` are own InstructionTools. The server-side tools are own markers behind their ADK sentinels. Outside the registry, the [MCP](/protocols/mcp.md) tools and the [remote A2A agent](/protocols/a2a.md) tool are own Tools behind their `FunctionTool`s too.
+
+## The examples block
+
+An agent's `examples:` (input and output pairs) is an InstructionTool built by `examplesInstructionTool()` in `lib/tools/examples.ts`, named `example_tool`. Before each request it adds a few-shot `<EXAMPLES>` block to the instruction, each exchange numbered with its `[user]` and `[model]` text, word for word as ADK's `ExampleTool` rendered text examples, and only when the message that started the run begins with text. `lib/compile.ts` hands the ADK runtime the `toAdkInstructionTool` form. `tests/toolBaseRest.test.ts` compares the request with ADK's `ExampleTool` across models, instructions and messages.
 
 ## The memory tools
 

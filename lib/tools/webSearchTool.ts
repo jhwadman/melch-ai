@@ -31,17 +31,17 @@ import { BaseTool } from '@google/adk';
 import type { LlmRequest } from '@google/adk';
 
 import { providerForModel } from '../models/providerMap.ts';
+import { WEB_SEARCH_MARKER } from './nativeTools.ts';
+import { NATIVE_TOOL, nativeToolMarkerOf } from './tool.ts';
 
 export const WEB_SEARCH_TOOL_NAME = 'web_search';
 
+/** The ADK runtime's form of WEB_SEARCH_MARKER (lib/tools/nativeTools.ts), carrying its marker. */
 export class WebSearchTool extends BaseTool {
+  readonly [NATIVE_TOOL] = WEB_SEARCH_MARKER[NATIVE_TOOL];
+
   constructor() {
-    super({
-      name: WEB_SEARCH_TOOL_NAME,
-      description:
-        "Web search via the agent model's native search capability " +
-        '(Gemini grounding / Anthropic web_search / OpenAI web_search / xAI web_search).',
-    });
+    super({ name: WEB_SEARCH_TOOL_NAME, description: WEB_SEARCH_MARKER.description });
   }
 
   /** Never a client-side function tool — providers run search server-side. */
@@ -77,14 +77,14 @@ export class WebSearchTool extends BaseTool {
 /** Shared instance, mirroring ADK's GOOGLE_SEARCH constant pattern. */
 export const WEB_SEARCH = new WebSearchTool();
 
-/** True when the agent requested web search (non-Gemini sentinel path). */
+/** True when the agent requested web search (non-Gemini sentinel path), by marker. */
 export function wantsWebSearch(llmRequest: LlmRequest): boolean {
-  return llmRequest.toolsDict?.[WEB_SEARCH_TOOL_NAME] instanceof WebSearchTool;
+  return isWebSearchSentinel(llmRequest.toolsDict?.[WEB_SEARCH_TOOL_NAME]);
 }
 
-/** True for toolsDict entries adapters must NOT send as function tools. */
+/** True for toolsDict entries adapters must NOT send as function tools: the web_search marker, on either form. */
 export function isWebSearchSentinel(tool: unknown): boolean {
-  return tool instanceof WebSearchTool;
+  return nativeToolMarkerOf(tool) === 'web_search';
 }
 
 // ── xAI-only server-side constraints ─────────────────────────────────────────

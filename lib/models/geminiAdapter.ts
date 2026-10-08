@@ -4,11 +4,11 @@
  *
  * WHY this file exists:
  *   Gemini runs today through ADK's own Gemini class, wrapped as
- *   TracedGemini (lib/models/registry.ts). The native runtime (ADR 0045)
+ *   TracedGemini (lib/models/tracedGemini.ts). The native runtime (ADR 0045)
  *   needs Gemini as a contract ModelAdapter that shapes its own requests,
  *   aggregates its own stream and reports its own failures, with no ADK in
- *   the path. This is that adapter. Nothing registers it yet: the registry
- *   ticket wires it in, and until then TracedGemini serves every Gemini id.
+ *   the path. This is that adapter. resolveAdapter (lib/models/registry.ts)
+ *   returns it only when asked (GEMINI_ADAPTER=engine) until gate G3.
  *
  * THE MAPPING is the Gemini table of wiki/models/model-contract.md;
  * wiki/models/gemini-adapter.md records the choices made inside it:

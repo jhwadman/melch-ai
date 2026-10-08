@@ -26,7 +26,9 @@
  *     customMetadata['responses.server_tool_calls'] and the vendor's counters
  *     as ['responses.server_tool_usage'], which the root span turns into
  *     ToolCall events so adk_turns.tool_calls counts a searched answer.
- *   - No groundingMetadata: the A2A server's sources lines stay Gemini's.
+ *   - groundingMetadata from the adapter's grounding, so the A2A server
+ *     lists the answer's web sources, as it does for Gemini (owner's
+ *     decision, 2026-10-08).
  *
  * The LlmRequest builders below (buildResponsesInput, buildResponsesTools)
  * are the adapter's own, run on the LlmRequest mapped to the contract.
@@ -114,13 +116,13 @@ export class GptLlm extends AdkShim {
 
   /**
    * The shim's mapping, with the Responses usage meaning and the server-side
-   * tool record the ADK path has always carried, and without groundingMetadata
-   * (see the header, ADR 0056).
+   * tool record the ADK path has always carried, and the grounding the
+   * mapping writes (see the header, ADR 0056).
    */
   protected override toLlmResponse(response: ModelResponse): LlmResponse {
     const mapped = super.toLlmResponse(response);
     if (response.partial) return mapped;
-    const { groundingMetadata: _dropped, ...out } = mapped;
+    const out = { ...mapped };
     if (response.usage && out.usageMetadata) {
       out.usageMetadata = { ...out.usageMetadata, candidatesTokenCount: response.usage.outputTokens };
     }
