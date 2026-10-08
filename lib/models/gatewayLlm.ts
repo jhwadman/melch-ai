@@ -1,114 +1,34 @@
 /**
- * lib/models/gatewayLlm.ts — the one-key fallback adapter.
+ * lib/models/gatewayLlm.ts — the one-key fallback, as an ADK BaseLlm.
  *
  * WHY this file exists:
- *   Serves any cloud model id through a hosted gateway's OpenAI-compatible
- *   chat-completions endpoint when the provider's direct key is absent
- *   (lib/models/gateway.ts owns that decision). It subclasses the
- *   chat-completions base the way Ollama does — not GptLlm, which speaks
- *   OpenAI's Responses API — because chat completions is the one dialect
- *   every gateway serves.
- *
- * WHAT STAYS TRUE THROUGH THE GATEWAY:
- *   - Attribution. providerId() is the YAML id's provider (anthropic,
- *     openai, gemini, xai), never "gateway", so the ledger and any per-agent
- *     cost view keep the same provider column (ADR 0009). The
- *     transport is a separate span attribute: llm.transport = gateway:<id>.
- *   - Tool calling, structured output, reasoning_effort, streaming and
- *     token accounting — all provided by the base class.
- *
- * WHAT IS LOST — and reported:
- *   Every server-side tool sentinel (web_search, google_search, x_search,
- *   collections_search). The base omits web_search with a warning and marks
- *   the span; lib/models/capabilities.ts names the loss per agent for the
- *   doctor and the A2A startup log.
+ *   The transport's work is GatewayAdapter (lib/models/gatewayAdapter.ts),
+ *   on the engine's own model contract: any cloud model id through a hosted
+ *   gateway's chat-completions endpoint when the provider's direct key is
+ *   absent (lib/models/gateway.ts owns that decision), attributed to the
+ *   upstream provider, with every native tool dropped and reported. ADK
+ *   still runs every turn, so this class runs the adapter under ADK: it is
+ *   the chat-completions shim (lib/models/openAiCompatibleLlm.ts, ADR 0057).
+ *   The constructor is what it was before the adapter moved onto the
+ *   contract, so lib/models/registry.ts and every caller are unchanged.
  *
  * Registration: LLMRegistry keys on regex OBJECTS, so a gateway class must
  * carry the SAME supportedModels instances as the direct adapter it stands
- * in for (see gatewayClassFor in registry.ts).
+ * in for (see gatewayClassFor below, and its use in registry.ts).
  */
 
 import { LLMRegistry } from '@google/adk';
-import type { LlmRequest, LlmResponse } from '@google/adk';
 
+import { GatewayAdapter } from './gatewayAdapter.ts';
 import { OpenAiCompatibleLlm } from './openAiCompatibleLlm.ts';
-import {
-  GATEWAY_ENV,
-  GATEWAY_KEY_ENV,
-  GATEWAY_MODEL_MAP_ENV,
-  gatewayConfig,
-  gatewayWireModel,
-} from './gateway.ts';
-import type { GatewayConfig } from './gateway.ts';
-import { providerForModel } from './providerMap.ts';
 
 export class GatewayLlm extends OpenAiCompatibleLlm {
   /** Never registered directly — see gatewayClassFor(). */
   static readonly supportedModels: Array<string | RegExp> = [];
 
-  private readonly cfg: GatewayConfig | null;
-
+  /** The gateway (MODEL_GATEWAY and its key) is read from the environment when constructed. */
   constructor({ model }: { model: string }) {
-    super({ model });
-    this.cfg = gatewayConfig();
-  }
-
-  /** Attribution stays with the upstream provider named by the YAML id. */
-  protected providerId(): string {
-    return providerForModel(this.model);
-  }
-
-  protected override transport(): string {
-    return this.cfg ? `gateway:${this.cfg.gateway.id}` : 'gateway';
-  }
-
-  protected endpointUrl(): string {
-    const base = this.cfg?.baseUrl ?? '';
-    return `${base}/chat/completions`;
-  }
-
-  protected headers(): Record<string, string> {
-    return { Authorization: `Bearer ${process.env[GATEWAY_KEY_ENV] ?? ''}` };
-  }
-
-  protected override wireModelName(): string {
-    return this.cfg ? gatewayWireModel(this.model, this.cfg.gateway) : this.model;
-  }
-
-  protected override missingRequirement(): LlmResponse | undefined {
-    if (!this.cfg) {
-      return {
-        errorCode: 'GATEWAY_NOT_CONFIGURED',
-        errorMessage: `${GATEWAY_ENV} is not set to a known gateway, so ${this.model} has no route.`,
-      };
-    }
-    if (!this.cfg.keyPresent) {
-      return {
-        errorCode: 'GATEWAY_KEY_MISSING',
-        errorMessage: `${GATEWAY_ENV}=${this.cfg.gateway.id} but ${GATEWAY_KEY_ENV} is not set.`,
-      };
-    }
-    return undefined;
-  }
-
-  // webSearchBodyFields() stays at the base default (null): a gateway has no
-  // uniform switch for upstream native search, so the tool is dropped and
-  // the loss is reported (llm.capability.dropped, the doctor, the startup log).
-
-  protected override httpError(status: number, detail: string): LlmResponse {
-    const label = this.cfg?.gateway.label ?? 'gateway';
-    const hint =
-      status === 404 || status === 400
-        ? ` If the model id is the problem, map it with ${GATEWAY_MODEL_MAP_ENV}=${this.model}=<gateway id>.`
-        : '';
-    return {
-      errorCode: 'GATEWAY_HTTP_ERROR',
-      errorMessage: `${label} returned ${status} for ${this.wireModelName()}: ${detail.slice(0, 4000)}.${hint}`,
-    };
-  }
-
-  protected override extraBodyFields(_llmRequest: LlmRequest): Record<string, unknown> {
-    return {};
+    super(new GatewayAdapter({ model }), { model });
   }
 }
 

@@ -26,6 +26,13 @@
  *     (`currentTurnSignal()`) or when the signal ADK passes aborts, whichever
  *     comes first; an adapter hands it to its provider call.
  *
+ * TWO SEAMS FOR A SUBCLASS: `toModelRequest` and `toLlmResponse` are the
+ * genai mapping by default. A subclass overrides them to carry what its
+ * adapter reads beside the contract, or to keep the response shape its
+ * ADK-path class yielded before the move (the chat-completions shims in
+ * lib/models/openAiCompatibleLlm.ts do both, ADR 0057). Both run inside the
+ * span, so the tracer reads the response the subclass returns.
+ *
  * WHAT IT DOES NOT DO:
  *   - Repair an adapter that breaks the contract. A throw reaches ADK as a
  *     throw (as Gemini's does today), and every response is mapped as it
@@ -41,8 +48,9 @@
 import { BaseLlm } from '@google/adk';
 import type { BaseLlmConnection, BaseLlmType, LlmRequest, LlmResponse } from '@google/adk';
 
-import type { ModelAdapter } from './contract.ts';
+import type { ModelAdapter, ModelRequest, ModelResponse } from './contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from './genaiMapping.ts';
+import type { ModelRequestOptions } from './genaiMapping.ts';
 import { traceLlmGeneration } from '../observability/tracer.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 
@@ -95,14 +103,34 @@ export class AdkShim extends BaseLlm {
     abortSignal: AbortSignal | undefined,
   ): AsyncGenerator<LlmResponse, void> {
     const signal = eitherSignal(abortSignal, currentTurnSignal(), llmRequest.config?.abortSignal);
-    const request = llmRequestToModelRequest(llmRequest, {
+    const request = this.toModelRequest(llmRequest, {
       model: this.model,
       stream,
       ...(signal ? { signal } : {}),
     });
     for await (const response of this.adapter.generate(request)) {
-      yield modelResponseToLlmResponse(response);
+      yield this.toLlmResponse(response);
     }
+  }
+
+  /**
+   * The ModelRequest the adapter receives for one LlmRequest: the genai
+   * mapping's. A subclass may extend it with what its own adapter reads
+   * beside the contract (an agent's older generateContentConfig spelling
+   * that the contract leaves out), so an agent keeps it on the ADK runtime.
+   */
+  protected toModelRequest(llmRequest: LlmRequest, options: ModelRequestOptions): ModelRequest {
+    return llmRequestToModelRequest(llmRequest, options);
+  }
+
+  /**
+   * The LlmResponse ADK receives for one ModelResponse: the genai mapping's,
+   * in Gemini's meanings. A subclass may keep the shape its ADK-path class
+   * yielded before it moved onto the contract. It runs inside the span, so
+   * the tracer reads what it returns.
+   */
+  protected toLlmResponse(response: ModelResponse): LlmResponse {
+    return modelResponseToLlmResponse(response);
   }
 
   /** Live/bidirectional connections are outside the model contract. Throws to say so. */
