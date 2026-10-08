@@ -1,7 +1,7 @@
 ---
 type: schema
 title: Model contract
-description: "The engine's own model contract (lib/models/contract.ts): every field of the message, request, response and adapter types and why it exists, and how each field maps to the wire for Gemini, Anthropic, OpenAI Responses, xAI, Moonshot, Ollama and the gateway."
+description: "The engine's own model contract (lib/models/contract.ts): every field of the message, request, response and adapter types and why it exists, how each field maps to the wire for Gemini, Anthropic, OpenAI Responses, xAI, Moonshot, Ollama and the gateway, and how it maps to and from @google/genai Content (lib/models/genaiMapping.ts)."
 tags:
   - models
   - contracts
@@ -16,13 +16,15 @@ sources:
   - resource: lib/models/schemaNormalize.ts
   - resource: tests/modelContract.test.ts
   - resource: tests/contractToolDeclarations.test.ts
+  - resource: lib/models/genaiMapping.ts
+  - resource: tests/genaiMapping.test.ts
 ---
 
 # Model contract
 
 `lib/models/contract.ts` is the format the native runtime speaks to every model ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md), [ADR 0048](/decisions/0048-engine-owned-model-contract.md)): a message format, one request, one response stream, and the adapter interface each provider implements. It is a leaf of types only. Its one import is `ProviderState` ([ADR 0046](/decisions/0046-provider-reasoning-state-on-the-part.md)), and nothing in its import graph names `@google/*`, which `tests/modelContract.test.ts` asserts along with a whole tool loop written in the contract. The loader takes `ReasoningSetting` from it.
 
-Adapters move onto the contract in stages. Until an adapter does, it still translates `@google/genai` `Content` as [provider routing](/models/provider-routing.md) describes. The mappings below are what each adapter implements on the contract.
+Adapters move onto the contract in stages. Until an adapter does, it still translates `@google/genai` `Content` as [provider routing](/models/provider-routing.md) describes. The mappings below are what each adapter implements on the contract. `lib/models/genaiMapping.ts` converts between genai `Content` and the contract both ways ([From genai Content](#from-genai-content)), so an adapter can move onto the contract while ADK still runs, and the native runtime can read the sessions ADK stored.
 
 ## The adapter rules
 
@@ -272,16 +274,84 @@ The three share `lib/models/openAiCompatibleLlm.ts`, so they share one mapping.
 
 ## From genai Content
 
-Stored sessions and the ADK path hold `@google/genai` `Content`. The mapping between them and the contract is one-to-one:
+Stored sessions and the ADK path hold `@google/genai` `Content`. `lib/models/genaiMapping.ts` converts between it and the contract both ways, as pure functions that never mutate their input:
 
-- Roles: `user` → user, `model` → assistant. A `user` content holding only `functionResponse` parts → tool. ADK's `system` contents → system.
-- Parts: `text` → text, `{ text, thought: true }` → thinking, `functionCall` → toolCall, `functionResponse` → toolResult, `inlineData` / `fileData` → blob.
-- State: `providerState` copied as it is; Gemini's `thoughtSignature` ↔ `providerState` of kind `thought_signature`.
-- Usage: `usageMetadata` ↔ `Usage` under the meanings above.
-- Errors: `errorCode` / `errorMessage` ↔ `error`.
+- `contentsToMessages(contents, systemInstruction?)` and its inverse `messagesToContents({ system, messages })`, for a history;
+- `contentToMessage` and `messageToContent`, for one content;
+- `llmRequestToModelRequest(llmRequest, { model?, stream?, signal? })`, for ADK's request;
+- `modelResponseToLlmResponse(response)`, for what ADK expects back.
+
+With them an adapter's ADK class can wrap the adapter's `generate()` while ADK still runs, and the native runtime reads the sessions ADK stored. The module may import `@google/genai` and ADK; the contract stays a leaf. `tests/genaiMapping.test.ts` runs every stored session fixture through it, and maps a request that a real ADK `LlmAgent` built.
+
+### Contents and messages
+
+Content → contract → Content gives back the same JSON for every content ADK and the adapters store, keys aside: both event tables are jsonb, which keeps no key order. That holds for each content alone and for a whole history, in the stored form and in the form an `LlmRequest` carries.
+
+| genai | Contract |
+|---|---|
+| `role: 'model'` | assistant |
+| `role: 'system'` | system |
+| `role: 'user'` holding only `functionResponse` parts | tool |
+| `role: 'user'` holding anything else, or no role | user. User and tool messages both come back as `user`. A user content that mixes results with other parts is a user message, its results described as text (below), since a tool message holds only results; the calls they answer are then unanswered on the contract side. The engine's surfaces send an approval or an answer as a content of its own. |
+| `{ text }` | `TextPart` |
+| `{ text, thought: true }` | `ThinkingPart` |
+| `{ functionCall: { name, args, id } }` | `ToolCallPart` |
+| `{ functionResponse: { id, name, response } }` | `ToolResultPart` (tool results, below) |
+| `{ inlineData: { mimeType, data } }` | `BlobPart` with `data` |
+| `{ fileData: { mimeType, fileUri } }` | `BlobPart` with `url` |
+| a part's `thoughtSignature` | `providerState: { provider: 'gemini', kind: 'thought_signature', payload: <signature> }` on the same part, with no `model`: genai records none |
+| a part's `providerState` | the same `providerState`, on every part kind |
+| the system instruction: a string, a part, parts or a content | `system`, its text with parts joined by newlines; none when the text is empty. It comes back as a string. |
+
+**Parts carried whole.** A part the contract cannot hold exactly, or that its message cannot hold, keeps the original genai part in `providerState: { provider: 'gemini', kind: 'genai_part', payload: <the part> }`, and that state comes back as the part, verbatim. The contract part that carries it is the nearest one its message allows:
+
+- **Gemini code execution.** `executableCode` is a text part holding the code in a fenced block. `codeExecutionResult` is a text part holding its output, and the outcome when it failed. A signature on either stays inside the carried part.
+- **ADK's confirmation and credential requests.** ADK writes `adk_request_confirmation` and `adk_request_credential` as a `functionCall` in a `user` content. Each is a text part describing the call, in a user message. ADK leaves these events out of every model request.
+- **A field the contract has no place for.** `videoMetadata`, a blob's `displayName`, a call's `willContinue`, a call with no `args`, `thought: false`. The part keeps its own contract kind, and the carried part supplies the rest.
+- **Two states on one part.** A signature beside another adapter's state, or a stored state of one of the mapping's own two kinds.
+- **A part with no data the contract knows.** A signature alone, or a Gemini server-side `toolCall`, is an empty text part.
+
+Only the Gemini adapter (provider `gemini`) replays a carried part. Every other adapter sees only the contract part.
+
+**Tool results.** `response` is the result when it is an object. A response of exactly `{ result: <not an object> }` is that value, and a response of exactly `{ error: <not null or false> }` is that value with `isError: true`, the shape in which ADK reports a tool that threw. They come back as the Gemini table above writes them: `{ error: result }` for an error, the result when it is an object, else `{ result }`. A tool's successful object result shaped `{ error }` therefore reads back as a failure: the genai bytes cannot tell the two apart.
+
+**Ids.** A call without an id gets `genai-noid-<content>-<part>`, from its position. Gemini returns calls without ids, and ADK strips its own `adk-` ids from every request it builds. A result without an id takes the id of the latest open minted call of the same name, earliest first among parallel calls, else an id of its own. A minted id is left off on the way back, so the round trip restores its absence. Stored events keep the ids ADK assigned, which pass through unchanged.
+
+### The request
+
+| LlmRequest | ModelRequest |
+|---|---|
+| the `model` option, else `model` | `model` |
+| `config.systemInstruction` | `system`, as text |
+| `contents` | `messages`, as above |
+| `toolsDict`, each through `contractToolDeclaration` ([building declarations](#building-declarations)) | `tools`, Gemini's dialect converted once. The search sentinels declare nothing and are skipped. |
+| the `toolsDict` entries `nativeToolOf` names (the `web_search`, `x_search` and `collections_search` sentinels); the `config.tools` entries `googleSearch` and `googleSearchRetrieval`, `urlContext` and `codeExecution` | `nativeTools`. Gemini receives both `web_search` and `google_search` as `googleSearch`, so it reads as `web_search`. |
+| `toolConfig.functionCallingConfig.mode` | `toolChoice`: `NONE` is `none`; `ANY` is `{ name }` with one allowed name, else `required`; `VALIDATED` makes every tool `strict`; `AUTO` is absent, the default |
+| `responseJsonSchema`, else `responseSchema` | `outputSchema`, through `toContractJsonSchema` |
+| `thinkingConfig.thinkingLevel` | `reasoning`: `MINIMAL` is `none` (its Gemini 3 rendering, ADR 0047), and `LOW`, `MEDIUM` and `HIGH` their levels |
+| else `thinkingConfig.thinkingBudget`, n ≥ 0 | `{ budget_tokens: n }` |
+| else `reasoningEffort` | the level it names; `minimal` is `none` (its rendering on the first GPT-5 generation) |
+| `temperature`, `topP`, `maxOutputTokens`, `stopSequences` | `sampling` |
+| the `stream` option | `stream` |
+| the `signal` option, else `config.abortSignal` | `signal` |
+
+The compiler writes the effort word beside `thinkingConfig` from one setting, so preferring `thinkingConfig` loses nothing it wrote; only the older spelling can set the two to different things. Not mapped: a thinking budget of -1 (Gemini's dynamic thinking, which is the provider's default anyway), the effort words `xhigh` and `max`, options inside a `config.tools` entry, any other `config.tools` entry, and the fields the next section lists.
+
+### The response
+
+| ModelResponse | LlmResponse |
+|---|---|
+| a partial's parts | `content` with `role: 'model'`, and `partial: true` |
+| the final's parts | `content`, absent when there are none, and `turnComplete: true` |
+| `usage` | `usageMetadata` in Gemini's meanings: `promptTokenCount` is input, `candidatesTokenCount` output less thinking, `thoughtsTokenCount` thinking, `cachedContentTokenCount` cache reads, `totalTokenCount` input plus output |
+| `error` | `errorCode`, and `errorMessage` with key-shaped text scrubbed; `retryable` as `customMetadata['error.retryable']` and `status`, when there is one, as `customMetadata['error.status']` (`withRetryVerdict`, `lib/models/errorResponse.ts`). FallbackLlm reads only that verdict, so a retryable failure from an adapter on the contract is answered by the fallback model ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). |
+| `finishReason` | `stop` and `tool_call` are `STOP`, `max_tokens` is `MAX_TOKENS`, `content_filter` is `SAFETY`, `other` is `OTHER`; `error` sets none |
+| `grounding` | `groundingMetadata`: `webSearchQueries` holds every query, and `groundingChunks[].web` each cited URL once with its title, which is what `lib/grounding.ts` reads |
+
+An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. The ADK-path GPT and chat-completions adapters write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
 
 The stored Event JSON keeps its shape ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
 
 ## What the contract leaves out
 
-These `generateContentConfig` fields have no contract field: `topK`, `seed`, `presencePenalty`, `frequencyPenalty`, `candidateCount`, `safetySettings`, `responseMimeType` without a schema (JSON mode), `includeThoughts`, and effort words outside the four levels (`minimal`, `xhigh`, `max`). The older spelling's `thinkingBudget` maps to `{ budget_tokens }`, and its effort words that are levels map to the level. An agent that sets any of the rest has it only on the ADK runtime. Live bidirectional connections are outside the contract.
+These `generateContentConfig` fields have no contract field: `topK`, `seed`, `presencePenalty`, `frequencyPenalty`, `candidateCount`, `safetySettings`, `responseMimeType` without a schema (JSON mode), `includeThoughts`, and the effort words `xhigh` and `max`. The older spelling's `thinkingBudget` maps to `{ budget_tokens }`, its effort words that are levels map to the level, and `minimal` maps to `none`. An agent that sets any of the rest has it only on the ADK runtime. Live bidirectional connections are outside the contract.
