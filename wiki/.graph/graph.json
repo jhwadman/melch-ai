@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 739,
-    "edges": 2216,
+    "nodes": 742,
+    "edges": 2248,
     "byKind": {
-      "doc": 124,
+      "doc": 126,
       "provider": 6,
       "env": 105,
       "model": 8,
@@ -18,12 +18,12 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 156,
+      "module": 157,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 431,
+      "links_to": 444,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 552,
+      "imports": 554,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 476,
-      "constrains": 83,
-      "supersedes": 4,
-      "depends_on": 18,
-      "explains": 4,
+      "derives_from": 485,
+      "constrains": 85,
+      "supersedes": 5,
+      "depends_on": 22,
+      "explains": 5,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2105,
-      "inferred": 111
+      "extracted": 2129,
+      "inferred": 119
     },
     "isolated": 4
   },
@@ -1144,6 +1144,30 @@
       }
     },
     {
+      "id": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "kind": "doc",
+      "label": "ADR 0063: The engine parses OpenAPI specs itself, by ADK's rules, with bounds",
+      "source": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 881
+      }
+    },
+    {
+      "id": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "kind": "doc",
+      "label": "ADR 0065: GeminiAdapter carries code execution and server-side invocations on the next part, asks for invocations on the Gemini API only, and keeps a placeholder signature off",
+      "source": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 757
+      }
+    },
+    {
       "id": "/decisions/0066-native-step-sends-the-adk-request.md",
       "kind": "doc",
       "label": "ADR 0066: The native loop's model step sends the request the ADK runtime sends, and records its answer as ADK's event",
@@ -1248,7 +1272,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1309
+        "words": 1352
       }
     },
     {
@@ -1296,7 +1320,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1753
+        "words": 2406
       }
     },
     {
@@ -1308,7 +1332,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7688
+        "words": 7771
       }
     },
     {
@@ -1476,7 +1500,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 321
+        "words": 468
       }
     },
     {
@@ -3684,7 +3708,8 @@
       "id": "file:tests/geminiAdapter.test.ts",
       "kind": "file",
       "label": "geminiAdapter.test.ts",
-      "source": "tests/geminiAdapter.test.ts"
+      "source": "tests/geminiAdapter.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/genaiMapping.test.ts",
@@ -4337,7 +4362,7 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 740
+        "lines": 956
       }
     },
     {
@@ -4346,7 +4371,7 @@
       "label": "lib/models/geminiState.ts",
       "source": "lib/models/geminiState.ts",
       "attrs": {
-        "lines": 21
+        "lines": 29
       }
     },
     {
@@ -4917,12 +4942,21 @@
       }
     },
     {
+      "id": "module:lib/tools/openapi/parse.ts",
+      "kind": "module",
+      "label": "lib/tools/openapi/parse.ts",
+      "source": "lib/tools/openapi/parse.ts",
+      "attrs": {
+        "lines": 584
+      }
+    },
+    {
       "id": "module:lib/tools/openapiTools.ts",
       "kind": "module",
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 247
+        "lines": 292
       }
     },
     {
@@ -9960,6 +9994,125 @@
       "evidence": "/decisions/0062-server-side-tools-as-markers.md:34"
     },
     {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md frontmatter"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md frontmatter"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md frontmatter"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md:22"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md:22"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md:22"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "file:tests/geminiAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md frontmatter"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md frontmatter"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md frontmatter"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md frontmatter"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md frontmatter"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:43"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:25"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:33"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:27"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/models/adk-gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:25"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/models/gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md:25"
+    },
+    {
       "from": "/decisions/0066-native-step-sends-the-adk-request.md",
       "to": "file:tests/nativeStep.test.ts",
       "rel": "derives_from",
@@ -10794,6 +10947,13 @@
     },
     {
       "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:85"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -11287,14 +11447,14 @@
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:73"
+      "evidence": "/models/gemini-adapter.md:82"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:51"
+      "evidence": "/models/gemini-adapter.md:55"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -11308,7 +11468,7 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:102"
+      "evidence": "/models/gemini-adapter.md:64"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -11322,7 +11482,14 @@
       "to": "/decisions/0061-json-mode-on-the-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:48"
+      "evidence": "/models/gemini-adapter.md:51"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:53"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -11336,7 +11503,7 @@
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:102"
+      "evidence": "/models/gemini-adapter.md:64"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -11568,6 +11735,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/model-contract.md:87"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:178"
     },
     {
       "from": "/models/model-contract.md",
@@ -12866,6 +13040,13 @@
     },
     {
       "from": "/tools/openapi-tools.md",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
       "to": "module:lib/tools/openapiTools.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -12876,28 +13057,35 @@
       "to": "/agents/weather.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:19"
+      "evidence": "/tools/openapi-tools.md:29"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:21"
+      "evidence": "/tools/openapi-tools.md:31"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:21"
+      "evidence": "/tools/openapi-tools.md:31"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:21"
+      "evidence": "/tools/openapi-tools.md:31"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:20"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -16016,13 +16204,6 @@
     },
     {
       "from": "module:lib/models/geminiAdapter.ts",
-      "to": "module:lib/runtime/turnControl.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/geminiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/geminiAdapter.ts",
       "to": "env:GEMINI_API_KEY",
       "rel": "requires_env",
       "tier": "extracted",
@@ -17891,6 +18072,20 @@
       "evidence": "lib/tools/nativeTools.ts"
     },
     {
+      "from": "module:lib/tools/openapi/parse.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/parse.ts"
+    },
+    {
+      "from": "module:lib/tools/openapi/parse.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/parse.ts"
+    },
+    {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/net/addressGuard.ts",
       "rel": "imports",
@@ -17900,6 +18095,13 @@
     {
       "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/net/redirects.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/tools/openapi/parse.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"

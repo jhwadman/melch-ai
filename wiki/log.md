@@ -27,6 +27,38 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /models/gemini-adapter.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0065-gemini-carried-parts-and-server-side-invocations.md —explains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0065-gemini-carried-parts-and-server-side-invocations.md —depends_on→ /decisions/0046-provider-reasoning-state-on-the-part.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0065-gemini-carried-parts-and-server-side-invocations.md —constrains→ module:lib/models/geminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | module:lib/tools/openapi/parse.ts —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0063-openapi-parser-on-the-engines-own-types.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0063-openapi-parser-on-the-engines-own-types.md —supersedes→ /decisions/0032-openapi-tools.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0063-openapi-parser-on-the-engines-own-types.md —constrains→ module:lib/tools/openapi/parse.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
 
 by claude-code/claude-opus-5-5

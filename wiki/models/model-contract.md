@@ -172,21 +172,21 @@ The Gemini API (`generateContent`, `streamGenerateContent`), on Google AI or Ver
 | user / assistant / tool message | `contents[]` with `role: 'user'` / `'model'` / `'user'` |
 | `TextPart` | `{ text }` |
 | `ThinkingPart` | not sent. Received as `{ text, thought: true }`. |
-| `ToolCallPart` | `{ functionCall: { id, name, args } }`. Ids the adapter made start with `adk-`, as ADK's do, so stored history reads the same, and are left off the wire. |
+| `ToolCallPart` | `{ functionCall: { id, name, args } }`. Ids the adapter made start with `adk-`, as ADK's do, so stored history reads the same, and are left off the wire, as are the ids the genai mapping minted (`genai-noid-`). |
 | `ToolResultPart` | `{ functionResponse: { id, name, response } }`. `response` is the result when it is an object, else `{ result }`; with `isError`, `{ error: result }`. |
 | `BlobPart` | `{ inlineData: { mimeType, data } }`, or `{ fileData: { mimeType, fileUri } }` for a URL |
-| `providerState` | `{ provider: 'gemini', kind: 'thought_signature', model, payload }` ↔ the part's `thoughtSignature`, on the same part, replayed within the current turn. A signature on a thought part moves to the next output part, since a final holds no thinking, and is replayed on that part. |
+| `providerState` | `{ provider: 'gemini', kind: 'thought_signature', model, payload }` ↔ the part's `thoughtSignature`, on the same part, replayed within the current turn. A signature on a thought part moves to the next output part, since a final holds no thinking, and is replayed on that part. `{ provider: 'gemini', kind: 'carried_parts', model, payload: { before, signature? } }` ↔ the `executableCode`, `codeExecutionResult` and server-side `toolCall` and `toolResponse` parts before the part, whole, and the part's own signature; replayed before it within the current turn ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)). |
 | `tools` | `tools: [{ functionDeclarations: [{ name, description, parametersJsonSchema }] }]`. The lowercase schema goes as written. `strict` sets `functionCallingConfig.mode: VALIDATED` under `auto`. |
 | `nativeTools` | `web_search`, `google_search` → `{ googleSearch: {} }`; `url_context` → `{ urlContext: {} }`; `code_execution` → `{ codeExecution: {} }`. `x_search`, `collections_search` dropped. |
-| `toolChoice` | `toolConfig.functionCallingConfig.mode`: `AUTO`, `NONE`, `ANY`; `{ name }` is `ANY` with `allowedFunctionNames: [name]` |
+| `toolChoice` | `toolConfig.functionCallingConfig.mode`: `AUTO`, `NONE`, `ANY`; `{ name }` is `ANY` with `allowedFunctionNames: [name]`. Native tools beside function declarations add `toolConfig.includeServerSideToolInvocations: true` on the Gemini API; the SDK refuses it for Vertex AI. |
 | `outputSchema` | `responseMimeType: 'application/json'` and `responseJsonSchema` |
 | `outputFormat` | `'json'` without a schema: `responseMimeType: 'application/json'` alone |
 | `reasoning` | ADR 0047's table: `thinkingConfig.thinkingLevel` (`MINIMAL`, `LOW`, `MEDIUM`, `HIGH`) on Gemini 3 and later, `thinkingBudget` on 1.x and 2.x and for any `budget_tokens`; `includeThoughts: true` unless the setting is `none` |
 | `sampling` | `temperature`, `topP`, `maxOutputTokens`, `stopSequences` |
-| `signal` | `config.abortSignal` |
+| `signal` | `config.abortSignal`; the adapter reads no other signal |
 | `usage` | input `promptTokenCount` + `toolUsePromptTokenCount`; output `candidatesTokenCount` + `thoughtsTokenCount`; thinking `thoughtsTokenCount`; cache read `cachedContentTokenCount` |
 | `finishReason` | `STOP` → `stop`; `MAX_TOKENS` → `max_tokens`; `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII` and the `IMAGE_*` reasons → `content_filter`; the rest → `other` |
-| `grounding` | `groundingMetadata.webSearchQueries` → `searchQueries`; `groundingChunks[].web` `{ uri, title }` with `groundingSupports[].segment` → `citations`, the segment's UTF-8 byte offsets converted to UTF-16 |
+| `grounding` | `groundingMetadata.webSearchQueries` → `searchQueries`; `groundingChunks[].web` `{ uri, title }` with `groundingSupports[].segment` → `citations`, the segment's UTF-8 byte offsets converted to UTF-16; `urlContextMetadata.urlMetadata[]` retrieved → `citations` without a span |
 | errors | the Gemini rows of the code table |
 
 ## Anthropic
@@ -304,7 +304,7 @@ Stored sessions and the ADK path hold `@google/genai` `Content`. `lib/models/gen
 
 With them the [ADK shim](/models/adk-shim.md) (`lib/models/adkShim.ts`) runs any adapter's `generate()` under ADK, a contract adapter can wrap an ADK model (the [wrapper over ADK's Gemini](/models/adk-gemini-adapter.md)), and the native runtime reads the sessions ADK stored. The module may import `@google/genai` and ADK; the contract stays a leaf. `tests/genaiMapping.test.ts` runs every stored session fixture through it both ways, and maps a request that a real ADK `LlmAgent` built.
 
-The Gemini ids, `GEMINI_PROVIDER` (`gemini`) and `THOUGHT_SIGNATURE_KIND` (`thought_signature`), are defined once, in `lib/models/geminiState.ts`, and the mapping and both Gemini adapters take them from there.
+The Gemini ids, `GEMINI_PROVIDER` (`gemini`), `THOUGHT_SIGNATURE_KIND` (`thought_signature`) and `MINTED_CALL_ID_PREFIX` (`genai-noid-`), are defined once, in `lib/models/geminiState.ts`, and the mapping and both Gemini adapters take them from there.
 
 ### Contents and messages
 

@@ -849,6 +849,71 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0063 Decision 1: \"The parser reproduces ADK 2.2's rules exactly\" and Decision 3: \"A spec is bounded.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0032-openapi-tools.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0063 Decision 2: \"buildOpenApiTools parses with the engine ... and builds each tool with ADK's createRestApiTool from the parsed parameters.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "In part: only the parsing that ADR 0032 gave to ADK's OpenAPIToolset. Exposure, credentials, the SSRF guard and bounded results stand."
+    },
+    {
+      "from": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0063 Context: \"ADR 0045 has the engine own its runtime in stages ... The native runtime needs an OpenAPI operation as the engine's own types.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "module:lib/tools/openapi/parse.ts",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "lib/tools/openapi/parse.ts header: \"The native runtime owns its tools (ADR 0051), so it owns this step too.\" Each operation carries a ToolDeclaration.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0065 Decision 1-4: carried parts ride whole as providerState kind carried_parts on the next output part and replay before it within the current turn; includeServerSideToolInvocations only beside function declarations on the Gemini API; PLACEHOLDER_THOUGHT_SIGNATURE off by default.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0065 Decision 1: the carried parts are written as providerState { provider: gemini, kind: carried_parts } on the next output part, under ADR 0046's convention.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "module:lib/compile.ts",
+      "rel": "explains",
+      "evidence": "ADR 0065 Context: the ADK path sends includeServerSideToolInvocations on every Gemini agent (lib/compile.ts), and @google/genai 2.25 throws for it on a Vertex AI client; Consequences: a Gemini agent on Vertex AI fails there inside the SDK.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "gemini-adapter.md, The request: \"The signal is request.signal alone ... its caller passes the turn's signal (ADR 0053)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0066-native-step-sends-the-adk-request.md",
       "to": "module:lib/runtime/native/request.ts",
       "rel": "constrains",

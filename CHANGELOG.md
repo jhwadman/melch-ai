@@ -13,6 +13,27 @@ the starter pack and the templates), not the repo's full history.
   additions under the existing `exports` map. The native loop's first piece,
   one model step (`lib/runtime/native/`), is not in the `exports` map and
   runs no turn yet.
+- **`GeminiAdapter` covers Gemini's own features (ADR 0065).** In
+  `melchizedek-agents/models/geminiAdapter` (which `resolveAdapter`
+  returns only with `GEMINI_ADAPTER=engine` until gate G3):
+  - Code execution (`executableCode`, `codeExecutionResult`) and
+    server-side `toolCall` / `toolResponse` parts ride whole on the next
+    output part as `providerState` of the new kind `CARRIED_PARTS_KIND`
+    (`carried_parts`, payload `CarriedParts`), and are replayed before it
+    within the current turn.
+  - `toolConfig.includeServerSideToolInvocations` is sent when native
+    tools sit beside function declarations, on the Gemini API only.
+  - Grounding citations carry the answer span each supports, and
+    urlContext's retrieved pages are cited.
+  - Call ids minted by the genai mapping (`genai-noid-`) stay off the wire,
+    as `adk-` ids do. `MINTED_CALL_ID_PREFIX` now lives in
+    `models/geminiState` and is still exported by `models/genaiMapping`.
+  - The adapter reads only `request.signal`; it no longer falls back to the
+    turn's signal (ADR 0053: the caller passes it).
+  - New option `placeholderSignatures` (default
+    `PLACEHOLDER_SIGNATURES_BY_DEFAULT`, false) sends Gemini's documented
+    placeholder `PLACEHOLDER_THOUGHT_SIGNATURE` on an unsigned current-turn
+    call.
 - **Web sources for Claude, GPT and Grok.** When one of these models
   searches the web, its events now carry `groundingMetadata`, so a turn's
   grounding and the A2A server's web-sources lines list the pages it used,
@@ -40,6 +61,18 @@ the starter pack and the templates), not the repo's full history.
   schemas no longer carry `default`, `propertyNames`, `$schema` or a boolean
   `additionalProperties`. `propertyNames` was refused by the Gemini API.
 
+- **The engine parses OpenAPI specs itself (ADR 0063).** A new module,
+  `melchizedek-agents/tools/openapi/parse` (through the existing
+  `./tools/*` pattern), exports `parseOpenApiSpec` and
+  `parseOpenApiDocument`. They read an OpenAPI 3 spec into
+  `OpenApiOperation`s, each with its arguments and the `ToolDeclaration`
+  the model receives. `openapi:` tools keep their names and declarations:
+  the parser follows ADK's rules, and `buildOpenApiTools` builds the
+  same ADK tools from it. A spec is now bounded. A file over 4 MiB, more
+  than 100 YAML aliases, more than a million values once its `$ref`s are
+  resolved, or nesting deeper than 128 levels fails the compile with a
+  readable error, as does a spec that is not an object. `toSnake` and
+  `namesTool` are still exported from `tools/openapiTools`.
 - **JSON mode without a schema is on the model contract (ADR 0061).**
   `ModelRequest` (`melchizedek-agents/models/contract`) gains
   `outputFormat?: 'json'`. An agent with
