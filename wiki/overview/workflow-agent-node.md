@@ -35,7 +35,7 @@ sources:
 | the output | outside task mode, each stored model event with content and no function call carries `output`: its text without thought parts, parsed as JSON only when the agent has an output schema and the text parses; and `nodeInfo.messageAsOutput` (`eventOutput`, ADK's `maybeSetOutput`). The node's output is the last one an event carried. |
 | the stamp | every stored event gets `nodeInfo.path`, `nodeInfo.outputFor` when it carries an output, and the node's branch when it has none: ADK's `enrichEvent`, through `enrichNodeEvent`, the one port of it ([tool node](/overview/workflow-scheduler.md#tool-nodes)). The loop applies it through `nodeStamp`, after the outputKey and task hooks, and to a compaction event the node's agent stores before a step, which therefore carries the summary as its output outside task mode, as ADK's `maybeSetOutput` gives it. |
 | the instruction | the run carries ADK's workflow instruction scope (`workflowScope`): the node's input, and `predecessorOutputs`, the output each event of the invocation stored before the node ran, by node name (ADK's `collectPredecessorOutputs`). See [The instruction](#the-instruction). |
-| failure | an event with an error code is the node's reported error. A run that ends with one and no output throws `NodeReportedError` with ADK's message. A run the turn stopped throws `NodeStoppedError`. A run that pauses on a person throws: interrupts inside a node are WS4-4a. |
+| failure | an event with an error code is the node's reported error. A run that ends with one and no output throws `NodeReportedError` with ADK's message. A run the turn stopped throws `NodeStoppedError`. A run that pauses on a person (an `ask_user` tool call, an approval) throws: a pause inside an agent node does not run on the native runtime yet. An `ask_user` node is another runner's ([the pause](/overview/workflow-scheduler.md#ask_user-nodes-the-pause)). |
 
 The node's path is `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>` for a map item, as the scheduler computes it.
 
@@ -83,7 +83,7 @@ Both are stamped through `enrichNodeEvent`.
 
 ## Not here yet
 
-- Interrupts inside a node (WS4-4a).
+- Interrupts inside a node (an `ask_user` tool call, an approval).
 
 ## Parity with ADK
 

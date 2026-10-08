@@ -69,8 +69,20 @@
  * ParallelWorker does; the map entry's own `retry` and `timeout` are not
  * applied, because ADK's compile does not apply them.
  *
- * Interrupts (ask_user's pause, WS4-4a), a task-mode node that waits for its
- * output (WS4-3) and resumption from stored events are later tickets.
+ * ── Interrupts (ADK's handleCompletion and finalize, ADR 0092) ───────────
+ * A runner that pauses its node on a person returns `interruptIds` (the ids
+ * of the input requests its events carry; lib/workflow/pause.ts raises them
+ * for an ask_user node). The node then WAITS, as ADK's does: it is not
+ * completed, records no output, triggers no successor, and is not started
+ * again by a later trigger in the same walk. The rest of the graph runs on.
+ * A walk that ends with a node waiting resolves with every open id in
+ * `interruptIds`, in the order the nodes paused, and no output (ADK skips
+ * the terminal check). A reported error with an interrupt is not the node's
+ * failure. A map item's interrupts are not carried (an agent node's own
+ * pause does not run here yet).
+ *
+ * A task-mode node that waits for its output (WS4-3) and resumption from
+ * stored events (WS4-4b) are later tickets.
  */
 
 import { routeOf } from '../workflowConfig.ts';
@@ -131,10 +143,17 @@ export interface NodeResult {
   /** The route(s) the node emitted; only keyed edges read it. */
   route?: unknown;
   /**
-   * An error the node reported. It is emitted and collected; with no output
-   * and no route the attempt fails (`NodeReportedError`) and may be retried.
+   * An error the node reported. It is emitted and collected; with no output,
+   * no route and no interrupt the attempt fails (`NodeReportedError`) and
+   * may be retried.
    */
   error?: ReportedNodeError;
+  /**
+   * The ids of the input requests the node paused on (ADK's
+   * `longRunningToolIds` on its events). Non-empty: the node waits, and its
+   * output and route are not acted on.
+   */
+  interruptIds?: string[];
 }
 
 export type NodeRunner = (run: NodeRun) => NodeResult | Promise<NodeResult>;
@@ -150,6 +169,7 @@ export interface CollectedNodeError {
 export type SchedulerEvent =
   | { type: 'node_start'; node: string; kind: GraphNodeKind; runId: string; path: string; branch: string | undefined; input: unknown }
   | { type: 'node_end'; node: string; kind: GraphNodeKind; runId: string; path: string; branch: string | undefined; output: unknown; route?: unknown }
+  | { type: 'node_waiting'; node: string; kind: GraphNodeKind; runId: string; path: string; branch: string | undefined; interruptIds: string[] }
   | { type: 'item_start'; node: string; agent: string; index: number; path: string; branch: string | undefined; input: unknown }
   | { type: 'item_end'; node: string; agent: string; index: number; path: string; branch: string | undefined; output: unknown }
   | {
@@ -197,6 +217,12 @@ export interface WorkflowRun {
   order: string[];
   /** Every node error the walk emitted, in order: the attempts that failed and were retried or survived. */
   nodeErrors: CollectedNodeError[];
+  /**
+   * The input requests the walk ended waiting on, in the order their nodes
+   * paused. Non-empty: the walk is paused (input-required) and `output` is
+   * undefined.
+   */
+  interruptIds: string[];
 }
 
 // ── Errors (ADK's workflow/errors.js; the names are ADK's, so errorType matches) ─
@@ -249,6 +275,8 @@ export class DynamicNodeFailError extends Error {
 
 const isNamed = (error: unknown, name: string): boolean => error instanceof Error && error.name === name;
 
+const isWaiting = (state: NodeState | undefined): state is NodeState => state?.status === 'waiting' && state.interrupts.length > 0;
+
 // ── Retry (ADK's retry_utils.js) ─────────────────────────────────────────────
 
 /** ADK's defaults when a `retry` block leaves a field out. */
@@ -296,7 +324,7 @@ export function retryDelaySeconds(retry: RetrySettings, attempts: number, random
   return Math.min(delay, maxDelay);
 }
 
-type NodeStatus = 'running' | 'completed' | 'failed';
+type NodeStatus = 'running' | 'completed' | 'waiting' | 'failed';
 
 interface Trigger {
   input: unknown;
@@ -310,6 +338,8 @@ interface NodeState {
   runCounter: number;
   /** Attempts made by the current run (ADK's nodeState.attemptCount). */
   attempts: { count: number };
+  /** The input requests a waiting node paused on (ADK's nodeState.interrupts). */
+  interrupts: string[];
 }
 
 /** What every node run in one walk shares. */
@@ -409,10 +439,12 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
     for (const name of [...triggers.keys()]) {
       if (pending.has(name)) continue;
       if (nodes.get(name)?.status === 'running') continue;
+      // ADK: a node waiting on a person is not started again until it is answered.
+      if (isWaiting(nodes.get(name))) continue;
       if (atConcurrencyLimit()) break;
       const trigger = popTrigger(name);
       if (!trigger) continue;
-      const state: NodeState = { status: 'running', runCounter: (nodes.get(name)?.runCounter ?? 0) + 1, attempts: { count: 1 } };
+      const state: NodeState = { status: 'running', runCounter: (nodes.get(name)?.runCounter ?? 0) + 1, attempts: { count: 1 }, interrupts: [] };
       nodes.set(name, state);
       const runId = String(state.runCounter);
       const branch = trigger.branch !== undefined ? trigger.branch : trigger.useSubBranch ? subBranch(parentBranch, name, runId) : parentBranch;
@@ -486,6 +518,26 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
     return [result, branch];
   };
 
+  /** Every open interrupt, in the order the nodes paused (ADK's loop.interruptIds). */
+  const interrupted = new Set<string>();
+  /** ADK's handleCompletion for a run that paused: the node waits, nothing downstream runs. */
+  const wait = (name: string, settledResult: NodeResult & { branch: string | undefined }) => {
+    const state = nodes.get(name)!;
+    state.status = 'waiting';
+    state.interrupts = [...settledResult.interruptIds!];
+    for (const id of state.interrupts) interrupted.add(id);
+    emit({
+      type: 'node_waiting',
+      node: name,
+      kind: nodeOf(name).kind,
+      runId: String(state.runCounter),
+      path: `${workflowPath}.${name}`,
+      branch: settledResult.branch,
+      interruptIds: [...state.interrupts],
+    });
+  };
+  const paused = (result: NodeResult) => (result.interruptIds?.length ?? 0) > 0;
+
   try {
     for (;;) {
       scheduleReadyNodes();
@@ -502,10 +554,13 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
         // A run that still finishes during the shutdown has written its output
         // on ADK (its node emits it), so it ends here too, in settle order,
         // and triggers nothing.
-        await Promise.all(outstanding.map((run) => run.then((late) => ('result' in late ? complete(late.name, late.result) : undefined))));
+        await Promise.all(
+          outstanding.map((run) => run.then((late) => ('result' in late ? (paused(late.result) ? wait(late.name, late.result) : complete(late.name, late.result)) : undefined))),
+        );
         throw settled.error;
       }
-      bufferDownstreamTriggers(settled.name, ...complete(settled.name, settled.result));
+      if (paused(settled.result)) wait(settled.name, settled.result);
+      else bufferDownstreamTriggers(settled.name, ...complete(settled.name, settled.result));
     }
   } finally {
     parentSignal?.removeEventListener('abort', onParentAbort);
@@ -514,11 +569,15 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
   // Stopped from outside: the nodes in flight finished, but the walk did not.
   if (stopped) throw new InvocationAbortedError(`Workflow ${graph.name} aborted.`, { cause: controller.signal.reason });
 
+  // ADK's collectRemainingInterrupts and finalize: a paused walk has no output.
+  const interruptIds = [...interrupted];
+  if (interruptIds.length > 0) return { output: undefined, outputs, order, nodeErrors, interruptIds };
+
   const terminalOutputs = graph.terminals.filter((n) => outputs.has(n)).map((n) => outputs.get(n));
   if (terminalOutputs.length > 1) {
     throw new Error(`Workflow ${graph.name}: multiple terminal nodes produced output (${terminalOutputs.length}). A workflow must have at most one terminal output.`);
   }
-  return { output: terminalOutputs[0], outputs, order, nodeErrors };
+  return { output: terminalOutputs[0], outputs, order, nodeErrors, interruptIds: [] };
 }
 
 /** The event ADK's workflow writes for a node that gave up (`createNodeErrorEvent`). */
@@ -675,7 +734,8 @@ async function withControls(
       if (result.output === null) delete result.output;
       if (error) {
         walk.emit({ type: 'node_error', source: 'node', node: name, path: ctx.path, branch: ctx.branch, code: String(error.code), message: String(error.message), attempt: attempts.count });
-        if (result.output === undefined && result.route === undefined) {
+        // ADK's failIfNodeReportedError: an output, a route or an interrupt keeps the node alive.
+        if (result.output === undefined && result.route === undefined && !(result.interruptIds?.length)) {
           const failure = new NodeReportedError({ nodeName: name, errorCode: error.code, errorMessage: error.message });
           walk.claimed.add(failure);
           throw failure;

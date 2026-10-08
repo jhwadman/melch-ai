@@ -51,8 +51,9 @@
  * (lib/workflow/nodeEvents.ts), so a session the native walk writes holds
  * what ADK's holds, in the same order.
  *
- * NOT HERE: interrupts inside a node (WS4-4a), tool and ask_user nodes
- * (WS4-5, WS4-4a). It imports nothing from ADK.
+ * NOT HERE: interrupts inside a node (an ask_user tool call, an approval),
+ * tool nodes (lib/workflow/toolNode.ts) and ask_user nodes
+ * (lib/workflow/pause.ts). It imports nothing from ADK.
  */
 
 import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
@@ -218,7 +219,7 @@ export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input
     if (!next.value.partial) ctx.onEvent?.(next.value);
   }
   if (end.reason === 'paused') {
-    throw new Error(`Node '${agent.name}' paused on ${(end.pending ?? []).join(', ')}: a pause inside an agent node does not run on the native runtime yet (WS4-4a).`);
+    throw new Error(`Node '${agent.name}' paused on ${(end.pending ?? []).join(', ')}: a pause inside an agent node does not run on the native runtime yet.`);
   }
   if (end.reason === 'stopped') throw new NodeStoppedError(agent.name, end.stop);
   // ADK's failIfNodeReportedError: an error with an output is not the node's failure.
