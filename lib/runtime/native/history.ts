@@ -87,7 +87,7 @@ export function activeEvents(events: readonly TurnEvent[], scope: string | undef
   return [latest, ...visible.filter((e) => !isCompacted(e) && e.timestamp > (latest.endTime as number))];
 }
 
-function isSegmentPrefix(current: string | undefined, target: string | undefined): boolean {
+export function isSegmentPrefix(current: string | undefined, target: string | undefined): boolean {
   return !target || target === current || (!!current && current.startsWith(`${target}.`));
 }
 

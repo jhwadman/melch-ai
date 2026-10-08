@@ -6,8 +6,8 @@
  * ADK and on native, with the same scripted model behind the ADK shim (the
  * native turn calls the shim's own adapter), and requires the same result
  * (status, text, usage, route, pause) and the same stored events, ids and
- * times aside. Then what native refuses before any model call, a session
- * paused under native resumed under ADK, the run's temp: state, and the
+ * times aside. Then what native refuses before any model call, an approval
+ * opened on one runtime resumed on the other, the run's temp: state, and the
  * wiki agent runner on the flag. Offline: scripted adapters only.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -73,6 +73,8 @@ type Models = Record<string, ModelScript>;
 
 interface Turn {
   parts?: unknown[];
+  /** The message, from the previous turn's result: an answer to the approval it opened. */
+  answer?: (previous: SyndicateTurnResult) => unknown[];
   streaming?: boolean;
   runtime?: 'adk' | 'native';
 }
@@ -96,7 +98,7 @@ async function converse(runtime: 'adk' | 'native', config: SyndicateYamlConfig, 
     results.push(
       await runSyndicateTurn({
         config,
-        parts: (t.parts ?? [{ text: 'find the thing' }]) as any[],
+        parts: (t.answer ? t.answer(results.at(-1) as SyndicateTurnResult) : (t.parts ?? [{ text: 'find the thing' }])) as any[],
         appName: APP,
         userId: USER,
         sessionId: 's1',
@@ -225,29 +227,65 @@ test('parity: plan-dispatch runs the classifier and the route on native', async 
   assert.equal(native.results[1]?.text, 'research answer 2');
 });
 
-test('parity: a gated call pauses the turn input-required; the session resumes on ADK', async () => {
+test('parity: a gated call pauses the turn input-required, and the answer resumes it on native as on ADK (WS2-7a)', async () => {
+  const config = syndicate({ instruction: 'Send notes.', tools: ['native_turn_send'], require_approval: ['native_turn_send'] });
+  const script: ModelScript = (req, n) => (n === 1 ? toolCall('native_turn_send', { to: 'ops@acme.test' }, 'call-send') : answer(`done: ${JSON.stringify(lastToolResult(req)?.result)}`));
+  for (const approved of [true, false]) {
+    sent.length = 0;
+    const { native } = await assertParity(config, { boss: script }, [
+      { parts: [{ text: 'tell ops' }] },
+      { answer: (r) => [approvalResponsePart(r.approval!.id, approved)] },
+    ]);
+    assert.equal(native.results[0]?.status, 'input-required');
+    assert.equal(native.results[1]?.status, 'completed', native.results[1]?.error?.message);
+    assert.equal(native.results[1]?.text, approved ? 'done: "sent to ops@acme.test"' : 'done: "This tool call is rejected."');
+    assert.deepEqual(sent, approved ? ['ops@acme.test', 'ops@acme.test'] : [], 'the pinned call ran once per runtime, only when approved');
+  }
+});
+
+test('an approval opened on one runtime resumes on the other, and the pinned call runs once', async () => {
   const config = syndicate({ instruction: 'Send notes.', tools: ['native_turn_send'], require_approval: ['native_turn_send'] });
   const script: ModelScript = (req, n) => (n === 1 ? toolCall('native_turn_send', { to: 'ops@acme.test' }, 'call-send') : answer(`done: ${lastToolResult(req)?.result}`));
-  sent.length = 0;
-  const { native } = await assertParity(config, { boss: script }, [{ parts: [{ text: 'tell ops' }] }]);
-  assert.equal(native.results[0]?.status, 'input-required');
-  assert.deepEqual(sent, [], 'nothing ran before the approval');
+  for (const [opens, resumes] of [['native', 'adk'], ['adk', 'native']] as const) {
+    sent.length = 0;
+    const boss = new ScriptedModel('scripted/boss', script);
+    const sessionService = new InMemorySessionService();
+    const base = { config, appName: APP, userId: USER, sessionId: `pause-${opens}`, sessionService, compile: { resolveModel: shimResolver({ boss }) }, trace: false as const };
+    const paused = await runSyndicateTurn({ ...base, parts: [{ text: 'tell ops' }], runtime: opens });
+    assert.equal(paused.status, 'input-required');
+    assert.deepEqual(sent, [], 'nothing ran before the approval');
+    const resumed = await runSyndicateTurn({ ...base, parts: [approvalResponsePart(paused.approval!.id, true)], runtime: resumes });
+    assert.equal(resumed.status, 'completed', resumed.error?.message);
+    assert.equal(resumed.text, 'done: sent to ops@acme.test');
+    assert.deepEqual(sent, ['ops@acme.test'], `opened on ${opens}, resumed on ${resumes}`);
+    assert.equal(boss.calls, 2, 'the resume did not start the turn over');
+  }
+});
 
-  // Resuming on native is not supported yet; the same conversation resumes on ADK.
+test('parity: dispatch resumes the route that asked on native, the classifier skipped, as on ADK', async () => {
+  const config = {
+    syndicate_name: APP,
+    orchestrator: { name: 'Router', model: 'scripted/router', instruction: 'Classify.' },
+    subagents: [
+      { name: 'Chat', model: 'scripted/chat', instruction: 'Chat.', description: 'small talk' },
+      { name: 'Outreach', model: 'scripted/outreach', instruction: 'Send.', description: 'sends notes', tools: ['native_turn_send'], require_approval: ['native_turn_send'] },
+    ],
+    dispatch: { default_route: 'Chat' },
+  } as unknown as SyndicateYamlConfig;
   sent.length = 0;
-  const boss = new ScriptedModel('scripted/boss', script);
-  const sessionService = new InMemorySessionService();
-  const base = { config, appName: APP, userId: USER, sessionId: 'pause', sessionService, compile: { resolveModel: shimResolver({ boss }) }, trace: false as const };
-  const paused = await runSyndicateTurn({ ...base, parts: [{ text: 'tell ops' }], runtime: 'native' });
-  assert.equal(paused.status, 'input-required');
-  await assert.rejects(
-    runSyndicateTurn({ ...base, parts: [approvalResponsePart(paused.approval!.id, true)], runtime: 'native' }),
-    (e: unknown) => e instanceof UnsupportedOnRuntimeError && /resuming an approval/.test(e.message) && /native runtime/.test(e.message),
+  const { native } = await assertParity(
+    config,
+    {
+      router: () => answer('{"route":"Outreach","reason":"a send"}'),
+      chat: () => answer('chat'),
+      outreach: (req, n) => (n === 1 ? toolCall('native_turn_send', { to: 'pr@acme.test' }, 'call-pr') : answer(`sent: ${lastToolResult(req)?.result}`)),
+    },
+    [{ parts: [{ text: 'email pr' }] }, { answer: (r) => [approvalResponsePart(r.approval!.id, true)] }],
   );
-  const resumed = await runSyndicateTurn({ ...base, parts: [approvalResponsePart(paused.approval!.id, true)], runtime: 'adk' });
-  assert.equal(resumed.status, 'completed', resumed.error?.message);
-  assert.equal(resumed.text, 'done: sent to ops@acme.test');
-  assert.deepEqual(sent, ['ops@acme.test']);
+  assert.equal(native.results[1]?.route?.decidedBy, 'approval');
+  assert.equal(native.models.router?.calls, 1, 'the classifier ran once, for the original message');
+  assert.equal(native.results[1]?.text, 'sent: sent to pr@acme.test');
+  assert.deepEqual(sent, ['pr@acme.test', 'pr@acme.test'], 'once per runtime');
 });
 
 test('parity: an ask_user call pauses the turn with the question; answering it on native is refused', async () => {

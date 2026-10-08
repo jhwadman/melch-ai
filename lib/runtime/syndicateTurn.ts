@@ -565,7 +565,6 @@ async function runTurnInner(
   const decision = approvalDecisionIn(parts);
   let resuming: PendingApproval | undefined;
   if (decision) {
-    if (native) throw unsupportedOnNative('resuming an approval (WS2-7)', syndicateLabel);
     resuming = pendingApproval(existing?.events ?? []);
     if (!resuming || resuming.id !== decision.id) {
       result.status = 'failed';
@@ -585,7 +584,7 @@ async function runTurnInner(
     const question = pendingQuestion(existing?.events ?? []);
     const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
     if (question && plainText) {
-      if (native) throw unsupportedOnNative(`answering ${question.node}'s question (WS2-7)`, syndicateLabel);
+      if (native) throw unsupportedOnNative(`answering ${question.node}'s question (WS2-7b)`, syndicateLabel);
       answering = { agent: question.node, id: question.id };
       parts = [questionAnswerPart(question.id, messageText)];
       ev.log?.(`✓ Answer to ${question.node}'s question`);

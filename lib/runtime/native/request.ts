@@ -360,7 +360,7 @@ async function resolveInstruction(
 }
 
 /** A toolset (ADK's skills toolset, an MCP toolset): something that yields tools, and is not one. */
-function isToolset(value: unknown): value is { getTools(ctx?: unknown): Promise<unknown[]> } {
+export function isToolset(value: unknown): value is { getTools(ctx?: unknown): Promise<unknown[]> } {
   if (!isObject(value)) return false;
   if (typeof value.getTools !== 'function') return false;
   return !('runAsync' in value) && !isTool(value) && typeof value._getDeclaration !== 'function';
