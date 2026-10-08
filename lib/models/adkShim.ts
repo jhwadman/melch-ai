@@ -41,8 +41,9 @@
 import { BaseLlm } from '@google/adk';
 import type { BaseLlmConnection, BaseLlmType, LlmRequest, LlmResponse } from '@google/adk';
 
-import type { ModelAdapter } from './contract.ts';
+import type { ModelAdapter, ModelRequest } from './contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from './genaiMapping.ts';
+import type { ModelRequestOptions } from './genaiMapping.ts';
 import { traceLlmGeneration } from '../observability/tracer.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 
@@ -95,7 +96,7 @@ export class AdkShim extends BaseLlm {
     abortSignal: AbortSignal | undefined,
   ): AsyncGenerator<LlmResponse, void> {
     const signal = eitherSignal(abortSignal, currentTurnSignal(), llmRequest.config?.abortSignal);
-    const request = llmRequestToModelRequest(llmRequest, {
+    const request = this.toModelRequest(llmRequest, {
       model: this.model,
       stream,
       ...(signal ? { signal } : {}),
@@ -103,6 +104,17 @@ export class AdkShim extends BaseLlm {
     for await (const response of this.adapter.generate(request)) {
       yield modelResponseToLlmResponse(response);
     }
+  }
+
+  /**
+   * The ModelRequest one call hands the adapter: `llmRequestToModelRequest`.
+   * A provider's ADK class may extend it with what its adapter reads on the
+   * ADK path only, an agent setting the contract leaves out (ClaudeLlm's
+   * older reasoning spelling, ADR 0055). It never removes or rewrites a
+   * contract field.
+   */
+  protected toModelRequest(llmRequest: LlmRequest, options: ModelRequestOptions): ModelRequest {
+    return llmRequestToModelRequest(llmRequest, options);
   }
 
   /** Live/bidirectional connections are outside the model contract. Throws to say so. */
