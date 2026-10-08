@@ -20,7 +20,7 @@ import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { z } from 'zod';
 
-import { withReasoning } from '../lib/compile.ts';
+import { compileNativeGraph } from '../lib/compileNative.ts';
 import type { ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
@@ -38,8 +38,6 @@ import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runModelStep } from '../lib/runtime/native/step.ts';
 import type { ModelStepOptions } from '../lib/runtime/native/step.ts';
 import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
-import { examplesInstructionTool } from '../lib/tools/examples.ts';
-import { buildSkillHarness } from '../lib/tools/skillToolset.ts';
 import { instructionToolOf, toolOf } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, failure, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
@@ -69,7 +67,6 @@ registerTool(
 
 // ── The ADK side: a syndicate run behind the shim ────────────────────────────
 
-type Orchestrator = SyndicateYamlConfig['orchestrator'];
 
 /**
  * A one-agent syndicate, retries at their defaults: ADK's reflect-and-retry
@@ -123,35 +120,8 @@ async function runOnAdk(
 /** The registry's object as the native loop holds it: the own Tool or InstructionTool behind it, a marker as it is. */
 const own = (tool: unknown): unknown => toolOf(tool) ?? instructionToolOf(tool) ?? tool;
 
-/**
- * The orchestrator as a NativeAgent, built as lib/compile.ts builds its
- * LlmAgent (the compile split, WS2-10, will own this): registry tools, the
- * examples block, the skills index in the instruction and the toolset among
- * the tools, the config with reasoning mapped and server-side tool calls on.
- */
-async function nativeAgentOf(o: Orchestrator): Promise<NativeAgent> {
-  let instruction = o.instruction ?? '';
-  const tools: unknown[] = resolveTools(o.tools).map(own);
-  const examples = examplesInstructionTool(o.examples);
-  if (examples) tools.push(examples);
-  if (o.skills) {
-    const harness = await buildSkillHarness(o.skills, resolveTools(o.skills.tools));
-    instruction = `${instruction.trimEnd()}\n\n${harness.instruction}`;
-    tools.push(harness.toolset);
-  }
-  const cfg = (withReasoning(o, o.model) ?? {}) as Record<string, any>;
-  return {
-    name: o.name,
-    ...(o.description ? { description: o.description } : {}),
-    model: o.model as string,
-    instruction,
-    ...(o.globalInstruction ? { globalInstruction: o.globalInstruction } : {}),
-    tools,
-    ...(o.outputSchema ? { outputSchema: o.outputSchema } : {}),
-    generateContentConfig: { ...cfg, toolConfig: { ...(cfg.toolConfig ?? {}), includeServerSideToolInvocations: true } },
-    ...(o.includeContents ? { includeContents: o.includeContents } : {}),
-  };
-}
+/** The orchestrator as the native step runs it: the compile split's NativeAgent (lib/compileNative.ts). */
+const nativeAgentOf = (config: SyndicateYamlConfig): Promise<NativeAgent> => compileNativeGraph(config, { log: () => {} });
 
 /** A store holding the session as ADK held it before the call: the events up to it, replayed. */
 async function sessionBefore(events: TurnEvent[], upTo: number): Promise<{ session: Session; sessions: InProcessSessionService }> {
@@ -176,7 +146,7 @@ async function assertParity(
 ): Promise<ModelRequest[]> {
   const config = syndicate(orchestrator);
   const adk = await runOnAdk(config, script, messages);
-  const agent = await nativeAgentOf(config.orchestrator);
+  const agent = await nativeAgentOf(config);
   const modelEvents = adk.events.map((e, i) => [e, i] as const).filter(([e]) => e.content?.role === 'model');
   assert.equal(modelEvents.length, adk.calls.length, 'one stored model event per call');
 

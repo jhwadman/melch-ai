@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import { AgentTool, FunctionTool, InMemorySessionService, LlmAgent, LogLevel, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
-import { requireApprovalOn, withReasoning } from '../lib/compile.ts';
+import { compileNativeGraph } from '../lib/compileNative.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter, ModelRequest } from '../lib/models/contract.ts';
@@ -38,8 +38,7 @@ import type { AgentLoopEnd } from '../lib/runtime/native/agentLoop.ts';
 import { SUBAGENT, subagentOf, subagentTool } from '../lib/runtime/native/delegate.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
-import { examplesInstructionTool } from '../lib/tools/examples.ts';
-import { instructionToolOf, toolOf } from '../lib/tools/tool.ts';
+import { toolOf } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, failure, lastToolResult, requestTexts, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
@@ -79,53 +78,18 @@ registerTool(
   { override: true },
 );
 
-// ── The native graph, built as lib/compile.ts builds the ADK one ─────────────
-
-type AgentCfg = SyndicateYamlConfig['orchestrator'] | SubagentYamlConfig;
-
-/** The registry's object as the native loop holds it: the own Tool or InstructionTool behind it, else the object itself. */
-const own = (tool: unknown): unknown => toolOf(tool) ?? instructionToolOf(tool) ?? tool;
-
-/** One agent as a NativeAgent, as tests/nativeLoop.test.ts builds it (the compile split, WS2-10, will own this). */
-function nativeAgentOf(o: AgentCfg): NativeAgent {
-  const gated = new Set(o.require_approval ?? []);
-  const tools: unknown[] = resolveTools(o.tools).map((t) => own(gated.has(t.name) ? requireApprovalOn(t) : t));
-  const examples = examplesInstructionTool(o.examples);
-  if (examples) tools.push(examples);
-  const cfg = (withReasoning(o, o.model) ?? {}) as Record<string, any>;
-  return {
-    name: o.name,
-    ...(o.description ? { description: o.description } : {}),
-    model: o.model as string,
-    instruction: o.instruction ?? '',
-    tools,
-    ...(o.outputSchema ? { outputSchema: o.outputSchema } : {}),
-    ...(o.outputKey ? { outputKey: o.outputKey } : {}),
-    ...(o.fallback_model ? { fallbackModel: o.fallback_model } : {}),
-    generateContentConfig: { ...cfg, toolConfig: { ...(cfg.toolConfig ?? {}), includeServerSideToolInvocations: true } },
-    ...(o.includeContents ? { includeContents: o.includeContents } : {}),
-  };
-}
+// ── The native graph: the compile split's NativeAgent (lib/compileNative.ts) ─
 
 type Nested = Record<string, SyndicateYamlConfig>;
 
 /**
- * A DELEGATE syndicate's orchestrator as a NativeAgent, as compileGraph
- * builds its LlmAgent: each subagent a subagentTool first, then the
- * orchestrator's own tools; a yaml_reference subagent is the nested
- * syndicate's orchestrator under the entry's name and description.
+ * A DELEGATE syndicate's orchestrator as the native loop runs it: each
+ * subagent a subagentTool first, then the orchestrator's own tools; a
+ * yaml_reference subagent is the nested syndicate's orchestrator under the
+ * entry's name and description.
  */
-function nativeGraphOf(config: SyndicateYamlConfig, nested: Nested, name?: string, description?: string): NativeAgent {
-  const orchestrator = nativeAgentOf({
-    ...config.orchestrator,
-    ...(name ? { name } : {}),
-    ...(description ? { description } : {}),
-  });
-  const subagents = (config.subagents ?? []).map((s) =>
-    subagentTool(s.yaml_reference ? nativeGraphOf(nested[s.yaml_reference] as SyndicateYamlConfig, nested, s.name, s.description) : nativeAgentOf(s)),
-  );
-  return { ...orchestrator, tools: [...subagents, ...(orchestrator.tools ?? [])] };
-}
+const nativeGraphOf = (config: SyndicateYamlConfig, nested: Nested): Promise<NativeAgent> =>
+  compileNativeGraph(config, { log: () => {}, loadNested: (ref) => nested[ref] as SyndicateYamlConfig });
 
 /** Every agent name a subagent session may be kept under. */
 function agentNames(config: SyndicateYamlConfig, nested: Nested): string[] {
@@ -187,7 +151,7 @@ async function runOnAdk(config: SyndicateYamlConfig, nested: Nested, scripts: Mo
  */
 async function runNative(config: SyndicateYamlConfig, nested: Nested, scripts: Models, turns: Turn[], adk: Run): Promise<Run & { ends: AgentLoopEnd[] }> {
   const models = build(scripts);
-  const agent = nativeGraphOf(config, nested);
+  const agent = await nativeGraphOf(config, nested);
   const store = new InProcessSessionService();
   const session = await store.create({ appName: APP, userId: USER, sessionId: 's1' });
   const userEvents = (adk.sessions[APP] ?? []).filter((e) => e.author === 'user');

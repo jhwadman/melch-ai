@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import { FunctionTool, InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
-import { requireApprovalOn, withReasoning } from '../lib/compile.ts';
+import { compileNativeGraph } from '../lib/compileNative.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
@@ -34,10 +34,7 @@ import { runAgentLoop, saveOutput } from '../lib/runtime/native/agentLoop.ts';
 import type { AgentLoopEnd } from '../lib/runtime/native/agentLoop.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
-import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
-import { examplesInstructionTool } from '../lib/tools/examples.ts';
-import { buildSkillHarness } from '../lib/tools/skillToolset.ts';
-import { instructionToolOf, toolOf } from '../lib/tools/tool.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, failure, lastToolResult, shimResolver, streamedAnswer, toolCall, untilAborted } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
@@ -116,8 +113,6 @@ registerTool(
 
 // ── The two runtimes ─────────────────────────────────────────────────────────
 
-type Orchestrator = SyndicateYamlConfig['orchestrator'];
-
 function syndicate(orchestrator: Record<string, unknown>, extra: Record<string, unknown> = {}): SyndicateYamlConfig {
   return validateSyndicateConfig(
     { syndicate_name: APP, orchestrator: { model: 'scripted/boss', ...orchestrator }, subagents: [], ...extra },
@@ -125,40 +120,8 @@ function syndicate(orchestrator: Record<string, unknown>, extra: Record<string, 
   ) as SyndicateYamlConfig;
 }
 
-/** The registry's object as the native loop holds it: the own Tool or InstructionTool behind it, else the object itself. */
-const own = (tool: unknown): unknown => toolOf(tool) ?? instructionToolOf(tool) ?? tool;
-
-/**
- * The orchestrator as a NativeAgent, built as lib/compile.ts builds its
- * LlmAgent (the compile split, WS2-10, will own this): registry tools with
- * require_approval gated as compile gates them, the examples block, the
- * skills harness, reasoning mapped, outputKey and fallback_model.
- */
-async function nativeAgentOf(o: Orchestrator): Promise<NativeAgent> {
-  let instruction = o.instruction ?? '';
-  const gated = new Set(o.require_approval ?? []);
-  const tools: unknown[] = resolveTools(o.tools).map((t) => own(gated.has(t.name) ? requireApprovalOn(t) : t));
-  const examples = examplesInstructionTool(o.examples);
-  if (examples) tools.push(examples);
-  if (o.skills) {
-    const harness = await buildSkillHarness(o.skills, resolveTools(o.skills.tools));
-    instruction = `${instruction.trimEnd()}\n\n${harness.instruction}`;
-    tools.push(harness.toolset);
-  }
-  const cfg = (withReasoning(o, o.model) ?? {}) as Record<string, any>;
-  return {
-    name: o.name,
-    ...(o.description ? { description: o.description } : {}),
-    model: o.model as string,
-    instruction,
-    tools,
-    ...(o.outputSchema ? { outputSchema: o.outputSchema } : {}),
-    ...(o.outputKey ? { outputKey: o.outputKey } : {}),
-    ...(o.fallback_model ? { fallbackModel: o.fallback_model } : {}),
-    generateContentConfig: { ...cfg, toolConfig: { ...(cfg.toolConfig ?? {}), includeServerSideToolInvocations: true } },
-    ...(o.includeContents ? { includeContents: o.includeContents } : {}),
-  };
-}
+/** The orchestrator as the native loop runs it: the compile split's NativeAgent (lib/compileNative.ts). */
+const nativeAgentOf = (config: SyndicateYamlConfig): Promise<NativeAgent> => compileNativeGraph(config, { log: () => {} });
 
 /** Each scripted model by its key (`scripted/<key>`), built fresh for each runtime. */
 type Models = Record<string, ModelScript>;
@@ -221,7 +184,7 @@ interface NativeRun {
  */
 async function runNative(config: SyndicateYamlConfig, scripts: Models, turns: Turn[], adk: AdkRun): Promise<NativeRun> {
   const models = build(scripts);
-  const agent = await nativeAgentOf(config.orchestrator);
+  const agent = await nativeAgentOf(config);
   const sessions = new InProcessSessionService();
   const session = await sessions.create({ appName: APP, userId: USER, sessionId: 's1' });
   const userEvents = adk.events.filter((e) => e.author === 'user');
