@@ -5,7 +5,13 @@
  * operation, a write that waits for approval, spec paths beside the YAML, and
  * the schema; and the parser (lib/tools/openapi/parse.ts): the example specs'
  * declarations pinned, ADK's parse as the reference for its rules, and
- * hostile specs bounded. A real HTTP server on 127.0.0.1; scripted models.
+ * hostile specs bounded; and the caller (lib/tools/openapi/call.ts): the
+ * request ADK's RestApiTool built, as the reference for every argument
+ * location and body encoding, the guard before each call and after each
+ * redirect, a credential never sent to another origin and never in an
+ * error, a log or a span, and one approval gate on both runtimes. A real
+ * HTTP server on 127.0.0.1, a scripted fetch for public names; scripted
+ * models.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -16,9 +22,15 @@ import type { Server } from 'node:http';
 import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemorySessionService, OpenAPIToolset, setLogLevel, LogLevel } from '@google/adk';
+import { InMemorySessionService, OpenAPIToolset, createRestApiTool, tokenToSchemeCredential, setLogLevel, LogLevel } from '@google/adk';
 
-import { MAX_RESULT_CHARS, buildOpenApiTools, credentialEnvProblem, toSnake } from '../lib/tools/openapiTools.ts';
+import { MAX_RESULT_CHARS, buildOpenApiOwnTools, buildOpenApiTools, credentialEnvProblem, isOpenApiTool, toSnake } from '../lib/tools/openapiTools.ts';
+import { buildRequest, callOperation } from '../lib/tools/openapi/call.ts';
+import type { OpenApiCredential } from '../lib/tools/openapi/call.ts';
+import { setHostResolver } from '../lib/net/addressGuard.ts';
+import { APPROVAL_TEXTS, createToolContext, toolOf } from '../lib/tools/tool.ts';
+import { compileGraph } from '../lib/compile.ts';
+import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
 import { readFileSync as readText } from 'node:fs';
 import { MAX_SPEC_BYTES, adkSnake, operationNamed, parseOpenApiDocument, parseOpenApiSpec } from '../lib/tools/openapi/parse.ts';
 import type { OpenApiOperation } from '../lib/tools/openapi/parse.ts';
@@ -467,7 +479,7 @@ test('the parser names, splits and declares every operation as ADK did', async (
     'list_pets', 'create_pet', 'pets_pet_id_get', 'get_http_status_for_pet', 'delete_pet', 'patch_pet', 'make_thing', 'param_import',
     'plant_a_very_long_operation_id_that_goes_on_and_on_past_the_',
   ]);
-  // The built tools are ADK RestApiTools over the parse, so the declaration a model reads on the ADK path is the parser's.
+  // The built tools are own Tools over the parse, through toFunctionTool on the ADK path: the declaration a model reads is the parser's.
   const built = await buildOpenApiTools({ spec: 'sink.yaml', operations: sink.map((o) => o.operationId) }, sinkDir());
   assert.deepEqual(built.map((t) => contractToolDeclaration(t)), sink.map((o) => o.declaration));
 });
@@ -517,15 +529,15 @@ test('a hostile spec is refused with a readable error, never a hang or a crash',
   // Deep nesting.
   let deep: Record<string, unknown> = { type: 'string' };
   for (let i = 0; i < 300; i++) deep = { type: 'object', properties: { n: deep } };
-  assert.throws(() => parseOpenApiDocument({ paths: { '/d': { post: { operationId: 'd', requestBody: { content: { 'application/json': { schema: deep } } } } } } }), /deeper than 128/);
+  assert.throws(() => parseOpenApiDocument({ openapi: '3.0.0', paths: { '/d': { post: { operationId: 'd', requestBody: { content: { 'application/json': { schema: deep } } } } } } }), /deeper than 128/);
   // A long chain of refs.
   // Listed from the far end, so resolving the first one walks the whole chain.
   const chain: Record<string, unknown> = {};
   for (let i = 500; i >= 1; i--) chain[`c${i}`] = { $ref: `#/c${i - 1}` };
   chain.c0 = { type: 'string' };
-  assert.throws(() => parseOpenApiDocument({ ...chain, paths: { '/c': { get: { operationId: 'c', parameters: [{ name: 'q', in: 'query', schema: { $ref: '#/c500' } }] } } } }), /deeper than 128/);
+  assert.throws(() => parseOpenApiDocument({ openapi: '3.0.0', ...chain, paths: { '/c': { get: { operationId: 'c', parameters: [{ name: 'q', in: 'query', schema: { $ref: '#/c500' } }] } } } }), /deeper than 128/);
   // An external ref, and a document that is not one.
-  assert.throws(() => parseOpenApiDocument({ paths: { '/e': { get: { operationId: 'e', parameters: [{ $ref: 'other.yaml#/p' }] } } } }), /external references are not supported/);
+  assert.throws(() => parseOpenApiDocument({ openapi: '3.0.0', paths: { '/e': { get: { operationId: 'e', parameters: [{ $ref: 'other.yaml#/p' }] } } } }), /external references are not supported/);
   assert.throws(() => parseOpenApiSpec('"just a string"', 'json'), /not an OpenAPI document/);
   assert.throws(() => parseOpenApiSpec('{', 'json', { source: 'bad.json' }), /openapi bad\.json: the spec is not valid JSON/);
 });
@@ -535,7 +547,407 @@ test('a ref cycle ends where it closes, and a __proto__ key stays a key', () => 
   const child = (plant!.declaration.parameters as any).properties.child;
   // Node was resolved where components lists it, so its self-reference is already cut: an empty object.
   assert.deepEqual(child, { type: 'object', properties: { dummy_DO_NOT_GENERATE: { type: 'string' } } });
-  const [op] = parseOpenApiSpec('{"paths":{"/p":{"post":{"operationId":"p","requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"__proto__":{"type":"string","polluted":true}}}}}}}}}}', 'json');
+  const [op] = parseOpenApiSpec('{"openapi":"3.0.0","paths":{"/p":{"post":{"operationId":"p","requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"__proto__":{"type":"string","polluted":true}}}}}}}}}}', 'json');
   assert.equal(({} as any).polluted, undefined);
   assert.deepEqual(op!.parameters.map((p) => p.name), ['proto']);
+});
+
+// ── The caller (lib/tools/openapi/call.ts, ADR 0067) ────────────────────────
+
+test('a spec that is not OpenAPI 3.x is refused with a readable error', () => {
+  assert.throws(() => parseOpenApiSpec('{"swagger":"2.0","paths":{}}', 'json', { source: 'old.json' }), /openapi old\.json: the spec is Swagger "2\.0" \(OpenAPI 2\); only OpenAPI 3\.x is supported/);
+  assert.throws(() => parseOpenApiSpec('{"paths":{}}', 'json'), /the spec has no `openapi` version; only OpenAPI 3\.x is supported/);
+  assert.throws(() => parseOpenApiSpec('{"openapi":"4.0.0","paths":{}}', 'json'), /the spec is OpenAPI "4\.0\.0"; only OpenAPI 3\.x is supported/);
+  assert.throws(() => parseOpenApiSpec('{"openapi":"30.1","paths":{}}', 'json'), /only OpenAPI 3\.x/);
+  assert.equal(parseOpenApiSpec('openapi: 3.1.0\npaths: {}\n', 'yaml').length, 0);
+  assert.equal(parseOpenApiSpec('openapi: 3.0\npaths: {}\n', 'yaml').length, 0, 'an unquoted YAML 3.0 reads as the number 3');
+});
+
+test('a $ref is a JSON pointer: ~1 is / and ~0 is ~', () => {
+  const [op] = parseOpenApiDocument({
+    openapi: '3.0.0',
+    paths: {
+      '/a/{id}': { get: { operationId: 'a', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', maxLength: 5 } }] } },
+      '/b': { get: { operationId: 'b', parameters: [{ $ref: '#/paths/~1a~1{id}/get/parameters/0' }, { name: 'q', in: 'query', schema: { $ref: '#/components/schemas/a~0b' } }] } },
+    },
+    components: { schemas: { 'a~b': { type: 'integer' } } },
+  }).filter((o) => o.operationId === 'b');
+  assert.deepEqual(op!.parameters.map((p) => [p.name, p.location, p.schema]), [
+    ['id', 'path', { type: 'string', maxLength: 5 }],
+    ['q', 'query', { type: 'integer' }],
+  ]);
+});
+
+/** Every argument location and body encoding RestApiTool handles. */
+const SHAPES = `openapi: 3.0.0
+info: { title: Shapes, version: "1" }
+servers: [{ url: "https://api.example.com/v1/" }]
+paths:
+  /items/{itemId}/parts/{part}:
+    get:
+      operationId: getPart
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: string } }
+        - { name: part, in: path, required: true, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: tags, in: query, schema: { type: array, items: { type: string } } }
+        - { name: empty, in: query, schema: { type: string } }
+        - { name: X-Trace, in: header, schema: { type: string } }
+        - { name: session, in: cookie, schema: { type: string } }
+        - { name: theme, in: cookie, schema: { type: string } }
+  /search?fixed=1:
+    get:
+      operationId: search
+      parameters: [{ name: q, in: query, schema: { type: string } }]
+  /json:
+    post:
+      operationId: postJson
+      requestBody: { content: { application/json: { schema: { type: object, properties: { name: { type: string }, n: { type: integer } } } } } }
+  /vnd:
+    post:
+      operationId: postVnd
+      requestBody: { content: { application/vnd.api+json: { schema: { type: array, items: { type: integer } } } } }
+  /form:
+    post:
+      operationId: postForm
+      requestBody: { content: { application/x-www-form-urlencoded: { schema: { type: object, properties: { a: { type: string }, b: { type: string } } } } } }
+  /multi:
+    post:
+      operationId: postMulti
+      requestBody: { content: { multipart/form-data: { schema: { type: object, properties: { a: { type: string }, n: { type: integer } } } } } }
+  /octet:
+    put:
+      operationId: putOctet
+      requestBody: { content: { application/octet-stream: { schema: { type: string } } } }
+  /text:
+    patch:
+      operationId: patchText
+      requestBody: { content: { text/plain: { schema: { type: string } } } }
+  /whole:
+    post:
+      operationId: postWhole
+      requestBody: { content: { application/json: { schema: { type: object } } } }
+`;
+
+type Sent = { url: string; method: string; headers: Record<string, string>; body: string | undefined };
+
+/** A fetch that records each request as plain data and answers from `answer`. */
+function recordingFetch(answer: (url: string) => Response = () => Response.json({ ok: true })) {
+  const sent: Sent[] = [];
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const headers: Record<string, string> = {};
+    new Headers(init?.headers).forEach((v, k) => (headers[k] = v));
+    let body: string | undefined;
+    if (init?.body instanceof FormData) body = JSON.stringify([...init.body.entries()]);
+    else if (init?.body !== undefined && init?.body !== null) body = String(init.body);
+    sent.push({ url: String(input), method: init?.method ?? 'GET', headers, body });
+    return answer(String(input));
+  }) as typeof fetch;
+  return { sent, fetchImpl };
+}
+
+/** Run `fn` with globalThis.fetch replaced and the example names resolving to a public address. */
+async function withFetch<T>(fetchImpl: typeof fetch, fn: () => Promise<T>): Promise<T> {
+  const original = globalThis.fetch;
+  globalThis.fetch = fetchImpl;
+  setHostResolver(async (host) => {
+    if (host.endsWith('.example.com') || host.endsWith('.example.net')) return [{ address: '93.184.216.34' }];
+    throw new Error('ENOTFOUND');
+  });
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = original;
+    setHostResolver();
+  }
+}
+
+/** ADK's RestApiTool for a parsed operation, as the engine built it before it owned the call: the reference. */
+function referenceTool(op: OpenApiOperation, credential?: OpenApiCredential) {
+  const tool = createRestApiTool({
+    name: op.name,
+    description: op.description,
+    endpoint: { baseUrl: op.baseUrl, path: op.path, method: op.method as any },
+    operation: op.operation as any,
+    authScheme: op.authScheme as any,
+    parameters: op.parameters.map((p) => ({ name: p.name, originalName: p.originalName, paramLocation: p.location, paramSchema: p.schema as any, description: p.description as string, required: p.required })),
+  });
+  if (credential) {
+    const [scheme, cred] =
+      credential.kind === 'bearer'
+        ? tokenToSchemeCredential('oauth2Token', undefined, undefined, credential.token)
+        : tokenToSchemeCredential('apikey', credential.in, credential.name, credential.value);
+    tool.configureAuthScheme(scheme as any);
+    tool.configureAuthCredential(cred as any);
+  }
+  return tool;
+}
+
+/** What the reference sent and answered for the arguments, against `answer`. */
+async function referenceCall(op: OpenApiOperation, args: Record<string, unknown>, credential?: OpenApiCredential, answer?: (url: string) => Response) {
+  const tool = referenceTool(op, credential);
+  const { sent, fetchImpl } = recordingFetch(answer);
+  const state = new Map<string, unknown>();
+  const toolContext = { state: { get: (k: string) => state.get(k), set: (k: string, v: unknown) => state.set(k, v), has: (k: string) => state.has(k) }, getAuthResponse: () => undefined, requestCredential: () => {} } as any;
+  const result = await withFetch(fetchImpl, () => tool.runAsync({ args, toolContext }));
+  return { sent, result };
+}
+
+test('the request is the one ADK\'s RestApiTool built, for every argument location, body encoding and credential', async () => {
+  const ops = parseOpenApiSpec(SHAPES, 'yaml');
+  const byId = (id: string) => ops.find((o) => o.operationId === id)!;
+  const cases: Array<[string, Record<string, unknown>, OpenApiCredential?]> = [
+    ['getPart', { item_id: 'a/b?c d', part: 7, q: 'x y&z', tags: ['a', 'b'], empty: '', x_trace: 't-1', session: 's 1;', theme: 'dark', ignored: 'never sent' }],
+    ['getPart', { item_id: 'ü', part: 0, q: null }, { kind: 'api_key', in: 'query', name: 'api_key', value: 'k&y=1' }],
+    ['search', { q: 'cats' }, { kind: 'api_key', in: 'query', name: 'key', value: 'k1' }],
+    ['search', { q: 'cats' }, { kind: 'api_key', in: 'header', name: 'X-Api-Key', value: 'k2' }],
+    ['search', {}, { kind: 'bearer', token: 'tok' }],
+    ['postJson', { name: 'Ada', n: 3 }],
+    ['postJson', {}],
+    ['postVnd', { body: [1, 2] }],
+    ['postForm', { a: '1', b: 'two words' }],
+    ['postMulti', { a: 'x', n: 2 }],
+    ['putOctet', { body: 'raw bytes' }],
+    ['patchText', { body: 42 }],
+    ['postWhole', { body: { free: 'form' } }],
+  ];
+  for (const [id, args, credential] of cases) {
+    const op = byId(id);
+    const reference = await referenceCall(op, args, credential);
+    const { sent, fetchImpl } = recordingFetch();
+    const result = await withFetch(fetchImpl, () => callOperation(op, args, { credential }));
+    const label = `${id} ${JSON.stringify(args)}`;
+    assert.equal(sent.length, 1, label);
+    assert.deepEqual(sent, reference.sent, label);
+    assert.deepEqual(result, reference.result, label);
+  }
+  assert.equal(buildRequest(byId('getPart'), { item_id: 'a/b?c d', part: 7 }).url, 'https://api.example.com/v1/items/a%2Fb%3Fc%20d/parts/7');
+});
+
+test('the answer reads as RestApiTool\'s did: JSON, else { text }, and its error text for a status of 400 or more', async () => {
+  const [op] = parseOpenApiSpec(SHAPES, 'yaml').filter((o) => o.operationId === 'search');
+  const answers: Array<() => Response> = [
+    () => Response.json([1, 2]),
+    () => new Response('plain words', { status: 200 }),
+    () => new Response(null, { status: 204 }),
+    () => new Response('{"error":"no such thing"}', { status: 404 }),
+    () => new Response('boom', { status: 500 }),
+  ];
+  for (const answer of answers) {
+    const ours = recordingFetch(answer);
+    const result = await withFetch(ours.fetchImpl, () => callOperation(op!, { q: 'x' }));
+    const reference = await referenceCall(op!, { q: 'x' }, undefined, answer);
+    assert.deepEqual(result, reference.result);
+  }
+  // A dot segment never reaches the network.
+  const [part] = parseOpenApiSpec(SHAPES, 'yaml').filter((o) => o.operationId === 'getPart');
+  const { sent, fetchImpl } = recordingFetch();
+  for (const dot of ['.', '..']) {
+    const result = await withFetch(fetchImpl, () => callOperation(part!, { item_id: dot, part: 1 }));
+    assert.match(String((result as any).error), /get_part failed: Invalid value for path parameter 'itemId': relative path segments/);
+  }
+  assert.equal(sent.length, 0);
+});
+
+test('the guard runs before every call: a public name that resolves to a private or link-local address is never called', async () => {
+  delete process.env.ALLOW_PRIVATE_OPENAPI;
+  try {
+    for (const [address, reason] of [['10.0.0.7', /private IPv4/], ['169.254.169.254', /link-local\/metadata IPv4/], ['fd00::1', /unique-local IPv6/], ['::ffff:127.0.0.1', /loopback IPv4/]] as const) {
+      const [tool] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], base_url: 'https://pets.example.com' }, dir);
+      const { sent, fetchImpl } = recordingFetch();
+      const original = globalThis.fetch;
+      globalThis.fetch = fetchImpl;
+      setHostResolver(async () => [{ address: '93.184.216.34' }, { address }]);
+      try {
+        const result = (await run(tool, {})) as { error: string };
+        assert.match(result.error, /^list_pets was not called: refusing pets\.example\.com: resolves to a /);
+        assert.match(result.error, reason);
+        assert.equal(sent.length, 0, `${address}: nothing was sent`);
+      } finally {
+        globalThis.fetch = original;
+        setHostResolver();
+      }
+    }
+  } finally {
+    process.env.ALLOW_PRIVATE_OPENAPI = 'true';
+  }
+});
+
+test('after a redirect: a hop to a private address or a name that resolves to one is refused, never fetched', async () => {
+  delete process.env.ALLOW_PRIVATE_OPENAPI;
+  try {
+    for (const location of ['http://169.254.169.254/latest/meta-data/', 'http://[fe80::1]/', 'https://inside.example.net/admin']) {
+      const [tool] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], base_url: 'https://pets.example.com' }, dir);
+      const { sent, fetchImpl } = recordingFetch((url) => (url.startsWith('https://pets.example.com') ? new Response(null, { status: 302, headers: { Location: location } }) : Response.json('reached')));
+      const original = globalThis.fetch;
+      globalThis.fetch = fetchImpl;
+      setHostResolver(async (host) => [{ address: host === 'inside.example.net' ? '192.168.1.10' : '93.184.216.34' }]);
+      try {
+        const result = (await run(tool, {})) as { error: string };
+        assert.match(result.error, /^list_pets failed: redirect refused: refusing /, location);
+        assert.deepEqual(sent.map((s) => s.url), ['https://pets.example.com/pets'], `${location}: only the first request was sent`);
+      } finally {
+        globalThis.fetch = original;
+        setHostResolver();
+      }
+    }
+  } finally {
+    process.env.ALLOW_PRIVATE_OPENAPI = 'true';
+  }
+});
+
+test('a credential is never sent to a host it is not for: a redirect to another origin drops it, one on the same origin keeps it', async () => {
+  process.env.PETS_TOKEN = 'tok-cross-origin-secret';
+  process.env.PETS_KEY = 'key-cross-origin-secret';
+  try {
+    for (const auth of [{ bearer_env: 'PETS_TOKEN' }, { api_key: { env: 'PETS_KEY', in: 'header' as const, name: 'X-Api-Key' } }]) {
+      const [tool] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], base_url: 'https://pets.example.com', auth }, dir);
+      const { sent, fetchImpl } = recordingFetch((url) => {
+        if (url === 'https://pets.example.com/pets') return new Response(null, { status: 302, headers: { Location: '/v2/pets' } });
+        if (url === 'https://pets.example.com/v2/pets') return new Response(null, { status: 307, headers: { Location: 'https://cdn.example.net/pets.json' } });
+        return Response.json([{ id: 'p1' }]);
+      });
+      const result = await withFetch(fetchImpl, () => run(tool, {}));
+      assert.deepEqual(result, [{ id: 'p1' }]);
+      assert.deepEqual(sent.map((s) => s.url), ['https://pets.example.com/pets', 'https://pets.example.com/v2/pets', 'https://cdn.example.net/pets.json']);
+      const carries = (s: Sent) => JSON.stringify(s.headers).includes('cross-origin-secret');
+      assert.deepEqual(sent.map(carries), [true, true, false], JSON.stringify(auth));
+    }
+  } finally {
+    delete process.env.PETS_TOKEN;
+    delete process.env.PETS_KEY;
+  }
+});
+
+test('a credential the allowlist refuses never reaches a tool, and its value is never in the compile error', async () => {
+  process.env.OPENAPI_CREDENTIAL_ENVS = 'PETS_TOKEN';
+  process.env.OTHER_KEY = 'other-secret-value';
+  try {
+    await assert.rejects(buildOpenApiTools({ spec: 'pets.yaml', auth: { bearer_env: 'OTHER_KEY' } }, dir), (err: Error) => {
+      assert.match(err.message, /OTHER_KEY is not in OPENAPI_CREDENTIAL_ENVS \(PETS_TOKEN\)/);
+      assert.doesNotMatch(err.message, /other-secret-value/);
+      return true;
+    });
+  } finally {
+    delete process.env.OPENAPI_CREDENTIAL_ENVS;
+    delete process.env.OTHER_KEY;
+  }
+});
+
+test('a credential is never in an error the model reads: a fetch error quoting the URL, or an API echoing the key', async () => {
+  process.env.PETS_KEY = 'k3y/with spaces+and&more';
+  try {
+    const [tool] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], base_url: 'https://pets.example.com', auth: { api_key: { env: 'PETS_KEY', in: 'query', name: 'key' } } }, dir);
+    const thrower = (async (input: string | URL | Request) => {
+      throw new TypeError(`Failed to parse URL from ${String(input)}`);
+    }) as typeof fetch;
+    const echo = recordingFetch((url) => new Response(`invalid key ${new URL(url).searchParams.get('key')} (sent as ${url})`, { status: 401 }));
+    for (const fetchImpl of [thrower, echo.fetchImpl]) {
+      const result = JSON.stringify(await withFetch(fetchImpl, () => run(tool, {})));
+      assert.match(result, /\[redacted\]/);
+      assert.doesNotMatch(result, /k3y/);
+    }
+    assert.equal(new URL(echo.sent[0]!.url).searchParams.get('key'), 'k3y/with spaces+and&more', 'the API itself received the key');
+  } finally {
+    delete process.env.PETS_KEY;
+  }
+});
+
+test('a credential is never in a log, a span or an event of a turn', async () => {
+  process.env.PETS_TOKEN = 'tok-never-logged-7f3a';
+  const lines: string[] = [];
+  const levels = ['log', 'info', 'warn', 'error', 'debug'] as const;
+  const originals = levels.map((level) => console[level]);
+  for (const level of levels) console[level] = (...args: unknown[]) => void lines.push(args.map(String).join(' '));
+  const spans: string[] = [];
+  const off = onSpanEnd((span) => spans.push(JSON.stringify({ name: span.name, attributes: span.attributes, events: span.events })));
+  try {
+    const config = agentConfig({ operations: ['listPets', 'getPet'], auth: { bearer_env: 'PETS_TOKEN' } });
+    const keeper = new ScriptedLlm('scripted/keeper', (req, n) => (n === 1 ? call('list_pets', {}) : n === 2 ? call('get_pet', { pet_id: 'p1' }) : text(`saw ${lastResponse(req)}`)));
+    const sessionService = new InMemorySessionService();
+    const r = await runSyndicateTurn({ config, parts: [{ text: 'which pets?' }], appName: 'a', userId: 'u', sessionId: 's-log', sessionService, compile: { resolveModel: scriptedResolver({ keeper }), log: (m) => void lines.push(m) } });
+    await flushTracing();
+    assert.equal(r.status, 'completed');
+    assert.equal(seen.at(-1)?.auth, 'Bearer tok-never-logged-7f3a', 'the API received the token');
+    assert.ok(spans.length > 0, 'the turn was traced');
+    const session = await sessionService.getSession({ appName: 'a', userId: 'u', sessionId: 's-log' });
+    for (const [where, written] of [['logs', lines.join('\n')], ['spans', spans.join('\n')], ['events', JSON.stringify(session)]] as const) {
+      assert.doesNotMatch(written, /tok-never-logged-7f3a/, where);
+    }
+  } finally {
+    off();
+    levels.forEach((level, i) => (console[level] = originals[i]!));
+    delete process.env.PETS_TOKEN;
+  }
+});
+
+test('a spec that requires a credential is never called without one', async () => {
+  const d = mkdtempSync(join(tmpdir(), 'melch-openapi-secured-'));
+  writeFileSync(join(d, 'secured.yaml'), `openapi: 3.0.0
+info: { title: S, version: "1" }
+servers: [{ url: "${base}" }]
+security: [{ key: [] }]
+components: { securitySchemes: { key: { type: apiKey, in: header, name: X-Key } } }
+paths:
+  /pets: { get: { operationId: listPets, responses: { "200": { description: ok } } } }
+`);
+  const [tool] = await buildOpenApiTools({ spec: 'secured.yaml' }, d);
+  seen.length = 0;
+  assert.match(String(((await run(tool, {})) as any).error), /list_pets was not called: the API's spec requires a credential \(apiKey\), and this agent's openapi entry sets no auth/);
+  assert.equal(seen.length, 0);
+  process.env.PETS_KEY = 'key-789';
+  try {
+    const [keyed] = await buildOpenApiTools({ spec: 'secured.yaml', auth: { api_key: { env: 'PETS_KEY', in: 'header', name: 'X-Api-Key' } } }, d);
+    assert.deepEqual(((await run(keyed, {})) as any[])[0], { id: 'p1', name: 'Rex' });
+    assert.equal(seen.at(-1)?.key, 'key-789');
+  } finally {
+    delete process.env.PETS_KEY;
+  }
+});
+
+test('approval: an OpenAPI operation takes the one gate registry tools take, on both runtimes, and a refusal sends nothing', async () => {
+  // The own Tool is marked, so require_approval may name an operation by its operationId.
+  const [own] = await buildOpenApiOwnTools({ spec: 'pets.yaml', operations: ['createPet'] }, dir);
+  assert.ok(isOpenApiTool(own));
+  const config = agentConfig({ operations: ['listPets', 'createPet'] });
+  config.orchestrator.require_approval = ['createPet'];
+  const agent = (await compileGraph(config, { resolveModel: scriptedResolver({ keeper: new ScriptedLlm('scripted/keeper', () => text('x')) }) })) as any;
+  const gated = agent.tools.find((t: any) => t.name === 'create_pet');
+  const open = agent.tools.find((t: any) => t.name === 'list_pets');
+  assert.equal(gated.requireConfirmation, true, 'the ADK runtime raises adk_request_confirmation through FunctionTool');
+  assert.equal(toolOf(gated)?.requiresApproval, true, 'the native runtime reads the gated Tool back');
+  assert.notEqual(toolOf(open)?.requiresApproval, true, 'an operation not named stays ungated');
+
+  // The own gate: a first call asks and sends nothing; a refusal sends nothing; an approval runs it.
+  seen.length = 0;
+  const first = createToolContext();
+  assert.deepEqual(await toolOf(gated)!.execute({ name: 'Bo' }, first), { error: APPROVAL_TEXTS.pending });
+  assert.equal(first.confirmationRequest?.hint, APPROVAL_TEXTS.hint('create_pet'));
+  assert.deepEqual(await toolOf(gated)!.execute({ name: 'Bo' }, createToolContext({ confirmation: { confirmed: false } })), { error: APPROVAL_TEXTS.rejected });
+  assert.equal(seen.length, 0, 'nothing was sent before an approval');
+  assert.deepEqual(await toolOf(gated)!.execute({ name: 'Bo' }, createToolContext({ confirmation: { confirmed: true } })), { created: 'Bo' });
+  assert.equal(seen.at(-1)?.method, 'POST');
+});
+
+test('a refused approval in a turn sends nothing', async () => {
+  const config = agentConfig({ operations: ['createPet'] });
+  config.orchestrator.require_approval = ['createPet'];
+  const keeper = new ScriptedLlm('scripted/keeper', (req, n) => (n === 1 ? call('create_pet', { name: 'Eve' }) : text(`done ${lastResponse(req)}`)));
+  const turn = turnFor(config, keeper);
+  seen.length = 0;
+  const first = await turn([{ text: 'add Eve' }]);
+  assert.equal(first.status, 'input-required');
+  const second = await turn([approvalResponsePart(first.approval!.id, false)]);
+  assert.equal(second.status, 'completed');
+  assert.equal(seen.length, 0, 'a refused call is never sent');
+  assert.match(second.text, /rejected/);
+});
+
+test('no runtime code imports ADK\'s OpenAPI classes', () => {
+  const files = (readdirSync(join(import.meta.dirname, '..', 'lib'), { recursive: true }) as string[]).filter((f) => f.endsWith('.ts'));
+  const adkImports = (source: string) => [...source.matchAll(/\bimport\s[^;]*;/g)].map((m) => m[0]).filter((s) => s.includes('@google/adk')).join('\n');
+  const named = /\b(OpenAPIToolset|RestApiTool|createRestApiTool|tokenToSchemeCredential)\b/;
+  const offenders = files.filter((f) => named.test(adkImports(readText(join(import.meta.dirname, '..', 'lib', f), 'utf-8'))));
+  assert.deepEqual(offenders, []);
+  assert.ok(named.test(adkImports("import {\n  BaseTool,\n  createRestApiTool,\n} from '@google/adk';")), 'a multi-line import is read whole');
 });

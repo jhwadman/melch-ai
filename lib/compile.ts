@@ -49,7 +49,7 @@ import { resolveModel as resolveRegistryModel } from './models/registry.ts';
 import { remoteAgentTool } from './a2a/remoteAgent.ts';
 import { buildSkillHarness } from './tools/skillToolset.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
-import { buildOpenApiTools, isOpenApiTool, namesTool } from './tools/openapiTools.ts';
+import { buildOpenApiTools, namesTool, openApiOperationId } from './tools/openapiTools.ts';
 import type { OpenApiConfig } from './tools/openapiTools.ts';
 
 export interface CompileOptions {
@@ -223,9 +223,13 @@ export function requireApprovalOn(tool: FunctionTool): FunctionTool {
 }
 
 /**
- * A copy of an OpenAPI tool (lib/tools/openapiTools.ts) that runs only after
- * a person approves the call: the same confirmation interrupt FunctionTool's
- * own gate raises, so the turn pauses and resumes exactly as ADR 0028 says.
+ * A copy of an ADK BaseTool that runs only after a person approves the
+ * call: the same confirmation interrupt FunctionTool's own gate raises, so
+ * the turn pauses and resumes exactly as ADR 0028 says. The engine no
+ * longer uses it: an OpenAPI operation is a FunctionTool over an own Tool
+ * (ADR 0067) and takes requireApprovalOn like every registry tool.
+ * @deprecated Gate a FunctionTool with requireApprovalOn, or an own Tool
+ * with requireApproval (lib/tools/tool.ts).
  */
 export function requireApprovalOnBaseTool<T extends BaseTool>(tool: T): T {
   const gated = Object.create(tool) as T;
@@ -248,14 +252,14 @@ function gateTools(tools: unknown[], names: string[] | undefined, agentName: str
   if (!names?.length) return tools;
   const wanted = new Set(names);
   const out = tools.map((t) => {
-    const tool = t as { name?: string; operation?: { operationId?: string } };
-    const name = tool?.name;
+    const name = (t as { name?: string } | undefined)?.name;
     if (!name) return t;
     // An OpenAPI operation may be named as the YAML named it (its operationId).
-    const match = [...wanted].find((w) => w === name || (isOpenApiTool(t) && namesTool(w, { name, operation: tool.operation })));
+    const operationId = openApiOperationId(t);
+    const match = [...wanted].find((w) => w === name || (operationId !== undefined && namesTool(w, { name, operation: { operationId } })));
     if (!match) return t;
     wanted.delete(match);
-    if (isOpenApiTool(t)) return requireApprovalOnBaseTool(t as BaseTool);
+    // An OpenAPI operation is a FunctionTool over an own Tool (ADR 0067): one gate for both.
     if (!(t instanceof FunctionTool)) {
       throw new Error(`${agentName}: '${name}' cannot require approval — only function tools from the registry and OpenAPI operations can be gated (ADR 0028).`);
     }

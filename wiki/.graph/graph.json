@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 734,
-    "edges": 2177,
+    "nodes": 736,
+    "edges": 2200,
     "byKind": {
-      "doc": 123,
+      "doc": 124,
       "provider": 6,
       "env": 104,
       "model": 8,
@@ -18,12 +18,12 @@
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 154,
+      "module": 155,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 418,
+      "links_to": 425,
       "requires_env": 166,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 534,
+      "imports": 537,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 471,
-      "constrains": 81,
-      "supersedes": 5,
-      "depends_on": 18,
+      "derives_from": 478,
+      "constrains": 83,
+      "supersedes": 6,
+      "depends_on": 21,
       "explains": 3,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2068,
-      "inferred": 109
+      "extracted": 2085,
+      "inferred": 115
     },
     "isolated": 4
   },
@@ -1156,6 +1156,18 @@
       }
     },
     {
+      "id": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "kind": "doc",
+      "label": "ADR 0067: The engine calls OpenAPI operations itself, by RestApiTool's rules, with the guard as a parameter",
+      "source": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1002
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1464,7 +1476,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 468
+        "words": 692
       }
     },
     {
@@ -1500,7 +1512,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1409
+        "words": 1417
       }
     },
     {
@@ -2596,7 +2608,7 @@
       "id": "env:ALLOW_PRIVATE_OPENAPI",
       "kind": "env",
       "label": "ALLOW_PRIVATE_OPENAPI",
-      "source": "lib/tools/openapiTools.ts"
+      "source": "lib/tools/openapi/call.ts"
     },
     {
       "id": "env:ALLOW_SCHEMA_MISMATCH",
@@ -3786,7 +3798,8 @@
       "id": "file:tests/redirects.test.ts",
       "kind": "file",
       "label": "redirects.test.ts",
-      "source": "tests/redirects.test.ts"
+      "source": "tests/redirects.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/resolveAdapter.test.ts",
@@ -4033,7 +4046,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 494
+        "lines": 498
       }
     },
     {
@@ -4501,7 +4514,7 @@
       "label": "lib/net/redirects.ts",
       "source": "lib/net/redirects.ts",
       "attrs": {
-        "lines": 110
+        "lines": 85
       }
     },
     {
@@ -4865,12 +4878,21 @@
       }
     },
     {
+      "id": "module:lib/tools/openapi/call.ts",
+      "kind": "module",
+      "label": "lib/tools/openapi/call.ts",
+      "source": "lib/tools/openapi/call.ts",
+      "attrs": {
+        "lines": 348
+      }
+    },
+    {
       "id": "module:lib/tools/openapi/parse.ts",
       "kind": "module",
       "label": "lib/tools/openapi/parse.ts",
       "source": "lib/tools/openapi/parse.ts",
       "attrs": {
-        "lines": 584
+        "lines": 614
       }
     },
     {
@@ -4879,7 +4901,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 270
+        "lines": 254
       }
     },
     {
@@ -9959,6 +9981,76 @@
       "evidence": "/decisions/0063-openapi-parser-on-the-engines-own-types.md:22"
     },
     {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "file:tests/redirects.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/net/redirects.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/tools/openapi/call.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md frontmatter"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -12683,6 +12775,13 @@
     },
     {
       "from": "/tools/openapi-tools.md",
+      "to": "module:lib/tools/openapi/call.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
       "to": "module:lib/tools/openapi/parse.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -12700,35 +12799,49 @@
       "to": "/agents/weather.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:29"
+      "evidence": "/tools/openapi-tools.md:40"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:31"
+      "evidence": "/tools/openapi-tools.md:42"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:31"
+      "evidence": "/tools/openapi-tools.md:42"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:46"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:31"
+      "evidence": "/tools/openapi-tools.md:44"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:20"
+      "evidence": "/tools/openapi-tools.md:21"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:23"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -12953,6 +13066,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:47"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:39"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -17568,6 +17688,34 @@
       "evidence": "lib/tools/nativeTools.ts"
     },
     {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/call.ts"
+    },
+    {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "module:lib/net/redirects.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/call.ts"
+    },
+    {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "module:lib/tools/openapi/parse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/call.ts"
+    },
+    {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapi/call.ts"
+    },
+    {
       "from": "module:lib/tools/openapi/parse.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -17583,14 +17731,14 @@
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
-      "to": "module:lib/net/addressGuard.ts",
+      "to": "module:lib/tools/adkTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
-      "to": "module:lib/net/redirects.ts",
+      "to": "module:lib/tools/openapi/call.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
@@ -17606,13 +17754,6 @@
       "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/tools/tool.ts",
       "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/tools/openapiTools.ts"
-    },
-    {
-      "from": "module:lib/tools/openapiTools.ts",
-      "to": "env:ALLOW_PRIVATE_OPENAPI",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"
     },
