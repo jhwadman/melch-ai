@@ -6,6 +6,20 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Breaking: a skill script no longer inherits the server's environment
+  (ADR 0086).** An approved `run_skill_script` starts from PATH,
+  HOME/USERPROFILE, TMPDIR/TEMP/TMP, LANG, LC_*, TZ, the user's name and
+  the Windows essentials, and nothing else: provider keys, `DATABASE_URL`
+  and the server's bearer secrets no longer reach it. A script that relied
+  on an inherited variable must now name it in the agent's YAML, under the
+  new `skills.env` (names only), or under `skills.secret_env` when the
+  name looks like a secret (KEY, TOKEN, SECRET, PASSWORD, AUTH, DATABASE,
+  …), which `skills.env` refuses. Both need `scripts: local`. A script's
+  stdout and stderr are each cut at 20,000 characters, ending with
+  `[stdout truncated: N more characters not shown (the limit is 20000)]`.
+  The same on both runtimes. `LocalScriptExecutor` takes `envNames`,
+  `sourceEnv` and `maxOutputChars`; `lib/tools/skills/env.ts` is new. The
+  `exports` map is unchanged.
 - **The skills harness no longer builds on ADK (ADR 0083).** An agent's
   `skills:` block loads, reads and runs skills through the engine's own
   modules (`lib/tools/skills/`), the same on `runtime: 'adk'` and

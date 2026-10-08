@@ -1761,6 +1761,46 @@
       "evidence": "wiki/tools/skill-harness.md \"Scripts and approval\": what an approved run is and what a script can reach.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "module:lib/tools/skills/executor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0086 Decision 1 and 4: a script starts from an allowlist, not from process.env, and stdout and stderr are each capped at 20,000 characters.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "module:lib/tools/skills/env.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0086 Decision 3: a secret-shaped name is checked by segments and substrings, with no regular expression.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0086 Decision 2 and 3: skills.env refuses a secret-shaped name, which is accepted only under skills.secret_env; both need scripts: local.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skills/env.ts",
+      "rel": "explains",
+      "evidence": "wiki/tools/skill-harness.md \"A script's environment and output\": the base allowlist, the YAML's names and the output cap.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0086 Context: it answers ADR 0083's open questions on the executor it ported.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

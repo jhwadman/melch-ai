@@ -42,7 +42,9 @@
 # tools this file lists under `skills.tools`. Scripts run only with
 # `scripts: local`, only from a skill's scripts/ directory, and only
 # after a person approves each run; the model's own code never
-# executes. Point `dir` only at skills you would let a person follow,
+# executes. A script gets PATH, HOME, the temp directory and the
+# locale, never the server's keys; name anything else it needs under
+# `skills.env` (or `skills.secret_env` for a credential, ADR 0086). Point `dir` only at skills you would let a person follow,
 # and enable scripts only on a machine where you would run them.
 # ============================================================
 

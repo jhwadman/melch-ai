@@ -230,6 +230,14 @@ orchestrator:
   # `tools`: registry names a skill may unlock through its `allowed-tools`
   # frontmatter once it is loaded; a name already in `tools:` above is an
   # error (it is always on). Omitted, a skill unlocks nothing.
+  # `env`: with "local", environment variable NAMES (never values) a script
+  # gets. A script starts from PATH, HOME/USERPROFILE, the temp directory,
+  # the locale (LANG, LC_*) and the Windows essentials, never the server's
+  # whole environment, so a provider key, DATABASE_URL or a bearer secret
+  # does not reach it. A name that looks like a secret (KEY, TOKEN, SECRET,
+  # PASSWORD, AUTH, DATABASE, ...) is refused here; list it under
+  # `secret_env` to pass it deliberately (ADR 0086). A script's stdout and
+  # stderr are each cut at 20,000 characters, with a line saying so.
   # Maps to: tools[] (a toolset) and instruction (the appended index)
 
   # [optional] Few-shot exchanges added to every request's instruction
@@ -273,8 +281,10 @@ orchestrator:
   #     prefix: "shop"                          # shop_list_orders, ...
   # skills:
   #   dir: ".claude/skills"
-  #   scripts: "none"
+  #   scripts: "local"
   #   tools: ["web_extract"]
+  #   env: ["MY_TOOL_HOME"]          # names only; scripts get nothing else
+  #   secret_env: ["MY_API_TOKEN"]   # a credential, passed on purpose
 
   # [optional] Whether to include conversation history in model requests.
   # "default" → include history (stateful)

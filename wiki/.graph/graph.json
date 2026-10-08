@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 809,
-    "edges": 2798,
+    "nodes": 812,
+    "edges": 2816,
     "byKind": {
-      "doc": 144,
+      "doc": 145,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 135,
+      "file": 136,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 184,
+      "module": 185,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 567,
+      "links_to": 570,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 718,
+      "imports": 720,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 645,
-      "constrains": 133,
+      "derives_from": 653,
+      "constrains": 136,
       "supersedes": 6,
-      "depends_on": 60,
-      "explains": 17,
+      "depends_on": 61,
+      "explains": 18,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2579,
-      "inferred": 219
+      "extracted": 2592,
+      "inferred": 224
     },
     "isolated": 4
   },
@@ -1385,6 +1385,18 @@
       }
     },
     {
+      "id": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "kind": "doc",
+      "label": "ADR 0086: A skill script runs with a minimal environment the YAML extends by name, and its output is capped",
+      "source": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 821
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1729,7 +1741,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 1231
+        "words": 1555
       }
     },
     {
@@ -4236,6 +4248,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/skillScriptEnv.test.ts",
+      "kind": "file",
+      "label": "skillScriptEnv.test.ts",
+      "source": "tests/skillScriptEnv.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/surfacesOffAdk.test.ts",
       "kind": "file",
       "label": "surfacesOffAdk.test.ts",
@@ -5277,7 +5296,7 @@
       "label": "lib/skills.ts",
       "source": "lib/skills.ts",
       "attrs": {
-        "lines": 184
+        "lines": 193
       }
     },
     {
@@ -5367,7 +5386,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 969
+        "lines": 991
       }
     },
     {
@@ -5578,12 +5597,21 @@
       }
     },
     {
+      "id": "module:lib/tools/skills/env.ts",
+      "kind": "module",
+      "label": "lib/tools/skills/env.ts",
+      "source": "lib/tools/skills/env.ts",
+      "attrs": {
+        "lines": 170
+      }
+    },
+    {
       "id": "module:lib/tools/skills/executor.ts",
       "kind": "module",
       "label": "lib/tools/skills/executor.ts",
       "source": "lib/tools/skills/executor.ts",
       "attrs": {
-        "lines": 350
+        "lines": 373
       }
     },
     {
@@ -5601,7 +5629,7 @@
       "label": "lib/tools/skills/loader.ts",
       "source": "lib/tools/skills/loader.ts",
       "attrs": {
-        "lines": 244
+        "lines": 269
       }
     },
     {
@@ -5610,7 +5638,7 @@
       "label": "lib/tools/skills/tools.ts",
       "source": "lib/tools/skills/tools.ts",
       "attrs": {
-        "lines": 413
+        "lines": 415
       }
     },
     {
@@ -5619,7 +5647,7 @@
       "label": "lib/tools/skillToolset.ts",
       "source": "lib/tools/skillToolset.ts",
       "attrs": {
-        "lines": 189
+        "lines": 193
       }
     },
     {
@@ -12166,6 +12194,62 @@
       "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md:47"
     },
     {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "file:tests/skillScriptEnv.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md frontmatter"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md frontmatter"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "module:lib/tools/skills/env.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md frontmatter"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "module:lib/tools/skills/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md frontmatter"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "module:lib/tools/skills/tools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md frontmatter"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "module:lib/tools/skillToolset.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md frontmatter"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "/decisions/0029-skills-read-like-a-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md:26"
+    },
+    {
+      "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md:26"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -15597,6 +15681,13 @@
     },
     {
       "from": "/tools/skill-harness.md",
+      "to": "file:tests/skillScriptEnv.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
       "to": "module:lib/compile.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -15605,6 +15696,13 @@
     {
       "from": "/tools/skill-harness.md",
       "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skills/env.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/tools/skill-harness.md frontmatter"
@@ -15649,35 +15747,42 @@
       "to": "/agents/harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:83"
+      "evidence": "/tools/skill-harness.md:102"
     },
     {
       "from": "/tools/skill-harness.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:77"
+      "evidence": "/tools/skill-harness.md:82"
     },
     {
       "from": "/tools/skill-harness.md",
       "to": "/decisions/0029-skills-read-like-a-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:27"
+      "evidence": "/tools/skill-harness.md:29"
     },
     {
       "from": "/tools/skill-harness.md",
       "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:27"
+      "evidence": "/tools/skill-harness.md:29"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md:88"
     },
     {
       "from": "/tools/skill-harness.md",
       "to": "/operations/agent-skills.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:83"
+      "evidence": "/tools/skill-harness.md:102"
     },
     {
       "from": "/tools/task-tools.md",
@@ -21155,6 +21260,13 @@
     },
     {
       "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/tools/skills/env.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/syndicateSchema.ts",
       "to": "module:lib/workflowConfig.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21733,6 +21845,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/scienceTools.ts"
+    },
+    {
+      "from": "module:lib/tools/skills/executor.ts",
+      "to": "module:lib/tools/skills/env.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skills/executor.ts"
     },
     {
       "from": "module:lib/tools/skills/executor.ts",
