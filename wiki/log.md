@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | module:lib/workflow/graph.ts —depends_on→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /overview/workflow-graph.md —explains→ module:lib/workflow/graph.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0082-workflow-graph-mirrors-the-adk-compile.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0082-workflow-graph-mirrors-the-adk-compile.md —constrains→ module:lib/workflow/graph.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/nativeTurn.ts
 
 by claude-code/claude-opus-5-5
