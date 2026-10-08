@@ -709,6 +709,38 @@
       "evidence": "ADR 0047 table, Kimi row: none, low, high, high, the level of n. KimiAdapter.reasoningFields maps the request's reasoning through reasoningConfig and sends none as low on K3, the K2.x thinking switch otherwise.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0060-engine-owned-registry.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0060: resolveAdapter and resolveModel share one routing step (routeFor) and one table per path keyed by provider; apiKey authenticates keyProvider's models only; a Gemini id gets AdkGeminiAdapter unless GEMINI_ADAPTER=engine or { gemini: 'engine' }.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0060-engine-owned-registry.md",
+      "to": "module:lib/models/tracedGemini.ts",
+      "rel": "explains",
+      "evidence": "ADR 0060 decision 5: TracedGemini moves to lib/models/tracedGemini.ts because AdkGeminiAdapter imports it and registry.ts builds AdkGeminiAdapter, which would be an import cycle.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0060 alternatives: registering adkShimClass(patterns, resolveAdapter) would lose GptLlm's toLlmResponse override (ADR 0056), so registerAvailableProviders registers the providers' own classes (ADK_LLM table in registry.ts).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "constrains",
+      "evidence": "registry.ts resolveAdapterWithFallback header: the ADK path's pair stays FallbackLlm(shim(primary), shim(fallback)) (ADR 0053); the contract path gets a FallbackAdapter around resolveAdapter's adapters.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

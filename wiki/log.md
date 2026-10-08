@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/models/registry.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0056-responses-usage-meaning-on-the-adk-path.md —constrains→ module:lib/models/registry.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0060-engine-owned-registry.md —explains→ module:lib/models/tracedGemini.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0060-engine-owned-registry.md —constrains→ module:lib/models/registry.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0047-provider-neutral-reasoning-key.md —constrains→ module:lib/models/kimiAdapter.ts
 
 by claude-code/claude-opus-5-5
