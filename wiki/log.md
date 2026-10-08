@@ -3,6 +3,34 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0047-provider-neutral-reasoning-key.md —constrains→ module:lib/models/kimiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/kimiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0027-thinking-without-answer-is-an-error.md —constrains→ module:lib/models/chatCompletionsAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/models/chatCompletionsAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0057-chat-completions-shims-keep-the-adk-shape.md —constrains→ module:lib/models/chatCompletionsAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0057-chat-completions-shims-keep-the-adk-shape.md —constrains→ module:lib/models/adkShim.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0057-chat-completions-shims-keep-the-adk-shape.md —constrains→ module:lib/models/openAiCompatibleLlm.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0055-claude-adapter-keeps-the-adk-request.md —depends_on→ /decisions/0048-engine-owned-model-contract.md
 
 by claude-code/claude-opus-5-5

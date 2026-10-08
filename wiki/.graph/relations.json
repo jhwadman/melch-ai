@@ -653,6 +653,62 @@
       "evidence": "ADR 0055 Context: the older spelling differs from \"ReasoningSetting ... (ADR 0047)\" and Alternatives: \"A provider-options bag on the request. ADR 0048 rejected it\"; Decision 1: \"ClaudeAdapter implements ModelAdapter ... on the contract's Anthropic table\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0057 Decision 3: \"Its toLlmResponse writes candidatesTokenCount as the contract's outputTokens (reasoning included), sets finishReason only for a reply cut short ...\" tests/chatCompletionsAdapter.test.ts asserts llm.tokens.output 40 through KimiLlm against 15 through the plain shim.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0057 Decision 2: \"AdkShim gains two protected seams. toModelRequest(llmRequest, options) and toLlmResponse(response) are the genai mapping by default.\" generateContentAsync calls both.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0057 Decision 4: \"A word that is a level ... rides in reasoning ... Only max, xhigh and other words with no level are sent as written.\" reasoningFields prefers request.olderSpelling.reasoningEffort, else reasoningConfig(model, reasoning).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Decision 1: \"An adapter on the contract never charges the turn and never opens llm.request.\" ChatCompletionsAdapter imports only setLlmSpanAttribute from the tracer; OllamaLlm, KimiLlm and GatewayLlm are AdkShim subclasses, which call traceLlmGeneration.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0027 Decision 2: \"No reply after reasoning is an error, never an empty final.\" The adapter's #final returns <ID>_MAX_TOKENS or <ID>_EMPTY_RESPONSE with the usage; the Note's retry without thinking is generate() under retriesWithoutThinking().",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046: only an adapter of the same provider replays the state, within the turn's tool loop. KimiAdapter.replaysReasoningContent(model) is wantsReasoningReplay(model); the base reads providerStateOf(part, provider, \"reasoning_content\", model) after currentTurnStart only.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0047 table, Kimi row: none, low, high, high, the level of n. KimiAdapter.reasoningFields maps the request's reasoning through reasoningConfig and sends none as low on K3, the K2.x thinking switch otherwise.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

@@ -6,6 +6,57 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Base URLs lose their trailing slashes in one pass.** The Kimi
+  adapter, the gateway, the endpoints module and the embeddings provider
+  trimmed a base URL with a regular expression that backtracked
+  quadratically on a long run of slashes (CodeQL js/polynomial-redos).
+  They now share `trimTrailingSlashes` (new module
+  `melchizedek-agents/models/urls`). Results are unchanged.
+- **Breaking for subclasses of `OpenAiCompatibleLlm`: the chat-completions
+  adapters move onto the model contract (ADR 0057).** New modules under
+  `melchizedek-agents/models/`:
+  - `chatCompletionsAdapter`: `ChatCompletionsAdapter`, the base that turns a
+    `ModelRequest` into a chat-completions body and a completion (JSON or
+    SSE) into contract responses; `ChatCompletionsRequest` and
+    `OlderSpelling`; `chatUsage` and `sumUsage` (usage in the contract's
+    meaning); `splitThinkBlocks`, `ThinkStreamSplitter`,
+    `REASONING_CONTENT_KIND` and `ENGINE_CALL_ID_PREFIX`.
+  - `ollamaAdapter` (`OllamaAdapter`), `kimiAdapter` (`KimiAdapter`, and
+    `isKimiK3`, `wantsReasoningReplay`, `MOONSHOT_BASE_URL`, which
+    `models/kimiLlm` still exports) and `gatewayAdapter` (`GatewayAdapter`).
+
+  `OpenAiCompatibleLlm` is now an `AdkShim` whose constructor takes the
+  adapter, and its protected hooks (`endpointUrl`, `headers`,
+  `wireModelName`, `extraBodyFields`, `httpError`, `noAnswerError` and the
+  rest) move to `ChatCompletionsAdapter`, on contract types. A provider of
+  your own subclasses `ChatCompletionsAdapter` and runs under ADK as
+  `adkShim(adapter)` or as an `OpenAiCompatibleLlm` subclass. `OllamaLlm`,
+  `KimiLlm` and `GatewayLlm` keep their constructors, ids, error codes and
+  wording, and the shape of what they yield: usage counts the reasoning in
+  `candidatesTokenCount` as before, so the ledger's counts are unchanged.
+  `models/openAiCompatibleLlm` adds `olderSpellingOf` and
+  `chatUsageMetadata`. `AdkShim` gains a protected `toModelRequest` seam
+  beside `toLlmResponse` (ADR 0056); the chat shims override both.
+
+  What reaches the provider changes only where the contract maps a field
+  the old classes ignored or spelled as written:
+  - `stopSequences` are sent as `stop`.
+  - A function-calling mode is honoured: `NONE` sends no tools; the gateway
+    sends `ANY` as `tool_choice: required` or the named tool, and Kimi and
+    Ollama weaken it to auto (`llm.tool_choice.weakened` on the span).
+  - The older spelling's reasoning follows ADR 0047's mapping, as
+    `reasoning:` already did: `thinkingConfig.thinkingBudget` alone now
+    travels as its level (`0` is `none`), `reasoningEffort: medium` on
+    `kimi-k3` is sent as `high`, and `minimal` as each model's `none`.
+    A word that is no level (`max`, `xhigh`) is still sent as written.
+  - A tool call stored without an id is sent with one, matched to its
+    result, where the result's `tool_call_id` was empty.
+  - The no-answer hints name `reasoning: none` (the older spelling too).
+  - Every error a chat shim yields carries its retry verdict
+    (`customMetadata['error.retryable']`, `false` where there was none) and
+    `turnComplete`. A call cut off by a cancelled turn is never retryable,
+    even when its last status was a 503, so no fallback answers a
+    cancellation.
 - **Breaking for subclasses of `GptLlm`: the vendor hooks move to
   `GptAdapter` (ADR 0056).** `providerId()`, `baseURL()`, `apiKeyFromEnv()`,
   `missingKeyMessage()`, `clientOptions()`, `reasoningParam()`,

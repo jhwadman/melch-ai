@@ -25,6 +25,8 @@ sources:
   - resource: lib/models/claudeAdapter.ts
   - resource: lib/models/gptAdapter.ts
   - resource: lib/models/grokAdapter.ts
+  - resource: lib/models/chatCompletionsAdapter.ts
+  - resource: tests/chatCompletionsAdapter.test.ts
 ---
 
 # Model contract
@@ -255,30 +257,35 @@ The per-attempt timeout (`XAI_TIMEOUT_MS`) and the server-side tool counters on 
 
 ## Chat completions: Moonshot, Ollama and the gateway
 
-The three share `lib/models/openAiCompatibleLlm.ts`, so they share one mapping.
+The three share one base, `ChatCompletionsAdapter` (`lib/models/chatCompletionsAdapter.ts`), so they share one mapping; [chat-completions adapters](/models/chat-completions-adapters.md) describes the adapters and their ADK shims.
 
 | Contract | Wire |
 |---|---|
-| `system`, system messages | one `{ role: 'system' }` message first |
-| user message | `{ role: 'user', content }`: a string, or text and `{ type: 'image_url', image_url: { url: <data URI> } }` parts |
-| assistant message | `{ role: 'assistant', content: <text> \| null, tool_calls: [{ id, type: 'function', function: { name, arguments } }] }` |
-| tool message | one `{ role: 'tool', tool_call_id: id, content: <JSON text> }` per result |
-| `ThinkingPart` | not sent. Received from `reasoning_content` or `reasoning` fields and `<think>` blocks. |
-| `tools` | `{ type: 'function', function: { name, description, parameters, strict } }` |
-| `nativeTools` | all dropped |
-| `toolChoice` | `tool_choice` where honoured (below); `none` by sending no tools |
-| `outputSchema` | `response_format: { type: 'json_schema', json_schema: { name: 'response', strict: true, schema } }` |
+| `system`, system messages | one `{ role: 'system' }` message first, `system` and then the system messages' text, joined by blank lines |
+| user message | `{ role: 'user', content }`: a string, or text and `{ type: 'image_url', image_url: { url: <data URI> } }` parts. A URL blob is not sent. |
+| assistant message | `{ role: 'assistant', content: <text> \| null, tool_calls: [{ id, type: 'function', function: { name, arguments } }] }`; blobs are not sent |
+| tool message | one `{ role: 'tool', tool_call_id: id, content: <JSON text> }` per result. The JSON is the genai envelope: the result when it is an object, else `{ result }`, and `{ error: result }` with `isError`. |
+| `ThinkingPart` | not sent. Received from `reasoning_content` or `reasoning` fields and `<think>` blocks (an unclosed block is thinking too), as one thinking partial on the JSON path and as deltas on the SSE path. |
+| `ToolCallPart` received | the provider's `id`, else `adk-<messages>-<index>-<name>`; arguments that do not parse to an object are `{ raw }` |
+| `tools` | `{ type: 'function', function: { name, description, parameters } }`; with `strict`, the strict form of the schema (`toStrictJsonSchema`) and `strict: true` |
+| `nativeTools` | all dropped, `llm.capability.dropped` on the span (and `llm.web_search.omitted` for `web_search`), one warning per tool |
+| `toolChoice` | `auto`: nothing sent. `none`: no tools sent. `required` → `tool_choice: 'required'` and `{ name }` → `{ type: 'function', function: { name } }` where honoured (below), else weakened to auto with `llm.tool_choice.weakened` (`required` or `named`) on the span |
+| `outputSchema` | `response_format: { type: 'json_schema', json_schema: { name: 'response', strict: true, schema: <strict form> } }` |
+| `reasoning` | per provider (below); the gateway and Ollama send `reasoning_effort` as the word ADR 0047 gives the model (`reasoningConfig`, `lib/models/reasoning.ts`) |
 | `sampling` | `temperature`, `top_p`, `max_tokens`, `stop` |
 | `stream` | `stream: true` with `stream_options.include_usage`; tool-call fragments assembled by index |
-| `signal` | the `fetch` signal |
-| `usage` | input `prompt_tokens`; output `completion_tokens`; thinking `completion_tokens_details.reasoning_tokens`; cache read `prompt_tokens_details.cached_tokens` where reported |
-| `finishReason` | `stop` → `stop`; `tool_calls` → `tool_call`; `length` → `max_tokens`; `content_filter` → `content_filter`. `length` or thinking with no reply and no tool call is `<ID>_MAX_TOKENS` or `<ID>_EMPTY_RESPONSE` (ADR 0027). |
+| `signal` | the `fetch` signal and the SSE read; with none, the turn's (`currentTurnSignal`) |
+| `usage` | input `prompt_tokens`; output `completion_tokens` (the reasoning is in it); thinking `completion_tokens_details.reasoning_tokens`; cache read `prompt_tokens_details.cached_tokens` where reported. A retry without thinking sums both attempts. |
+| `finishReason` | a tool call → `tool_call`; `stop` or none → `stop`; `length` → `max_tokens`; `content_filter` → `content_filter`; anything else → `other`. `length` or thinking with no reply and no tool call is `<ID>_MAX_TOKENS` (`max_tokens`) or `<ID>_EMPTY_RESPONSE` (`stop`), ADR 0027, with the usage and `retryable: false`. |
+| errors | the adapter's codes below; an HTTP failure with `status` and `retryable` from the status, an unreachable endpoint with `retryable` from the error (a reset is, a refused connection is not), and an aborted call never retryable |
 
-**Moonshot** (`https://api.moonshot.ai/v1`, or `MOONSHOT_BASE_URL`). `reasoning`: on K3 `reasoning_effort` (`none` → `low`, `medium` → `high`, the pinned default when absent); on K2.x `thinking: { type: 'disabled' }` for `none`, nothing otherwise. `providerState`: `{ provider: 'moonshot', kind: 'reasoning_content', payload }` on the assistant message's first part, sent back as that message's `reasoning_content` (K3 asks for it on a tool loop). Blobs are base64 only, because Moonshot takes no public image URLs: a URL blob is dropped. `toolChoice`: `auto` and `none` until `required` and a named tool are verified against Moonshot; the others are weakened. Errors: `MOONSHOT_MISSING_KEY`, `MOONSHOT_HTTP_ERROR`, `MOONSHOT_UNREACHABLE`, `MOONSHOT_MAX_TOKENS`, `MOONSHOT_EMPTY_RESPONSE`.
+`olderSpelling` (`ChatCompletionsRequest`) carries what an agent's older `generateContentConfig` spelling asks that the contract has no field for, on the ADK path only: an effort word that is no level (`max`, `xhigh`), sent as `reasoning_effort` as written, and JSON mode without a schema, sent as `response_format: { type: 'json_object' }` ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)).
 
-**Ollama** (`OLLAMA_BASE_URL`, default `http://localhost:11434/v1`, keyless; `ollama/` stripped from the id). `outputSchema` goes as `response_format: { type: 'json_object' }`: the schema is not enforced, which is degraded support. `reasoning`: `reasoning_effort` as the level word. Only `none` changes anything on Ollama, and a reply that thought without answering is retried once with `none` (`OLLAMA_RETRY_WITHOUT_THINKING`). `toolChoice`: `auto` and `none`. A vision model takes blobs as data URIs. Writes no `providerState`. Errors: `OLLAMA_HTTP_ERROR`, `OLLAMA_UNREACHABLE`, `OLLAMA_MAX_TOKENS`, `OLLAMA_EMPTY_RESPONSE`.
+**Moonshot** (`https://api.moonshot.ai/v1`, or `MOONSHOT_BASE_URL`). `reasoning`: on K3 `reasoning_effort` (`none` → `low`, `medium` → `high`, a budget → the level that covers it, the pinned default when absent; an older-spelling `max` as written); on K2.x `thinking: { type: 'disabled' }` for `none`, nothing otherwise. `providerState`: `{ provider: 'moonshot', kind: 'reasoning_content', model, payload }` on the final's first part, sent back as that assistant message's `reasoning_content` within the current turn's tool loop, for the same model, on `kimi-k3`, `kimi-k2.6` and `kimi-k2.7-code` (Moonshot asks for it on a tool loop). Earlier turns' is not sent. Blobs are base64 only, because Moonshot takes no public image URLs: a URL blob is dropped. `toolChoice`: `auto` and `none` until `required` and a named tool are verified against Moonshot; the others are weakened. Errors: `MOONSHOT_MISSING_KEY`, `MOONSHOT_HTTP_ERROR`, `MOONSHOT_UNREACHABLE`, `MOONSHOT_MAX_TOKENS`, `MOONSHOT_EMPTY_RESPONSE`.
 
-**The gateway** (`MODEL_GATEWAY`, Vercel AI Gateway or OpenRouter). The wire id comes from `gatewayWireModel` and `MODEL_GATEWAY_MODEL_MAP`. `provider` is the upstream's, for attribution, and `llm.transport` names the gateway. Because its provider id is the upstream's, the gateway adapter reads no `providerState`: a chat-completions wire has no place for Claude's signed blocks or OpenAI's reasoning items. `reasoning`: `reasoning_effort` as the level word, the one field every gateway reads. `toolChoice`: as asked, and upstream support varies. Errors: `GATEWAY_NOT_CONFIGURED`, `GATEWAY_KEY_MISSING`, `GATEWAY_HTTP_ERROR`, and `<UPSTREAM>_UNREACHABLE`, `<UPSTREAM>_MAX_TOKENS`, `<UPSTREAM>_EMPTY_RESPONSE`.
+**Ollama** (`OLLAMA_BASE_URL`, default `http://localhost:11434/v1`, keyless; `ollama/` stripped from the id). `outputSchema` goes as `response_format: { type: 'json_object' }`: the schema is not enforced, which is degraded support. `reasoning`: `reasoning_effort` as the level word. Only `none` changes anything on Ollama, and a reply that thought without answering is retried once with `none` unless the request already asks for none (`OLLAMA_RETRY_WITHOUT_THINKING=false` turns it off); the first error is held back and the usage is summed. `toolChoice`: `auto` and `none`. A vision model takes blobs as data URIs. Writes no `providerState`. Errors: `OLLAMA_HTTP_ERROR`, `OLLAMA_UNREACHABLE`, `OLLAMA_MAX_TOKENS`, `OLLAMA_EMPTY_RESPONSE`.
+
+**The gateway** (`MODEL_GATEWAY`, Vercel AI Gateway or OpenRouter). The wire id comes from `gatewayWireModel` and `MODEL_GATEWAY_MODEL_MAP`. `provider` is the upstream's, for attribution, and `llm.transport` names the gateway. Because its provider id is the upstream's, the gateway adapter reads no `providerState`: a chat-completions wire has no place for Claude's signed blocks or OpenAI's reasoning items. `reasoning`: `reasoning_effort` in the upstream model's word (`minimal` for `none` on the first GPT-5 generation), the one field every gateway reads. `toolChoice`: as asked, and upstream support varies. No retry without thinking. Errors: `GATEWAY_NOT_CONFIGURED`, `GATEWAY_KEY_MISSING`, `GATEWAY_HTTP_ERROR`, and `<UPSTREAM>_UNREACHABLE`, `<UPSTREAM>_MAX_TOKENS`, `<UPSTREAM>_EMPTY_RESPONSE`.
 
 ## From genai Content
 
@@ -359,7 +366,7 @@ The compiler writes the effort word beside `thinkingConfig` from one setting, so
 | `finishReason` | `stop` and `tool_call` are `STOP`, `max_tokens` is `MAX_TOKENS`, `content_filter` is `SAFETY`, `other` is `OTHER`; `error` sets none |
 | `grounding` | `groundingMetadata`: `webSearchQueries` holds every query, and `groundingChunks[].web` each cited URL once with its title, which is what `lib/grounding.ts` reads |
 
-An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. `GptLlm`, `GrokLlm` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)) and the chat-completions adapters write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
+An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. `GptLlm`, `GrokLlm` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)) and the chat-completions shims `OllamaLlm`, `KimiLlm` and `GatewayLlm` ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)) write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
 
 The stored Event JSON keeps its shape ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). The engine types a stored event as `TurnEvent` ([sessions and events](/memory/sessions.md)), whose content is this genai shape.
 
@@ -397,4 +404,4 @@ Not read: citation spans and cited text, and the thought text of a final, which 
 
 ## What the contract leaves out
 
-These `generateContentConfig` fields have no contract field: `topK`, `seed`, `presencePenalty`, `frequencyPenalty`, `candidateCount`, `safetySettings`, `responseMimeType` without a schema (JSON mode), `includeThoughts`, and the effort words `xhigh` and `max`. The older spelling's `thinkingBudget` maps to `{ budget_tokens }`, its effort words that are levels map to the level, and `minimal` maps to `none`. An agent that sets any of the rest has it only on the ADK runtime: on Claude, `ClaudeLlm` carries `xhigh`, `max` and `minimal` to the adapter as `claudeReasoning` ([ADR 0055](/decisions/0055-claude-adapter-keeps-the-adk-request.md)). Live bidirectional connections are outside the contract.
+These `generateContentConfig` fields have no contract field: `topK`, `seed`, `presencePenalty`, `frequencyPenalty`, `candidateCount`, `safetySettings`, `responseMimeType` without a schema (JSON mode), `includeThoughts`, and the effort words `xhigh` and `max`. The older spelling's `thinkingBudget` maps to `{ budget_tokens }`, its effort words that are levels map to the level, and `minimal` maps to `none`. An agent that sets any of the rest has it only on the ADK runtime; on Claude, `ClaudeLlm` carries `xhigh`, `max` and `minimal` to the adapter as `claudeReasoning` ([ADR 0055](/decisions/0055-claude-adapter-keeps-the-adk-request.md)); behind the shim, an adapter's shim class carries what its provider reads (the chat-completions shims carry `xhigh`, `max` and JSON mode as `olderSpelling`). Live bidirectional connections are outside the contract.

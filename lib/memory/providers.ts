@@ -39,6 +39,7 @@ import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, MEMORY_EXTRACTION_MODEL } from '
 import { providerForModel } from '../models/providerMap.ts';
 import { resolveModel } from '../models/registry.ts';
 import { initializeTracing } from '../observability/tracer.ts';
+import { trimTrailingSlashes } from '../models/urls.ts';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -195,7 +196,7 @@ export function openAiCompatibleEmbedder(opts: {
 }): Embedder {
   const dimensions = opts.dimensions ?? EMBEDDING_DIMENSIONS;
   const provider = opts.provider ?? 'openai-compatible';
-  const url = `${opts.baseUrl.replace(/\/+$/, '')}/embeddings`;
+  const url = `${trimTrailingSlashes(opts.baseUrl)}/embeddings`;
   return {
     provider,
     model: opts.model,

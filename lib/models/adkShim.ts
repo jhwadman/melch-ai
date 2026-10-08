@@ -30,6 +30,15 @@
  *     (`currentTurnSignal()`) or when the signal ADK passes aborts, whichever
  *     comes first; an adapter hands it to its provider call.
  *
+ * TWO SEAMS FOR A SUBCLASS, the genai mapping by default:
+ *   - `toLlmResponse` (ADR 0056) keeps what an ADK-path adapter wrote beyond
+ *     the contract: GptLlm's usage and server-side tool record, and the
+ *     chat-completions shims' usage and final shape. It runs inside the
+ *     span, so the tracer reads what it returns.
+ *   - `toModelRequest` (ADR 0057) carries what an adapter reads beside the
+ *     contract: the chat-completions shims' older generateContentConfig
+ *     spelling. The span records the request it returns.
+ *
  * WHAT IT DOES NOT DO:
  *   - Repair an adapter that breaks the contract. A throw reaches ADK as a
  *     throw (as Gemini's does today), and every response is mapped as it
@@ -106,9 +115,10 @@ export class AdkShim extends BaseLlm {
   /**
    * The ModelRequest one call hands the adapter: `llmRequestToModelRequest`.
    * A provider's ADK class may extend it with what its adapter reads on the
-   * ADK path only, an agent setting the contract leaves out (ClaudeLlm's
-   * older reasoning spelling, ADR 0055). It never removes or rewrites a
-   * contract field.
+   * ADK path only, an agent setting the contract leaves out: ClaudeLlm's
+   * older reasoning spelling (ADR 0055), and the chat-completions shims'
+   * older generateContentConfig spelling (ADR 0057). It never removes or
+   * rewrites a contract field. The span records what it returns.
    */
   protected toModelRequest(llmRequest: LlmRequest, options: ModelRequestOptions): ModelRequest {
     return llmRequestToModelRequest(llmRequest, options);
@@ -118,7 +128,8 @@ export class AdkShim extends BaseLlm {
    * One ModelResponse as the LlmResponse ADK sees: modelResponseToLlmResponse.
    * It runs inside the llm.request span, so the tracer reads what it returns.
    * A subclass that stands in for an ADK-path adapter overrides it to keep
-   * what that adapter wrote beyond the contract (GptLlm, ADR 0056).
+   * what that adapter wrote beyond the contract (GptLlm, ADR 0056; the
+   * chat-completions shims, ADR 0057).
    */
   protected toLlmResponse(response: ModelResponse): LlmResponse {
     return modelResponseToLlmResponse(response);

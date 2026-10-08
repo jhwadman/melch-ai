@@ -31,6 +31,7 @@ lib/toolRegistry.ts       tool name → live ADK tool instance
 lib/models/claudeAdapter.ts  Claude on the engine's model contract
 lib/models/claudeLlm.ts   that adapter behind the ADK shim, in the ADK registry
 lib/models/ollamaLlm.ts   open-weight local adapter (Ollama, keyless)
+lib/models/chatCompletionsAdapter.ts  the chat-completions wire on the model contract
 lib/tools/mcpToolFactory.ts  MCP client: remote tools → live ADK tools
 scripts/demo_mcp_server.ts   demo MCP server (library catalog, SSE)
 lib/session/…             Supabase-backed session service
@@ -319,9 +320,9 @@ accordingly — model optionality is a single YAML line per agent:
 | `claude-*` | Anthropic | `lib/models/claudeAdapter.ts` (Messages API; `ClaudeLlm` is its ADK shim) | `ANTHROPIC_API_KEY` | ✅ server tool |
 | `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` around `gptAdapter.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
 | `grok-*` | xAI | `lib/models/grokLlm.ts` around `grokAdapter.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
-| `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiLlm.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
-| `ollama/*` | Local Ollama | `lib/models/ollamaLlm.ts` | none | ⚠ omitted + warning |
-| *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayLlm.ts` (chat completions) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
+| `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiLlm.ts` around `kimiAdapter.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
+| `ollama/*` | Local Ollama | `lib/models/ollamaLlm.ts` around `ollamaAdapter.ts` (chat completions) | none | ⚠ omitted + warning |
+| *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayLlm.ts` around `gatewayAdapter.ts` (chat completions) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
 
 The xAI adapter carries the deepest capability surface: `grok-4.5`
 requests pin `reasoning.effort: "medium"` (`lib/config.ts`), SSE
@@ -331,8 +332,9 @@ structured outputs ride `outputSchema` → `text.format`, and two
 xAI-only tools — `x_search` and `collections_search` (§3) — turn on
 live X search and hosted-document RAG. All verified live on grok-4.5.
 
-**Moonshot AI (Kimi).** `kimi-*` ids route to `lib/models/kimiLlm.ts`, a
-subclass of the chat-completions base, against `https://api.moonshot.ai/v1`
+**Moonshot AI (Kimi).** `kimi-*` ids route to `lib/models/kimiLlm.ts`, the
+ADK shim around `KimiAdapter` (`lib/models/kimiAdapter.ts`, on the
+chat-completions base), against `https://api.moonshot.ai/v1`
 (`MOONSHOT_BASE_URL` for a proxy). Get a key at platform.moonshot.ai; the
 `.cn` console serves mainland China. The family (USD per 1M tokens, October
 2026): `kimi-k3`, the flagship — 2.8T-parameter open-weight MoE, 1M context,
@@ -1147,9 +1149,10 @@ subagents, and how a tool signature can enforce an epistemic rule (the
 blind inventory).
 
 **Add a provider**: follow `claudeAdapter.ts` (SDK-based, key-gated, a
-`ModelAdapter` on the engine's model contract, registered through its ADK
-shim `claudeLlm.ts`) or `ollamaLlm.ts` (fetch-based, keyless, the ADK LLM
-interface) — register it behind a model-id prefix.
+`ModelAdapter` on the engine's model contract, run under ADK by its shim
+`claudeLlm.ts`) or, for a chat-completions API, `ollamaAdapter.ts`
+(fetch-based, keyless: a `ChatCompletionsAdapter` subclass, run under ADK
+by its shim `ollamaLlm.ts`), and register it behind a model-id prefix.
 
 **Point an agent at an MCP server**: set `mcp_server_url:` on a
 subagent. `scripts/demo_mcp_server.ts` is a complete server to copy —

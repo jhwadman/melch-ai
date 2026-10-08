@@ -24,6 +24,7 @@
 
 import { PROVIDERS, providerKeyPresent } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
+import { trimTrailingSlashes } from './urls.ts';
 
 export type Platform = 'direct' | 'vertex' | 'bedrock' | 'azure';
 
@@ -134,7 +135,7 @@ export function endpointFromEnv(provider: ProviderId, env: NodeJS.ProcessEnv = p
 
 /** Azure OpenAI's v1 API, which the plain OpenAI client speaks. */
 export function azureBaseURL(endpoint: string): string {
-  const root = endpoint.replace(/\/+$/, '').replace(/\/openai(\/v1)?$/, '');
+  const root = trimTrailingSlashes(endpoint).replace(/\/openai(\/v1)?$/, '');
   return `${root}/openai/v1/`;
 }
 

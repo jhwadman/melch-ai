@@ -252,3 +252,19 @@ test('the doctor lists each configured endpoint, and what is missing', () => {
   assert.equal(rows.find((r) => r.provider === 'gemini')!.platform, 'invalid');
   assert.equal(rows.some((r) => r.provider === 'xai'), false, 'default endpoints are not listed');
 });
+
+// ── trimTrailingSlashes (CodeQL js/polynomial-redos) ─────────────────────────
+
+test('trimTrailingSlashes drops only trailing slashes, in one pass', async () => {
+  const { trimTrailingSlashes } = await import('../lib/models/urls.ts');
+  assert.equal(trimTrailingSlashes('https://api.moonshot.ai/v1///'), 'https://api.moonshot.ai/v1');
+  assert.equal(trimTrailingSlashes('https://x.test/a/b'), 'https://x.test/a/b');
+  assert.equal(trimTrailingSlashes('///'), '');
+  assert.equal(trimTrailingSlashes(''), '');
+  // A long run of slashes followed by another character: the old regex was
+  // quadratic here; one pass from the end is immediate.
+  const hostile = 'https://x.test' + '/'.repeat(200_000) + 'v1';
+  const started = performance.now();
+  assert.equal(trimTrailingSlashes(hostile), hostile);
+  assert.ok(performance.now() - started < 200);
+});

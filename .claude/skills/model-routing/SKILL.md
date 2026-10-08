@@ -29,11 +29,15 @@ only when it is absent.
 ## The adapters
 
 One per provider (`claudeLlm.ts`, `gptLlm.ts`, `grokLlm.ts`, `kimiLlm.ts`,
-`ollamaLlm.ts`, `openAiCompatibleLlm.ts`, `gatewayLlm.ts`), all reaching the tracer through
+`ollamaLlm.ts`, `gatewayLlm.ts`), all reaching the tracer through
 `traceLlmGeneration`, which is where `max_steps`, cancellation and token
-accounting apply. Tool declarations come from `toolDeclarationFor()`
-(`schemaNormalize.ts`), never from a tool's private fields. A provider quirk
-belongs in its adapter, never at a call site and never in a prompt.
+accounting apply. The chat-completions three are ADK shims around contract
+adapters (`kimiAdapter.ts`, `ollamaAdapter.ts`, `gatewayAdapter.ts` on
+`chatCompletionsAdapter.ts`), and the shim (`adkShim.ts`) makes that call for
+them (ADR 0053, ADR 0057). Tool declarations come from `toolDeclarationFor()`
+or `contractToolDeclaration()` (`schemaNormalize.ts`), never from a tool's
+private fields. A provider quirk belongs in its adapter, never at a call site
+and never in a prompt.
 
 What each provider and transport can do — delegation, structured output, image
 parts, thinking with tools — is the capability matrix

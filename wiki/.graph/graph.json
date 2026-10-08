@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 715,
-    "edges": 1983,
+    "nodes": 723,
+    "edges": 2049,
     "byKind": {
-      "doc": 117,
+      "doc": 119,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 111,
+      "file": 112,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 145,
+      "module": 150,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 365,
+      "links_to": 385,
       "requires_env": 165,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,11 +33,11 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 479,
+      "imports": 499,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 414,
-      "constrains": 60,
+      "derives_from": 433,
+      "constrains": 67,
       "supersedes": 2,
       "depends_on": 15,
       "explains": 2,
@@ -45,8 +45,8 @@
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1902,
-      "inferred": 81
+      "extracted": 1961,
+      "inferred": 88
     },
     "isolated": 4
   },
@@ -144,7 +144,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 252
+        "words": 250
       }
     },
     {
@@ -1072,6 +1072,18 @@
       }
     },
     {
+      "id": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "kind": "doc",
+      "label": "ADR 0057: The chat-completions adapters move onto the contract; their ADK shims keep the shape ADK saw and carry the older spelling",
+      "source": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 920
+      }
+    },
+    {
       "id": "/decisions/0058-session-stores-with-both-faces.md",
       "kind": "doc",
       "label": "ADR 0058: The session stores implement both session interfaces, and a bridge gives a store that has one the other",
@@ -1200,7 +1212,19 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 950
+        "words": 1107
+      }
+    },
+    {
+      "id": "/models/chat-completions-adapters.md",
+      "kind": "doc",
+      "label": "Chat-completions adapters",
+      "source": "/models/chat-completions-adapters.md",
+      "attrs": {
+        "type": "model-provider",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1153
       }
     },
     {
@@ -1236,7 +1260,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7119
+        "words": 7522
       }
     },
     {
@@ -1248,7 +1272,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4161
+        "words": 4205
       }
     },
     {
@@ -1284,7 +1308,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1075
+        "words": 1079
       }
     },
     {
@@ -2789,14 +2813,14 @@
       "id": "env:MOONSHOT_API_KEY",
       "kind": "env",
       "label": "MOONSHOT_API_KEY",
-      "source": "lib/models/kimiLlm.ts",
+      "source": "lib/models/kimiAdapter.ts",
       "attrs": {}
     },
     {
       "id": "env:MOONSHOT_BASE_URL",
       "kind": "env",
       "label": "MOONSHOT_BASE_URL",
-      "source": "lib/models/kimiLlm.ts",
+      "source": "lib/models/kimiAdapter.ts",
       "attrs": {}
     },
     {
@@ -2822,7 +2846,7 @@
       "id": "env:OLLAMA_RETRY_WITHOUT_THINKING",
       "kind": "env",
       "label": "OLLAMA_RETRY_WITHOUT_THINKING",
-      "source": "lib/models/ollamaLlm.ts"
+      "source": "lib/models/ollamaAdapter.ts"
     },
     {
       "id": "env:OPENAI_API_KEY",
@@ -3520,6 +3544,13 @@
       "source": "tests/capabilityMatrix.test.ts"
     },
     {
+      "id": "file:tests/chatCompletionsAdapter.test.ts",
+      "kind": "file",
+      "label": "chatCompletionsAdapter.test.ts",
+      "source": "tests/chatCompletionsAdapter.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/claudeAdapter.test.ts",
       "kind": "file",
       "label": "claudeAdapter.test.ts",
@@ -4041,7 +4072,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 340
+        "lines": 341
       }
     },
     {
@@ -4077,7 +4108,7 @@
       "label": "lib/models/adkShim.ts",
       "source": "lib/models/adkShim.ts",
       "attrs": {
-        "lines": 161
+        "lines": 172
       }
     },
     {
@@ -4087,6 +4118,15 @@
       "source": "lib/models/capabilities.ts",
       "attrs": {
         "lines": 400
+      }
+    },
+    {
+      "id": "module:lib/models/chatCompletionsAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/chatCompletionsAdapter.ts",
+      "source": "lib/models/chatCompletionsAdapter.ts",
+      "attrs": {
+        "lines": 970
       }
     },
     {
@@ -4140,7 +4180,7 @@
       "label": "lib/models/endpoints.ts",
       "source": "lib/models/endpoints.ts",
       "attrs": {
-        "lines": 322
+        "lines": 323
       }
     },
     {
@@ -4176,7 +4216,16 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 199
+        "lines": 200
+      }
+    },
+    {
+      "id": "module:lib/models/gatewayAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/gatewayAdapter.ts",
+      "source": "lib/models/gatewayAdapter.ts",
+      "attrs": {
+        "lines": 102
       }
     },
     {
@@ -4185,7 +4234,7 @@
       "label": "lib/models/gatewayLlm.ts",
       "source": "lib/models/gatewayLlm.ts",
       "attrs": {
-        "lines": 131
+        "lines": 51
       }
     },
     {
@@ -4252,12 +4301,30 @@
       }
     },
     {
+      "id": "module:lib/models/kimiAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/kimiAdapter.ts",
+      "source": "lib/models/kimiAdapter.ts",
+      "attrs": {
+        "lines": 198
+      }
+    },
+    {
       "id": "module:lib/models/kimiLlm.ts",
       "kind": "module",
       "label": "lib/models/kimiLlm.ts",
       "source": "lib/models/kimiLlm.ts",
       "attrs": {
-        "lines": 208
+        "lines": 44
+      }
+    },
+    {
+      "id": "module:lib/models/ollamaAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/ollamaAdapter.ts",
+      "source": "lib/models/ollamaAdapter.ts",
+      "attrs": {
+        "lines": 176
       }
     },
     {
@@ -4266,7 +4333,7 @@
       "label": "lib/models/ollamaLlm.ts",
       "source": "lib/models/ollamaLlm.ts",
       "attrs": {
-        "lines": 203
+        "lines": 50
       }
     },
     {
@@ -4275,7 +4342,7 @@
       "label": "lib/models/openAiCompatibleLlm.ts",
       "source": "lib/models/openAiCompatibleLlm.ts",
       "attrs": {
-        "lines": 911
+        "lines": 189
       }
     },
     {
@@ -4330,6 +4397,15 @@
       "source": "lib/models/schemaNormalize.ts",
       "attrs": {
         "lines": 447
+      }
+    },
+    {
+      "id": "module:lib/models/urls.ts",
+      "kind": "module",
+      "label": "lib/models/urls.ts",
+      "source": "lib/models/urls.ts",
+      "attrs": {
+        "lines": 17
       }
     },
     {
@@ -9183,6 +9259,97 @@
       "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md:25"
     },
     {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "file:tests/chatCompletionsAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/gatewayAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/ollamaAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md frontmatter"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md:28"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md:28"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md:28"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md:39"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md:28"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md:34"
+    },
+    {
       "from": "/decisions/0058-session-stores-with-both-faces.md",
       "to": "file:tests/adkSessionBridge.test.ts",
       "rel": "derives_from",
@@ -10136,66 +10303,213 @@
     },
     {
       "from": "/models/adk-shim.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:57"
+      "evidence": "/models/adk-shim.md:58"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:24"
+      "evidence": "/models/adk-shim.md:25"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:36"
+      "evidence": "/models/adk-shim.md:37"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:35"
+      "evidence": "/models/adk-shim.md:36"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:61"
+      "evidence": "/models/adk-shim.md:64"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:65"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/models/chat-completions-adapters.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:27"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/claude-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:26"
+      "evidence": "/models/adk-shim.md:27"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:24"
+      "evidence": "/models/adk-shim.md:25"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:26"
+      "evidence": "/models/adk-shim.md:27"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:26"
+      "evidence": "/models/adk-shim.md:27"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "file:tests/chatCompletionsAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "module:lib/models/gatewayAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "module:lib/models/gatewayLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "module:lib/models/kimiLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "module:lib/models/ollamaAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "module:lib/models/ollamaLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:48"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:47"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:38"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:26"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:59"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:59"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:59"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:59"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:26"
     },
     {
       "from": "/models/claude-adapter.md",
@@ -10430,6 +10744,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "file:tests/chatCompletionsAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "file:tests/contractToolDeclarations.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -10459,6 +10780,13 @@
     {
       "from": "/models/model-contract.md",
       "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/models/model-contract.md frontmatter"
@@ -10538,126 +10866,140 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:78"
+      "evidence": "/models/model-contract.md:80"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:48"
+      "evidence": "/models/model-contract.md:50"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:95"
+      "evidence": "/models/model-contract.md:97"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:32"
+      "evidence": "/models/model-contract.md:34"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:32"
+      "evidence": "/models/model-contract.md:34"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:102"
+      "evidence": "/models/model-contract.md:104"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:32"
+      "evidence": "/models/model-contract.md:34"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:206"
+      "evidence": "/models/model-contract.md:208"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:124"
+      "evidence": "/models/model-contract.md:126"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:200"
+      "evidence": "/models/model-contract.md:202"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:362"
+      "evidence": "/models/model-contract.md:369"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:282"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:364"
+      "evidence": "/models/model-contract.md:371"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:293"
+      "evidence": "/models/model-contract.md:300"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:34"
+      "evidence": "/models/model-contract.md:36"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/chat-completions-adapters.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:260"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/claude-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:190"
+      "evidence": "/models/model-contract.md:192"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:34"
+      "evidence": "/models/model-contract.md:36"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:254"
+      "evidence": "/models/model-contract.md:256"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:81"
+      "evidence": "/models/model-contract.md:83"
     },
     {
       "from": "/models/provider-routing.md",
@@ -10770,6 +11112,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:50"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/chat-completions-adapters.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:24"
     },
     {
       "from": "/models/provider-routing.md",
@@ -11067,14 +11416,14 @@
     },
     {
       "from": "/operations/failure-modes.md",
-      "to": "module:lib/models/ollamaLlm.ts",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/operations/failure-modes.md frontmatter"
     },
     {
       "from": "/operations/failure-modes.md",
-      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "to": "module:lib/models/ollamaAdapter.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/operations/failure-modes.md frontmatter"
@@ -14112,6 +14461,13 @@
     },
     {
       "from": "module:lib/memory/providers.ts",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/memory/providers.ts"
+    },
+    {
+      "from": "module:lib/memory/providers.ts",
       "to": "module:lib/observability/tracer.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -14398,6 +14754,62 @@
       "evidence": "lib/models/capabilities.ts"
     },
     {
+      "from": "module:lib/models/chatCompletionsAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/chatCompletionsAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/chatCompletionsAdapter.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/chatCompletionsAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/chatCompletionsAdapter.ts",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/chatCompletionsAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/chatCompletionsAdapter.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/chatCompletionsAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/chatCompletionsAdapter.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/chatCompletionsAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/chatCompletionsAdapter.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/chatCompletionsAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/chatCompletionsAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/chatCompletionsAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/chatCompletionsAdapter.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/chatCompletionsAdapter.ts"
+    },
+    {
       "from": "module:lib/models/claudeAdapter.ts",
       "to": "module:lib/models/claudeModels.ts",
       "rel": "imports",
@@ -14533,6 +14945,13 @@
     {
       "from": "module:lib/models/endpoints.ts",
       "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/endpoints.ts"
+    },
+    {
+      "from": "module:lib/models/endpoints.ts",
+      "to": "module:lib/models/urls.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/endpoints.ts"
@@ -14699,8 +15118,43 @@
       "evidence": "lib/models/gateway.ts"
     },
     {
-      "from": "module:lib/models/gatewayLlm.ts",
+      "from": "module:lib/models/gateway.ts",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gateway.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayAdapter.ts",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gatewayAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gatewayAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayAdapter.ts",
       "to": "module:lib/models/gateway.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gatewayAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayAdapter.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gatewayAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gatewayLlm.ts",
+      "to": "module:lib/models/gatewayAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gatewayLlm.ts"
@@ -14708,13 +15162,6 @@
     {
       "from": "module:lib/models/gatewayLlm.ts",
       "to": "module:lib/models/openAiCompatibleLlm.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/gatewayLlm.ts"
-    },
-    {
-      "from": "module:lib/models/gatewayLlm.ts",
-      "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gatewayLlm.ts"
@@ -15028,32 +15475,95 @@
       "evidence": "lib/models/grokLlm.ts"
     },
     {
-      "from": "module:lib/models/kimiLlm.ts",
+      "from": "module:lib/models/kimiAdapter.ts",
       "to": "module:lib/config.ts",
       "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/models/kimiLlm.ts"
+      "evidence": "lib/models/kimiAdapter.ts"
     },
     {
-      "from": "module:lib/models/kimiLlm.ts",
-      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "from": "module:lib/models/kimiAdapter.ts",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/models/kimiLlm.ts"
+      "evidence": "lib/models/kimiAdapter.ts"
     },
     {
-      "from": "module:lib/models/kimiLlm.ts",
+      "from": "module:lib/models/kimiAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/kimiAdapter.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/kimiAdapter.ts",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/kimiAdapter.ts",
       "to": "env:MOONSHOT_API_KEY",
       "rel": "requires_env",
       "tier": "extracted",
+      "evidence": "lib/models/kimiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/kimiAdapter.ts",
+      "to": "env:MOONSHOT_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/kimiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/kimiLlm.ts",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
       "evidence": "lib/models/kimiLlm.ts"
     },
     {
       "from": "module:lib/models/kimiLlm.ts",
-      "to": "env:MOONSHOT_BASE_URL",
-      "rel": "requires_env",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/kimiLlm.ts"
+    },
+    {
+      "from": "module:lib/models/ollamaAdapter.ts",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/ollamaAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/ollamaAdapter.ts",
+      "to": "env:OLLAMA_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/ollamaAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/ollamaAdapter.ts",
+      "to": "env:OLLAMA_RETRY_WITHOUT_THINKING",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/ollamaAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/ollamaLlm.ts",
+      "to": "module:lib/models/ollamaAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/ollamaLlm.ts"
     },
     {
       "from": "module:lib/models/ollamaLlm.ts",
@@ -15063,18 +15573,25 @@
       "evidence": "lib/models/ollamaLlm.ts"
     },
     {
-      "from": "module:lib/models/ollamaLlm.ts",
-      "to": "env:OLLAMA_BASE_URL",
-      "rel": "requires_env",
+      "from": "module:lib/models/openAiCompatibleLlm.ts",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/models/ollamaLlm.ts"
+      "evidence": "lib/models/openAiCompatibleLlm.ts"
     },
     {
-      "from": "module:lib/models/ollamaLlm.ts",
-      "to": "env:OLLAMA_RETRY_WITHOUT_THINKING",
-      "rel": "requires_env",
+      "from": "module:lib/models/openAiCompatibleLlm.ts",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/models/ollamaLlm.ts"
+      "evidence": "lib/models/openAiCompatibleLlm.ts"
+    },
+    {
+      "from": "module:lib/models/openAiCompatibleLlm.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/openAiCompatibleLlm.ts"
     },
     {
       "from": "module:lib/models/openAiCompatibleLlm.ts",
@@ -15092,13 +15609,6 @@
     },
     {
       "from": "module:lib/models/openAiCompatibleLlm.ts",
-      "to": "module:lib/models/providerState.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/openAiCompatibleLlm.ts"
-    },
-    {
-      "from": "module:lib/models/openAiCompatibleLlm.ts",
       "to": "module:lib/models/retry.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -15106,28 +15616,7 @@
     },
     {
       "from": "module:lib/models/openAiCompatibleLlm.ts",
-      "to": "module:lib/models/schemaNormalize.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/openAiCompatibleLlm.ts"
-    },
-    {
-      "from": "module:lib/models/openAiCompatibleLlm.ts",
       "to": "module:lib/observability/tracer.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/openAiCompatibleLlm.ts"
-    },
-    {
-      "from": "module:lib/models/openAiCompatibleLlm.ts",
-      "to": "module:lib/runtime/turnControl.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/openAiCompatibleLlm.ts"
-    },
-    {
-      "from": "module:lib/models/openAiCompatibleLlm.ts",
-      "to": "module:lib/tools/webSearchTool.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/openAiCompatibleLlm.ts"
