@@ -14,6 +14,12 @@
  *   - An LlmRequest that a real ADK LlmAgent built maps to a ModelRequest
  *     with the agent's tools and system text.
  *   - A ModelResponse maps to the LlmResponse ADK expects.
+ *   - The reverse directions, for a contract adapter over an ADK BaseLlm:
+ *     a ModelRequest round-trips through an LlmRequest; every fixture
+ *     history, and a request a real LlmAgent built, round-trips the other
+ *     way; every model event of every fixture round-trips through a
+ *     ModelResponse, thinking aside; a ModelResponse round-trips through an
+ *     LlmResponse.
  *
  * Offline: scripted models, in-memory sessions, no provider calls.
  */
@@ -33,16 +39,20 @@ import {
   contentToMessage,
   contentsToMessages,
   llmRequestToModelRequest,
+  llmResponseToModelResponse,
   messageToContent,
   messagesToContents,
+  modelRequestToLlmRequest,
   modelResponseToLlmResponse,
+  nativeToolsWithoutGeminiTool,
   reasoningOf,
   systemText,
   usageFromMetadata,
   usageToMetadata,
 } from '../lib/models/genaiMapping.ts';
-import type { Message, Part, ToolCallPart, ToolResultPart } from '../lib/models/contract.ts';
-import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, isRetryableErrorResponse } from '../lib/models/errorResponse.ts';
+import type { FinalModelResponse, Message, ModelRequest, ModelResponse, Part, ToolCallPart, ToolResultPart } from '../lib/models/contract.ts';
+import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, isRetryableErrorResponse, withRetryVerdict } from '../lib/models/errorResponse.ts';
+import { toolDeclarationFor } from '../lib/models/schemaNormalize.ts';
 import type { ProviderState } from '../lib/models/providerState.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
@@ -577,4 +587,224 @@ test('usage: Gemini usageMetadata reads under the contract meanings', () => {
   assert.equal(usageFromMetadata({}), undefined);
   assert.equal(usageFromMetadata(undefined), undefined);
   assert.deepEqual(usageToMetadata({ inputTokens: 5, outputTokens: 7 }), { promptTokenCount: 5, candidatesTokenCount: 7, totalTokenCount: 12 });
+});
+
+// ── The reverse: ModelRequest → LlmRequest ───────────────────────────────────
+
+const signatureState = (payload: string, model?: string): ProviderState => ({ provider: GEMINI_PROVIDER, kind: THOUGHT_SIGNATURE_KIND, ...(model ? { model } : {}), payload });
+
+const LOOKUP_SCHEMA = {
+  type: 'object',
+  properties: {
+    q: { type: 'string', enum: ['cat', 'dog'], description: 'What to look up' },
+    limit: { type: ['integer', 'null'], minimum: 1 },
+    filters: { type: 'array', items: { type: 'object', properties: { field: { type: 'string' } }, required: ['field'], additionalProperties: false } },
+  },
+  required: ['q'],
+};
+
+test('ModelRequest → LlmRequest → ModelRequest gives back every field an LlmRequest can hold', () => {
+  const signal = new AbortController().signal;
+  const request: ModelRequest = {
+    model: 'gemini-3-flash',
+    system: 'Be brief.',
+    messages: [
+      { role: 'user', parts: [{ type: 'text', text: 'Look up cat.' }, { type: 'blob', mimeType: 'application/pdf', url: 'https://example.test/a.pdf' }] },
+      { role: 'assistant', parts: [{ type: 'toolCall', id: 'adk-1', name: 'lookup', args: { q: 'cat' }, providerState: signatureState('c2ln') }] },
+      { role: 'tool', parts: [{ type: 'toolResult', id: 'adk-1', name: 'lookup', result: { definition: 'a feline' } }] },
+    ],
+    tools: [{ name: 'lookup', description: 'Looks a word up.', parameters: LOOKUP_SCHEMA, strict: true }],
+    nativeTools: ['url_context', 'web_search', 'code_execution'],
+    outputSchema: { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'] },
+    reasoning: 'high',
+    sampling: { temperature: 0.2, topP: 0.9, maxOutputTokens: 512, stop: ['END'] },
+    signal,
+  };
+  const llm = modelRequestToLlmRequest(request);
+  assert.deepEqual(llmRequestToModelRequest(llm), request);
+  assert.deepEqual(request.tools![0].parameters, LOOKUP_SCHEMA, 'the input is not mutated');
+
+  // What ADK's Gemini sends: config.tools, the lowercase schema as written, the mode, thinking and the effort word.
+  assert.deepEqual(llm.config?.tools, [
+    { functionDeclarations: [{ name: 'lookup', description: 'Looks a word up.', parametersJsonSchema: LOOKUP_SCHEMA }] },
+    { urlContext: {} },
+    { googleSearch: {} },
+    { codeExecution: {} },
+  ]);
+  assert.deepEqual(llm.config?.toolConfig, { functionCallingConfig: { mode: 'VALIDATED' } });
+  assert.deepEqual(llm.config?.thinkingConfig, { thinkingLevel: 'HIGH' });
+  assert.equal((llm.config as Record<string, unknown>).reasoningEffort, 'high');
+  assert.equal(llm.config?.systemInstruction, 'Be brief.');
+  assert.equal(llm.config?.abortSignal, signal);
+  // ADK-path adapters read the same declaration out of toolsDict.
+  assert.deepEqual(toolDeclarationFor(llm.toolsDict.lookup), { name: 'lookup', description: 'Looks a word up.', parameters: LOOKUP_SCHEMA });
+
+  for (const toolChoice of ['none', 'required', { name: 'lookup' }] as const) {
+    const forced: ModelRequest = { model: 'gemini-3-flash', messages: [], tools: [{ name: 'lookup', description: '', parameters: LOOKUP_SCHEMA }], toolChoice };
+    assert.deepEqual(llmRequestToModelRequest(modelRequestToLlmRequest(forced)), forced, JSON.stringify(toolChoice));
+  }
+  for (const reasoning of ['none', 'low', 'medium', { budget_tokens: 4096 }] as const) {
+    const thinking: ModelRequest = { model: 'gemini-3-flash', messages: [], reasoning };
+    assert.deepEqual(llmRequestToModelRequest(modelRequestToLlmRequest(thinking)), thinking, JSON.stringify(reasoning));
+  }
+});
+
+test('the reverse request mapping: what does not come back the same', () => {
+  const back = (over: Partial<ModelRequest>) => llmRequestToModelRequest(modelRequestToLlmRequest({ model: 'gemini-3-flash', messages: [], ...over }));
+  const tool = { name: 'lookup', description: '', parameters: LOOKUP_SCHEMA };
+
+  assert.deepEqual(back({ nativeTools: ['google_search', 'web_search'] }).nativeTools, ['web_search'], "google_search is Gemini's googleSearch, read as web_search");
+  assert.deepEqual(modelRequestToLlmRequest({ model: 'gemini-3-flash', messages: [], nativeTools: ['google_search', 'web_search'] }).config?.tools, [{ googleSearch: {} }], 'sent once');
+  assert.equal(back({ nativeTools: ['x_search', 'collections_search'] }).nativeTools, undefined, 'Gemini has no tool for these');
+  assert.deepEqual(nativeToolsWithoutGeminiTool(['x_search', 'web_search', 'collections_search', 'x_search']), ['x_search', 'collections_search']);
+  assert.equal(back({ tools: [tool], toolChoice: 'auto' }).toolChoice, undefined, 'auto is the default, and reads as absent');
+  assert.equal(back({ toolChoice: 'none' }).toolChoice, undefined, 'a choice without tools is not sent');
+  assert.deepEqual(back({ tools: [tool, { ...tool, name: 'other', strict: true }] }).tools?.map((t) => t.strict), [true, true], 'strict is per request on Gemini');
+  const forcedStrict = back({ tools: [{ ...tool, strict: true }], toolChoice: 'required' });
+  assert.equal(forcedStrict.toolChoice, 'required');
+  assert.equal(forcedStrict.tools?.[0].strict, undefined, 'strict is lost beside a forced choice');
+  assert.deepEqual(back({ model: 'gemini-2.5-flash', reasoning: 'low' }).reasoning, { budget_tokens: 2048 }, 'a level Gemini 2.x takes as a budget reads back as the budget');
+  assert.equal(back({ model: 'o3', reasoning: 'none' }).reasoning, 'low', 'a level a model cannot take reads back as its rendering');
+  assert.equal(back({ stream: true }).stream, undefined, 'stream is not an LlmRequest field');
+  assert.equal(modelRequestToLlmRequest({ model: 'gemini-3-flash', messages: [], system: '' }).config?.systemInstruction, undefined, 'an empty system prompt is none');
+
+  // System messages stay system contents; the Gemini wrapper folds them into the system prompt.
+  const system: Message = { role: 'system', parts: [{ type: 'text', text: 'Turn note.' }] };
+  assert.deepEqual(modelRequestToLlmRequest({ model: 'gemini-3-flash', messages: [system] }).contents, [{ role: 'system', parts: [{ text: 'Turn note.' }] }]);
+  assert.deepEqual(back({ messages: [system] }).messages, [system]);
+});
+
+test('every fixture history, as an LlmRequest carries it, round-trips LlmRequest → ModelRequest → LlmRequest, and back', () => {
+  let histories = 0;
+  for (const { name, contents: rows } of allFixtures()) {
+    for (const stored of rows) {
+      for (const contents of [stored, asRequestContents(stored)]) {
+        const llm = bareRequest({ contents, config: { systemInstruction: 'You keep the fixtures.' } });
+        const mapped = llmRequestToModelRequest(llm);
+        const back = modelRequestToLlmRequest(mapped);
+        assert.equal(canonical(back.contents), canonical(contents), `${name}: the contents come back byte-equal`);
+        assert.equal(back.config?.systemInstruction, 'You keep the fixtures.');
+        assert.equal(back.model, llm.model);
+        assert.deepEqual(llmRequestToModelRequest(back), mapped, `${name}: ModelRequest → LlmRequest → ModelRequest is stable`);
+        histories++;
+      }
+    }
+  }
+  assert.ok(histories >= 20, `only ${histories} histories were checked`);
+});
+
+test('an LlmRequest a real ADK LlmAgent built round-trips through the contract', async () => {
+  const boss = delegating('scripted/boss');
+  const request = await secondRequest(boss, delegateConfig(['load_memory', 'web_search']));
+  const mapped = llmRequestToModelRequest(request);
+  const back = modelRequestToLlmRequest(mapped);
+  assert.equal(canonical(back.contents), canonical(request.contents));
+  assert.equal(back.config?.systemInstruction, request.config!.systemInstruction);
+  assert.deepEqual(back.config?.thinkingConfig, request.config!.thinkingConfig, 'reasoning: high, as the compiler wrote it');
+  assert.ok(((back.config?.tools ?? []) as Array<{ googleSearch?: unknown }>).some((t) => t.googleSearch), "web_search comes back as Gemini's googleSearch");
+  assert.deepEqual(Object.keys(back.toolsDict).sort(), Object.keys(request.toolsDict).sort(), 'every declared tool, in toolsDict');
+  assert.deepEqual(llmRequestToModelRequest(back), mapped);
+});
+
+// ── The reverse: LlmResponse → ModelResponse ─────────────────────────────────
+
+test('every model event of every fixture round-trips LlmResponse → ModelResponse → LlmResponse; thinking stays out of the final', () => {
+  let events = 0;
+  let withThinking = 0;
+  for (const { name, fixture } of allFixtures()) {
+    for (const row of fixture.sessions) {
+      row.events.forEach((event, i) => {
+        const llm = event as unknown as LlmResponse;
+        if (llm.content?.role !== 'model') return;
+        const final = llmResponseToModelResponse(llm, { index: i });
+        assert.equal(final.partial, false, `${name} event ${i}: a stored event is a final`);
+        const back = modelResponseToLlmResponse(final);
+        const output = (llm.content.parts ?? []).filter((p) => p.thought !== true);
+        if (output.length < (llm.content.parts ?? []).length) withThinking++;
+        assert.equal(canonical(back.content?.parts ?? []), canonical(output), `${name} event ${i}: its output parts come back byte-equal`);
+        if (llm.usageMetadata) assert.deepEqual(back.usageMetadata, llm.usageMetadata, `${name} event ${i}: usage`);
+        if (llm.finishReason) assert.equal(back.finishReason, llm.finishReason, `${name} event ${i}: finish reason`);
+        assert.deepEqual(llmResponseToModelResponse(back, { index: i }), final, `${name} event ${i}: ModelResponse → LlmResponse → ModelResponse is stable`);
+        events++;
+      });
+    }
+  }
+  assert.ok(events >= 15, `only ${events} model events were checked`);
+  assert.ok(withThinking >= 2, 'the thought-signature fixtures were covered');
+});
+
+test('ModelResponse → LlmResponse → ModelResponse: finals, failures and partials come back the same', () => {
+  const MODEL = 'gemini-3-flash';
+  const responses: ModelResponse[] = [
+    {
+      partial: false,
+      parts: [
+        { type: 'text', text: 'MU is at 101.', providerState: signatureState('a', MODEL) },
+        { type: 'toolCall', id: 'adk-1', name: 'quote', args: { t: 'MU' }, providerState: signatureState('b', MODEL) },
+        { type: 'toolCall', id: `${MINTED_CALL_ID_PREFIX}4-2`, name: 'quote', args: { t: 'NVDA' } },
+        { type: 'blob', mimeType: 'image/png', data: 'iVBORw0KGgo=' },
+      ],
+      finishReason: 'tool_call',
+      usage: { inputTokens: 1000, outputTokens: 300, thinkingTokens: 200, cacheReadTokens: 400 },
+      grounding: { citations: [{ url: 'https://a.test/1', title: 'A' }, { url: 'https://b.test/2' }], searchQueries: [{ tool: 'web_search', query: 'MU price' }] },
+    },
+    { partial: false, parts: [{ type: 'text', text: 'Done.' }], finishReason: 'stop', usage: { inputTokens: 5, outputTokens: 7 } },
+    { partial: false, parts: [], finishReason: 'stop' },
+    { partial: false, parts: [], finishReason: 'error', error: { code: 'ANTHROPIC_ERROR', message: '529 overloaded', retryable: true, status: 529 } },
+    { partial: false, parts: [], finishReason: 'error', error: { code: 'STEP_LIMIT', message: 'The turn reached its limit.', retryable: false } },
+    { partial: false, parts: [{ type: 'text', text: 'Cut' }], finishReason: 'max_tokens', error: { code: 'MAX_TOKENS', message: 'out of tokens', retryable: false } },
+    { partial: false, parts: [], finishReason: 'content_filter', error: { code: 'SAFETY', message: 'withheld', retryable: false } },
+    { partial: false, parts: [{ type: 'text', text: 'Hmm.' }], finishReason: 'other' },
+    { partial: true, parts: [{ type: 'thinking', text: 'Weighing it.' }, { type: 'text', text: 'MU' }] },
+  ];
+  for (const response of responses) {
+    assert.deepEqual(llmResponseToModelResponse(modelResponseToLlmResponse(response), { model: MODEL, index: 4 }), response, JSON.stringify(response).slice(0, 80));
+  }
+  // Without `model`, a signature names none, as genai records none; the search tool is the caller's to say.
+  const grounded = modelResponseToLlmResponse(responses[0]);
+  const plain = llmResponseToModelResponse(grounded, { index: 4, searchTool: 'google_search' }) as FinalModelResponse;
+  assert.deepEqual(plain.parts[0].providerState, signatureState('a'));
+  assert.deepEqual(plain.grounding?.searchQueries, [{ tool: 'google_search', query: 'MU price' }]);
+});
+
+test('LlmResponse → ModelResponse: a thought signature moves to the next part, STOP is no error, the verdict reads back', () => {
+  const read = (response: LlmResponse) => llmResponseToModelResponse(response, { model: 'gemini-3-flash', index: 3 }) as FinalModelResponse;
+
+  const moved = read({
+    content: { role: 'model', parts: [{ text: 'hmm', thought: true, thoughtSignature: 's1' }, { functionCall: { name: 'f', args: {} } }, { text: 'more', thought: true, thoughtSignature: 's2' }] },
+    finishReason: 'STOP' as never,
+  });
+  assert.deepEqual(
+    moved,
+    {
+      partial: false,
+      parts: [{ type: 'toolCall', id: `${MINTED_CALL_ID_PREFIX}3-1`, name: 'f', args: {}, providerState: signatureState('s1', 'gemini-3-flash') }],
+      finishReason: 'tool_call',
+    },
+    'a call keeps its own place; a trailing signature finds no part without state',
+  );
+  const trailing = read({ content: { role: 'model', parts: [{ text: 'Answer.' }, { text: 'x', thought: true, thoughtSignature: 's3' }] } });
+  assert.deepEqual(trailing.parts, [{ type: 'text', text: 'Answer.', providerState: signatureState('s3', 'gemini-3-flash') }], 'a trailing signature stays with the last part');
+
+  assert.deepEqual(read({ errorCode: 'STOP' }), { partial: false, parts: [], finishReason: 'stop' }, "ADK's empty STOP is no error");
+  assert.deepEqual(
+    read({ errorCode: 'SAFETY' }),
+    { partial: false, parts: [], finishReason: 'content_filter', error: { code: 'SAFETY', message: 'The model call ended with SAFETY.', retryable: false } },
+    'a blocked prompt',
+  );
+  assert.equal(read({ errorCode: 'UNKNOWN_ERROR', errorMessage: 'Unknown error.' }).finishReason, 'error');
+  const verdict = read(withRetryVerdict({ errorCode: 'GEMINI_ERROR', errorMessage: 'key sk-proj-abcdefghijklmnopqrstuvwxyz0123456789 overloaded' }, { retryable: true, status: 503 }));
+  assert.equal(verdict.error?.retryable, true);
+  assert.equal(verdict.error?.status, 503);
+  assert.doesNotMatch(verdict.error?.message ?? '', /sk-proj-abcdefghijklmnopqrstuvwxyz0123456789/);
+  assert.equal(read({ errorCode: 'X', customMetadata: { [ERROR_RETRYABLE_KEY]: 'yes' } }).error?.retryable, false, 'only a boolean true is retryable');
+
+  // A partial holds text and thinking deltas only; a call streamed progressively waits for the final.
+  assert.deepEqual(
+    llmResponseToModelResponse({
+      partial: true,
+      content: { role: 'model', parts: [{ text: 'a' }, { functionCall: { name: 'f', args: {} } }, { text: '', thought: true }, { text: 'b', thought: true }] },
+    }),
+    { partial: true, parts: [{ type: 'text', text: 'a' }, { type: 'thinking', text: 'b' }] },
+  );
 });

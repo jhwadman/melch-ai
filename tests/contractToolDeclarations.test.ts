@@ -25,7 +25,8 @@ import type { Schema } from '@google/genai';
 import type { NativeTool, ToolDeclaration } from '../lib/models/contract.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema, toolDeclarationFor } from '../lib/models/schemaNormalize.ts';
 import { registeredToolNames, resolveTools } from '../lib/toolRegistry.ts';
-import { defineTool, toFunctionTool } from '../lib/tools/toolContract.ts';
+import { toFunctionTool } from '../lib/tools/adkTool.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
 import { WIKI_AGENT_TOOL_CONTRACTS } from '../lib/tools/wikiTools.ts';
 import { SCIENCE_TOOL_CONTRACTS } from '../lib/tools/scienceTools.ts';
 import { TASK_TOOL_CONTRACTS } from '../lib/tools/taskTools.ts';
@@ -275,8 +276,15 @@ test("a contract's declaration comes from zod, without the keywords the ADK path
   assert.deepEqual(props.query, { type: 'string', minLength: 1, maxLength: 200, description: 'What to look for' });
   assert.deepEqual(props.limit, { type: 'integer', minimum: 1, maximum: 10 }, 'default is left out');
   assert.deepEqual(props.window.anyOf[1], { type: 'null' });
-  assert.deepEqual(props.counts, { type: 'object', propertyNames: { type: 'string' } }, "a map's value schema is left out, as on the ADK path");
-  for (const node of schemaNodes(decl.parameters)) assert.ok(!('additionalProperties' in node), 'additionalProperties is left out');
+  assert.deepEqual(
+    props.counts,
+    { type: 'object', additionalProperties: { type: 'number' } },
+    "a map keeps its value schema, as the ADK path keeps it",
+  );
+  assert.ok(!(decl.parameters.required as string[]).includes('limit'), 'a field with a default is optional');
+  for (const node of schemaNodes(decl.parameters)) {
+    assert.ok(typeof node.additionalProperties !== 'boolean', 'a boolean additionalProperties is left out');
+  }
 });
 
 test('a contract property named like a keyword keeps its schema', () => {
@@ -306,7 +314,7 @@ test('the strict variant reaches every object node, however deep', () => {
   assert.deepEqual(props.window.anyOf[0].required, ['from', 'to'], 'inside anyOf');
   assert.deepEqual(props.either.anyOf[1].properties.note.required, ['text'], 'an object inside an object inside anyOf');
   assert.equal(props.either.anyOf[1].properties.note.additionalProperties, false);
-  assert.equal(props.counts.additionalProperties, undefined, 'a map without properties is left open');
+  assert.deepEqual(props.counts.additionalProperties, { type: 'number' }, 'a map without properties is left open, with its value schema');
 });
 
 test('toContractJsonSchema: strict through $defs and tuples, and the input untouched', () => {

@@ -168,7 +168,8 @@ test('an unreadable store is an Error string, never a throw', async () => {
 
 // ── Backends and callers ────────────────────────────────────────────────────
 test('a tool call carries its caller from the ADK invocation', async () => {
-  const { toolCallContextFrom, toFunctionTool } = await import('../lib/tools/toolContract.ts');
+  const { toolCallContextFrom } = await import('../lib/tools/toolContract.ts');
+  const { toFunctionTool } = await import('../lib/tools/adkTool.ts');
   assert.deepEqual(toolCallContextFrom({ invocationContext: { userId: 'scope-a', appName: 'desk', session: { id: 's1' } } }), {
     userId: 'scope-a',
     appName: 'desk',

@@ -63,6 +63,7 @@ import {
   traceLlmGeneration,
   setLlmSpanAttribute,
 } from '../observability/tracer.ts';
+import { llmRequestToModelRequest } from './genaiMapping.ts';
 import {
   wantsWebSearch,
   isWebSearchSentinel,
@@ -453,7 +454,11 @@ export class GptLlm extends BaseLlm {
     stream = false,
   ): AsyncGenerator<LlmResponse, void> {
     yield* traceLlmGeneration(
-      { provider: this.providerId(), model: this.model, llmRequest },
+      {
+        provider: this.providerId(),
+        model: this.model,
+        request: () => llmRequestToModelRequest(llmRequest, { model: llmRequest.model || this.model, stream }),
+      },
       this.generateInner(llmRequest, stream),
     );
   }

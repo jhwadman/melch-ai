@@ -11,6 +11,7 @@
 
 import { BaseLlm } from '@google/adk';
 import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
+import { llmRequestToModelRequest } from '../../lib/models/genaiMapping.ts';
 import { traceLlmGeneration } from '../../lib/observability/tracer.ts';
 
 /** One response, or several in order (streaming chunks, then the full reply). */
@@ -28,10 +29,13 @@ export class ScriptedLlm extends BaseLlm {
 
   async *generateContentAsync(
     llmRequest: LlmRequest,
-    _stream?: boolean,
+    stream?: boolean,
     abortSignal?: AbortSignal,
   ): AsyncGenerator<LlmResponse, void> {
-    yield* traceLlmGeneration({ provider: 'scripted', model: this.model }, this.inner(llmRequest, abortSignal));
+    yield* traceLlmGeneration(
+      { provider: 'scripted', model: this.model, request: () => llmRequestToModelRequest(llmRequest, { model: llmRequest.model || this.model, stream }) },
+      this.inner(llmRequest, abortSignal),
+    );
   }
 
   private async *inner(llmRequest: LlmRequest, abortSignal?: AbortSignal): AsyncGenerator<LlmResponse, void> {
