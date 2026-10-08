@@ -1305,6 +1305,142 @@
       "evidence": "wiki/overview/native-loop.md \"Self-correction\": the model side, the tool side, call-order counting and the quirks kept.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0076 Context: \"The native loop (ADR 0071) opened none of them\"; the spans wrap runAgentLoop, its steps and its calls.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0076 Decision 3: \"A failed step carries no payload: its llm.request carries the failed call's, as on the ADK runtime\" (the llm.request payload of ADR 0053).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0076 Decision 2: \"The tracer and the exporter read both naming schemes. lib/observability/lineage.ts names them: agentOfSpanName, isToolSpanName and isModelCallSpan\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0076 Decision 3: \"isPayloadSpan takes a model.call only when it carries one.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"The spans\": agent.invoke, model.call and tool.execute, the three hooks, and what each span carries.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0073 Decision 1: \"compileSpec and compileSubagentSpec produce an AgentSpec\" with the tools resolved and gated, the model resolved once and the config built.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/compileAdk.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0073 Decision 1: \"compileAdk adds what only LlmAgent takes\"; compileGraph and compileSubagent are spec + compileAdk.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0073 Decision 3: delegation, context: and mode: task are \"refused by compileNative\" with UnsupportedOnRuntimeError.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0073 Decision 2: \"runSyndicateTurn takes an optional runtime (adk or native). Without it, MELCHIZEDEK_RUNTIME decides, and without that, adk.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "module:lib/runtime/native/tempState.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0073 Decision 7: \"A run's temp: state lives beside the session ... The session object itself never holds them.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0073 Context: \"ADR 0045 carries the move off ADK on a flag, MELCHIZEDEK_RUNTIME (adk or native), with adk the default until a later release.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0073 Context: \"The native loop runs one agent as ADK runs it and stores the events ADK stores (ADR 0066, ADR 0071).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0073 Decision 5: only the agent run is swapped behind runSyndicateTurn, the seam of ADR 0024; routing, guards and pause checks are shared.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0073 Decision 1: compileNative hands \"each delegated subagent as a subagentTool holding its own compiled agent\" (ADR 0074).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0073 Decision 5: \"The turn runner builds one SelfCorrection per turn from retries:, as it installs ADK's retry plugins.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0073 Decision 5: the turn runner \"wraps the stream in traceAgentRun with the same metadata\" over the loop's spans (ADR 0076).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/nativeTurn.ts",
+      "rel": "explains",
+      "evidence": "native-loop.md, The runtime flag: \"runNativeAgent (lib/runtime/nativeTurn.ts) does what ADK's Runner does before the agent runs\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

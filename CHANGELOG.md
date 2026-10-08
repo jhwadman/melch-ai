@@ -9,12 +9,12 @@ the starter pack and the templates), not the repo's full history.
 - **A turn can run on the native runtime (ADR 0073).** `runSyndicateTurn`
   takes an optional `runtime` (`'adk'` or `'native'`). Without it,
   `MELCHIZEDEK_RUNTIME` decides (`adk` or `native`), and without that, `adk`,
-  so nothing changes unless you ask. On `native` a single-agent or
-  plan-dispatch syndicate runs on the engine's own loop and returns the
-  same result shape; what native does not run yet (delegation, compaction,
-  workflows, task mode, `retries:` above zero, `transformAgent`, resuming
-  an approval or answering a question) throws `UnsupportedOnRuntimeError`
-  before any model call. Additions under the existing `exports` map:
+  so nothing changes unless you ask. On `native` a single-agent, DELEGATE
+  or plan-dispatch syndicate runs on the engine's own loop, with
+  self-correction from `retries:` and the same root span, and returns the
+  same result shape; what native does not run yet (compaction, workflows,
+  task mode, `transformAgent`, resuming an approval or answering a
+  question) throws `UnsupportedOnRuntimeError` before any model call. Additions under the existing `exports` map:
   - `melchizedek-agents/runtime` exports `RuntimeName`, `RUNTIMES`,
     `DEFAULT_RUNTIME`, `chooseRuntime`, `runtimeSetting` and
     `UnsupportedOnRuntimeError`.
@@ -51,6 +51,20 @@ the starter pack and the templates), not the repo's full history.
     `credential.revoke` and `credential.erase` (`AuditEventName`), with the
     provider and app and never a token.
 
+- **The ledger reads the native loop's spans (ADR 0076).** The native loop
+  (not yet selectable, WS2-10) opens `agent.invoke <name>`, `model.call` and
+  `tool.execute <name>` spans in scope `melchizedek.runtime`, and a native
+  run writes the same `adk_turns`, `adk_telemetry` and `adk_payloads` rows as
+  an ADK run. `melchizedek-agents/observability/lineage` exports
+  `ADK_SPAN_SCOPE`, `RUNTIME_SPAN_SCOPE`, `agentOfSpanName`,
+  `isToolSpanName` and `isModelCallSpan`. In `observability/tracer`,
+  `agentForSpan` also walks up to an `agent.invoke` span, tool time also
+  sums `tool.execute` spans, and the console exporter keeps the
+  `melchizedek.runtime` scope quiet as it keeps ADK's
+  (`OTEL_CONSOLE_ALL_SPANS=true` prints both). In
+  `observability/supabaseSpanExporter`, `isPayloadSpan` also takes a
+  `model.call` span that carries `llm.payload.*`, and `toPayloadRow` reads
+  `adk.invocation_id` before the turn's.
 - **New entry `melchizedek-agents/model`: the model layer without ADK
   (ADR 0068).** A new path in the `exports` map, so the version is 0.19.0.
   It exports the model contract's types, `ClaudeAdapter`, `GptAdapter`,

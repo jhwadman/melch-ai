@@ -3,6 +3,74 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/nativeTurn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0076-native-loop-spans-feed-the-same-ledger.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0075-native-self-correction-ports-adk-plugins.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0024-adk-behind-the-runtime-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/runtime/native/tempState.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/compileNative.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/compileAdk.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/telemetry.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0076-native-loop-spans-feed-the-same-ledger.md —constrains→ module:lib/observability/supabaseSpanExporter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0076-native-loop-spans-feed-the-same-ledger.md —constrains→ module:lib/observability/lineage.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0076-native-loop-spans-feed-the-same-ledger.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0076-native-loop-spans-feed-the-same-ledger.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/selfCorrection.ts
 
 by claude-code/claude-opus-5-5

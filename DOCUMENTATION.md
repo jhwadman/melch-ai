@@ -58,9 +58,9 @@ The compiler (`lib/compile.ts`) first builds a runtime-neutral `AgentSpec`
 per agent; `lib/compileAdk.ts` turns it into the `LlmAgent`, and
 `lib/compileNative.ts` into the engine's own loop's agent. ADK runs every
 turn by default. `MELCHIZEDEK_RUNTIME=native`, or `runtime: 'native'` on
-`runSyndicateTurn`, runs a single-agent or plan-dispatch syndicate on the
-native loop with the same result and the same stored events; what it does
-not run yet (delegation, compaction, workflows) throws
+`runSyndicateTurn`, runs a single-agent, delegating or plan-dispatch
+syndicate on the native loop with the same result and the same stored
+events; what it does not run yet (compaction, workflows) throws
 `UnsupportedOnRuntimeError` before any model call
 ([ADR 0073](./wiki/decisions/0073-one-agent-spec-and-a-runtime-flag.md)).
 
@@ -539,7 +539,11 @@ kept by policy (`TELEMETRY_PAYLOADS=off|errors|sample|all`,
 `melchizedek_prune_telemetry()`. A row from a failed call's `llm.request`
 span holds the request in the model contract's shape (`model`, `system`,
 `messages`, `tools`, …), whichever adapter made the call; a row from ADK's
-own `call_llm` span holds ADK's request. The view `adk_turns_production` excludes
+own `call_llm` span holds ADK's request. On the native runtime the loop
+opens `agent.invoke <name>`, `model.call` and `tool.execute <name>` spans
+where ADK opens `invoke_agent`, `call_llm` and `execute_tool`, and the ledger
+reads both (ADR 0076); a clean call's row then comes from `model.call` and
+holds the request and the adapter's response in the contract's shapes. The view `adk_turns_production` excludes
 eval and classifier turns. Operate it with `npm run telemetry:stats`,
 `telemetry:prune` and `telemetry:replay` (the exporter spools failed
 batches to `outputs/telemetry-deadletter.ndjson`).

@@ -24,6 +24,8 @@ sources:
   - resource: tests/nativeLoop.test.ts
   - resource: tests/nativeTurn.test.ts
   - resource: tests/nativeDelegate.test.ts
+  - resource: lib/runtime/native/telemetry.ts
+  - resource: tests/nativeLedger.test.ts
 ---
 
 # Native loop
@@ -34,6 +36,7 @@ Every piece matches the ADK runtime, so a session either runtime wrote is one th
 
 - `tests/nativeStep.test.ts` rebuilds each call on the native step from the session as it stood before the call. The adapter must be handed an equal request, and the store must hold an equal event.
 - `tests/nativeLoop.test.ts` runs the same conversation through `runAgentLoop`: every single-agent case of the boundary suite (`tests/syndicateTurn.test.ts`) and the loop's own cases. The store must hold the same events, ids and times aside, and `onTextDelta` must get the same deltas.
+- `tests/nativeLedger.test.ts` runs the same conversation both ways with tracing on and hands each run's spans to the ledger exporter. `adk_turns`, `adk_telemetry` and `adk_payloads` must hold the same rows (see [the spans](#the-spans)).
 - `tests/nativeDelegate.test.ts` does the same for delegation: the boundary suite's delegation cases, a nested syndicate and the council example. Every session must hold the same events (the caller's, and each subagent's own), and every model must be sent the same requests.
 
 ## The agent
@@ -169,6 +172,7 @@ ADK's quirks are kept on purpose, so both runtimes match:
 - a partial resets the model count;
 - through the model contract a malformed Gemini call is an error code, not a finish reason, so no adapter's response is retried for it on either runtime.
 
+
 ## Delegation
 
 A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`: named for the agent, described by its description, with one string parameter `request`, as ADK's `AgentTool` declares it. A `yaml_reference` subagent is the nested syndicate's orchestrator under the entry's name and description, listing its own subagent tools. `runCall` asks `subagentOf(tool)` before the generic path, and `runSubagent` (`lib/runtime/native/delegate.ts`) runs the call as `AgentTool.runAsync` runs it ([ADR 0074](/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md)):
@@ -181,7 +185,7 @@ A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`
 
 Calls to subagents in one step run one after another, in call order, as ADK runs them. A pause inside a subagent (an `ask_user` call, an approval request) cannot reach the caller ([ADR 0028](/decisions/0028-approval-gates.md)): the child run ends paused, the call answers `''`, and the gated tool never runs. The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run from either runtime.
 
-Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), resuming an approval or a question (WS2-7a, WS2-7b), compaction (WS2-9), tool spans (WS2-11), and an auth request a tool raises.
+Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), resuming an approval or a question (WS2-7a, WS2-7b), compaction (WS2-9), and an auth request a tool raises.
 
 A `temp:` key a tool writes is visible to the rest of the run, as ADK's live session state makes it: the next step's instruction placeholders, its toolsets, and the next step's calls read it. The loop reads each event's `temp:` keys just before the store drops them, and lays them over the session's state when it builds a request or a call's context (`lib/runtime/native/tempState.ts`). They are never written into the session object, since a store that saves the whole session would keep them.
 
@@ -193,7 +197,9 @@ On `native`, `runSyndicateTurn` keeps its own logic (routing, guards, the relay 
 
 1. It reads the session, which must exist.
 2. It stores the message as the user's event under a new `e-` invocation id.
-3. It runs `runAgentLoop`.
+3. It runs `runAgentLoop`, with the turn's one `SelfCorrection`, built from the syndicate's `retries:` as the ADK path installs its retry plugins.
+
+The turn runner wraps the stream in `traceAgentRun` with the same metadata on either runtime, so the turn's root span sits over the loop's [spans](#the-spans).
 
 The turn runner drains the events through `drainAgentStream`, so the result has the same shape: text, grounding, usage, a pending approval or question, errors. The adapter for each model id is the one behind what `CompileOptions.resolveModel` returns: an ADK shim's own adapter, or, for `TracedGemini`, `resolveAdapter` under the key the instance carries, so a caller's BYOK key pays on either runtime. Anything else gets `resolveAdapter` for the id (`nativeAdapterFor`). A per-request Vertex AI endpoint does not reach a native call yet. Memory search goes to the engine's `MemoryService`, or to an ADK-only service's `searchMemory`. A single agent, a DELEGATE syndicate (each subagent a `subagentTool` holding its own compiled agent, a remote one the A2A tool ADK's runtime runs too) and a plan-dispatch syndicate (the classifier and a local route) run on native. `tests/nativeTurn.test.ts` runs conversations both ways and requires the same results and the same stored events.
 
@@ -208,3 +214,23 @@ What native does not run yet fails before any model call, with an `UnsupportedOn
 | a message that resumes an approval or answers a question | `runSyndicateTurn` | WS2-7 |
 
 A turn that paused on native (an approval request, an `ask_user` call) stored ADK's own events, so the same conversation resumes on `adk`.
+## The spans
+
+A native run writes the same ledger rows as an ADK run ([ADR 0076](/decisions/0076-native-loop-spans-feed-the-same-ledger.md)). The ledger reads a turn's spans, and ADK opens three that it depends on, so the loop opens the same three under its own names, in scope `melchizedek.runtime` (`lib/runtime/native/telemetry.ts`):
+
+| the loop's span | ADK's | covers | the ledger reads |
+|---|---|---|---|
+| `agent.invoke <name>` | `invoke_agent <name>` | the agent's run, opened when the run starts | the agent of every `llm.request` below it (`adk_telemetry.agent`) |
+| `model.call` | `call_llm` | one step, with its `llm.request` (two when a fallback answers) | the step's payload row in `adk_payloads` |
+| `tool.execute <name>` | `execute_tool <name>` | one tool call, under the agent span | its duration, in `adk_turns.tool_ms` |
+
+`agentLoop.ts` opens them through three hooks: `traceAgentInvocation` around the run, `traceModelCall` around each step and `traceToolCall` around each call. The tracer's lineage and the exporter read both naming schemes through `lib/observability/lineage.ts`. Like ADK's, the loop's spans reach the in-process listeners and the ledger, and are printed only with `OTEL_CONSOLE_ALL_SPANS=true`.
+
+What they carry:
+
+- **ADK's `gen_ai.*` attributes**: operation, agent name and description, conversation id, tool name and call id, usage and finish reason. `gen_ai.request.model` is the agent's model, as on `call_llm`; `gen_ai.system` is the provider of the adapter that answered.
+- **A step's payload.** A `model.call` whose call did not fail carries `llm.payload.request` (the `ModelRequest`, its signal left out) and `llm.payload.response` (the adapter's final response). A failed step carries none: its `llm.request` carries the failed call's payload, as on ADK, where a failed `call_llm` never ends. With `TELEMETRY_PAYLOADS=off` nothing is recorded.
+- **No tool arguments or results.** The root span's `ToolCall` and `ToolResponse` events hold them. A tool span records `tool.error` for an error response and `tool.pending` for a long-running call that answered nothing.
+- **How the run ended** on the agent span: `agent.end_reason`, `agent.steps`, and `agent.stop_code` for a stopped run.
+
+The rows differ from ADK's in two places. A step's own payload row holds the engine's request and response shapes, and its `provider` column names the provider where ADK's says `gcp.vertex.agent`. And a step's calls run side by side, so `tool_ms` sums their durations where ADK's sum is wall time. The root span is the turn runner's: `runSyndicateTurn` wraps the native stream in `traceAgentRun` with the same metadata as ADK's ([the runtime flag](#the-runtime-flag)).

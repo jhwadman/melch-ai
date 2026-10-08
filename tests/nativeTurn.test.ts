@@ -20,6 +20,8 @@ import { z } from 'zod';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter } from '../lib/models/contract.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
+import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { approvalResponsePart } from '../lib/runtime/approvals.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import { UnsupportedOnRuntimeError, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
@@ -304,6 +306,35 @@ test('parity: self-correction answers a throwing tool with reflection guidance o
   assert.equal(native.results[0]?.status, 'completed');
   const response = native.events.flatMap((e) => e.content?.parts ?? []).find((p) => p.functionResponse)?.functionResponse?.response;
   assert.ok(JSON.stringify(response).includes('REFLECT_AND_RETRY'), 'the reflection guidance answered the call');
+});
+
+test('a traced native turn has the turn runner’s root span over the loop’s agent, model and tool spans', async () => {
+  const spans: ReadableSpan[] = [];
+  const off = onSpanEnd((span) => spans.push(span));
+  try {
+    const boss = new ScriptedModel('scripted/boss', (req, n) => (n === 1 ? toolCall('native_turn_lookup', { key: 'alpha' }, 'call-1') : answer('done')));
+    const r = await runSyndicateTurn({
+      config: syndicate({ tools: ['native_turn_lookup'] }),
+      parts: [{ text: 'find alpha' }],
+      appName: APP,
+      userId: USER,
+      sessionId: 'traced',
+      sessionService: new InMemorySessionService(),
+      compile: { resolveModel: shimResolver({ boss }) },
+      trace: { syndicateName: 'traced-native' },
+      runtime: 'native',
+    });
+    assert.equal(r.status, 'completed');
+    await flushTracing();
+  } finally {
+    off();
+  }
+  const root = spans.find((s) => s.name === 'Syndicate Execution: traced-native');
+  assert.ok(root, 'the turn runner’s root span');
+  const inTurn = spans.filter((s) => s.spanContext().traceId === root.spanContext().traceId).map((s) => s.name);
+  assert.ok(inTurn.includes('agent.invoke Solo'), 'the loop’s agent span');
+  assert.equal(inTurn.filter((n) => n === 'model.call').length, 2, 'one model.call per step');
+  assert.ok(inTurn.includes('tool.execute native_turn_lookup'), 'the tool span');
 });
 
 // ── What native refuses, before any model call ───────────────────────────────
