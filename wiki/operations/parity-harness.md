@@ -71,11 +71,11 @@ The live models are not deterministic. A failure detail separates the two causes
 
 ## The runtime flag
 
-`MELCHIZEDEK_RUNTIME` (`adk` or `native`, default `adk`; anything else is a usage error) is recorded in the report as `runtime.requested`. `runSyndicateTurn` has no runtime option yet, so every run is ADK (`runtime.ran: adk`). The table's first line says so when `native` was asked for.
+`MELCHIZEDEK_RUNTIME` (`adk` or `native`, default `adk`; anything else is a usage error) picks the runtime: every turn passes it to `runSyndicateTurn` as the `runtime` option ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). The report records it as `runtime.requested` and `runtime.ran`, and the table's first line names it. The script sets the engine's log level (`lib/runtime/logging.ts`), never ADK's.
 
 ## The self-test
 
-`npm run parity -- --scripted` replaces every provider's models with scripted ones (`tests/helpers/scriptedLlm.ts`): no key, no `.env`, no network. One deterministic stand-in plays each agent's role by reading the request: it is offered `Echo` as a tool (the orchestrator), it is asked for a response schema (the Recorder), or it is neither (Echo). Its report is named `parity-scripted-…` and says `mode: scripted`, so it can never pass for a live gate. `--fault <check>` (scripted only) makes the stand-ins break one behaviour.
+`npm run parity -- --scripted` replaces every provider's models with scripted ones (`tests/helpers/scriptedLlm.ts`): no key, no `.env`, no network. One deterministic stand-in plays each agent's role by reading the request: it is offered `Echo` as a tool (the orchestrator), it is asked for a response schema (the Recorder; `responseSchema` in the request ADK builds, `responseJsonSchema` in the native request read back as an `LlmRequest`), or it is neither (Echo). Its report is named `parity-scripted-…` and says `mode: scripted`, so it can never pass for a live gate. `--fault <check>` (scripted only) makes the stand-ins break one behaviour.
 
 `tests/parityHarness.test.ts` runs it inside `npm test`:
 

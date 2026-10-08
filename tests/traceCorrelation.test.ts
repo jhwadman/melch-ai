@@ -3,6 +3,9 @@
  * (OPS-04): a caller's W3C traceparent is linked from the turn's root span
  * (never adopted: the turn's own trace id stays unique), and every
  * task record carries its task id and trace id. Offline: a scripted model.
+ *
+ * The cases that run a turn run on both runtimes, through
+ * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -21,6 +24,7 @@ import type { A2AApp } from '../lib/a2a/app.ts';
 import { validTraceparent } from '../lib/observability/tracer.ts';
 import type { TaskRecord } from '../lib/observability/metrics.ts';
 import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -75,7 +79,7 @@ test('validTraceparent accepts W3C version 00 and refuses anything else', () => 
   assert.equal(validTraceparent(undefined), undefined);
 });
 
-test("a caller's traceparent is linked, never adopted: the turn keeps a trace id of its own", async () => {
+forEachRuntime("a caller's traceparent is linked, never adopted: the turn keeps a trace id of its own", async () => {
   records.length = 0;
   const taskId = await send({ traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01' });
   const r = records.at(-1)!;
@@ -85,7 +89,7 @@ test("a caller's traceparent is linked, never adopted: the turn keeps a trace id
   assert.equal(r.taskId, taskId);
 });
 
-test('two requests naming the same traceparent still get two distinct trace ids', async () => {
+forEachRuntime('two requests naming the same traceparent still get two distinct trace ids', async () => {
   records.length = 0;
   const tp = '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01';
   await Promise.all([send({ traceparent: tp }), send({ traceparent: tp })]);
@@ -93,7 +97,7 @@ test('two requests naming the same traceparent still get two distinct trace ids'
   assert.equal(new Set(ids).size, 2, `distinct: ${ids.join(', ')}`);
 });
 
-test('without a traceparent (or with a malformed one) the task still gets its own trace id', async () => {
+forEachRuntime('without a traceparent (or with a malformed one) the task still gets its own trace id', async () => {
   records.length = 0;
   await send({ traceparent: 'not-a-trace' });
   const r = records.at(-1)!;

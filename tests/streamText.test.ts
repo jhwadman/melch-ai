@@ -7,7 +7,8 @@
  * them; narration before a tool call is discarded; the artifact is closed
  * with the text the user actually receives; a syndicate with guards never
  * streams; and the final status message is unchanged for clients that read
- * only that.
+ * only that. The server cases run on both runtimes, through
+ * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -33,6 +34,7 @@ import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { drainAgentStream } from '../lib/runtime/syndicateTurn.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, streamedAnswer, toolCall } from './helpers/scriptedModel.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -125,7 +127,7 @@ const finalText = (results: any[]) => {
   return { state: final?.status?.state, text: (final?.status?.message?.parts ?? []).map((p: any) => p.text ?? '').join('') };
 };
 
-test('chunks stream as an answer artifact, then close with the whole text', async () => {
+forEachRuntime('chunks stream as an answer artifact, then close with the whole text', async () => {
   const results = await streamResults('writer', 'hi');
   assert.deepEqual(artifacts(results), [
     { text: 'Hello', append: false, last: false },
@@ -136,7 +138,7 @@ test('chunks stream as an answer artifact, then close with the whole text', asyn
   assert.deepEqual(finalText(results), { state: 'completed', text: 'Hello, world.' });
 });
 
-test('narration before a tool call is withdrawn; only the answer remains', async () => {
+forEachRuntime('narration before a tool call is withdrawn; only the answer remains', async () => {
   const results = await streamResults('narrator', 'look it up');
   const a = artifacts(results);
   assert.deepEqual(a[0], { text: 'Let me check. ', append: false, last: false });
@@ -145,7 +147,7 @@ test('narration before a tool call is withdrawn; only the answer remains', async
   assert.equal(finalText(results).text, 'Final answer.');
 });
 
-test('a syndicate with guards never streams; the guarded text arrives whole', async () => {
+forEachRuntime('a syndicate with guards never streams; the guarded text arrives whole', async () => {
   const results = await streamResults('guarded', 'hi');
   assert.deepEqual(artifacts(results), []);
   assert.deepEqual(finalText(results), { state: 'completed', text: 'HELLO, WORLD.' });

@@ -21,6 +21,8 @@ import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { adkShim } from '../lib/models/adkShim.ts';
 import { ScriptedModel, answer, lastToolResult, toolCall } from './helpers/scriptedModel.ts';
+import { withRuntimeEnv } from './helpers/runtime.ts';
+import type { RuntimeName } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -66,10 +68,7 @@ before(async () => {
   const addr = server.address();
   base = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
 });
-after(() => {
-  server?.close();
-  delete process.env.MELCHIZEDEK_RUNTIME;
-});
+after(() => server?.close());
 
 async function send(parts: unknown[], ids: { contextId?: string; taskId?: string } = {}): Promise<any> {
   const res = await fetch(`${base}/desk/a2a/jsonrpc`, {
@@ -90,17 +89,10 @@ async function send(parts: unknown[], ids: { contextId?: string; taskId?: string
 const statusText = (task: any) => (task.status?.message?.parts ?? []).map((p: any) => p.text ?? '').join('');
 const data = (task: any) => (task.status?.message?.parts ?? []).find((p: any) => p.kind === 'data')?.data;
 
-type Runtime = 'adk' | 'native';
-const onRuntime = (runtime: Runtime) => {
-  process.env.MELCHIZEDEK_RUNTIME = runtime;
-};
-
-/** The two messages, each on its runtime: what the caller saw, and what the store holds. */
-async function askAndAnswer(asks: Runtime, answers: Runtime) {
-  onRuntime(asks);
-  const first = await send([{ kind: 'text', text: 'pay the invoice' }]);
-  onRuntime(answers);
-  const done = await send([{ kind: 'text', text: 'work' }], { contextId: first.contextId, taskId: first.id });
+/** The two messages, each on its runtime (MELCHIZEDEK_RUNTIME, put back after): what the caller saw, and what the store holds. */
+async function askAndAnswer(asks: RuntimeName, answers: RuntimeName) {
+  const first = await withRuntimeEnv(asks, () => send([{ kind: 'text', text: 'pay the invoice' }]));
+  const done = await withRuntimeEnv(answers, () => send([{ kind: 'text', text: 'work' }], { contextId: first.contextId, taskId: first.id }));
   const keys = sessions.keys.get(first.contextId);
   assert.ok(keys, 'the conversation has a session');
   const stored = await sessions.getSession({ ...keys, sessionId: first.contextId });

@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 816,
-    "edges": 2858,
+    "nodes": 819,
+    "edges": 2875,
     "byKind": {
-      "doc": 146,
+      "doc": 147,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 137,
+      "file": 139,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 578,
+      "links_to": 582,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 732,
+      "imports": 734,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 669,
-      "constrains": 140,
+      "derives_from": 676,
+      "constrains": 141,
       "supersedes": 6,
-      "depends_on": 62,
-      "explains": 19,
+      "depends_on": 64,
+      "explains": 20,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2628,
-      "inferred": 230
+      "extracted": 2641,
+      "inferred": 234
     },
     "isolated": 4
   },
@@ -949,7 +949,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1289
+        "words": 1453
       }
     },
     {
@@ -1385,6 +1385,18 @@
       }
     },
     {
+      "id": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "kind": "doc",
+      "label": "ADR 0084: The turn-level suites register every case once per runtime, and CI runs the offline suite again with native as the default",
+      "source": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 793
+      }
+    },
+    {
       "id": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "kind": "doc",
       "label": "ADR 0085: OAuth consent pauses on ADK's own credential request, and a server callback completes the flow",
@@ -1621,7 +1633,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1075
+        "words": 1100
       }
     },
     {
@@ -1669,7 +1681,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 5601
+        "words": 5900
       }
     },
     {
@@ -3441,7 +3453,8 @@
       "id": "file:.github/workflows/ci.yml",
       "kind": "file",
       "label": "ci.yml",
-      "source": ".github/workflows/ci.yml"
+      "source": ".github/workflows/ci.yml",
+      "attrs": {}
     },
     {
       "id": "file:.github/workflows/codeql.yml",
@@ -4013,6 +4026,12 @@
       "source": "tests/helpers/importGraph.ts"
     },
     {
+      "id": "file:tests/helpers/runtime.ts",
+      "kind": "file",
+      "label": "runtime.ts",
+      "source": "tests/helpers/runtime.ts"
+    },
+    {
       "id": "file:tests/helpers/scriptedLlm.ts",
       "kind": "file",
       "label": "scriptedLlm.ts",
@@ -4199,6 +4218,12 @@
       "label": "redirects.test.ts",
       "source": "tests/redirects.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/remoteAgent.test.ts",
+      "kind": "file",
+      "label": "remoteAgent.test.ts",
+      "source": "tests/remoteAgent.test.ts"
     },
     {
       "id": "file:tests/resolveAdapter.test.ts",
@@ -4505,7 +4530,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 133
+        "lines": 159
       }
     },
     {
@@ -5153,7 +5178,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 812
+        "lines": 813
       }
     },
     {
@@ -5216,7 +5241,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 267
+        "lines": 322
       }
     },
     {
@@ -6008,7 +6033,7 @@
       "label": "scripts/parity_check.ts",
       "source": "scripts/parity_check.ts",
       "attrs": {
-        "lines": 760
+        "lines": 763
       }
     },
     {
@@ -12231,6 +12256,69 @@
       "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md:47"
     },
     {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:.github/workflows/ci.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:tests/helpers/runtime.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:tests/postgresStorage.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:tests/remoteAgent.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "file:tests/syndicateTurn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md frontmatter"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md:27"
+    },
+    {
+      "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0084-dual-runtime-suites-in-every-test-run.md:27"
+    },
+    {
       "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "to": "file:tests/oauthConsent.test.ts",
       "rel": "derives_from",
@@ -14640,6 +14728,13 @@
     },
     {
       "from": "/operations/parity-harness.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/parity-harness.md:74"
+    },
+    {
+      "from": "/operations/parity-harness.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -15175,21 +15270,21 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:160"
+      "evidence": "/overview/native-loop.md:162"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:225"
+      "evidence": "/overview/native-loop.md:227"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:259"
+      "evidence": "/overview/native-loop.md:261"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15203,14 +15298,14 @@
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:186"
+      "evidence": "/overview/native-loop.md:188"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:138"
+      "evidence": "/overview/native-loop.md:140"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15231,7 +15326,7 @@
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:221"
+      "evidence": "/overview/native-loop.md:223"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15252,7 +15347,7 @@
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:247"
+      "evidence": "/overview/native-loop.md:249"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15273,56 +15368,63 @@
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:186"
+      "evidence": "/overview/native-loop.md:188"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:306"
+      "evidence": "/overview/native-loop.md:310"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:227"
+      "evidence": "/overview/native-loop.md:229"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:166"
+      "evidence": "/overview/native-loop.md:168"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:261"
+      "evidence": "/overview/native-loop.md:263"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:214"
+      "evidence": "/overview/native-loop.md:216"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:297"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:247"
+      "evidence": "/overview/native-loop.md:249"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:114"
+      "evidence": "/overview/native-loop.md:116"
     },
     {
       "from": "/overview/native-loop.md",
@@ -20814,6 +20916,13 @@
     },
     {
       "from": "module:lib/runtime/native/step.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/step.ts",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23489,6 +23598,13 @@
     {
       "from": "module:scripts/parity_check.ts",
       "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/parity_check.ts"
+    },
+    {
+      "from": "module:scripts/parity_check.ts",
+      "to": "module:lib/runtime/logging.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/parity_check.ts"

@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **The native runtime sends a request, and reads a thrown failure, as
+  ADK does (WS2-12, ADR 0084).** On `runtime: 'native'` (or
+  `MELCHIZEDEK_RUNTIME=native`) a request goes out under the resolved
+  model's own id, as ADK's `LlmAgent` sends it, so a `resolveModel` that
+  answers a YAML id with a model under another id (a gateway stand-in, an
+  alias) gets that model's thinking and reasoning replay. A model that
+  throws no longer throws out of `runSyndicateTurn`: the turn fails on
+  ADK's `UNKNOWN_ERROR` event (or a JSON error body's code), and a thrown
+  provider-side failure is answered by `fallback_model`, as on ADK. The
+  turn-level test suites run on both runtimes. `npm run parity` now runs
+  its turns on the runtime `MELCHIZEDEK_RUNTIME` names. The `exports` map
+  is unchanged.
 - **Breaking: a skill script no longer inherits the server's environment
   (ADR 0086).** An approved `run_skill_script` starts from PATH,
   HOME/USERPROFILE, TMPDIR/TEMP/TMP, LANG, LC_*, TZ, the user's name and

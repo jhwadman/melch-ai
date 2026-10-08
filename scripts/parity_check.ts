@@ -27,9 +27,9 @@
  * request body. Provider error text goes to the JSON file only, scrubbed of
  * key-shaped strings.
  *
- * MELCHIZEDEK_RUNTIME (adk | native, default adk) is recorded in the report.
- * runSyndicateTurn has no runtime option yet, so every run is adk; the flag
- * is read here so a gate's report says what it asked for.
+ * MELCHIZEDEK_RUNTIME (adk | native, default adk) picks the runtime every
+ * turn runs on (the turn's runtime option, ADR 0073), and the report records
+ * it.
  *
  * --scripted swaps every provider's models for scripted ones
  * (tests/helpers/scriptedLlm.ts) so the harness tests itself offline;
@@ -54,7 +54,7 @@ import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
+import { InMemorySessionService } from '@google/adk';
 import type { BaseLlm, LlmRequest, LlmResponse } from '@google/adk';
 import { z } from 'zod';
 
@@ -74,6 +74,7 @@ import type { ProviderId } from '../lib/models/registry.ts';
 import { toLowercaseJsonSchema } from '../lib/models/schemaNormalize.ts';
 import { patternRedactor } from '../lib/observability/redact.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
+import { setLogLevel } from '../lib/runtime/logging.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult, TurnEvents } from '../lib/runtime/syndicateTurn.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
@@ -132,8 +133,8 @@ export interface ParityReport {
   harness: 'parity';
   version: 1;
   mode: 'live' | 'scripted';
-  /** What MELCHIZEDEK_RUNTIME asked for, and what ran. */
-  runtime: { requested: Runtime; ran: 'adk' };
+  /** What MELCHIZEDEK_RUNTIME asked for, and what ran: always the same since the turn takes a runtime option. */
+  runtime: { requested: Runtime; ran: Runtime };
   faults?: CheckId[];
   startedAt: string;
   finishedAt: string;
@@ -325,6 +326,7 @@ async function runProvider(target: Target, opts: ParityOptions): Promise<Provide
         sessionService,
         ...(target.resolveModel ? { compile: { resolveModel: target.resolveModel } } : {}),
         deadlineMs: opts.turnTimeoutMs ?? DEFAULT_TURN_TIMEOUT_MS,
+        runtime: opts.runtime ?? 'adk',
         streaming,
         trace: { syndicateName: 'parity', attributes: { 'surface.name': target.transport === 'scripted' ? 'parity-scripted' : 'parity' } },
         events,
@@ -500,13 +502,15 @@ const textsOf = (content: any): string[] => (content?.parts ?? []).map((p: any) 
 /**
  * One deterministic stand-in for every agent of the fixture, playing the role
  * the request shows: the orchestrator is offered Echo as a tool, the Recorder
- * is asked for a response schema, anything else is Echo. A fault breaks the
+ * is asked for a response schema (ADK's request carries it as responseSchema;
+ * the native runtime's, read back as an LlmRequest, as responseJsonSchema),
+ * anything else is Echo. A fault breaks the
  * one behaviour its check measures, so that check — and only it — must fail.
  */
 function scriptedBrain(faults: ReadonlySet<CheckId>): Script {
   return (req: LlmRequest) => {
     const tools = Object.keys((req as any).toolsDict ?? {});
-    const out = tools.includes('Echo') ? scriptedLead(req, faults) : req.config?.responseSchema ? scriptedRecorder(req, faults) : scriptedEcho(req);
+    const out = tools.includes('Echo') ? scriptedLead(req, faults) : req.config?.responseSchema || req.config?.responseJsonSchema ? scriptedRecorder(req, faults) : scriptedEcho(req);
     return faults.has('usage') ? out : withUsage(out, req);
   };
 }
@@ -568,7 +572,7 @@ export async function runParity(opts: ParityOptions = {}): Promise<ParityReport>
     harness: 'parity',
     version: 1,
     mode: opts.scripted ? 'scripted' : 'live',
-    runtime: { requested: opts.runtime ?? 'adk', ran: 'adk' },
+    runtime: { requested: opts.runtime ?? 'adk', ran: opts.runtime ?? 'adk' },
     ...(opts.faults?.length ? { faults: [...opts.faults] } : {}),
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
@@ -598,8 +602,7 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 /** The provider-by-check table, then failures, skips and the verdict. */
 export function renderReport(report: ParityReport, reportPath?: string): string {
   const lines: string[] = [];
-  const ranNote = report.runtime.requested === report.runtime.ran ? '' : ` (MELCHIZEDEK_RUNTIME=${report.runtime.requested} requested; the native runtime is not wired yet)`;
-  lines.push(`parity · ${report.mode} · runtime ${report.runtime.ran}${ranNote} · ${report.startedAt}`);
+  lines.push(`parity · ${report.mode} · runtime ${report.runtime.ran} · ${report.startedAt}`);
   if (report.faults?.length) lines.push(`faults injected: ${report.faults.join(', ')}`);
   lines.push('');
 
@@ -737,7 +740,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (!args.scripted) loadEnv(import.meta.url);
   // Console spans can carry a failed request's payload: never on this stdout.
   process.env.OTEL_CONSOLE_SPANS = 'false';
-  setLogLevel(LogLevel.ERROR);
+  setLogLevel('error');
 
   const report = await runParity({ ...args, runtime, log: (l) => console.log(l) });
   await flushTracing().catch(() => {}); // the ledger keeps the run's spend

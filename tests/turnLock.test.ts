@@ -3,6 +3,9 @@
  * the in-process lock, and the server serialising (or refusing) a second
  * turn on a busy conversation. The advisory lock across instances is in
  * tests/postgresStorage.test.ts.
+ *
+ * The cases that run a turn run on both runtimes, through
+ * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -19,6 +22,7 @@ import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { inProcessTurnLock, turnLockKey } from '../lib/a2a/turnLock.ts';
 import { ScriptedLlm, sentTexts, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -104,7 +108,7 @@ async function send(base: string, textValue: string, contextId: string) {
   return { state: status?.state, text: (status?.message?.parts ?? []).map((p: any) => p.text ?? '').join('') };
 }
 
-test('two turns on one conversation run one after the other; the second sees the first', async () => {
+forEachRuntime('two turns on one conversation run one after the other; the second sees the first', async () => {
   const base = await serve(10_000);
   const ctx = crypto.randomUUID();
   const [first, second] = await Promise.all([send(base, 'one', ctx), sleep(30).then(() => send(base, 'two', ctx))]);
@@ -113,7 +117,7 @@ test('two turns on one conversation run one after the other; the second sees the
   assert.match(second.text, /one/, 'the second turn ran after the first and saw its exchange');
 });
 
-test('a second turn that waits too long is refused, and other conversations are not held up', async () => {
+forEachRuntime('a second turn that waits too long is refused, and other conversations are not held up', async () => {
   const base = await serve(50);
   const ctx = crypto.randomUUID();
   const [first, second, other] = await Promise.all([

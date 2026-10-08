@@ -36,6 +36,7 @@ import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
 import { REASONING_CONTENT_KIND } from '../lib/models/openAiCompatibleLlm.ts';
 import { providerStateOf } from '../lib/models/providerState.ts';
 import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -177,6 +178,16 @@ function turn(boss: BaseLlm, sessionService = new InMemorySessionService(), stre
 /** The assistant messages of a chat-completions request body. */
 const assistants = (body: any): any[] => (body.messages ?? []).filter((m: any) => m.role === 'assistant');
 
+/**
+ * A resolver that returns an ADK model class which is neither the shim nor
+ * Gemini (StepSwitch here) is not run by the native runtime: it resolves the
+ * id through the registry instead (ADR 0073, decision 6). Open question in
+ * the WS2-12 PR; these cases run on ADK until it is decided.
+ */
+const ADK_MODEL_CLASS = {
+  notOn: { native: { reason: 'a resolver returning an ADK model class that is not a shim is resolved by id on native (ADR 0073)', ticket: 'WS2-12 open question 2' } },
+};
+
 /** One model per step, in order: a model switch between steps, as a fallback makes one. */
 class StepSwitch extends BaseLlm {
   private calls = 0;
@@ -234,7 +245,7 @@ for (const streaming of [false, true]) {
   });
 }
 
-test('a model switch between steps drops it: kimi-k3 then kimi-k2.6', async () => {
+forEachRuntime('a model switch between steps drops it: kimi-k3 then kimi-k2.6', async () => {
   await withMoonshot([callScout, answer], async (sent) => {
     const r = await turn(new StepSwitch([kimi('kimi-k3'), kimi('kimi-k2.6')]));
     assert.equal(r.status, 'completed', JSON.stringify(r.error));
@@ -244,16 +255,16 @@ test('a model switch between steps drops it: kimi-k3 then kimi-k2.6', async () =
     assert.equal(call.reasoning_content, undefined);
     assert.ok(!JSON.stringify(sent[1]).includes(REASONING_1));
   });
-});
+}, ADK_MODEL_CLASS);
 
-test('a provider switch drops it: kimi-k3 then Ollama', async () => {
+forEachRuntime('a provider switch drops it: kimi-k3 then Ollama', async () => {
   await withMoonshot([callScout, answer], async (sent) => {
     const r = await turn(new StepSwitch([kimi('kimi-k3'), new OllamaLlm({ model: 'ollama/qwen3:8b' })]));
     assert.equal(r.status, 'completed', JSON.stringify(r.error));
     assert.equal(sent[1].model, 'qwen3:8b');
     assert.ok(!JSON.stringify(sent[1]).includes(REASONING_1));
   });
-});
+}, ADK_MODEL_CLASS);
 
 // ── The request a turn's history produces ────────────────────────────────────
 
