@@ -1,0 +1,32 @@
+{
+  "suite": "workflowToolNode",
+  "case": "tool-throws",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "side": {
+      "events": [
+        "{\"author\":\"Triage\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"{\\\"q\\\":\\\"boom\\\"}\"}]},\"output\":{\"q\":\"boom\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Triage\",\"outputFor\":[\"Graph.Triage\"]}}",
+        "{\"author\":\"Lookup\",\"content\":{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"id\":\"Graph.Lookup:1\",\"name\":\"tool_node_lookup\",\"response\":{\"error\":\"Error in tool 'tool_node_lookup': kaput\"}}}]},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"output\":{\"error\":\"Error in tool 'tool_node_lookup': kaput\"},\"nodeInfo\":{\"path\":\"Graph.Lookup\",\"outputFor\":[\"Graph.Lookup\"]}}",
+        "{\"author\":\"Reader\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"read {\\\"error\\\":\\\"Error in tool 'tool_node_lookup': kaput\\\"}\"}]},\"output\":\"read {\\\"error\\\":\\\"Error in tool 'tool_node_lookup': kaput\\\"}\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Reader\",\"outputFor\":[\"Graph.Reader\"]}}"
+      ],
+      "completions": [
+        "Graph.Triage = {\"q\":\"boom\"} @-",
+        "Graph.Lookup = {\"error\":\"Error in tool 'tool_node_lookup': kaput\"} @-",
+        "Graph.Reader = \"read {\\\"error\\\":\\\"Error in tool 'tool_node_lookup': kaput\\\"}\" @-"
+      ],
+      "output": "read {\"error\":\"Error in tool 'tool_node_lookup': kaput\"}",
+      "logs": [
+        "⇢ Node: Triage",
+        "⇢ Node: Lookup",
+        "← Result: tool_node_lookup — 51 chars",
+        "⇢ Node: Reader"
+      ],
+      "progress": [
+        "Running node: Triage",
+        "Running node: Lookup",
+        "Running node: Reader"
+      ]
+    }
+  }
+}

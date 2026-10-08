@@ -4,7 +4,10 @@
  *
  * `onAdk` runs the turn on ADK (runSyndicateTurn, runtime adk:
  * compileWorkflow, ADK's Runner). `onNativeTurn` runs the same turn on
- * native (runSyndicateTurn, runtime native: lib/workflow/turn.ts). `onNative`
+ * native (runSyndicateTurn, runtime native: lib/workflow/turn.ts). `adkSide`
+ * is ADK's side as the suites compare it: recorded in
+ * tests/fixtures/adk-reference (tests/helpers/adkReference.ts), run live on
+ * ADK only under ADK_REFERENCE=live|record. `onNative`
  * drives the native modules by hand, as the turn wires them: the user's
  * message stored as the Runner stores it, then the scheduler
  * (lib/workflow/scheduler.ts) with the ask_user and tool node runners
@@ -15,14 +18,14 @@
 
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { InMemorySessionService } from '@google/adk';
 
 import { compileNativeSubagent } from '../../lib/compileNative.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from '../../lib/loadSyndicate.ts';
-import type { ModelAdapter } from '../../lib/models/contract.ts';
+import type { ModelAdapter, ModelRequest } from '../../lib/models/contract.ts';
 import { createTurnEvent } from '../../lib/runtime/events.ts';
 import type { TurnContent, TurnEvent } from '../../lib/runtime/events.ts';
 import type { NativeAgent } from '../../lib/runtime/native/request.ts';
+import { asAdkSessionService } from '../../lib/runtime/adkSessionBridge.ts';
 import { InProcessSessionService } from '../../lib/runtime/sessions.ts';
 import { drainAgentStream, runSyndicateTurn } from '../../lib/runtime/syndicateTurn.ts';
 import { validateSyndicateConfig } from '../../lib/syndicateSchema.ts';
@@ -35,6 +38,7 @@ import type { NodeRunner } from '../../lib/workflow/scheduler.ts';
 import { toolNodeRunner } from '../../lib/workflow/toolNode.ts';
 import { ScriptedModel, shimResolver } from './scriptedModel.ts';
 import type { ModelScript } from './scriptedModel.ts';
+import type { AdkReference } from './adkReference.ts';
 
 export const agent = (name: string, extra: Record<string, unknown> = {}) => ({ name, description: name, model: `scripted/${name.toLowerCase()}`, instruction: `${name}.`, ...extra });
 
@@ -56,6 +60,22 @@ export interface Side {
   /** The workflow's output: the terminal node's. */
   output: unknown;
 }
+
+/** ADK's side as recorded: a Side whose models are the requests each received (signal aside) and its call count. */
+export interface AdkSide extends Omit<Side, 'models'> {
+  requests: Record<string, Array<Omit<ModelRequest, 'signal'>>>;
+  calls: Record<string, number>;
+}
+
+/** A model's requests as a side compares them: the signal aside, in JSON's form (what a recording holds). */
+export const requestsOf = (m: ScriptedModel): Array<Omit<ModelRequest, 'signal'>> => JSON.parse(JSON.stringify(m.requests.map(({ signal: _s, ...r }) => r)));
+
+/** A live ADK Side in the recorded form. */
+export const recordedSide = ({ models, ...side }: Side): AdkSide => ({
+  ...side,
+  requests: Object.fromEntries(Object.entries(models).map(([k, m]) => [k, requestsOf(m)])),
+  calls: Object.fromEntries(Object.entries(models).map(([k, m]) => [k, m.calls])),
+});
 
 const modelsFor = (scripts: Scripts) => Object.fromEntries(Object.entries(scripts).map(([key, script]) => [key, new ScriptedModel(`scripted/${key}`, script)]));
 
@@ -79,7 +99,8 @@ export async function progressOf(events: TurnEvent[]): Promise<string[]> {
 /** The turn through runSyndicateTurn on `runtime`. */
 async function onTurn(runtime: 'adk' | 'native', cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> {
   const models = modelsFor(scripts);
-  const sessionService = new InMemorySessionService();
+  // ADK's own in-memory store under ADK; the engine's on native, as a consumer without ADK holds it (ADR 0102).
+  const sessionService = runtime === 'adk' ? new (await import('@google/adk')).InMemorySessionService() : asAdkSessionService(new InProcessSessionService());
   if (state) await sessionService.createSession({ appName: 'app', userId: 'u', sessionId: 's', state });
   const progress: string[] = [];
   const r = await runSyndicateTurn({
@@ -98,8 +119,12 @@ async function onTurn(runtime: 'adk' | 'native', cfg: SyndicateYamlConfig, scrip
   return { status: r.status, ...(r.error ? { error: r.error.message } : {}), events, models, progress, routes: routesOf(events), output: terminalOutput(cfg, events) };
 }
 
-/** ADK: the turn as runSyndicateTurn runs it on ADK's Runner. */
+/** ADK, live: the turn as runSyndicateTurn runs it on ADK's Runner. Only inside a reference's live callback. */
 export const onAdk = (cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> => onTurn('adk', cfg, scripts, text, state);
+
+/** ADK's side of case `name`: the recording, or (ADK_REFERENCE=live|record) the turn on ADK's Runner. */
+export const adkSide = (reference: AdkReference, name: string, cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<AdkSide> =>
+  reference(name, async () => recordedSide(await onAdk(cfg, scripts, text, state)));
 
 /** Native: the turn as runSyndicateTurn runs it on the engine's scheduler (lib/workflow/turn.ts). */
 export const onNativeTurn = (cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> => onTurn('native', cfg, scripts, text, state);
@@ -177,11 +202,10 @@ export const comparable = (events: TurnEvent[]): unknown => {
 };
 
 /** Holds a native side equal to ADK's: stored events, requests, routes, output, progress. */
-function agrees(native: Side, adk: Side, scripts: Scripts, how: string): void {
+function agrees(native: Side, adk: AdkSide, scripts: Scripts, how: string): void {
   assert.deepEqual(comparable(native.events), comparable(adk.events), `${how}: the stored events`);
   for (const key of Object.keys(scripts)) {
-    const strip = (m: ScriptedModel) => m.requests.map(({ signal: _s, ...r }) => r);
-    assert.deepEqual(strip(native.models[key]!), strip(adk.models[key]!), `${how}: the requests ${key} received`);
+    assert.deepEqual(requestsOf(native.models[key]!), adk.requests[key], `${how}: the requests ${key} received`);
   }
   assert.deepEqual(native.routes, adk.routes, `${how}: the routes`);
   assert.deepEqual(native.output, adk.output, `${how}: the workflow output`);
@@ -189,12 +213,19 @@ function agrees(native: Side, adk: Side, scripts: Scripts, how: string): void {
 }
 
 /**
- * Runs the case on ADK, on the native modules by hand, and through the
+ * Takes ADK's side of the case (recorded, or live), runs it on the native modules by hand, and through the
  * native turn, and holds both native sides equal to ADK's; the turn's status
  * too, which the hand-driven side only approximates.
  */
-export async function bothAgree(cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<{ adk: Side; native: Side; turn: Side }> {
-  const adk = await onAdk(cfg, scripts, text, state);
+export async function bothAgree(
+  reference: AdkReference,
+  name: string,
+  cfg: SyndicateYamlConfig,
+  scripts: Scripts,
+  text: string,
+  state?: Record<string, unknown>,
+): Promise<{ adk: AdkSide; native: Side; turn: Side }> {
+  const adk = await adkSide(reference, name, cfg, scripts, text, state);
   const native = await onNative(cfg, scripts, text, state);
   agrees(native, adk, scripts, 'the native walk');
   const turn = await onNativeTurn(cfg, scripts, text, state);

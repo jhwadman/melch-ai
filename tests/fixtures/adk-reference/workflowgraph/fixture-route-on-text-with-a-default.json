@@ -1,0 +1,21 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-route on text with a default",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Triage",
+      "Triage__route",
+      "Fixer",
+      "Other"
+    ],
+    "edges": [
+      "__START__ -> Triage",
+      "Triage -> Triage__route",
+      "Triage__route -> Fixer [bug]",
+      "Triage__route -> Other [default]"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "suite": "skillHarnessParity",
+  "case": "loader-edge",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "camel": "{\"frontmatter\":{\"name\":\"camel\",\"description\":\"Both spellings.\",\"allowed-tools\":\"z\",\"metadata\":{\"k\":1},\"allowedTools\":\"x y\"},\"instructions\":\"B\",\"resources\":{\"references\":{},\"assets\":{},\"scripts\":{}}}",
+    "empty-body": "{\"frontmatter\":{\"name\":\"empty-body\",\"description\":\"Nothing after.\",\"metadata\":{}},\"instructions\":\"\",\"resources\":{\"references\":{},\"assets\":{},\"scripts\":{}}}",
+    "folded": "{\"frontmatter\":{\"name\":\"folded\",\"description\":\"A folded description.\\n\",\"allowed-tools\":\"a b,c  ,d\",\"metadata\":{},\"extra\":[1,2],\"allowedTools\":\"a b,c  ,d\"},\"instructions\":\"Body with --- inside.\",\"resources\":{\"references\":{},\"assets\":{},\"scripts\":{}}}",
+    "quoted": "{\"frontmatter\":{\"name\":\"quoted\",\"description\":\"Single: quoted, with a colon.\",\"license\":\"Apache-2.0\",\"compatibility\":\"node >= 22\",\"metadata\":{}},\"instructions\":\"Body.\",\"resources\":{\"references\":{},\"assets\":{},\"scripts\":{}}}",
+    "snake_case_ok": "{\"frontmatter\":{\"name\":\"snake_case_ok\",\"description\":\"Snake.\",\"metadata\":{}},\"instructions\":\"\",\"resources\":{\"references\":{},\"assets\":{},\"scripts\":{}}}"
+  }
+}

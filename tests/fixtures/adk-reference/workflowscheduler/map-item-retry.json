@@ -1,0 +1,27 @@
+{
+  "suite": "workflowScheduler",
+  "case": "map-item-retry",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Lead <- \"go\"",
+      "Worker <- \"a\"",
+      "Worker <- \"b\"",
+      "Worker <- \"b\"",
+      "Sum <- [\"w:a\",\"w:b\"]"
+    ],
+    "completions": [
+      "M.Lead = [\"a\",\"b\"] @-",
+      "M.Fan.Worker@0 = \"w:a\" @Worker@0",
+      "M.Fan.Worker@1 = \"w:b\" @Worker@1",
+      "M.Fan = [\"w:a\",\"w:b\"] @-",
+      "M.Sum = \"w:a,w:b\" @-"
+    ],
+    "output": "w:a,w:b",
+    "nodeErrors": [
+      "M.Fan.Worker@1@Worker@1 Worker [503] once"
+    ],
+    "errorEvents": []
+  }
+}

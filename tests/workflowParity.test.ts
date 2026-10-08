@@ -37,7 +37,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { LogLevel, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
 import { createTurnEvent } from '../lib/runtime/events.ts';
@@ -50,19 +49,39 @@ import { mapNodeEvent, nodeOutputContent } from '../lib/workflow/nodeEvents.ts';
 import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
 import { answer, failure, requestTexts, toolCall } from './helpers/scriptedModel.ts';
 import { virtualClock } from './helpers/virtualClock.ts';
-import { agent, bothAgree, comparable, onAdk, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
+import { agent, adkSide, bothAgree, comparable, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of each case is recorded (tests/fixtures/adk-reference/workflowparity); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('workflowParity');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── 1. Workflow placeholders ─────────────────────────────────────────────────
 
-/** ADK's own injectSessionState, called with a context shaped like the one runLlmAgentAsNode builds. */
+/** ADK's own injectSessionState, called with a context shaped like the one runLlmAgentAsNode builds. Live only. */
 async function adkInject(template: string, state: Record<string, unknown>, scope?: WorkflowInstructionScope): Promise<string> {
   const { injectSessionState: adk } = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/agents/instructions.js')).href);
   return adk(template, { invocationContext: { session: { state }, ...(scope ? { workflowInstructionScope: scope } : {}) } });
 }
+
+/** ADK's injectSessionState over each template, recorded: its text, or what it threw (as String(error)). */
+const adkInjected = (name: string, templates: string[], state: Record<string, unknown>, scope?: (i: number) => WorkflowInstructionScope | undefined) =>
+  reference(name, async () => {
+    const out: Array<{ text?: string; threw?: string }> = [];
+    for (const [i, template] of templates.entries()) {
+      try {
+        out.push({ text: await adkInject(template, state, scope?.(i)) });
+      } catch (e) {
+        out.push({ threw: String(e) });
+      }
+    }
+    return out;
+  });
 
 const SCOPE: WorkflowInstructionScope = {
   input: { topic: 'cats', who: 'kids', n: 3, obj: { a: 1 }, empty: '', nil: null },
@@ -89,33 +108,34 @@ const TEMPLATES = [
 ];
 
 test("workflow placeholders: the same text as ADK's injectSessionState, with and without a scope", async () => {
-  for (const template of TEMPLATES) {
-    assert.equal(injectSessionState(template, STATE, SCOPE), await adkInject(template, STATE, SCOPE), `with a scope: ${template}`);
+  const scoped = await adkInjected('placeholders-with-a-scope', TEMPLATES, STATE, () => SCOPE);
+  for (const [i, template] of TEMPLATES.entries()) {
+    assert.equal(scoped[i]?.threw, undefined, `ADK fills it with a scope: ${template}`);
+    assert.equal(injectSessionState(template, STATE, SCOPE), scoped[i]?.text, `with a scope: ${template}`);
   }
-  for (const template of TEMPLATES) {
+  const unscoped = await adkInjected('placeholders-without-a-scope', TEMPLATES, STATE);
+  for (const [i, template] of TEMPLATES.entries()) {
     // Without a scope a workflow key is not a key at all; a thrown error is compared as its message.
     let ours: string | Error;
-    let theirs: string | Error;
     try {
       ours = injectSessionState(template, STATE);
     } catch (e) {
       ours = e as Error;
     }
-    try {
-      theirs = await adkInject(template, STATE);
-    } catch (e) {
-      theirs = e as Error;
-    }
-    assert.deepEqual(String(ours), String(theirs), `without a scope: ${template}`);
+    const theirs = unscoped[i]!;
+    assert.deepEqual(String(ours), theirs.threw ?? String(theirs.text), `without a scope: ${template}`);
   }
   assert.equal(injectSessionState('{input.topic} <input.topic from Planner>', {}), '{input.topic} <input.topic from Planner>', 'outside a workflow node both stay as written');
 });
 
 test('workflow placeholders: a non-object input fills nothing, an array input reads its own keys, as on ADK', async () => {
-  for (const input of ['cats', 3, null, undefined, ['a', 'b'], { role: 'user', parts: [{ text: 'x' }] }]) {
+  const inputs = ['cats', 3, null, undefined, ['a', 'b'], { role: 'user', parts: [{ text: 'x' }] }];
+  const template = '{input.topic} {input.length} {input.role?} {input.parts}';
+  const theirs = await adkInjected('placeholders-non-object-input', inputs.map(() => template), {}, (i) => ({ input: inputs[i], outputsByNode: {} }));
+  for (const [i, input] of inputs.entries()) {
     const scope = { input, outputsByNode: {} };
-    const template = '{input.topic} {input.length} {input.role?} {input.parts}';
-    assert.equal(injectSessionState(template, {}, scope), await adkInject(template, {}, scope), JSON.stringify(input));
+    assert.equal(theirs[i]?.threw, undefined, `ADK fills it: ${JSON.stringify(input)}`);
+    assert.equal(injectSessionState(template, {}, scope), theirs[i]?.text, JSON.stringify(input));
   }
 });
 
@@ -165,7 +185,7 @@ const PLACEHOLDER_CHAIN = workflowConfig(
 
 test('a chain fills each node agent\'s placeholders from its input and the stored outputs, as on ADK', async () => {
   const scripts = { planner: () => answer('{"topic":"cats","who":"kids"}'), writer: () => answer('{"z":1}'), editor: () => answer('done') };
-  const { native } = await bothAgree(PLACEHOLDER_CHAIN, scripts, 'go', { mood: 'calm' });
+  const { native } = await bothAgree(reference, 'placeholder-chain', PLACEHOLDER_CHAIN, scripts, 'go', { mood: 'calm' });
   const system = (key: string) => native.models[key]!.requests[0]!.system ?? '';
   assert.match(system('writer'), /Write on cats for kids; \{input\.missing\} \/  cats <x\.y from Nope> calm$/);
   assert.match(system('editor'), /Edit cats and <input\.z from Writer> \{input\.topic\}$/, "the Writer's text output is not an object: its fields stay as written");
@@ -185,7 +205,7 @@ test('a task-mode node fills its placeholders, and the node after it reads its f
     extractor: (_r: unknown, n: number) => (n === 1 ? toolCall('finish_task', { city: 'Lyon' }, 'c1') : answer('never')),
     booker: (req: Parameters<typeof requestTexts>[0]) => answer(`booked ${requestTexts(req).at(-1)}`),
   };
-  const { native } = await bothAgree(cfg, scripts as any, 'go');
+  const { native } = await bothAgree(reference, 'task-mode-placeholders', cfg, scripts as any, 'go');
   assert.match(native.models.booker!.requests[0]!.system ?? '', /Book Lyon \(Lyon\)\.$/);
 });
 
@@ -208,7 +228,7 @@ test("fan-out and join: the join stores its output event, before its successor's
     [agent('Writer'), agent('Checker'), agent('Editor')],
   );
   const scripts = { triage: () => answer('t'), writer: after(80, () => 'w'), checker: after(20, () => 'c'), editor: (req: Req) => answer(`e ${lastText(req)}`) };
-  const { native } = await bothAgree(cfg, scripts, 'go');
+  const { native } = await bothAgree(reference, 'fan-out-and-join', cfg, scripts, 'go');
   const join = native.events.find((e) => e.author === 'Both')!;
   assert.deepEqual(join.output, { Writer: 'w', Checker: 'c' });
   assert.deepEqual(join.nodeInfo, { path: 'Graph.Both', outputFor: ['Graph.Both'] });
@@ -223,7 +243,7 @@ test('a join of branches a route step fanned out keys every predecessor, as on A
     [agent('A'), agent('B'), agent('Last')],
   );
   const scripts = { triage: () => answer('both'), a: after(20, () => 'a'), b: after(60, () => 'b'), last: (req: Req) => answer(`last ${lastText(req)}`) };
-  const { native } = await bothAgree(cfg, scripts, 'go');
+  const { native } = await bothAgree(reference, 'join-of-route-fan-out', cfg, scripts, 'go');
   assert.equal(native.output, 'last {"A":"a","B":"b"}');
 });
 
@@ -246,7 +266,7 @@ const mapScripts = (list: string) => ({
 
 for (const maxParallel of [undefined, 2, 1]) {
   test(`a map stores its list as ADK's ParallelWorker does (max_parallel ${maxParallel ?? 'default'}): one part per item, the list as output`, async () => {
-    const { native } = await bothAgree(MAP(maxParallel), mapScripts('["a","b","c"]'), 'go');
+    const { native } = await bothAgree(reference, `map-max-parallel-${maxParallel ?? 'default'}`, MAP(maxParallel), mapScripts('["a","b","c"]'), 'go');
     const map = native.events.find((e) => e.author === 'Each')!;
     assert.deepEqual(map.output, ['s a', 's b', 's c'], 'by index, whatever order the items finished in');
     assert.deepEqual(map.content, { role: 'model', parts: [{ text: 's a' }, { text: 's b' }, { text: 's c' }] });
@@ -256,9 +276,9 @@ for (const maxParallel of [undefined, 2, 1]) {
 }
 
 test("a map of an empty list, of a non-list input and of object items stores ADK's content for each", async () => {
-  const empty = await bothAgree(MAP(), mapScripts('[]'), 'go');
+  const empty = await bothAgree(reference, 'map-empty-list', MAP(), mapScripts('[]'), 'go');
   assert.deepEqual(empty.native.events.find((e) => e.author === 'Each')!.content, { role: 'model', parts: [{ text: '[]' }] }, 'an empty list is its JSON text');
-  const single = await bothAgree(MAP(undefined, {}), mapScripts('a'), 'go');
+  const single = await bothAgree(reference, 'map-non-list-input', MAP(undefined, {}), mapScripts('a'), 'go');
   assert.deepEqual(single.native.events.find((e) => e.author === 'Each')!.output, ['s a'], 'a non-list input is one item');
   const objects = workflowConfig(
     { edges: [['START', 'Lister', 'Each', 'Merge']], nodes: { Each: { map: 'Summ' } } },
@@ -266,14 +286,18 @@ test("a map of an empty list, of a non-list input and of object items stores ADK
     agent('Lister'),
   );
   const scripts = { lister: () => answer('x'), summ: () => answer('{"item":"x"}'), merge: () => answer('done') };
-  const { native } = await bothAgree(objects, scripts, 'go');
+  const { native } = await bothAgree(reference, 'map-object-items', objects, scripts, 'go');
   assert.deepEqual(native.events.find((e) => e.author === 'Each')!.content, { role: 'model', parts: [{ text: '[{"item":"x"}]' }] }, "object items are the list's JSON text");
 });
 
 test("nodeOutputContent is ADK's toContent", async () => {
-  const { toContent } = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/workflow/base_node.js')).href);
   const values = ['x', ['a', 'b'], [], [1], ['a', { text: 'b' }], ['a', null], { text: 't', extra: 1 }, { k: 1 }, 3, true, { role: 'user', parts: [{ text: 'c' }] }, [{ functionCall: { name: 'f' } }], null, undefined];
-  for (const value of values) assert.deepEqual(nodeOutputContent(value), toContent(value), JSON.stringify(value));
+  // ADK's toContent of each value, recorded as { content } (absent for undefined).
+  const theirs = await reference('to-content', async () => {
+    const { toContent } = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/workflow/base_node.js')).href);
+    return values.map((value) => ({ content: toContent(value) }));
+  });
+  for (const [i, value] of values.entries()) assert.deepEqual(JSON.parse(JSON.stringify({ content: nodeOutputContent(value) })), theirs[i], JSON.stringify(value));
 });
 
 test('a map stopped from outside outputs nothing, so it stores no event, as ADK\'s ParallelWorker yields nothing', async () => {
@@ -385,7 +409,7 @@ for (const [name, profile] of Object.entries(PROFILES)) {
     const times = timeline(profile);
     for (let i = 1; i < times.length; i++) assert.ok(times[i]! - times[i - 1]! >= 20, `the profile keeps finish times 20 ms apart: ${times.join(', ')}`);
     toolDelay = profile.tool;
-    const { native } = await bothAgree(FAN_OUT, fanOutScripts(profile), 'go');
+    const { native } = await bothAgree(reference, `concurrent-fan-out-${name}`, FAN_OUT, fanOutScripts(profile), 'go');
     assert.equal(native.output, 'last');
     assert.equal(native.events.filter((e) => e.nodeInfo?.path === 'Graph.Each').length, 1);
   });
@@ -394,7 +418,7 @@ for (const [name, profile] of Object.entries(PROFILES)) {
 test('a node two branches trigger runs once per trigger, its events in ADK\'s order', async () => {
   const cfg = workflowConfig({ edges: [['START', 'A', ['B', 'C']], [['B', 'C'], 'D']] }, [agent('B'), agent('C'), agent('D')], agent('A'));
   const scripts = { a: () => answer('a'), b: after(60, () => 'b'), c: after(20, () => 'c'), d: (req: Req) => answer(`d ${lastText(req)}`) };
-  const { native } = await bothAgree(cfg, scripts, 'go');
+  const { native } = await bothAgree(reference, 'node-triggered-twice', cfg, scripts, 'go');
   assert.deepEqual(
     native.events.filter((e) => e.author === 'D').map((e) => e.output),
     ['d c', 'd b'],
@@ -434,7 +458,7 @@ test("a node agent's compaction event carries the node's path, and outside task 
     last: (req: Req) => answer(`l ${lastText(req)}`),
     sum: () => answer('SUMMARY'),
   };
-  const { native } = await withTickingClock(() => bothAgree(compactingChain({}), scripts, 'go'));
+  const { native } = await withTickingClock(() => bothAgree(reference, 'compaction-outside-task-mode', compactingChain({}), scripts, 'go'));
   assert.equal(native.models.sum!.calls, 1, 'the Worker compacted once');
   const compacted = native.events.find((e) => (e as { isCompacted?: boolean }).isCompacted)!;
   assert.deepEqual(compacted.nodeInfo, { messageAsOutput: true, path: 'Graph.Worker', outputFor: ['Graph.Worker'] });
@@ -450,7 +474,7 @@ test("a task-mode node's compaction event carries the node's path and no output,
     last: (req: Req) => answer(`l ${lastText(req)}`),
     sum: () => answer('SUMMARY'),
   };
-  const { native } = await withTickingClock(() => bothAgree(compactingChain(worker), scripts, 'go'));
+  const { native } = await withTickingClock(() => bothAgree(reference, 'compaction-task-mode', compactingChain(worker), scripts, 'go'));
   const compacted = native.events.find((e) => (e as { isCompacted?: boolean }).isCompacted)!;
   assert.deepEqual(compacted.nodeInfo, { path: 'Graph.Worker' });
   assert.equal(compacted.output, undefined);
@@ -465,7 +489,7 @@ test('a join whose predecessor waits on a person does not start and stores no ev
     [agent('Reader'), agent('Last')],
   );
   const scripts = { triage: () => answer('the draft'), reader: after(20, (req) => `read ${lastText(req)}`), last: () => answer('never') };
-  const { adk, native } = await bothAgree(cfg, scripts, 'go');
+  const { adk, native } = await bothAgree(reference, 'join-waits-on-a-person', cfg, scripts, 'go');
   assert.equal(adk.status, 'input-required');
   assert.equal(native.status, 'input-required');
   assert.equal(native.models.last!.calls, 0);
@@ -480,7 +504,7 @@ test('a node that gives up: the native turn stores the node-error event ADK writ
   // A tool node whose input is not JSON throws ADK's TypeError: a thrown error, reported once by the workflow.
   const cfg = workflowConfig({ edges: [['START', 'Triage', 'Lookup', 'Reader']], nodes: { Lookup: { tool: 'parity_lookup' } } }, [agent('Reader')]);
   const scripts = { triage: () => answer('not json'), reader: () => answer('never') };
-  const adk = await onAdk(cfg, scripts, 'go');
+  const adk = await adkSide(reference, 'node-gives-up', cfg, scripts, 'go');
   const turn = await onNativeTurn(cfg, scripts, 'go');
   assert.equal(adk.status, 'failed');
   assert.equal(turn.status, 'failed');
@@ -494,12 +518,12 @@ test("an agent node that reports errors: each attempt's event, retried, then giv
   const retry = { retry: { max_attempts: 2, initial_delay: 0.01, max_delay: 0.02 } };
   const cfg = workflowConfig({ edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: retry } }, [agent('Fixer')]);
   const flaky = { triage: () => answer('bug'), fixer: (_r: Req, n: number) => (n === 1 ? failure({ code: '503', message: 'overloaded' }) : answer('fixed')) };
-  const { turn } = await bothAgree(cfg, flaky, 'go');
+  const { turn } = await bothAgree(reference, 'agent-node-reports-errors-retried', cfg, flaky, 'go');
   assert.equal(turn.status, 'completed');
   assert.equal(turn.events.filter((e) => e.errorCode === '503').length, 1);
 
   const down = { triage: () => answer('bug'), fixer: () => failure({ code: '500', message: 'down' }) };
-  const adk = await onAdk(cfg, down, 'go');
+  const adk = await adkSide(reference, 'agent-node-reports-errors-given-up', cfg, down, 'go');
   const native = await onNativeTurn(cfg, down, 'go');
   assert.equal(native.status, 'failed');
   assert.equal(native.error, adk.error);

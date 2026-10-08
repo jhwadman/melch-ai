@@ -1,0 +1,15 @@
+{
+  "suite": "workflowPause",
+  "case": "pause-through-runsyndicateturn",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "input-required",
+    "input": {
+      "node": "Confirm",
+      "message": "Publish?",
+      "payload": "the draft"
+    },
+    "named": true
+  }
+}

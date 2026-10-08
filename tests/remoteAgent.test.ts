@@ -29,6 +29,11 @@ import type { RuntimeName } from './helpers/runtime.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
+import { adkReferences, canonical } from './helpers/adkReference.ts';
+
+// The all-ADK conversation the parity and cross-runtime cases are held to is
+// recorded (tests/fixtures/adk-reference/remoteagent); it runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('remoteAgent');
 
 setLogLevel(LogLevel.ERROR);
 
@@ -216,9 +221,14 @@ async function remoteConversation(on: (turn: number) => RuntimeName, conversatio
   return { results: results.map((r) => ({ status: r.status, text: r.text, error: r.error, delegations: r.answer?.delegations })), events, calls: boss.calls };
 }
 
+/** Both turns on ADK, local and remote: the reference every case below is held to, recorded once. */
+let allAdk: ReturnType<typeof remoteConversation> | undefined;
+const adkConversation = () => (allAdk ??= reference('remote-conversation-all-adk', () => remoteConversation(() => 'adk', 'remote-adk-reference')));
+
 forEachRuntime('parity: a remote A2A subagent answers the same turn, and stores the same events, as on ADK', async (runtime) => {
-  const reference = await remoteConversation(() => 'adk', `remote-parity-adk-${runtime}`);
-  const run = await remoteConversation(() => runtime, `remote-parity-${runtime}`);
+  const reference = await adkConversation();
+  // In the reference's canonical form (adkReference.ts): JSON, its events' ids and times fixed.
+  const run = canonical(await remoteConversation(() => runtime, `remote-parity-${runtime}`));
   assert.equal(run.results[0]?.status, 'completed');
   assert.match(String(run.results[1]?.text), /oracle heard: .*first question.*second question/);
   assert.deepEqual(run.results, reference.results);
@@ -227,8 +237,8 @@ forEachRuntime('parity: a remote A2A subagent answers the same turn, and stores 
 });
 
 acrossRuntimes('a conversation that called a remote agent on one runtime continues on the other, the remote conversation with it', async (writer, reader) => {
-  const reference = await remoteConversation(() => 'adk', `remote-cross-adk-${writer}`);
-  const run = await remoteConversation((i) => (i === 0 ? writer : reader), `remote-cross-${writer}`);
+  const reference = await adkConversation();
+  const run = canonical(await remoteConversation((i) => (i === 0 ? writer : reader), `remote-cross-${writer}`));
   assert.deepEqual(run.results, reference.results);
   assert.deepEqual(run.events, reference.events, 'the stored events');
 });

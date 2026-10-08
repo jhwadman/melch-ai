@@ -1,0 +1,21 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-route on a JSON key",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Planner",
+      "Planner__route",
+      "Writer",
+      "Answerer"
+    ],
+    "edges": [
+      "__START__ -> Planner",
+      "Planner -> Planner__route",
+      "Planner__route -> Writer [article]",
+      "Planner__route -> Answerer [default]"
+    ]
+  }
+}

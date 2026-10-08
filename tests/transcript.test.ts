@@ -38,6 +38,11 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import { acrossRuntimes, forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 import type { RuntimeName } from './helpers/runtime.ts';
+import { adkReferences } from './helpers/adkReference.ts';
+
+// The all-ADK conversation the cross-runtime case is held to is recorded
+// (tests/fixtures/adk-reference/transcript); it runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('transcript');
 
 const user = (text: string): Event => ({ author: 'user', content: { role: 'user', parts: [{ text }] } } as Event);
 const agent = (author: string, parts: unknown[]): Event =>
@@ -443,8 +448,12 @@ forEachRuntime('through a turn: the next route reads the previous route\'s answe
   assert.ok(!seen.some((m) => m.parts.some((p) => p === 'toolCall' || p === 'toolResult')), 'no tool traffic');
 });
 
+/** Both turns on ADK: what the Conversationalist saw there, recorded once for both directions. */
+let allAdk: Promise<ReturnType<typeof seenByChat>> | undefined;
+const seenOnAdk = () => (allAdk ??= reference('desk-conversation-all-adk', async () => seenByChat(await deskConversation(() => 'adk'))));
+
 acrossRuntimes('through a turn: a route on one runtime reads what a route on the other wrote, as on one runtime', async (writer, reader) => {
-  const reference = seenByChat(await deskConversation(() => 'adk'));
+  const onAdk = await seenOnAdk();
   const crossed = seenByChat(await deskConversation((i) => (i === 0 ? writer : reader)));
-  assert.deepEqual(crossed, reference);
+  assert.deepEqual(crossed, onAdk);
 });

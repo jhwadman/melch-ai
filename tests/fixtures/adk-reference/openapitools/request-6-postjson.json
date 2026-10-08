@@ -1,0 +1,21 @@
+{
+  "suite": "openapiTools",
+  "case": "request-6-postJson",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/json",
+        "method": "POST",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"name\":\"Ada\",\"n\":3}"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

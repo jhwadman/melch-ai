@@ -1,0 +1,20 @@
+{
+  "suite": "nativeFuzz",
+  "case": "an answer that is not JSON",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "summaries": [
+      {
+        "status": "input-required",
+        "text": "Approval needed: Boss wants to run fuzz_turn_send({\"to\":\"ops\"})."
+      },
+      {
+        "threw": "SyntaxError",
+        "message": "Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+      }
+    ],
+    "runs": 0,
+    "calls": 1
+  }
+}

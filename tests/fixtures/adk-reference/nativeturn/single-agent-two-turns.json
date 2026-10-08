@@ -1,0 +1,150 @@
+{
+  "suite": "nativeTurn",
+  "case": "single-agent-two-turns",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "outcomes": [
+      {
+        "status": "completed",
+        "text": "first answer",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 12,
+          "outputTokens": 5,
+          "thinkingTokens": 0
+        },
+        "relayFallback": false,
+        "resumedSession": false,
+        "tools": []
+      },
+      {
+        "status": "completed",
+        "text": "second answer",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 12,
+          "outputTokens": 5,
+          "thinkingTokens": 0
+        },
+        "relayFallback": false,
+        "resumedSession": true,
+        "tools": []
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "hello"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "first answer"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "usageMetadata": {
+          "promptTokenCount": 12,
+          "candidatesTokenCount": 5,
+          "totalTokenCount": 17
+        },
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "again"
+            }
+          ]
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "Solo",
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "second answer"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "usageMetadata": {
+          "promptTokenCount": 12,
+          "candidatesTokenCount": 5,
+          "totalTokenCount": 17
+        },
+        "turnComplete": true
+      }
+    ],
+    "calls": {
+      "boss": 2
+    },
+    "systems": {
+      "boss": [
+        "You are an agent. Your internal name is \"Solo\".\n\nBe kind.\n\nAnswer briefly.",
+        "You are an agent. Your internal name is \"Solo\".\n\nBe kind.\n\nAnswer briefly."
+      ]
+    },
+    "deltas": [
+      [],
+      []
+    ],
+    "sent": []
+  }
+}

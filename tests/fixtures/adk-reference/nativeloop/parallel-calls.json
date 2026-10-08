@@ -1,0 +1,161 @@
+{
+  "suite": "nativeLoop",
+  "case": "parallel-calls",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed"
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "find the thing"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "native_loop_lookup",
+                "args": {
+                  "key": "a"
+                },
+                "id": "c-1"
+              }
+            },
+            {
+              "functionCall": {
+                "name": "native_loop_list",
+                "args": {},
+                "id": "c-2"
+              }
+            },
+            {
+              "functionCall": {
+                "name": "native_loop_lookup",
+                "args": {
+                  "key": "b"
+                },
+                "id": "c-3"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "c-1",
+                "name": "native_loop_lookup",
+                "response": {
+                  "result": "found a"
+                }
+              }
+            },
+            {
+              "functionResponse": {
+                "id": "c-2",
+                "name": "native_loop_list",
+                "response": {
+                  "results": [
+                    "a",
+                    "b"
+                  ]
+                }
+              }
+            },
+            {
+              "functionResponse": {
+                "id": "c-3",
+                "name": "native_loop_lookup",
+                "response": {
+                  "result": "found b"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {
+            "seen_a": true,
+            "seen_b": true
+          },
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "timestamp": 1767225602000,
+        "id": "ev000003",
+        "longRunningToolIds": []
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "done"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "calls": {
+      "boss": 2
+    },
+    "deltas": [
+      []
+    ]
+  }
+}

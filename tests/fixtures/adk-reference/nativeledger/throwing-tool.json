@@ -1,0 +1,291 @@
+{
+  "suite": "nativeLedger",
+  "case": "throwing-tool",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "invocationId": "e-00000000-0000-4000-8000-000000000001",
+    "ledger": {
+      "adk_turns": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "surface": null,
+          "surface_guild": null,
+          "surface_channel": null,
+          "surface_user": null,
+          "syndicate": "native-ledger",
+          "stage": "delegate",
+          "agent": "Solo",
+          "route": null,
+          "route_reason": null,
+          "route_fell_back": null,
+          "route_via_override": null,
+          "relay_fallback": false,
+          "input": "find the thing",
+          "output": "sorry",
+          "error_code": null,
+          "error_message": null,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "model_ms": "<ms>",
+          "tool_ms": "<ms>",
+          "llm_calls": 2,
+          "tool_calls": 1,
+          "models": [
+            "scripted/boss"
+          ],
+          "tool_events": [
+            {
+              "name": "ToolCall",
+              "tool": "native_ledger_broken",
+              "args": {}
+            },
+            {
+              "name": "ToolResponse",
+              "tool": "native_ledger_broken",
+              "data": {
+                "error": "Error in tool 'native_ledger_broken': the disk is full"
+              }
+            }
+          ],
+          "config_hash": null,
+          "engine_version": "0.20.0+cc4d18d",
+          "eval_run": null,
+          "eval_suite": null,
+          "eval_case": null,
+          "eval_variant": null,
+          "eval_trial": null,
+          "attributes": {
+            "syndicate.bindings": "{}",
+            "syndicate.input": "[{\"text\":\"find the thing\"}]",
+            "session.id": "s1",
+            "gen_ai.conversation.id": "s1",
+            "user.id": "u1",
+            "syndicate.stage": "delegate",
+            "engine.version": "0.20.0+cc4d18d",
+            "telemetry.schema_version": 2,
+            "syndicate.name": "native-ledger",
+            "syndicate.tokens.input": 0,
+            "syndicate.tokens.output": 0,
+            "syndicate.tokens.thinking": 0,
+            "syndicate.output": "sorry",
+            "adk.invocation_id": "e-00000000-0000-4000-8000-000000000001",
+            "syndicate.agent": "Solo",
+            "syndicate.latency.model_ms": "<ms>",
+            "syndicate.latency.tool_ms": "<ms>",
+            "syndicate.llm_calls": 2,
+            "syndicate.models": "scripted/boss",
+            "syndicate.relay_fallback": false
+          },
+          "schema_version": 2
+        }
+      ],
+      "adk_telemetry": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Solo",
+          "provider": "scripted",
+          "model": "scripted/boss",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": null,
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/boss",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/boss",
+              "llm.agent": "Solo",
+              "gen_ai.agent.name": "Solo",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 0,
+              "llm.tokens.output": 0,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 0,
+              "gen_ai.usage.output_tokens": 0
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Solo",
+          "provider": "scripted",
+          "model": "scripted/boss",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": null,
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/boss",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/boss",
+              "llm.agent": "Solo",
+              "gen_ai.agent.name": "Solo",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 0,
+              "llm.tokens.output": 0,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 0,
+              "gen_ai.usage.output_tokens": 0
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "Syndicate Execution: native-ledger",
+          "syndicate": "native-ledger",
+          "agent": "Solo",
+          "provider": null,
+          "model": null,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "Syndicate Execution: native-ledger",
+            "durationMs": "<ms>",
+            "attributes": {
+              "syndicate.bindings": "{}",
+              "syndicate.input": "[{\"text\":\"find the thing\"}]",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "syndicate.stage": "delegate",
+              "engine.version": "0.20.0+cc4d18d",
+              "telemetry.schema_version": 2,
+              "syndicate.name": "native-ledger",
+              "syndicate.tokens.input": 0,
+              "syndicate.tokens.output": 0,
+              "syndicate.tokens.thinking": 0,
+              "syndicate.output": "sorry",
+              "adk.invocation_id": "e-00000000-0000-4000-8000-000000000001",
+              "syndicate.agent": "Solo",
+              "syndicate.latency.model_ms": "<ms>",
+              "syndicate.latency.tool_ms": "<ms>",
+              "syndicate.llm_calls": 2,
+              "syndicate.models": "scripted/boss",
+              "syndicate.relay_fallback": false
+            },
+            "events": [
+              {
+                "name": "ToolCall",
+                "attributes": {
+                  "tool.name": "native_ledger_broken",
+                  "tool.args": "{}"
+                }
+              },
+              {
+                "name": "ToolResponse",
+                "attributes": {
+                  "tool.name": "native_ledger_broken",
+                  "tool.data_gathered": "{\"error\":\"Error in tool 'native_ledger_broken': the disk is full\"}"
+                }
+              }
+            ],
+            "status": {
+              "code": 0
+            }
+          }
+        }
+      ],
+      "adk_payloads": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "agent": "Solo",
+          "provider": "<step>",
+          "model": "scripted/boss",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "agent": "Solo",
+          "provider": "<step>",
+          "model": "scripted/boss",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        }
+      ],
+      "steps": [
+        true,
+        true
+      ]
+    }
+  }
+}

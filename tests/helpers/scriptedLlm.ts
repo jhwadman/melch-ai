@@ -97,10 +97,12 @@ export function streamed(...chunks: string[]): LlmResponse[] {
   ];
 }
 
-/** A model reply that calls one tool. */
+let callSeq = 0;
+
+/** A model reply that calls one tool, its id `call-<name>-000001`, … in order: a recorded reference must not change per run. */
 export function call(name: string, args: Record<string, unknown>): LlmResponse {
   return {
-    content: { role: 'model', parts: [{ functionCall: { name, args, id: `call-${name}-${Math.random().toString(36).slice(2, 8)}` } }] },
+    content: { role: 'model', parts: [{ functionCall: { name, args, id: `call-${name}-${String(++callSeq).padStart(6, '0')}` } }] },
   } as LlmResponse;
 }
 

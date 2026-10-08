@@ -1,0 +1,25 @@
+{
+  "suite": "workflowScheduler",
+  "case": "null-output-join",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "A <- \"go\"",
+      "B <- \"A(go)\"",
+      "C <- \"A(go)\"",
+      "D <- {\"C\":\"C(A(go))\"}"
+    ],
+    "completions": [
+      "N3.A = \"A(go)\" @-",
+      "N3.C = \"C(A(go))\" @C@1",
+      "N3.J = {\"C\":\"C(A(go))\"} @-",
+      "N3.D = {\"C\":\"C(A(go))\"} @-"
+    ],
+    "output": {
+      "C": "C(A(go))"
+    },
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

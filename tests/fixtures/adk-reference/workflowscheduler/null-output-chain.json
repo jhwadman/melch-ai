@@ -1,0 +1,20 @@
+{
+  "suite": "workflowScheduler",
+  "case": "null-output-chain",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "A <- \"go\"",
+      "B <- \"A(go)\"",
+      "C <- undefined"
+    ],
+    "completions": [
+      "N.A = \"A(go)\" @-",
+      "N.C = \"C(undefined)\" @-"
+    ],
+    "output": "C(undefined)",
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

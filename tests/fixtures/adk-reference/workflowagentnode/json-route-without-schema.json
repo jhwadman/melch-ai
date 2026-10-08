@@ -1,0 +1,229 @@
+{
+  "suite": "workflowAgentNode",
+  "case": "json-route-without-schema",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "write about cats"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "write about cats"
+            }
+          ]
+        },
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Planner",
+        "id": "ev000003",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "{\"kind\":\"article\",\"brief\":\"on cats\"}"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "{\"kind\":\"article\",\"brief\":\"on cats\"}",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Planner",
+          "outputFor": [
+            "Graph.Planner"
+          ]
+        }
+      },
+      {
+        "author": "Planner__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": "{\"kind\":\"article\",\"brief\":\"on cats\"}",
+        "route": "{\"kind\":\"article\",\"brief\":\"on cats\"}",
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "nodeInfo": {
+          "path": "Graph.Planner__route",
+          "outputFor": [
+            "Graph.Planner__route"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "{\"kind\":\"article\",\"brief\":\"on cats\"}"
+            }
+          ]
+        },
+        "id": "ev000005",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Answerer",
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "answered"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "answered",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Answerer",
+          "outputFor": [
+            "Graph.Answerer"
+          ]
+        }
+      }
+    ],
+    "progress": [
+      "Running node: Planner",
+      "Running node: Answerer"
+    ],
+    "routes": {
+      "Planner__route": "{\"kind\":\"article\",\"brief\":\"on cats\"}"
+    },
+    "output": "answered",
+    "requests": {
+      "planner": [
+        {
+          "model": "scripted/planner",
+          "system": "You are an agent. Your internal name is \"Planner\".\n\nThe description about you is \"Planner\"\n\nPlanner.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "write about cats"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "writer": [],
+      "answerer": [
+        {
+          "model": "scripted/answerer",
+          "system": "You are an agent. Your internal name is \"Answerer\".\n\nThe description about you is \"Answerer\"\n\nAnswerer.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "{\"kind\":\"article\",\"brief\":\"on cats\"}"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ]
+    },
+    "calls": {
+      "planner": 1,
+      "writer": 0,
+      "answerer": 1
+    }
+  }
+}

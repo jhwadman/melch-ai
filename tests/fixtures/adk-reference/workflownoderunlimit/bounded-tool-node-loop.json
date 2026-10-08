@@ -1,0 +1,857 @@
+{
+  "suite": "workflowNodeRunLimit",
+  "case": "bounded-tool-node-loop",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Triage",
+        "id": "ev000003",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "{\"n\":0,\"until\":10}"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "{\"n\":0,\"until\":10}",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Triage",
+          "outputFor": [
+            "Graph.Triage"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:1",
+                "name": "limit_poll",
+                "response": {
+                  "n": 1,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000004",
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "output": {
+          "n": 1,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 1,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000005",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:2",
+                "name": "limit_poll",
+                "response": {
+                  "n": 2,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000006",
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000,
+        "output": {
+          "n": 2,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 2,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000007",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225606000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:3",
+                "name": "limit_poll",
+                "response": {
+                  "n": 3,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000008",
+        "longRunningToolIds": [],
+        "timestamp": 1767225607000,
+        "output": {
+          "n": 3,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 3,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000009",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225608000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:4",
+                "name": "limit_poll",
+                "response": {
+                  "n": 4,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000010",
+        "longRunningToolIds": [],
+        "timestamp": 1767225609000,
+        "output": {
+          "n": 4,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 4,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000011",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225610000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:5",
+                "name": "limit_poll",
+                "response": {
+                  "n": 5,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000012",
+        "longRunningToolIds": [],
+        "timestamp": 1767225611000,
+        "output": {
+          "n": 5,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 5,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000013",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225612000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:6",
+                "name": "limit_poll",
+                "response": {
+                  "n": 6,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000014",
+        "longRunningToolIds": [],
+        "timestamp": 1767225613000,
+        "output": {
+          "n": 6,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 6,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000015",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225614000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:7",
+                "name": "limit_poll",
+                "response": {
+                  "n": 7,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000016",
+        "longRunningToolIds": [],
+        "timestamp": 1767225615000,
+        "output": {
+          "n": 7,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 7,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000017",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225616000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:8",
+                "name": "limit_poll",
+                "response": {
+                  "n": 8,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000018",
+        "longRunningToolIds": [],
+        "timestamp": 1767225617000,
+        "output": {
+          "n": 8,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 8,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000019",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225618000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:9",
+                "name": "limit_poll",
+                "response": {
+                  "n": 9,
+                  "until": 10,
+                  "route": "again"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000020",
+        "longRunningToolIds": [],
+        "timestamp": 1767225619000,
+        "output": {
+          "n": 9,
+          "until": 10,
+          "route": "again"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 9,
+          "until": 10,
+          "route": "again"
+        },
+        "route": "again",
+        "id": "ev000021",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225620000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Poll",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "Graph.Poll:10",
+                "name": "limit_poll",
+                "response": {
+                  "n": 10,
+                  "until": 10,
+                  "route": "done"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000022",
+        "longRunningToolIds": [],
+        "timestamp": 1767225621000,
+        "output": {
+          "n": 10,
+          "until": 10,
+          "route": "done"
+        },
+        "nodeInfo": {
+          "path": "Graph.Poll",
+          "outputFor": [
+            "Graph.Poll"
+          ]
+        }
+      },
+      {
+        "author": "Poll__route",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "output": {
+          "n": 10,
+          "until": 10,
+          "route": "done"
+        },
+        "route": "done",
+        "id": "ev000023",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225622000,
+        "nodeInfo": {
+          "path": "Graph.Poll__route",
+          "outputFor": [
+            "Graph.Poll__route"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "{\"n\":10,\"until\":10,\"route\":\"done\"}"
+            }
+          ]
+        },
+        "id": "ev000024",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225623000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Done",
+        "id": "ev000025",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225624000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "finished"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "finished",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Done",
+          "outputFor": [
+            "Graph.Done"
+          ]
+        }
+      }
+    ],
+    "progress": [
+      "Running node: Triage",
+      "Running node: Poll",
+      "Running node: Done"
+    ],
+    "routes": {
+      "Poll__route": "done"
+    },
+    "output": "finished",
+    "requests": {
+      "triage": [
+        {
+          "model": "scripted/triage",
+          "system": "You are an agent. Your internal name is \"Triage\".\n\nThe description about you is \"Triage\"\n\nTriage.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "go"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "done": [
+        {
+          "model": "scripted/done",
+          "system": "You are an agent. Your internal name is \"Done\".\n\nThe description about you is \"Done\"\n\nDone.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "{\"n\":10,\"until\":10,\"route\":\"done\"}"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ]
+    },
+    "calls": {
+      "triage": 1,
+      "done": 1
+    }
+  }
+}

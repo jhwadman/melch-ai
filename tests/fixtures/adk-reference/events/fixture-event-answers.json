@@ -1,0 +1,371 @@
+{
+  "suite": "events",
+  "case": "fixture-event-answers",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "where": "01-delegate.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "01-delegate.sessions[0].events[1]",
+      "calls": [
+        {
+          "name": "Scout",
+          "args": {
+            "request": "look in the attic"
+          },
+          "id": "adk-00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "responses": [],
+      "final": false
+    },
+    {
+      "where": "01-delegate.sessions[0].events[2]",
+      "calls": [],
+      "responses": [
+        {
+          "id": "adk-00000000-0000-4000-8000-000000000001",
+          "name": "Scout",
+          "response": {
+            "result": "it is in the attic"
+          }
+        }
+      ],
+      "final": false
+    },
+    {
+      "where": "01-delegate.sessions[0].events[3]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "01-delegate.sessions[1].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "01-delegate.sessions[1].events[1]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "02-plan-dispatch.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "02-plan-dispatch.sessions[0].events[1]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "03-open-approval.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "03-open-approval.sessions[0].events[1]",
+      "calls": [
+        {
+          "name": "fixture_send_note",
+          "args": {
+            "to": "ops@acme.test"
+          },
+          "id": "adk-00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "responses": [],
+      "final": false
+    },
+    {
+      "where": "03-open-approval.sessions[0].events[2]",
+      "calls": [
+        {
+          "name": "adk_request_confirmation",
+          "args": {
+            "originalFunctionCall": {
+              "name": "fixture_send_note",
+              "args": {
+                "to": "ops@acme.test"
+              },
+              "id": "adk-00000000-0000-4000-8000-000000000001"
+            },
+            "toolConfirmation": {
+              "hint": "Please approve or reject the tool call fixture_send_note() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+              "confirmed": false
+            }
+          },
+          "id": "adk-00000000-0000-4000-8000-000000000002"
+        }
+      ],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "04-open-question.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "04-open-question.sessions[0].events[1]",
+      "calls": [
+        {
+          "name": "ask_user",
+          "args": {
+            "question": "Which account?",
+            "options": [
+              "personal",
+              "work"
+            ]
+          },
+          "id": "adk-00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "04-open-question.sessions[0].events[2]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "05-workflow-ask-user.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "05-workflow-ask-user.sessions[0].events[1]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "05-workflow-ask-user.sessions[0].events[2]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "05-workflow-ask-user.sessions[0].events[3]",
+      "calls": [
+        {
+          "name": "adk_request_input",
+          "args": {
+            "interruptId": "00000000-0000-4000-8000-000000000001",
+            "payload": "the draft",
+            "message": "Publish?",
+            "response_schema": null
+          },
+          "id": "00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "05-workflow-ask-user.sessions[0].events[4]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "06-thought-signature.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "06-thought-signature.sessions[0].events[1]",
+      "calls": [
+        {
+          "name": "fixture_lookup",
+          "args": {
+            "ticker": "MU"
+          },
+          "id": "adk-00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "responses": [],
+      "final": false
+    },
+    {
+      "where": "06-thought-signature.sessions[0].events[2]",
+      "calls": [],
+      "responses": [
+        {
+          "id": "adk-00000000-0000-4000-8000-000000000001",
+          "name": "fixture_lookup",
+          "response": {
+            "result": "MU: 104.20 USD"
+          }
+        }
+      ],
+      "final": false
+    },
+    {
+      "where": "06-thought-signature.sessions[0].events[3]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "06-thought-signature.verbatim.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "06-thought-signature.verbatim.sessions[0].events[1]",
+      "calls": [
+        {
+          "name": "fixture_lookup",
+          "args": {
+            "ticker": "MU"
+          },
+          "id": "adk-00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "responses": [],
+      "final": false
+    },
+    {
+      "where": "06-thought-signature.verbatim.sessions[0].events[2]",
+      "calls": [],
+      "responses": [
+        {
+          "id": "adk-00000000-0000-4000-8000-000000000001",
+          "name": "fixture_lookup",
+          "response": {
+            "result": "MU: 104.20 USD"
+          }
+        }
+      ],
+      "final": false
+    },
+    {
+      "where": "06-thought-signature.verbatim.sessions[0].events[3]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "07-two-turns.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "07-two-turns.sessions[0].events[1]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "07-two-turns.sessions[0].events[2]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "07-two-turns.sessions[0].events[3]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "08-elided-result.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "08-elided-result.sessions[0].events[1]",
+      "calls": [
+        {
+          "name": "fixture_fetch_filing",
+          "args": {
+            "ticker": "MU"
+          },
+          "id": "adk-00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "responses": [],
+      "final": false
+    },
+    {
+      "where": "08-elided-result.sessions[0].events[2]",
+      "calls": [],
+      "responses": [
+        {
+          "id": "adk-00000000-0000-4000-8000-000000000001",
+          "name": "fixture_fetch_filing",
+          "response": {
+            "elided": "2,563 chars dropped before storage — tool results are not read back by any consumer (lib/session/transcript.ts)"
+          }
+        }
+      ],
+      "final": false
+    },
+    {
+      "where": "08-elided-result.sessions[0].events[3]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "08-elided-result.verbatim.sessions[0].events[0]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    },
+    {
+      "where": "08-elided-result.verbatim.sessions[0].events[1]",
+      "calls": [
+        {
+          "name": "fixture_fetch_filing",
+          "args": {
+            "ticker": "MU"
+          },
+          "id": "adk-00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "responses": [],
+      "final": false
+    },
+    {
+      "where": "08-elided-result.verbatim.sessions[0].events[2]",
+      "calls": [],
+      "responses": [
+        {
+          "id": "adk-00000000-0000-4000-8000-000000000001",
+          "name": "fixture_fetch_filing",
+          "response": {
+            "result": "Note 1. Standard disclosure text, unchanged from the prior quarter.\nNote 2. Standard disclosure text, unchanged from the prior quarter.\nNote 3. Standard disclosure text, unchanged from the prior quarter.\nNote 4. Standard disclosure text, unchanged from the prior quarter.\nNote 5. Standard disclosure text, unchanged from the prior quarter.\nNote 6. Standard disclosure text, unchanged from the prior quarter.\nNote 7. Standard disclosure text, unchanged from the prior quarter.\nNote 8. Standard disclosure text, unchanged from the prior quarter.\nNote 9. Standard disclosure text, unchanged from the prior quarter.\nNote 10. Standard disclosure text, unchanged from the prior quarter.\nNote 11. Standard disclosure text, unchanged from the prior quarter.\nNote 12. Standard disclosure text, unchanged from the prior quarter.\nNote 13. Standard disclosure text, unchanged from the prior quarter.\nNote 14. Standard disclosure text, unchanged from the prior quarter.\nNote 15. Standard disclosure text, unchanged from the prior quarter.\nNote 16. Standard disclosure text, unchanged from the prior quarter.\nNote 17. Standard disclosure text, unchanged from the prior quarter.\nNote 18. Standard disclosure text, unchanged from the prior quarter.\nNote 19. Standard disclosure text, unchanged from the prior quarter.\nNote 20. Standard disclosure text, unchanged from the prior quarter.\nNote 21. Standard disclosure text, unchanged from the prior quarter.\nNote 22. Standard disclosure text, unchanged from the prior quarter.\nNote 23. Standard disclosure text, unchanged from the prior quarter.\nNote 24. Standard disclosure text, unchanged from the prior quarter.\nNote 25. Standard disclosure text, unchanged from the prior quarter.\nNote 26. Standard disclosure text, unchanged from the prior quarter.\nNote 27. Standard disclosure text, unchanged from the prior quarter.\nNote 28. Standard disclosure text, unchanged from the prior quarter.\nNote 29. Standard disclosure text, unchanged from the prior quarter.\nNote 30. Standard disclosure text, unchanged from the prior quarter.\nNote 31. Standard disclosure text, unchanged from the prior quarter.\nNote 32. Standard disclosure text, unchanged from the prior quarter.\nNote 33. Standard disclosure text, unchanged from the prior quarter.\nNote 34. Standard disclosure text, unchanged from the prior quarter.\nNote 35. Standard disclosure text, unchanged from the prior quarter.\nNote 36. Standard disclosure text, unchanged from the prior quarter.\nNet revenue for the quarter: 9.30B USD."
+          }
+        }
+      ],
+      "final": false
+    },
+    {
+      "where": "08-elided-result.verbatim.sessions[0].events[3]",
+      "calls": [],
+      "responses": [],
+      "final": true
+    }
+  ]
+}

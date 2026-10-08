@@ -1,0 +1,22 @@
+{
+  "suite": "workflowScheduler",
+  "case": "retry-exceptions-not-named",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Fixer <- \"Triage(go)\""
+    ],
+    "completions": [
+      "R.Triage = \"Triage(go)\" @-"
+    ],
+    "nodeErrors": [
+      "R.Fixer@- Fixer [UNKNOWN_ERROR] bad (TypeError after 1)"
+    ],
+    "errorEvents": [
+      "{\"author\":\"Fixer\",\"nodeInfo\":{\"path\":\"R.Fixer\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"isNodeError\":true,\"errorType\":\"TypeError\",\"errorCode\":\"UNKNOWN_ERROR\",\"errorMessage\":\"bad\",\"attemptCount\":1}"
+    ],
+    "error": "TypeError: bad"
+  }
+}

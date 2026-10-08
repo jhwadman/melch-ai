@@ -1,0 +1,631 @@
+{
+  "suite": "execution",
+  "case": "task-mode-finish-task",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed",
+        "text": "{\"city\":\"Lyon\",\"nights\":2}",
+        "usage": {
+          "llmCalls": 4,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        }
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "two nights in Lyon"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "execution_lookup",
+                "args": {
+                  "city": "Lyon"
+                },
+                "id": "c1"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "c1",
+                "name": "execution_lookup",
+                "response": {
+                  "result": "Lyon is in France"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "finish_task",
+                "args": {
+                  "city": "Lyon"
+                },
+                "id": "c2"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "c2",
+                "name": "finish_task",
+                "response": {
+                  "error": "Invoking `finish_task()` failed due to missing required parameters: nights. You could retry calling this tool, but it is IMPORTANT for you to provide all the mandatory parameters with correct types."
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "finish_task",
+                "args": {
+                  "city": "Lyon",
+                  "nights": 2
+                },
+                "id": "c3"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "c3",
+                "name": "finish_task",
+                "response": {
+                  "result": "Task completed."
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {
+            "trip": {
+              "city": "Lyon",
+              "nights": 2
+            }
+          },
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "{\"city\":\"Lyon\",\"nights\":2}"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "requests": {
+      "extractor": [
+        {
+          "model": "extractor",
+          "system": "Extract.\n\nTo output the final result, you must call the \"set_model_response\" function with the appropriate values. Do not output anything else.\n\nDo NOT call `finish_task` prematurely. Use your available tools to fully complete every aspect of the task first. If the task is unclear, ask the user for clarification before proceeding. Once the task is fully complete, call `finish_task` by itself with no accompanying text output.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "two nights in Lyon"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "execution_lookup",
+              "description": "Look a city up.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city"
+                ]
+              }
+            },
+            {
+              "name": "finish_task",
+              "description": "Signal that this agent has completed its delegated task. Call this when you have finished your delegated task. Pass the required output data in the parameters.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "nights": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "city",
+                  "nights"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "extractor",
+          "system": "Extract.\n\nTo output the final result, you must call the \"set_model_response\" function with the appropriate values. Do not output anything else.\n\nDo NOT call `finish_task` prematurely. Use your available tools to fully complete every aspect of the task first. If the task is unclear, ask the user for clarification before proceeding. Once the task is fully complete, call `finish_task` by itself with no accompanying text output.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "two nights in Lyon"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "toolCall",
+                  "id": "c1",
+                  "name": "execution_lookup",
+                  "args": {
+                    "city": "Lyon"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "parts": [
+                {
+                  "type": "toolResult",
+                  "id": "c1",
+                  "name": "execution_lookup",
+                  "result": "Lyon is in France"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "execution_lookup",
+              "description": "Look a city up.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city"
+                ]
+              }
+            },
+            {
+              "name": "finish_task",
+              "description": "Signal that this agent has completed its delegated task. Call this when you have finished your delegated task. Pass the required output data in the parameters.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "nights": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "city",
+                  "nights"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "extractor",
+          "system": "Extract.\n\nTo output the final result, you must call the \"set_model_response\" function with the appropriate values. Do not output anything else.\n\nDo NOT call `finish_task` prematurely. Use your available tools to fully complete every aspect of the task first. If the task is unclear, ask the user for clarification before proceeding. Once the task is fully complete, call `finish_task` by itself with no accompanying text output.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "two nights in Lyon"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "toolCall",
+                  "id": "c1",
+                  "name": "execution_lookup",
+                  "args": {
+                    "city": "Lyon"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "parts": [
+                {
+                  "type": "toolResult",
+                  "id": "c1",
+                  "name": "execution_lookup",
+                  "result": "Lyon is in France"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "toolCall",
+                  "id": "c2",
+                  "name": "finish_task",
+                  "args": {
+                    "city": "Lyon"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "parts": [
+                {
+                  "type": "toolResult",
+                  "id": "c2",
+                  "name": "finish_task",
+                  "result": "Invoking `finish_task()` failed due to missing required parameters: nights. You could retry calling this tool, but it is IMPORTANT for you to provide all the mandatory parameters with correct types.",
+                  "isError": true
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "execution_lookup",
+              "description": "Look a city up.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city"
+                ]
+              }
+            },
+            {
+              "name": "finish_task",
+              "description": "Signal that this agent has completed its delegated task. Call this when you have finished your delegated task. Pass the required output data in the parameters.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "nights": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "city",
+                  "nights"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "extractor",
+          "system": "Extract.\n\nTo output the final result, you must call the \"set_model_response\" function with the appropriate values. Do not output anything else.\n\nDo NOT call `finish_task` prematurely. Use your available tools to fully complete every aspect of the task first. If the task is unclear, ask the user for clarification before proceeding. Once the task is fully complete, call `finish_task` by itself with no accompanying text output.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "two nights in Lyon"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "toolCall",
+                  "id": "c1",
+                  "name": "execution_lookup",
+                  "args": {
+                    "city": "Lyon"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "parts": [
+                {
+                  "type": "toolResult",
+                  "id": "c1",
+                  "name": "execution_lookup",
+                  "result": "Lyon is in France"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "toolCall",
+                  "id": "c2",
+                  "name": "finish_task",
+                  "args": {
+                    "city": "Lyon"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "parts": [
+                {
+                  "type": "toolResult",
+                  "id": "c2",
+                  "name": "finish_task",
+                  "result": "Invoking `finish_task()` failed due to missing required parameters: nights. You could retry calling this tool, but it is IMPORTANT for you to provide all the mandatory parameters with correct types.",
+                  "isError": true
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "toolCall",
+                  "id": "c3",
+                  "name": "finish_task",
+                  "args": {
+                    "city": "Lyon",
+                    "nights": 2
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "parts": [
+                {
+                  "type": "toolResult",
+                  "id": "c3",
+                  "name": "finish_task",
+                  "result": "Task completed."
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "execution_lookup",
+              "description": "Look a city up.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city"
+                ]
+              }
+            },
+            {
+              "name": "finish_task",
+              "description": "Signal that this agent has completed its delegated task. Call this when you have finished your delegated task. Pass the required output data in the parameters.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "nights": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "city",
+                  "nights"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ]
+    }
+  }
+}

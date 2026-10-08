@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 872,
-    "edges": 3467,
+    "nodes": 878,
+    "edges": 3488,
     "byKind": {
-      "doc": 169,
+      "doc": 170,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 159,
+      "file": 161,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 198,
-      "script": 47,
+      "module": 199,
+      "script": 49,
       "external": 2
     },
     "byRelation": {
-      "links_to": 749,
+      "links_to": 756,
       "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
@@ -35,19 +35,19 @@
       "delegates_to": 1,
       "imports": 845,
       "reads_table": 28,
-      "runs": 67,
-      "derives_from": 865,
+      "runs": 69,
+      "derives_from": 874,
       "constrains": 199,
       "supersedes": 8,
-      "depends_on": 109,
-      "explains": 37,
+      "depends_on": 111,
+      "explains": 38,
       "mitigates": 3,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3109,
-      "inferred": 358
+      "extracted": 3127,
+      "inferred": 361
     },
     "isolated": 4
   },
@@ -1649,6 +1649,18 @@
       }
     },
     {
+      "id": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "kind": "doc",
+      "label": "ADR 0108: ADK's side of every parity case is recorded by the parity suites themselves, and the suites compare native against the recording",
+      "source": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 879
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1657,7 +1669,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1680
+        "words": 1712
       }
     },
     {
@@ -1921,7 +1933,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6881
+        "words": 7108
       }
     },
     {
@@ -1933,7 +1945,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1883
+        "words": 1894
       }
     },
     {
@@ -1957,7 +1969,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4729
+        "words": 4761
       }
     },
     {
@@ -4310,6 +4322,13 @@
       "source": "tests/governance.test.ts"
     },
     {
+      "id": "file:tests/helpers/adkReference.ts",
+      "kind": "file",
+      "label": "adkReference.ts",
+      "source": "tests/helpers/adkReference.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/helpers/capabilityInputs.ts",
       "kind": "file",
       "label": "capabilityInputs.ts",
@@ -4353,6 +4372,12 @@
       "kind": "file",
       "label": "withoutAdk.ts",
       "source": "tests/helpers/withoutAdk.ts"
+    },
+    {
+      "id": "file:tests/helpers/workflowParity.ts",
+      "kind": "file",
+      "label": "workflowParity.ts",
+      "source": "tests/helpers/workflowParity.ts"
     },
     {
       "id": "file:tests/identity.test.ts",
@@ -6443,6 +6468,15 @@
       }
     },
     {
+      "id": "module:scripts/ci/record_adk_references.ts",
+      "kind": "module",
+      "label": "scripts/ci/record_adk_references.ts",
+      "source": "scripts/ci/record_adk_references.ts",
+      "attrs": {
+        "lines": 123
+      }
+    },
+    {
       "id": "module:scripts/db.ts",
       "kind": "module",
       "label": "scripts/db.ts",
@@ -6719,6 +6753,24 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/doctor.ts"
+      }
+    },
+    {
+      "id": "script:fixtures:adk:check",
+      "kind": "script",
+      "label": "npm run fixtures:adk:check",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/ci/record_adk_references.ts --check"
+      }
+    },
+    {
+      "id": "script:fixtures:adk:record",
+      "kind": "script",
+      "label": "npm run fixtures:adk:record",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/ci/record_adk_references.ts"
       }
     },
     {
@@ -14614,6 +14666,76 @@
       "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:46"
     },
     {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "file:.github/workflows/ci.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md frontmatter"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "file:package.json",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md frontmatter"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "file:tests/helpers/adkReference.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md frontmatter"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "file:tests/helpers/workflowParity.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md frontmatter"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "file:tests/nativeStep.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md frontmatter"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "file:tests/workflowParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md frontmatter"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "module:scripts/ci/record_adk_references.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md frontmatter"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md:27"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md:27"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md:27"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -14731,6 +14853,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/architecture.md:28"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:68"
     },
     {
       "from": "/memory/architecture.md",
@@ -17653,6 +17782,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/helpers/adkReference.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/nativeApprovals.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -17842,262 +17978,276 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:scripts/ci/record_adk_references.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:169"
+      "evidence": "/overview/native-loop.md:171"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:234"
+      "evidence": "/overview/native-loop.md:236"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:268"
+      "evidence": "/overview/native-loop.md:270"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:53"
+      "evidence": "/overview/native-loop.md:55"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:195"
+      "evidence": "/overview/native-loop.md:197"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:146"
+      "evidence": "/overview/native-loop.md:148"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:46"
+      "evidence": "/overview/native-loop.md:48"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:104"
+      "evidence": "/overview/native-loop.md:106"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:230"
+      "evidence": "/overview/native-loop.md:232"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:48"
+      "evidence": "/overview/native-loop.md:50"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:48"
+      "evidence": "/overview/native-loop.md:50"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:256"
+      "evidence": "/overview/native-loop.md:258"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:46"
+      "evidence": "/overview/native-loop.md:48"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:48"
+      "evidence": "/overview/native-loop.md:50"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:195"
+      "evidence": "/overview/native-loop.md:197"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:325"
+      "evidence": "/overview/native-loop.md:333"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:236"
+      "evidence": "/overview/native-loop.md:238"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:175"
+      "evidence": "/overview/native-loop.md:177"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:270"
+      "evidence": "/overview/native-loop.md:272"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:223"
+      "evidence": "/overview/native-loop.md:225"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:310"
+      "evidence": "/overview/native-loop.md:312"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:256"
+      "evidence": "/overview/native-loop.md:258"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:202"
+      "evidence": "/overview/native-loop.md:204"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:199"
+      "evidence": "/overview/native-loop.md:201"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:286"
+      "evidence": "/overview/native-loop.md:288"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:118"
+      "evidence": "/overview/native-loop.md:120"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:149"
+      "evidence": "/overview/native-loop.md:151"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0102-native-default-and-optional-adk-peer.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:46"
+      "evidence": "/overview/native-loop.md:48"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:203"
+      "evidence": "/overview/native-loop.md:205"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:316"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:122"
+      "evidence": "/overview/native-loop.md:124"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:48"
+      "evidence": "/overview/native-loop.md:50"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:84"
+      "evidence": "/overview/native-loop.md:86"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/operations/native-loop-security.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:57"
+      "evidence": "/overview/native-loop.md:59"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:81"
+      "evidence": "/overview/native-loop.md:83"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:286"
+      "evidence": "/overview/native-loop.md:288"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:67"
+      "evidence": "/overview/native-loop.md:69"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:66"
+      "evidence": "/overview/native-loop.md:68"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -18189,6 +18339,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-agent-node.md:95"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:105"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -18462,6 +18619,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-scheduler.md:195"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:171"
     },
     {
       "from": "/overview/workflow-scheduler.md",
@@ -28049,6 +28213,20 @@
     {
       "from": "script:doctor",
       "to": "module:scripts/doctor.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:fixtures:adk:check",
+      "to": "module:scripts/ci/record_adk_references.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:fixtures:adk:record",
+      "to": "module:scripts/ci/record_adk_references.ts",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"

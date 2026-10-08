@@ -1,0 +1,457 @@
+{
+  "suite": "workflowNested",
+  "case": "workflow-route-sessions-and-requests",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "text": "edited({\"Write\":\"draft(plan(write me something on cats))\",\"Check\":\"claims(plan(write me something on cats))\"})",
+    "shared": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "write me something on cats"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Writer",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "edited({\"Write\":\"draft(plan(write me something on cats))\",\"Check\":\"claims(plan(write me something on cats))\"})"
+            }
+          ]
+        },
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000
+      }
+    ],
+    "child": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "write me something on cats"
+            }
+          ]
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "write me something on cats"
+            }
+          ]
+        },
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "Plan",
+        "id": "ev000005",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "plan(write me something on cats)"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "plan(write me something on cats)",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Writer.Plan",
+          "outputFor": [
+            "Writer.Plan"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "branch": "Write@1",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "plan(write me something on cats)"
+            }
+          ]
+        },
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "branch": "Check@1",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "plan(write me something on cats)"
+            }
+          ]
+        },
+        "id": "ev000007",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225606000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "Write",
+        "branch": "Write@1",
+        "id": "ev000008",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225607000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "draft(plan(write me something on cats))"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "draft(plan(write me something on cats))",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Writer.Write",
+          "outputFor": [
+            "Writer.Write"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "Check",
+        "branch": "Check@1",
+        "id": "ev000009",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225608000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "claims(plan(write me something on cats))"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "claims(plan(write me something on cats))",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Writer.Check",
+          "outputFor": [
+            "Writer.Check"
+          ]
+        }
+      },
+      {
+        "author": "Both",
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "output": {
+          "Write": "draft(plan(write me something on cats))",
+          "Check": "claims(plan(write me something on cats))"
+        },
+        "id": "ev000010",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225609000,
+        "nodeInfo": {
+          "path": "Writer.Both",
+          "outputFor": [
+            "Writer.Both"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "{\"Write\":\"draft(plan(write me something on cats))\",\"Check\":\"claims(plan(write me something on cats))\"}"
+            }
+          ]
+        },
+        "id": "ev000011",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225610000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "Edit",
+        "id": "ev000012",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225611000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "edited({\"Write\":\"draft(plan(write me something on cats))\",\"Check\":\"claims(plan(write me something on cats))\"})"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "edited({\"Write\":\"draft(plan(write me something on cats))\",\"Check\":\"claims(plan(write me something on cats))\"})",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Writer.Edit",
+          "outputFor": [
+            "Writer.Edit"
+          ]
+        }
+      }
+    ],
+    "requests": {
+      "router": [
+        {
+          "model": "scripted/router",
+          "system": "You are an agent. Your internal name is \"Router\".\n\nThe description about you is \"Router\"\n\nRouter.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "write me something on cats"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "chat": [],
+      "brief": [],
+      "plan": [
+        {
+          "model": "scripted/plan",
+          "system": "You are an agent. Your internal name is \"Plan\".\n\nThe description about you is \"Plan\"\n\nPlan.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "write me something on cats"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "write": [
+        {
+          "model": "scripted/write",
+          "system": "You are an agent. Your internal name is \"Write\".\n\nThe description about you is \"Write\"\n\nWrite.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "plan(write me something on cats)"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "check": [
+        {
+          "model": "scripted/check",
+          "system": "You are an agent. Your internal name is \"Check\".\n\nThe description about you is \"Check\"\n\nCheck.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "plan(write me something on cats)"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "edit": [
+        {
+          "model": "scripted/edit",
+          "system": "You are an agent. Your internal name is \"Edit\".\n\nThe description about you is \"Edit\"\n\nEdit.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "{\"Write\":\"draft(plan(write me something on cats))\",\"Check\":\"claims(plan(write me something on cats))\"}"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "publish": []
+    }
+  }
+}

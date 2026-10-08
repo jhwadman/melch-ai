@@ -1,0 +1,7 @@
+{
+  "suite": "workflowToolNode",
+  "case": "long-running-refused",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": "ToolNode does not support long-running tools yet (tool 'tool_node_waits')."
+}

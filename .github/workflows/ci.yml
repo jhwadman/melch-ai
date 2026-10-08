@@ -42,6 +42,13 @@ jobs:
         run: npm test
       - name: stored session shapes are unchanged
         run: npm run fixtures:sessions:check
+      # The parity suites compare native against ADK's recorded side
+      # (tests/fixtures/adk-reference, tests/helpers/adkReference.ts). The
+      # check runs them again against live ADK, records into a scratch
+      # directory and fails on any byte of drift. 1.0.0 (WS5-2b) retires it
+      # with ADK; the recordings stay as the reference.
+      - name: ADK reference recordings are current
+        run: npm run fixtures:adk:check
       - name: coverage of lib/ (floor a few points under the measured 87.8 / 82.1 / 83.2)
         if: matrix.node == '24'
         run: >-
@@ -142,6 +149,11 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
           MELCHIZEDEK_RUNTIME: adk
         run: node --disable-warning=DEP0040 --experimental-strip-types --test tests/postgresStorage.test.ts
+      # The test job's reference check skips this suite (no database there).
+      - name: the storage suite's ADK reference recording is current
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+        run: npm run fixtures:adk:check -- postgresStorage
 
   audit:
     runs-on: ubuntu-latest

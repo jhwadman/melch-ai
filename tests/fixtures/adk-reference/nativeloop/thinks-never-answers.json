@@ -1,0 +1,65 @@
+{
+  "suite": "nativeLoop",
+  "case": "thinks-never-answers",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "failed",
+        "error": {
+          "code": "OLLAMA_EMPTY_RESPONSE",
+          "message": "scripted/boss finished thinking but returned no reply."
+        }
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "find the thing"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "errorCode": "OLLAMA_EMPTY_RESPONSE",
+        "errorMessage": "scripted/boss finished thinking but returned no reply.",
+        "turnComplete": true,
+        "customMetadata": {
+          "error.retryable": false
+        }
+      }
+    ],
+    "calls": {
+      "boss": 1
+    },
+    "deltas": [
+      []
+    ]
+  }
+}

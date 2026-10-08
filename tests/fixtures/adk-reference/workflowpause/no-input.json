@@ -1,0 +1,30 @@
+{
+  "suite": "workflowPause",
+  "case": "no-input",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "events": [
+      "{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"adk_request_input\",\"args\":{\"interruptId\":\"<interrupt 1>\",\"payload\":null,\"message\":\"Publish?\",\"response_schema\":null},\"id\":\"<interrupt 1>\"}}]},\"longRunningToolIds\":[\"<interrupt 1>\"],\"author\":\"Confirm\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{},\"agentState\":{}},\"nodeInfo\":{\"path\":\"Graph.Confirm\"}}",
+      "{\"author\":\"Graph\",\"longRunningToolIds\":[\"<interrupt 1>\"],\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{},\"agentState\":{\"input\":\"go\"}},\"nodeInfo\":{\"path\":\"Graph\"}}"
+    ],
+    "interrupts": [
+      "<interrupt 1>"
+    ],
+    "completions": [],
+    "logs": [
+      "⇢ Node: Confirm",
+      "⏸ Confirm asks: Publish?"
+    ],
+    "progress": [
+      "Running node: Confirm"
+    ],
+    "inputs": [
+      {
+        "id": "<an interrupt of the run>",
+        "node": "Confirm",
+        "message": "Publish?"
+      }
+    ]
+  }
+}

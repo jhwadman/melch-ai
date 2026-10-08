@@ -1,0 +1,168 @@
+{
+  "suite": "questions",
+  "case": "dispatch-route-asks",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "input-required",
+        "text": "Order number?",
+        "route": {
+          "route": "Orders",
+          "reason": "an order",
+          "fellBack": false,
+          "fallbackReason": "",
+          "viaOverride": false,
+          "decidedBy": "classifier"
+        },
+        "input": {
+          "node": "Orders",
+          "id": "call-order",
+          "message": "Order number?"
+        }
+      },
+      {
+        "status": "completed",
+        "text": "order \"A-1042\"",
+        "route": {
+          "route": "Orders",
+          "reason": "answering its question",
+          "fellBack": false,
+          "fallbackReason": "",
+          "viaOverride": false,
+          "decidedBy": "answer"
+        }
+      }
+    ],
+    "models": {
+      "router": {
+        "calls": 1
+      },
+      "chat": {
+        "calls": 0
+      },
+      "orders": {
+        "calls": 2
+      }
+    },
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "where is my order"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Orders",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [
+          "call-order"
+        ],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "ask_user",
+                "args": {
+                  "question": "Order number?"
+                },
+                "id": "call-order"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Orders",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {},
+          "skipSummarization": true
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-order",
+                "name": "ask_user",
+                "response": {
+                  "result": "A-1042"
+                }
+              }
+            }
+          ]
+        },
+        "id": "ev000004",
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "Orders",
+        "id": "ev000005",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "order \"A-1042\""
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ]
+  }
+}

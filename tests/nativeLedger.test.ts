@@ -18,7 +18,6 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { z } from 'zod';
 
@@ -33,6 +32,7 @@ import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import { runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { drainAgentStream, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
@@ -42,8 +42,14 @@ import { toolOf } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, failure, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's ledger rows for each case are recorded (tests/fixtures/adk-reference/nativeledger); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('nativeLedger');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const APP = 'native-ledger';
 const USER = 'u1';
@@ -126,8 +132,10 @@ interface Run {
   invocationId: string;
 }
 
+/** ADK's side, live: the turn through runSyndicateTurn on the adk runtime, traced. */
 async function runOnAdk(config: SyndicateYamlConfig, scripts: Models, parts: any[]): Promise<Run> {
   const models = build(scripts);
+  const { InMemorySessionService } = await import('@google/adk');
   const sessionService = new InMemorySessionService();
   const spans = await spansOf(async () => {
     await runSyndicateTurn({
@@ -138,6 +146,8 @@ async function runOnAdk(config: SyndicateYamlConfig, scripts: Models, parts: any
       sessionId: SESSION,
       sessionService,
       compile: { resolveModel: shimResolver(models), log: () => {} },
+      // The reference is ADK's: pinned, now that native is the default (ADR 0102).
+      runtime: 'adk',
     });
   });
   const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: SESSION });
@@ -227,40 +237,63 @@ function comparable(row: Record<string, any>): Record<string, any> {
 
 const STEP_PAYLOAD_COLUMNS = ['provider', 'request', 'response', 'request_chars', 'response_chars'];
 
+/** Whether a payload row is a model step's own (its span a model call's, as lineage reads it). */
+const stepRow = (run: Run) => {
+  const steps = new Set(run.spans.filter((s) => isModelCallSpan(s.name, (s as any).instrumentationScope?.name ?? '')).map((s) => s.spanContext().spanId));
+  return (row: any) => steps.has(row.span_id);
+};
+
+/** A payload row as compared: `scrub`bed, and a step row's own columns (the header) set aside. */
+const withoutStepColumns = (isStep: (row: any) => boolean, scrub: (row: Record<string, any>) => Record<string, any> = comparable) => (row: any) => {
+  const out = scrub(row);
+  if (isStep(row)) for (const key of STEP_PAYLOAD_COLUMNS) out[key] = '<step>';
+  return out;
+};
+
+/** A run's ledger as compared: every row scrubbed, each payload row marked a step row or not. What ADK's recording holds. */
+interface ComparedLedger {
+  adk_turns: Record<string, any>[];
+  adk_telemetry: Record<string, any>[];
+  adk_payloads: Record<string, any>[];
+  /** For each payload row, in order: a model step's own row. */
+  steps: boolean[];
+}
+
+function comparedLedger(ledger: Ledger, run: Run, scrub: (row: Record<string, any>) => Record<string, any> = comparable): ComparedLedger {
+  const isStep = stepRow(run);
+  return {
+    adk_turns: ledger.adk_turns.map(scrub),
+    adk_telemetry: ledger.adk_telemetry.map(scrub),
+    adk_payloads: ledger.adk_payloads.map(withoutStepColumns(isStep, scrub)),
+    steps: ledger.adk_payloads.map(isStep),
+  };
+}
+
 interface Compared {
-  adk: Ledger;
+  adk: ComparedLedger;
   native: Ledger;
-  adkRun: Run;
   nativeRun: Run;
 }
 
-/** Runs both ways and asserts the ledgers hold the same rows. */
-async function assertSameLedger(config: SyndicateYamlConfig, scripts: Models, policy: PayloadPolicy, parts: any[] = [{ text: 'find the thing' }]): Promise<Compared> {
+/** Takes ADK's ledger for case `name` (recorded, or live), runs the turn on the native loop, and asserts the ledgers hold the same rows. */
+async function assertSameLedger(name: string, config: SyndicateYamlConfig, scripts: Models, policy: PayloadPolicy, parts: any[] = [{ text: 'find the thing' }]): Promise<Compared> {
   resetCircuits();
-  const adkRun = await runOnAdk(config, scripts, parts);
+  const { invocationId, ledger: adk } = await reference(name, async () => {
+    const adkRun = await runOnAdk(config, scripts, parts);
+    return { invocationId: adkRun.invocationId, ledger: comparedLedger(await ledgerOf(adkRun.spans, policy), adkRun) };
+  });
   resetCircuits();
-  const nativeRun = await runNative(config, scripts, parts, adkRun.invocationId);
+  const nativeRun = await runNative(config, scripts, parts, invocationId);
   resetCircuits();
-  const adk = await ledgerOf(adkRun.spans, policy);
   const native = await ledgerOf(nativeRun.spans, policy);
+  const isNativeStep = stepRow(nativeRun);
 
-  assert.deepEqual(native.adk_turns.map(comparable), adk.adk_turns.map(comparable), 'adk_turns');
-  assert.deepEqual(native.adk_telemetry.map(comparable), adk.adk_telemetry.map(comparable), 'adk_telemetry');
+  assert.deepEqual(native.adk_turns.map(comparable), adk.adk_turns, 'adk_turns');
+  assert.deepEqual(native.adk_telemetry.map(comparable), adk.adk_telemetry, 'adk_telemetry');
 
   // adk_payloads: a model step's own row differs in the three columns the header names.
-  const stepRow = (run: Run) => {
-    const steps = new Set(run.spans.filter((s) => isModelCallSpan(s.name, (s as any).instrumentationScope?.name ?? '')).map((s) => s.spanContext().spanId));
-    return (row: any) => steps.has(row.span_id);
-  };
-  const isAdkStep = stepRow(adkRun);
-  const isNativeStep = stepRow(nativeRun);
-  assert.deepEqual(native.adk_payloads.map(isNativeStep), adk.adk_payloads.map(isAdkStep), 'payload rows: step rows and failed-call rows in the same order');
-  const withoutStepColumns = (isStep: (row: any) => boolean) => (row: any) => {
-    const out = comparable(row);
-    if (isStep(row)) for (const key of STEP_PAYLOAD_COLUMNS) out[key] = '<step>';
-    return out;
-  };
-  assert.deepEqual(native.adk_payloads.map(withoutStepColumns(isNativeStep)), adk.adk_payloads.map(withoutStepColumns(isAdkStep)), 'adk_payloads');
+  assert.deepEqual(native.adk_payloads.map(isNativeStep), adk.steps, 'payload rows: step rows and failed-call rows in the same order');
+  assert.deepEqual(native.adk_payloads.map(withoutStepColumns(isNativeStep)), adk.adk_payloads, 'adk_payloads');
 
   // The loop's step rows hold the request the adapter got and the response it gave, under the provider's name.
   const sent = Object.values(nativeRun.models).flatMap((m) => m.requests);
@@ -270,7 +303,7 @@ async function assertSameLedger(config: SyndicateYamlConfig, scripts: Models, po
     assert.equal(row.response.partial, false);
     assert.equal(row.request_chars, JSON.stringify(row.request).length);
   }
-  return { adk, native, adkRun, nativeRun };
+  return { adk, native, nativeRun };
 }
 
 function withoutSignal(request: ModelRequest): Omit<ModelRequest, 'signal'> {
@@ -284,6 +317,7 @@ const ALL: PayloadPolicy = { mode: 'all', sampleRate: 1, ttlDays: 30 };
 
 test('a tool call, then the answer: the same turn, telemetry and payload rows on both runtimes', async () => {
   const { native, nativeRun } = await assertSameLedger(
+    'tool-call-then-answer',
     syndicate({ tools: ['native_ledger_lookup'] }),
     {
       boss: (_r, n) =>
@@ -327,7 +361,7 @@ test('a tool call, then the answer: the same turn, telemetry and payload rows on
 });
 
 test('a failed call: the same rows, the failed call’s payload from its llm.request on both runtimes', async () => {
-  const { adk, native, nativeRun } = await assertSameLedger(syndicate({}), { boss: () => failure({ code: '429', message: 'rate limited' }) }, ALL);
+  const { adk, native, nativeRun } = await assertSameLedger('failed-call', syndicate({}), { boss: () => failure({ code: '429', message: 'rate limited' }) }, ALL);
   const [turn] = native.adk_turns;
   assert.equal(turn.error_code, '429');
   assert.equal(turn.error_message, 'rate limited');
@@ -342,11 +376,13 @@ test('a failed call: the same rows, the failed call’s payload from its llm.req
 
 test('a throwing tool and a fallback model: the same rows on both runtimes', async () => {
   await assertSameLedger(
+    'throwing-tool',
     syndicate({ tools: ['native_ledger_broken'] }),
     { boss: (_r, n) => (n === 1 ? toolCall('native_ledger_broken', {}, 'call-b') : answer('sorry')) },
     ALL,
   );
   const { native } = await assertSameLedger(
+    'fallback-model',
     syndicate({ model: 'scripted/primary', fallback_model: 'scripted/backup' }),
     {
       primary: () => failure({ code: 'SCRIPTED_ERROR', message: 'HTTP 503', retryable: true, status: 503 }),
@@ -364,6 +400,7 @@ test('a throwing tool and a fallback model: the same rows on both runtimes', asy
 
 test('under an errors-only policy a clean turn keeps no payloads on either runtime', async () => {
   const { native } = await assertSameLedger(
+    'errors-only-policy',
     syndicate({ tools: ['native_ledger_lookup'] }),
     { boss: (_r, n) => (n === 1 ? toolCall('native_ledger_lookup', { key: 'b' }, 'call-2') : answer('ok')) },
     { mode: 'errors', sampleRate: 0, ttlDays: 30 },
@@ -416,7 +453,8 @@ const workflowScripts: Models = {
 /** One workflow turn through runSyndicateTurn on `runtime`, traced, and the spans it ended. */
 async function workflowTurn(runtime: 'adk' | 'native'): Promise<Run & { status: string }> {
   const models = build(workflowScripts);
-  const sessionService = new InMemorySessionService();
+  // ADK's own in-memory store under ADK (live only); the engine's on native, as a consumer without ADK holds it (ADR 0102).
+  const sessionService = runtime === 'adk' ? new (await import('@google/adk')).InMemorySessionService() : asAdkSessionService(new InProcessSessionService());
   let status = '';
   const spans = await spansOf(async () => {
     const r = await runSyndicateTurn({
@@ -435,26 +473,30 @@ async function workflowTurn(runtime: 'adk' | 'native'): Promise<Run & { status: 
   return { spans, models, status, invocationId: session?.events.find((e) => e.author === 'user')?.invocationId as string };
 }
 
+/** A workflow ledger row as compared: the invocation id differs per run; everything else of a row must match. */
+const scrubInvocation = (row: Record<string, any>) => {
+  const out = comparable(row);
+  if ('invocation_id' in out) out.invocation_id = '<inv>';
+  if (out.attributes?.['adk.invocation_id']) out.attributes = { ...out.attributes, 'adk.invocation_id': '<inv>' };
+  if (out.span?.attributes?.['adk.invocation_id']) out.span = { ...out.span, attributes: { ...out.span.attributes, 'adk.invocation_id': '<inv>' } };
+  return out;
+};
+
 test('a workflow on native writes the ledger rows ADK writes, each model call attributed to its node’s agent', async () => {
   resetCircuits();
-  const adkRun = await workflowTurn('adk');
+  // ADK's side (recorded, or live): the turn's status and its ledger, scrubbed as compared.
+  const adk = await reference('workflow', async () => {
+    const adkRun = await workflowTurn('adk');
+    return { status: adkRun.status, ledger: comparedLedger(await ledgerOf(adkRun.spans, ALL), adkRun, scrubInvocation) };
+  });
   resetCircuits();
   const nativeRun = await workflowTurn('native');
-  assert.equal(adkRun.status, 'completed');
+  assert.equal(adk.status, 'completed');
   assert.equal(nativeRun.status, 'completed');
-  const adk = await ledgerOf(adkRun.spans, ALL);
   const native = await ledgerOf(nativeRun.spans, ALL);
 
-  // The invocation id differs per run; everything else of a row must match.
-  const scrubInvocation = (row: Record<string, any>) => {
-    const out = comparable(row);
-    if ('invocation_id' in out) out.invocation_id = '<inv>';
-    if (out.attributes?.['adk.invocation_id']) out.attributes = { ...out.attributes, 'adk.invocation_id': '<inv>' };
-    if (out.span?.attributes?.['adk.invocation_id']) out.span = { ...out.span, attributes: { ...out.span.attributes, 'adk.invocation_id': '<inv>' } };
-    return out;
-  };
-  assert.deepEqual(native.adk_turns.map(scrubInvocation), adk.adk_turns.map(scrubInvocation), 'adk_turns');
-  assert.deepEqual(native.adk_telemetry.map(scrubInvocation), adk.adk_telemetry.map(scrubInvocation), 'adk_telemetry');
+  assert.deepEqual(native.adk_turns.map(scrubInvocation), adk.ledger.adk_turns, 'adk_turns');
+  assert.deepEqual(native.adk_telemetry.map(scrubInvocation), adk.ledger.adk_telemetry, 'adk_telemetry');
 
   // Per-node attribution: every model call's row names the agent of the node that made it.
   assert.deepEqual(native.adk_telemetry.map((r) => [r.span_name, r.agent, r.model]), [
@@ -473,16 +515,7 @@ test('a workflow on native writes the ledger rows ADK writes, each model call at
   assert.ok(turn.tool_ms >= 2 * TOOL_MS - 10, `tool time counts the tool node’s span and the Editor’s (${turn.tool_ms} ms)`);
 
   // adk_payloads: the step rows hold each runtime's own shapes (the header), every other column matches.
-  const steps = (run: Run) => new Set(run.spans.filter((s) => isModelCallSpan(s.name, (s as any).instrumentationScope?.name ?? '')).map((s) => s.spanContext().spanId));
-  const withoutStepColumns = (run: Run) => {
-    const isStep = steps(run);
-    return (row: any) => {
-      const out = scrubInvocation(row);
-      if (isStep.has(row.span_id)) for (const key of STEP_PAYLOAD_COLUMNS) out[key] = '<step>';
-      return out;
-    };
-  };
-  assert.deepEqual(native.adk_payloads.map(withoutStepColumns(nativeRun)), adk.adk_payloads.map(withoutStepColumns(adkRun)), 'adk_payloads');
+  assert.deepEqual(native.adk_payloads.map(withoutStepColumns(stepRow(nativeRun), scrubInvocation)), adk.ledger.adk_payloads, 'adk_payloads');
   assert.deepEqual(native.adk_payloads.map((r) => r.agent), ['Triage', 'Lister', 'Summarizer', 'Summarizer', 'Editor', 'Editor']);
 
   // The spans nest as ADK's: workflow → node → agent → model call, a map item's node under its map's.

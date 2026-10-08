@@ -26,17 +26,23 @@
  * (GEMINI_ADAPTER=engine), and holds both to ADK, the stored events in full,
  * turnComplete included (ADR 0100).
  *
+ * ADK's side of each case is recorded (tests/fixtures/adk-reference/
+ * geminiturnparity) and runs live only under ADK_REFERENCE=live|record
+ * (tests/helpers/adkReference.ts): one recording per case, which both native
+ * adapters are held to.
+ *
  * Offline: no provider is called, and the key is an obvious fixture.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { afterEach, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { setRetryPolicyOverrides } from '../lib/models/retry.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import { nativeAdapterFor } from '../lib/compileNative.ts';
 import { adkShim } from '../lib/models/adkShim.ts';
@@ -48,8 +54,13 @@ import type { RuntimeName } from '../lib/runtime/runtimeFlag.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+const reference = adkReferences('geminiTurnParity');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const KEY = 'fixture-gemini-key-0123456789';
 const MODEL = 'gemini-3.8-flash';
@@ -129,7 +140,8 @@ async function runTurn(runtime: RuntimeName, config: SyndicateYamlConfig, script
     return new Response(JSON.stringify(candidate(script(body, bodies.length))), { status: 200, headers: { 'content-type': 'application/json' } });
   }) as typeof fetch;
   try {
-    const sessionService = new InMemorySessionService();
+    // ADK's own in-memory store under ADK; the engine's on native, as a consumer without ADK holds it.
+    const sessionService = runtime === 'adk' ? new (await import('@google/adk')).InMemorySessionService() : asAdkSessionService(new InProcessSessionService());
     const r = await runSyndicateTurn({
       config,
       parts: [{ text }],
@@ -236,9 +248,17 @@ const solo = (orchestrator: Record<string, unknown> = {}): SyndicateYamlConfig =
 const NATIVE_GEMINI = ['adk', 'engine'] as const;
 type NativeGemini = (typeof NATIVE_GEMINI)[number];
 
-async function bothRuntimes(config: SyndicateYamlConfig, script: Script, gemini: NativeGemini = 'adk', strict = false): Promise<{ adk: Side; native: Side }> {
+/** ADK's side per case, read once: both native adapters are held to the same recording. */
+const adkRuns = new Map<string, Promise<Side>>();
+
+/**
+ * ADK's side of case `name` (recorded, or live under ADK_REFERENCE=live|record),
+ * then the turn on native with the `gemini` adapter.
+ */
+async function bothRuntimes(name: string, config: SyndicateYamlConfig, script: Script, gemini: NativeGemini = 'adk', strict = false): Promise<{ adk: Side; native: Side }> {
   const text = 'Announce that the office is closed next Friday.';
-  const adk = await runTurn('adk', config, script, text, strict);
+  if (!adkRuns.has(name)) adkRuns.set(name, reference(name, () => runTurn('adk', config, script, text, strict)));
+  const adk = await adkRuns.get(name)!;
   process.env.GEMINI_ADAPTER = gemini;
   try {
     const native = await runTurn('native', config, script, text, strict);
@@ -262,7 +282,7 @@ const signedCall: Script = (_body, n) =>
 
 for (const gemini of NATIVE_GEMINI) {
   test(`a Gemini call's thoughtSignature is stored on its part and replayed on the next request, as on ADK (native Gemini: ${gemini})`, async () => {
-    const { adk, native } = await bothRuntimes(solo(), signedCall, gemini);
+    const { adk, native } = await bothRuntimes('signed-call', solo(), signedCall, gemini);
     for (const side of [adk, native]) {
       assert.equal(side.status, 'completed', side.error);
       assert.equal(side.bodies.length, 2);
@@ -282,14 +302,14 @@ for (const gemini of NATIVE_GEMINI) {
   // ── The reflection tool ────────────────────────────────────────────────────
 
   test(`retries at their defaults: the reflection tool is never declared to Gemini, on either runtime (native Gemini: ${gemini})`, async () => {
-    const { adk, native } = await bothRuntimes(solo(), signedCall, gemini);
+    const { adk, native } = await bothRuntimes('signed-call', solo(), signedCall, gemini);
     for (const side of [adk, native]) {
       for (const body of side.bodies) assert.deepEqual(declared(body), ['gemini_parity_lookup']);
     }
   });
 
   test(`a Gemini call to the reserved tool is still replaced and answered with reflection guidance, as on ADK but signed (native Gemini: ${gemini})`, async () => {
-    const { adk, native } = await bothRuntimes(solo(), reservedCall, gemini);
+    const { adk, native } = await bothRuntimes('reserved-call', solo(), reservedCall, gemini);
     for (const side of [adk, native]) {
       assert.equal(side.status, 'completed', side.error);
       const answers = side.events.flatMap((e) => (e.content?.parts ?? []).filter((p: any) => p.functionResponse)).map((p: any) => p.functionResponse);
@@ -305,7 +325,7 @@ for (const gemini of NATIVE_GEMINI) {
   });
 
   test(`Gemini 3 checks signatures: native's reflection call carries the reserved call's, and the turn completes; ADK's gets the 400 (native Gemini: ${gemini})`, async () => {
-    const { adk, native } = await bothRuntimes(solo(), reservedCall, gemini, true);
+    const { adk, native } = await bothRuntimes('reserved-call-strict', solo(), reservedCall, gemini, true);
     assert.equal(native.status, 'completed', native.error);
     assert.equal(native.bodies.length, 2);
     assert.deepEqual(callPartsOf(native.bodies[1].contents).map((p) => [p.functionCall.name, p.thoughtSignature]), [[ADK_HANDLE_MODEL_ERROR, SIGNATURE]], 'the next request sends it signed');
@@ -316,7 +336,7 @@ for (const gemini of NATIVE_GEMINI) {
 
   test(`Gemini 3 checks signatures: a MALFORMED_FUNCTION_CALL retry's reflection call carries Gemini's placeholder on native; ADK's gets the 400 (native Gemini: ${gemini})`, async () => {
     const malformed: Script = (_body, n) => (n === 1 ? { parts: [], finishReason: 'MALFORMED_FUNCTION_CALL' } : [{ text: 'The office is closed next Friday.' }]);
-    const { adk, native } = await bothRuntimes(solo(), malformed, gemini, true);
+    const { adk, native } = await bothRuntimes('malformed-strict', solo(), malformed, gemini, true);
     assert.equal(native.status, 'completed', native.error);
     const stored = callPartsOf(native.events.map((e) => e.content));
     assert.deepEqual(stored.map((p) => [p.functionCall.name, p.functionCall.args?.finish_reason, p.thoughtSignature]), [[ADK_HANDLE_MODEL_ERROR, 'MALFORMED_FUNCTION_CALL', PLACEHOLDER_THOUGHT_SIGNATURE]]);
@@ -354,7 +374,7 @@ async function workflowNodeParity(gemini: NativeGemini): Promise<void> {
     'test',
   ) as SyndicateYamlConfig;
   const script: Script = (_body, n) => (n === 1 ? [{ text: '{"kind": "answer", "brief": "Say the office is closed next Friday."}' }] : [{ text: 'The office is closed next Friday.' }]);
-  const { adk, native } = await bothRuntimes(config, script, gemini);
+  const { adk, native } = await bothRuntimes('workflow-node', config, script, gemini);
   for (const side of [adk, native]) {
     assert.equal(side.status, 'completed', side.error);
     assert.equal(side.bodies.length, 2);
@@ -376,7 +396,7 @@ const codePartsOf = (events: TurnEvent[]): any[] =>
 for (const gemini of NATIVE_GEMINI) {
   test(`code execution: the code and its result are stored as Gemini sent them, as on ADK (native Gemini: ${gemini})`, async () => {
     const script: Script = () => [CODE, CODE_RESULT, { text: 'The product is 42.' }];
-    const { adk, native } = await bothRuntimes(solo({ tools: [], code_execution: 'gemini' }), script, gemini);
+    const { adk, native } = await bothRuntimes('code-execution', solo({ tools: [], code_execution: 'gemini' }), script, gemini);
     for (const side of [adk, native]) {
       assert.equal(side.status, 'completed', side.error);
       assert.deepEqual(codePartsOf(side.events), [CODE, CODE_RESULT], 'both parts stored whole, the signature with the code');
@@ -390,7 +410,7 @@ for (const gemini of NATIVE_GEMINI) {
       n === 1
         ? [CODE, CODE_RESULT, { functionCall: { name: 'gemini_parity_lookup', args: { key: 'friday' } }, thoughtSignature: SIGNATURE }]
         : [{ text: 'The office is closed next Friday.' }];
-    const { adk, native } = await bothRuntimes(solo({ code_execution: 'gemini' }), script, gemini);
+    const { adk, native } = await bothRuntimes('code-execution-beside-tool', solo({ code_execution: 'gemini' }), script, gemini);
     for (const side of [adk, native]) {
       assert.equal(side.status, 'completed', side.error);
       assert.equal(side.bodies.length, 2);

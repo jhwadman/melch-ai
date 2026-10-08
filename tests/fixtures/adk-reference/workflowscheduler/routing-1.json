@@ -1,0 +1,20 @@
+{
+  "suite": "workflowScheduler",
+  "case": "routing-1",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Num <- {\"route\":\"1\",\"text\":\"x\"}"
+    ],
+    "completions": [
+      "Routed.Triage = {\"route\":\"1\",\"text\":\"x\"} @-",
+      "Routed.Triage__route = {\"route\":\"1\",\"text\":\"x\"} @-",
+      "Routed.Num = \"Num({\\\"route\\\":\\\"1\\\",\\\"text\\\":\\\"x\\\"})\" @-"
+    ],
+    "output": "Num({\"route\":\"1\",\"text\":\"x\"})",
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

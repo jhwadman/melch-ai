@@ -1,0 +1,65 @@
+{
+  "suite": "nativeLoop",
+  "case": "model-error-no-fallback",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "failed",
+        "error": {
+          "code": "429",
+          "message": "rate limited"
+        }
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "find the thing"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "errorCode": "429",
+        "errorMessage": "rate limited",
+        "turnComplete": true,
+        "customMetadata": {
+          "error.retryable": false
+        }
+      }
+    ],
+    "calls": {
+      "boss": 1
+    },
+    "deltas": [
+      []
+    ]
+  }
+}

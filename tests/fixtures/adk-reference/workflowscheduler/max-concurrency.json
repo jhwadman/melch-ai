@@ -1,0 +1,26 @@
+{
+  "suite": "workflowScheduler",
+  "case": "max-concurrency",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Lead <- \"go\"",
+      "A <- \"Lead(go)\"",
+      "B <- \"Lead(go)\"",
+      "C <- \"Lead(go)\"",
+      "Tail <- {\"A\":\"A(Lead(go))\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"}"
+    ],
+    "completions": [
+      "Bounded.Lead = \"Lead(go)\" @-",
+      "Bounded.B = \"B(Lead(go))\" @B@1",
+      "Bounded.C = \"C(Lead(go))\" @C@1",
+      "Bounded.A = \"A(Lead(go))\" @A@1",
+      "Bounded.All = {\"A\":\"A(Lead(go))\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"} @-",
+      "Bounded.Tail = \"Tail({\\\"A\\\":\\\"A(Lead(go))\\\",\\\"B\\\":\\\"B(Lead(go))\\\",\\\"C\\\":\\\"C(Lead(go))\\\"})\" @-"
+    ],
+    "output": "Tail({\"A\":\"A(Lead(go))\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"})",
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

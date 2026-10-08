@@ -1,0 +1,208 @@
+{
+  "suite": "execution",
+  "case": "raw-code-execution-history",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed",
+        "text": "Still 42.",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        }
+      }
+    ],
+    "events": [
+      {
+        "id": "ev000001",
+        "invocationId": "<inv>",
+        "author": "user",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "compute"
+            }
+          ]
+        },
+        "actions": {},
+        "timestamp": 1767225600000
+      },
+      {
+        "id": "ev000001",
+        "invocationId": "<inv>",
+        "author": "Calc",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Running it."
+            },
+            {
+              "executableCode": {
+                "language": "PYTHON",
+                "code": "print(6 * 7)"
+              }
+            }
+          ]
+        },
+        "actions": {},
+        "timestamp": 1767225600000
+      },
+      {
+        "id": "ev000001",
+        "invocationId": "<inv>",
+        "author": "Calc",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "codeExecutionResult": {
+                "outcome": "OUTCOME_OK",
+                "output": "42\n"
+              }
+            }
+          ]
+        },
+        "actions": {},
+        "timestamp": 1767225600000
+      },
+      {
+        "id": "ev000001",
+        "invocationId": "<inv>",
+        "author": "Calc",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "It is 42."
+            }
+          ]
+        },
+        "actions": {},
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "again?"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Calc",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Still 42."
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "requests": {
+      "gemini-3.5-flash": [
+        {
+          "model": "gemini-3.5-flash",
+          "system": "You are an agent. Your internal name is \"Calc\".\n\nCompute.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "compute"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Running it."
+                },
+                {
+                  "type": "text",
+                  "text": "```tool_code\nprint(6 * 7)\n```"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "```tool_output\n42\n\n```"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "It is 42."
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "again?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "nativeTools": [
+            "code_execution"
+          ],
+          "stream": false
+        }
+      ]
+    }
+  }
+}

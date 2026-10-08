@@ -19,7 +19,6 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LogLevel, setLogLevel } from '@google/adk';
 
 import { createTurnEvent } from '../lib/runtime/events.ts';
 import type { TurnContent } from '../lib/runtime/events.ts';
@@ -32,11 +31,17 @@ import { z } from 'zod';
 import { routeOf as configRouteOf } from '../lib/workflowConfig.ts';
 import { answer, failure, requestTexts, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
-import { agent, bothAgree, comparable, onAdk, onNative, onNativeTurn, workflowConfig as config } from './helpers/workflowParity.ts';
+import { agent, adkSide, bothAgree, comparable, onNative, onNativeTurn, workflowConfig as config } from './helpers/workflowParity.ts';
 import type { Scripts } from './helpers/workflowParity.ts';
 import { importGraph, specifiersOf } from './helpers/importGraph.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of each case is recorded (tests/fixtures/adk-reference/workflowagentnode); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('workflowAgentNode');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 
 // ── Route derivation ─────────────────────────────────────────────────────────
@@ -118,7 +123,7 @@ const textScripts = (verdict: string): Scripts => ({
 });
 
 test('a chain routes on an agent\'s trimmed text: same events, requests, route and progress as ADK', async () => {
-  const { native } = await bothAgree(TEXT_ROUTE, textScripts('bug'), 'it crashes');
+  const { native } = await bothAgree(reference, 'text-route-bug', TEXT_ROUTE, textScripts('bug'), 'it crashes');
   assert.deepEqual(native.routes, { Triage__route: 'bug' });
   assert.equal(native.output, 'fixed   bug\n', 'the next node gets the output as the agent wrote it; only the route is trimmed');
   assert.equal(native.models.other!.calls, 0);
@@ -126,7 +131,7 @@ test('a chain routes on an agent\'s trimmed text: same events, requests, route a
 });
 
 test('a route no key names takes the default edge, as on ADK', async () => {
-  const { native } = await bothAgree(TEXT_ROUTE, textScripts('weird'), 'hm');
+  const { native } = await bothAgree(reference, 'text-route-default', TEXT_ROUTE, textScripts('weird'), 'hm');
   assert.deepEqual(native.routes, { Triage__route: 'weird' });
   assert.equal(native.models.fixer!.calls, 0);
   assert.deepEqual(native.progress, ['Running node: Triage', 'Running node: Other']);
@@ -141,7 +146,7 @@ const jsonScripts: Scripts = {
 };
 
 test('a JSON output with an output schema routes on route_key and reaches the next node as JSON', async () => {
-  const { native } = await bothAgree(JSON_ROUTE({ outputSchema: { type: 'OBJECT', properties: { kind: { type: 'STRING' }, brief: { type: 'STRING' } } } }), jsonScripts, 'write about cats');
+  const { native } = await bothAgree(reference, 'json-route-with-schema', JSON_ROUTE({ outputSchema: { type: 'OBJECT', properties: { kind: { type: 'STRING' }, brief: { type: 'STRING' } } } }), jsonScripts, 'write about cats');
   assert.deepEqual(native.routes, { Planner__route: 'article' });
   assert.equal(native.output, 'wrote {"kind":"article","brief":"on cats"}');
   const planner = native.events.find((e) => e.author === 'Planner')!;
@@ -150,7 +155,7 @@ test('a JSON output with an output schema routes on route_key and reaches the ne
 });
 
 test('JSON text from an agent without an output schema is text: it routes on the whole text, to the default, as on ADK', async () => {
-  const { native } = await bothAgree(JSON_ROUTE({}), jsonScripts, 'write about cats');
+  const { native } = await bothAgree(reference, 'json-route-without-schema', JSON_ROUTE({}), jsonScripts, 'write about cats');
   assert.deepEqual(native.routes, { Planner__route: '{"kind":"article","brief":"on cats"}' });
   assert.equal(native.models.writer!.calls, 0);
   assert.equal(native.output, 'answered');
@@ -172,7 +177,7 @@ test('a task-mode node routes on its finish_task output; it gets no user turn an
     booker: (req) => answer(`booked ${lastText(req)}`),
     other: () => answer('other'),
   };
-  const { native } = await bothAgree(cfg, scripts, 'go');
+  const { native } = await bothAgree(reference, 'task-mode-route', cfg, scripts, 'go');
   assert.equal(native.models.extractor!.calls, 1, 'the node ends on the successful answer');
   assert.deepEqual(native.routes, { Extractor__route: 'Lyon' });
   assert.equal(native.output, 'booked {"city":"Lyon"}');
@@ -182,7 +187,7 @@ test('a task-mode node routes on its finish_task output; it gets no user turn an
 
 test("an agent that sets includeContents: default sees the conversation, retold, as on ADK", async () => {
   const cfg = config({ edges: [['START', 'Triage', 'Reader']] }, [agent('Reader', { includeContents: 'default' })]);
-  const { native } = await bothAgree(cfg, { triage: () => answer('brief'), reader: (req) => answer(`read ${requestTexts(req).length}`) }, 'start');
+  const { native } = await bothAgree(reference, 'include-contents-default', cfg, { triage: () => answer('brief'), reader: (req) => answer(`read ${requestTexts(req).length}`) }, 'start');
   assert.ok(requestTexts(native.models.reader!.requests[0]!).length > 1, 'more than its input');
 });
 
@@ -199,7 +204,7 @@ test('chained with the tool node runner: an agent routes, a tool node runs on it
     agent('Planner', { outputSchema: { type: 'OBJECT', properties: { route: { type: 'STRING' }, q: { type: 'STRING' } } } }),
   );
   const scripts: Scripts = { planner: () => answer('{"route":"look","q":"cats"}'), reader: (req) => answer(`read ${lastText(req)}`) };
-  const { native } = await bothAgree(cfg, scripts, 'go');
+  const { native } = await bothAgree(reference, 'chained-tool-node', cfg, scripts, 'go');
   assert.deepEqual(native.routes, { Planner__route: 'look' });
   assert.equal(native.output, 'read {"result":"found cats"}');
   assert.ok(native.progress.includes('Running node: Lookup'), native.progress.join(' | '));
@@ -208,7 +213,7 @@ test('chained with the tool node runner: an agent routes, a tool node runs on it
 test("a node whose model fails, with no output, fails the walk with ADK's NodeReportedError message", async () => {
   const cfg = config({ edges: [['START', 'Triage', { bug: 'Fixer', default: 'Other' }]] }, [agent('Fixer'), agent('Other')]);
   const scripts: Scripts = { triage: () => failure({ code: 'SCRIPTED_DOWN', message: 'the model is down' }), fixer: () => answer('x'), other: () => answer('y') };
-  const adk = await onAdk(cfg, scripts, 'go');
+  const adk = await adkSide(reference, 'model-fails', cfg, scripts, 'go');
   const native = await onNative(cfg, scripts, 'go');
   assert.equal(native.status, 'failed');
   assert.equal(adk.status, 'failed');

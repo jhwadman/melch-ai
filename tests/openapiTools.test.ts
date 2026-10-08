@@ -22,7 +22,6 @@ import type { Server } from 'node:http';
 import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemorySessionService, OpenAPIToolset, createRestApiTool, tokenToSchemeCredential, setLogLevel, LogLevel } from '@google/adk';
 
 import { MAX_RESULT_CHARS, buildOpenApiOwnTools, buildOpenApiTools, credentialEnvProblem, isOpenApiTool, toSnake } from '../lib/tools/openapiTools.ts';
 import { buildRequest, callOperation } from '../lib/tools/openapi/call.ts';
@@ -42,8 +41,17 @@ import { approvalResponsePart } from '../lib/runtime/approvals.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { adkReferences, caseSlug, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's parse and ADK's RestApiTool, the references for the parser and the caller, are recorded
+// (tests/fixtures/adk-reference/openapitools); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('openapiTools');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const seen: Array<{ method: string; url: string; auth?: string; key?: string; body: string }> = [];
 const pets: Record<string, string> = { p1: 'Rex' };
@@ -247,7 +255,7 @@ function agentConfig(extra: Record<string, unknown>): SyndicateYamlConfig {
 }
 const lastResponse = (req: any) => JSON.stringify(req.contents.at(-1)?.parts?.find((p: any) => p.functionResponse)?.functionResponse?.response ?? null);
 function turnFor(config: SyndicateYamlConfig, keeper: ScriptedLlm) {
-  const sessionService = new InMemorySessionService();
+  const sessionService = asAdkSessionService(new InProcessSessionService());
   return (parts: any[]) => runSyndicateTurn({ config, parts, appName: 'a', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ keeper }) }, trace: false });
 }
 
@@ -430,8 +438,9 @@ paths:
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/Node' } } } }
 `;
 
-/** ADK's own parse of a spec, the reference the engine's parser reproduces (until ADK leaves, ADR 0045). */
-async function adkReference(text: string, specType: 'json' | 'yaml', prefix?: string) {
+/** ADK's own parse of a spec, the reference the engine's parser reproduces (until ADK leaves, ADR 0045): live only, recorded. */
+async function adkParse(text: string, specType: 'json' | 'yaml', prefix?: string) {
+  const { OpenAPIToolset } = await import('@google/adk');
   const toolset = new OpenAPIToolset({ specStr: text, specType, ...(prefix ? { prefix } : {}) });
   return ((await toolset.getTools()) as any[]).map((t) => ({
     name: t.name,
@@ -470,7 +479,7 @@ test('the parser names, splits and declares every operation as ADK did', async (
     ...readdirSync(EXAMPLE_SPECS).map((f) => [f, readText(join(EXAMPLE_SPECS, f), 'utf-8'), 'json'] as [string, string, 'json']),
   ];
   for (const [label, text, format, prefix] of cases) {
-    const expected = await adkReference(text, format, prefix);
+    const expected = await reference(`parse-${caseSlug(label)}`, () => adkParse(text, format, prefix));
     const actual = ours(parseOpenApiSpec(text, format, prefix ? { prefix } : {}));
     assert.deepEqual(JSON.parse(JSON.stringify(actual)), JSON.parse(JSON.stringify(expected)), label);
   }
@@ -662,8 +671,9 @@ async function withFetch<T>(fetchImpl: typeof fetch, fn: () => Promise<T>): Prom
   }
 }
 
-/** ADK's RestApiTool for a parsed operation, as the engine built it before it owned the call: the reference. */
-function referenceTool(op: OpenApiOperation, credential?: OpenApiCredential) {
+/** ADK's RestApiTool for a parsed operation, as the engine built it before it owned the call: the reference (live only, recorded). */
+async function referenceTool(op: OpenApiOperation, credential?: OpenApiCredential) {
+  const { createRestApiTool, tokenToSchemeCredential } = await import('@google/adk');
   const tool = createRestApiTool({
     name: op.name,
     description: op.description,
@@ -683,9 +693,9 @@ function referenceTool(op: OpenApiOperation, credential?: OpenApiCredential) {
   return tool;
 }
 
-/** What the reference sent and answered for the arguments, against `answer`. */
+/** What the reference sent and answered for the arguments, against `answer` (live only, recorded). */
 async function referenceCall(op: OpenApiOperation, args: Record<string, unknown>, credential?: OpenApiCredential, answer?: (url: string) => Response) {
-  const tool = referenceTool(op, credential);
+  const tool = await referenceTool(op, credential);
   const { sent, fetchImpl } = recordingFetch(answer);
   const state = new Map<string, unknown>();
   const toolContext = { state: { get: (k: string) => state.get(k), set: (k: string, v: unknown) => state.set(k, v), has: (k: string) => state.has(k) }, getAuthResponse: () => undefined, requestCredential: () => {} } as any;
@@ -711,15 +721,16 @@ test('the request is the one ADK\'s RestApiTool built, for every argument locati
     ['patchText', { body: 42 }],
     ['postWhole', { body: { free: 'form' } }],
   ];
-  for (const [id, args, credential] of cases) {
+  for (const [i, [id, args, credential]] of cases.entries()) {
     const op = byId(id);
-    const reference = await referenceCall(op, args, credential);
+    const expected = await reference(`request-${i + 1}-${id}`, () => referenceCall(op, args, credential));
     const { sent, fetchImpl } = recordingFetch();
     const result = await withFetch(fetchImpl, () => callOperation(op, args, { credential }));
     const label = `${id} ${JSON.stringify(args)}`;
     assert.equal(sent.length, 1, label);
-    assert.deepEqual(sent, reference.sent, label);
-    assert.deepEqual(result, reference.result, label);
+    // The reference is JSON: a GET's `body: undefined` is no key there.
+    assert.deepEqual(JSON.parse(JSON.stringify(sent)), expected.sent, label);
+    assert.deepEqual(JSON.parse(JSON.stringify(result ?? null)), expected.result ?? null, label);
   }
   assert.equal(buildRequest(byId('getPart'), { item_id: 'a/b?c d', part: 7 }).url, 'https://api.example.com/v1/items/a%2Fb%3Fc%20d/parts/7');
 });
@@ -733,11 +744,11 @@ test('the answer reads as RestApiTool\'s did: JSON, else { text }, and its error
     () => new Response('{"error":"no such thing"}', { status: 404 }),
     () => new Response('boom', { status: 500 }),
   ];
-  for (const answer of answers) {
+  for (const [i, answer] of answers.entries()) {
     const ours = recordingFetch(answer);
     const result = await withFetch(ours.fetchImpl, () => callOperation(op!, { q: 'x' }));
-    const reference = await referenceCall(op!, { q: 'x' }, undefined, answer);
-    assert.deepEqual(result, reference.result);
+    const expected = await reference(`answer-${i + 1}`, async () => ({ result: (await referenceCall(op!, { q: 'x' }, undefined, answer)).result }));
+    assert.deepEqual(JSON.parse(JSON.stringify(result ?? null)), expected.result ?? null);
   }
   // A dot segment never reaches the network.
   const [part] = parseOpenApiSpec(SHAPES, 'yaml').filter((o) => o.operationId === 'getPart');
@@ -864,7 +875,7 @@ test('a credential is never in a log, a span or an event of a turn', async () =>
   try {
     const config = agentConfig({ operations: ['listPets', 'getPet'], auth: { bearer_env: 'PETS_TOKEN' } });
     const keeper = new ScriptedLlm('scripted/keeper', (req, n) => (n === 1 ? call('list_pets', {}) : n === 2 ? call('get_pet', { pet_id: 'p1' }) : text(`saw ${lastResponse(req)}`)));
-    const sessionService = new InMemorySessionService();
+    const sessionService = asAdkSessionService(new InProcessSessionService());
     const r = await runSyndicateTurn({ config, parts: [{ text: 'which pets?' }], appName: 'a', userId: 'u', sessionId: 's-log', sessionService, compile: { resolveModel: scriptedResolver({ keeper }), log: (m) => void lines.push(m) } });
     await flushTracing();
     assert.equal(r.status, 'completed');

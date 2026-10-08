@@ -1,0 +1,30 @@
+{
+  "suite": "workflowScheduler",
+  "case": "map-max-parallel-2",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Splitter <- \"go\"",
+      "Worker <- \"a\"",
+      "Worker <- \"b\"",
+      "Worker <- \"c\"",
+      "Worker <- \"d\"",
+      "Worker <- \"e\"",
+      "Summary <- [\"w:a\",\"w:b\",\"w:c\",\"w:d\",\"w:e\"]"
+    ],
+    "completions": [
+      "Mapped.Splitter = [\"a\",\"b\",\"c\",\"d\",\"e\"] @-",
+      "Mapped.Fan.Worker@1 = \"w:b\" @Worker@1",
+      "Mapped.Fan.Worker@2 = \"w:c\" @Worker@2",
+      "Mapped.Fan.Worker@3 = \"w:d\" @Worker@3",
+      "Mapped.Fan.Worker@0 = \"w:a\" @Worker@0",
+      "Mapped.Fan.Worker@4 = \"w:e\" @Worker@4",
+      "Mapped.Fan = [\"w:a\",\"w:b\",\"w:c\",\"w:d\",\"w:e\"] @-",
+      "Mapped.Summary = \"w:a,w:b,w:c,w:d,w:e\" @-"
+    ],
+    "output": "w:a,w:b,w:c,w:d,w:e",
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

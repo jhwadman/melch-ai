@@ -1,0 +1,150 @@
+{
+  "suite": "nativeStep",
+  "case": "long-running-call",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      {
+        "request": {
+          "model": "scripted/boss",
+          "system": "You are an agent. Your internal name is \"Asker\".\n\nAsk when unsure.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "what happened then?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "ask_user",
+              "description": "Ask the person one question and wait for their answer before you continue: a missing detail you need, or a choice only they can make. Pass `options` when the answer is one of a few choices. The turn ends here; the person's next message is the answer, returned to you as this call's result. Ask only what you cannot find out or reasonably assume, one question per call.\n\nNOTE: This is a long-running operation. Do not call this tool again if it has already returned some intermediate or pending status.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "description": "The question, as the person will read it."
+                  },
+                  "options": {
+                    "description": "The choices, when the answer is one of a few. Omit for a free answer.",
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    }
+                  }
+                },
+                "required": [
+                  "question"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        "responses": [
+          {
+            "partial": false,
+            "parts": [
+              {
+                "type": "toolCall",
+                "id": "call-ask-1",
+                "name": "ask_user",
+                "args": {
+                  "question": "Which year?"
+                }
+              }
+            ],
+            "finishReason": "tool_call"
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "what happened then?"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Asker",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [
+          "call-ask-1"
+        ],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "ask_user",
+                "args": {
+                  "question": "Which year?"
+                },
+                "id": "call-ask-1"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Asker",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {},
+          "skipSummarization": true
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      }
+    ]
+  }
+}

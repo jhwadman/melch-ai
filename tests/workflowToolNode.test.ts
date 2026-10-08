@@ -4,7 +4,9 @@
  *
  * Each case runs one graph twice with the same registry tool and the same
  * agent stubs. One side is today's `compileWorkflow` (lib/workflow.ts), every
- * agent swapped for a stub FunctionNode, run by ADK's Runner. The other is
+ * agent swapped for a stub FunctionNode, run by ADK's Runner: recorded in
+ * tests/fixtures/adk-reference/workflowtoolnode, run live only under
+ * ADK_REFERENCE=live|record (tests/helpers/adkReference.ts). The other is
  * the scheduler (lib/workflow/scheduler.ts) with toolNodeRunner for the tool
  * node and a stub that writes FunctionNode's event for each agent. The two
  * are compared on every event as stored (id, time and invocation id aside),
@@ -20,11 +22,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FunctionNode, FunctionTool, InMemorySessionService, LogLevel, Runner, setLogLevel } from '@google/adk';
 import type { LlmAgent } from '@google/adk';
 import { z } from 'zod';
 
-import { compileWorkflow } from '../lib/workflow.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
@@ -38,18 +38,23 @@ import { createTurnEvent } from '../lib/runtime/events.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import { drainAgentStream } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+const reference = adkReferences('workflowToolNode');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// The tool of tests/workflow.test.ts's tool-node case: an ADK FunctionTool with a zod schema.
+// The tool of tests/workflow.test.ts's tool-node case, with a zod schema: an own Tool, so that no side needs ADK to hold it.
 registerTool(
   'tool_node_lookup',
-  new FunctionTool({
+  defineTool({
     name: 'tool_node_lookup',
     description: 'Look something up.',
-    parameters: z.object({ q: z.string() }),
+    schema: z.object({ q: z.string() }),
     execute: async ({ q }) => {
       if (q === 'boom') throw new Error('kaput');
       return `found ${q}`;
@@ -123,7 +128,10 @@ async function drained(events: TurnEvent[]): Promise<Pick<Side, 'logs' | 'progre
   return { logs, progress };
 }
 
+/** ADK's walk, live: only inside a reference's live callback. */
 async function runOnAdk(cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> {
+  const { FunctionNode, InMemorySessionService, Runner } = await import('@google/adk');
+  const { compileWorkflow } = await import('../lib/workflow.ts');
   const toStub = (a: LlmAgent) => new FunctionNode(a.name, (_ctx: unknown, input: unknown) => stubs[a.name](input)) as unknown as LlmAgent;
   const { workflow } = await compileWorkflow(cfg, {}, toStub);
   const sessionService = new InMemorySessionService();
@@ -148,6 +156,17 @@ function stubEvent(run: NodeRun, name: string, output: unknown, invocationId: st
   const text = typeof output === 'string' ? output : JSON.stringify(output);
   const event = createTurnEvent({ author: name, invocationId, content: { role: 'model', parts: [{ text }] }, output } as any);
   return enrichNodeEvent(event, run, { invocationId });
+}
+
+/** ADK's side of case `name`: its Side, or the message it failed with. */
+const adkRun = (name: string, cfg: SyndicateYamlConfig, stubs: Stubs): Promise<{ side?: Side; error?: string }> =>
+  reference(name, () => runOnAdk(cfg, stubs).then((side) => ({ side }), (e: Error) => ({ error: e.message })));
+
+/** ADK's side as a Side; a failed run fails the case. */
+async function adkSide(name: string, cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> {
+  const { side, error } = await adkRun(name, cfg, stubs);
+  assert.equal(error, undefined, 'ADK completes the walk');
+  return side!;
 }
 
 async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> {
@@ -178,17 +197,20 @@ async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> 
   return { events: events.map(stored), completions, output: run.output, ...(await drained(events)) };
 }
 
-async function bothAgree(cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> {
-  const adk = await runOnAdk(cfg, stubs);
+/** A native Side in JSON's form, as a recording holds ADK's (an `undefined`-valued key dropped). */
+const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+async function bothAgree(name: string, cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> {
+  const adk = await adkSide(name, cfg, stubs);
   const native = await runNative(cfg, stubs);
-  assert.deepEqual(native, adk);
+  assert.deepEqual(asJson(native), adk);
   return native;
 }
 
 // ── The case from tests/workflow.test.ts ─────────────────────────────────────
 
 test('the tool-node case: the same events, output and progress lines as ADK', async () => {
-  const side = await bothAgree(chain('tool_node_lookup'), { Triage: () => '{"q":"needle"}', Reader: readerEcho });
+  const side = await bothAgree('tool-node-case', chain('tool_node_lookup'), { Triage: () => '{"q":"needle"}', Reader: readerEcho });
   assert.equal(side.output, 'read {"result":"found needle"}');
   assert.deepEqual(side.progress, ['Running node: Triage', 'Running node: Lookup', 'Running node: Reader']);
   assert.deepEqual(side.logs, ['⇢ Node: Triage', '⇢ Node: Lookup', '← Result: tool_node_lookup — 25 chars', '⇢ Node: Reader']);
@@ -213,7 +235,7 @@ for (const [label, triage] of [
   ['arguments the schema refuses', { q: 5 }],
 ] as const) {
   test(`input mapping as ADK's: ${label}`, async () => {
-    await bothAgree(chain('tool_node_lookup'), { Triage: () => triage, Reader: readerEcho });
+    await bothAgree(`input-mapping-${label}`, chain('tool_node_lookup'), { Triage: () => triage, Reader: readerEcho });
   });
 }
 
@@ -225,10 +247,7 @@ for (const [label, triage] of [
   test(`input mapping as ADK's: ${label} fails the node with ADK's message`, async () => {
     const cfg = chain('tool_node_lookup');
     const stubs: Stubs = { Triage: () => triage, Reader: readerEcho };
-    const adkError = await runOnAdk(cfg, stubs).then(
-      () => assert.fail('ADK accepted the input'),
-      (e: Error) => e.message,
-    );
+    const { error: adkError = assert.fail('ADK accepted the input') } = await adkRun(`input-refused-${label}`, cfg, stubs);
     assert.match(adkError, /^The input to ToolNode must be an object of tool arguments or null, but got /);
     await assert.rejects(runNative(cfg, stubs), (e: Error) => e instanceof TypeError && e.message === adkError);
   });
@@ -238,15 +257,20 @@ test('a tool node that fails gets the node-error event ADK writes (nodeErrorEven
   const cfg = chain('tool_node_lookup');
   const stubs: Stubs = { Triage: () => 'not json', Reader: readerEcho };
 
-  const toStub = (a: LlmAgent) => new FunctionNode(a.name, (_ctx: unknown, input: unknown) => stubs[a.name](input)) as unknown as LlmAgent;
-  const { workflow } = await compileWorkflow(cfg, {}, toStub);
-  const sessionService = new InMemorySessionService();
-  await sessionService.createSession({ ...APP, state: { ...STATE } });
-  const runner = new Runner({ agent: workflow as any, appName: APP.appName, sessionService });
-  const adk: string[] = [];
-  await assert.rejects(async () => {
-    for await (const ev of runner.runAsync({ userId: APP.userId, sessionId: APP.sessionId, newMessage: MESSAGE })) if ((ev as any).isNodeError) adk.push(stored(ev));
-  }, TypeError);
+  const adk = await reference('node-error-event', async () => {
+    const { FunctionNode, InMemorySessionService, Runner } = await import('@google/adk');
+    const { compileWorkflow } = await import('../lib/workflow.ts');
+    const toStub = (a: LlmAgent) => new FunctionNode(a.name, (_ctx: unknown, input: unknown) => stubs[a.name](input)) as unknown as LlmAgent;
+    const { workflow } = await compileWorkflow(cfg, {}, toStub);
+    const sessionService = new InMemorySessionService();
+    await sessionService.createSession({ ...APP, state: { ...STATE } });
+    const runner = new Runner({ agent: workflow as any, appName: APP.appName, sessionService });
+    const errors: string[] = [];
+    await assert.rejects(async () => {
+      for await (const ev of runner.runAsync({ userId: APP.userId, sessionId: APP.sessionId, newMessage: MESSAGE })) if ((ev as any).isNodeError) errors.push(stored(ev));
+    }, TypeError);
+    return errors;
+  });
 
   const native: string[] = [];
   const context: ToolNodeContext = { ...APP, invocationId: 'e-native', userContent: MESSAGE, state: () => STATE, resolveTool: (name) => resolveTools([name])[0] };
@@ -275,7 +299,7 @@ test('coerceToolArgs: a content\'s text, parsed', () => {
 // ── Results, errors, state, branches ─────────────────────────────────────────
 
 test('a tool that throws answers { error }, and the walk goes on, as on ADK', async () => {
-  const side = await bothAgree(chain('tool_node_lookup'), { Triage: () => ({ q: 'boom' }), Reader: readerEcho });
+  const side = await bothAgree('tool-throws', chain('tool_node_lookup'), { Triage: () => ({ q: 'boom' }), Reader: readerEcho });
   assert.equal(side.output, `read ${JSON.stringify({ error: "Error in tool 'tool_node_lookup': kaput" })}`);
 });
 
@@ -284,11 +308,17 @@ for (const q of ['x', 'list', 'number', 'nothing', 'throw']) {
     seen.length = 0;
     // Reader is a second terminal here, so it outputs nothing (ADK allows one terminal output).
     const stubs: Stubs = { Triage: () => ({ q }), Reader: () => undefined };
-    const adk = await runOnAdk(fanned('tool_node_own'), stubs);
+    // ADK's side with the call its tool saw (in JSON's form, as recorded).
+    const adk = await reference(`own-tool-${q}`, async () => {
+      const side = await runOnAdk(fanned('tool_node_own'), stubs);
+      assert.equal(seen.length, 1);
+      return { side, seen: seen[0] };
+    });
+    seen.length = 0;
     const native = await runNative(fanned('tool_node_own'), stubs);
-    assert.deepEqual(native, adk);
-    assert.equal(seen.length, 2);
-    assert.deepEqual(seen[1], seen[0], 'the tool sees the same call on both');
+    assert.deepEqual(asJson(native), adk.side);
+    assert.equal(seen.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(seen[0])), adk.seen, 'the tool sees the same call on both');
     assert.equal(seen[0].id, 'Graph.Lookup:1');
     const lookup = JSON.parse(native.events.find((e) => e.includes('"author":"Lookup"'))!);
     assert.equal(lookup.branch, 'Lookup@1');
@@ -297,7 +327,7 @@ for (const q of ['x', 'list', 'number', 'nothing', 'throw']) {
 }
 
 test('a gated tool asks for approval on its event and answers pending, as on ADK', async () => {
-  const side = await bothAgree(chain('tool_node_gated'), { Triage: () => ({}), Reader: readerEcho });
+  const side = await bothAgree('gated-tool', chain('tool_node_gated'), { Triage: () => ({}), Reader: readerEcho });
   const lookup = JSON.parse(side.events[1]);
   assert.equal(lookup.actions.skipSummarization, true);
   assert.deepEqual(Object.keys(lookup.actions.requestedToolConfirmations), ['Graph.Lookup:1']);
@@ -307,10 +337,13 @@ test('a gated tool asks for approval on its event and answers pending, as on ADK
 
 test('a long-running tool is refused with ADK\'s message', async () => {
   const cfg = chain('tool_node_waits');
-  const adkError = await compileWorkflow(cfg).then(
-    () => assert.fail('ADK accepted a long-running tool node'),
-    (e: Error) => e.message,
-  );
+  const adkError = await reference('long-running-refused', async () => {
+    const { compileWorkflow } = await import('../lib/workflow.ts');
+    return compileWorkflow(cfg).then(
+      () => assert.fail('ADK accepted a long-running tool node'),
+      (e: Error) => e.message,
+    );
+  });
   await assert.rejects(runNative(cfg, { Triage: () => ({}), Reader: readerEcho }), (e: Error) => e.message === adkError);
 });
 

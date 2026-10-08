@@ -1,0 +1,24 @@
+{
+  "suite": "workflowScheduler",
+  "case": "max-concurrency-failure",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Lead <- \"go\"",
+      "A <- \"Lead(go)\"",
+      "B <- \"Lead(go)\""
+    ],
+    "completions": [
+      "B.Lead = \"Lead(go)\" @-",
+      "B.B = \"B(Lead(go))\" @B@1"
+    ],
+    "nodeErrors": [
+      "B.A@- A [UNKNOWN_ERROR] no (RangeError after 1)"
+    ],
+    "errorEvents": [
+      "{\"author\":\"A\",\"nodeInfo\":{\"path\":\"B.A\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"isNodeError\":true,\"errorType\":\"RangeError\",\"errorCode\":\"UNKNOWN_ERROR\",\"errorMessage\":\"no\",\"attemptCount\":1}"
+    ],
+    "error": "RangeError: no"
+  }
+}

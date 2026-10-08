@@ -1,0 +1,21 @@
+{
+  "suite": "openapiTools",
+  "case": "request-1-getPart",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/items/a%2Fb%3Fc%20d/parts/7?q=x+y%26z&tags=a%2Cb",
+        "method": "GET",
+        "headers": {
+          "cookie": "session=s%201%3B; theme=dark",
+          "x-trace": "t-1"
+        }
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

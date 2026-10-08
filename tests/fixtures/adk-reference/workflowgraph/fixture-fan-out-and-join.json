@@ -1,0 +1,24 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-fan-out and join",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Triage",
+      "Writer",
+      "Checker",
+      "Both",
+      "Editor"
+    ],
+    "edges": [
+      "__START__ -> Triage",
+      "Triage -> Writer",
+      "Triage -> Checker",
+      "Writer -> Both",
+      "Checker -> Both",
+      "Both -> Editor"
+    ]
+  }
+}

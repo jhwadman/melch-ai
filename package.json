@@ -114,6 +114,8 @@
     "start:a2a": "node --disable-warning=DEP0040 --experimental-strip-types scripts/a2a_server.ts",
     "test": "node --disable-warning=DEP0040 --experimental-strip-types --test tests/**/*.test.ts",
     "fixtures:sessions:check": "node --disable-warning=DEP0040 --experimental-strip-types tests/fixtures/sessions/generate.ts --check",
+    "fixtures:adk:record": "node --disable-warning=DEP0040 --experimental-strip-types scripts/ci/record_adk_references.ts",
+    "fixtures:adk:check": "node --disable-warning=DEP0040 --experimental-strip-types scripts/ci/record_adk_references.ts --check",
     "init": "node --disable-warning=DEP0040 --experimental-strip-types scripts/init.ts",
     "db": "node --disable-warning=DEP0040 --experimental-strip-types scripts/db.ts",
     "registry": "node --disable-warning=DEP0040 --experimental-strip-types scripts/registry.ts",

@@ -2873,6 +2873,30 @@
       "evidence": "ADR 0106 decision 7: \"The script environment of ADR 0086 applies unchanged\" to a skill script run on a workflow node.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0108 context: \"ADR 0045 removes @google/adk at 1.0.0 … Deleting ADK would delete every one of those guarantees\"; the recordings keep them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0108 decision 7: a forEachRuntime case's [adk] variant and an acrossRuntimes direction written on adk keep running ADK; only the reference side of a comparison is recorded.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
+      "to": "/overview/native-loop.md",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"ADK's recorded side\": the parity suites compare native against tests/fixtures/adk-reference (ADR 0108).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

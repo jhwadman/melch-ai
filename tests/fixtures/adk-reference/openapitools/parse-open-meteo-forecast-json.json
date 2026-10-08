@@ -1,0 +1,102 @@
+{
+  "suite": "openapiTools",
+  "case": "parse-open-meteo-forecast-json",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "name": "get_forecast",
+      "operationId": "getForecast",
+      "method": "get",
+      "path": "/forecast",
+      "baseUrl": "https://api.open-meteo.com/v1",
+      "parameters": [
+        {
+          "name": "latitude",
+          "originalName": "latitude",
+          "location": "query",
+          "required": true,
+          "schema": {
+            "type": "number"
+          }
+        },
+        {
+          "name": "longitude",
+          "originalName": "longitude",
+          "location": "query",
+          "required": true,
+          "schema": {
+            "type": "number"
+          }
+        },
+        {
+          "name": "current",
+          "originalName": "current",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "daily",
+          "originalName": "daily",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "forecast_days",
+          "originalName": "forecast_days",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "timezone",
+          "originalName": "timezone",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "get_forecast",
+        "description": "The weather now and the daily forecast for a latitude and longitude.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "current": {
+              "type": "string"
+            },
+            "daily": {
+              "type": "string"
+            },
+            "forecast_days": {
+              "type": "integer"
+            },
+            "timezone": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "latitude",
+            "longitude"
+          ]
+        }
+      }
+    }
+  ]
+}

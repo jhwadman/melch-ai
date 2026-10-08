@@ -42,6 +42,11 @@ import {
 } from './helpers/scriptedModel.ts';
 import { acrossRuntimes, forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 import type { RuntimeName } from './helpers/runtime.ts';
+import { adkReferences, canonical } from './helpers/adkReference.ts';
+
+// The all-ADK conversation the cross-runtime case is held to is recorded
+// (tests/fixtures/adk-reference/syndicateturn); it runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('syndicateTurn');
 
 setLogLevel(LogLevel.ERROR);
 
@@ -610,17 +615,27 @@ async function crossConversation(on: (turn: number) => RuntimeName) {
   return { results, events, boss, scout };
 }
 
+/** What the cross-runtime case compares of a conversation. */
+const crossComparable = (c: Awaited<ReturnType<typeof crossConversation>>) => ({
+  results: c.results.map(outcome),
+  events: c.events,
+  bossCalls: c.boss.calls,
+  bossRequests: c.boss.requests.map((r) => withoutIds(r.messages)),
+});
+
+/** The same three turns all on ADK: the reference both directions are held to, recorded once. */
+let allAdk: Promise<ReturnType<typeof crossComparable>> | undefined;
+const allAdkConversation = () => (allAdk ??= reference('cross-conversation-all-adk', async () => crossComparable(await crossConversation(() => 'adk'))));
+
 acrossRuntimes('a conversation written on one runtime continues on the other: the results, the stored events and the history match', async (writer, reader) => {
-  const reference = await crossConversation(() => 'adk');
+  const adk = await allAdkConversation();
   // The first turn (a tool call and a delegation) is written by `writer`; the next two read it on `reader`, then back.
   const run = await crossConversation((i) => (i === 1 ? reader : writer));
-  assert.deepEqual(run.results.map(outcome), reference.results.map(outcome), 'the results');
-  assert.deepEqual(run.events, reference.events, 'the stored events');
-  assert.equal(run.boss.calls, reference.boss.calls);
-  assert.deepEqual(
-    run.boss.requests.map((r) => withoutIds(r.messages)),
-    reference.boss.requests.map((r) => withoutIds(r.messages)),
-    'every request saw the same history',
-  );
+  // The reference's canonical form (adkReference.ts), applied to this run too: its events' ids are already '<id>'.
+  const got = canonical(crossComparable(run));
+  assert.deepEqual(got.results, adk.results, 'the results');
+  assert.deepEqual(got.events, adk.events, 'the stored events');
+  assert.equal(got.bossCalls, adk.bossCalls);
+  assert.deepEqual(got.bossRequests, adk.bossRequests, 'every request saw the same history');
   assert.equal(run.results[1]?.text, 'turn 4: I remember Scout says: found it (search value of attic)');
 });

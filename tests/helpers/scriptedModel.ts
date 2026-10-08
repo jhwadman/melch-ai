@@ -57,8 +57,10 @@ export function answer(text: string, usage?: Usage): FinalModelResponse {
   return { partial: false, parts: [{ type: 'text', text }], finishReason: 'stop', ...(usage ? { usage } : {}) };
 }
 
-/** A final that calls one tool. */
-export function toolCall(name: string, args: Record<string, unknown>, id = `call-${name}-${Math.random().toString(36).slice(2, 8)}`): FinalModelResponse {
+let callSeq = 0;
+
+/** A final that calls one tool. Without an id it gets `call-<name>-000001`, … in order: a recorded reference must not change per run (tests/helpers/adkReference.ts). */
+export function toolCall(name: string, args: Record<string, unknown>, id = `call-${name}-${String(++callSeq).padStart(6, '0')}`): FinalModelResponse {
   return { partial: false, parts: [{ type: 'toolCall', id, name, args }], finishReason: 'tool_call' };
 }
 

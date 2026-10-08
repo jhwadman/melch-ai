@@ -1,0 +1,17 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-schema base",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Lead",
+      "Sub"
+    ],
+    "edges": [
+      "__START__ -> Lead",
+      "Lead -> Sub"
+    ]
+  }
+}

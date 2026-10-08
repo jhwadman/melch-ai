@@ -1,0 +1,45 @@
+{
+  "suite": "workflowPause",
+  "case": "node-schema-an enum of numbers written as text",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "events": [
+      "{\"author\":\"Triage\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"the draft\"}]},\"output\":\"the draft\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Triage\",\"outputFor\":[\"Graph.Triage\"]}}",
+      "{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"adk_request_input\",\"args\":{\"interruptId\":\"<interrupt 1>\",\"payload\":\"the draft\",\"message\":\"Publish?\",\"response_schema\":{\"enum\":[1,2,\" \",\"x\"],\"type\":\"integer\"}},\"id\":\"<interrupt 1>\"}}]},\"longRunningToolIds\":[\"<interrupt 1>\"],\"author\":\"Confirm\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{},\"agentState\":{\"input\":\"the draft\"}},\"nodeInfo\":{\"path\":\"Graph.Confirm\"}}",
+      "{\"author\":\"Graph\",\"longRunningToolIds\":[\"<interrupt 1>\"],\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{},\"agentState\":{\"input\":\"go\"}},\"nodeInfo\":{\"path\":\"Graph\"}}"
+    ],
+    "interrupts": [
+      "<interrupt 1>"
+    ],
+    "completions": [
+      "Graph.Triage = \"the draft\" @-"
+    ],
+    "logs": [
+      "⇢ Node: Triage",
+      "⇢ Node: Confirm",
+      "⏸ Confirm asks: Publish?"
+    ],
+    "progress": [
+      "Running node: Triage",
+      "Running node: Confirm"
+    ],
+    "inputs": [
+      {
+        "id": "<an interrupt of the run>",
+        "node": "Confirm",
+        "message": "Publish?",
+        "payload": "the draft",
+        "schema": {
+          "enum": [
+            1,
+            2,
+            " ",
+            "x"
+          ],
+          "type": "integer"
+        }
+      }
+    ]
+  }
+}

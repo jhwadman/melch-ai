@@ -1,0 +1,26 @@
+{
+  "suite": "transcript",
+  "case": "desk-conversation-all-adk",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "role": "user",
+      "parts": [
+        "Should I buy MU on Monday?"
+      ]
+    },
+    {
+      "role": "assistant",
+      "parts": [
+        "[Analyst] MU: accumulate under $130 (23000 bytes read)"
+      ]
+    },
+    {
+      "role": "user",
+      "parts": [
+        "You are neglecting AI and security."
+      ]
+    }
+  ]
+}

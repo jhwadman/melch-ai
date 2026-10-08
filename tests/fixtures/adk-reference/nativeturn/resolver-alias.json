@@ -1,0 +1,11 @@
+{
+  "suite": "nativeTurn",
+  "case": "resolver-alias",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    "provider-model-x",
+    "provider-model-y",
+    "provider-model-x"
+  ]
+}

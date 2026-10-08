@@ -25,8 +25,10 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { Context, InMemorySessionService, LOAD_MEMORY, PRELOAD_MEMORY, LogLevel, setLogLevel } from '@google/adk';
-import type { BaseMemoryService, LlmRequest } from '@google/adk';
+// Context: the engine side of the tool-by-tool cases still calls the tools through an ADK Context (adkContext);
+// setLogLevel: the [adk] variants and the adk-runtime turn below run ADK in every mode.
+import { Context, LogLevel, setLogLevel } from '@google/adk';
+import type { BaseMemoryService, BaseSessionService, LlmRequest } from '@google/adk';
 
 import { namespacedMemoryService } from '../lib/memory/namespace.ts';
 import { SupabaseVectorMemoryService } from '../lib/memory/supabaseMemoryService.ts';
@@ -34,6 +36,8 @@ import type { Embedder, MemoryExtractor } from '../lib/memory/providers.ts';
 import type { FactRow, MemoryStore, NewFact } from '../lib/memory/store.ts';
 import { contractToolDeclaration } from '../lib/models/schemaNormalize.ts';
 import type { MemoryEntry, MemorySearchRequest, MemoryService } from '../lib/runtime/memoryService.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
@@ -49,8 +53,26 @@ import { ROOT, runtimeImportsOf } from './helpers/importGraph.ts';
 import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 import type { RuntimeName } from './helpers/runtime.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
 setLogLevel(LogLevel.ERROR);
+
+// ADK's LoadMemoryTool / PreloadMemoryTool and the all-ADK turn are recorded
+// (tests/fixtures/adk-reference/memorytools); they run only under ADK_REFERENCE=live|record.
+const reference = adkReferences('memoryTools');
+const references = new Map<string, Promise<unknown>>();
+/** One reference read once per process: a case both runtime variants compare against. */
+const referenceOnce = <T>(name: string, live: () => T | Promise<T>): Promise<T> => {
+  if (!references.has(name)) references.set(name, reference(name, live));
+  return references.get(name) as Promise<T>;
+};
+/** ADK's own memory tools (live side only). */
+const adkMemoryTools = async () => {
+  const { LOAD_MEMORY, PRELOAD_MEMORY } = await import('@google/adk');
+  return { LOAD_MEMORY, PRELOAD_MEMORY };
+};
+/** A plain JSON copy: what a recorded reference can hold (undefined-valued keys dropped). */
+const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -121,9 +143,9 @@ const OWN_PRELOAD = resolveTools(['preload_memory'])[0];
 
 // ── The registry holds the engine's own tools ────────────────────────────────
 
-test("the registry's memory tools are the engine's own", () => {
+test("the registry's memory tools are the engine's own", async () => {
   assert.equal(toolOf(OWN_LOAD), loadMemoryTool);
-  assert.notEqual(OWN_LOAD, LOAD_MEMORY);
+  assert.notEqual(OWN_LOAD, (await import('@google/adk')).LOAD_MEMORY);
   assert.equal(instructionToolOf(OWN_PRELOAD), preloadMemoryTool);
   assert.ok(isInstructionTool(preloadMemoryTool));
   assert.equal(toolOf(OWN_PRELOAD), undefined, 'preload_memory declares no function');
@@ -133,26 +155,39 @@ test("the registry's memory tools are the engine's own", () => {
 
 // ── load_memory on the ADK runtime: what the model sees is ADK's ─────────────
 
-test("load_memory declares exactly what ADK's LoadMemoryTool declared, on every path", () => {
-  const adk = (LOAD_MEMORY as any)._getDeclaration();
-  assert.deepEqual(OWN_LOAD._getDeclaration(), adk, 'the Gemini-dialect declaration, key order included');
-  assert.equal(JSON.stringify(OWN_LOAD._getDeclaration()), JSON.stringify(adk));
-  assert.deepEqual(loadMemoryTool.declaration(), contractToolDeclaration(LOAD_MEMORY), 'the model contract declaration');
-  assert.deepEqual(contractToolDeclaration(OWN_LOAD), contractToolDeclaration(LOAD_MEMORY));
+test("load_memory declares exactly what ADK's LoadMemoryTool declared, on every path", async () => {
+  // The Gemini-dialect declaration as JSON text, so the recording keeps its key order.
+  const adk = await reference('load-memory-declaration', async () => {
+    const { LOAD_MEMORY } = await adkMemoryTools();
+    return { gemini: JSON.stringify((LOAD_MEMORY as any)._getDeclaration()), contract: contractToolDeclaration(LOAD_MEMORY) };
+  });
+  assert.deepEqual(OWN_LOAD._getDeclaration(), JSON.parse(adk.gemini), 'the Gemini-dialect declaration, key order included');
+  assert.equal(JSON.stringify(OWN_LOAD._getDeclaration()), adk.gemini);
+  assert.deepEqual(loadMemoryTool.declaration(), adk.contract, 'the model contract declaration');
+  assert.deepEqual(contractToolDeclaration(OWN_LOAD), adk.contract);
 });
 
 test("load_memory leaves the request as ADK's did: declared, and the memory note when the run has memory", async () => {
-  for (const memory of [true, false]) {
-    for (const system of [undefined, 'Answer from memory.']) {
-      for (const declared of [false, true]) {
-        const ctx = () => adkContext(memory ? { memoryService: recordingAdkMemory().service } : {});
-        const theirs = llmRequest({ system, declared });
-        const ours = llmRequest({ system, declared });
-        await LOAD_MEMORY.processLlmRequest({ toolContext: ctx(), llmRequest: theirs });
-        await OWN_LOAD.processLlmRequest({ toolContext: ctx(), llmRequest: ours });
-        assert.deepEqual(seen(ours), seen(theirs), `memory=${memory} system=${system} declared=${declared}`);
-      }
+  const variants = [true, false].flatMap((memory) =>
+    [undefined, 'Answer from memory.'].flatMap((system) => [false, true].map((declared) => ({ memory, system, declared, label: `memory=${memory} system=${system} declared=${declared}` }))),
+  );
+  const ctx = (memory: boolean) => adkContext(memory ? { memoryService: recordingAdkMemory().service } : {});
+  // What ADK's LoadMemoryTool left of each request.
+  const theirs = await reference('load-memory-request', async () => {
+    const { LOAD_MEMORY } = await adkMemoryTools();
+    const out: Array<{ label: string; seen: ReturnType<typeof seen> }> = [];
+    for (const { memory, system, declared, label } of variants) {
+      const request = llmRequest({ system, declared });
+      await LOAD_MEMORY.processLlmRequest({ toolContext: ctx(memory), llmRequest: request });
+      out.push({ label, seen: seen(request) });
     }
+    return out;
+  });
+  assert.deepEqual(theirs.map((t) => t.label), variants.map((v) => v.label), 'one recorded request per variant');
+  for (const [i, { memory, system, declared, label }] of variants.entries()) {
+    const ours = llmRequest({ system, declared });
+    await OWN_LOAD.processLlmRequest({ toolContext: ctx(memory), llmRequest: ours });
+    assert.deepEqual(asJson(seen(ours)), theirs[i]!.seen, label);
   }
   const withMemory = llmRequest({ system: 'Base.' });
   await OWN_LOAD.processLlmRequest({ toolContext: adkContext({ memoryService: recordingAdkMemory().service }), llmRequest: withMemory });
@@ -160,11 +195,16 @@ test("load_memory leaves the request as ADK's did: declared, and the memory note
 });
 
 test("a load_memory call returns what ADK's returned, from the same search", async () => {
-  const theirs = recordingAdkMemory();
+  // ADK's result and the search it made.
+  const theirs = await reference('load-memory-call', async () => {
+    const { LOAD_MEMORY } = await adkMemoryTools();
+    const memory = recordingAdkMemory();
+    const result = await LOAD_MEMORY.runAsync({ args: { query: 'tea' }, toolContext: adkContext({ memoryService: memory.service, functionCallId: 'c1' }) });
+    return { result, searches: memory.searches };
+  });
   const ours = recordingAdkMemory();
-  const expected = await LOAD_MEMORY.runAsync({ args: { query: 'tea' }, toolContext: adkContext({ memoryService: theirs.service, functionCallId: 'c1' }) });
   const actual = await OWN_LOAD.runAsync({ args: { query: 'tea' }, toolContext: adkContext({ memoryService: ours.service, functionCallId: 'c1' }) });
-  assert.deepEqual(actual, expected);
+  assert.deepEqual(asJson(actual), theirs.result);
   assert.deepEqual(ours.searches, theirs.searches);
   assert.deepEqual(ours.searches, [{ appName: 'desk', userId: 'scope-a', query: 'tea' }]);
   assert.deepEqual((actual as any).memories[1], { content: 'part one part two', author: undefined, timestamp: undefined });
@@ -174,7 +214,17 @@ test('a load_memory failure carries the message ADK gave, inside FunctionTool\'s
   const quiet = console.error;
   console.error = () => {};
   try {
-    await assert.rejects(LOAD_MEMORY.runAsync({ args: { query: 'tea' }, toolContext: adkContext() }), { message: NO_MEMORY_SERVICE });
+    // ADK's LoadMemoryTool without a memory service: the message it rejected with.
+    const adkFailure = await reference('load-memory-failure', async () => {
+      const { LOAD_MEMORY } = await adkMemoryTools();
+      try {
+        await LOAD_MEMORY.runAsync({ args: { query: 'tea' }, toolContext: adkContext() });
+        return { rejected: false };
+      } catch (err) {
+        return { rejected: true, message: (err as Error).message };
+      }
+    });
+    assert.deepEqual(adkFailure, { rejected: true, message: NO_MEMORY_SERVICE });
     await assert.rejects(OWN_LOAD.runAsync({ args: { query: 'tea' }, toolContext: adkContext() }), {
       message: `Error in tool 'load_memory': ${NO_MEMORY_SERVICE}`,
     });
@@ -205,18 +255,28 @@ test("preload_memory writes ADK's PreloadMemoryTool's block, word for word, in e
   ];
   const quiet = console.warn;
   console.warn = () => {};
+  const ctx = (c: (typeof cases)[number], m: ReturnType<typeof recordingAdkMemory>) =>
+    adkContext({ ...(c.memory === false ? {} : { memoryService: m.service }), userContent: c.userContent });
   try {
-    for (const c of cases) {
-      const theirs = recordingAdkMemory(c.memories);
+    // What ADK's PreloadMemoryTool left of each request, and what it searched.
+    const recorded = await reference('preload-memory-block', async () => {
+      const { PRELOAD_MEMORY } = await adkMemoryTools();
+      const out: Array<{ name: string; seen: ReturnType<typeof seen>; searches: MemorySearchRequest[] }> = [];
+      for (const c of cases) {
+        const theirs = recordingAdkMemory(c.memories);
+        const theirRequest = llmRequest({ system: c.system });
+        await PRELOAD_MEMORY.processLlmRequest({ toolContext: ctx(c, theirs), llmRequest: theirRequest });
+        out.push({ name: c.name, seen: seen(theirRequest), searches: theirs.searches });
+      }
+      return out;
+    });
+    assert.deepEqual(recorded.map((r) => r.name), cases.map((c) => c.name), 'one recorded request per case');
+    for (const [i, c] of cases.entries()) {
       const ours = recordingAdkMemory(c.memories);
-      const ctx = (m: ReturnType<typeof recordingAdkMemory>) =>
-        adkContext({ ...(c.memory === false ? {} : { memoryService: m.service }), userContent: c.userContent });
-      const theirRequest = llmRequest({ system: c.system });
       const ourRequest = llmRequest({ system: c.system });
-      await PRELOAD_MEMORY.processLlmRequest({ toolContext: ctx(theirs), llmRequest: theirRequest });
-      await OWN_PRELOAD.processLlmRequest({ toolContext: ctx(ours), llmRequest: ourRequest });
-      assert.deepEqual(seen(ourRequest), seen(theirRequest), c.name);
-      assert.deepEqual(ours.searches, theirs.searches, `${c.name}: the same search`);
+      await OWN_PRELOAD.processLlmRequest({ toolContext: ctx(c, ours), llmRequest: ourRequest });
+      assert.deepEqual(asJson(seen(ourRequest)), recorded[i]!.seen, c.name);
+      assert.deepEqual(asJson(ours.searches), recorded[i]!.searches, `${c.name}: the same search`);
     }
   } finally {
     console.warn = quiet;
@@ -245,15 +305,20 @@ const MEMORY_CONFIG = {
   subagents: [],
 } as unknown as SyndicateYamlConfig;
 
-/** One turn: what the model was sent on each call, what was searched, and what the session stored. */
-async function memoryTurn(runtime?: RuntimeName) {
+/** The engine's session store, as the adk runtime takes it. */
+const engineSessions = (): BaseSessionService => asAdkSessionService(new InProcessSessionService());
+
+/**
+ * One turn: what the model was sent on each call, what was searched, and what the session stored.
+ * `sessionService` defaults to the engine's own store; a reference side passes ADK's InMemorySessionService.
+ */
+async function memoryTurn(runtime?: RuntimeName, sessionService: BaseSessionService = engineSessions()) {
   const sent: Array<{ system: unknown; tools: unknown }> = [];
   const desk = new ScriptedLlm('scripted/desk', (req, n) => {
     sent.push({ system: req.config?.systemInstruction, tools: structuredClone(req.config?.tools) });
     return n === 1 ? call('load_memory', { query: 'tea' }) : text('Green tea.');
   });
   const memory = recordingAdkMemory();
-  const sessionService = new InMemorySessionService();
   const result = await runSyndicateTurn({
     ...(runtime ? { runtime } : runtimeOption()),
     config: MEMORY_CONFIG,
@@ -285,28 +350,33 @@ test("a turn on the ADK runtime runs the same with the engine's memory tools as 
   assert.equal((ours.responses[0].response as any).memories.length, MEMORIES.length);
   for (const s of ours.searches) assert.equal(s.appName, 'desk.a1', 'every search is pinned to the namespace');
 
-  // The same turn with ADK's own tools registered under the same names.
-  registerTool('load_memory', LOAD_MEMORY, { override: true });
-  registerTool('preload_memory', PRELOAD_MEMORY, { override: true });
-  try {
-    const theirs = await memoryTurn('adk');
-    assert.deepEqual(ours, theirs);
-  } finally {
-    registerTool('load_memory', loadMemoryTool, { override: true });
-    registerTool('preload_memory', preloadMemoryTool, { override: true });
-  }
+  // The same turn with ADK's own tools registered under the same names, on ADK's session store (recorded).
+  const theirs = await reference('turn-with-adk-tools', async () => {
+    const { LOAD_MEMORY, PRELOAD_MEMORY } = await adkMemoryTools();
+    const { InMemorySessionService } = await import('@google/adk');
+    registerTool('load_memory', LOAD_MEMORY, { override: true });
+    registerTool('preload_memory', PRELOAD_MEMORY, { override: true });
+    try {
+      return await memoryTurn('adk', new InMemorySessionService());
+    } finally {
+      registerTool('load_memory', loadMemoryTool, { override: true });
+      registerTool('preload_memory', preloadMemoryTool, { override: true });
+    }
+  });
+  assert.deepEqual(asJson(ours), theirs);
   assert.equal(toolOf(resolveTools(['load_memory'])[0]), loadMemoryTool);
   assert.equal(instructionToolOf(resolveTools(['preload_memory'])[0]), preloadMemoryTool);
 });
 
 forEachRuntime("a turn recalls with the engine's memory tools on each runtime as on ADK: the block, the search, the result", async () => {
-  const reference = await memoryTurn('adk');
+  // The all-ADK turn (adk runtime, ADK's session store), recorded once for both variants.
+  const onAdk = await referenceOnce('turn-on-adk', async () => memoryTurn('adk', new (await import('@google/adk')).InMemorySessionService()));
   const run = await memoryTurn();
   assert.equal(run.status, 'completed');
-  assert.equal(run.text, reference.text);
-  assert.deepEqual(run.sent.map((s) => s.system), reference.sent.map((s) => s.system), 'the instruction, preloaded block and memory note');
-  assert.deepEqual(run.searches, reference.searches);
-  assert.deepEqual(run.responses, reference.responses);
+  assert.equal(run.text, onAdk.text);
+  assert.deepEqual(run.sent.map((s) => s.system), onAdk.sent.map((s) => s.system), 'the instruction, preloaded block and memory note');
+  assert.deepEqual(run.searches, onAdk.searches);
+  assert.deepEqual(asJson(run.responses), onAdk.responses);
 });
 
 forEachRuntime('require_approval gates load_memory as it gates any registry function tool', async () => {
@@ -321,7 +391,7 @@ forEachRuntime('require_approval gates load_memory as it gates any registry func
     appName: 'desk.a1',
     userId: 'scope-a',
     sessionId: 's1',
-    sessionService: new InMemorySessionService(),
+    sessionService: engineSessions(),
     memoryService: memory.service,
     compile: { resolveModel: scriptedResolver({ desk }) },
     trace: false,
@@ -518,13 +588,17 @@ test('the memory tools run on the engine interface alone, reading the run\'s own
   assert.match(block!, /<PAST_CONVERSATIONS>\nTime: .*\nmemory_service: \[PREFERENCE[^\n]*green tea\.\n<\/PAST_CONVERSATIONS>\n$/);
   assert.equal(await quietly(() => preloadMemoryTool.instruction(ctx('scope-b'))), undefined, 'nothing recalled, nothing written');
 
-  // The same block ADK's PreloadMemoryTool writes from the same memories.
-  const adkRequest = llmRequest();
-  await PRELOAD_MEMORY.processLlmRequest({
-    toolContext: adkContext({ memoryService: recordingAdkMemory(recalled.memories).service, userContent: asked }),
-    llmRequest: adkRequest,
+  // The same block ADK's PreloadMemoryTool writes from the same memories (recorded).
+  const adkBlock = await reference('preload-memory-engine-memories', async () => {
+    const { PRELOAD_MEMORY } = await adkMemoryTools();
+    const adkRequest = llmRequest();
+    await PRELOAD_MEMORY.processLlmRequest({
+      toolContext: adkContext({ memoryService: recordingAdkMemory(recalled.memories).service, userContent: asked }),
+      llmRequest: adkRequest,
+    });
+    return adkRequest.config!.systemInstruction ?? null;
   });
-  assert.equal(adkRequest.config!.systemInstruction, block);
+  assert.equal(adkBlock, block);
 });
 
 test('without memory, or without knowing whose, the tools recall nothing and say why', async () => {

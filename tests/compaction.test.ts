@@ -11,12 +11,17 @@
  * the same requests. A session compacted on one runtime then continues on
  * the other with the same request. Then the failure case and the ledger.
  * Offline: scripted adapters only.
+ *
+ * ADK's side of each parity case is recorded (tests/fixtures/adk-reference/
+ * compaction) and runs live only under ADK_REFERENCE=live|record
+ * (tests/helpers/adkReference.ts). A session the native loop compacted and
+ * ADK continues is the ADK runtime's own behaviour: that case still runs ADK.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
+import type { InMemorySessionService } from '@google/adk';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { z } from 'zod';
 
@@ -25,6 +30,7 @@ import type { ModelAdapter, ModelRequest } from '../lib/models/contract.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
 import { SupabaseSpanExporter } from '../lib/observability/supabaseSpanExporter.ts';
 import { onSpanEnd, traceAgentRun } from '../lib/observability/tracer.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
 import { runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
 import { SUMMARY_FAILED, SUMMARY_PROMPT, eventsToCompact, retainStartIndex } from '../lib/runtime/native/compaction.ts';
@@ -40,8 +46,13 @@ import { toolOf } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+const reference = adkReferences('compaction');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const APP = 'compaction';
 const USER = 'u1';
@@ -93,8 +104,9 @@ Date.now = () => (lastNow = Math.max(realNow(), lastNow + 1));
 
 // ── The two runtimes, turn by turn, on a store each keeps ────────────────────
 
+/** ADK's runtime on ADK's in-memory store: only inside a reference's live side, or a case whose subject is the ADK runtime. */
 class AdkSide {
-  readonly sessions = new InMemorySessionService();
+  sessions!: InMemorySessionService;
   readonly config: SyndicateYamlConfig;
   readonly models: Record<string, ScriptedModel>;
   constructor(config: SyndicateYamlConfig, models: Record<string, ScriptedModel>) {
@@ -103,6 +115,7 @@ class AdkSide {
   }
 
   async start(events: TurnEvent[] = []): Promise<void> {
+    this.sessions = new (await import('@google/adk')).InMemorySessionService();
     const session = await this.sessions.createSession({ appName: APP, userId: USER, sessionId: SESSION });
     for (const event of events) await this.sessions.appendEvent({ session, event: structuredClone(event) as any });
   }
@@ -117,6 +130,8 @@ class AdkSide {
       sessionService: this.sessions,
       compile: { resolveModel: shimResolver(this.models), log: () => {} },
       ...(trace ? {} : { trace: false as const }),
+      // The reference is ADK's: pinned, now that native is the default (ADR 0102).
+      runtime: 'adk',
     });
   }
 
@@ -214,15 +229,25 @@ const withoutSignal = (r: ModelRequest) => {
   return JSON.parse(JSON.stringify(rest));
 };
 
-function assertSameRequests(native: Record<string, ScriptedModel>, adk: Record<string, ScriptedModel>): void {
-  for (const key of Object.keys(adk)) {
-    assert.equal(native[key]?.calls, adk[key]?.calls, `calls to ${key}`);
-    assert.deepEqual(native[key]?.requests.map(withoutSignal), adk[key]?.requests.map(withoutSignal), `requests to ${key}`);
+/** What each model was handed, as a recording holds it: its call count and its requests, the signal aside. */
+interface Handed {
+  calls: Record<string, number>;
+  requests: Record<string, unknown[]>;
+}
+const handed = (models: Record<string, ScriptedModel>): Handed => ({
+  calls: Object.fromEntries(Object.entries(models).map(([k, m]) => [k, m.calls])),
+  requests: Object.fromEntries(Object.entries(models).map(([k, m]) => [k, m.requests.map(withoutSignal)])),
+});
+
+function assertSameRequests(native: Record<string, ScriptedModel>, adk: Handed): void {
+  for (const key of Object.keys(adk.calls)) {
+    assert.equal(native[key]?.calls, adk.calls[key], `calls to ${key}`);
+    assert.deepEqual(native[key]?.requests.map(withoutSignal), adk.requests[key], `requests to ${key}`);
   }
 }
 
-/** The conversation on both runtimes; the stores and the requests must match. */
-async function assertParity(config: SyndicateYamlConfig, scripts: Models, turns: string[]) {
+/** ADK's side of a conversation, live: each turn on ADK, in order, from a fresh store. */
+async function adkConversation(config: SyndicateYamlConfig, scripts: Models, turns: string[]): Promise<AdkSide> {
   resetCircuits();
   const adk = new AdkSide(config, build(scripts));
   await adk.start();
@@ -230,7 +255,16 @@ async function assertParity(config: SyndicateYamlConfig, scripts: Models, turns:
     const r = await adk.turn(t);
     assert.equal(r.status, 'completed', r.error?.message);
   }
-  const adkEvents = await adk.events();
+  return adk;
+}
+
+/** The conversation on native, held to ADK's (case `name`, recorded or live): the stores and the requests must match. */
+async function assertParity(name: string, config: SyndicateYamlConfig, scripts: Models, turns: string[]) {
+  const adk = await reference(name, async () => {
+    const side = await adkConversation(config, scripts, turns);
+    return { events: await side.events(), ...handed(side.models) };
+  });
+  const adkEvents = adk.events;
   const userEvents = adkEvents.filter((e) => e.author === 'user');
 
   resetCircuits();
@@ -240,7 +274,7 @@ async function assertParity(config: SyndicateYamlConfig, scripts: Models, turns:
   const nativeEvents = await native.events();
 
   assert.deepEqual(comparable(nativeEvents), comparable(adkEvents), 'the stored events');
-  assertSameRequests(native.models, adk.models);
+  assertSameRequests(native.models, adk);
   // The loop yielded every event it stored, the compactions included.
   const stored = nativeEvents.filter((e) => e.author !== 'user').map((e) => e.id);
   assert.deepEqual(native.yielded.filter((e) => !e.partial).map((e) => e.id), stored, 'yielded what was stored');
@@ -255,7 +289,7 @@ const SUMMARY = (): ModelScript => (_r, n) => answer(`SUMMARY ${n}: the person a
 
 test('ADR 0033: past the threshold, the earlier turns become one summary on both runtimes', async () => {
   const config = syndicate({ compact_after_tokens: 1000, keep_recent_events: 2, summary_model: 'scripted/sum' });
-  const { native, nativeEvents } = await assertParity(config, { chat: growing(), sum: SUMMARY() }, ['question 1', 'question 2', 'question 3', 'question 4']);
+  const { native, nativeEvents } = await assertParity('past-threshold', config, { chat: growing(), sum: SUMMARY() }, ['question 1', 'question 2', 'question 3', 'question 4']);
   assert.equal(native.models.sum!.calls, 1, 'the summarizer ran once');
   const compacted = nativeEvents.filter((e: any) => e.isCompacted);
   assert.equal(compacted.length, 1);
@@ -283,7 +317,7 @@ test('a later compaction folds the earlier summary in, and the cut never splits 
     const last = req.messages.at(-1)!;
     return last.role === 'tool' ? answer(`done ${n}`) : toolCall('compaction_lookup', { key: `k${n}` }, `call-${n}`);
   };
-  const { native, nativeEvents } = await assertParity(config, { chat }, [long(1), long(2), long(3), long(4)]);
+  const { native, nativeEvents } = await assertParity('later-compaction', config, { chat }, [long(1), long(2), long(3), long(4)]);
   const compacted = nativeEvents.filter((e: any) => e.isCompacted) as any[];
   assert.ok(compacted.length >= 2, `compacted ${compacted.length} times`);
   const summaries = native.models.chat!.requests.filter((r) => ((r.messages[0]?.parts[0] as any)?.text as string)?.startsWith(SUMMARY_PROMPT));
@@ -312,39 +346,58 @@ test('under the threshold or within keep_recent_events nothing is summarized', (
   assert.deepEqual(eventsToCompact({ compact_after_tokens: 1000, keep_recent_events: 1 }, { agentName: 'Chat', session })?.map((e) => e.id), ['e1', 'e2', 'e3']);
 });
 
-test('a session compacted on ADK continues on the native loop with the same request, and the reverse', async () => {
+/** The fifth turn's scripts, for a session four turns in. */
+const fifthTurn = (): Models => ({
+  chat: (_r, n) => answer(`answer ${n + 4}`, { inputTokens: (n + 4) * 400, outputTokens: 5 }),
+  sum: (_r, n) => answer(`SUMMARY ${n + 1}: the person asked about trains.`),
+});
+
+test('a session compacted on ADK continues on the native loop with the same request', async () => {
   const config = syndicate({ compact_after_tokens: 1000, keep_recent_events: 2, summary_model: 'scripted/sum' });
   const turns = ['question 1', 'question 2', 'question 3', 'question 4', 'question 5'];
 
-  // The reference: all five turns on each runtime alone.
-  resetCircuits();
-  const adkOnly = new AdkSide(config, build({ chat: growing(), sum: SUMMARY() }));
-  await adkOnly.start();
-  for (const t of turns) await adkOnly.turn(t);
+  // The reference: all five turns on ADK alone.
+  const adkOnly = await reference('handover-adk-only', async () => {
+    resetCircuits();
+    const side = new AdkSide(config, build({ chat: growing(), sum: SUMMARY() }));
+    await side.start();
+    for (const t of turns) await side.turn(t);
+    return handed(side.models);
+  });
+
+  // ADK writes four turns (the fourth compacts), the native loop answers the fifth.
+  const handedOver = await reference('handover-adk-first-four', async () => {
+    resetCircuits();
+    const side = new AdkSide(config, build({ chat: growing(), sum: SUMMARY() }));
+    await side.start();
+    for (const t of turns.slice(0, 4)) await side.turn(t);
+    return side.events();
+  });
+  assert.ok(handedOver.some((e: any) => e.isCompacted));
+  const nativeAfter = new NativeSide(config, build(fifthTurn()));
+  await nativeAfter.start(handedOver);
+  await nativeAfter.turn(turns[4]!);
+  assert.deepEqual(withoutSignal(nativeAfter.models.chat!.requests[0]!), adkOnly.requests.chat![4], 'ADK → native: the fifth request');
+  assert.deepEqual(nativeAfter.models.sum!.requests.map(withoutSignal), adkOnly.requests.sum!.slice(1), 'ADK → native: the fifth turn\'s summary');
+});
+
+test('a session compacted on the native loop continues on ADK with the same request', async () => {
+  // The ADK runtime reading a native-written session: its subject is ADK's runtime, so it runs ADK.
+  const config = syndicate({ compact_after_tokens: 1000, keep_recent_events: 2, summary_model: 'scripted/sum' });
+  const turns = ['question 1', 'question 2', 'question 3', 'question 4', 'question 5'];
+
+  // The reference: all five turns on the native loop alone.
   resetCircuits();
   const nativeOnly = new NativeSide(config, build({ chat: growing(), sum: SUMMARY() }));
   await nativeOnly.start();
   for (const t of turns) await nativeOnly.turn(t);
-
-  // ADK writes four turns (the fourth compacts), the native loop answers the fifth.
-  resetCircuits();
-  const adkFirst = new AdkSide(config, build({ chat: growing(), sum: SUMMARY() }));
-  await adkFirst.start();
-  for (const t of turns.slice(0, 4)) await adkFirst.turn(t);
-  const handedOver = await adkFirst.events();
-  assert.ok(handedOver.some((e: any) => e.isCompacted));
-  const nativeAfter = new NativeSide(config, build({ chat: (_r, n) => answer(`answer ${n + 4}`, { inputTokens: (n + 4) * 400, outputTokens: 5 }), sum: (_r, n) => answer(`SUMMARY ${n + 1}: the person asked about trains.`) }));
-  await nativeAfter.start(handedOver);
-  await nativeAfter.turn(turns[4]!);
-  assert.deepEqual(withoutSignal(nativeAfter.models.chat!.requests[0]!), withoutSignal(adkOnly.models.chat!.requests[4]!), 'ADK → native: the fifth request');
-  assert.deepEqual(nativeAfter.models.sum!.requests.map(withoutSignal), adkOnly.models.sum!.requests.slice(1).map(withoutSignal), 'ADK → native: the fifth turn\'s summary');
 
   // The native loop writes four turns, ADK answers the fifth.
   resetCircuits();
   const nativeFirst = new NativeSide(config, build({ chat: growing(), sum: SUMMARY() }));
   await nativeFirst.start();
   for (const t of turns.slice(0, 4)) await nativeFirst.turn(t);
-  const adkAfter = new AdkSide(config, build({ chat: (_r, n) => answer(`answer ${n + 4}`, { inputTokens: (n + 4) * 400, outputTokens: 5 }), sum: (_r, n) => answer(`SUMMARY ${n + 1}: the person asked about trains.`) }));
+  const adkAfter = new AdkSide(config, build(fifthTurn()));
   await adkAfter.start(await nativeFirst.events());
   const r = await adkAfter.turn(turns[4]!);
   assert.equal(r.status, 'completed', r.error?.message);
@@ -356,21 +409,29 @@ test('a summary model that answers no text fails the turn on both runtimes, and 
   const config = syndicate({ compact_after_tokens: 1000, keep_recent_events: 2, summary_model: 'scripted/sum' });
   const scripts: Models = { chat: growing(), sum: () => answer('') };
   const turns = ['question 1', 'question 2', 'question 3'];
-  resetCircuits();
-  const adk = new AdkSide(config, build(scripts));
-  await adk.start();
-  for (const t of turns) await adk.turn(t);
+  const failed = new RegExp(SUMMARY_FAILED.replace('.', '\\.'));
+  const adk = await reference('summary-fails', async () => {
+    resetCircuits();
+    const side = new AdkSide(config, build(scripts));
+    await side.start();
+    for (const t of turns) await side.turn(t);
+    const rejected = await side.turn('question 4').then(
+      () => null,
+      (e: unknown) => (e instanceof Error ? e.message : String(e)),
+    );
+    return { rejected, chatCalls: side.models.chat!.calls, compacted: (await side.events()).some((e: any) => e.isCompacted) };
+  });
   // ADK's summarizer throws out of the agent's run, and the turn with it.
-  await assert.rejects(adk.turn('question 4'), new RegExp(SUMMARY_FAILED.replace('.', '\\.')));
+  assert.match(String(adk.rejected), failed, 'the ADK turn rejected');
 
   resetCircuits();
   const native = new NativeSide(config, build(scripts));
   await native.start();
   for (const t of turns) await native.turn(t);
-  await assert.rejects(native.turn('question 4'), new RegExp(SUMMARY_FAILED.replace('.', '\\.')));
-  assert.equal(native.models.chat!.calls, adk.models.chat!.calls, 'no step after the failed summary');
+  await assert.rejects(native.turn('question 4'), failed);
+  assert.equal(native.models.chat!.calls, adk.chatCalls, 'no step after the failed summary');
   assert.ok(!(await native.events()).some((e: any) => e.isCompacted));
-  assert.ok(!(await adk.events()).some((e: any) => e.isCompacted));
+  assert.ok(!adk.compacted);
 });
 
 // ── The ledger ───────────────────────────────────────────────────────────────
@@ -414,14 +475,24 @@ test('the summarizing call is charged and traced as on ADK: the same turn and te
   const config = syndicate({ compact_after_tokens: 1000, keep_recent_events: 2, summary_model: 'scripted/sum' });
   const scripts: Models = { chat: growing(), sum: SUMMARY() };
   const turns = ['question 1', 'question 2', 'question 3'];
-  resetCircuits();
-  const adk = new AdkSide(config, build(scripts));
-  await adk.start();
-  for (const t of turns) await adk.turn(t);
-  const adkSpans = await spansOf(async () => {
-    await adk.turn('question 4', true);
+  const a = await reference('ledger', async () => {
+    resetCircuits();
+    const adk = new AdkSide(config, build(scripts));
+    await adk.start();
+    for (const t of turns) await adk.turn(t);
+    const adkSpans = await spansOf(async () => {
+      await adk.turn('question 4', true);
+    });
+    const rows = await ledgerOf(adkSpans);
+    return {
+      userEvent: (await adk.events()).filter((e) => e.author === 'user').at(-1)!,
+      llmCalls: rows.adk_turns[0]?.attributes?.['syndicate.llm_calls'] as unknown,
+      adk_turns: rows.adk_turns.map(scrubbed),
+      adk_telemetry: rows.adk_telemetry.map(scrubbed),
+      payloads: rows.adk_payloads.length,
+    };
   });
-  const userEvent = (await adk.events()).filter((e) => e.author === 'user').at(-1)!;
+  const userEvent = a.userEvent;
 
   resetCircuits();
   const native = new NativeSide(config, build(scripts));
@@ -429,15 +500,14 @@ test('the summarizing call is charged and traced as on ADK: the same turn and te
   for (const t of turns) await native.turn(t);
   const nativeSpans = await spansOf(() => native.turn('question 4', userEvent, true));
 
-  const a = await ledgerOf(adkSpans);
   const n = await ledgerOf(nativeSpans);
-  assert.equal(a.adk_turns[0]?.attributes?.['syndicate.llm_calls'], 2, 'the summary is charged against the turn');
-  assert.deepEqual(n.adk_turns.map(scrubbed), a.adk_turns.map(scrubbed), 'adk_turns');
-  assert.deepEqual(n.adk_telemetry.map(scrubbed), a.adk_telemetry.map(scrubbed), 'adk_telemetry');
+  assert.equal(a.llmCalls, 2, 'the summary is charged against the turn');
+  assert.deepEqual(JSON.parse(JSON.stringify(n.adk_turns.map(scrubbed))), a.adk_turns, 'adk_turns');
+  assert.deepEqual(JSON.parse(JSON.stringify(n.adk_telemetry.map(scrubbed))), a.adk_telemetry, 'adk_telemetry');
   const summaryRow = n.adk_telemetry.find((r) => r.model === 'scripted/sum');
   assert.ok(summaryRow, 'the summary call has its telemetry row');
   assert.equal(summaryRow.agent, 'Chat', 'under the agent that compacted');
-  assert.equal(n.adk_payloads.length, a.adk_payloads.length, 'the same payload rows');
+  assert.equal(n.adk_payloads.length, a.payloads, 'the same payload rows');
 });
 
 // ── Through the turn runner ──────────────────────────────────────────────────
@@ -448,7 +518,8 @@ test('runSyndicateTurn on the native runtime compacts as on ADK: the same stored
   const run = async (runtime: 'adk' | 'native') => {
     resetCircuits();
     const models = build({ chat: growing(), sum: SUMMARY() });
-    const sessionService = new InMemorySessionService();
+    // ADK's own in-memory store under ADK; the engine's on native, as a consumer without ADK holds it.
+    const sessionService = runtime === 'adk' ? new (await import('@google/adk')).InMemorySessionService() : asAdkSessionService(new InProcessSessionService());
     for (const text of turns) {
       const r = await runSyndicateTurn({
         config,
@@ -467,11 +538,14 @@ test('runSyndicateTurn on the native runtime compacts as on ADK: the same stored
     const s = await sessionService.getSession({ appName: APP, userId: USER, sessionId: SESSION });
     return { models, events: JSON.parse(JSON.stringify(s?.events ?? [])) as TurnEvent[] };
   };
-  const adk = await run('adk');
+  const adk = await reference('turn-runner', async () => {
+    const side = await run('adk');
+    return { events: side.events, ...handed(side.models) };
+  });
   const native = await run('native');
   // Each runtime mints its own run ids.
   const strip = (events: TurnEvent[]) => events.map((e) => ({ ...e, invocationId: e.invocationId ? '<run>' : '' }));
   assert.deepEqual(comparable(strip(native.events)), comparable(strip(adk.events)), 'the stored events');
   assert.equal(native.events.filter((e: any) => e.isCompacted).length, 2, 'the fourth and fifth turns compact');
-  assertSameRequests(native.models, adk.models);
+  assertSameRequests(native.models, adk);
 });

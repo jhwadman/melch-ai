@@ -3,6 +3,18 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0108-adk-reference-recorded-by-the-parity-suites.md —explains→ /overview/native-loop.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0108-adk-reference-recorded-by-the-parity-suites.md —depends_on→ /decisions/0084-dual-runtime-suites-in-every-test-run.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0108-adk-reference-recorded-by-the-parity-suites.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md —depends_on→ /decisions/0086-skill-scripts-get-a-minimal-environment.md
 
 by claude-code/claude-opus-5-5

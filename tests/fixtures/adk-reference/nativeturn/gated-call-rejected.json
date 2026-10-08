@@ -1,0 +1,236 @@
+{
+  "suite": "nativeTurn",
+  "case": "gated-call-rejected",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "outcomes": [
+      {
+        "status": "input-required",
+        "text": "Approval needed: Solo wants to run native_turn_send({\"to\":\"ops@acme.test\"}).",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        },
+        "relayFallback": false,
+        "approval": {
+          "agent": "Solo",
+          "tool": "native_turn_send",
+          "args": {
+            "to": "ops@acme.test"
+          }
+        },
+        "resumedSession": false,
+        "tools": [
+          "adk_request_confirmation",
+          "native_turn_send"
+        ]
+      },
+      {
+        "status": "completed",
+        "text": "done: \"This tool call is rejected.\"",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        },
+        "relayFallback": false,
+        "resumedSession": true,
+        "tools": [
+          "native_turn_send"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "tell ops"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "native_turn_send",
+                "args": {
+                  "to": "ops@acme.test"
+                },
+                "id": "call-send"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "content": {
+          "parts": [
+            {
+              "functionCall": {
+                "name": "adk_request_confirmation",
+                "args": {
+                  "originalFunctionCall": {
+                    "name": "native_turn_send",
+                    "args": {
+                      "to": "ops@acme.test"
+                    },
+                    "id": "call-send"
+                  },
+                  "toolConfirmation": {
+                    "hint": "Please approve or reject the tool call native_turn_send() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+                    "confirmed": false
+                  }
+                },
+                "id": "adk-00000000-0000-4000-8000-000000000002"
+              }
+            }
+          ],
+          "role": "user"
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {
+            "call-send": {
+              "hint": "Please approve or reject the tool call native_turn_send() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+              "confirmed": false
+            }
+          },
+          "skipSummarization": true
+        },
+        "longRunningToolIds": [
+          "adk-00000000-0000-4000-8000-000000000002"
+        ],
+        "id": "ev000003",
+        "timestamp": 1767225602000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000003",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "adk-00000000-0000-4000-8000-000000000002",
+                "name": "adk_request_confirmation",
+                "response": {
+                  "confirmed": false
+                }
+              }
+            }
+          ]
+        },
+        "id": "ev000004",
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000003",
+        "author": "Solo",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-send",
+                "name": "native_turn_send",
+                "response": {
+                  "error": "This tool call is rejected."
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000005",
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000003",
+        "author": "Solo",
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "done: \"This tool call is rejected.\""
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "calls": {
+      "boss": 2
+    },
+    "systems": {
+      "boss": [
+        "You are an agent. Your internal name is \"Solo\".\n\nSend notes.",
+        "You are an agent. Your internal name is \"Solo\".\n\nSend notes."
+      ]
+    },
+    "deltas": [
+      [],
+      []
+    ],
+    "sent": []
+  }
+}

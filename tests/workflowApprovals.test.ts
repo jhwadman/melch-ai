@@ -6,31 +6,45 @@
  * runs or refuses the pinned call through the loop's approval resume (ADR
  * 0077) and walks on. Native runs it; ADK, whose resume reruns the node from
  * its input and never runs the pinned call, refuses it before any model
- * call. The pausing turn stores what ADK's Workflow stores. Scripted models,
- * in-memory sessions, no network.
+ * call. The pausing turn stores what ADK's Workflow stores: ADK's side
+ * recorded in tests/fixtures/adk-reference/workflowapprovals
+ * (tests/helpers/adkReference.ts), run live only under
+ * ADK_REFERENCE=live|record. Scripted models, in-memory sessions, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FunctionTool, InMemorySessionService, LogLevel, Runner, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
 import { approvalResponsePart, pendingApproval } from '../lib/runtime/approvals.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import { UnsupportedOnRuntimeError } from '../lib/runtime/runtimeFlag.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { SyndicateValidationError, validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
 import { compileWorkflow } from '../lib/workflow.ts';
 import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
 import { virtualClock } from './helpers/virtualClock.ts';
 import { comparable } from './helpers/workflowParity.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of the parity case is recorded (tests/fixtures/adk-reference/workflowapprovals).
+const reference = adkReferences('workflowApprovals');
+
+/** ADK's own in-memory store for a turn on the adk runtime (quiet); the engine's otherwise, as a consumer without ADK holds it. */
+async function sessionServiceFor(runtime: 'adk' | 'native') {
+  if (runtime !== 'adk') return asAdkSessionService(new InProcessSessionService());
+  const { InMemorySessionService, LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+  return new InMemorySessionService();
+}
 
 /** The clock a slow script waits on: a finish order is the scripts' timeline, never a race of real timers (tests/helpers/virtualClock.ts). */
 const clock = virtualClock();
@@ -38,10 +52,10 @@ const clock = virtualClock();
 const sent: string[] = [];
 registerTool(
   'workflow_approval_send',
-  new FunctionTool({
+  defineTool({
     name: 'workflow_approval_send',
     description: 'Send a note.',
-    parameters: z.object({ to: z.string() }),
+    schema: z.object({ to: z.string() }),
     execute: async ({ to }) => {
       sent.push(to);
       return `sent to ${to}`;
@@ -72,10 +86,10 @@ function scripts(): Record<string, ModelScript> {
 
 function conversation(cfg: SyndicateYamlConfig, runtime: 'adk' | 'native' = 'native', script = scripts()) {
   const models = Object.fromEntries(Object.entries(script).map(([key, s]) => [key, new ScriptedModel(`scripted/${key}`, s)]));
-  const sessionService = new InMemorySessionService();
-  const turn = (parts: any[]) =>
-    runSyndicateTurn({ runtime, config: cfg, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false });
-  const events = async () => JSON.parse(JSON.stringify((await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
+  const service = sessionServiceFor(runtime);
+  const turn = async (parts: any[]) =>
+    runSyndicateTurn({ runtime, config: cfg, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService: await service, compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false });
+  const events = async () => JSON.parse(JSON.stringify((await (await service).getSession({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
   return { turn, models, events };
 }
 
@@ -205,13 +219,16 @@ test('native: the pausing turn stores what ADK’s Workflow stores for a gated n
   const native = await events();
 
   // ADK pauses the node the same way; it is its resume that cannot run the pinned call, so the turn runner refuses it.
-  const models = Object.fromEntries(Object.entries(scripts()).map(([key, s]) => [key, new ScriptedModel(`scripted/${key}`, s)]));
-  const sessionService = new InMemorySessionService();
-  await sessionService.createSession({ appName: 'app', userId: 'u', sessionId: 's' });
-  const { workflow } = await compileWorkflow(cfg, { resolveModel: shimResolver(models), log: () => {} });
-  const runner = new Runner({ agent: workflow as any, appName: 'app', sessionService });
-  for await (const _ of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: { role: 'user', parts: [{ text: 'tell ops' }] } }));
-  const adk = JSON.parse(JSON.stringify((await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
+  const adk = await reference('gated-node-pausing-turn', async () => {
+    const { InMemorySessionService, Runner } = await import('@google/adk');
+    const models = Object.fromEntries(Object.entries(scripts()).map(([key, s]) => [key, new ScriptedModel(`scripted/${key}`, s)]));
+    const sessionService = new InMemorySessionService();
+    await sessionService.createSession({ appName: 'app', userId: 'u', sessionId: 's' });
+    const { workflow } = await compileWorkflow(cfg, { resolveModel: shimResolver(models), log: () => {} });
+    const runner = new Runner({ agent: workflow as any, appName: 'app', sessionService });
+    for await (const _ of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: { role: 'user', parts: [{ text: 'tell ops' }] } }));
+    return JSON.parse(JSON.stringify((await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
+  });
   assert.deepEqual(comparable(native), comparable(adk));
   assert.deepEqual(sent, []);
 });

@@ -1,0 +1,21 @@
+{
+  "suite": "workflowScheduler",
+  "case": "outputs-flow-as-inputs",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "One <- \"hello\"",
+      "Two <- {\"n\":5}",
+      "Three <- [5,\"x\"]"
+    ],
+    "completions": [
+      "Chain.One = {\"n\":5} @-",
+      "Chain.Two = [5,\"x\"] @-",
+      "Chain.Three = 2 @-"
+    ],
+    "output": 2,
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

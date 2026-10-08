@@ -1,0 +1,562 @@
+{
+  "suite": "nativeLedger",
+  "case": "workflow",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "ledger": {
+      "adk_turns": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "<inv>",
+          "surface": null,
+          "surface_guild": null,
+          "surface_channel": null,
+          "surface_user": null,
+          "syndicate": "LedgerGraph",
+          "stage": "workflow",
+          "agent": "Editor",
+          "route": null,
+          "route_reason": null,
+          "route_fell_back": null,
+          "route_via_override": null,
+          "relay_fallback": false,
+          "input": "go",
+          "output": "{\"key\":\"alpha\"}[\"a\",\"b\"]s(a)s(b)s(a)s(b)edited",
+          "error_code": null,
+          "error_message": null,
+          "input_tokens": 14,
+          "output_tokens": 23,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "model_ms": "<ms>",
+          "tool_ms": "<ms>",
+          "llm_calls": 6,
+          "tool_calls": 1,
+          "models": [
+            "scripted/editor",
+            "scripted/lister",
+            "scripted/summarizer",
+            "scripted/triage"
+          ],
+          "tool_events": [
+            {
+              "name": "ToolResponse",
+              "tool": "native_ledger_lookup",
+              "data": {
+                "result": "found alpha"
+              }
+            },
+            {
+              "name": "ToolCall",
+              "tool": "native_ledger_lookup",
+              "args": {
+                "key": "beta"
+              }
+            },
+            {
+              "name": "ToolResponse",
+              "tool": "native_ledger_lookup",
+              "data": {
+                "result": "found beta"
+              }
+            }
+          ],
+          "config_hash": null,
+          "engine_version": "0.20.0+cc4d18d",
+          "eval_run": null,
+          "eval_suite": null,
+          "eval_case": null,
+          "eval_variant": null,
+          "eval_trial": null,
+          "attributes": {
+            "syndicate.bindings": "{}",
+            "syndicate.input": "[{\"text\":\"go\"}]",
+            "session.id": "s1",
+            "gen_ai.conversation.id": "s1",
+            "user.id": "u1",
+            "syndicate.stage": "workflow",
+            "engine.version": "0.20.0+cc4d18d",
+            "telemetry.schema_version": 2,
+            "syndicate.name": "LedgerGraph",
+            "syndicate.tokens.input": 14,
+            "syndicate.tokens.output": 23,
+            "syndicate.tokens.thinking": 0,
+            "syndicate.output": "{\"key\":\"alpha\"}[\"a\",\"b\"]s(a)s(b)s(a)s(b)edited",
+            "adk.invocation_id": "<inv>",
+            "syndicate.agent": "Editor",
+            "syndicate.latency.model_ms": "<ms>",
+            "syndicate.latency.tool_ms": "<ms>",
+            "syndicate.llm_calls": 6,
+            "syndicate.models": "scripted/editor,scripted/lister,scripted/summarizer,scripted/triage",
+            "syndicate.relay_fallback": false
+          },
+          "schema_version": 2
+        }
+      ],
+      "adk_telemetry": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Triage",
+          "provider": "scripted",
+          "model": "scripted/triage",
+          "input_tokens": 11,
+          "output_tokens": 3,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "<inv>",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/triage",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/triage",
+              "llm.agent": "Triage",
+              "gen_ai.agent.name": "Triage",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 11,
+              "llm.tokens.output": 3,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 11,
+              "gen_ai.usage.output_tokens": 3
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Lister",
+          "provider": "scripted",
+          "model": "scripted/lister",
+          "input_tokens": 12,
+          "output_tokens": 4,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "<inv>",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/lister",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/lister",
+              "llm.agent": "Lister",
+              "gen_ai.agent.name": "Lister",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 12,
+              "llm.tokens.output": 4,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 12,
+              "gen_ai.usage.output_tokens": 4
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Summarizer",
+          "provider": "scripted",
+          "model": "scripted/summarizer",
+          "input_tokens": 13,
+          "output_tokens": 5,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "<inv>",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/summarizer",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/summarizer",
+              "llm.agent": "Summarizer",
+              "gen_ai.agent.name": "Summarizer",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 13,
+              "llm.tokens.output": 5,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 13,
+              "gen_ai.usage.output_tokens": 5
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Summarizer",
+          "provider": "scripted",
+          "model": "scripted/summarizer",
+          "input_tokens": 13,
+          "output_tokens": 5,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "<inv>",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/summarizer",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/summarizer",
+              "llm.agent": "Summarizer",
+              "gen_ai.agent.name": "Summarizer",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 13,
+              "llm.tokens.output": 5,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 13,
+              "gen_ai.usage.output_tokens": 5
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Editor",
+          "provider": "scripted",
+          "model": "scripted/editor",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "<inv>",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/editor",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/editor",
+              "llm.agent": "Editor",
+              "gen_ai.agent.name": "Editor",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 0,
+              "llm.tokens.output": 0,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 0,
+              "gen_ai.usage.output_tokens": 0
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Editor",
+          "provider": "scripted",
+          "model": "scripted/editor",
+          "input_tokens": 14,
+          "output_tokens": 6,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "<inv>",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/editor",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/editor",
+              "llm.agent": "Editor",
+              "gen_ai.agent.name": "Editor",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 14,
+              "llm.tokens.output": 6,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 14,
+              "gen_ai.usage.output_tokens": 6
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "Syndicate Execution: LedgerGraph",
+          "syndicate": "LedgerGraph",
+          "agent": "Editor",
+          "provider": null,
+          "model": null,
+          "input_tokens": 14,
+          "output_tokens": 23,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "<inv>",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "Syndicate Execution: LedgerGraph",
+            "durationMs": "<ms>",
+            "attributes": {
+              "syndicate.bindings": "{}",
+              "syndicate.input": "[{\"text\":\"go\"}]",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "syndicate.stage": "workflow",
+              "engine.version": "0.20.0+cc4d18d",
+              "telemetry.schema_version": 2,
+              "syndicate.name": "LedgerGraph",
+              "syndicate.tokens.input": 14,
+              "syndicate.tokens.output": 23,
+              "syndicate.tokens.thinking": 0,
+              "syndicate.output": "{\"key\":\"alpha\"}[\"a\",\"b\"]s(a)s(b)s(a)s(b)edited",
+              "adk.invocation_id": "<inv>",
+              "syndicate.agent": "Editor",
+              "syndicate.latency.model_ms": "<ms>",
+              "syndicate.latency.tool_ms": "<ms>",
+              "syndicate.llm_calls": 6,
+              "syndicate.models": "scripted/editor,scripted/lister,scripted/summarizer,scripted/triage",
+              "syndicate.relay_fallback": false
+            },
+            "events": [
+              {
+                "name": "ToolResponse",
+                "attributes": {
+                  "tool.name": "native_ledger_lookup",
+                  "tool.data_gathered": "{\"result\":\"found alpha\"}"
+                }
+              },
+              {
+                "name": "ToolCall",
+                "attributes": {
+                  "tool.name": "native_ledger_lookup",
+                  "tool.args": "{\"key\":\"beta\"}"
+                }
+              },
+              {
+                "name": "ToolResponse",
+                "attributes": {
+                  "tool.name": "native_ledger_lookup",
+                  "tool.data_gathered": "{\"result\":\"found beta\"}"
+                }
+              }
+            ],
+            "status": {
+              "code": 0
+            }
+          }
+        }
+      ],
+      "adk_payloads": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "<inv>",
+          "agent": "Triage",
+          "provider": "<step>",
+          "model": "scripted/triage",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "<inv>",
+          "agent": "Lister",
+          "provider": "<step>",
+          "model": "scripted/lister",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "<inv>",
+          "agent": "Summarizer",
+          "provider": "<step>",
+          "model": "scripted/summarizer",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "<inv>",
+          "agent": "Summarizer",
+          "provider": "<step>",
+          "model": "scripted/summarizer",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "<inv>",
+          "agent": "Editor",
+          "provider": "<step>",
+          "model": "scripted/editor",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "<inv>",
+          "agent": "Editor",
+          "provider": "<step>",
+          "model": "scripted/editor",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        }
+      ],
+      "steps": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  }
+}

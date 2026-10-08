@@ -1,0 +1,25 @@
+{
+  "suite": "workflowScheduler",
+  "case": "map-item-gives-up",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Lead <- \"go\"",
+      "Worker <- \"a\"",
+      "Worker <- \"b\"",
+      "Worker <- \"b\""
+    ],
+    "completions": [
+      "M.Lead = [\"a\",\"b\",\"c\"] @-",
+      "M.Fan.Worker@0 = \"w:a\" @Worker@0"
+    ],
+    "nodeErrors": [
+      "M.Fan@- Fan [UNKNOWN_ERROR] Dynamic node Worker failed: item (DynamicNodeFailError after 1)"
+    ],
+    "errorEvents": [
+      "{\"author\":\"Fan\",\"nodeInfo\":{\"path\":\"M.Fan\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"isNodeError\":true,\"errorType\":\"DynamicNodeFailError\",\"errorCode\":\"UNKNOWN_ERROR\",\"errorMessage\":\"Dynamic node Worker failed: item\",\"attemptCount\":1}"
+    ],
+    "error": "DynamicNodeFailError: Dynamic node Worker failed: item"
+  }
+}

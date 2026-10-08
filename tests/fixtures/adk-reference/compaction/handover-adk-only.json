@@ -1,0 +1,218 @@
+{
+  "suite": "compaction",
+  "case": "handover-adk-only",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": {
+      "chat": 5,
+      "sum": 2
+    },
+    "requests": {
+      "chat": [
+        {
+          "model": "scripted/chat",
+          "system": "You are an agent. Your internal name is \"Chat\".\n\nChat.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "question 1"
+                }
+              ]
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "scripted/chat",
+          "system": "You are an agent. Your internal name is \"Chat\".\n\nChat.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "question 1"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "answer 1"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "question 2"
+                }
+              ]
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "scripted/chat",
+          "system": "You are an agent. Your internal name is \"Chat\".\n\nChat.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "question 1"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "answer 1"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "question 2"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "answer 2"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "question 3"
+                }
+              ]
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "scripted/chat",
+          "system": "You are an agent. Your internal name is \"Chat\".\n\nChat.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "[Previous Context Summary]:\nSUMMARY 1: the person asked about trains."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "answer 3"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "question 4"
+                }
+              ]
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "scripted/chat",
+          "system": "You are an agent. Your internal name is \"Chat\".\n\nChat.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "[Previous Context Summary]:\nSUMMARY 2: the person asked about trains."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "answer 4"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "question 5"
+                }
+              ]
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "sum": [
+        {
+          "model": "scripted/sum",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "The following is a conversation history between a user and an AI agent. Please summarize the conversation, focusing on key information and decisions made, as well as any unresolved questions or tasks. The summary should be concise and capture the essence of the interaction.\n\n[Event 1 - Author: user]\nquestion 1\n\n[Event 2 - Author: Chat]\nanswer 1\n\n[Event 3 - Author: user]\nquestion 2\n\n[Event 4 - Author: Chat]\nanswer 2\n\n[Event 5 - Author: user]\nquestion 3\n\n"
+                }
+              ]
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "scripted/sum",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "The following is a conversation history between a user and an AI agent. Please summarize the conversation, focusing on key information and decisions made, as well as any unresolved questions or tasks. The summary should be concise and capture the essence of the interaction.\n\n[Event 1 - Author: system]\nSUMMARY 1: the person asked about trains.\n\n[Event 2 - Author: Chat]\nanswer 3\n\n[Event 3 - Author: user]\nquestion 4\n\n"
+                }
+              ]
+            }
+          ],
+          "stream": false
+        }
+      ]
+    }
+  }
+}

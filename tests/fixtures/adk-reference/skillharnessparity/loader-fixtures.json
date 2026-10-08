@@ -1,0 +1,10 @@
+{
+  "suite": "skillHarnessParity",
+  "case": "loader-fixtures",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "greeting": "{\"frontmatter\":{\"name\":\"greeting\",\"description\":\"Greet a person by name in the team's house manner. Use when the user asks for a greeting or a welcome message.\",\"metadata\":{}},\"instructions\":\"# Greeting\\n\\nWrite one sentence. Use the person's name once. No exclamation marks.\",\"resources\":{\"references\":{},\"assets\":{},\"scripts\":{}}}",
+    "release-notes": "{\"frontmatter\":{\"name\":\"release-notes\",\"description\":\"Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.\",\"allowed-tools\":\"harness_test_lookup\",\"metadata\":{},\"allowedTools\":\"harness_test_lookup\"},\"instructions\":\"# Release notes\\n\\n1. Read `references/style.md` for the house style.\\n2. Run `scripts/version.sh` to learn the current version.\\n3. Draft the notes from the changelog section for that version, in the house style.\\n4. Start from `assets/template.md`.\",\"resources\":{\"references\":{\"style.md\":\"House style: one sentence per change, past tense, no adjectives.\\n\"},\"assets\":{\"template.md\":\"# Release <version>\\n\\n<changes>\\n\"},\"scripts\":{\"version.sh\":{\"src\":\"#!/usr/bin/env bash\\n# Prints the version the notes are for. A fixture: the real skill would read package.json.\\necho \\\"version=9.9.9 args=$*\\\"\\n\"}}}}"
+  }
+}

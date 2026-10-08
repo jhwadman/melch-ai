@@ -1,0 +1,9 @@
+{
+  "suite": "workflowToolNode",
+  "case": "input-refused-text that is not JSON",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "error": "The input to ToolNode must be an object of tool arguments or null, but got string."
+  }
+}

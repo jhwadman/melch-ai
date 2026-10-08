@@ -1,0 +1,21 @@
+{
+  "suite": "workflowScheduler",
+  "case": "two-terminal-outputs",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Lead <- \"go\"",
+      "A <- \"Lead(go)\"",
+      "B <- \"Lead(go)\""
+    ],
+    "completions": [
+      "Two.Lead = \"Lead(go)\" @-",
+      "Two.A = \"A(Lead(go))\" @A@1",
+      "Two.B = \"B(Lead(go))\" @B@1"
+    ],
+    "nodeErrors": [],
+    "errorEvents": [],
+    "error": "Error: Workflow Two: multiple terminal nodes produced output (2). A workflow must have at most one terminal output."
+  }
+}

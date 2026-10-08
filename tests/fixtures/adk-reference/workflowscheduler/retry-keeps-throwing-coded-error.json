@@ -1,0 +1,24 @@
+{
+  "suite": "workflowScheduler",
+  "case": "retry-keeps-throwing-coded-error",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Fixer <- \"Triage(go)\"",
+      "Fixer <- \"Triage(go)\"",
+      "Fixer <- \"Triage(go)\""
+    ],
+    "completions": [
+      "R.Triage = \"Triage(go)\" @-"
+    ],
+    "nodeErrors": [
+      "R.Fixer@- Fixer [503] overloaded (Error after 3)"
+    ],
+    "errorEvents": [
+      "{\"author\":\"Fixer\",\"nodeInfo\":{\"path\":\"R.Fixer\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"isNodeError\":true,\"errorType\":\"Error\",\"errorCode\":\"503\",\"errorMessage\":\"overloaded\",\"attemptCount\":3}"
+    ],
+    "error": "Error: overloaded"
+  }
+}

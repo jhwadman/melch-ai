@@ -1,0 +1,2606 @@
+{
+  "suite": "nativeDelegate",
+  "case": "default-step-limit-50",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "failed",
+        "text": "",
+        "relayFallback": false,
+        "error": {
+          "code": "STEP_LIMIT",
+          "message": "The turn reached its limit of 50 model calls (max_steps) and was stopped."
+        }
+      }
+    ],
+    "sessions": {
+      "native-delegate": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "find the thing"
+              }
+            ]
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000002",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225601000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-1"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-1",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000003",
+          "longRunningToolIds": [],
+          "timestamp": 1767225602000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000004",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225603000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-2"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-2",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000005",
+          "longRunningToolIds": [],
+          "timestamp": 1767225604000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000006",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225605000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-3"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-3",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000007",
+          "longRunningToolIds": [],
+          "timestamp": 1767225606000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000008",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225607000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-4"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-4",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000009",
+          "longRunningToolIds": [],
+          "timestamp": 1767225608000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000010",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225609000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-5"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-5",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000011",
+          "longRunningToolIds": [],
+          "timestamp": 1767225610000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000012",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225611000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-6"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-6",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000013",
+          "longRunningToolIds": [],
+          "timestamp": 1767225612000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000014",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225613000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-7"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-7",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000015",
+          "longRunningToolIds": [],
+          "timestamp": 1767225614000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000016",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225615000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-8"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-8",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000017",
+          "longRunningToolIds": [],
+          "timestamp": 1767225616000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000018",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225617000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-9"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-9",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000019",
+          "longRunningToolIds": [],
+          "timestamp": 1767225618000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000020",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225619000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-10"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-10",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000021",
+          "longRunningToolIds": [],
+          "timestamp": 1767225620000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000022",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225621000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-11"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-11",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000023",
+          "longRunningToolIds": [],
+          "timestamp": 1767225622000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000024",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225623000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-12"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-12",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000025",
+          "longRunningToolIds": [],
+          "timestamp": 1767225624000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000026",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225625000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-13"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-13",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000027",
+          "longRunningToolIds": [],
+          "timestamp": 1767225626000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000028",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225627000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-14"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-14",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000029",
+          "longRunningToolIds": [],
+          "timestamp": 1767225628000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000030",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225629000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-15"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-15",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000031",
+          "longRunningToolIds": [],
+          "timestamp": 1767225630000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000032",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225631000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-16"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-16",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000033",
+          "longRunningToolIds": [],
+          "timestamp": 1767225632000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000034",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225633000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-17"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-17",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000035",
+          "longRunningToolIds": [],
+          "timestamp": 1767225634000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000036",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225635000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-18"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-18",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000037",
+          "longRunningToolIds": [],
+          "timestamp": 1767225636000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000038",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225637000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-19"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-19",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000039",
+          "longRunningToolIds": [],
+          "timestamp": 1767225638000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000040",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225639000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-20"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-20",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000041",
+          "longRunningToolIds": [],
+          "timestamp": 1767225640000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000042",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225641000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-21"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-21",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000043",
+          "longRunningToolIds": [],
+          "timestamp": 1767225642000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000044",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225643000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-22"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-22",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000045",
+          "longRunningToolIds": [],
+          "timestamp": 1767225644000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000046",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225645000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-23"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-23",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000047",
+          "longRunningToolIds": [],
+          "timestamp": 1767225646000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000048",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225647000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-24"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-24",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000049",
+          "longRunningToolIds": [],
+          "timestamp": 1767225648000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000050",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225649000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "Scout",
+                  "args": {
+                    "request": "again"
+                  },
+                  "id": "call-scout-25"
+                }
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "call-scout-25",
+                  "name": "Scout",
+                  "response": {
+                    "result": "still nothing"
+                  }
+                }
+              }
+            ]
+          },
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000051",
+          "longRunningToolIds": [],
+          "timestamp": 1767225650000
+        }
+      ],
+      "Scout": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000002",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000052",
+          "longRunningToolIds": [],
+          "timestamp": 1767225651000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000002",
+          "author": "Scout",
+          "id": "ev000053",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225652000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000003",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000054",
+          "longRunningToolIds": [],
+          "timestamp": 1767225653000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000003",
+          "author": "Scout",
+          "id": "ev000055",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225654000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000004",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000056",
+          "longRunningToolIds": [],
+          "timestamp": 1767225655000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000004",
+          "author": "Scout",
+          "id": "ev000057",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225656000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000005",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000058",
+          "longRunningToolIds": [],
+          "timestamp": 1767225657000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000005",
+          "author": "Scout",
+          "id": "ev000059",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225658000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000006",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000060",
+          "longRunningToolIds": [],
+          "timestamp": 1767225659000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000006",
+          "author": "Scout",
+          "id": "ev000061",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225660000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000007",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000062",
+          "longRunningToolIds": [],
+          "timestamp": 1767225661000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000007",
+          "author": "Scout",
+          "id": "ev000063",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225662000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000008",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000064",
+          "longRunningToolIds": [],
+          "timestamp": 1767225663000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000008",
+          "author": "Scout",
+          "id": "ev000065",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225664000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000009",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000066",
+          "longRunningToolIds": [],
+          "timestamp": 1767225665000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000009",
+          "author": "Scout",
+          "id": "ev000067",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225666000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000010",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000068",
+          "longRunningToolIds": [],
+          "timestamp": 1767225667000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000010",
+          "author": "Scout",
+          "id": "ev000069",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225668000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000011",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000070",
+          "longRunningToolIds": [],
+          "timestamp": 1767225669000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000011",
+          "author": "Scout",
+          "id": "ev000071",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225670000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000012",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000072",
+          "longRunningToolIds": [],
+          "timestamp": 1767225671000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000012",
+          "author": "Scout",
+          "id": "ev000073",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225672000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000013",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000074",
+          "longRunningToolIds": [],
+          "timestamp": 1767225673000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000013",
+          "author": "Scout",
+          "id": "ev000075",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225674000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000014",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000076",
+          "longRunningToolIds": [],
+          "timestamp": 1767225675000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000014",
+          "author": "Scout",
+          "id": "ev000077",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225676000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000015",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000078",
+          "longRunningToolIds": [],
+          "timestamp": 1767225677000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000015",
+          "author": "Scout",
+          "id": "ev000079",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225678000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000016",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000080",
+          "longRunningToolIds": [],
+          "timestamp": 1767225679000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000016",
+          "author": "Scout",
+          "id": "ev000081",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225680000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000017",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000082",
+          "longRunningToolIds": [],
+          "timestamp": 1767225681000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000017",
+          "author": "Scout",
+          "id": "ev000083",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225682000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000018",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000084",
+          "longRunningToolIds": [],
+          "timestamp": 1767225683000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000018",
+          "author": "Scout",
+          "id": "ev000085",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225684000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000019",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000086",
+          "longRunningToolIds": [],
+          "timestamp": 1767225685000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000019",
+          "author": "Scout",
+          "id": "ev000087",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225686000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000020",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000088",
+          "longRunningToolIds": [],
+          "timestamp": 1767225687000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000020",
+          "author": "Scout",
+          "id": "ev000089",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225688000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000021",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000090",
+          "longRunningToolIds": [],
+          "timestamp": 1767225689000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000021",
+          "author": "Scout",
+          "id": "ev000091",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225690000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000022",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000092",
+          "longRunningToolIds": [],
+          "timestamp": 1767225691000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000022",
+          "author": "Scout",
+          "id": "ev000093",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225692000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000023",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000094",
+          "longRunningToolIds": [],
+          "timestamp": 1767225693000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000023",
+          "author": "Scout",
+          "id": "ev000095",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225694000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000024",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000096",
+          "longRunningToolIds": [],
+          "timestamp": 1767225695000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000024",
+          "author": "Scout",
+          "id": "ev000097",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225696000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000025",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000098",
+          "longRunningToolIds": [],
+          "timestamp": 1767225697000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000025",
+          "author": "Scout",
+          "id": "ev000099",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225698000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000026",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "again"
+              }
+            ]
+          },
+          "id": "ev000100",
+          "longRunningToolIds": [],
+          "timestamp": 1767225699000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000026",
+          "author": "Scout",
+          "id": "ev000101",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225700000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "still nothing"
+              }
+            ]
+          },
+          "finishReason": "STOP",
+          "turnComplete": true
+        }
+      ]
+    },
+    "requests": {
+      "boss": [
+        "sha256:3a35ef7d9f347c73d0cf9e0f38aef774901e0f3d9c4fea1ebb411f7172e4024d",
+        "sha256:ce45645ea867c18c11f67a971a5ee9aa19a162f757e4ac430451c20d261b2503",
+        "sha256:2fc41f62659963d3b25cd2690807c44cc0ddb61435575297719214e939e94be2",
+        "sha256:37d4d084b4e5fd4e6a626654e3898f06949abe221612e963e5ab2530fed25ac1",
+        "sha256:3e1d694dbba22f80b0d905f9f1c250f6f29943e93b35c7c68b6e4eccff7d2393",
+        "sha256:78e790da4ff36ef3280137be16e560e700425b20d819c02ef84d3dc64b32daf9",
+        "sha256:8e46ab067f337a53f35cadb3d8273734b23f265e7b54308d108f1a701d0dc9c2",
+        "sha256:ec91bdc75d3ba582b20391f1893c703f79c323535a919a68840b7fb685868f87",
+        "sha256:00da7c36d5a092720f99286277947e917531c3c40960e3143239d2a86872aaeb",
+        "sha256:6d05ec9713d26760f1caa6a85e5e698bc16163ab81fd12c08870d12505d7399d",
+        "sha256:d3a42a3d3da28bc489ff9e000e5a99a6f0b26e870fcb5dfdbfa40b4855d1b2f2",
+        "sha256:b4efb949265a1547d9c7cc79515bc51bee75075d2c0e6212865ff0178ebffb39",
+        "sha256:433ef56a22c0a151aba9d3099474057ef74d30c349972b0120c18f06dc200221",
+        "sha256:4a921f30cc380bc29d85a334f21c0faa5c1cfd2464f67839863b577cbb54c8ea",
+        "sha256:351a933b9d90dd0f125bffef7464ffd917fa33f3756591556e55d9274cd98ad8",
+        "sha256:0fa2115cde8a62fc4a131cc5b3582bc0c96b058ce601fed9cb087f9ca227de62",
+        "sha256:547fbc5b237067e90d995687c96df08d2855c1267732df3f1663d4905882fcf1",
+        "sha256:6fe3d2a6c3702ea51daeddb4f80b2d1f820059b3760546ebe98ec70cf625faf3",
+        "sha256:e68b5ba486d7fb04640602897e9e7fc4adc81b48c1beb735ff4a4f3d956d6255",
+        "sha256:aa57f9fe4c4bcd6a342e85f1c60c7bfb2e7bdc6b84e74da2f173dd00302b106e",
+        "sha256:a50e4666d28af14f77ed6617822a7bad312cc6c1f1f641636c988dd1e028de13",
+        "sha256:49b6e11333fdf76f9a96a62c24a40793c83c57fb02c2488b79a9d3df1fdd6ab5",
+        "sha256:d2cdc32f7413a7f7591ce1e4a6313a1ce413d8992bd6d97dfbc30a50e9acf92e",
+        "sha256:4bdae6ea02a2235a347629f74ad9b7cda7e9ff0b5b09c1002a380b0457664444",
+        "sha256:2f50842e075d14e81a73a798ebad6cb43f2ba90c0e4b3e210d235de727efc641"
+      ],
+      "scout": [
+        "sha256:2d22a591c879f4858b2da3aa2fd2cb388fbdd09a3754059a52592fc0f6ca9faa",
+        "sha256:c6e89c7ef4722126e556a54965f4308faa0b6d17f3e9f12c1266db414ec83c1e",
+        "sha256:968aa426f70955ce3495c1b9e77678b7d33b9487f17604b34adf2fb3c7336e5b",
+        "sha256:ef881b8cb79012db0d1207909e4928ef545940b73d8f27111f16ba423eb45788",
+        "sha256:c8e5cc30e8cdf9ad96d0a815bbafdbbedd4b71c8bd8d8c7bbe888070d604364e",
+        "sha256:3d5bebc5033a4cda6d91175b2a23d1ee4c4917ac3d6d2f64b2f3f14355ac014d",
+        "sha256:d9535d2e81229d276f7c7c02560711c772890c7f1b078ef9be7f897e1207b23f",
+        "sha256:f5a96d12cabd28a7fca1f1c84a5d8b562327caea2ffb08ec2e2ef7f90a4391e6",
+        "sha256:70b0ba9d7d8c52c60a4acfa209e03f90a4bada005a93a282cf0622b195a4bdb3",
+        "sha256:88c4e5b131907c6dbaf97ddca920d31e76115220ed8b693448ba2b0ec7ffe379",
+        "sha256:2b4940daae6ce7f3d7023326734e8ecc189078a64478fddf220c977560a5940c",
+        "sha256:d682854305e5e50563236caf92c1e4ac921e78f2dd68668a396d9dfbf3afed76",
+        "sha256:6f239a26797fcb59d88ec4ffdf08bdb547c2218b39ff501923370e6fbe939689",
+        "sha256:3360af438b1dda7f5580917a1c712e13c0796c33b7c365d99910a90454f84808",
+        "sha256:5bcffed9fb987baf7b60adbafdad50d42cf7da6c32cb582287a1cbcda80c1940",
+        "sha256:049fa499effbd93dce85477dbbff6875b84d0ab970c8fde5458ab5e723c513ce",
+        "sha256:52c638903098e849fee196503fa1ab959ae03c1af95f42e3e830427ef59dd628",
+        "sha256:017a3a2b338845505079c5b0bbac70c88af3672edaf972ab27a7f390f99b25f2",
+        "sha256:e61ca74d0053794cefdd3a283e1a304a8995a835282d1fdd63cb8ffd1773ff32",
+        "sha256:2d891c338f530a92eb295b4da3b6edce88c1c2d64be8bf57d19678fa420a14e7",
+        "sha256:7153361d1ac7d7882313daa9a87ae20b39a36642a3f09052d0f79b91b73e3816",
+        "sha256:5c8f632dcc63dea36cc6c179a6d79bf09dbcdc9698421b270677ed0ff7d84b76",
+        "sha256:ccdbe65a084a53dcfddf2d9ecf13e77fbf2e01f90bf28f2dd7971109d594f3ef",
+        "sha256:ff92f8e9ca5d7064e8730c3c11e1ab2c0708e8e475bfe4f922e717d718ebdcec",
+        "sha256:96437ce0ab9e184f42b0cc348c23919943ae9c0529e0e647a31b279ed901e8ab"
+      ]
+    },
+    "calls": {
+      "boss": 25,
+      "scout": 25
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "suite": "memoryTools",
+  "case": "preload-memory-block",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "name": "recalled facts after the instruction",
+      "seen": {
+        "config": {
+          "systemInstruction": "Answer from memory.\n\nThe following content is from your previous conversations with the user.\nThey may be useful for answering the user's current query.\n<PAST_CONVERSATIONS>\nTime: 2026-10-01T09:00:00.000Z\nmemory_service: [PREFERENCE | date: 2026-10-01 | source: user | status: active | keys: tea] The user prefers green tea.\npart one part two\nTime: 2026-09-30T08:00:00.000Z\n</PAST_CONVERSATIONS>\n"
+        },
+        "callable": []
+      },
+      "searches": [
+        {
+          "appName": "desk",
+          "userId": "scope-a",
+          "query": "what tea do I like?"
+        }
+      ]
+    },
+    {
+      "name": "recalled facts as the whole instruction",
+      "seen": {
+        "config": {
+          "systemInstruction": "The following content is from your previous conversations with the user.\nThey may be useful for answering the user's current query.\n<PAST_CONVERSATIONS>\nTime: 2026-10-01T09:00:00.000Z\nmemory_service: [PREFERENCE | date: 2026-10-01 | source: user | status: active | keys: tea] The user prefers green tea.\npart one part two\nTime: 2026-09-30T08:00:00.000Z\n</PAST_CONVERSATIONS>\n"
+        },
+        "callable": []
+      },
+      "searches": [
+        {
+          "appName": "desk",
+          "userId": "scope-a",
+          "query": "what tea do I like?"
+        }
+      ]
+    },
+    {
+      "name": "no memory service",
+      "seen": {
+        "config": {
+          "systemInstruction": "Base."
+        },
+        "callable": []
+      },
+      "searches": []
+    },
+    {
+      "name": "no user content",
+      "seen": {
+        "config": {
+          "systemInstruction": "Base."
+        },
+        "callable": []
+      },
+      "searches": []
+    },
+    {
+      "name": "a first part without text",
+      "seen": {
+        "config": {},
+        "callable": []
+      },
+      "searches": []
+    },
+    {
+      "name": "nothing recalled",
+      "seen": {
+        "config": {},
+        "callable": []
+      },
+      "searches": [
+        {
+          "appName": "desk",
+          "userId": "scope-a",
+          "query": "what tea do I like?"
+        }
+      ]
+    },
+    {
+      "name": "recalled entries without text or time",
+      "seen": {
+        "config": {},
+        "callable": []
+      },
+      "searches": [
+        {
+          "appName": "desk",
+          "userId": "scope-a",
+          "query": "what tea do I like?"
+        }
+      ]
+    },
+    {
+      "name": "a failed search",
+      "seen": {
+        "config": {
+          "systemInstruction": "Base."
+        },
+        "callable": []
+      },
+      "searches": [
+        {
+          "appName": "desk",
+          "userId": "scope-a",
+          "query": "what tea do I like?"
+        }
+      ]
+    }
+  ]
+}

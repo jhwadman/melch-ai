@@ -1,0 +1,21 @@
+{
+  "suite": "openapiTools",
+  "case": "request-11-putOctet",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/octet",
+        "method": "PUT",
+        "headers": {
+          "content-type": "application/octet-stream"
+        },
+        "body": "raw bytes"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

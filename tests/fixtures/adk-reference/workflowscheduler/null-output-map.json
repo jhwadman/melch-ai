@@ -1,0 +1,26 @@
+{
+  "suite": "workflowScheduler",
+  "case": "null-output-map",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Lead <- \"go\"",
+      "Worker <- \"a\"",
+      "Worker <- \"b\"",
+      "Sum <- [null,\"b\"]"
+    ],
+    "completions": [
+      "N4.Lead = [\"a\",\"b\"] @-",
+      "N4.Fan.Worker@1 = \"b\" @Worker@1",
+      "N4.Fan = [null,\"b\"] @-",
+      "N4.Sum = [null,\"b\"] @-"
+    ],
+    "output": [
+      null,
+      "b"
+    ],
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

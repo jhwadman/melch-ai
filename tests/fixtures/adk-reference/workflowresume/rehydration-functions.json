@@ -1,0 +1,1934 @@
+{
+  "suite": "workflowResume",
+  "case": "rehydration-functions",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "current": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Triage",
+          "id": "ev000001",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "the draft"
+              }
+            ]
+          },
+          "turnComplete": true,
+          "output": "the draft",
+          "nodeInfo": {
+            "messageAsOutput": true,
+            "path": "Workflow Fixture.Triage",
+            "outputFor": [
+              "Workflow Fixture.Triage"
+            ]
+          }
+        },
+        {
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_input",
+                  "args": {
+                    "interruptId": "00000000-0000-4000-8000-000000000002",
+                    "payload": "the draft",
+                    "message": "Publish?",
+                    "response_schema": null
+                  },
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          },
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "id": "ev000002",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Confirm",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "the draft"
+            }
+          },
+          "timestamp": 1767225601000,
+          "nodeInfo": {
+            "path": "Workflow Fixture.Confirm"
+          }
+        },
+        {
+          "author": "Workflow Fixture",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "write the release note"
+            }
+          },
+          "id": "ev000003",
+          "timestamp": 1767225602000,
+          "nodeInfo": {
+            "path": "Workflow Fixture"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "user",
+          "invocationId": "e-2",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "yes"
+              }
+            ]
+          }
+        }
+      ],
+      "parents": [
+        {
+          "runs": {
+            "map": [
+              [
+                "Triage",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Confirm",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "input": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Workflow Fixture",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "input": "write the release note"
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Triage",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "the draft"
+                }
+              ],
+              [
+                "Confirm",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "input": "the draft"
+                }
+              ],
+              [
+                "Workflow Fixture",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "input": "write the release note"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        },
+        {
+          "runs": {
+            "map": [
+              [
+                "Triage",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Confirm",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "input": "the draft"
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Triage",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "the draft"
+                }
+              ],
+              [
+                "Confirm",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "input": "the draft"
+                }
+              ]
+            ]
+          }
+        }
+      ],
+      "answers": {
+        "map": []
+      },
+      "fastForward": []
+    },
+    {
+      "current": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Triage",
+          "id": "ev000001",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "the draft"
+              }
+            ]
+          },
+          "turnComplete": true,
+          "output": "the draft",
+          "nodeInfo": {
+            "messageAsOutput": true,
+            "path": "Workflow Fixture.Triage",
+            "outputFor": [
+              "Workflow Fixture.Triage"
+            ]
+          }
+        },
+        {
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_input",
+                  "args": {
+                    "interruptId": "00000000-0000-4000-8000-000000000002",
+                    "payload": "the draft",
+                    "message": "Publish?",
+                    "response_schema": null
+                  },
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          },
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "id": "ev000002",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Confirm",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "the draft"
+            }
+          },
+          "timestamp": 1767225601000,
+          "nodeInfo": {
+            "path": "Workflow Fixture.Confirm"
+          }
+        },
+        {
+          "author": "Workflow Fixture",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "write the release note"
+            }
+          },
+          "id": "ev000003",
+          "timestamp": 1767225602000,
+          "nodeInfo": {
+            "path": "Workflow Fixture"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "user",
+          "invocationId": "e-2",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "00000000-0000-4000-8000-000000000002",
+                  "name": "adk_request_input",
+                  "response": {
+                    "result": "yes"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "parents": [
+        {
+          "runs": {
+            "map": [
+              [
+                "Triage",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Confirm",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "input": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Workflow Fixture",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": [
+                        [
+                          "00000000-0000-4000-8000-000000000002",
+                          "yes"
+                        ]
+                      ]
+                    },
+                    "input": "write the release note"
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Triage",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "the draft"
+                }
+              ],
+              [
+                "Confirm",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "input": "the draft"
+                }
+              ],
+              [
+                "Workflow Fixture",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": [
+                      [
+                        "00000000-0000-4000-8000-000000000002",
+                        "yes"
+                      ]
+                    ]
+                  },
+                  "input": "write the release note"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        },
+        {
+          "runs": {
+            "map": [
+              [
+                "Triage",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Confirm",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": [
+                        [
+                          "00000000-0000-4000-8000-000000000002",
+                          "yes"
+                        ]
+                      ]
+                    },
+                    "input": "the draft"
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Triage",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "the draft"
+                }
+              ],
+              [
+                "Confirm",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": [
+                      [
+                        "00000000-0000-4000-8000-000000000002",
+                        "yes"
+                      ]
+                    ]
+                  },
+                  "input": "the draft"
+                }
+              ]
+            ]
+          }
+        }
+      ],
+      "answers": {
+        "map": [
+          [
+            "00000000-0000-4000-8000-000000000002",
+            "yes"
+          ]
+        ]
+      },
+      "fastForward": []
+    },
+    {
+      "current": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Triage",
+          "id": "ev000001",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "the draft"
+              }
+            ]
+          },
+          "turnComplete": true,
+          "output": "the draft",
+          "nodeInfo": {
+            "messageAsOutput": true,
+            "path": "Workflow Fixture.Triage",
+            "outputFor": [
+              "Workflow Fixture.Triage"
+            ]
+          }
+        },
+        {
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_input",
+                  "args": {
+                    "interruptId": "00000000-0000-4000-8000-000000000002",
+                    "payload": "the draft",
+                    "message": "Publish?",
+                    "response_schema": null
+                  },
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          },
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "id": "ev000002",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Confirm",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "the draft"
+            }
+          },
+          "timestamp": 1767225601000,
+          "nodeInfo": {
+            "path": "Workflow Fixture.Confirm"
+          }
+        },
+        {
+          "author": "Workflow Fixture",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "write the release note"
+            }
+          },
+          "id": "ev000003",
+          "timestamp": 1767225602000,
+          "nodeInfo": {
+            "path": "Workflow Fixture"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "user",
+          "invocationId": "e-2",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "00000000-0000-4000-8000-000000000002",
+                  "name": "adk_request_input",
+                  "response": {
+                    "ok": true
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "parents": [
+        {
+          "runs": {
+            "map": [
+              [
+                "Triage",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Confirm",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "input": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Workflow Fixture",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": [
+                        [
+                          "00000000-0000-4000-8000-000000000002",
+                          {
+                            "ok": true
+                          }
+                        ]
+                      ]
+                    },
+                    "input": "write the release note"
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Triage",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "the draft"
+                }
+              ],
+              [
+                "Confirm",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "input": "the draft"
+                }
+              ],
+              [
+                "Workflow Fixture",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": [
+                      [
+                        "00000000-0000-4000-8000-000000000002",
+                        {
+                          "ok": true
+                        }
+                      ]
+                    ]
+                  },
+                  "input": "write the release note"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        },
+        {
+          "runs": {
+            "map": [
+              [
+                "Triage",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Confirm",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": [
+                        [
+                          "00000000-0000-4000-8000-000000000002",
+                          {
+                            "ok": true
+                          }
+                        ]
+                      ]
+                    },
+                    "input": "the draft"
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Triage",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "the draft"
+                }
+              ],
+              [
+                "Confirm",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": [
+                      [
+                        "00000000-0000-4000-8000-000000000002",
+                        {
+                          "ok": true
+                        }
+                      ]
+                    ]
+                  },
+                  "input": "the draft"
+                }
+              ]
+            ]
+          }
+        }
+      ],
+      "answers": {
+        "map": [
+          [
+            "00000000-0000-4000-8000-000000000002",
+            {
+              "ok": true
+            }
+          ]
+        ]
+      },
+      "fastForward": []
+    },
+    {
+      "current": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "write the release note"
+              }
+            ]
+          },
+          "id": "ev000004",
+          "longRunningToolIds": [],
+          "timestamp": 1767225603000
+        },
+        {
+          "author": "user",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "write the release note"
+              }
+            ]
+          },
+          "id": "ev000005",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225604000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Triage",
+          "id": "ev000001",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000,
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "the draft"
+              }
+            ]
+          },
+          "turnComplete": true,
+          "output": "the draft",
+          "nodeInfo": {
+            "messageAsOutput": true,
+            "path": "Workflow Fixture.Triage",
+            "outputFor": [
+              "Workflow Fixture.Triage"
+            ]
+          }
+        },
+        {
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_input",
+                  "args": {
+                    "interruptId": "00000000-0000-4000-8000-000000000002",
+                    "payload": "the draft",
+                    "message": "Publish?",
+                    "response_schema": null
+                  },
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          },
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "id": "ev000002",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Confirm",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "the draft"
+            }
+          },
+          "timestamp": 1767225601000,
+          "nodeInfo": {
+            "path": "Workflow Fixture.Confirm"
+          }
+        },
+        {
+          "author": "Workflow Fixture",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "write the release note"
+            }
+          },
+          "id": "ev000003",
+          "timestamp": 1767225602000,
+          "nodeInfo": {
+            "path": "Workflow Fixture"
+          }
+        }
+      ],
+      "parents": [
+        {
+          "runs": {
+            "map": [
+              [
+                "Triage",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Confirm",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "input": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Workflow Fixture",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "input": "write the release note"
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Triage",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "the draft"
+                }
+              ],
+              [
+                "Confirm",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "input": "the draft"
+                }
+              ],
+              [
+                "Workflow Fixture",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "input": "write the release note"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        },
+        {
+          "runs": {
+            "map": [
+              [
+                "Triage",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "the draft"
+                  }
+                ]
+              ],
+              [
+                "Confirm",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "00000000-0000-4000-8000-000000000002"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "input": "the draft"
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Triage",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "the draft"
+                }
+              ],
+              [
+                "Confirm",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "00000000-0000-4000-8000-000000000002"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "input": "the draft"
+                }
+              ]
+            ]
+          }
+        }
+      ],
+      "answers": {
+        "map": []
+      },
+      "fastForward": []
+    },
+    {
+      "current": [
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "user",
+          "invocationId": "e-1",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "hi"
+              }
+            ]
+          }
+        }
+      ],
+      "parents": [
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        }
+      ],
+      "answers": {
+        "map": []
+      },
+      "fastForward": []
+    },
+    {
+      "current": [
+        {
+          "actions": {},
+          "longRunningToolIds": [
+            "k"
+          ],
+          "author": "Ask",
+          "invocationId": "e-1",
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_input",
+                  "id": "k",
+                  "args": {
+                    "interruptId": "k",
+                    "payload": null,
+                    "message": "m",
+                    "response_schema": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "ok"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "nodeInfo": {
+            "path": "G.Ask"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "user",
+          "invocationId": "e-2",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "k",
+                  "name": "adk_request_input",
+                  "response": {
+                    "ok": true
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "parents": [
+        {
+          "runs": {
+            "map": [
+              [
+                "Ask",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "k"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": [
+                        [
+                          "k",
+                          {
+                            "ok": true
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Ask",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "k"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": [
+                      [
+                        "k",
+                        {
+                          "ok": true
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": [
+              [
+                "Ask",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "k"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": [
+                        [
+                          "k",
+                          {
+                            "ok": true
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Ask",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "k"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": [
+                      [
+                        "k",
+                        {
+                          "ok": true
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        }
+      ],
+      "answers": {
+        "map": [
+          [
+            "k",
+            {
+              "ok": true
+            }
+          ]
+        ]
+      },
+      "fastForward": [
+        false
+      ]
+    },
+    {
+      "current": [
+        {
+          "actions": {},
+          "longRunningToolIds": [
+            "k"
+          ],
+          "author": "Ask",
+          "invocationId": "e-1",
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_input",
+                  "id": "k",
+                  "args": {
+                    "interruptId": "k",
+                    "payload": null,
+                    "message": "m",
+                    "response_schema": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "ok"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "nodeInfo": {
+            "path": "G.Ask"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "user",
+          "invocationId": "e-2",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "id": "k",
+                  "name": "adk_request_input",
+                  "response": {
+                    "result": "{\"ok\":false}"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "parents": [
+        {
+          "runs": {
+            "map": [
+              [
+                "Ask",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "k"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": [
+                        [
+                          "k",
+                          {
+                            "ok": false
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Ask",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "k"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": [
+                      [
+                        "k",
+                        {
+                          "ok": false
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": [
+              [
+                "Ask",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "k"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": [
+                        [
+                          "k",
+                          {
+                            "ok": false
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "Ask",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "k"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": [
+                      [
+                        "k",
+                        {
+                          "ok": false
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        }
+      ],
+      "answers": {
+        "map": [
+          [
+            "k",
+            {
+              "ok": false
+            }
+          ]
+        ]
+      },
+      "fastForward": [
+        false
+      ]
+    },
+    {
+      "current": [
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "R",
+          "invocationId": "e-1",
+          "route": "a",
+          "nodeInfo": {
+            "path": "G.R@1"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "R",
+          "output": "o",
+          "branch": "b@1",
+          "nodeInfo": {
+            "path": "G.R@2"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "Deep",
+          "invocationId": "e-1",
+          "output": "no",
+          "nodeInfo": {
+            "path": "G.Sub.Deep"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [
+            "c"
+          ],
+          "author": "Ask",
+          "invocationId": "e-1",
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_credential",
+                  "args": {
+                    "function_call_id": "c"
+                  }
+                }
+              }
+            ]
+          },
+          "nodeInfo": {
+            "path": "G.Ask"
+          }
+        },
+        {
+          "actions": {},
+          "longRunningToolIds": [],
+          "author": "user",
+          "invocationId": "e-2",
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "yes"
+              }
+            ]
+          }
+        }
+      ],
+      "parents": [
+        {
+          "runs": {
+            "map": [
+              [
+                "R",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "route": "a"
+                  },
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "o",
+                    "branch": "b@1"
+                  }
+                ]
+              ],
+              [
+                "Deep",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "no"
+                  }
+                ]
+              ],
+              [
+                "Ask",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "c"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    }
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "R",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "route": "a",
+                  "output": "o",
+                  "branch": "b@1"
+                }
+              ],
+              [
+                "Deep",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "output": "no"
+                }
+              ],
+              [
+                "Ask",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "c"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  }
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": [
+              [
+                "R",
+                [
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "route": "a"
+                  },
+                  {
+                    "interruptIds": {
+                      "set": []
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    },
+                    "output": "o",
+                    "branch": "b@1"
+                  }
+                ]
+              ],
+              [
+                "Ask",
+                [
+                  {
+                    "interruptIds": {
+                      "set": [
+                        "c"
+                      ]
+                    },
+                    "resolvedResponses": {
+                      "map": []
+                    }
+                  }
+                ]
+              ]
+            ]
+          },
+          "states": {
+            "map": [
+              [
+                "R",
+                {
+                  "interruptIds": {
+                    "set": []
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  },
+                  "route": "a",
+                  "output": "o",
+                  "branch": "b@1"
+                }
+              ],
+              [
+                "Ask",
+                {
+                  "interruptIds": {
+                    "set": [
+                      "c"
+                    ]
+                  },
+                  "resolvedResponses": {
+                    "map": []
+                  }
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "runs": {
+            "map": []
+          },
+          "states": {
+            "map": []
+          }
+        }
+      ],
+      "answers": {
+        "map": []
+      },
+      "fastForward": [
+        true,
+        true,
+        false
+      ]
+    }
+  ]
+}

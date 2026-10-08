@@ -16,7 +16,6 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { z } from 'zod';
 
@@ -41,8 +40,14 @@ import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
 import { instructionToolOf, toolOf } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, failure, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of each parity case is recorded (tests/fixtures/adk-reference/nativestep); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('nativeStep');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const APP = 'native-step';
 const USER = 'u1';
@@ -81,9 +86,9 @@ function syndicate(orchestrator: Record<string, unknown>): SyndicateYamlConfig {
   ) as SyndicateYamlConfig;
 }
 
-/** Each call the adapter took on the ADK runtime: the request it was handed and what it answered. */
+/** Each call the adapter took on the ADK runtime: the request it was handed (its signal aside) and what it answered. */
 interface AdkCall {
-  request: ModelRequest;
+  request: Omit<ModelRequest, 'signal'>;
   responses: ModelResponse[];
 }
 
@@ -95,9 +100,10 @@ async function runOnAdk(
   const calls: AdkCall[] = [];
   const model = new ScriptedModel('scripted/boss', (request, n) => {
     const out = script(request, n);
-    calls.push({ request, responses: Array.isArray(out) ? out : [out] });
+    calls.push({ request: withoutSignal(request), responses: Array.isArray(out) ? out : [out] });
     return out;
   });
+  const { InMemorySessionService } = await import('@google/adk');
   const sessionService = new InMemorySessionService();
   for (const text of messages) {
     await runSyndicateTurn({
@@ -109,6 +115,8 @@ async function runOnAdk(
       sessionService,
       compile: { resolveModel: shimResolver({ boss: model }), log: () => {} },
       trace: false,
+      // The reference is ADK's: pinned, now that native is the default (ADR 0102).
+      runtime: 'adk',
     });
   }
   const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 's1' });
@@ -140,12 +148,13 @@ const comparable = (event: TurnEvent | undefined) => JSON.parse(JSON.stringify({
  * requests, for case-specific asserts.
  */
 async function assertParity(
+  name: string,
   orchestrator: Record<string, unknown>,
   script: (request: ModelRequest, call: number) => ModelResponse | ModelResponse[],
   messages: string[],
 ): Promise<ModelRequest[]> {
   const config = syndicate(orchestrator);
-  const adk = await runOnAdk(config, script, messages);
+  const adk = await reference(name, () => runOnAdk(config, script, messages));
   const agent = await nativeAgentOf(config);
   const modelEvents = adk.events.map((e, i) => [e, i] as const).filter(([e]) => e.content?.role === 'model');
   assert.equal(modelEvents.length, adk.calls.length, 'one stored model event per call');
@@ -171,7 +180,7 @@ async function assertParity(
     );
     control.dispose();
     assert.equal(adapter.calls, 1);
-    assert.deepEqual(withoutSignal(adapter.requests[0] as ModelRequest), withoutSignal(call.request), `call ${k + 1}: the request`);
+    assert.deepEqual(withoutSignal(adapter.requests[0] as ModelRequest), call.request, `call ${k + 1}: the request`);
     assert.equal(adapter.requests[0]?.signal, control.signal);
     assert.deepEqual(comparable(step.event), comparable(adkEvent), `call ${k + 1}: the stored event`);
     const stored = await sessions.get({ appName: APP, userId: USER, sessionId: 's1' });
@@ -185,6 +194,7 @@ async function assertParity(
 
 test('parity: a plain agent over two turns sends the ADK request and stores the ADK event', async () => {
   const requests = await assertParity(
+    'plain-agent-two-turns',
     {
       name: 'Solo',
       description: 'Answers questions',
@@ -212,6 +222,7 @@ test('parity: a plain agent over two turns sends the ADK request and stores the 
 
 test('parity: an agent with tools and an output schema (set_model_response) sends and stores what ADK does', async () => {
   const requests = await assertParity(
+    'tools-and-output-schema',
     {
       name: 'Grader',
       instruction: 'Look the key up, then grade.',
@@ -237,6 +248,7 @@ test('parity: an agent with tools and an output schema (set_model_response) send
 
 test('parity: an agent with examples and a skill sends and stores what ADK does, the skill’s tool unlocked once loaded', async () => {
   const requests = await assertParity(
+    'examples-and-skill',
     {
       name: 'Harness',
       instruction: 'Follow skills.',
@@ -258,6 +270,7 @@ test('parity: an agent with examples and a skill sends and stores what ADK does,
 
 test('parity: a call to a long-running tool is listed in longRunningToolIds, as ADK lists it', async () => {
   await assertParity(
+    'long-running-call',
     { name: 'Asker', instruction: 'Ask when unsure.', tools: ['ask_user'] },
     () => toolCall('ask_user', { question: 'Which year?' }, 'call-ask-1'),
     ['what happened then?'],
@@ -266,6 +279,7 @@ test('parity: a call to a long-running tool is listed in longRunningToolIds, as 
 
 test('includeContents none: only the current turn, as ADK projects it', async () => {
   await assertParity(
+    'include-contents-none',
     { name: 'Intake', instruction: 'Read the document.', includeContents: 'none' },
     (_req, n) => answer(`read ${n}`),
     ['doc one', 'doc two'],

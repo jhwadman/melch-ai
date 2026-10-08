@@ -1,0 +1,11 @@
+{
+  "suite": "openapiTools",
+  "case": "answer-4",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "result": {
+      "error": "Tool search execution failed. Analyze this execution error and your inputs. Retry with adjustments if applicable. But make sure don't retry more than 3 times. Execution Error: {\"error\":\"no such thing\"}"
+    }
+  }
+}

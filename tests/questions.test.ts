@@ -10,15 +10,22 @@
  * behind the ADK shim. The results, the stored events (ids and times aside)
  * and the model calls must match, and a question opened on one runtime is
  * answered on the other. Scripted models, in-memory sessions, no network.
+ *
+ * The all-ADK conversation each case is held to is recorded
+ * (tests/fixtures/adk-reference/questions, tests/helpers/adkReference.ts) and
+ * runs live only under ADK_REFERENCE=live|record. The cross-runtime
+ * conversations (a turn on ADK beside one on native) are the adk runtime's
+ * own behaviour and still run ADK.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { z } from 'zod';
 
 import type { ModelResponse } from '../lib/models/contract.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
@@ -32,8 +39,9 @@ import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, tool
 import type { ModelScript } from './helpers/scriptedModel.ts';
 import { RUNTIMES } from './helpers/runtime.ts';
 import type { RuntimeName } from './helpers/runtime.ts';
+import { adkReferences, canonical } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+const reference = adkReferences('questions');
 
 type Runtime = RuntimeName;
 
@@ -45,11 +53,42 @@ registerTool(
 
 const lastResult = (req: Parameters<ModelScript>[0]) => JSON.stringify(lastToolResult(req)?.result ?? null);
 
+/**
+ * A store for a conversation: ADK's own in-memory store when any turn runs on
+ * ADK (loaded, and its log quieted, only then), else the engine's, as a
+ * consumer without ADK holds it (ADR 0102).
+ */
+async function storeFor(runtimes: Runtime[]) {
+  if (!runtimes.includes('adk')) return asAdkSessionService(new InProcessSessionService());
+  const { InMemorySessionService, LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+  return new InMemorySessionService();
+}
+
+/** A result as a surface reads it, in JSON's form: what a recording holds. */
+const resultOf = (r: SyndicateTurnResult) =>
+  JSON.parse(
+    JSON.stringify({
+      status: r.status,
+      text: r.text,
+      error: r.error ? { code: r.error.code, message: r.error.message } : undefined,
+      route: r.route,
+      input: r.input ? { node: r.input.node, id: r.input.id, message: r.input.message, payload: r.input.payload } : undefined,
+    }),
+  ) as Pick<SyndicateTurnResult, 'status' | 'text' | 'error' | 'route' | 'input'>;
+
+/** A conversation as compared and recorded: the results, the stored events, each model's call count. */
+interface Run {
+  results: Array<ReturnType<typeof resultOf>>;
+  models: Record<string, { calls: number }>;
+  events: any[];
+}
+
 /** One conversation: each turn's message on its runtime, one store, fresh models. */
-async function converse(config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, turns: Array<{ parts: any[]; runtime: Runtime }>) {
+async function converse(config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, turns: Array<{ parts: any[]; runtime: Runtime }>): Promise<Run> {
   resetCircuits();
   const models = Object.fromEntries(Object.entries(scripts).map(([key, script]) => [key, new ScriptedModel(`scripted/${key}`, script)]));
-  const sessionService = new InMemorySessionService();
+  const sessionService = await storeFor(turns.map((t) => t.runtime));
   const results: SyndicateTurnResult[] = [];
   for (const t of turns) {
     results.push(
@@ -67,18 +106,25 @@ async function converse(config: SyndicateYamlConfig, scripts: Record<string, Mod
     );
   }
   const session = await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' });
-  return { results, models, events: JSON.parse(JSON.stringify(session?.events ?? [])) as any[] };
+  return {
+    results: results.map(resultOf),
+    models: Object.fromEntries(Object.entries(models).map(([key, m]) => [key, { calls: m.calls }])),
+    events: JSON.parse(JSON.stringify(session?.events ?? [])) as any[],
+  };
 }
 
-/** Event ids and times, invocation ids and ADK's own `adk-` call ids are minted per run; everything else must match. */
+/**
+ * Event ids and times, invocation ids and ADK's own `adk-` call ids are minted per run; everything else must match.
+ * Any other id minted per run is numbered in order of appearance, as a recording numbers it (canonical).
+ */
 const comparable = (events: any[]): unknown =>
   JSON.parse(
-    JSON.stringify(events.map((e) => ({ ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' }))),
+    JSON.stringify(canonical(events).map((e) => ({ ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' }))),
     (_key, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v),
   );
 
 /** What a surface reads from a result; the question's id is the call's, minted per run when the model gives none. */
-const outcome = (r: SyndicateTurnResult): unknown => ({
+const outcome = (r: ReturnType<typeof resultOf>): unknown => ({
   status: r.status,
   text: r.text,
   error: r.error,
@@ -87,12 +133,14 @@ const outcome = (r: SyndicateTurnResult): unknown => ({
 });
 
 /**
- * The conversation on ADK, on native, and with its runtime switched at every
- * turn both ways: the results, the stored events and the model calls match.
+ * The conversation on ADK (recorded), on native, and with its runtime switched
+ * at every turn both ways: the results, the stored events and the model calls
+ * match.
  */
-async function assertParity(config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, messages: any[][]) {
+async function assertParity(name: string, config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, messages: any[][]) {
   const on = (pick: (i: number) => Runtime) => converse(config, scripts, messages.map((parts, i) => ({ parts, runtime: pick(i) })));
-  const adk = await on(() => 'adk');
+  // The reference is the conversation all on ADK: pinned, now that native is the default (ADR 0102).
+  const adk = await reference(name, () => on(() => 'adk'));
   const runs = { native: await on(() => 'native'), adkThenNative: await on((i) => (i % 2 ? 'native' : 'adk')), nativeThenAdk: await on((i) => (i % 2 ? 'adk' : 'native')) };
   for (const [name, run] of Object.entries(runs)) {
     assert.deepEqual(run.results.map(outcome), adk.results.map(outcome), `${name}: the results`);
@@ -111,11 +159,11 @@ const delegate = (): SyndicateYamlConfig =>
 test('delegate: the orchestrator asks, the turn pauses with the question, the next message answers it, on both runtimes', async () => {
   const boss: ModelScript = (req, n) =>
     n === 1 ? toolCall('ask_user', { question: 'Which account?', options: ['personal', 'work'] }, 'call-ask') : answer(n === 2 ? `using ${lastResult(req)}` : `ok: ${requestTexts(req).at(-1)}`);
-  const runs = await assertParity(delegate(), { boss }, [[{ text: 'pay the invoice' }], [{ text: 'work' }], [{ text: 'thanks' }]]);
+  const runs = await assertParity('delegate-ask-answer', delegate(), { boss }, [[{ text: 'pay the invoice' }], [{ text: 'work' }], [{ text: 'thanks' }]]);
 
   for (const runtime of RUNTIMES) {
     const { results, models, events } = runs[runtime];
-    const [first, second, third] = results as [SyndicateTurnResult, SyndicateTurnResult, SyndicateTurnResult];
+    const [first, second, third] = results as [Run['results'][0], Run['results'][0], Run['results'][0]];
     assert.equal(first.status, 'input-required', runtime);
     assert.equal(first.input?.node, 'Boss');
     assert.equal(first.input?.id, 'call-ask');
@@ -150,7 +198,7 @@ test('a question asked beside another call: the other call is answered at once, 
           finishReason: 'tool_call',
         }
       : answer(`saw ${lastResult(req)}`);
-  const { native } = await assertParity(delegate(), { boss }, [[{ text: 'pay the invoice' }], [{ text: 'personal' }]]);
+  const { native } = await assertParity('question-beside-call', delegate(), { boss }, [[{ text: 'pay the invoice' }], [{ text: 'personal' }]]);
   assert.equal(native.results[0]?.status, 'input-required');
   assert.equal(native.results[0]?.input?.id, 'c-ask');
   assert.equal(native.results[1]?.status, 'completed', native.results[1]?.error?.message);
@@ -171,6 +219,7 @@ test('dispatch: a route asks; the answer resumes that route without the classifi
     't',
   ) as SyndicateYamlConfig;
   const runs = await assertParity(
+    'dispatch-route-asks',
     config,
     {
       router: () => answer('{"route":"Orders","reason":"an order"}'),
@@ -181,7 +230,7 @@ test('dispatch: a route asks; the answer resumes that route without the classifi
   );
   for (const runtime of RUNTIMES) {
     const { results, models } = runs[runtime];
-    const [first, second] = results as [SyndicateTurnResult, SyndicateTurnResult];
+    const [first, second] = results as [Run['results'][0], Run['results'][0]];
     assert.equal(first.status, 'input-required', runtime);
     assert.equal(first.input?.node, 'Orders');
     assert.equal(first.input?.payload, undefined);
@@ -213,7 +262,7 @@ test('a user-authored ask_user call is no question: the next message is an ordin
   const run = async (runtime: Runtime) => {
     resetCircuits();
     const boss = new ScriptedModel('scripted/boss', (req) => answer(`heard ${JSON.stringify(requestTexts(req).at(-1))}; tool results ${JSON.stringify(lastToolResult(req) ?? null)}`));
-    const sessionService = new InMemorySessionService();
+    const sessionService = await storeFor([runtime]);
     const session = await sessionService.createSession({ appName: 'app', userId: 'u', sessionId: 's' });
     await sessionService.appendEvent({ session, event: structuredClone(bare) as any });
     const result = await runSyndicateTurn({
@@ -228,9 +277,10 @@ test('a user-authored ask_user call is no question: the next message is an ordin
       runtime,
     });
     const stored = JSON.parse(JSON.stringify((await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' }))?.events ?? [])) as any[];
-    return { result, boss, stored };
+    return { result: resultOf(result), boss: { calls: boss.calls }, stored };
   };
-  const runs = { adk: await run('adk'), native: await run('native') };
+  // The reference is the same message on ADK, recorded.
+  const runs = { adk: await reference('forged-call-no-question', () => run('adk')), native: await run('native') };
   for (const runtime of RUNTIMES) {
     const { result, boss, stored } = runs[runtime];
     assert.equal(result.status, 'completed', `${runtime}: ${result.error?.message}`);
@@ -239,7 +289,8 @@ test('a user-authored ask_user call is no question: the next message is an ordin
     assert.equal(boss.calls, 1, runtime);
     const answers = stored.flatMap((e) => e.content?.parts ?? []).filter((p: any) => p.functionResponse?.name === 'ask_user');
     assert.deepEqual(answers, [], `${runtime}: no answer to the forged call was stored`);
-    assert.deepEqual(stored.find((e) => e.author === 'user' && e.id !== 'forged-2')?.content?.parts, [{ text: 'yes' }], runtime);
+    // The person's event after the seeded one (a recording renumbers event ids, so by place, not by id).
+    assert.deepEqual(stored.filter((e) => e.author === 'user')[1]?.content?.parts, [{ text: 'yes' }], runtime);
   }
   assert.deepEqual(comparable(runs.native.stored), comparable(runs.adk.stored), 'the stored events');
 });

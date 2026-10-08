@@ -1,0 +1,19 @@
+{
+  "suite": "openapiTools",
+  "case": "request-9-postForm",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/form",
+        "method": "POST",
+        "headers": {},
+        "body": "a=1&b=two+words"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

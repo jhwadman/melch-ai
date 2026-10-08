@@ -1,0 +1,270 @@
+{
+  "suite": "execution",
+  "case": "code-execution-two-turns",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed",
+        "text": "The product is 42.",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        }
+      },
+      {
+        "status": "completed",
+        "text": "You are welcome.",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        }
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "What is 6 times 7?"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Calc",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "executableCode": {
+                "language": "PYTHON",
+                "code": "print(6 * 7)"
+              }
+            },
+            {
+              "codeExecutionResult": {
+                "outcome": "OUTCOME_OK",
+                "output": "42\n"
+              }
+            },
+            {
+              "text": "The product is 42."
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Thanks."
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Calc",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "You are welcome."
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "requests": {
+      "gemini-3.5-flash": [
+        {
+          "model": "gemini-3.5-flash",
+          "system": "You are an agent. Your internal name is \"Calc\".\n\nCompute.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "What is 6 times 7?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "execution_lookup",
+              "description": "Look a city up.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "nativeTools": [
+            "code_execution"
+          ],
+          "stream": false
+        },
+        {
+          "model": "gemini-3.5-flash",
+          "system": "You are an agent. Your internal name is \"Calc\".\n\nCompute.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "What is 6 times 7?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "```python\nprint(6 * 7)\n```",
+                  "providerState": {
+                    "provider": "gemini",
+                    "kind": "genai_part",
+                    "payload": {
+                      "executableCode": {
+                        "language": "PYTHON",
+                        "code": "print(6 * 7)"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "Output:\n42\n",
+                  "providerState": {
+                    "provider": "gemini",
+                    "kind": "genai_part",
+                    "payload": {
+                      "codeExecutionResult": {
+                        "outcome": "OUTCOME_OK",
+                        "output": "42\n"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "The product is 42."
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Thanks."
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "execution_lookup",
+              "description": "Look a city up.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "nativeTools": [
+            "code_execution"
+          ],
+          "stream": false
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "suite": "workflowToolNode",
+  "case": "own-tool-number",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "side": {
+      "events": [
+        "{\"author\":\"Triage\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"{\\\"q\\\":\\\"number\\\"}\"}]},\"output\":{\"q\":\"number\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Triage\",\"outputFor\":[\"Graph.Triage\"]}}",
+        "{\"author\":\"Lookup\",\"content\":{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"id\":\"Graph.Lookup:1\",\"name\":\"tool_node_own\",\"response\":{\"result\":7}}}]},\"actions\":{\"stateDelta\":{\"seen\":\"number\"},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"branch\":\"Lookup@1\",\"longRunningToolIds\":[],\"output\":{\"result\":7},\"nodeInfo\":{\"path\":\"Graph.Lookup\",\"outputFor\":[\"Graph.Lookup\"]}}"
+      ],
+      "completions": [
+        "Graph.Triage = {\"q\":\"number\"} @-",
+        "Graph.Lookup = {\"result\":7} @Lookup@1"
+      ],
+      "output": {
+        "result": 7
+      },
+      "logs": [
+        "⇢ Node: Triage",
+        "⇢ Node: Lookup",
+        "← Result: tool_node_own — 12 chars"
+      ],
+      "progress": [
+        "Running node: Triage",
+        "Running node: Lookup"
+      ]
+    },
+    "seen": {
+      "id": "Graph.Lookup:1",
+      "user": "u",
+      "app": "app",
+      "session": "s",
+      "k": "v",
+      "signal": true,
+      "userContent": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "go"
+          }
+        ]
+      }
+    }
+  }
+}

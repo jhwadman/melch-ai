@@ -1,0 +1,105 @@
+{
+  "suite": "memoryTools",
+  "case": "turn-with-adk-tools",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "text": "Green tea.",
+    "sent": [
+      {
+        "system": "You are an agent. Your internal name is \"Desk\".\n\nAnswer from memory.\n\nThe following content is from your previous conversations with the user.\nThey may be useful for answering the user's current query.\n<PAST_CONVERSATIONS>\nTime: 2026-10-01T09:00:00.000Z\nmemory_service: [PREFERENCE | date: 2026-10-01 | source: user | status: active | keys: tea] The user prefers green tea.\npart one part two\nTime: 2026-09-30T08:00:00.000Z\n</PAST_CONVERSATIONS>\n\n\nYou have memory. You can use it to answer questions. If any questions need\nyou to look up the memory, you should call load_memory function with a query.",
+        "tools": [
+          {
+            "functionDeclarations": [
+              {
+                "name": "load_memory",
+                "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                "parameters": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "query": {
+                      "type": "STRING",
+                      "description": "The query to load the memory for."
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "system": "You are an agent. Your internal name is \"Desk\".\n\nAnswer from memory.\n\nThe following content is from your previous conversations with the user.\nThey may be useful for answering the user's current query.\n<PAST_CONVERSATIONS>\nTime: 2026-10-01T09:00:00.000Z\nmemory_service: [PREFERENCE | date: 2026-10-01 | source: user | status: active | keys: tea] The user prefers green tea.\npart one part two\nTime: 2026-09-30T08:00:00.000Z\n</PAST_CONVERSATIONS>\n\n\nYou have memory. You can use it to answer questions. If any questions need\nyou to look up the memory, you should call load_memory function with a query.",
+        "tools": [
+          {
+            "functionDeclarations": [
+              {
+                "name": "load_memory",
+                "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                "parameters": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "query": {
+                      "type": "STRING",
+                      "description": "The query to load the memory for."
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "searches": [
+      {
+        "appName": "desk.a1",
+        "userId": "scope-a",
+        "query": "what tea do I like?"
+      },
+      {
+        "appName": "desk.a1",
+        "userId": "scope-a",
+        "query": "tea"
+      },
+      {
+        "appName": "desk.a1",
+        "userId": "scope-a",
+        "query": "what tea do I like?"
+      }
+    ],
+    "responses": [
+      {
+        "name": "load_memory",
+        "response": {
+          "memories": [
+            {
+              "content": "[PREFERENCE | date: 2026-10-01 | source: user | status: active | keys: tea] The user prefers green tea.",
+              "author": "memory_service",
+              "timestamp": "2026-10-01T09:00:00.000Z"
+            },
+            {
+              "content": "part one part two"
+            },
+            {
+              "content": "",
+              "author": "memory_service",
+              "timestamp": "2026-09-30T08:00:00.000Z"
+            },
+            {
+              "content": "",
+              "author": "someone"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

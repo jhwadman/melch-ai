@@ -1,0 +1,26 @@
+{
+  "suite": "workflowScheduler",
+  "case": "six-node-writer and checker on the same timer",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Planner <- \"go\"",
+      "Writer <- \"Planner(go)\"",
+      "Checker <- \"Planner(go)\"",
+      "Editor <- \"Writer(Planner(go))\"",
+      "Publisher <- {\"Editor\":\"Editor(Writer(Planner(go)))\",\"Checker\":\"Checker(Planner(go))\"}"
+    ],
+    "completions": [
+      "Six.Planner = \"Planner(go)\" @-",
+      "Six.Writer = \"Writer(Planner(go))\" @Writer@1",
+      "Six.Editor = \"Editor(Writer(Planner(go)))\" @Writer@1",
+      "Six.Checker = \"Checker(Planner(go))\" @Checker@1",
+      "Six.Both = {\"Editor\":\"Editor(Writer(Planner(go)))\",\"Checker\":\"Checker(Planner(go))\"} @-",
+      "Six.Publisher = \"Publisher({\\\"Editor\\\":\\\"Editor(Writer(Planner(go)))\\\",\\\"Checker\\\":\\\"Checker(Planner(go))\\\"})\" @-"
+    ],
+    "output": "Publisher({\"Editor\":\"Editor(Writer(Planner(go)))\",\"Checker\":\"Checker(Planner(go))\"})",
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

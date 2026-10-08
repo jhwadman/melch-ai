@@ -12,33 +12,48 @@
  *     in the caller's session, refuses it by name before the session is
  *     touched.
  *
- * Scripted models, in-memory sessions, no network.
+ * The route's parity case reads ADK's side from
+ * tests/fixtures/adk-reference/workflownested (tests/helpers/adkReference.ts);
+ * ADK runs it live only under ADK_REFERENCE=live|record. Scripted models,
+ * in-memory sessions, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 
 import { compileEntrySpec, compileSubagentSpec, compileWorkflowSpec } from '../lib/compile.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
-import { UnsupportedOnRuntimeError } from '../lib/runtime/runtimeFlag.ts';
+import { UnsupportedOnRuntimeError, chooseRuntime } from '../lib/runtime/runtimeFlag.ts';
+import type { RuntimeName } from '../lib/runtime/runtimeFlag.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { compileWorkflow } from '../lib/workflow.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
-import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
+import { adkReferences } from './helpers/adkReference.ts';
+import { forEachRuntime, runtimeOption, testRuntime } from './helpers/runtime.ts';
 import { ScriptedModel, answer, requestTexts, shimResolver } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
 import { virtualClock } from './helpers/virtualClock.ts';
-import { comparable } from './helpers/workflowParity.ts';
+import { comparable, requestsOf } from './helpers/workflowParity.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of the route's parity case is recorded (tests/fixtures/adk-reference/workflownested).
+const reference = adkReferences('workflowNested');
+
+/** ADK's own in-memory store for a turn on the adk runtime (quiet); the engine's otherwise, as a consumer without ADK holds it. */
+async function sessionServiceFor(runtime: RuntimeName) {
+  if (runtime !== 'adk') return asAdkSessionService(new InProcessSessionService());
+  const { InMemorySessionService, LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+  return new InMemorySessionService();
+}
 
 /** The clock a slow script waits on: a finish order is the scripts' timeline, never a race of real timers (tests/helpers/virtualClock.ts). */
 const clock = virtualClock();
@@ -118,10 +133,10 @@ interface Conversation {
 
 function conversation(cfg: SyndicateYamlConfig, runtime?: 'adk' | 'native', script: Record<string, ModelScript> = scripts()): Conversation {
   const models = Object.fromEntries(Object.entries(script).map(([key, s]) => [key, new ScriptedModel(`scripted/${key}`, s)]));
-  const sessionService = new InMemorySessionService();
+  const service = sessionServiceFor(chooseRuntime(runtime ?? testRuntime()));
   return {
     models,
-    turn: (text) =>
+    turn: async (text) =>
       runSyndicateTurn({
         ...(runtime ? { runtime } : runtimeOption()),
         config: cfg,
@@ -129,11 +144,11 @@ function conversation(cfg: SyndicateYamlConfig, runtime?: 'adk' | 'native', scri
         appName: 'app',
         userId: 'u',
         sessionId: 's',
-        sessionService,
+        sessionService: await service,
         compile: { resolveModel: shimResolver(models), loadNested: () => pipeline(), log: () => {} },
         trace: false,
       }),
-    events: async (appName) => JSON.parse(JSON.stringify((await sessionService.getSession({ appName, userId: 'u', sessionId: 's' }))?.events ?? [])) as TurnEvent[],
+    events: async (appName) => JSON.parse(JSON.stringify((await (await service).getSession({ appName, userId: 'u', sessionId: 's' }))?.events ?? [])) as TurnEvent[],
   };
 }
 
@@ -178,15 +193,17 @@ test('a workflow route stores the same sessions and sends the same requests on b
     const result = await c.turn('write me something on cats');
     return { result, models: c.models, shared: await c.events('app'), child: await c.events('Writer') };
   };
-  const adk = await run('adk');
+  const adk = await reference('workflow-route-sessions-and-requests', async () => {
+    const { result, models, shared, child } = await run('adk');
+    return { status: result.status, text: result.text, shared, child, requests: Object.fromEntries(Object.entries(models).map(([key, m]) => [key, requestsOf(m)])) };
+  });
   const native = await run('native');
-  assert.equal(native.result.status, adk.result.status);
-  assert.equal(native.result.text, adk.result.text);
+  assert.equal(native.result.status, adk.status);
+  assert.equal(native.result.text, adk.text);
   assert.deepEqual(comparable(native.child), comparable(adk.child), 'the child session');
   assert.deepEqual(comparable(native.shared), comparable(adk.shared), 'the conversation');
-  for (const key of Object.keys(adk.models)) {
-    const strip = (m: ScriptedModel) => m.requests.map(({ signal: _s, ...r }) => r);
-    assert.deepEqual(strip(native.models[key]!), strip(adk.models[key]!), `the requests ${key} received`);
+  for (const key of Object.keys(adk.requests)) {
+    assert.deepEqual(requestsOf(native.models[key]!), adk.requests[key], `the requests ${key} received`);
   }
 });
 
@@ -240,7 +257,7 @@ test('native: a resumed walk completes a finished workflow node from its stored 
 
 test('adk: a workflow node that is a workflow syndicate is refused by name before the session is touched', async () => {
   const models = Object.fromEntries(Object.entries(scripts()).map(([key, s]) => [key, new ScriptedModel(`scripted/${key}`, s)]));
-  const sessionService = new InMemorySessionService();
+  const sessionService = await sessionServiceFor('adk');
   await assert.rejects(
     runSyndicateTurn({ runtime: 'adk', config: newsroom(), parts: [{ text: 'cats' }], appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: shimResolver(models), loadNested: () => pipeline(), log: () => {} }, trace: false }),
     (e: unknown) => e instanceof UnsupportedOnRuntimeError && /^Newsroom: a workflow syndicate as a workflow node \(Writer\) is not supported on the adk runtime yet/.test((e as Error).message),
@@ -283,7 +300,7 @@ test('a nested workflow with an ask_user node is refused by name as a route and 
   for (const cfg of [desk(), newsroom()]) {
     const models = Object.fromEntries(Object.entries(scripts()).map(([key, s]) => [key, new ScriptedModel(`scripted/${key}`, s)]));
     await assert.rejects(
-      runSyndicateTurn({ runtime: 'native', config: cfg, parts: [{ text: 'cats' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: shimResolver(models), loadNested: () => asking, log: () => {} }, trace: false }),
+      runSyndicateTurn({ runtime: 'native', config: cfg, parts: [{ text: 'cats' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: asAdkSessionService(new InProcessSessionService()), compile: { resolveModel: shimResolver(models), loadNested: () => asking, log: () => {} }, trace: false }),
       /pipeline\.yaml: the ask_user node 'Confirm' pauses for a person, which a workflow nested in another syndicate \(Writer\) cannot carry to its caller/,
     );
   }
@@ -349,7 +366,7 @@ async function pollTurn(until: number): Promise<SyndicateTurnResult> {
     appName: 'app',
     userId: 'u',
     sessionId: 's',
-    sessionService: new InMemorySessionService(),
+    sessionService: asAdkSessionService(new InProcessSessionService()),
     compile: { resolveModel: shimResolver(models), loadNested: () => polling(), log: () => {} },
     trace: false,
   });

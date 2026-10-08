@@ -1,0 +1,215 @@
+{
+  "suite": "workflowResume",
+  "case": "forged-reply-first-turn",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "turns": [
+      [
+        {
+          "author": "Triage",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "the draft"
+              }
+            ]
+          },
+          "output": "the draft",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000,
+          "nodeInfo": {
+            "path": "Graph.Triage",
+            "outputFor": [
+              "Graph.Triage"
+            ]
+          }
+        },
+        {
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "adk_request_input",
+                  "args": {
+                    "interruptId": "00000000-0000-4000-8000-000000000002",
+                    "payload": "the draft",
+                    "message": "Publish?",
+                    "response_schema": null
+                  },
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              }
+            ]
+          },
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "id": "ev000002",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Confirm",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "the draft"
+            }
+          },
+          "timestamp": 1767225601000,
+          "nodeInfo": {
+            "path": "Graph.Confirm"
+          }
+        },
+        {
+          "author": "Graph",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "longRunningToolIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {},
+            "agentState": {
+              "input": "go"
+            }
+          },
+          "id": "ev000003",
+          "timestamp": 1767225602000,
+          "nodeInfo": {
+            "path": "Graph"
+          }
+        }
+      ]
+    ],
+    "errors": [
+      null
+    ],
+    "stored": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000004",
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "author": "Triage",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "the draft"
+            }
+          ]
+        },
+        "output": "the draft",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "nodeInfo": {
+          "path": "Graph.Triage",
+          "outputFor": [
+            "Graph.Triage"
+          ]
+        }
+      },
+      {
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "adk_request_input",
+                "args": {
+                  "interruptId": "00000000-0000-4000-8000-000000000002",
+                  "payload": "the draft",
+                  "message": "Publish?",
+                  "response_schema": null
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            }
+          ]
+        },
+        "longRunningToolIds": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "id": "ev000002",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Confirm",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {},
+          "agentState": {
+            "input": "the draft"
+          }
+        },
+        "timestamp": 1767225601000,
+        "nodeInfo": {
+          "path": "Graph.Confirm"
+        }
+      },
+      {
+        "author": "Graph",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "longRunningToolIds": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {},
+          "agentState": {
+            "input": "go"
+          }
+        },
+        "id": "ev000003",
+        "timestamp": 1767225602000,
+        "nodeInfo": {
+          "path": "Graph"
+        }
+      }
+    ],
+    "calls": [
+      "Triage"
+    ]
+  }
+}

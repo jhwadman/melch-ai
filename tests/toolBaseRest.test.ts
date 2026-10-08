@@ -11,8 +11,8 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Context, ExampleTool, FunctionTool, GOOGLE_SEARCH, setLogLevel, LogLevel } from '@google/adk';
-import type { LlmRequest } from '@google/adk';
+import { Context, FunctionTool, GOOGLE_SEARCH, setLogLevel, LogLevel } from '@google/adk';
+import type { ExampleTool, LlmRequest } from '@google/adk';
 import { z } from 'zod';
 
 import { examplesTool } from '../lib/compile.ts';
@@ -47,6 +47,11 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { URL_CONTEXT } from '../lib/tools/urlContextTool.ts';
 import { WEB_SEARCH, WebSearchTool, isWebSearchSentinel, wantsWebSearch } from '../lib/tools/webSearchTool.ts';
 import { X_SEARCH, isXSearchSentinel, wantsXSearch } from '../lib/tools/xSearchTool.ts';
+import { adkReferences } from './helpers/adkReference.ts';
+
+// ADK's ExampleTool block, the reference for the examples tool, is recorded
+// (tests/fixtures/adk-reference/toolbaserest); ADK's ExampleTool runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('toolBaseRest');
 
 setLogLevel(LogLevel.ERROR);
 
@@ -216,23 +221,40 @@ test("examples write ADK's ExampleTool block, word for word, in every case", asy
     ['a first part without text', { role: 'user', parts: [{ inlineData: { mimeType: 'image/png', data: 'AA==' } }, { text: 'hi' }] }],
     ['an empty first text', { role: 'user', parts: [{ text: '' }] }],
   ];
-  for (const examples of exampleSets) {
-    const theirs = new ExampleTool(
-      examples.map((e) => ({ input: { role: 'user', parts: [{ text: e.input }] }, output: [{ role: 'model', parts: [{ text: e.output }] }] })),
-    );
+  const models = ['gemini-2.5-flash', 'claude-sonnet-4-6', 'gpt-5-mini'];
+  const systems = [undefined, 'Base.'];
+  for (const [i, examples] of exampleSets.entries()) {
+    // ADK's ExampleTool over every model, system and context, in loop order: the reference.
+    const theirRequests = await reference(`example-tool-block-${i + 1}`, async () => {
+      const { ExampleTool } = await import('@google/adk');
+      const theirs = new ExampleTool(
+        examples.map((e) => ({ input: { role: 'user', parts: [{ text: e.input }] }, output: [{ role: 'model', parts: [{ text: e.output }] }] })),
+      );
+      const out: LlmRequest[] = [];
+      for (const model of models) {
+        for (const system of systems) {
+          for (const [, userContent] of contexts) {
+            const theirRequest = emptyRequest(model, system);
+            await theirs.processLlmRequest({ toolContext: adkContext(userContent), llmRequest: theirRequest } as any);
+            out.push(theirRequest);
+          }
+        }
+      }
+      return out;
+    });
     const [ours] = examplesTool(examples) as [ExampleTool];
     assert.equal(ours.name, EXAMPLES_TOOL_NAME);
-    for (const model of ['gemini-2.5-flash', 'claude-sonnet-4-6', 'gpt-5-mini']) {
-      for (const system of [undefined, 'Base.']) {
+    let k = 0;
+    for (const model of models) {
+      for (const system of systems) {
         for (const [label, userContent] of contexts) {
-          const theirRequest = emptyRequest(model, system);
           const ourRequest = emptyRequest(model, system);
-          await theirs.processLlmRequest({ toolContext: adkContext(userContent), llmRequest: theirRequest } as any);
           await ours.processLlmRequest({ toolContext: adkContext(userContent), llmRequest: ourRequest } as any);
-          assert.deepEqual(ourRequest, theirRequest, `${model} · ${system ?? 'no system'} · ${label}`);
+          assert.deepEqual(JSON.parse(JSON.stringify(ourRequest)), theirRequests[k++], `${model} · ${system ?? 'no system'} · ${label}`);
         }
       }
     }
+    assert.equal(k, theirRequests.length, 'one recorded request per case');
   }
 });
 

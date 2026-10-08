@@ -1,0 +1,14 @@
+{
+  "suite": "events",
+  "case": "apply-event-state",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "events": "[{\"id\":\"e1\",\"timestamp\":40,\"invocationId\":\"e-1\",\"author\":\"user\",\"content\":{\"role\":\"user\",\"parts\":[{\"text\":\"e1\"}]},\"actions\":{\"stateDelta\":{\"replaced\":true},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[]},{\"id\":\"e2\",\"timestamp\":20,\"invocationId\":\"e-1\",\"author\":\"user\",\"content\":{\"role\":\"user\",\"parts\":[{\"text\":\"e2\"}]},\"actions\":{\"stateDelta\":{\"draft\":\"v2\",\"count\":1},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[]}]",
+    "state": {
+      "draft": "v2",
+      "count": 1,
+      "replaced": true
+    }
+  }
+}
