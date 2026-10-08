@@ -3,6 +3,26 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/compileAdk.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/runtime/logging.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/runtime/adkMemoryBridge.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0080-surfaces-on-the-engines-own-interfaces.md —constrains→ module:lib/a2a/executor.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/nativeTurn.ts
 
 by claude-code/claude-opus-5-5

@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **`createA2AApp` takes the engine's own stores (ADR 0080).**
+  `A2AAppOptions.storage.sessionService` accepts the engine's
+  `SessionService` as well as ADK's `BaseSessionService`, and
+  `storage.memoryService` the engine's `MemoryService` as well as ADK's
+  `BaseMemoryService`; a store or service you pass today works unchanged.
+  Without durable storage, sessions live in the engine's
+  `InProcessSessionService` instead of ADK's `InMemorySessionService`, with
+  the durable stores' meaning (no `app:` or `user:` state shared across
+  sessions). `resolveModel` returns what `CompileOptions.resolveModel`
+  returns, the same type as before. The `melchizedek-serve` bin no longer
+  imports `@google/adk`; ADK's logger follows the level the engine sets.
+  No change to the `exports` map, `runSyndicateTurn`, or the A2A surface.
 - **A turn can run on the native runtime (ADR 0073).** `runSyndicateTurn`
   takes an optional `runtime` (`'adk'` or `'native'`). Without it,
   `MELCHIZEDEK_RUNTIME` decides (`adk` or `native`), and without that, `adk`,

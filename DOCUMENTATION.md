@@ -463,7 +463,10 @@ prompt to every available provider, printing input, thinking (qwen3
 `<think>` blocks, Claude extended thinking, GPT reasoning summaries,
 Grok reasoning, Kimi reasoning_content), output, and a per-request token/latency trace; add
 `-- --search` to watch four native web searches plus the local
-omission. Providers without keys are skipped, never fatal.
+omission. Providers without keys are skipped, never fatal. Each agent
+runs as a one-agent syndicate through `runSyndicateTurn`, so
+`MELCHIZEDEK_RUNTIME=native npm run demo:models` runs the same demo on
+the engine's own loop.
 
 Reasoning/thinking: scratchpads from every provider are surfaced as
 dimmed THINKING output and kept out of session history. On Claude, any
@@ -1172,13 +1175,15 @@ the contract is `lib/workflow.ts`, on ADK's `Workflow`.
 
 ## 7. Extending the framework
 
-**Call ADK directly (no syndicate)**: the YAML layer is a convenience,
+**Call a model directly (no syndicate)**: the YAML layer is a convenience,
 never a requirement. `scripts/direct_call.ts` (`npm run demo:direct`) is
-the canonical minimal block — `LlmAgent` + `Runner` +
-`InMemorySessionService` straight from `@google/adk`, ~30 lines you can
-copy into any repo that has `@google/adk` installed. Add
-`registerAvailableProviders()` from `lib/models/registry.ts` and the
-same block runs `claude-*` / `gpt-*` / `grok-*` / `kimi-*` / `ollama/*` ids too.
+the canonical minimal block on the engine's model contract:
+`resolveAdapter(modelId)` from `melchizedek-agents/model`, then
+`adapter.generate({ model, system, messages, stream })`, reading partial
+and final responses. The id's prefix picks the provider (`gemini-*`,
+`claude-*`, `gpt-*`, `grok-*`, `kimi-*`, `ollama/*`), the key comes from
+the environment, and nothing in that entry loads `@google/adk`. A turn
+with tools, sessions and telemetry is `runSyndicateTurn`.
 
 **Add a syndicate**: create `config/agents/<name>.yaml` — copy the
 closest starter-pack file from `config/agents/examples/` or start from

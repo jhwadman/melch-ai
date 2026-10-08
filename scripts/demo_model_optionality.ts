@@ -4,7 +4,9 @@
  * Sends ONE prompt ("explain quantum mechanics", or your own words after the
  * script name) to a lightweight agent of EVERY provider declared in
  * config/agents/model_zoo.yaml, purely by reading each agent's `model:`
- * string and letting lib/models/registry.ts route it:
+ * string and letting lib/models/registry.ts route it. Each agent runs as a
+ * one-agent syndicate through runSyndicateTurn, the turn runner every
+ * surface uses, so the demo follows MELCHIZEDEK_RUNTIME (adk or native):
  *
  *   ollama/qwen3:8b → Ollama (local)      claude-* → Anthropic
  *   grok-*          → xAI                 gpt-*    → OpenAI
@@ -29,23 +31,22 @@
  *   TELEMETRY_SUPABASE=true npm run demo:models   # also insert adk_telemetry rows
  */
 
-import { LlmAgent, Runner, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { randomUUID } from 'node:crypto';
 
 import { loadEnv } from '../lib/loadEnv.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
-import { withReasoning } from '../lib/compile.ts';
+import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import {
   registerAvailableProviders,
   providerForModel,
   PROVIDERS,
 } from '../lib/models/registry.ts';
-import {
-  traceAgentRun,
-  onSpanEnd,
-  flushTracing,
-} from '../lib/observability/tracer.ts';
-import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
+import { onSpanEnd, flushTracing } from '../lib/observability/tracer.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { setLogLevel } from '../lib/runtime/logging.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { WEB_SEARCH_TOOL_NAME } from '../lib/tools/webSearchTool.ts';
 
 const c = {
   reset: '\x1b[0m',
@@ -79,8 +80,8 @@ async function ollamaReachable(): Promise<{ up: boolean; detail: string }> {
 async function main(): Promise<void> {
   loadEnv(import.meta.url);
 
-  // Quiet the ADK's internal info logging so the demo output stays readable.
-  setLogLevel(LogLevel.WARN);
+  // The engine's level (ADK's logger follows it): keep the demo readable.
+  setLogLevel('warn');
 
   const argv = process.argv.slice(2).filter((a) => a !== '--');
   const withSearch = argv.includes('--search');
@@ -125,25 +126,15 @@ async function main(): Promise<void> {
     }
 
     const spanCountBefore = llmSpans.length;
-    // The YAML `reasoning:` key, mapped for this provider (ADR 0047).
-    const generateContentConfig = withReasoning(sub, model);
-    const agent = new LlmAgent({
-      name: sub.name,
-      description: sub.description,
-      model, // ← the YAML string; the LLMRegistry routes it to the adapter
-      instruction: sub.instruction,
-      ...(generateContentConfig
-        ? { generateContentConfig: generateContentConfig as any }
-        : {}),
-      ...(withSearch ? { tools: [WEB_SEARCH] } : {}),
-    });
-
-    const appName = 'model-zoo-demo';
-    const sessionService = new InMemorySessionService();
-    const runner = new Runner({ agent, appName, sessionService });
-    const userId = 'demo-user';
-    const sessionId = randomUUID();
-    await sessionService.createSession({ appName, userId, sessionId, state: {} });
+    // The agent as a one-agent syndicate: its YAML `reasoning:` key is mapped
+    // for its provider by the compiler (ADR 0047), and --search declares the
+    // provider-agnostic web_search tool on it.
+    const agentConfig = {
+      syndicate_name: `model-zoo/${sub.name}`,
+      max_steps: config.max_steps,
+      orchestrator: { ...sub, ...(withSearch ? { tools: [WEB_SEARCH_TOOL_NAME] } : {}) },
+      subagents: [],
+    } as unknown as SyndicateYamlConfig;
 
     console.log(`${c.cyan}INPUT${c.reset}    : ${prompt}`);
 
@@ -153,25 +144,26 @@ async function main(): Promise<void> {
     let errorText = '';
 
     try {
-      const stream = traceAgentRun(
-        runner.runAsync({
-          userId,
-          sessionId,
-          newMessage: { role: 'user', parts: [{ text: prompt }] },
-        }),
-        { syndicateName: `model-zoo/${sub.name}`, input: prompt },
-      );
-
-      for await (const event of stream) {
-        const evAny = event as any;
-        if ((evAny.errorCode || evAny.errorMessage) && evAny.errorCode !== 'STOP') {
-          errorText = `[${evAny.errorCode ?? 'ERROR'}] ${evAny.errorMessage ?? ''}`;
-        }
-        for (const part of event.content?.parts ?? []) {
-          const p = part as any;
-          if (p.thought && p.text) thinkingText += p.text;
-          else if (p.text) outputText += p.text;
-        }
+      const result = await runSyndicateTurn({
+        config: agentConfig,
+        parts: [{ text: prompt }],
+        appName: 'model-zoo-demo',
+        userId: 'demo-user',
+        sessionId: randomUUID(),
+        sessionService: asAdkSessionService(new InProcessSessionService()),
+        trace: { syndicateName: `model-zoo/${sub.name}` },
+        events: {
+          onEvent: (event) => {
+            for (const part of event.content?.parts ?? []) {
+              const p = part as { thought?: boolean; text?: string };
+              if (p.thought && p.text) thinkingText += p.text;
+            }
+          },
+        },
+      });
+      outputText = result.text;
+      if (result.status !== 'completed') {
+        errorText = `[${result.error?.code ?? 'ERROR'}] ${result.error?.message ?? ''}`;
       }
     } catch (err: unknown) {
       errorText = err instanceof Error ? err.message : String(err);

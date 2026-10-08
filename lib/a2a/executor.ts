@@ -8,6 +8,12 @@
  * cancellation, the per-server concurrency cap, and memory ingestion after
  * the reply. Every turn semantic — dispatch, delegation, relay fallback,
  * guards, the step cap — is the runtime's.
+ *
+ * Its stores are the engine's (ADR 0080): it takes a session store and a
+ * memory service with either face, the engine's or ADK's, reads a session
+ * through the engine's SessionService, and hands the turn runner the faces
+ * its fixed signature names through the bridges
+ * (lib/runtime/adkSessionBridge.ts, lib/runtime/adkMemoryBridge.ts).
  */
 
 import { createHash, randomUUID } from 'node:crypto';
@@ -16,7 +22,6 @@ import { Role, TaskState } from '@a2a-js/sdk';
 import type { Message, Part } from '@a2a-js/sdk';
 import { AgentEvent } from '@a2a-js/sdk/server';
 import type { AgentExecutor, ExecutionEventBus, RequestContext } from '@a2a-js/sdk/server';
-import type { BaseMemoryService, BaseSessionService } from '@google/adk';
 
 import type { CompileOptions } from '../compile.ts';
 import { nestedLoader } from '../loadSyndicate.ts';
@@ -25,6 +30,11 @@ import { configDigest } from '../observability/lineage.ts';
 import { turnLockKey } from './turnLock.ts';
 import type { ReleaseTurnLock, TurnLock } from './turnLock.ts';
 import { ingestTurnMemory, runSyndicateTurn } from '../runtime/syndicateTurn.ts';
+import { asAdkSessionService, asSessionService } from '../runtime/adkSessionBridge.ts';
+import type { AdkSessionService, EitherSessionService } from '../runtime/adkSessionBridge.ts';
+import { asAdkMemoryService } from '../runtime/adkMemoryBridge.ts';
+import type { AdkMemoryService, EitherMemoryService } from '../runtime/adkMemoryBridge.ts';
+import type { SessionService } from '../runtime/sessions.ts';
 import { approvalResponsePart, describeApproval, pendingApproval } from '../runtime/approvals.ts';
 import type { PendingApproval } from '../runtime/approvals.ts';
 import { declaresApprovals } from '../compile.ts';
@@ -169,8 +179,10 @@ export function a2aPartsToMessage(rawParts: unknown[]): { parts: MessagePart[]; 
 
 export interface ExecutorOptions {
   config: SyndicateYamlConfig;
-  sessionService: BaseSessionService;
-  memoryService?: BaseMemoryService;
+  /** The conversation store: the engine's SessionService or ADK's BaseSessionService. */
+  sessionService: EitherSessionService;
+  /** Long-term memory: the engine's MemoryService or ADK's BaseMemoryService. */
+  memoryService?: EitherMemoryService;
   /** Builds the per-request model resolver from the caller's context (BYOK). */
   compileFor: (ctx: A2AContext) => CompileOptions;
   /** Wall-clock budget per task in ms; 0 or undefined = none. */
@@ -480,9 +492,17 @@ export function answerStream(eventBus: ExecutionEventBus, taskId: string, contex
 export class SyndicateExecutor implements AgentExecutor {
   private readonly opts: ExecutorOptions;
   private configHash: string | undefined;
+  /** The store as the engine reads it. */
+  private readonly sessions: SessionService;
+  /** The faces the turn runner's fixed signature names (ADR 0045 item 4). */
+  private readonly turnSessions: AdkSessionService;
+  private readonly turnMemory: AdkMemoryService | undefined;
 
   constructor(opts: ExecutorOptions) {
     this.opts = opts;
+    this.sessions = asSessionService(opts.sessionService);
+    this.turnSessions = asAdkSessionService(opts.sessionService);
+    this.turnMemory = opts.memoryService ? asAdkMemoryService(opts.memoryService) : undefined;
   }
 
   /** Provenance stamp for every turn this executor serves (lineage.ts). */
@@ -648,8 +668,10 @@ export class SyndicateExecutor implements AgentExecutor {
       // Approvals (ADR 0028): while a gated call waits, a message is its
       // answer, or the request is repeated without spending a model call.
       if (declaresApprovals(config)) {
-        const session = await this.opts.sessionService.getSession({ appName, userId, sessionId: contextId });
-        const pending = pendingApproval(session?.events ?? []);
+        const session = await this.sessions.get({ appName, userId, sessionId: contextId });
+        // The stored Event JSON either way (ADR 0052): pendingApproval still
+        // names ADK's Event, which a TurnEvent reaches only through a cast.
+        const pending = pendingApproval((session?.events ?? []) as unknown as Parameters<typeof pendingApproval>[0]);
         if (pending) {
           const answer = approvalAnswer(rawParts, pending);
           if (!answer) {
@@ -669,8 +691,8 @@ export class SyndicateExecutor implements AgentExecutor {
         appName,
         userId,
         sessionId: contextId,
-        sessionService: this.opts.sessionService,
-        memoryService: this.opts.memoryService,
+        sessionService: this.turnSessions,
+        memoryService: this.turnMemory,
         compile: this.opts.compileFor(ctx),
         signal: slot.signal,
         deadlineMs: this.opts.taskTimeoutMs,
@@ -730,11 +752,11 @@ export class SyndicateExecutor implements AgentExecutor {
       // Long-term memory: there is no "session end" on a server, so ingest
       // after every completed task. Runs AFTER the final publish, so it never
       // delays the reply, and a failure here never fails the task.
-      if (this.opts.memoryService) {
+      if (this.turnMemory) {
         try {
           await ingestTurnMemory({
-            memoryService: this.opts.memoryService,
-            sessionService: this.opts.sessionService,
+            memoryService: this.turnMemory,
+            sessionService: this.turnSessions,
             appName,
             userId,
             sessionId: contextId,

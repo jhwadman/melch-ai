@@ -8,14 +8,14 @@ import { isDispatchSyndicate } from '../lib/dispatch.ts';
 import { approvalResponsePart, describeApproval, describeInput, ingestTurnMemory, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { PendingApproval } from '../lib/runtime/syndicateTurn.ts';
 
-import {
-	InMemorySessionService,
-	getFunctionCalls,
-	getFunctionResponses,
-	setLogLevel,
-	LogLevel,
-} from '@google/adk';
-import type { BaseMemoryService, BaseSessionService, Event } from '@google/adk';
+import { getFunctionCalls, getFunctionResponses } from '../lib/runtime/events.ts';
+import type { TurnEvent } from '../lib/runtime/events.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { asAdkSessionService, asSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import type { EitherSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { asAdkMemoryService } from '../lib/runtime/adkMemoryBridge.ts';
+import type { EitherMemoryService } from '../lib/runtime/adkMemoryBridge.ts';
+import { setLogLevel } from '../lib/runtime/logging.ts';
 import { randomUUID } from 'node:crypto';
 import { loadEnv } from '../lib/loadEnv.ts';
 
@@ -40,8 +40,8 @@ import {
 	createSupabaseServices,
 } from '../lib/persistence/supabaseProvider.ts';
 
-// Silence ADK verbose INFO logging natively
-setLogLevel(LogLevel.WARN);
+// The engine's level, which ADK's logger follows: no INFO chatter in the chat.
+setLogLevel('warn');
 
 const c = {
 	reset: '\x1b[0m',
@@ -241,8 +241,11 @@ async function main(): Promise<void> {
 	// The same services the server would use for this syndicate's
 	// memory_system: Supabase sessions (and the memory service for
 	// long-term) when configured, process memory otherwise.
-	let sessionService: BaseSessionService = new InMemorySessionService();
-	let memoryService: BaseMemoryService | undefined;
+	// The engine's stores (ADR 0080): the in-process one, or Supabase's,
+	// which has both faces. The turn runner takes ADK's face (its signature
+	// is fixed), and follows MELCHIZEDEK_RUNTIME for the runtime.
+	let sessionService: EitherSessionService = new InProcessSessionService();
+	let memoryService: EitherMemoryService | undefined;
 	if (persistence.sessionService === 'supabase') {
 		const services = await createSupabaseServices({
 			// Empty only when an all-local syndicate runs keyless — then
@@ -255,7 +258,9 @@ async function main(): Promise<void> {
 	}
 
 	const appName = config.syndicate_name || 'melchizedek-syndicate';
-	await sessionService.createSession({ appName, userId: SESSION_USER_ID, sessionId: SESSION_ID, state: {} });
+	await asSessionService(sessionService).create({ appName, userId: SESSION_USER_ID, sessionId: SESSION_ID, state: {} });
+	const turnSessions = asAdkSessionService(sessionService);
+	const turnMemory = memoryService ? asAdkMemoryService(memoryService) : undefined;
 	banner(config, persistence, mergedBindings, SESSION_ID);
 
 	// Plan-dispatch, nested yaml_reference syndicates, guards and the
@@ -297,8 +302,8 @@ async function main(): Promise<void> {
 				appName,
 				userId: SESSION_USER_ID,
 				sessionId: SESSION_ID,
-				sessionService,
-				memoryService,
+				sessionService: turnSessions,
+				memoryService: turnMemory,
 				compile: {
 					onUnknownTool: (name) => console.warn(`${c.yellow}⚠ Unknown tool: '${name}' — skipping.${c.reset}`),
 					log: (message) => console.log(`${c.dim}  ${message}${c.reset}`),
@@ -342,11 +347,11 @@ async function main(): Promise<void> {
 	}
 
 	const ingest = async () => {
-		if (!memoryService) return;
+		if (!turnMemory) return;
 		try {
 			const ingested = await ingestTurnMemory({
-				memoryService,
-				sessionService,
+				memoryService: turnMemory,
+				sessionService: turnSessions,
 				appName,
 				userId: SESSION_USER_ID,
 				sessionId: SESSION_ID,
@@ -436,7 +441,7 @@ function makePrinter() {
 	// turn, each under its own label.
 	let labelled = '';
 	return {
-		onEvent(event: Event) {
+		onEvent(event: TurnEvent) {
 			const e = event as any;
 			const isPartial = e.partial === true;
 			for (const call of getFunctionCalls(event) ?? []) {

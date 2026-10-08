@@ -1441,6 +1441,46 @@
       "evidence": "native-loop.md, The runtime flag: \"runNativeAgent (lib/runtime/nativeTurn.ts) does what ADK's Runner does before the agent runs\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decision 1: \"The executor reads a session through asSessionService and hands runSyndicateTurn and ingestTurnMemory the ADK faces from asAdkSessionService and asAdkMemoryService, built once per executor.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decisions 1, 3 and 4: createA2AApp's storage takes either face, in-process sessions are InProcessSessionService, and resolveModel returns the type CompileOptions.resolveModel returns.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/adkMemoryBridge.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decision 2: a service with ADK's face passes through unchanged; MemoryServiceForAdk wraps one with only MemoryService and forwards deleteUserMemory, pruneExpired and verifyEmbeddingDimensions when present.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/logging.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decision 5: \"The engine owns the log level, and ADK's logger follows it.\" Nothing is pushed until a surface sets a level.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/compileAdk.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decision 5: \"lib/compileAdk.ts subscribes and sets ADK's logger to the same level.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
