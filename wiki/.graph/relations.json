@@ -1179,6 +1179,46 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "table:melchizedek_tool_credentials",
+      "rel": "constrains",
+      "evidence": "ADR 0072 Decision 1: one row per app, end user and provider; a CHECK refuses any token column not in the engine envelope; RLS on and no API-role grant.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0072 Decision 5: ToolContext.accessToken(provider) is bound to the run's own app and user; a tool chooses the provider, never whose token.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0072 Decision 5 binds accessToken \"as searchMemory chooses the query and never the silo (ADR 0059)\", and pins the app as namespacedMemoryService does.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0072 Decision 6: migration 0013 extends melchizedek_erase_scope so one erase removes the tokens, per ADR 0020 item 7.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/storage/postgres/credentialStore.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0072 Decision 4: a backend keeps ciphertext rows only, and a refresh writes only over the version it read.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "to": "module:lib/runtime/native/delegate.ts",
       "rel": "constrains",
