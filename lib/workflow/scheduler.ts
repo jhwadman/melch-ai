@@ -75,6 +75,8 @@
 
 import { routeOf } from '../workflowConfig.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
+import { createTurnEvent } from '../runtime/events.ts';
+import type { TurnEvent } from '../runtime/events.ts';
 import { START_NODE, adkRouteString } from './graph.ts';
 import type { AgentNode, AskUserNode, GraphNode, GraphNodeKind, GraphNodeSettings, MapNode, ToolNode, WorkflowGraph } from './graph.ts';
 import type { RetryYaml } from '../workflowConfig.ts';
@@ -517,6 +519,26 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
     throw new Error(`Workflow ${graph.name}: multiple terminal nodes produced output (${terminalOutputs.length}). A workflow must have at most one terminal output.`);
   }
   return { output: terminalOutputs[0], outputs, order, nodeErrors };
+}
+
+/** The event ADK's workflow writes for a node that gave up (`createNodeErrorEvent`). */
+export type NodeErrorTurnEvent = TurnEvent & { isNodeError: true; errorType: string; errorCode: string; errorMessage: string; attemptCount: number };
+
+/**
+ * The event ADK stores for a `node_error` the walk reported (source
+ * `workflow`): ADK's `createNodeErrorEvent`, field for field and in its key
+ * order, so a turn runner can write it where ADK writes it. An error a node
+ * reported itself (source `node`) is already on the event its runner wrote.
+ */
+export function nodeErrorEvent(event: Extract<SchedulerEvent, { type: 'node_error' }>, invocationId: string): NodeErrorTurnEvent {
+  return {
+    ...createTurnEvent({ author: event.node, invocationId, nodeInfo: { path: event.path }, branch: event.branch }),
+    isNodeError: true,
+    errorType: event.errorType ?? 'Error',
+    errorCode: event.code,
+    errorMessage: event.message,
+    attemptCount: event.attempt,
+  };
 }
 
 /** ADK's errorCodeOf: an error's `code` when it is a string or a number, else UNKNOWN_ERROR. */

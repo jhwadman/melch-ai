@@ -33,6 +33,7 @@ import {
   retryDelaySeconds,
   runWorkflowGraph,
   shouldRetry,
+  nodeErrorEvent,
   streamWorkflowGraph,
 } from '../lib/workflow/scheduler.ts';
 import type { NodeRun, SchedulerEvent, WorkflowRun } from '../lib/workflow/scheduler.ts';
@@ -90,8 +91,16 @@ interface Record_ {
   completions: string[];
   output: unknown;
   nodeErrors: string[];
+  /** Every node-error event (ADK's isNodeError) as stored, without its id, time and invocation id. */
+  errorEvents: string[];
   error?: string;
 }
+
+/** An event as stored, without what differs per run: its id, time and invocation id. */
+const storedEvent = (event: unknown) => {
+  const { id: _id, timestamp: _t, invocationId: _i, ...rest } = JSON.parse(JSON.stringify(event));
+  return JSON.stringify(rest);
+};
 
 const nodeError = (path: string, branch: string | undefined, node: string, code: string, message: string, gaveUp?: { errorType?: string; attempt?: number }) =>
   `${path}@${branch ?? '-'} ${node} [${code}] ${message}${gaveUp ? ` (${gaveUp.errorType} after ${gaveUp.attempt})` : ''}`;
@@ -135,6 +144,7 @@ async function runOnAdk(cfg: SyndicateYamlConfig, stubs: Stubs, input: string): 
   const runner = new Runner({ agent: workflow as any, appName: 'sched', sessionService });
   const completions: string[] = [];
   const nodeErrors: string[] = [];
+  const errorEvents: string[] = [];
   // The Runner yields no event for the workflow's own output; it is the one terminal node's, as ADK's finalize takes it.
   const terminals = new Set(buildWorkflowGraph(cfg).terminals.map((n) => `${cfg.syndicate_name}.${n}`));
   let output: unknown;
@@ -146,6 +156,7 @@ async function runOnAdk(cfg: SyndicateYamlConfig, stubs: Stubs, input: string): 
       // An error as runSyndicateTurn's drain reads it (errorPolicy 'collect').
       if ((e.errorCode || e.errorMessage) && e.errorCode !== 'STOP') {
         nodeErrors.push(nodeError(p ?? '', ev.branch, e.author, String(e.errorCode), String(e.errorMessage), e.isNodeError ? { errorType: e.errorType, attempt: e.attemptCount } : undefined));
+        if (e.isNodeError) errorEvents.push(storedEvent(e));
         continue;
       }
       if (e.output === undefined || !p) continue;
@@ -156,7 +167,7 @@ async function runOnAdk(cfg: SyndicateYamlConfig, stubs: Stubs, input: string): 
     error = `${(err as Error).name}: ${(err as Error).message}`;
     output = undefined;
   }
-  return { calls, completions, output, nodeErrors, ...(error ? { error } : {}) };
+  return { calls, completions, output, nodeErrors, errorEvents, ...(error ? { error } : {}) };
 }
 
 /** The scheduler's walk on the engine's own graph, with the same stubs. */
@@ -165,6 +176,7 @@ async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs, input: string, 
   const run = stubRunner(stubs, calls);
   const completions: string[] = [];
   const nodeErrors: string[] = [];
+  const errorEvents: string[] = [];
   let output: unknown;
   let error: string | undefined;
   try {
@@ -179,6 +191,7 @@ async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs, input: string, 
         // ADK writes no event for a node whose output is undefined; the record leaves it out on both sides.
         if ((e.type === 'node_end' || e.type === 'item_end') && e.output !== undefined) completions.push(completion(e.path, e.output, e.branch));
         if (e.type === 'node_error') nodeErrors.push(nodeError(e.path, e.branch, e.node, e.code, e.message, e.source === 'workflow' ? { errorType: e.errorType, attempt: e.attempt } : undefined));
+        if (e.type === 'node_error' && e.source === 'workflow') errorEvents.push(storedEvent(nodeErrorEvent(e, 'e-native')));
       },
     });
     runs?.push(result);
@@ -187,7 +200,7 @@ async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs, input: string, 
     error = `${(err as Error).name}: ${(err as Error).message}`;
   }
   // ADK writes a map item's event before the map's own; so does the scheduler. The orders compare as they stand.
-  return { calls, completions, output, nodeErrors, ...(error ? { error } : {}) };
+  return { calls, completions, output, nodeErrors, errorEvents, ...(error ? { error } : {}) };
 }
 
 async function bothAgree(cfg: SyndicateYamlConfig, stubs: Stubs, input = 'go'): Promise<Record_> {
@@ -529,6 +542,21 @@ test('retry: a node that keeps throwing gives up after max_attempts; the walk re
     assert.deepEqual(record.nodeErrors, [expected[1]]);
     assert.equal(record.calls.filter((c) => c.startsWith('Fixer')).length, 3);
   }
+  // The event ADK writes for the node that gave up, as nodeErrorEvent builds it.
+  const { record } = await bothAgreeOn(retrying({ max_attempts: 2 }), { Fixer: { output: () => { throw new TypeError('bad'); } } });
+  assert.deepEqual(record.errorEvents.map((e) => JSON.parse(e)), [
+    {
+      author: 'Fixer',
+      nodeInfo: { path: 'R.Fixer' },
+      actions: { stateDelta: {}, artifactDelta: {}, requestedAuthConfigs: {}, requestedToolConfirmations: {} },
+      longRunningToolIds: [],
+      isNodeError: true,
+      errorType: 'TypeError',
+      errorCode: 'UNKNOWN_ERROR',
+      errorMessage: 'bad',
+      attemptCount: 2,
+    },
+  ]);
 });
 
 test('timeout: an attempt that runs past it is abandoned and retried; without a retry the walk fails with NodeTimeoutError', async () => {
