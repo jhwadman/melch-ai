@@ -88,7 +88,7 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
    - client-side declarations go through `contractToolDeclaration`, one per name, the later object winning;
    - server-side tools go where the ADK runtime sends them: `web_search` on every provider, `url_context` and `google_search` on Gemini, `x_search` and `collections_search` on xAI, and `code_execution` first among Gemini's own;
    - `set_model_response` is added when step 2 asked for it, except in `mode: task`, where `finish_task` takes its place (see [Task mode](#task-mode));
-   - self-correction's reflection tool, `adk_handle_model_error`, comes last when the step has a `correction` (see [Self-correction](#self-correction)).
+   - self-correction's reflection tool, `adk_handle_model_error`, comes last when the step has a `correction` and ADK's model class would declare it (see [Self-correction](#self-correction)).
    After the tools, each own Tool's `contents` hook adds to the history in the same order: `load_skill_resource` shows a binary file it just answered for as inline data, as ADK's own tool does in its `processLlmRequest`. Nothing it adds is stored.
 5. **The rest.** Tool choice, the output schema or JSON mode, reasoning and sampling, each read by the shim mapping's own reader. `stream` is `false` unless the caller streams, and `signal` is the turn's.
 
@@ -189,7 +189,7 @@ An agent with `context: { compact_after_tokens, keep_recent_events?, summary_mod
 
 **The model side** (`retries.model_errors`, default 2; `0` turns it off), through the step's `correction`:
 
-- Every request declares `adk_handle_model_error` ("A tool that triggers reflection. …", no parameters) after the agent's tools.
+- `adk_handle_model_error` ("A tool that triggers reflection. …", no parameters) is one of every step's tools, after the agent's. ADK's plugin puts it in the request's toolsDict alone, so the model is told of it only where ADK's model class declares the toolsDict ([ADR 0097](/decisions/0097-reflection-tool-declared-where-adk-declares-it.md)). `declaresReflectionTool` decides per adapter: a Gemini adapter stands for ADK's own Gemini, which sends only the request's config, and is not told of it, unless a caller handed it over behind `adkShim` (`servedThroughShim`, set by `nativeAdapterFor`); every other adapter is told of it, as the shim and the engine's ADK classes declare it. A workflow node agent follows the same rule, as ADK's node agents run under the Runner's plugins. Declared or not, the step can run the tool.
 - Two kinds of response are replaced by ADK's reflection call, with id `adk_handle_model_error_<uuid>` and the arguments `response_type`, `error_type`, `error_details`, `finish_reason` and `retry_count`:
   - a response that calls that tool itself (`RESERVED_TOOL_CALL`);
   - a response whose finish reason is `MALFORMED_FUNCTION_CALL`. A Gemini adapter on the contract reports it as the error's code, which the genai mapping reads back as the finish reason, as ADK's Gemini reports both ([ADR 0088](/decisions/0088-native-parity-followups.md)), so a malformed call is retried on both runtimes.

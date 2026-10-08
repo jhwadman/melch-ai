@@ -29,10 +29,13 @@
  *     JSON text, ending the step (skipSummarization). An answer with no
  *     parts, no error and no usage makes no event.
  *   - SELF-CORRECTION (ADR 0075). With the caller's `correction`, the
- *     request declares the reflection tool after the agent's tools, and each
- *     response passes through it first, as ADK's reflect-and-retry model
- *     plugin sees it: a retry may stand in its place, or the step may end on
- *     the plugin's UNKNOWN_ERROR event (lib/runtime/native/selfCorrection.ts).
+ *     reflection tool is one of the step's tools, after the agent's, and
+ *     each response passes through it first, as ADK's reflect-and-retry
+ *     model plugin sees it: a retry may stand in its place, or the step may
+ *     end on the plugin's UNKNOWN_ERROR event (lib/runtime/native/
+ *     selfCorrection.ts). The request declares the tool only where ADK's
+ *     model class would (declaresReflectionTool): never to a Gemini model
+ *     ADK's own Gemini would serve, which sends no toolsDict (ADR 0097).
  *   - A THROWN FAILURE. The contract forbids an adapter to throw, but a
  *     leaf that does (an ADK-era model class) is read as ADK reads it. With
  *     a `redirect`, a provider-side failure (errorDecision, lib/models/
@@ -70,6 +73,7 @@ import { toolOf } from '../../tools/tool.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import { SET_MODEL_RESPONSE, buildModelRequest } from './request.ts';
 import type { NativeAgent, WorkflowInstructionScope } from './request.ts';
+import { declaresReflectionTool } from './selfCorrection.ts';
 import type { ModelCorrection } from './selfCorrection.ts';
 
 export interface ModelStepOptions {
@@ -149,7 +153,7 @@ export interface ModelStepResult {
   stopped?: StepStop;
   /** The failure `redirect` took: nothing was stored for it. */
   redirected?: ModelError;
-  /** The client-side tools the request declared, by name: what runs the answer's calls. */
+  /** The client-side tools the request declared, and the reflection tool when it was not declared, by name: what runs the answer's calls. */
   tools: Map<string, unknown>;
 }
 
@@ -202,6 +206,10 @@ function thrownModelError(err: Error): { code: string; message: string } {
 export async function runModelStep(options: ModelStepOptions): Promise<ModelStepResult> {
   const { agent, session, sessions } = options;
   const signal = eitherSignal(options.signal, currentTurnSignal());
+  const adapter = options.adapter ?? resolveAdapter(agent.model);
+  // ADK's plugin puts the reflection tool in the toolsDict alone: declared where the model class reads it, run either way.
+  const correctionTools = options.correction?.tools ?? [];
+  const declareCorrection = correctionTools.length > 0 && declaresReflectionTool(adapter);
   const { request, tools } = await buildModelRequest(agent, {
     session,
     invocationId: options.invocationId,
@@ -213,14 +221,14 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
     ...(options.stateOverlay ? { stateOverlay: options.stateOverlay } : {}),
     stream: options.stream ?? false,
     ...(signal ? { signal } : {}),
-    ...(options.correction ? { extraTools: options.correction.tools } : {}),
+    ...(declareCorrection ? { extraTools: correctionTools } : {}),
     ...(options.workflowScope ? { workflowScope: options.workflowScope } : {}),
   });
+  if (!declareCorrection) for (const tool of correctionTools) tools.set(tool.name, tool);
   if (options.model) request.model = options.model;
   const result: ModelStepResult = { request, text: '', thinking: '', toolCalls: [], longRunningToolIds: [], tools };
   if (signal?.aborted) return { ...result, stopped: stopOf() };
 
-  const adapter = options.adapter ?? resolveAdapter(agent.model);
   // The event ADK creates before the call; each response after the first gets a fresh id and time.
   const base = createTurnEvent({ invocationId: options.invocationId, author: agent.name, branch: options.branch });
   let next = { id: base.id, timestamp: base.timestamp };

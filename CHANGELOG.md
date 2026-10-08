@@ -6,6 +6,15 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **A Gemini agent on the native runtime is no longer shown the reflection
+  tool (WS4-6b, ADR 0097).** With `retries.model_errors` on (the default),
+  native declared `adk_handle_model_error` to every model. ADK's own Gemini
+  never sends it, and a Gemini 3 model that called it on native failed its
+  next step with Gemini's missing `thought_signature` 400 (a workflow
+  node then failed the turn `NODE_FAILED`). Native now sends a Gemini model
+  the same tools as ADK; a model on any other provider, or a Gemini adapter
+  a resolver returns behind `adkShim`, is still told of the tool, as on ADK.
+  ADK turns are unchanged.
 - **Workflow syndicates run on the native runtime (WS4-6, ADR 0095).**
   A `workflow:` syndicate no longer throws `UnsupportedOnRuntimeError` on
   `runtime: 'native'` (or `MELCHIZEDEK_RUNTIME=native`): the engine's own

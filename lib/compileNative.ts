@@ -46,6 +46,7 @@ import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts
 import type { ModelAdapter } from './models/contract.ts';
 import { providerForModel, resolveAdapter } from './models/registry.ts';
 import { subagentTool } from './runtime/native/delegate.ts';
+import { servedThroughShim } from './runtime/native/selfCorrection.ts';
 import type { NativeAgent } from './runtime/native/request.ts';
 import { unsupportedOnNative } from './runtime/runtimeFlag.ts';
 export { UnsupportedOnRuntimeError, unsupportedOnNative } from './runtime/runtimeFlag.ts';
@@ -167,7 +168,8 @@ function adapterOf(resolved: unknown, model: string): ModelAdapter {
   if (typeof resolved === 'string') return resolveAdapter(resolved || model);
   if (!resolved || typeof resolved !== 'object') return resolveAdapter(model);
   const held = resolved as { adapter?: unknown; apiKey?: unknown; vertexai?: unknown };
-  if (isModelAdapter(held.adapter)) return held.adapter;
+  // On ADK a shim declares the toolsDict, the reflection tool included, whatever its adapter (ADR 0097).
+  if (isModelAdapter(held.adapter)) return servedThroughShim(held.adapter);
   // On Vertex AI the client authenticates with the platform's credentials, never a key (ADR 0023).
   if (typeof held.apiKey === 'string' && held.apiKey && held.vertexai !== true) {
     return resolveAdapter(model, { apiKey: held.apiKey, keyProvider: providerForModel(model) });

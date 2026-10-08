@@ -2385,6 +2385,54 @@
       "evidence": "ADR 0096 Decision 2: JSON mode without a schema stays json_object (ADR 0061), and a schema beside outputFormat: 'json' still wins.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0097 Decision 1: declaresReflectionTool (lib/runtime/native/selfCorrection.ts) is false for a Gemini adapter unless a caller handed it over behind adkShim.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0097 Decisions 1-2: the step declares the reflection tool only where declaresReflectionTool says so, and still runs it when it is not declared.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0097 Decision 1: nativeAdapterFor marks a Gemini adapter taken from a shim with servedThroughShim, since on ADK the shim declares the toolsDict.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0097 Context: ADR 0075 ported the plugins and declared the reflection tool on every request; ADK declares it only through classes that read the toolsDict.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0097 Context: gate G4 needs pipeline.yaml live on native, which failed on the declared reflection tool.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "explains",
+      "evidence": "ADR 0097 Context 1: thought signatures are stored and replayed as ADK does; the unsigned call was the reflection call that replaced the model's.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

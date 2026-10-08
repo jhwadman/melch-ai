@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 846,
-    "edges": 3134,
+    "nodes": 848,
+    "edges": 3150,
     "byKind": {
-      "doc": 159,
+      "doc": 160,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 146,
+      "file": 147,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 644,
+      "links_to": 648,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 789,
+      "imports": 791,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 755,
-      "constrains": 168,
+      "derives_from": 759,
+      "constrains": 171,
       "supersedes": 7,
-      "depends_on": 91,
-      "explains": 28,
+      "depends_on": 93,
+      "explains": 29,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2837,
-      "inferred": 297
+      "extracted": 2847,
+      "inferred": 303
     },
     "isolated": 4
   },
@@ -1541,6 +1541,18 @@
       }
     },
     {
+      "id": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "kind": "doc",
+      "label": "ADR 0097: The native step declares the reflection tool only where ADK's model class declares it, and never to a Gemini model ADK's own Gemini would serve",
+      "source": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 955
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1801,7 +1813,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6152
+        "words": 6266
       }
     },
     {
@@ -4151,6 +4163,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/geminiTurnParity.test.ts",
+      "kind": "file",
+      "label": "geminiTurnParity.test.ts",
+      "source": "tests/geminiTurnParity.test.ts"
+    },
+    {
       "id": "file:tests/genaiMapping.test.ts",
       "kind": "file",
       "label": "genaiMapping.test.ts",
@@ -4724,7 +4742,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 216
+        "lines": 218
       }
     },
     {
@@ -5426,7 +5444,7 @@
       "label": "lib/runtime/native/selfCorrection.ts",
       "source": "lib/runtime/native/selfCorrection.ts",
       "attrs": {
-        "lines": 314
+        "lines": 347
       }
     },
     {
@@ -5435,7 +5453,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 325
+        "lines": 333
       }
     },
     {
@@ -13397,6 +13415,55 @@
       "evidence": "/decisions/0096-ollama-structured-output-sends-json-schema.md:34"
     },
     {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "file:tests/geminiTurnParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md frontmatter"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md frontmatter"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md frontmatter"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md frontmatter"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md:25"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md:29"
+    },
+    {
+      "from": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md:25"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -16384,6 +16451,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:195"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:192"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19481,6 +19555,13 @@
     },
     {
       "from": "module:lib/compileNative.ts",
+      "to": "module:lib/runtime/native/selfCorrection.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compileNative.ts"
+    },
+    {
+      "from": "module:lib/compileNative.ts",
       "to": "module:lib/runtime/runtimeFlag.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -22152,6 +22233,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/selfCorrection.ts",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/selfCorrection.ts"
     },
     {
       "from": "module:lib/runtime/native/selfCorrection.ts",

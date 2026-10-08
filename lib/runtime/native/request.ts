@@ -43,7 +43,7 @@
  *      xAI); `code_execution` first among Gemini's own tools; and the
  *      set_model_response tool when (2) asked for it, then the caller's
  *      `extraTools` (self-correction's reflection tool, as ADK's plugin adds
- *      it to the toolsDict last). In `mode: task`, finish_task takes
+ *      it to the toolsDict last, when the step declares it: ADR 0097). In `mode: task`, finish_task takes
  *      set_model_response's place and the output schema is never the
  *      response schema (lib/runtime/native/taskMode.ts).
  *   5. Tool choice, the output schema or JSON mode, reasoning and sampling,
