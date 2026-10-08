@@ -51,9 +51,10 @@ function reasoningEffort(model: string, level: ReasoningLevel): string {
 /**
  * The generateContentConfig fields a `reasoning:` setting becomes for one
  * model (ADR 0047). `reasoningEffort` is always set, so the gateway (which
- * may serve any id) carries the level too; the Claude adapter ignores it and
- * the genai SDK drops it from a Gemini request. Claude and Gemini also get
- * the `thinkingConfig` their adapters read.
+ * may serve any id) carries the level too; the Claude adapter reads it first
+ * on the adaptive generations (ADR 0049), and the genai SDK drops it from a
+ * Gemini request. Claude and Gemini also get the `thinkingConfig` their
+ * adapters read.
  */
 export function reasoningConfig(model: string, setting: ReasoningSetting): Record<string, unknown> {
   const level = reasoningLevel(setting);
