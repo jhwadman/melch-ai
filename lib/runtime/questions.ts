@@ -34,6 +34,7 @@ import type { Event } from '@google/adk';
 import { z } from 'zod';
 
 import { defineTool } from '../tools/toolContract.ts';
+import { inputRequestFrom } from '../workflowConfig.ts';
 import type { PendingInput } from '../workflowConfig.ts';
 
 /** The registry name, and the function-call name an open question carries. */
@@ -105,6 +106,32 @@ export function pendingQuestion(events: readonly Event[]): PendingInput | undefi
       const call = p.functionCall;
       if (call?.name !== ASK_USER || !call.id || answered.has(call.id)) continue;
       return questionFrom(e.author, call);
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The workflow question (`adk_request_input`, an ask_user node's request)
+ * still open in a session's events, or undefined. The answer is stored as
+ * the person's next text message, not as a function response, so a text
+ * message after the question closes it; a function response with its id
+ * answers it too. As with pendingQuestion, only a node asks: a request in
+ * an event the user authored is none. The resume (lib/workflow/resume.ts)
+ * reads the same events to route the answer.
+ */
+export function pendingWorkflowInput(events: readonly Event[]): PendingInput | undefined {
+  const answered = new Set<string>();
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]!;
+    if (hasUserText(e)) return undefined;
+    for (const p of partsOf(e)) if (p.functionResponse?.id) answered.add(p.functionResponse.id);
+    if (e.author === 'user') continue;
+    for (const p of partsOf(e)) {
+      const call = p.functionCall;
+      if (!call || (call.id && answered.has(call.id))) continue;
+      const input = inputRequestFrom(e.author, call);
+      if (input) return input;
     }
   }
   return undefined;

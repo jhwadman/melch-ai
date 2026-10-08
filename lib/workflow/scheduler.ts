@@ -81,8 +81,22 @@
  * failure. A map item's interrupts are not carried (an agent node's own
  * pause does not run here yet).
  *
- * A task-mode node that waits for its output (WS4-3) and resumption from
- * stored events (WS4-4b) are later tickets.
+ * ── Resume (ADK's startNodeTask on rehydrated state, ADR 0094) ───────────
+ * A walk given `resume` (lib/workflow/resume.ts builds it from the stored
+ * events) starts from START as ADK's does, and each node's first activation
+ * takes that node's next prior run:
+ *
+ *   - a prior run with an output or a route and no open interrupt is done:
+ *     the node completes at once with that output, route and branch, emits
+ *     `node_resumed` (not `node_start` or `node_end`; ADK writes no event
+ *     for it) and triggers its successors as a completion does;
+ *   - a paused prior run of a node that does not rerun on resume
+ *     (`rerunsOnResume`) completes with its answers, the same way;
+ *   - any other node runs, a paused one on the input it recorded, with the
+ *     answers in `NodeRun.resumeInputs` (none on a repeat activation in the
+ *     same walk). Neither shortcut counts as a run of the node.
+ *
+ * A task-mode node that waits for its output (WS4-3) is a later ticket.
  */
 
 import { routeOf } from '../workflowConfig.ts';
@@ -92,6 +106,8 @@ import type { TurnEvent } from '../runtime/events.ts';
 import { START_NODE, adkRouteString } from './graph.ts';
 import type { AgentNode, AskUserNode, GraphNode, GraphNodeKind, GraphNodeSettings, MapNode, ToolNode, WorkflowGraph } from './graph.ts';
 import type { RetryYaml } from '../workflowConfig.ts';
+import { isFastForwardable, rerunsOnResume } from './resume.ts';
+import type { ResumeState } from './resume.ts';
 
 /** ADK's ParallelWorker pool size when `max_parallel` is not set. */
 export const DEFAULT_MAX_PARALLEL = 8;
@@ -128,6 +144,12 @@ export interface NodeRun {
   signal: AbortSignal;
   /** Which attempt this is, from 1; above 1 only for a node with `retry`. */
   attempt: number;
+  /**
+   * A resumed walk's answers, by interrupt id (ADK's ctx.resumeInputs):
+   * every answer, on a node's first activation; empty on a repeat one.
+   * Absent in a walk that is not a resume.
+   */
+  resumeInputs?: Readonly<Record<string, unknown>>;
 }
 
 /** An error a node reports instead of throwing, as an ADK event's errorCode and errorMessage. */
@@ -170,6 +192,13 @@ export type SchedulerEvent =
   | { type: 'node_start'; node: string; kind: GraphNodeKind; runId: string; path: string; branch: string | undefined; input: unknown }
   | { type: 'node_end'; node: string; kind: GraphNodeKind; runId: string; path: string; branch: string | undefined; output: unknown; route?: unknown }
   | { type: 'node_waiting'; node: string; kind: GraphNodeKind; runId: string; path: string; branch: string | undefined; interruptIds: string[] }
+  /**
+   * A resumed walk completed the node from its stored run without running
+   * it: `stored` (its prior output), or `answers` (a node that does not
+   * rerun, completed with the answers to its interrupts). ADK writes no
+   * event for either.
+   */
+  | { type: 'node_resumed'; node: string; kind: GraphNodeKind; path: string; branch: string | undefined; output: unknown; route?: unknown; from: 'stored' | 'answers' }
   | { type: 'item_start'; node: string; agent: string; index: number; path: string; branch: string | undefined; input: unknown }
   | { type: 'item_end'; node: string; agent: string; index: number; path: string; branch: string | undefined; output: unknown }
   | {
@@ -206,6 +235,12 @@ export interface RunWorkflowOptions {
   nodePath?: string;
   /** The workflow's own branch; default none. */
   branch?: string;
+  /**
+   * Resume a paused walk: the prior runs and answers workflowResume
+   * (lib/workflow/resume.ts) rebuilt from the stored events. The scheduler
+   * consumes `priorRuns`.
+   */
+  resume?: ResumeState;
 }
 
 export interface WorkflowRun {
@@ -213,7 +248,7 @@ export interface WorkflowRun {
   output: unknown;
   /** Every completed node's latest output, by name (a node whose output was undefined is absent, as in ADK). */
   outputs: Map<string, unknown>;
-  /** Node names in the order they completed (a node that ran twice appears twice). */
+  /** Node names in the order they completed (a node that ran twice appears twice; a resumed walk's `node_resumed` nodes included). */
   order: string[];
   /** Every node error the walk emitted, in order: the attempts that failed and were retried or survived. */
   nodeErrors: CollectedNodeError[];
@@ -350,7 +385,7 @@ interface Walk {
   claimed: WeakSet<object>;
 }
 
-type Settled = { name: string; result: NodeResult & { branch: string | undefined } } | { name: string; error: unknown };
+type Settled = { name: string; result: NodeResult & { branch: string | undefined }; resumed?: 'stored' | 'answers' } | { name: string; error: unknown };
 
 // ── Branches (ADK's branch_path.js) ──────────────────────────────────────────
 
@@ -429,6 +464,27 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
   };
   const atConcurrencyLimit = () => graph.maxConcurrency !== undefined && pending.size >= graph.maxConcurrency;
 
+  // ADK's startNodeTask on a resumed walk: each node's first activation takes its next prior run.
+  const activated = new Set<string>();
+  const resumeStart = (name: string, node: GraphNode): { shortcut?: Settled; input?: unknown; resumeInputs?: Readonly<Record<string, unknown>> } => {
+    const resume = options.resume;
+    if (!resume) return {};
+    const repeat = activated.has(name);
+    activated.add(name);
+    const prior = resume.priorRuns.get(name)?.shift();
+    if (prior && isFastForwardable(prior)) {
+      return { shortcut: { name, resumed: 'stored', result: { output: prior.output, route: prior.route, branch: prior.branch ?? parentBranch } } };
+    }
+    if (prior && !rerunsOnResume(node) && prior.output === undefined && prior.interruptIds.size > 0) {
+      const values = [...prior.interruptIds].map((id) => resume.resumeInputs[id]);
+      if (values.every((v) => v !== undefined)) {
+        return { shortcut: { name, resumed: 'answers', result: { output: values.length === 1 ? values[0] : values, branch: prior.branch ?? parentBranch } } };
+      }
+    }
+    const resuming = prior !== undefined && prior.interruptIds.size > 0 && prior.input !== undefined;
+    return { ...(resuming ? { input: prior.input } : {}), resumeInputs: repeat ? {} : resume.resumeInputs };
+  };
+
   // Seed: one trigger per START edge, each on its own branch when there are several.
   const startEdges = graph.edges.filter((e) => e.from === START_NODE);
   for (const edge of startEdges) pushTrigger(edge.to, { input: options.input, useSubBranch: startEdges.length > 1 });
@@ -444,14 +500,22 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
       if (atConcurrencyLimit()) break;
       const trigger = popTrigger(name);
       if (!trigger) continue;
-      const state: NodeState = { status: 'running', runCounter: (nodes.get(name)?.runCounter ?? 0) + 1, attempts: { count: 1 }, interrupts: [] };
+      const state: NodeState = { status: 'running', runCounter: nodes.get(name)?.runCounter ?? 0, attempts: { count: 1 }, interrupts: [] };
       nodes.set(name, state);
+      const node = nodeOf(name);
+      const start = resumeStart(name, node);
+      if (start.shortcut) {
+        pending.set(name, Promise.resolve(start.shortcut));
+        continue;
+      }
+      state.runCounter += 1;
       const runId = String(state.runCounter);
       const branch = trigger.branch !== undefined ? trigger.branch : trigger.useSubBranch ? subBranch(parentBranch, name, runId) : parentBranch;
-      const node = nodeOf(name);
       const path = `${workflowPath}.${name}`;
-      emit({ type: 'node_start', node: name, kind: node.kind, runId, path, branch, input: trigger.input });
-      const run = executeNode(node, { input: trigger.input, runId, path, branch, signal: controller.signal }, walk, state.attempts).then(
+      const input = start.input !== undefined ? start.input : trigger.input;
+      emit({ type: 'node_start', node: name, kind: node.kind, runId, path, branch, input });
+      const ctx: RunContext = { input, runId, path, branch, signal: controller.signal, ...(start.resumeInputs ? { resumeInputs: start.resumeInputs } : {}) };
+      const run = executeNode(node, ctx, walk, state.attempts).then(
         (result): Settled => ({ name, result: { ...result, branch } }),
         (error: unknown): Settled => ({ name, error }),
       );
@@ -498,13 +562,18 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
   };
 
   /** Record a completed run and emit its end; returns what its successors need. */
-  const complete = (name: string, settledResult: NodeResult & { branch: string | undefined }): [NodeResult, string | undefined] => {
+  const complete = (name: string, settledResult: NodeResult & { branch: string | undefined }, resumed?: 'stored' | 'answers'): [NodeResult, string | undefined] => {
     const state = nodes.get(name)!;
     const { branch, ...result } = settledResult;
     state.status = 'completed';
     if (result.output !== undefined) outputs.set(name, result.output);
     branches.set(name, branch ?? '');
     order.push(name);
+    if (resumed) {
+      const route = result.route !== undefined ? { route: result.route } : {};
+      emit({ type: 'node_resumed', node: name, kind: nodeOf(name).kind, path: `${workflowPath}.${name}`, branch, output: result.output, ...route, from: resumed });
+      return [result, branch];
+    }
     emit({
       type: 'node_end',
       node: name,
@@ -555,12 +624,12 @@ export async function runWorkflowGraph(graph: WorkflowGraph, options: RunWorkflo
         // on ADK (its node emits it), so it ends here too, in settle order,
         // and triggers nothing.
         await Promise.all(
-          outstanding.map((run) => run.then((late) => ('result' in late ? (paused(late.result) ? wait(late.name, late.result) : complete(late.name, late.result)) : undefined))),
+          outstanding.map((run) => run.then((late) => ('result' in late ? (paused(late.result) ? wait(late.name, late.result) : complete(late.name, late.result, late.resumed)) : undefined))),
         );
         throw settled.error;
       }
       if (paused(settled.result)) wait(settled.name, settled.result);
-      else bufferDownstreamTriggers(settled.name, ...complete(settled.name, settled.result));
+      else bufferDownstreamTriggers(settled.name, ...complete(settled.name, settled.result, settled.resumed));
     }
   } finally {
     parentSignal?.removeEventListener('abort', onParentAbort);
