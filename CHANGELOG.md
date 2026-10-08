@@ -6,6 +6,8 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 0.20.0 — 2026-10-08
+
 Release 0.20.0: the native runtime is the default, and `@google/adk` is an
 optional peer (ADR 0102).
 
