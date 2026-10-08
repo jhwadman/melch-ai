@@ -908,7 +908,7 @@ async function runTurnInner(
       if (!last) throw err;
       result.status = 'failed';
       result.failedStage = 'dispatch';
-      result.error = { code: last instanceof UnsupportedWorkflowResumeError ? 'RESUME_UNSUPPORTED' : 'NODE_FAILED', message: last.message };
+      result.error = { code: last instanceof UnsupportedWorkflowResumeError ? 'RESUME_UNSUPPORTED' : last instanceof NodeRunLimitError ? NODE_RUN_LIMIT : 'NODE_FAILED', message: last.message };
       return { failed: finish() };
     }
     if (walked.text && !walked.error && !control.stopReason) {

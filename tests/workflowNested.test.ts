@@ -18,6 +18,7 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { z } from 'zod';
 import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 
 import { compileEntrySpec, compileSubagentSpec, compileWorkflowSpec } from '../lib/compile.ts';
@@ -29,6 +30,8 @@ import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { compileWorkflow } from '../lib/workflow.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
 import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 import { ScriptedModel, answer, requestTexts, shimResolver } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
@@ -287,3 +290,81 @@ test('a nested workflow with an ask_user node is refused by name as a route and 
 });
 
 
+
+// ── The node-run ceiling (ADR 0105) ──────────────────────────────────────────
+
+registerTool(
+  'nested_poll',
+  defineTool({
+    name: 'nested_poll',
+    description: 'Polls; routes back to itself until n reaches until.',
+    schema: z.object({ n: z.number(), until: z.number(), route: z.string().optional() }),
+    execute: async ({ n, until }) => ({ n: n + 1, until, route: n + 1 < until ? 'again' : 'done' }) as unknown as string,
+  }),
+  { override: true },
+);
+
+/** The nested workflow: Triage starts a poll that loops on its route step `until` times, then Done answers. */
+const polling = (): SyndicateYamlConfig =>
+  validateSyndicateConfig(
+    {
+      syndicate_name: 'Poller',
+      memory_system: 'internal-only',
+      orchestrator: agent('Triage'),
+      subagents: [agent('Done')],
+      workflow: { edges: [['START', 'Triage', 'Poll', { again: 'Poll', default: 'Done' }]], nodes: { Poll: { tool: 'nested_poll' } } },
+    },
+    'poll.yaml',
+  ) as SyndicateYamlConfig;
+
+/** Two nested pollers fanned out and joined. max_steps 6: a ceiling of 120 node runs per walk, and room for the 6 model calls. */
+const twoPollers = (): SyndicateYamlConfig =>
+  validateSyndicateConfig(
+    {
+      syndicate_name: 'Twin',
+      memory_system: 'internal-only',
+      max_steps: 6,
+      orchestrator: agent('Brief'),
+      subagents: [
+        { name: 'Left', description: 'polls', yaml_reference: 'poll.yaml' },
+        { name: 'Right', description: 'polls', yaml_reference: 'poll.yaml' },
+        agent('Publish'),
+      ],
+      workflow: { edges: [['START', 'Brief', ['Left', 'Right']], [['Left', 'Right'], 'Both', 'Publish']], nodes: { Both: { join: true } } },
+    },
+    'twin.yaml',
+  ) as SyndicateYamlConfig;
+
+async function pollTurn(until: number): Promise<SyndicateTurnResult> {
+  const models = {
+    brief: new ScriptedModel('scripted/brief', () => answer('go')),
+    triage: new ScriptedModel('scripted/triage', () => answer(JSON.stringify({ n: 0, until }))),
+    done: new ScriptedModel('scripted/done', () => answer('polled')),
+    publish: new ScriptedModel('scripted/publish', (request) => answer(`published(${lastText(request)})`)),
+  };
+  return runSyndicateTurn({
+    runtime: 'native',
+    config: twoPollers(),
+    parts: [{ text: 'go' }],
+    appName: 'app',
+    userId: 'u',
+    sessionId: 's',
+    sessionService: new InMemorySessionService(),
+    compile: { resolveModel: shimResolver(models), loadNested: () => polling(), log: () => {} },
+    trace: false,
+  });
+}
+
+test('native: a nested workflow node’s runs count against its own walk’s ceiling, not its caller’s', async () => {
+  // Each nested walk runs about 100 nodes (under 120); the two together, about 200, would be over one shared ceiling.
+  const result = await pollTurn(50);
+  assert.equal(result.status, 'completed', result.error?.message);
+  assert.equal(result.text, 'published({"Left":"polled","Right":"polled"})');
+});
+
+test('native: a nested walk over its own ceiling fails the node, and the turn NODE_RUN_LIMIT', async () => {
+  const result = await pollTurn(1_000_000);
+  assert.equal(result.status, 'failed');
+  assert.equal(result.error?.code, 'NODE_RUN_LIMIT');
+  assert.match(result.error?.message ?? '', /Workflow (Left|Right) reached its limit of 120 node runs/);
+});
