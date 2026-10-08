@@ -72,12 +72,23 @@
  *   path carries beside the contract (ChatCompletionsRequest.olderSpelling).
  *   K2.x models take no reasoning_effort: a `thinking: { type }` switch
  *   instead, so `none` (or a budget of 0) sends `disabled` and any other
- *   setting sends nothing (K2.7 Code rejects disabled thinking; Moonshot's
- *   own error says so).
+ *   setting sends nothing. K2.7 Code (and its highspeed variant) cannot
+ *   switch thinking off and Moonshot refuses `disabled` for it, so there
+ *   `none` sends nothing either: the model thinks at its default.
  *
- * TOOL CHOICE: auto and none (none by sending no tools). `required` and a
- *   named tool are weakened to auto, with llm.tool_choice.weakened on the
- *   span, until they are verified against Moonshot (toolChoiceModes).
+ * TOOL CHOICE (toolChoiceModes; checked live against Moonshot on
+ *   2026-10-08, PR #87): auto and none always (none by sending no tools).
+ *   The forced modes depend on the model and on whether it thinks:
+ *     kimi-k3    `required` is honoured with thinking on, so it goes as
+ *                asked; a named tool is refused with thinking on (400
+ *                "tool_choice 'specified' is incompatible with thinking
+ *                enabled") and K3 always thinks, so it goes as `required`.
+ *     kimi-k2.6  both forced modes are refused with thinking on and
+ *                honoured with it off, so they go as asked only when the
+ *                request's reasoning is `none` (or a budget of 0), which
+ *                sends `thinking: disabled`; otherwise auto.
+ *     others     (K2.7 Code) unverified: weakened to auto.
+ *   A weakened choice is marked on the span (llm.tool_choice.weakened).
  *
  * LIMITATIONS:
  *   - web_search: Moonshot's model-side `$web_search` built-in retires on
@@ -107,7 +118,7 @@
  *     from reasoning_content; tool loops and search were not exercised.
  */
 
-import type { ReasoningSetting } from './contract.ts';
+import type { ReasoningSetting, ToolChoiceMode } from './contract.ts';
 import { DEFAULT_KIMI_REASONING_EFFORT } from '../config.ts';
 import { ChatCompletionsAdapter, reasonsNotAtAll } from './chatCompletionsAdapter.ts';
 import type { ChatFailure } from './chatCompletionsAdapter.ts';
@@ -119,6 +130,16 @@ export const MOONSHOT_BASE_URL = 'https://api.moonshot.ai/v1';
 /** The flagship takes `reasoning_effort`; the K2 generation takes a `thinking` switch. */
 export function isKimiK3(model: string): boolean {
   return /^kimi-k3\b/.test(model);
+}
+
+/** K2.6: thinking is on by default and switchable, and forcing a tool needs it off. */
+export function isKimiK26(model: string): boolean {
+  return /^kimi-k2\.6\b/.test(model);
+}
+
+/** K2.7 Code and its highspeed variant: thinking cannot be switched off, and `disabled` is refused. */
+export function isKimiK27Code(model: string): boolean {
+  return /^kimi-k2\.7-code\b/.test(model);
 }
 
 /**
@@ -161,6 +182,13 @@ export class KimiAdapter extends ChatCompletionsAdapter {
     return { Authorization: `Bearer ${this.#key() ?? ''}` };
   }
 
+  /** The forced tool choices each model honours, per the live checks in the header. */
+  protected override toolChoiceModes(model: string, reasoning: ReasoningSetting | undefined): readonly ToolChoiceMode[] {
+    if (isKimiK3(model)) return ['auto', 'none', 'required'];
+    if (isKimiK26(model) && reasonsNotAtAll(reasoning)) return ['auto', 'none', 'required', 'named'];
+    return ['auto', 'none'];
+  }
+
   /** reasoning_content goes back on the tool loop for the ids that ask for it (see the header). */
   protected override replaysReasoningContent(model: string): boolean {
     return wantsReasoningReplay(model);
@@ -192,6 +220,7 @@ export class KimiAdapter extends ChatCompletionsAdapter {
       const word = reasoningConfig(model, setting).reasoningEffort;
       return { reasoning_effort: word === 'none' ? 'low' : word }; // K3 cannot switch thinking off
     }
-    return reasonsNotAtAll(setting) ? { thinking: { type: 'disabled' } } : {};
+    // K2.7 Code always thinks, and Moonshot refuses `disabled` for it.
+    return reasonsNotAtAll(setting) && !isKimiK27Code(model) ? { thinking: { type: 'disabled' } } : {};
   }
 }

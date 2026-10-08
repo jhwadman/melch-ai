@@ -994,6 +994,143 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/tools/openapi/call.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0067 Decision 1: \"The request is RestApiTool's (ADK 2.2), rule for rule (buildRequest in lib/tools/openapi/call.ts).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0067 Context: \"ADR 0063 gave the engine its own OpenAPI parser, but each call still went through ADK's RestApiTool, built from the parse.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0067 Decision 2: \"withRedirectGuard and its wrapper on globalThis.fetch are removed\"; Consequences: \"ADR 0036's policy is unchanged. Only its mechanism ... is retired.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "Supersedes the mechanism (the global fetch wrapper), not the redirect policy."
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0067 Decision 3: \"An operation is an own Tool (buildOpenApiOwnTools), and the ADK runtime runs it through toFunctionTool.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0067 Decision 3: \"gateTools gates it with requireApprovalOn, as it gates every registry tool.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "depends_on",
+      "evidence": "lib/tools/openapi/call.ts header: \"REDIRECTS one hop at a time (lib/net/redirects.ts): a hop on the same origin gets the server's own check; a hop to another origin must pass the full guard\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/model.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0068 Decision 1: \"A new entry, melchizedek-agents/model (lib/model.ts)\" exports the model layer, and its runtime import graph names no @google/adk (tests/packageSurface.test.ts).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0068 Decision 2-3: the routing moves to lib/models/adapterResolver.ts, which imports no ADK; without an AdkGeminiAdapter factory a Gemini id gets GeminiAdapter and asking for adk throws.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/tools/xaiSearchParams.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0068 Decision 4: \"xAI's search settings move to lib/tools/xaiSearchParams.ts, which imports nothing\", so GrokAdapter reaches no @google/adk.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "/decisions/0060-engine-owned-registry.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0068 Decision 2: registry.ts builds its resolveAdapter with the AdkGeminiAdapter factory, \"so its behaviour, ADR 0060's default included, is unchanged\"; the entry differs from ADR 0060 only for Gemini.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "depends_on",
+      "evidence": "gemini-adapter.md, From the native step: \"On the native runtime the adapter receives the request the native step builds (buildModelRequest, lib/runtime/native/request.ts).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0062-server-side-tools-as-markers.md",
+      "to": "file:tests/geminiNativeTools.test.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0062 Decision 1-3: a server-side tool is a NativeToolMarker that declares no function; tests/geminiNativeTools.test.ts asserts google_search, web_search and url_context reach GeminiAdapter only as nativeTools entries and the ADK runtime still gets WEB_SEARCH, URL_CONTEXT and GOOGLE_SEARCH.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "to": "file:tests/geminiNativeTools.test.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0059: load_memory is an own Tool and preload_memory an InstructionTool; tests/geminiNativeTools.test.ts asserts the declaration, the note and the PAST_CONVERSATIONS block Gemini receives, and a session where Gemini calls load_memory.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0070 Decision 3: \"kimi-k3 honours auto, none and required, so a named tool goes as required. kimi-k2.6 honours all four when the request's reasoning is none\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0070 Decisions 1 and 2: toolChoiceModes(model, reasoning) receives the request's ReasoningSetting, and \"a refused named choice falls to required where required holds, else to auto\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0070 Context: the chat-completions adapters (ADR 0057) \"asked each subclass for the modes it honours per model\"; this record extends that hook with the reasoning.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0064-model-tests-on-the-contract.md",
+      "to": "file:tests/claudeCurrentApi.test.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0064 Decision 4 names claudeCurrentApi among the suites left for a later ticket; tests/llmRequestBoundary.test.ts now lists it in ON_THE_CONTRACT, so it may never build an LlmRequest again.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "to": "module:lib/runtime/native/agentLoop.ts",
       "rel": "constrains",

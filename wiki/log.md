@@ -27,6 +27,74 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0064-model-tests-on-the-contract.md —constrains→ file:tests/claudeCurrentApi.test.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md —depends_on→ /decisions/0057-chat-completions-shims-keep-the-adk-shape.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md —constrains→ module:lib/models/chatCompletionsAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0070-kimi-forced-tool-choice-by-model-and-thinking.md —constrains→ module:lib/models/kimiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0059-memory-on-the-engines-own-interfaces.md —constrains→ file:tests/geminiNativeTools.test.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —constrains→ file:tests/geminiNativeTools.test.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /models/gemini-adapter.md —depends_on→ module:lib/runtime/native/request.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —depends_on→ /decisions/0060-engine-owned-registry.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/tools/xaiSearchParams.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/models/adapterResolver.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/model.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | module:lib/tools/openapi/call.ts —depends_on→ /decisions/0036-redirects-under-the-ssrf-guard.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —supersedes→ /decisions/0036-redirects-under-the-ssrf-guard.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —depends_on→ /decisions/0063-openapi-parser-on-the-engines-own-types.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0067-openapi-calls-on-the-engines-own-caller.md —constrains→ module:lib/tools/openapi/call.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/step.ts
 
 by claude-code/claude-opus-5-5

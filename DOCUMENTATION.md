@@ -170,8 +170,10 @@ treat any remote MCP server as an untrusted tool vendor whose results
 are data, never instructions.
 
 **OpenAPI tools** turn any HTTP API with an OpenAPI 3 spec into an
-agent's tools, with no tool code (`lib/tools/openapiTools.ts`, on ADK's
-`OpenAPIToolset`; [ADR 0032](./wiki/decisions/0032-openapi-tools.md)):
+agent's tools, with no tool code (`lib/tools/openapiTools.ts`, on the
+engine's own parser and caller in `lib/tools/openapi/`;
+[ADR 0032](./wiki/decisions/0032-openapi-tools.md),
+[ADR 0067](./wiki/decisions/0067-openapi-calls-on-the-engines-own-caller.md)):
 
 ```yaml
 orchestrator:
@@ -200,7 +202,10 @@ may name. A refused or unset variable fails the compile, and a static token is a
 never stored in session state. Every server must be http(s) and pass the
 SSRF guard: its literal rules when the agent compiles, the full check with
 DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for
-local development. A response over 20,000 characters is cut and says so; a
+local development. Redirects are followed one hop at a time, each hop held
+to the guard, and a hop to another origin carries no credential. A
+credential's value never appears in an error the model reads. Only OpenAPI
+3.x specs are read. A response over 20,000 characters is cut and says so; a
 network failure comes back to the model as an error. Specs are files, never
 URLs: save the spec beside the YAML and review it like code (trim it to the
 operations the agent needs, and write each `summary` for the model). Worked
@@ -490,6 +495,19 @@ from the same prefix table, gateway rule, BYOK scoping and endpoints as
 `AdkGeminiAdapter` unless `GEMINI_ADAPTER=engine` (or `gemini: 'engine'`)
 asks for `GeminiAdapter`. `resolveAdapterWithFallback` wraps an agent's
 model and `fallback_model` in a `FallbackAdapter`.
+
+`melchizedek-agents/model` is the model layer on its own, with no
+`@google/adk` in its import graph (ADR 0068): the contract's types,
+`ClaudeAdapter`, `GptAdapter`, `GrokAdapter`, `KimiAdapter`,
+`OllamaAdapter`, `GatewayAdapter`, `GeminiAdapter`, the
+`ChatCompletionsAdapter` base, `resolveAdapter`,
+`resolveAdapterWithFallback`, `FallbackAdapter` and the circuit breaker's
+helpers. A project that only calls models installs the package without ADK
+and imports from there. Its `resolveAdapter` gives a Gemini id
+`GeminiAdapter`; asking it for `adk` (`gemini: 'adk'` or
+`GEMINI_ADAPTER=adk`) throws and names `melchizedek-agents/models/registry`,
+whose `resolveAdapter` keeps the ADK default above. `AdkGeminiAdapter`, the
+ADK shims, `TracedGemini` and `resolveModel` are not in it.
 
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it

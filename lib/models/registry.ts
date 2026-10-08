@@ -33,6 +33,9 @@
  *
  * Paths 2 and 3 read one routing step (routeFor) and one table per path
  * keyed by provider, so a key or endpoint reaches the same place on both.
+ * routeFor and the contract table live in lib/models/adapterResolver.ts,
+ * which imports no ADK; `melchizedek-agents/model` exports its resolver,
+ * which gives a Gemini id GeminiAdapter (ADR 0068).
  *
  * Register BEFORE constructing any agent: the LLMRegistry caches model→class
  * resolution (LRU), so late registration can be masked by stale cache hits.
@@ -40,7 +43,7 @@
 
 import { Gemini, LLMRegistry } from '@google/adk';
 import type { BaseLlm } from '@google/adk';
-import { endpointFromEnv, endpointProblems, mergeEndpoint, providerReady } from './endpoints.ts';
+import { endpointFromEnv, endpointProblems, providerReady } from './endpoints.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
 
 import {
@@ -53,15 +56,9 @@ import {
 } from '../config.ts';
 import type { ModelAdapter } from './contract.ts';
 import { AdkGeminiAdapter } from './adkGeminiAdapter.ts';
-import { ClaudeAdapter } from './claudeAdapter.ts';
-import { FallbackAdapter } from './fallbackAdapter.ts';
+import { adapterResolver, geminiAdapterSetting, normalizeProvider, routeFor, scopedKey } from './adapterResolver.ts';
+import type { GeminiAdapterChoice, ResolveAdapterOptions, Route } from './adapterResolver.ts';
 import type { FallbackAdapterOptions } from './fallbackAdapter.ts';
-import { GatewayAdapter } from './gatewayAdapter.ts';
-import { GeminiAdapter } from './geminiAdapter.ts';
-import { GptAdapter } from './gptAdapter.ts';
-import { GrokAdapter } from './grokAdapter.ts';
-import { KimiAdapter } from './kimiAdapter.ts';
-import { OllamaAdapter } from './ollamaAdapter.ts';
 import { TracedGemini } from './tracedGemini.ts';
 import { ClaudeLlm, registerClaudeLlm } from './claudeLlm.ts';
 import { GptLlm, registerGptLlm } from './gptLlm.ts';
@@ -69,12 +66,7 @@ import { GrokLlm, registerGrokLlm } from './grokLlm.ts';
 import { KimiLlm, registerKimiLlm } from './kimiLlm.ts';
 import { OllamaLlm, registerOllamaLlm } from './ollamaLlm.ts';
 import { GatewayLlm, registerGatewayLlm } from './gatewayLlm.ts';
-import {
-  gatewayConfig,
-  gatewayProblem,
-  gatewayUsable,
-  planTransport,
-} from './gateway.ts';
+import { gatewayConfig, gatewayProblem, gatewayUsable } from './gateway.ts';
 import {
   PROVIDERS,
   providerForModel,
@@ -93,6 +85,7 @@ export {
 } from './endpoints.ts';
 export type { Platform, ProviderEndpoint } from './endpoints.ts';
 export type { ProviderId };
+export type { GeminiAdapterChoice, ResolveAdapterOptions };
 export { gatewayConfig, gatewayProblem, gatewayUsable, planTransport, GATEWAYS } from './gateway.ts';
 export type { GatewayId, GatewayInfo, TransportPlan } from './gateway.ts';
 export { describeCapabilities, capabilitySummary } from './capabilities.ts';
@@ -236,43 +229,11 @@ function modelHint(provider: ProviderId): string {
   }
 }
 
-// ── One model id → one route (resolveModel and resolveAdapter) ───────────────
-
-/** Where one model id goes: its provider, its transport, and what the caller injects. */
-interface Route {
-  provider: ProviderId;
-  model: string;
-  transport: 'direct' | 'gateway';
-  /** A caller's own key for this provider, already scoped to it. */
-  apiKey?: string;
-  /** The caller's endpoint merged over the environment's (ADR 0023). */
-  endpoint?: ProviderEndpoint;
-}
-
-/**
- * The fallback rule (lib/models/gateway.ts): the direct adapter whenever the
- * provider's key — from env, or the caller's own BYOK key or endpoint — is
- * present; the gateway stand-in only when it is absent and a gateway is
- * configured. The gateway key is server env only, never a request header.
- */
-function routeFor(model: string, apiKey: string | undefined, endpoint: Partial<ProviderEndpoint> | undefined): Route {
-  const provider = providerForModel(model);
-  const merged = endpoint ? mergeEndpoint(provider, endpoint) : undefined;
-  const { transport } = planTransport(model, { callerKey: !!apiKey || !!merged });
-  return { provider, model, transport, ...(apiKey ? { apiKey } : {}), ...(merged ? { endpoint: merged } : {}) };
-}
-
-/**
- * BYOK is scoped to the CALLER'S provider: the key a client sends
- * authenticates that client's own provider (typically Gemini). Passing it to
- * a different provider's adapter would override the server's env key
- * (adapters prefer a passed key), fail auth, and hand the key to another
- * vendor — e.g. a Gemini key sent to xAI. Cross-provider models therefore
- * resolve keys from server env.
- */
-function scopedKey(model: string, apiKey: string | undefined, keyProvider: ProviderId): string | undefined {
-  return providerForModel(model) === keyProvider ? apiKey : undefined;
-}
+// ── One model id → one route ─────────────────────────────────────────────────
+//
+// routeFor and scopedKey (lib/models/adapterResolver.ts) are the one routing
+// step resolveModel and resolveAdapter share, so a key or endpoint reaches
+// the same place on both paths.
 
 // ── ADK instances (BYOK paths on the ADK runtime) ────────────────────────────
 
@@ -334,62 +295,21 @@ export function resolveModel(
   return route.transport === 'gateway' ? new GatewayLlm({ model: resolved }) : ADK_LLM[route.provider](route);
 }
 
-function normalizeProvider(provider?: string): ProviderId {
-  const p = provider?.toLowerCase();
-  if (p === 'ollama' || p === 'anthropic' || p === 'openai' || p === 'xai' || p === 'moonshot') {
-    return p;
-  }
-  return 'gemini';
-}
-
 // ── Contract adapters (the native runtime) ───────────────────────────────────
 
-/**
- * Which adapter serves a Gemini id on the contract path: `adk`, the temporary
- * AdkGeminiAdapter over ADK's Gemini (lib/models/adkGeminiAdapter.ts), or
- * `engine`, the engine's own GeminiAdapter on @google/genai
- * (lib/models/geminiAdapter.ts). `adk` until gate G3 (ADR 0060).
- */
-export type GeminiAdapterChoice = 'adk' | 'engine';
-
-/** GEMINI_ADAPTER (`adk`, the default, or `engine`). Any other value is a configuration error. */
+/** GEMINI_ADAPTER (`adk`, the default here, or `engine`). Any other value is a configuration error. */
 export function geminiAdapterChoice(env: NodeJS.ProcessEnv = process.env): GeminiAdapterChoice {
-  const raw = env.GEMINI_ADAPTER?.trim().toLowerCase();
-  if (!raw || raw === 'adk') return 'adk';
-  if (raw === 'engine') return 'engine';
-  throw new Error('GEMINI_ADAPTER must be "adk" or "engine".');
+  return geminiAdapterSetting(env) ?? 'adk';
 }
 
-export interface ResolveAdapterOptions {
-  /**
-   * A caller's own API key (BYOK). It authenticates `keyProvider`'s models
-   * only, and wins over the endpoint's and the environment's key there.
-   */
-  apiKey?: string;
-  /**
-   * The provider `apiKey` belongs to (a provider id; anything else reads as
-   * gemini, as the A2A X-Provider header does). Default: the model's own.
-   * A model of another provider resolves its key from server env.
-   */
-  keyProvider?: string;
-  /** Where requests go (ADR 0023), merged over the environment's endpoint for the model's provider. */
-  endpoint?: Partial<ProviderEndpoint>;
-  /** Which Gemini adapter a Gemini id gets. Default: GEMINI_ADAPTER, else `adk`. */
-  gemini?: GeminiAdapterChoice;
-}
-
-/** Each provider's contract adapter for a direct route: what its ADK class (ADK_LLM) wraps. */
-const CONTRACT_ADAPTER: Record<ProviderId, (r: Route, gemini: () => GeminiAdapterChoice) => ModelAdapter> = {
-  ollama: (r) => new OllamaAdapter({ model: r.model }),
-  anthropic: (r) => new ClaudeAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint }),
-  openai: (r) => new GptAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint }),
-  xai: (r) => new GrokAdapter({ model: r.model, apiKey: r.apiKey }),
-  moonshot: (r) => new KimiAdapter({ model: r.model, apiKey: r.apiKey, baseUrl: r.endpoint?.baseURL }),
-  gemini: (r, gemini) =>
-    gemini() === 'engine'
-      ? new GeminiAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint })
-      : new AdkGeminiAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint }),
-};
+/**
+ * The contract resolver with the temporary AdkGeminiAdapter (ADR 0060): a
+ * Gemini id gets it until gate G3, or the engine's GeminiAdapter when
+ * GEMINI_ADAPTER=engine or `{ gemini: 'engine' }` asks for it. The
+ * ADK-free resolver in lib/models/adapterResolver.ts, which
+ * `melchizedek-agents/model` exports, defaults to GeminiAdapter (ADR 0068).
+ */
+const WITH_ADK_GEMINI = adapterResolver((r) => new AdkGeminiAdapter(r));
 
 /**
  * Resolves a model id to the engine's own ModelAdapter (ADR 0048), from the
@@ -399,10 +319,7 @@ const CONTRACT_ADAPTER: Record<ProviderId, (r: Route, gemini: () => GeminiAdapte
  * The adapter opens no span and charges nothing: its caller does (ADR 0053).
  */
 export function resolveAdapter(modelId: string, options: ResolveAdapterOptions = {}): ModelAdapter {
-  const keyProvider = options.keyProvider === undefined ? providerForModel(modelId) : normalizeProvider(options.keyProvider);
-  const route = routeFor(modelId, scopedKey(modelId, options.apiKey, keyProvider), options.endpoint);
-  if (route.transport === 'gateway') return new GatewayAdapter({ model: modelId });
-  return CONTRACT_ADAPTER[route.provider](route, () => options.gemini ?? geminiAdapterChoice());
+  return WITH_ADK_GEMINI.resolveAdapter(modelId, options);
 }
 
 /**
@@ -420,9 +337,5 @@ export function resolveAdapterWithFallback(
   options: ResolveAdapterOptions = {},
   fallbackOptions: FallbackAdapterOptions = {},
 ): ModelAdapter {
-  const scoped: ResolveAdapterOptions = { ...options, keyProvider: options.keyProvider ?? providerForModel(modelId) };
-  const primary = resolveAdapter(modelId, scoped);
-  if (!fallbackId) return primary;
-  return new FallbackAdapter(primary, resolveAdapter(fallbackId, scoped), fallbackOptions);
+  return WITH_ADK_GEMINI.resolveAdapterWithFallback(modelId, fallbackId, options, fallbackOptions);
 }
-

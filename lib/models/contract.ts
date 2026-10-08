@@ -192,8 +192,9 @@ export type NativeTool =
  * asked where the provider allows it and weakens it where the provider
  * rejects forcing (Anthropic's Fable 5.1, Opus 5.5 and Sonnet 5.5 reject a
  * forced tool choice, as do Claude models with thinking on). A weakened
- * `required` or named choice becomes `auto`, and the span carries
- * `llm.tool_choice.weakened`. `none` is always honoured, if need be by
+ * `required` choice becomes `auto`; a weakened named choice becomes
+ * `required` where the provider forces that (Kimi K3), else `auto`. The
+ * span carries `llm.tool_choice.weakened`. `none` is always honoured, if need be by
  * sending no tools.
  */
 export type ToolChoice = 'auto' | 'none' | 'required' | { name: string };

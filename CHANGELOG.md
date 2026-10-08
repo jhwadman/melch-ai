@@ -6,6 +6,43 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **New entry `melchizedek-agents/model`: the model layer without ADK
+  (ADR 0068).** A new path in the `exports` map, so the version is 0.19.0.
+  It exports the model contract's types, `ClaudeAdapter`, `GptAdapter`,
+  `GrokAdapter`, `ChatCompletionsAdapter`, `KimiAdapter`, `OllamaAdapter`,
+  `GatewayAdapter`, `GeminiAdapter`, `resolveAdapter`,
+  `resolveAdapterWithFallback`, `geminiAdapterSetting`, `FallbackAdapter`,
+  `isProviderError`, the circuit breaker's helpers (`breakerSettings`,
+  `circuitOpen`, `recordFailure`, `recordSuccess`, `resetCircuits`) and the
+  prefix table (`PROVIDERS`, `providerForModel`, `providerKeyPresent`), and
+  loads no `@google/adk`: install with `--legacy-peer-deps` to leave ADK out.
+  - Its `resolveAdapter` gives a Gemini id `GeminiAdapter`. Asking it for
+    `adk` (`gemini: 'adk'` or `GEMINI_ADAPTER=adk`) throws and names
+    `melchizedek-agents/models/registry`, whose `resolveAdapter` is
+    unchanged (`AdkGeminiAdapter` by default until gate G3).
+  - New module `melchizedek-agents/models/adapterResolver` (through
+    `./models/*`): `adapterResolver`, `routeFor`, `scopedKey`,
+    `normalizeProvider`, `geminiAdapterSetting` and the resolver types.
+    `models/registry` still exports `geminiAdapterChoice`,
+    `GeminiAdapterChoice` and `ResolveAdapterOptions`.
+  - New module `melchizedek-agents/tools/xaiSearchParams` holds
+    `xaiWebSearchParamsFromEnv`, `xSearchParamsFromEnv`,
+    `collectionIdsFromEnv` and `collectionsMaxResultsFromEnv`, which
+    `tools/webSearchTool`, `tools/xSearchTool` and
+    `tools/collectionsSearchTool` still re-export.
+- **Kimi forces a tool where Moonshot allows it** (checked live on
+  2026-10-08). `kimi-k3` sends `toolChoice: 'required'` as asked and a
+  named tool as `tool_choice: "required"` (Moonshot refuses a named tool
+  while K3 thinks, and K3 always thinks); `kimi-k2.6` sends both forced
+  modes as asked when `reasoning` is `none`, and weakens them to auto
+  otherwise. Other Kimi ids keep weakening both to auto. A weakened choice
+  is still marked `llm.tool_choice.weakened` on the span. In the
+  chat-completions base, a subclass's `toolChoiceModes` now also receives
+  the request's reasoning.
+- **Fix: `kimi-k2.7-code` with `reasoning: none`.** It sends no thinking
+  field (the model thinks at its default) instead of
+  `thinking: { type: 'disabled' }`, which Moonshot refuses for K2.7 Code
+  and its highspeed variant. `kimi-k2.6` still sends `disabled`.
 - **The genai mapping exports two more readers (ADR 0066).**
   `melchizedek-agents/models/genaiMapping` adds `toolChoiceOf` (an agent's
   function-calling mode as a `ToolChoice`, and `VALIDATED` as strict tools)
@@ -13,6 +50,28 @@ the starter pack and the templates), not the repo's full history.
   additions under the existing `exports` map. The native loop
   (`lib/runtime/native/`: one model step, and the agent loop around it,
   ADR 0071) is not in the `exports` map and runs no turn yet.
+- **OpenAPI tools make their own calls (ADR 0067).** Each operation is
+  the engine's own Tool, and the ADK runtime runs it through
+  `toFunctionTool`; ADK's `RestApiTool` and `OpenAPIToolset` are no longer
+  used. An API receives the same request as before. What a consumer sees:
+  - `tools/openapiTools`: `buildOpenApiTools` returns `FunctionTool`s
+    (it returned `BaseTool`s), and gains `buildOpenApiOwnTools` (own Tools,
+    for either runtime) and `openApiOperationId`. `boundResult` is
+    deprecated in favour of `capResult` (`tools/tool`).
+  - The new module `tools/openapi/call` holds the caller: `buildRequest`,
+    `callOperation`, `hostProblem`, `OPENAPI_REDIRECTS`, `redactSecrets`
+    and `MAX_RESPONSE_BYTES`.
+  - `require_approval` on an OpenAPI operation uses the gate every
+    registry tool uses, so the approval hint and the pending and rejected
+    texts are ADK's FunctionTool texts. `requireApprovalOnBaseTool`
+    (`compile`) is deprecated and no longer used.
+  - A credential's value is replaced with `[redacted]` in every error an
+    OpenAPI tool returns; at most 8 MiB of a response is read; an operation
+    whose spec requires a credential is not called when the entry sets no
+    `auth`, and returns an error saying so.
+  - A spec that is not OpenAPI 3.x (Swagger 2.0, or no `openapi` version)
+    fails the compile with a readable error, and `~1` and `~0` in a
+    `$ref` are unescaped.
 - **`GeminiAdapter` covers Gemini's own features (ADR 0065).** In
   `melchizedek-agents/models/geminiAdapter` (which `resolveAdapter`
   returns only with `GEMINI_ADAPTER=engine` until gate G3):

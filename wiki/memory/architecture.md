@@ -20,6 +20,7 @@ sources:
   - resource: lib/session/transcript.ts
   - resource: tests/fixtures/sessions/generate.ts
   - resource: tests/sessionFixtures.test.ts
+  - resource: tests/geminiNativeTools.test.ts
 ---
 
 # Memory architecture
@@ -94,6 +95,8 @@ A `CORRECTION` record carries a quote of what it supersedes. The service embeds 
 
 - `preload_memory` searches with the first text part of the message that started the run and writes the recalled facts into the instruction before each request, inside a `<PAST_CONVERSATIONS>` block.
 - `load_memory` searches with a query the model chooses and returns the facts as text, and while the run has memory it adds a note to the instruction saying so.
+
+Both run the same on either runtime. On the native runtime, the [Gemini adapter](/models/gemini-adapter.md#from-the-native-step) receives `load_memory` as a function declaration and both tools' text in the system instruction; `tests/geminiNativeTools.test.ts` runs a session in which Gemini calls `load_memory` and answers from the facts it returns.
 
 Both search through the tool context's `searchMemory`, bound to the run's own `<appName>/<userId>` silo, so a query chooses what to recall and never whose. A model reads the same declaration, note, results and block that ADK's tools of the same names produced.
 
