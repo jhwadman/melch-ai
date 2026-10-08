@@ -587,7 +587,7 @@ options. `demo/a2a_demo.mjs` is a complete client.
 | `POST /a2a/jsonrpc`, `/a2a/rest` | bearer | the default syndicate |
 | `GET /<agentId>/.well-known/agent-card.json` | bearer | another syndicate's card; its URLs point at `/<agentId>/a2a/...` |
 | `POST /<agentId>/a2a/jsonrpc`, `/<agentId>/a2a/rest` | bearer | another syndicate (`A2A_SERVED_AGENTS` restricts which) |
-| `DELETE /memory` | bearer | erase everything stored for the calling scope: facts, sessions (with subagent rows), ledger rows and A2A tasks, including conversations whose sessions have expired, with per-store counts; `?all=1` covers every memory namespace |
+| `DELETE /memory` | bearer | erase everything stored for the calling scope: facts, sessions (with subagent rows), ledger rows, A2A tasks and the third-party tokens held for its tools, including conversations whose sessions have expired, with per-store counts; `?all=1` covers every memory namespace |
 
 "bearer" means the credential `A2A_AUTH` asks for (below); with no
 `A2A_SERVER_SECRET` and no authenticator the server binds `127.0.0.1` only.
@@ -645,8 +645,10 @@ or pass your own `resolveRequest`.
   `A2A_LOG_FORMAT=json` prints every server line as JSON, this record included.
 - **The audit trail** (`melchizedek_audit`, `db/migrations/0012_audit_log.sql`;
   option `audit`, supplied by `postgresStorage`): one row per failed
-  authentication (`auth.failure`), task outcome (`task.end`) and erasure
-  (`memory.erase`), with the caller's name, the source address, the agent and
+  authentication (`auth.failure`), task outcome (`task.end`), erasure
+  (`memory.erase`) and tool credential stored, refreshed, revoked or erased
+  (`credential.put`, `.refresh`, `.revoke`, `.erase`, naming the provider and
+  app, never a token), with the caller's name, the source address, the agent and
   task ids, and a hash of the scope. Never a scope key and never conversation
   content. A trigger refuses UPDATE and DELETE; rows leave only through
   `SELECT melchizedek_prune_audit(<days>)`, which you schedule (pg_cron, or a
@@ -678,6 +680,7 @@ names; nothing is kept by the framework anywhere else.
 | The ledger: each turn's input, output and tool results (key-shaped secrets redacted) | Your Postgres, `adk_turns`, `adk_telemetry` | **Until you prune it**: schedule `melchizedek_prune_telemetry(<days>)` | `TELEMETRY_REDACT`, the prune's `turn_days` |
 | Sampled full model requests | Your Postgres, `adk_payloads` | 30 days | `TELEMETRY_PAYLOADS`, `TELEMETRY_PAYLOAD_TTL_DAYS` |
 | Traces, when `OTEL_EXPORTER_OTLP_ENDPOINT` is set | Your OTLP collector, conversation content included with key-shaped secrets redacted (`off` drops it) | Your collector's policy | `OTEL_EXPORT_CONTENT` (`redacted`, `off`, `raw`) |
+| Third-party OAuth tokens held for tools, per end user (when `postgresStorage({ credentials })` is used) | Your Postgres, `melchizedek_tool_credentials`, sealed with AES-256-GCM under `MELCHIZEDEK_CREDENTIAL_KEY`, which never reaches the database (migration 0013) | Until revoked or erased | The provider config; the key |
 | The audit trail (no content) | Your Postgres, `melchizedek_audit` | Until `melchizedek_prune_audit(<days>)` | The prune schedule |
 | The task record (no content) | stdout | Your log platform's policy | `A2A_LOG_FORMAT` |
 

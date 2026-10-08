@@ -479,16 +479,17 @@ function runtimeGraph(entry: string): Map<string, string[]> {
 }
 
 test('tool.ts and toolContract.ts load nothing from @google/* at runtime', () => {
+  // tool.ts loads one module, the credential leaf (lib/tools/auth.ts, ADR 0072), which loads nothing.
   const leaf = runtimeGraph('lib/tools/tool.ts');
-  assert.deepEqual([...leaf.keys()].map((f) => path.relative(ROOT, f)), ['lib/tools/tool.ts'], 'tool.ts loads no other module');
-  assert.deepEqual([...leaf.values()].flat(), []);
+  assert.deepEqual([...leaf.keys()].map((f) => path.relative(ROOT, f)).sort(), ['lib/tools/auth.ts', 'lib/tools/tool.ts'], 'tool.ts loads only the auth leaf');
+  assert.deepEqual([...leaf.values()].flat(), ['./auth.ts']);
 
   const contract = runtimeGraph('lib/tools/toolContract.ts');
   const packages = [...new Set([...contract.values()].flat().filter((s) => !s.startsWith('.')))];
   assert.deepEqual(packages, ['zod']);
   assert.deepEqual(
     [...contract.keys()].map((f) => path.relative(ROOT, f)).sort(),
-    ['lib/models/schemaNormalize.ts', 'lib/tools/tool.ts', 'lib/tools/toolContract.ts'],
+    ['lib/models/schemaNormalize.ts', 'lib/tools/auth.ts', 'lib/tools/tool.ts', 'lib/tools/toolContract.ts'],
   );
 });
 

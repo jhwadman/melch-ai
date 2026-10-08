@@ -1179,74 +1179,90 @@
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "to": "module:lib/compile.ts",
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "table:melchizedek_tool_credentials",
       "rel": "constrains",
-      "evidence": "ADR 0073 Decision 1: \"compileSpec and compileSubagentSpec produce an AgentSpec\" with the tools resolved and gated, the model resolved once and the config built.",
+      "evidence": "ADR 0072 Decision 1: one row per app, end user and provider; a CHECK refuses any token column not in the engine envelope; RLS on and no API-role grant.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "to": "module:lib/compileAdk.ts",
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/tools/tool.ts",
       "rel": "constrains",
-      "evidence": "ADR 0073 Decision 1: \"compileAdk adds what only LlmAgent takes\"; compileGraph and compileSubagent are spec + compileAdk.",
+      "evidence": "ADR 0072 Decision 5: ToolContext.accessToken(provider) is bound to the run's own app and user; a tool chooses the provider, never whose token.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "to": "module:lib/compileNative.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0073 Decision 3: delegation, context: and mode: task are \"refused by compileNative\" with UnsupportedOnRuntimeError.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "to": "module:lib/runtime/syndicateTurn.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0073 Decision 2: \"runSyndicateTurn takes an optional runtime (adk or native). Without it, MELCHIZEDEK_RUNTIME decides, and without that, adk.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "to": "module:lib/runtime/native/tempState.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0073 Decision 7: \"A run's temp: state lives beside the session ... The session object itself never holds them.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-08"
-    },
-    {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "depends_on",
-      "evidence": "ADR 0073 Context: \"ADR 0045 carries the move off ADK on a flag, MELCHIZEDEK_RUNTIME (adk or native), with adk the default until a later release.\"",
+      "evidence": "ADR 0072 Decision 5 binds accessToken \"as searchMemory chooses the query and never the silo (ADR 0059)\", and pins the app as namespacedMemoryService does.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0072 Decision 6: migration 0013 extends melchizedek_erase_scope so one erase removes the tokens, per ADR 0020 item 7.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/storage/postgres/credentialStore.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0072 Decision 4: a backend keeps ciphertext rows only, and a refresh writes only over the version it read.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0074 Decision 1: \"A subagent tool's call runs the subagent on runAgentLoop in the session { appName: <subagent>, userId, sessionId } of the caller's store.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0074 Decision 5: \"runCall asks subagentOf(tool) before the generic path\"; Consequences: the loop stores no response when the turn stopped while a step's calls ran.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "depends_on",
-      "evidence": "ADR 0073 Context: \"The native loop runs one agent as ADK runs it and stores the events ADK stores (ADR 0066, ADR 0071).\"",
+      "evidence": "ADR 0074 Context: \"The native loop (ADR 0071) ran a single agent\"; Decision 2 keeps ADR 0071 Decision 2 for other calls.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
     {
-      "from": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "/decisions/0028-approval-gates.md",
       "rel": "depends_on",
-      "evidence": "ADR 0073 Decision 5: only the agent run is swapped behind runSyndicateTurn, the seam of ADR 0024; routing, guards and pause checks are shared.",
+      "evidence": "ADR 0074 Decision 3: \"A pause inside a subagent stays swallowed (ADR 0028).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0074 Context: \"A session either runtime wrote must be one the other continues (ADR 0045).\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
     {
       "from": "/overview/native-loop.md",
-      "to": "module:lib/runtime/nativeTurn.ts",
+      "to": "module:lib/runtime/native/delegate.ts",
       "rel": "explains",
-      "evidence": "native-loop.md, The runtime flag: \"runNativeAgent (lib/runtime/nativeTurn.ts) does what ADK's Runner does before the agent runs\".",
+      "evidence": "wiki/overview/native-loop.md \"Delegation\": subagentTool, the subagent's own session, the request as a message, the child loop, state out, the answer.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     }

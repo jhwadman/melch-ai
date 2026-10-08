@@ -3,39 +3,47 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
-## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/nativeTurn.ts
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/delegate.ts
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0024-adk-behind-the-runtime-seam.md
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —depends_on→ /decisions/0028-approval-gates.md
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/runtime/native/tempState.ts
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —constrains→ module:lib/runtime/native/agentLoop.ts
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/runtime/syndicateTurn.ts
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —constrains→ module:lib/runtime/native/delegate.ts
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/compileNative.ts
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ module:lib/storage/postgres/credentialStore.ts
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/compileAdk.ts
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —depends_on→ /decisions/0020-memory-contract.md
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-08] relate | /decisions/0073-one-agent-spec-and-a-runtime-flag.md —constrains→ module:lib/compile.ts
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —depends_on→ /decisions/0059-memory-on-the-engines-own-interfaces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ module:lib/tools/tool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ table:melchizedek_tool_credentials
 
 by claude-code/claude-opus-5-5
 

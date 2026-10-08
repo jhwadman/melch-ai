@@ -25,6 +25,32 @@ the starter pack and the templates), not the repo's full history.
   - `melchizedek-agents/wiki/agentRun`: `runWikiAgent` follows the same
     flag, and takes `runtime` and (native only) `adapterFor`.
   - `.env.example` lists `MELCHIZEDEK_RUNTIME` and `GEMINI_ADAPTER`.
+- **Third-party tokens for tools, sealed per end user (ADR 0072).** Apply
+  migration `0013_tool_credentials.sql` (`npx melchizedek-db apply`, or
+  `print` into the SQL editor) before using it. New, all under the existing
+  `exports` map:
+  - `melchizedek-agents/tools/auth`: the `CredentialStore` interface (`put`,
+    `get` with refresh, `revoke`, `eraseUser`), `OAuthProvider` (`refresh`,
+    `revoke` hooks), `ToolCredentialError`, `toolAccessToken` and
+    `pinnedCredentialStore`.
+  - `melchizedek-agents/tools/credentialStore`: `credentialStore({ rows,
+    cipher, providers, audit })` and `memoryCredentialRows()`.
+  - `melchizedek-agents/tools/credentialCipher`: the `CredentialCipher` plug
+    point, `aesGcmCipher` (AES-256-GCM) and `credentialCipherFromEnv`, which
+    reads the new `MELCHIZEDEK_CREDENTIAL_KEY` (32 bytes, base64 or hex).
+  - `storage/postgres`: `postgresStorage({ credentials: { cipher, providers }
+    })` adds `storage.credentials`; `postgresCredentialRows` and
+    `postgresCredentialStore` are exported.
+  - `tools/tool`: `ToolContext.accessToken(provider)`, a valid token for the
+    run's own app and user, present when `createToolContext` is given
+    `credentials`. No built-in tool uses it yet.
+  - `EraseCounts` gains `credentials`: `melchizedek_erase_scope` and
+    `DELETE /memory` remove the user's tokens too. A custom `storage.erase`
+    that builds its own counts adds the field.
+  - The audit trail gains `credential.put`, `credential.refresh`,
+    `credential.revoke` and `credential.erase` (`AuditEventName`), with the
+    provider and app and never a token.
+
 - **New entry `melchizedek-agents/model`: the model layer without ADK
   (ADR 0068).** A new path in the `exports` map, so the version is 0.19.0.
   It exports the model contract's types, `ClaudeAdapter`, `GptAdapter`,

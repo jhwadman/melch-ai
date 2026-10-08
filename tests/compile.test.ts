@@ -27,6 +27,7 @@ import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ClaudeAdapter } from '../lib/models/claudeAdapter.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
 import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
+import { subagentOf } from '../lib/runtime/native/delegate.ts';
 import { runNativeAgent } from '../lib/runtime/nativeTurn.ts';
 import { UnsupportedOnRuntimeError, chooseRuntime, runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
@@ -333,18 +334,26 @@ test('the runtime flag: the turn option wins, then MELCHIZEDEK_RUNTIME, then adk
   assert.throws(() => chooseRuntime('loop', {}), /must be "adk" or "native"/);
 });
 
-test('a feature native does not run yet fails at compile time, naming the feature and the runtime', async () => {
-  const delegation = await compileSpec(loadSyndicate('delegation.yaml'));
-  assert.ok(delegation.tools.some((t) => t.kind === 'agent'), 'the spec carries the delegations');
-  assert.ok(compileAdk(delegation) instanceof LlmAgent, 'ADK builds it');
-  assert.throws(
-    () => compileNative(delegation),
-    (e: unknown) => e instanceof UnsupportedOnRuntimeError && /delegation \(subagent '/.test(e.message) && /native runtime/.test(e.message) && e.runtime === 'native',
-  );
+test('a delegation compiles both ways: an AgentTool on ADK, a subagentTool holding the subagent’s NativeAgent on native', async () => {
+  const config = loadSyndicate('delegation.yaml');
+  const spec = await compileSpec(config);
+  const delegated = spec.tools.filter((t) => t.kind === 'agent');
+  assert.deepStrictEqual(delegated.map((t) => (t.kind === 'agent' ? t.agent.name : '')), config.subagents.map((s) => s.name));
+  const adk = compileAdk(spec);
+  assert.deepStrictEqual((adk.tools ?? []).filter((t) => t instanceof AgentTool).map((t: any) => t.name), config.subagents.map((s) => s.name));
+  const native = compileNative(spec);
+  const subagents = (native.tools ?? []).map((t) => subagentOf(t)).filter((a) => a !== undefined);
+  assert.deepStrictEqual(subagents.map((a) => a!.name), config.subagents.map((s) => s.name));
+  assert.strictEqual(subagents[0]!.model, config.subagents[0]!.model, 'each subagent is its own compiled NativeAgent');
+});
 
+test('a feature native does not run yet fails at compile time, naming the feature and the runtime', async () => {
   const base = { name: 'Solo', description: 'd', model: 'gemini-3.5-flash-lite', instruction: 'x' };
   const compaction = await compileSubagentSpec({ ...base, context: { compact_after_tokens: 1000 } } as any);
-  assert.throws(() => compileNative(compaction), /Solo: context compaction \(context:, WS2-9\) is not supported on the native runtime yet/);
+  assert.throws(
+    () => compileNative(compaction),
+    (e: unknown) => e instanceof UnsupportedOnRuntimeError && e.runtime === 'native' && /Solo: context compaction \(context:, WS2-9\) is not supported on the native runtime yet/.test(e.message),
+  );
   const task = await compileSubagentSpec({ ...base, mode: 'task' } as any);
   assert.throws(() => compileNative(task), /task mode \(mode: task, WS3-5\) is not supported on the native runtime yet/);
   // The same spec builds for ADK.

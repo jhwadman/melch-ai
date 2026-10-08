@@ -29,14 +29,14 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
 | `module` | `module:<name>` | 167 | one source module |
-| `doc` | `/dir/doc.md` | 132 | a concept document in the bundle — identity is its bundle path |
-| `file` | `file:<name>` | 125 | a repo file that is not a source module (DDL, config, prose) |
+| `doc` | `/dir/doc.md` | 133 | a concept document in the bundle — identity is its bundle path |
+| `file` | `file:<name>` | 126 | a repo file that is not a source module (DDL, config, prose) |
 | `env` | `env:<name>` | 105 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 89 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 47 | an npm script entrypoint |
 | `tool` | `tool:<name>` | 34 | a tool an agent may declare by name |
 | `syndicate` | `syndicate:<name>` | 32 | one agent-team definition (a YAML) |
-| `table` | `table:<name>` | 17 | a database table |
+| `table` | `table:<name>` | 18 | a database table |
 | `model` | `model:<name>` | 8 | a model id exactly as written in configuration |
 | `provider` | `provider:<name>` | 6 | a provider adapter the model registry routes to |
 | `mcp-server` | `mcp-server:<name>` | 4 | a remote MCP endpoint an agent dials at runtime |
@@ -50,13 +50,13 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `imports` | extracted | A imports B | 622 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 536 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 487 | a resolved markdown link between documents |
-| `requires_env` | extracted | A requires B | 168 | this environment variable must be set for the node to work |
+| `imports` | extracted | A imports B | 605 | a static import edge between source files |
+| `derives_from` | extracted | A derives from B | 542 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 493 | a resolved markdown link between documents |
+| `requires_env` | extracted | A requires B | 167 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |
-| `defined_in` | extracted | A is defined in B | 76 | where the thing is declared in source |
+| `defined_in` | extracted | A is defined in B | 77 | where the thing is declared in source |
 | `runs` | extracted | A runs B | 67 | an entrypoint — a script, a process, a worker — executes this |
 | `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
 | `documents` | extracted | A documents B | 56 | the document derives from, and describes, this entity |
@@ -66,7 +66,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
 | `constrains` | inferred | A constrains B | 105 | a decision or doctrine limits what the target may do |
-| `depends_on` | inferred | A depends on B | 35 | the first cannot do its job unless the second holds |
+| `depends_on` | inferred | A depends on B | 37 | the first cannot do its job unless the second holds |
 | `explains` | inferred | A explains B | 7 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 6 | replaces an earlier decision or document |
 | `alternative_to` | inferred | A is an alternative to B | 1 | two ways of reaching the same capability |

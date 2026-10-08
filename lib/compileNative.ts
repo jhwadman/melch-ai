@@ -13,21 +13,26 @@
  * TOOLS: each resolved tool is handed to the loop as the own Tool or
  * InstructionTool behind it (lib/tools/tool.ts), else as itself: an MCP
  * tool, the skills toolset, a gated registry FunctionTool, which the loop
- * runs by shape during the dual period (ADR 0071).
+ * runs by shape during the dual period (ADR 0071). A delegated subagent
+ * becomes a subagentTool holding its own NativeAgent, which the loop runs as
+ * a child loop (lib/runtime/native/delegate.ts, ADR 0074), a nested
+ * syndicate as its orchestrator's agent; a remote A2A subagent is the own
+ * Tool the ADK runtime's FunctionTool wraps (lib/a2a/remoteAgent.ts).
  *
  * WHAT THE NATIVE RUNTIME DOES NOT RUN YET fails here, at compile time,
- * with a message naming the feature and the runtime: delegation to a
- * subagent, local or remote (WS2-6), `context:` compaction (WS2-9) and
- * `mode: task` (WS3-5). Workflows, self-correction retries, resuming an
- * approval or a question, and a caller's agent transform are refused by
- * the turn runner (lib/runtime/nativeTurn.ts), which owns those choices.
+ * with a message naming the feature and the runtime: `context:` compaction
+ * (WS2-9) and `mode: task` (WS3-5). Workflows, resuming an approval or a
+ * question, and a caller's agent transform are refused by the turn runner
+ * (lib/runtime/nativeTurn.ts), which owns those choices.
  */
 
+import { remoteAgentOwnTool } from './a2a/remoteAgent.ts';
 import { compileSpec, compileSubagentSpec } from './compile.ts';
 import type { AgentSpec, CompileOptions } from './compile.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import type { ModelAdapter } from './models/contract.ts';
 import { providerForModel, resolveAdapter } from './models/registry.ts';
+import { subagentTool } from './runtime/native/delegate.ts';
 import type { NativeAgent } from './runtime/native/request.ts';
 import { unsupportedOnNative } from './runtime/runtimeFlag.ts';
 export { UnsupportedOnRuntimeError, unsupportedOnNative } from './runtime/runtimeFlag.ts';
@@ -45,9 +50,9 @@ function nativeTool(tool: unknown): unknown {
 export function compileNative(spec: AgentSpec): NativeAgent {
   const tools: unknown[] = [];
   for (const entry of spec.tools) {
-    if (entry.kind === 'agent') throw unsupportedOnNative(`delegation (subagent '${entry.agent.name}', WS2-6)`, spec.name);
-    if (entry.kind === 'remote') throw unsupportedOnNative(`delegation to a remote A2A agent ('${entry.name}', WS2-6)`, spec.name);
-    tools.push(nativeTool(entry.tool));
+    if (entry.kind === 'agent') tools.push(subagentTool(compileNative(entry.agent)));
+    else if (entry.kind === 'remote') tools.push(remoteAgentOwnTool({ name: entry.name, description: entry.description, url: entry.url }));
+    else tools.push(nativeTool(entry.tool));
   }
   if (spec.context) throw unsupportedOnNative('context compaction (context:, WS2-9)', spec.name);
   if (spec.mode === 'task') throw unsupportedOnNative('task mode (mode: task, WS3-5)', spec.name);

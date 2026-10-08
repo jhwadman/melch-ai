@@ -272,9 +272,22 @@ test('parity: a temp: key a tool writes reaches the next step’s instruction, a
   }
 });
 
+test('parity: a DELEGATE syndicate delegates to its subagent and relays the answer on native', async () => {
+  const config = syndicate(
+    { instruction: 'Delegate to Scout.' },
+    { subagents: [{ name: 'Scout', model: 'scripted/scout', instruction: 'Find.', description: 'Finds things' }] },
+  );
+  const { native } = await assertParity(config, {
+    boss: (req, n) => (n === 1 ? toolCall('Scout', { request: 'find the thing' }, 'call-scout') : answer(`relayed: ${lastToolResult(req)?.result}`)),
+    scout: () => answer('the thing is here'),
+  });
+  assert.equal(native.results[0]?.text, 'relayed: the thing is here');
+  assert.deepEqual(native.results[0]?.answer?.delegations, ['Scout']);
+});
+
 // ── What native refuses, before any model call ───────────────────────────────
 
-test('native refuses delegation, a workflow, retries and a transform at compile time, naming the feature', async () => {
+test('native refuses a workflow, retries, compaction and a transform at compile time, naming the feature', async () => {
   const boss = new ScriptedModel('scripted/boss', () => answer('never'));
   const scout = new ScriptedModel('scripted/scout', () => answer('never'));
   const run = (config: SyndicateYamlConfig, extra: Record<string, unknown> = {}) =>
@@ -292,8 +305,6 @@ test('native refuses delegation, a workflow, retries and a transform at compile 
     });
   const refused = (pattern: RegExp) => (e: unknown) => e instanceof UnsupportedOnRuntimeError && pattern.test(e.message) && /native runtime/.test(e.message);
 
-  const delegate = syndicate({}, { subagents: [{ name: 'Scout', model: 'scripted/scout', instruction: 'Find.', description: 'Finds' }] });
-  await assert.rejects(run(delegate), refused(/delegation \(subagent 'Scout'/));
   await assert.rejects(run(syndicate({}, { retries: { tool_errors: 2 } })), refused(/self-correction retries/));
   await assert.rejects(run(syndicate({}), { transformAgent: (a: unknown) => a }), refused(/transformAgent/));
   await assert.rejects(run(syndicate({ context: { compact_after_tokens: 1000 } })), refused(/context compaction/));

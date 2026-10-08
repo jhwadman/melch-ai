@@ -379,7 +379,7 @@ test('tasks: durable, owner-scoped, listed newest first with working page tokens
 
 test('erase: one namespace, everywhere, and nested — exactly the scope, sub-agent rows included', { skip }, async () => {
   const seed = async () => {
-    await pool.query('TRUNCATE adk_sessions, adk_session_events, adk_memory_facts, adk_turns, adk_telemetry, adk_payloads, adk_a2a_tasks, melchizedek_memory_ingest, melchizedek_tasks, melchizedek_task_owners');
+    await pool.query('TRUNCATE adk_sessions, adk_session_events, adk_memory_facts, adk_turns, adk_telemetry, adk_payloads, adk_a2a_tasks, melchizedek_memory_ingest, melchizedek_tasks, melchizedek_task_owners, melchizedek_tool_credentials');
     await pool.query(`
       INSERT INTO adk_memory_facts (user_key, fact) VALUES
         ('ns1/u1','a'),('ns1/u1','b'),('ns1/u2','c'),('ns2/u1','d'),('ns1/u1/end','e'),('melchizedek-a2a/u1','f'),('ns1/u1_x','g');
@@ -395,6 +395,9 @@ test('erase: one namespace, everywhere, and nested — exactly the scope, sub-ag
       INSERT INTO melchizedek_memory_ingest (user_key, session_id, events_ingested) VALUES ('ns1/u1','c1',2),('ns2/u1','c9',1),('ns1/u2','c1',1),('ns1/u1/end','c3',1);
       INSERT INTO melchizedek_task_owners (owner) VALUES ('u1'),('u2');
       INSERT INTO melchizedek_tasks (owner, id, seq, kind, status, record) VALUES ('u1','t1',1,'todo','open','{}'),('u2','t1',1,'todo','open','{}');
+      INSERT INTO melchizedek_tool_credentials (app_name, user_id, provider, access_token_enc, key_id) VALUES
+        ('ns1','u1','github','mzc1.k.a.b.c','k'),('ns2','u1','github','mzc1.k.a.b.c','k'),
+        ('ns1','u1/end','github','mzc1.k.a.b.c','k'),('ns1','u2','github','mzc1.k.a.b.c','k'),('ns1','u1_x','github','mzc1.k.a.b.c','k');
     `);
   };
   const ids = async (sql: string) => (await pool.query(sql)).rows.map((r) => Object.values(r)[0]).sort();
@@ -403,7 +406,7 @@ test('erase: one namespace, everywhere, and nested — exactly the scope, sub-ag
   const a = await storage.erase('u1', { namespace: 'ns1' });
   assert.deepEqual(
     { ...a },
-    { memory_facts: 2, sessions: 3, turns: 2, spans: 1, payloads: 1, verdicts: 0, labels: 0, tasks: 1, memory_markers: 1, task_tools: 0 },
+    { memory_facts: 2, sessions: 3, turns: 2, spans: 1, payloads: 1, verdicts: 0, labels: 0, tasks: 1, memory_markers: 1, task_tools: 0, credentials: 1 },
   );
   assert.deepEqual(await ids('SELECT user_key||\':\'||fact AS k FROM adk_memory_facts'), [
     'melchizedek-a2a/u1:f', 'ns1/u1/end:e', 'ns1/u1_x:g', 'ns1/u2:c', 'ns2/u1:d',
@@ -416,6 +419,7 @@ test('erase: one namespace, everywhere, and nested — exactly the scope, sub-ag
   assert.equal(b.tasks, 2);
   assert.equal(b.memory_markers, 2, 'every namespace');
   assert.equal(b.task_tools, 1, 'the scope\'s own list, not u2\'s');
+  assert.equal(b.credentials, 2, 'every app\'s tokens of u1, not u1_x\'s');
   assert.deepEqual(await ids('SELECT owner FROM melchizedek_task_owners'), ['u2']);
   assert.deepEqual(await ids('SELECT id FROM adk_sessions'), ['ns1:u1/end:c3', 'ns1:u2:c1']);
 
@@ -423,6 +427,8 @@ test('erase: one namespace, everywhere, and nested — exactly the scope, sub-ag
   const c = await storage.erase('u1', { namespace: 'ns1', includeNested: true });
   assert.equal(c.memory_facts, 3);
   assert.equal(c.memory_markers, 2, 'ns1/u1 and the nested ns1/u1/end');
+  assert.equal(c.credentials, 2, 'ns1 for u1 and the nested u1/end');
+  assert.deepEqual(await ids("SELECT app_name||':'||user_id AS k FROM melchizedek_tool_credentials"), ['ns1:u1_x', 'ns1:u2', 'ns2:u1']);
   assert.deepEqual(await ids('SELECT id FROM adk_sessions'), ['ns1:u2:c1', 'ns2:u1:c9']);
 
   await assert.rejects(storage.erase('  '), /scope key is required/);
@@ -463,6 +469,80 @@ test('audit: the storage appends events, and the table refuses UPDATE and DELETE
   await assert.rejects(pool.query("UPDATE melchizedek_audit SET outcome = 'ok'"), /append-only/);
   await assert.rejects(pool.query('DELETE FROM melchizedek_audit'), /append-only/);
   assert.equal(Number((await pool.query('SELECT melchizedek_prune_audit(1) AS n')).rows[0].n), 0, 'nothing older than a day');
+});
+
+test('tool credentials (migration 0013): stored sealed, read back, refreshed on expiry, revoked, erased with the user', { skip }, async () => {
+  const { aesGcmCipher } = await import('../lib/tools/credentialCipher.ts');
+  const { randomBytes } = await import('node:crypto');
+  const key = randomBytes(32);
+  let refreshes = 0;
+  const providers = {
+    github: {
+      refresh: async (rt: string) => {
+        refreshes++;
+        assert.equal(rt, 'fake-refresh-token-PG-0001');
+        await new Promise((r) => setTimeout(r, 20));
+        return { accessToken: 'fake-access-token-PG-0002', expiresAt: new Date(Date.now() + 3_600_000) };
+      },
+    },
+  };
+  const withCreds = postgresStorage({ pool, credentials: { cipher: aesGcmCipher(key), providers } });
+  const other = postgresStorage({ pool, credentials: { cipher: aesGcmCipher(key), providers } });
+  const wrong = postgresStorage({ pool, credentials: { cipher: aesGcmCipher(randomBytes(32)), providers } });
+  try {
+    await pool.query('TRUNCATE melchizedek_tool_credentials');
+    const store = withCreds.credentials!;
+    const k = { appName: 'cred.ns', userId: 'cu1', provider: 'github' };
+    await store.put(k, { accessToken: 'fake-access-token-PG-0001', refreshToken: 'fake-refresh-token-PG-0001', scopes: ['repo', 'read:user'], expiresAt: new Date(Date.now() + 3_600_000) });
+    assert.equal((await store.get(k))?.accessToken, 'fake-access-token-PG-0001');
+    const raw = (await pool.query('SELECT * FROM melchizedek_tool_credentials')).rows;
+    assert.equal(raw.length, 1);
+    assert.ok(!JSON.stringify(raw).includes('fake-'), 'only ciphertext in the table');
+    assert.deepEqual(raw[0].scopes, ['repo', 'read:user']);
+
+    // Expired: two instances read at once, one refresh call each at most, and both get the new token.
+    await pool.query("UPDATE melchizedek_tool_credentials SET expires_at = now() - interval '1 minute'");
+    const [a, b] = await Promise.all([store.get(k), other.credentials!.get(k)]);
+    assert.equal(a?.accessToken, 'fake-access-token-PG-0002');
+    assert.equal(b?.accessToken, 'fake-access-token-PG-0002');
+    assert.ok(refreshes >= 1 && refreshes <= 2);
+    const after = (await pool.query('SELECT version, refreshed_at, refresh_token_enc FROM melchizedek_tool_credentials')).rows[0];
+    assert.equal(after.version, 2, 'one refresh landed; the other read it back');
+    assert.ok(after.refreshed_at);
+    assert.equal((await store.get(k))?.accessToken, 'fake-access-token-PG-0002');
+
+    // A wrong key fails closed.
+    await assert.rejects(wrong.credentials!.get(k), /cannot be read/);
+
+    // The table refuses a plaintext token.
+    await assert.rejects(
+      pool.query("INSERT INTO melchizedek_tool_credentials (app_name, user_id, provider, access_token_enc, key_id) VALUES ('x','y','z','fake-plaintext','k')"),
+      /check constraint/,
+    );
+
+    // Revoke, then the user's erase (one call, every store) removes the rest.
+    assert.equal(await store.revoke(k), true);
+    assert.equal(await store.get(k), undefined);
+    await store.put(k, { accessToken: 'fake-access-token-PG-0001' });
+    await store.put({ ...k, provider: 'slack' }, { accessToken: 'fake-access-token-PG-0001' });
+    await store.put({ ...k, userId: 'cu2' }, { accessToken: 'fake-access-token-PG-0001' });
+    assert.equal(await store.eraseUser('cu1', { appName: 'cred.ns' }), 2);
+    await store.put(k, { accessToken: 'fake-access-token-PG-0001' });
+    const counts = await withCreds.erase('cu1');
+    assert.equal(counts.credentials, 1);
+    assert.deepEqual((await pool.query('SELECT user_id FROM melchizedek_tool_credentials')).rows.map((r) => r.user_id), ['cu2']);
+
+    // Audit rows were written for every step, and hold no token.
+    await new Promise((r) => setTimeout(r, 200));
+    const audit = (await pool.query("SELECT event, outcome, scope_hash, detail FROM melchizedek_audit WHERE event LIKE 'credential.%' ORDER BY id")).rows;
+    const events = audit.map((r) => r.event);
+    for (const e of ['credential.put', 'credential.refresh', 'credential.revoke', 'credential.erase']) assert.ok(events.includes(e), e);
+    assert.ok(!JSON.stringify(audit).includes('fake-') && !JSON.stringify(audit).includes('cu1'), 'no token and no user id in the audit trail');
+  } finally {
+    await withCreds.close();
+    await other.close();
+    await wrong.close();
+  }
 });
 
 test('the usage store adds atomically under concurrency and reads back per day and subject', { skip }, async () => {
