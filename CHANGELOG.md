@@ -27,6 +27,12 @@ the starter pack and the templates), not the repo's full history.
     `PLACEHOLDER_SIGNATURES_BY_DEFAULT`, false) sends Gemini's documented
     placeholder `PLACEHOLDER_THOUGHT_SIGNATURE` on an unsigned current-turn
     call.
+- **Fix: Gemini on Vertex AI.** The compiler asks every agent's config for
+  `includeServerSideToolInvocations`, which `@google/genai` refuses on a
+  Vertex AI client before sending anything ("only supported in Gemini
+  Developer API mode"), so every Gemini call with `GEMINI_PLATFORM=vertex`
+  failed. `TracedGemini` now leaves the flag off on Vertex AI and keeps it
+  on the Gemini API.
 - **Web sources for Claude, GPT and Grok.** When one of these models
   searches the web, its events now carry `groundingMetadata`, so a turn's
   grounding and the A2A server's web-sources lines list the pages it used,
