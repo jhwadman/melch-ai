@@ -1,6 +1,6 @@
 {
   "name": "melchizedek-agents",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A multi-model, multi-agent orchestration framework — YAML-defined syndicates on the engine's own agent loop, Supabase or Postgres session persistence, pgvector long-term memory. Companion repo to the lyceumagents.com curriculum.",
   "type": "module",
   "license": "MIT",
@@ -72,7 +72,7 @@
     "skills"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
     "prepack": "npm run build",
     "prepare": "npm run build",
     "prepublishOnly": "npm test",
