@@ -27,6 +27,22 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /overview/workflow-scheduler.md —explains→ module:lib/workflow/scheduler.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md —depends_on→ /decisions/0082-workflow-graph-mirrors-the-adk-compile.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md —constrains→ module:lib/workflow/scheduler.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0086-skill-scripts-get-a-minimal-environment.md —depends_on→ /decisions/0083-skills-harness-on-the-own-tool-base.md
 
 by claude-code/claude-opus-5-5

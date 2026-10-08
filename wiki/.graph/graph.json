@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 820,
-    "edges": 2899,
+    "nodes": 824,
+    "edges": 2920,
     "byKind": {
-      "doc": 148,
+      "doc": 150,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 139,
+      "file": 140,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 187,
+      "module": 188,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 591,
+      "links_to": 599,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 734,
+      "imports": 736,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 685,
-      "constrains": 144,
+      "derives_from": 692,
+      "constrains": 145,
       "supersedes": 7,
-      "depends_on": 66,
-      "explains": 20,
+      "depends_on": 68,
+      "explains": 21,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2659,
-      "inferred": 240
+      "extracted": 2676,
+      "inferred": 244
     },
     "isolated": 4
   },
@@ -949,7 +949,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1453
+        "words": 1527
       }
     },
     {
@@ -1421,6 +1421,18 @@
       }
     },
     {
+      "id": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "kind": "doc",
+      "label": "ADR 0087: The workflow scheduler walks the graph as ADK's Workflow does, matches routes in ADK's spelling, and leaves node execution to an injected runner",
+      "source": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1000
+      }
+    },
+    {
       "id": "/decisions/0088-native-parity-followups.md",
       "kind": "doc",
       "label": "ADR 0088: A Gemini finish reason carried as an error code is the finish reason again, a custom ADK model class is refused on native, and a user-authored ask_user call is no question",
@@ -1705,7 +1717,19 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 834
+        "words": 858
+      }
+    },
+    {
+      "id": "/overview/workflow-scheduler.md",
+      "kind": "doc",
+      "label": "Workflow scheduler",
+      "source": "/overview/workflow-scheduler.md",
+      "attrs": {
+        "type": "subsystem",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 802
       }
     },
     {
@@ -4376,6 +4400,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/workflowScheduler.test.ts",
+      "kind": "file",
+      "label": "workflowScheduler.test.ts",
+      "source": "tests/workflowScheduler.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tsconfig.build.json",
       "kind": "file",
       "label": "tsconfig.build.json",
@@ -5937,7 +5968,16 @@
       "label": "lib/workflow/graph.ts",
       "source": "lib/workflow/graph.ts",
       "attrs": {
-        "lines": 534
+        "lines": 536
+      }
+    },
+    {
+      "id": "module:lib/workflow/scheduler.ts",
+      "kind": "module",
+      "label": "lib/workflow/scheduler.ts",
+      "source": "lib/workflow/scheduler.ts",
+      "attrs": {
+        "lines": 415
       }
     },
     {
@@ -12471,6 +12511,55 @@
       "evidence": "/decisions/0086-skill-scripts-get-a-minimal-environment.md:26"
     },
     {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "file:tests/workflowScheduler.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md frontmatter"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md frontmatter"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md frontmatter"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md frontmatter"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md:24"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md:50"
+    },
+    {
+      "from": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "to": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md:24"
+    },
+    {
       "from": "/decisions/0088-native-parity-followups.md",
       "to": "file:tests/genaiMapping.test.ts",
       "rel": "derives_from",
@@ -15640,6 +15729,62 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-graph.md:22"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:64"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "/overview/workflow-scheduler.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-graph.md:22"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "file:tests/workflowScheduler.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:20"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:20"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/overview/workflow-graph.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:20"
     },
     {
       "from": "/protocols/a2a.md",
@@ -23046,6 +23191,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/graph.ts"
+    },
+    {
+      "from": "module:lib/workflow/scheduler.ts",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/scheduler.ts"
+    },
+    {
+      "from": "module:lib/workflow/scheduler.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/scheduler.ts"
     },
     {
       "from": "module:scripts/a2a_server.ts",
