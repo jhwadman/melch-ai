@@ -1763,6 +1763,54 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0085 Decision 3: \"The state is 256 random bits, single-use (taken before any other check, so a failed attempt spends it), expiring (10 minutes by default), and bound server-side to the app, user, session, provider and paused call\"; the verifier and client secret stay in the consent step.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0085 Decision 4: grantedCalls is \"a port of ADK's auth preprocessor, ahead of the approval resume as ADK orders them: the last event with content must be the user's, the answer must name this agent's request and grant its credentialKey\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0085 Decision 3: the callback \"sits before the bearer check, with its own rate limit\"; the authenticator is consulted \"behind a server secret, only once the bearer matches\"; the redirect URI is \"the configured one in both requests, never one read from the callback\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "to": "module:lib/runtime/credentials.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0085 Decision 4: the answer is \"{ credentialKey, granted: true } (credentialResponsePart), which carries no credential\"; Decision 1: the pause is ADK's own adk_request_credential call, unchanged.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0085 Context: \"ADR 0072 gave the engine a sealed store for each user's third-party tokens ... Nothing put a token there\"; the callback puts the tokens \"to the sealed credential store\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "explains",
+      "evidence": "ADR 0085 Decision 4: the credential resume runs \"ahead of the approval resume as ADK orders them\", the same before-each-step hook ADR 0077 placed in interrupts.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
       "to": "module:lib/runtime/syndicateTurn.ts",
       "rel": "constrains",

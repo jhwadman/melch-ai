@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Native loop
-description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final, a subagent tool running the subagent as its own child loop, and with `context:` compacting the history before a step as ADK does. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, how a subagent runs, what a stopped or paused run records, how an answered approval or question resumes, and what the loop returns. runSyndicateTurn runs a turn on it under MELCHIZEDEK_RUNTIME=native or the turn's runtime option, with agents compileNative builds from the same AgentSpec as ADK's, and refuses what it does not run yet before any model call."
+description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final, a subagent tool running the subagent as its own child loop, and with `context:` compacting the history before a step as ADK does. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, how a subagent runs, what a stopped or paused run records, how a granted OAuth consent, an answered approval or a question resumes, and what the loop returns. runSyndicateTurn runs a turn on it under MELCHIZEDEK_RUNTIME=native or the turn's runtime option, with agents compileNative builds from the same AgentSpec as ADK's, and refuses what it does not run yet before any model call."
 tags:
   - runtime
   - models
@@ -20,6 +20,8 @@ sources:
   - resource: lib/compileNative.ts
   - resource: lib/runtime/native/delegate.ts
   - resource: lib/runtime/native/selfCorrection.ts
+  - resource: lib/runtime/credentials.ts
+  - resource: tests/oauthConsent.test.ts
   - resource: tests/nativeStep.test.ts
   - resource: tests/nativeLoop.test.ts
   - resource: tests/nativeTurn.test.ts
@@ -134,7 +136,7 @@ A caller may also send the request under another model id (`model`): a fallback 
 
 Each step, after any compaction the agent's `context:` calls for (see [Compaction](#compaction)):
 
-0. **An answered approval.** Before the model step, the loop runs the pinned calls the latest user message approves or refuses, and stores their response (see [Approvals](#approvals)).
+0. **A granted consent, then an answered approval.** Before the model step, the loop runs again the paused calls whose credential requests the latest user message answers (see [Consent](#consent)), then the pinned calls it approves or refuses (see [Approvals](#approvals)), and stores their responses.
 1. **The model step.** With `fallback_model`, the step runs once per leaf adapter, by FallbackLlm's rules ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). A retryable failure counts against the primary's circuit. When nothing was produced before it, the failure is not stored, and the fallback answers the same request under its own model id. An open circuit goes straight to the fallback.
 2. **The calls.** The answer's calls run in parallel, each with its own state delta and actions, and their results are kept in call order:
    - a result that is not an object is wrapped `{ result }`, an array `{ results }`;
@@ -142,11 +144,12 @@ Each step, after any compaction the agent's `context:` calls for (see [Compactio
    - a tool that throws answers `Error in tool '<name>': <message>`;
    - with tool retries on, those two answer with reflection guidance instead (see [Self-correction](#self-correction));
    - a tool that requires approval asks for it: `requestedToolConfirmations` under the call's id, `skipSummarization`, and the pending notice as its answer;
-   - a long-running call (`ask_user`) with no result answers nothing; its actions, when it set any, make an event with no content.
+   - a long-running call (`ask_user`) with no result answers nothing; its actions, when it set any, make an event with no content;
+   - a call that asked for an OAuth grant answers `CONSENT_TEXTS.pending`, whatever it returned or threw, and self-correction does not count it.
 
    A subagent tool runs the subagent as its own child loop (see [Delegation](#delegation)). An own Tool runs through `execute`. An ADK tool an agent still lists that carries no own Tool runs through its `runAsync`, with a context shaped like ADK's. One call's response is its own event; several are merged into one, parts in call order, actions merged. Each call reads the state as the step left it, not the writes of another call in the same step.
    When the turn stopped while the calls ran, nothing is stored for them and the run ends `stopped`, as ADK drops the response.
-3. **An approval request ends the run.** In place of the response, the loop stores ADK's `adk_request_confirmation` call: the original call and the confirmation as its arguments, an `adk-` id listed in `longRunningToolIds`, and the response's actions. The response itself is not stored, so a parallel call beside the gated one has no response.
+3. **A credential request or an approval request ends the run.** A call that asked for a grant (`requestedAuthConfigs`) gets ADK's `adk_request_credential` call stored before the response, as ADK's `generateAuthEvent` writes it, and the run ends `paused` on it after the response is stored. For an approval, in place of the response, the loop stores ADK's `adk_request_confirmation` call: the original call and the confirmation as its arguments, an `adk-` id listed in `longRunningToolIds`, and the response's actions. The response itself is not stored, so a parallel call beside the gated one has no response.
 4. **`outputKey`.** Each final event of the agent carries its text in `stateDelta` under the agent's `outputKey`, written before it is stored. With an output schema, the text is parsed and validated (`z.fromJSONSchema`), kept as text when it does not parse, and saved as parsed when it does not validate.
 5. **Go on or stop.** The loop steps again unless the step's last event is final (ADK's `isFinalResponse`, unless it is an empty metadata event after tool calls), the turn stopped the step, or the step stored nothing. ADK's own ceiling of 500 model calls applies when no turn control is lower.
 
@@ -155,7 +158,7 @@ The generator returns an `AgentLoopEnd`:
 | `reason` | when | also |
 |---|---|---|
 | `final` | the last event is a final answer: text, a `set_model_response` answer, a response that skips summarization; or, in a task node's run, `finish_task`'s successful answer | `lastEvent`; `output`, a task node's output |
-| `paused` | a call waits on a person: an `ask_user` call with no response, or an approval request | `pending`, the waiting call ids |
+| `paused` | a call waits on a person: an `ask_user` call with no response, an approval request, or a credential request | `pending`, the waiting call ids |
 | `error` | the last event carries a failed call's error, among them a model that thinks but never answers ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)) | `lastEvent` |
 | `stopped` | the turn stopped a step (cancel, deadline, `max_steps`); nothing was stored for it | `stop`, the turn's code and message |
 | `empty` | the model answered nothing | |
@@ -241,6 +244,18 @@ A tool listed in an agent's `require_approval` does not run when called ([ADR 00
 
 An approval opened on either runtime resumes on the other. A plain-text "yes" is not an answer (ADK's `plainTextToolConfirmation`, which no surface turns on).
 
+## Consent
+
+With `credentials` (the run's credential store, pinned to its app) each call's `accessToken(provider)` reads the user's grant ([ADR 0072](/decisions/0072-tool-credentials-sealed-per-user.md)). With `consent` as well, a call whose provider the user has not granted asks for it, and the run pauses on ADK's `adk_request_credential` call (step 3 above) ([ADR 0085](/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md), [tool contracts](/tools/tool-contracts.md#the-consent-step)). The request's `auth_config` carries the authorization URL and the state nonce, never the client secret or the PKCE verifier, which stay in the consent step.
+
+Once the server's callback has stored the grant, `runSyndicateTurn` stores the person's next message as the request's answer, `{ credentialKey, granted: true }` (`credentialResponsePart`, `lib/runtime/credentials.ts`). `grantedCalls` in `lib/runtime/native/interrupts.ts` reads it before every step, ahead of the approval resume, as ADK's auth preprocessor runs ahead of request-confirmation:
+
+1. **The answers** are the `adk_request_credential` responses in the last event with content, which must be the user's.
+2. **The requests** are this agent's `adk_request_credential` calls with those ids. An answer naming none, or not granting the request's `credentialKey`, is ignored, as ADK ignores an answer that does not bind.
+3. **The run.** The calls the requests name (`function_call_id`) run again, from the latest event that made them, through the loop's own call path, and their response is stored before the step builds its request. The history keeps the call and its latest answer side by side, as ADK's content processor does, so the model reads the result and not the pending notice. A later step finds the agent's own events last, so the call runs once. A call that asks again pauses the run on its new request.
+
+ADK's preprocessor differs in one place: its answer carries the authorization response, which it exchanges in-process with the client secret its request event stored. Here the callback route exchanged the code before the message arrived, so the answer carries no credential. On the ADK runtime an open credential request is refused before any model call (`UnsupportedOnRuntimeError`). A delegated subagent's loop gets the parent's credentials but no consent step.
+
 ## Questions
 
 An `ask_user` call ([ADR 0031](/decisions/0031-ask-user.md)) is a long-running call: the tool returns nothing, the model event lists the call in `longRunningToolIds`, and the run ends `paused` with the call's id in `pending` and no response stored. While it is open, `runSyndicateTurn` stores the person's next plain-text message as the call's function response, `{ result: <text> }` (`questionAnswerPart`, `lib/runtime/questions.ts`), and runs the agent that asked: the orchestrator, or in plan-dispatch the route, its interrupted turn replayed raw.
@@ -261,7 +276,7 @@ A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`
 
 Calls to subagents in one step run one after another, in call order, as ADK runs them. A pause inside a subagent (an `ask_user` call, an approval request) cannot reach the caller ([ADR 0028](/decisions/0028-approval-gates.md)): the child run ends paused, the call answers `''`, and the gated tool never runs. The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run from either runtime.
 
-Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), and an auth request a tool raises.
+Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), and a pause inside a subagent reaching the caller (WS6-2a).
 
 A `temp:` key a tool writes is visible to the rest of the run, as ADK's live session state makes it: the next step's instruction placeholders, its toolsets, and the next step's calls read it. The loop reads each event's `temp:` keys just before the store drops them, and lays them over the session's state when it builds a request or a call's context (`lib/runtime/native/tempState.ts`). They are never written into the session object, since a store that saves the whole session would keep them.
 

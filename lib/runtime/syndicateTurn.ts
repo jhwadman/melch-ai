@@ -47,8 +47,15 @@ import type { ModelAdapter } from '../models/contract.ts';
 import type { NativeAgent } from './native/request.ts';
 import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
 import { SelfCorrection } from './native/selfCorrection.ts';
-import { chooseRuntime } from './runtimeFlag.ts';
+import { UnsupportedOnRuntimeError, chooseRuntime } from './runtimeFlag.ts';
 import type { RuntimeName } from './runtimeFlag.ts';
+import { pinnedCredentialStore } from '../tools/auth.ts';
+import type { ToolCredentials } from '../tools/oauthConsent.ts';
+import { credentialResponsePart, describeConsent, pendingConsent } from './credentials.ts';
+import type { PendingConsent } from './credentials.ts';
+export { CREDENTIAL_REQUEST, credentialResponsePart, describeConsent, pendingConsent } from './credentials.ts';
+export type { PendingConsent } from './credentials.ts';
+export type { ToolCredentials } from '../tools/oauthConsent.ts';
 export { chooseRuntime, runtimeSetting, DEFAULT_RUNTIME, RUNTIMES, UnsupportedOnRuntimeError } from './runtimeFlag.ts';
 export type { RuntimeName } from './runtimeFlag.ts';
 import { ROUTE_STEP_SUFFIX, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
@@ -153,6 +160,15 @@ export interface SyndicateTurnOptions {
   /** Root-span metadata; `false` disables tracing for the turn. */
   trace?: TraceOptions | false;
   events?: TurnEvents;
+  /**
+   * The turn's tool credentials (ADR 0072) and consent step (ADR 0085), on
+   * the native runtime. The store is pinned to `appName`; a tool reads the
+   * grant of `userId` only. With `consent`, a call whose provider the user
+   * has not granted pauses the turn input-required (`result.consent`), and
+   * the next message after the grant resumes it. Omitted: tools have no
+   * `accessToken`, as before.
+   */
+  toolCredentials?: ToolCredentials;
 }
 
 /** What one agent's event stream amounted to. */
@@ -188,8 +204,9 @@ export type TurnStage = 'classify' | 'dispatch' | 'delegate' | 'workflow';
 
 export interface RouteDecision extends RouteResolution {
   /** `approval`: the turn resumed the route that asked for an approval (ADR 0028).
-   *  `answer`: the message answered the route's open `ask_user` question. */
-  decidedBy: 'override' | 'forced' | 'classifier' | 'approval' | 'answer';
+   *  `answer`: the message answered the route's open `ask_user` question.
+   *  `consent`: the turn resumed the route whose call waited for an OAuth grant (ADR 0085). */
+  decidedBy: 'override' | 'forced' | 'classifier' | 'approval' | 'answer' | 'consent';
 }
 
 export interface SyndicateTurnResult {
@@ -203,6 +220,10 @@ export interface SyndicateTurnResult {
   /** The question a workflow's `ask_user` node asked, when status is
    *  input-required. The next message on the conversation is the answer. */
   input?: PendingInput;
+  /** The OAuth grant a paused call waits for, when status is input-required
+   *  (ADR 0085): the person opens `consent.authUri`; their next message after
+   *  the grant is stored resumes the call. */
+  consent?: PendingConsent;
   /** The text the user receives (relay fallback and guards applied). */
   text: string;
   error?: { code: string; message: string };
@@ -574,6 +595,45 @@ async function runTurnInner(
     ev.log?.(`✓ Approval ${decision.approved ? 'granted' : 'refused'}: ${resuming.agent} → ${resuming.tool}`);
   }
 
+  // ── Consent (lib/runtime/credentials.ts, ADR 0085) ────────────────────────
+  // While a call waits for an OAuth grant, the next message resumes it once
+  // the callback has stored the grant; until then it repeats the request and
+  // runs nothing. Only the native loop resumes it: ADK's auth preprocessor
+  // would exchange a code carried in the message, which this engine never
+  // puts there.
+  const credentialStore = opts.toolCredentials ? pinnedCredentialStore(opts.toolCredentials.store, appName) : undefined;
+  const consentPause = (pending: PendingConsent): SyndicateTurnResult => {
+    result.status = 'input-required';
+    result.consent = pending;
+    result.text = `Authorization needed: ${describeConsent(pending)}. Open the authorization link, then send any message to continue.`;
+    ev.log?.(`⏸ Authorization needed: ${pending.agent} → ${pending.provider}`);
+    return finish();
+  };
+  let granting: PendingConsent | undefined;
+  if (!decision && !isWorkflowSyndicate(config)) {
+    const open = pendingConsent(existing?.events ?? []);
+    if (open) {
+      if (!native) {
+        throw new UnsupportedOnRuntimeError('resuming an OAuth consent (adk_request_credential)', 'adk', config.syndicate_name || open.agent || 'syndicate');
+      }
+      if (!credentialStore) {
+        result.status = 'failed';
+        result.error = { code: 'CONSENT_UNAVAILABLE', message: `A call waits for a ${open.provider} authorization, but this turn has no credential store.` };
+        return finish();
+      }
+      let granted = false;
+      try {
+        granted = !!open.provider && !!(await credentialStore.get({ appName, userId, provider: open.provider }));
+      } catch {
+        // Expired or unreadable: not granted. The request stands.
+      }
+      if (!granted) return consentPause(open);
+      granting = open;
+      parts = [credentialResponsePart(open.id, open.provider)];
+      ev.log?.(`✓ Authorization granted: ${open.agent} → ${open.provider}`);
+    }
+  }
+
   // ── Questions (lib/runtime/questions.ts) ───────────────────────────────────
   // While an agent's `ask_user` call is open, a plain-text message is its
   // answer: it becomes that call's response, and the agent that asked
@@ -581,7 +641,7 @@ async function runTurnInner(
   // response from its history, as ADK's content processor does; ADR 0079).
   // A workflow's pauses are ADK's own business.
   let answering: { agent: string; id: string } | undefined;
-  if (!decision && !isWorkflowSyndicate(config)) {
+  if (!decision && !granting && !isWorkflowSyndicate(config)) {
     const question = pendingQuestion(existing?.events ?? []);
     const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
     if (question && plainText) {
@@ -591,7 +651,20 @@ async function runTurnInner(
     }
   }
   /** The agent a dispatch turn must resume, and the call its interrupted turn holds. */
-  const resumeTarget = resuming ? { agent: resuming.agent, id: resuming.id, why: 'resuming an approval' } : answering ? { ...answering, why: 'answering its question' } : undefined;
+  const resumeTarget = resuming
+    ? { agent: resuming.agent, id: resuming.id, why: 'resuming an approval' }
+    : granting
+      ? { agent: granting.agent, id: granting.id, why: 'resuming after an authorization' }
+      : answering
+        ? { ...answering, why: 'answering its question' }
+        : undefined;
+  /** After the answering run: is a call now waiting for a grant? */
+  const awaitingConsent = async (agentName: string): Promise<PendingConsent | undefined> => {
+    if (!opts.toolCredentials?.consent || !native) return undefined;
+    const after = await sessionService.getSession({ appName, userId, sessionId });
+    const pending = pendingConsent(after?.events ?? []);
+    return pending && pending.agent === agentName ? pending : undefined;
+  };
   /** After the answering run: is a gated call now waiting? */
   const awaitingApproval = async (agentName: string): Promise<PendingApproval | undefined> => {
     const after = await sessionService.getSession({ appName, userId, sessionId });
@@ -645,6 +718,9 @@ async function runTurnInner(
         stream: opts.streaming === true,
         memory: nativeMemory(opts.memoryService),
         ...(selfCorrection ? { selfCorrection } : {}),
+        // Tool credentials and the consent step (ADR 0072, ADR 0085); the classifier's lane lists no tools.
+        ...(credentialStore ? { credentials: credentialStore } : {}),
+        ...(opts.toolCredentials?.consent && params.stage !== 'classify' ? { consent: opts.toolCredentials.consent } : {}),
         // The fallback's notice goes where compile's FallbackLlm sends it on ADK.
         ...(compileOpts.log ? { log: compileOpts.log } : {}),
       }) as unknown as AsyncIterable<Event>;
@@ -721,7 +797,7 @@ async function runTurnInner(
         throw new Error(`Call ${resumeTarget.id} was raised by '${resumeTarget.agent}', which is not a route of this syndicate.`);
       }
       resolution = { route: resumeTarget.agent, reason: resumeTarget.why, fellBack: false, fallbackReason: '', viaOverride: false };
-      decidedBy = resuming ? 'approval' : 'answer';
+      decidedBy = resuming ? 'approval' : granting ? 'consent' : 'answer';
     } else if (resolution) {
       ev.log?.(`⇄ Route pinned by override: ${resolution.route}`);
     } else if (opts.forceRoute) {
@@ -794,7 +870,9 @@ async function runTurnInner(
             ? { rawFrom: (events) => interruptedTurnStart(events, resuming!.id) }
             : answering
               ? { rawFrom: (events) => turnStartOfCall(events, answering!.id) }
-              : {},
+              : granting
+                ? { rawFrom: (events) => turnStartOfCall(events, granting!.id) }
+                : {},
         ),
         stage: 'dispatch',
         route: resolution,
@@ -811,6 +889,10 @@ async function runTurnInner(
     if (!routeCfg.a2a_agent_url && agentGates(routeCfg)) {
       const pending = await awaitingApproval(routeCfg.name);
       if (pending) return pause(pending);
+    }
+    if (!routeCfg.a2a_agent_url) {
+      const consent = await awaitingConsent(routeCfg.name);
+      if (consent) return consentPause(consent);
     }
     const askedRoute = asked(answer);
     if (askedRoute) return askedRoute;
@@ -900,6 +982,8 @@ async function runTurnInner(
       const pending = await awaitingApproval(config.orchestrator.name);
       if (pending) return pause(pending);
     }
+    const consent = await awaitingConsent(config.orchestrator.name);
+    if (consent) return consentPause(consent);
     const askedOrchestrator = asked(answer);
     if (askedOrchestrator) return askedOrchestrator;
     result.text = answer.text;

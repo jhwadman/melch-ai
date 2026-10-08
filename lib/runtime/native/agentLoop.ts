@@ -83,9 +83,19 @@
  * declares; a run marked `taskNode` ends on its successful answer
  * (lib/runtime/native/taskMode.ts).
  *
+ * CONSENT (WS6-3b, ADR 0085): with `credentials`, each call's
+ * `accessToken(provider)` reads the user's grant (ADR 0072). With `consent`,
+ * a call whose provider the user has not granted asks for it
+ * (`requestCredential`, or `accessToken` by itself): the call answers
+ * CONSENT_TEXTS.pending, ADK's `adk_request_credential` event is stored
+ * before the response (ADK's generateAuthEvent), and the run ends paused on
+ * it. The flow's secrets stay in the consent step (lib/tools/oauthConsent.ts).
+ * Before each step, a credential request the latest user message answers
+ * runs its paused call again (interrupts.ts grantedCalls, ADK's auth
+ * preprocessor), ahead of the approval resume.
+ *
  * NOT HERE (later tickets): transfer_to_agent (no compiled syndicate sets
- * subAgents), and an auth request a tool raises
- * (no own tool can). The run's spans (agent.invoke, model.call,
+ * subAgents). The run's spans (agent.invoke, model.call,
  * tool.execute) are lib/runtime/native/telemetry.ts.
  *
  * ADK stays out of this file: an ADK tool an agent still lists during the
@@ -101,7 +111,10 @@ import { providerForModel } from '../../models/providerMap.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import { toContractJsonSchema } from '../../models/schemaNormalize.ts';
 import { z } from 'zod';
-import { APPROVAL_TEXTS, isTool } from '../../tools/tool.ts';
+import { ToolCredentialError, toolAccessToken } from '../../tools/auth.ts';
+import type { CredentialStore } from '../../tools/auth.ts';
+import type { OAuthConsent } from '../../tools/oauthConsent.ts';
+import { APPROVAL_TEXTS, CONSENT_TEXTS, isTool } from '../../tools/tool.ts';
 import type { Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from '../../tools/tool.ts';
 import { createEventActions, createTurnEvent, getFunctionCalls, getFunctionResponses, isFinal } from '../events.ts';
 import type { TurnContent, TurnEvent, TurnEventActions, TurnFunctionCall, TurnPart } from '../events.ts';
@@ -110,7 +123,7 @@ import { currentTurnSignal } from '../turnControl.ts';
 import { compactBeforeStep } from './compaction.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import { runSubagent, subagentOf } from './delegate.ts';
-import { approvedCalls } from './interrupts.ts';
+import { approvedCalls, grantedCalls } from './interrupts.ts';
 import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
 import type { CallCorrection } from './selfCorrection.ts';
@@ -145,6 +158,19 @@ export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adap
    * goes on after finish_task's answer, as LlmAgent.runAsync does.
    */
   taskNode?: boolean;
+  /**
+   * The run's tool credentials, already pinned to its app
+   * (pinnedCredentialStore, ADR 0072): each call's `accessToken` reads them
+   * under the session's user.
+   */
+  credentials?: Pick<CredentialStore, 'get'>;
+  /**
+   * The consent step (ADR 0085): a call whose provider the user has not
+   * granted asks for it (`requestCredential`, or `accessToken` by itself),
+   * and the run pauses on ADK's `adk_request_credential` call. Not passed to
+   * a delegated subagent's loop.
+   */
+  consent?: Pick<OAuthConsent, 'has' | 'begin'>;
 }
 
 /** How the run ended. */
@@ -296,6 +322,29 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
     has: (key) => Object.hasOwn(delta, key) || Object.hasOwn(stateBase, key),
   };
   const memory: Pick<MemoryService, 'search'> | undefined = ctx.memory;
+  // ADK's Context.requestCredential, with the flow held server-side (ADR 0085): the request, keyed by the call's id.
+  const consent = ctx.consent;
+  const requestCredential =
+    consent && functionCallId
+      ? async (provider: string): Promise<void> => {
+          const request = await consent.begin({ appName: session.appName, userId: session.userId, sessionId: session.id, functionCallId, provider });
+          (actions.requestedAuthConfigs as Record<string, unknown>)[functionCallId] = request.authConfig;
+        }
+      : undefined;
+  const credentials = ctx.credentials;
+  const readToken = credentials ? toolAccessToken(credentials, session.appName, session.userId, scope.signal) : undefined;
+  // A grant the user has not given (or that can no longer be renewed) is asked for, when the provider has a consent step.
+  const accessToken = readToken
+    ? async (provider: string): Promise<string> => {
+        try {
+          return await readToken(provider);
+        } catch (error) {
+          const ask = error instanceof ToolCredentialError && (error.code === 'not_connected' || error.code === 'expired' || error.code === 'refresh_failed');
+          if (ask && requestCredential && consent?.has(provider)) await requestCredential(provider);
+          throw error;
+        }
+      }
+    : undefined;
   return {
     invocationId: ctx.invocationId,
     agentName: agent.name,
@@ -322,6 +371,8 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
     ...(memory
       ? { searchMemory: (query: string) => memory.search({ appName: session.appName, userId: session.userId, query }) }
       : {}),
+    ...(accessToken ? { accessToken } : {}),
+    ...(requestCredential ? { requestCredential } : {}),
     invocationContext: {
       invocationId: ctx.invocationId,
       agent: { name: agent.name },
@@ -408,9 +459,15 @@ async function runCall(
       : isTool(tool) ? await runOwnTool(tool, args, context) : await tool.runAsync({ args, toolContext: context });
   } catch (e) {
     failure = e instanceof Error ? e.message : e;
-    // Self-correction answers a thrown Error with reflection guidance in its place.
-    const guided = await correction?.failed(toolName, args, e);
+    // Self-correction answers a thrown Error with reflection guidance in its place; a call waiting on a grant is not a failure.
+    const guided = isEmptyRecord(context.actions.requestedAuthConfigs) ? await correction?.failed(toolName, args, e) : undefined;
     if (guided) [response, failure] = [guided, undefined];
+  }
+  // Consent hook (WS6-3b, ADR 0085): a call that asked for a grant answers that it waits, whatever it returned or threw.
+  const asked = Object.values(context.actions.requestedAuthConfigs ?? {}) as Array<{ credentialKey?: unknown }>;
+  if (asked.length > 0) {
+    const provider = String(asked[0]?.credentialKey ?? '');
+    return { part: { functionResponse: { id: context.functionCallId, name: toolName, response: { result: CONSENT_TEXTS.pending(provider) } } }, actions: context.actions };
   }
   if (failure === undefined) await correction?.answered(toolName, response);
   // As ADK: a long-running call with no response answers nothing, even when it threw.
@@ -519,6 +576,31 @@ async function resumeApprovals(
   const response = await runCalls(scope, approved.calls, approved.tools, approved.confirmations);
   if (signal?.aborted) return 'stopped';
   return response;
+}
+
+/**
+ * ADK's auth preprocessor, before a step (ADR 0085): the paused calls whose
+ * credential requests the latest user message answers run again, now with
+ * the grant in the store (interrupts.ts grantedCalls). Returns their
+ * response and the credential request a call raised again, if any, to be
+ * stored; undefined when there is none; 'stopped' when the turn stopped
+ * while they ran.
+ */
+async function resumeGrants(
+  agent: NativeAgent,
+  ctx: AgentLoopContext,
+  stateBase: Readonly<Record<string, unknown>>,
+  selfCorrection: SelfCorrection,
+): Promise<{ response: TurnEvent; auth?: TurnEvent } | 'stopped' | undefined> {
+  const granted = await grantedCalls(agent, ctx);
+  if (!granted) return undefined;
+  const signal = eitherSignal(ctx.signal, currentTurnSignal());
+  const scope: CallScope = { agent, ctx, stateBase, selfCorrection, ...(signal ? { signal } : {}) };
+  const response = await runCalls(scope, granted.calls, granted.tools);
+  if (signal?.aborted) return 'stopped';
+  if (!response) return undefined;
+  const auth = authEvent(scope, response);
+  return { response, ...(auth ? { auth } : {}) };
 }
 
 // ── The model step, with partials and the fallback ───────────────────────────
@@ -637,6 +719,20 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
   const correction = selfCorrection.forModel(agent.name, ctx.invocationId);
 
   for (;;) {
+    // Consent hook (WS6-3b, interrupts.ts): a granted credential request runs its paused call again before the step, as ADK's auth preprocessor
+    // does, ahead of the approval resume as ADK orders its processors. A call that asks again pauses the run on its new request.
+    const regranted = await resumeGrants(agent, ctx, withStateOverlay(session.state, runTemp.values()), selfCorrection);
+    if (regranted === 'stopped') return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
+    if (regranted) {
+      if (regranted.auth) {
+        lastEvent = await store(regranted.auth);
+        yield lastEvent;
+      }
+      const pausedOn = regranted.auth ? [...(lastEvent?.longRunningToolIds ?? [])] : [];
+      lastEvent = await store(regranted.response);
+      yield lastEvent;
+      if (pausedOn.length > 0) return { reason: 'paused', steps, lastEvent, pending: pausedOn };
+    }
     // Interrupts hook (WS2-7a, interrupts.ts): an answered approval runs its pinned call before the step, as ADK's request-confirmation processor does; it runs
     // first, then compaction (ADK inserts its compactor before the contents processor), both before the step budget. ADK's request-input processor sits
     // between them and resumes node-tool calls only, which no native agent lists; an answered ask_user needs none (interrupts.ts, ADR 0079).
@@ -687,6 +783,7 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
           lastEvent = await store(auth);
           yield lastEvent;
         }
+        const authIds = auth ? [...(lastEvent.longRunningToolIds ?? [])] : [];
         const confirmation = confirmationEvent(scope, modelEvent, response);
         if (confirmation) {
           lastEvent = await store(confirmation);
@@ -695,6 +792,8 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
         }
         lastEvent = await store(response);
         yield lastEvent;
+        // As ADK: the response asking for auth is final, and the run waits on its credential request (ADR 0085).
+        if (authIds.length > 0) return { reason: 'paused', steps, lastEvent, pending: authIds };
         stepEnd = lastEvent;
         if (task?.finished) return { reason: 'final', steps, lastEvent, output: task.output };
       }
