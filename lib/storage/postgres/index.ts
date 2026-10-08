@@ -23,6 +23,9 @@ import { postgresMemoryStore } from './memoryStore.ts';
 import { PostgresSessionService } from './sessionService.ts';
 import { PostgresTaskStore, reapExpiredTasks, renewTaskLeases } from './taskStore.ts';
 import { postgresTaskBackend } from './taskQueue.ts';
+import { postgresCredentialStore } from './credentialStore.ts';
+import type { CredentialStoreOptions } from '../../tools/credentialStore.ts';
+import type { CredentialStore } from '../../tools/auth.ts';
 import { searchPathOption } from '../schema.ts';
 import { POSTGRES_RLS_QUERY, evaluatePostgresRls } from '../rlsStatus.ts';
 import { postgresAuditSink } from '../../observability/audit.ts';
@@ -37,6 +40,7 @@ import type { PostgresTaskStoreOptions } from './taskStore.ts';
 export { PostgresSessionService } from './sessionService.ts';
 export { PostgresTaskStore } from './taskStore.ts';
 export { postgresMemoryStore } from './memoryStore.ts';
+export { postgresCredentialRows, postgresCredentialStore } from './credentialStore.ts';
 
 export interface PostgresStorageOptions {
   /** A Postgres URL. Ignored when `pool` is given. */
@@ -72,6 +76,13 @@ export interface PostgresStorageOptions {
    * Default 60 s; renewed every third of it.
    */
   taskLeaseMs?: number;
+  /**
+   * Third-party tokens held for tools (migration 0013, ADR 0072): the cipher
+   * that seals them (credentialCipherFromEnv(), or your KMS's) and each
+   * provider's refresh and revoke. Omit for no credential store. Audit rows
+   * go to this storage's audit trail.
+   */
+  credentials?: Omit<CredentialStoreOptions, 'rows' | 'audit'>;
 }
 
 export interface PostgresStorage {
@@ -89,6 +100,8 @@ export interface PostgresStorage {
   rlsHardening: () => Promise<RlsHardeningStatus>;
   /** Appends to melchizedek_audit (migration 0012, ADR 0042). */
   audit: AuditSink;
+  /** Tool credentials, sealed (migration 0013, ADR 0072); present when `credentials` was given. */
+  credentials?: CredentialStore;
   /**
    * One turn at a time per conversation, across every instance on this
    * database: a session-level advisory lock on a dedicated connection, so a
@@ -192,10 +205,14 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
     return release;
   };
 
+  const audit = postgresAuditSink(pool);
+  const credentials = options.credentials ? postgresCredentialStore(pool, { ...options.credentials, audit }) : undefined;
+
   return {
     pool,
     sessionService,
     turnLock,
+    ...(credentials ? { credentials } : {}),
     ...(memoryService ? { memoryService } : {}),
     taskStore: (agentId) => new PostgresTaskStore(pool, agentId, { ttlDays: options.ttlDays, ownerResolver: options.taskOwner, lease }),
     leases: { ...lease, renew: () => renewTaskLeases(pool, lease), reap: () => reapExpiredTasks(pool) },
@@ -210,7 +227,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
         throw err;
       }
     },
-    audit: postgresAuditSink(pool),
+    audit,
     async rlsHardening() {
       try {
         const r = await pool.query(POSTGRES_RLS_QUERY);

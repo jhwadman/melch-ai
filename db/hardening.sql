@@ -97,6 +97,12 @@ BEGIN
     EXECUTE 'ALTER TABLE melchizedek_memory_ingest ENABLE ROW LEVEL SECURITY';
     EXECUTE 'REVOKE ALL ON melchizedek_memory_ingest FROM anon, authenticated';
   END IF;
+  -- Third-party tokens held for tools (migration 0013): ciphertext only,
+  -- still nothing an API role should read.
+  IF to_regclass('public.melchizedek_tool_credentials') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE melchizedek_tool_credentials ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'REVOKE ALL ON melchizedek_tool_credentials FROM anon, authenticated';
+  END IF;
   -- Its history (migration 0005): every definition an id has held.
   IF to_regclass('public.adk_agent_registry_versions') IS NOT NULL THEN
     EXECUTE 'ALTER TABLE adk_agent_registry_versions ENABLE ROW LEVEL SECURITY';
@@ -161,7 +167,7 @@ AS $$
                       'adk_agent_registry', 'adk_agent_registry_versions',
                       'adk_session_events', 'adk_a2a_tasks', 'melchizedek_usage',
                       'melchizedek_memory_ingest', 'melchizedek_tasks', 'melchizedek_task_owners',
-                      'melchizedek_audit');
+                      'melchizedek_audit', 'melchizedek_tool_credentials');
 $$;
 
 REVOKE ALL ON FUNCTION melchizedek_rls_status() FROM PUBLIC, anon, authenticated;
