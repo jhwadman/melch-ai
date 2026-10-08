@@ -13,7 +13,7 @@ Then `##` sections in this order: "Where the file goes", "Start from the closest
 FACTS:
 Where the file goes:
 - Your syndicates live at the root of `config/agents/` in your project; the file name without `.yaml` is the id used everywhere (`--syndicate <id>`, A2A routes). Use lowercase with underscores.
-- `MELCHIZEDEK_AGENTS_DIR` relocates the directory; `syndicateSchema.yaml` beside the examples documents every field with its ADK counterpart.
+- `MELCHIZEDEK_AGENTS_DIR` relocates the directory; `syndicateSchema.yaml` beside the examples documents every field, and for an agent field the Google ADK field name its key is spelled after.
 - A minimal template ships with this skill at `assets/minimal.yaml` (relative to this skill's directory): copy it, rename it, fill it in.
 
 Start from the closest example:

@@ -4,14 +4,14 @@
  * ollamaAdapter.ts, kimiAdapter.ts, gatewayAdapter.ts; WS1-6, ADR 0057).
  *
  * Every adapter here is driven with a ModelRequest, never an LlmRequest, and
- * the request bodies are the ones the ADK-path tests assert for OllamaLlm,
- * KimiLlm and GatewayLlm (tests/models.test.ts, reasoningKey.test.ts,
+ * the request bodies are the ones the turn-level suites assert for Ollama,
+ * Kimi and the gateway (tests/models.test.ts, reasoningKey.test.ts,
  * kimiReasoningState.test.ts, capabilityMatrix.test.ts, gateway.test.ts):
  * the reasoning field per provider, the reasoning_content replay, the
  * think-block splitter, the retry without thinking, the tools, structured
  * output, vision, streaming. Then what the contract adds: usage in its
- * meaning, failures as finals with the retry verdict, the abort, tool choice,
- * and the ADK shims' own shape (the ledger's counts, the older spelling).
+ * meaning and the ledger's counts, failures as finals with the retry verdict,
+ * the abort, and tool choice.
  *
  * Offline: globalThis.fetch is a stub that records each request and answers
  * from a script. Keys are fixtures.
@@ -20,28 +20,18 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LogLevel, setLogLevel } from '@google/adk';
-import type { BaseLlm, LlmRequest, LlmResponse } from '@google/adk';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
 import type { FinalModelResponse, Message, ModelAdapter, ModelRequest, ModelResponse, ToolDeclaration } from '../lib/models/contract.ts';
 import { ChatCompletionsAdapter, chatUsage, sumUsage, ENGINE_CALL_ID_PREFIX, REASONING_CONTENT_KIND } from '../lib/models/chatCompletionsAdapter.ts';
-import type { ChatCompletionsRequest } from '../lib/models/chatCompletionsAdapter.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
 import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
 import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
-import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
-import { KimiLlm } from '../lib/models/kimiLlm.ts';
-import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
-import { olderSpellingOf } from '../lib/models/openAiCompatibleLlm.ts';
-import { adkShim } from '../lib/models/adkShim.ts';
 import { modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
+import type { LlmResponse } from '../lib/models/genaiMapping.ts';
 import { setRetryPolicyOverrides } from '../lib/models/retry.ts';
-import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY } from '../lib/models/errorResponse.ts';
 import { flushTracing, onSpanEnd, traceLlmGeneration } from '../lib/observability/tracer.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const MOONSHOT_KEY = 'fixture-moonshot-0123456789abcdef'; // gitleaks:allow (test fixture)
 const GATEWAY_ENV = { MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'fixture-gateway-0123456789abcdef' }; // gitleaks:allow (test fixture)
@@ -121,7 +111,7 @@ async function drain<T>(gen: AsyncIterable<T>): Promise<T[]> {
 /** Runs `request` through `adapter` against scripted replies; returns what it sent and yielded. */
 async function run(
   adapter: () => ModelAdapter,
-  request: ChatCompletionsRequest,
+  request: ModelRequest,
   replies: Reply[] = [json(completion({ content: 'An answer.' }))],
   env: Record<string, string | undefined> = {},
 ): Promise<{ sent: Sent[]; out: ModelResponse[] }> {
@@ -129,12 +119,8 @@ async function run(
   return { sent, out: result };
 }
 
-/** An LlmRequest, for the ADK shims. */
-const llmRequest = (model: string, config: Record<string, unknown> = {}): LlmRequest =>
-  ({ model, contents: [{ role: 'user', parts: [{ text: 'hello' }] }], liveConnectConfig: {}, toolsDict: {}, config }) as unknown as LlmRequest;
-
 /** The one body sent. */
-async function bodyOf(adapter: () => ModelAdapter, request: ChatCompletionsRequest, env: Record<string, string | undefined> = {}): Promise<any> {
+async function bodyOf(adapter: () => ModelAdapter, request: ModelRequest, env: Record<string, string | undefined> = {}): Promise<any> {
   const { sent } = await run(adapter, request, undefined, env);
   assert.equal(sent.length, 1);
   return sent[0].body;
@@ -149,7 +135,7 @@ const final = (out: ModelResponse[]): FinalModelResponse => {
 
 const thinking = (out: ModelResponse[]) => out.filter((r) => r.partial).flatMap((r) => r.parts.filter((p) => p.type === 'thinking').map((p) => p.text));
 
-const req = (model: string, extra: Partial<ChatCompletionsRequest> = {}): ChatCompletionsRequest => ({
+const req = (model: string, extra: Partial<ModelRequest> = {}): ModelRequest => ({
   model,
   messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
   ...extra,
@@ -175,7 +161,7 @@ async function spansDuring(model: string, fn: () => Promise<unknown>): Promise<R
 }
 
 /** Runs the adapter inside an llm.request span, as its caller does (ADR 0053), and returns the span. */
-async function spanOf(adapter: () => ModelAdapter, request: ChatCompletionsRequest, env: Record<string, string | undefined> = {}): Promise<ReadableSpan> {
+async function spanOf(adapter: () => ModelAdapter, request: ModelRequest, env: Record<string, string | undefined> = {}): Promise<ReadableSpan> {
   async function* mapped(a: ModelAdapter): AsyncGenerator<LlmResponse, void> {
     for await (const r of a.generate(request)) yield modelResponseToLlmResponse(r);
   }
@@ -206,7 +192,7 @@ const SCHEMA = { type: 'object', properties: { verdict: { type: 'string' }, scor
 const state = (payload: string, model = 'kimi-k3', provider = 'moonshot') => ({ provider, kind: REASONING_CONTENT_KIND, model, payload });
 
 /** Two turns: the first a finished tool loop, the second mid-loop with two steps (kimiReasoningState.test.ts's twoTurns). */
-function twoTurns(model: string): ChatCompletionsRequest {
+function twoTurns(model: string): ModelRequest {
   const messages: Message[] = [
     { role: 'user', parts: [{ type: 'text', text: 'first question' }] },
     { role: 'assistant', parts: [{ type: 'toolCall', id: 'old_1', name: 'Scout', args: {}, providerState: state('old reasoning', model) }] },
@@ -229,7 +215,7 @@ function twoTurns(model: string): ChatCompletionsRequest {
 
 const assistants = (body: any): any[] => (body.messages ?? []).filter((m: any) => m.role === 'assistant');
 
-// ── The wire: what the ADK-path tests assert, from ModelRequests ─────────────
+// ── The wire, from ModelRequests ─────────────────────────────────────────────
 
 test('Ollama: the namespace is stripped, the endpoint is local, and nothing else rides on a plain request', async () => {
   const { sent } = await run(ollama(), req('ollama/qwen3:8b'));
@@ -499,13 +485,13 @@ test("JSON mode (outputFormat 'json', ADR 0061): json_object on Ollama, Kimi and
   assert.equal((await bodyOf(kimi(), req('kimi-k3', { outputSchema: SCHEMA, outputFormat: 'json' }))).response_format.type, 'json_schema');
 });
 
-test('the retry without thinking keeps JSON mode and drops the older spelling\'s effort word', async () => {
+test('the retry without thinking keeps JSON mode and switches reasoning off', async () => {
   const lost = json(completion({ content: '', reasoning: 'thinking...' }, 'length', { prompt_tokens: 10, completion_tokens: 90, total_tokens: 100 }));
   const answered = json(completion({ content: '{"ok":true}' }));
-  const request: ChatCompletionsRequest = { ...req('ollama/qwen3.5:9b', { reasoning: 'low', outputFormat: 'json' }), olderSpelling: { reasoningEffort: 'max' } };
+  const request = req('ollama/qwen3.5:9b', { reasoning: 'low', outputFormat: 'json' });
   const { sent } = await run(ollama('ollama/qwen3.5:9b'), request, [lost, answered]);
   assert.deepEqual(sent.map((s) => s.body.response_format), [{ type: 'json_object' }, { type: 'json_object' }]);
-  assert.deepEqual(sent.map((s) => s.body.reasoning_effort), ['max', 'none']);
+  assert.deepEqual(sent.map((s) => s.body.reasoning_effort), ['low', 'none']);
 });
 
 test('streaming asks for usage; Kimi posts to Moonshot with a bearer key; the gateway to its base with the mapped id', async () => {
@@ -685,7 +671,7 @@ test('the retry without thinking: lost twice is the named error, with both attem
 
 test('the retry without thinking: never for a request that already asks for none, when switched off, or on the gateway', async () => {
   const lost = json(completion({ content: '', reasoning: 'think' }, 'length'));
-  const calls = async (adapter: () => ModelAdapter, request: ChatCompletionsRequest, env: Record<string, string | undefined> = {}) =>
+  const calls = async (adapter: () => ModelAdapter, request: ModelRequest, env: Record<string, string | undefined> = {}) =>
     (await run(adapter, request, [lost], env)).sent.length;
   assert.equal(await calls(ollama(), req('ollama/qwen3:8b', { reasoning: 'none' })), 1);
   assert.equal(await calls(ollama(), req('ollama/qwen3:8b', { reasoning: { budget_tokens: 0 } })), 1);
@@ -763,29 +749,31 @@ const REASONED = json(completion({ content: 'An answer.', reasoning_content: 'po
   completion_tokens_details: { reasoning_tokens: 25 },
 }));
 
-test("the ledger's counts are unchanged through the chat shims: llm.tokens.output and the turn's charge include the reasoning", async () => {
-  const charged = async (llm: BaseLlm, model: string) => {
-    const control = createTurnControl({ maxLlmCalls: 5 });
-    let out: LlmResponse[] = [];
-    const [span] = await spansDuring(model, async () => {
-      out = (await withFetch([REASONED], {}, () => runWithTurnControl(control, () => drain(llm.generateContentAsync(llmRequest(model)))))).result;
-    });
-    control.dispose();
-    return { span, out, tokens: [control.inputTokens, control.outputTokens, control.thinkingTokens] };
-  };
-
-  const viaKimiLlm = await charged(new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY }), 'kimi-k3');
-  assert.deepEqual(viaKimiLlm.out.at(-1)!.usageMetadata, { promptTokenCount: 12, candidatesTokenCount: 40, thoughtsTokenCount: 25, totalTokenCount: 52 });
+test("the ledger's counts: a chat adapter's call, traced as the model step traces it, charges output less thinking, and the thinking on its own", async () => {
+  const control = createTurnControl({ maxLlmCalls: 5 });
+  const request = req('kimi-k3');
+  async function* mapped(a: ModelAdapter): AsyncGenerator<LlmResponse, void> {
+    for await (const r of a.generate(request)) yield modelResponseToLlmResponse(r);
+  }
+  let out: LlmResponse[] = [];
+  const [span] = await spansDuring('kimi-k3', async () => {
+    out = (
+      await withFetch([REASONED], {}, () =>
+        runWithTurnControl(control, () => {
+          const a = kimi()();
+          return drain(traceLlmGeneration({ provider: a.provider, model: a.model, request }, mapped(a)));
+        }),
+      )
+    ).result;
+  });
+  control.dispose();
+  // Gemini's meaning (usageToMetadata): completion_tokens less reasoning_tokens, and the reasoning on its own (ADR 0107).
+  assert.deepEqual(out.at(-1)!.usageMetadata, { promptTokenCount: 12, candidatesTokenCount: 15, thoughtsTokenCount: 25, totalTokenCount: 52 });
   assert.deepEqual(
-    [viaKimiLlm.span.attributes['llm.tokens.input'], viaKimiLlm.span.attributes['llm.tokens.output'], viaKimiLlm.span.attributes['llm.tokens.thinking']],
-    [12, 40, 25],
-    'completion_tokens, as the chat-completions adapters have always reported it',
+    [span.attributes['llm.tokens.input'], span.attributes['llm.tokens.output'], span.attributes['llm.tokens.thinking']],
+    [12, 15, 25],
   );
-  assert.deepEqual(viaKimiLlm.tokens, [12, 40, 25]);
-
-  // The plain shim writes Gemini's meaning (output less thinking); the chat shims keep theirs (ADR 0057).
-  const viaPlainShim = await charged(adkShim(new KimiAdapter({ model: 'kimi-k2.6', apiKey: MOONSHOT_KEY })), 'kimi-k2.6');
-  assert.equal(viaPlainShim.span.attributes['llm.tokens.output'], 15);
+  assert.deepEqual([control.inputTokens, control.outputTokens, control.thinkingTokens], [12, 15, 25]);
 });
 
 // ── Failures are finals, with the retry verdict ──────────────────────────────
@@ -891,50 +879,6 @@ test('the turn signal stops a call that carries no signal of its own', async () 
   assert.equal(final(out).error?.retryable, false);
 });
 
-// ── The ADK shims: the older spelling, and the shape ADK has always seen ─────
-
-test('olderSpellingOf: only what the contract leaves out', () => {
-  assert.equal(olderSpellingOf(undefined), undefined);
-  assert.equal(olderSpellingOf({ reasoningEffort: 'low' } as any), undefined, 'a level rides in reasoning');
-  assert.equal(olderSpellingOf({ reasoningEffort: 'minimal' } as any), undefined, 'minimal is none');
-  assert.deepEqual(olderSpellingOf({ reasoningEffort: 'max' } as any), { reasoningEffort: 'max' });
-  assert.equal(olderSpellingOf({ responseMimeType: 'application/json' }), undefined, 'JSON mode rides in outputFormat (ADR 0061)');
-  assert.equal(olderSpellingOf({ responseMimeType: 'application/json', responseSchema: { type: 'OBJECT' } } as any), undefined, 'a schema rides in outputSchema');
-});
-
-test('through the shims, the older spelling reaches the wire: K3 max; and JSON mode without a schema, through the contract', async () => {
-  const bodyVia = async (make: () => BaseLlm, request: LlmRequest, env: Record<string, string | undefined> = {}) =>
-    (await withFetch([json(completion({ content: 'ok' }))], env, () => drain(make().generateContentAsync(request)))).sent[0].body;
-  assert.equal((await bodyVia(() => new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY }), llmRequest('kimi-k3', { reasoningEffort: 'max' }))).reasoning_effort, 'max');
-  assert.ok(!('reasoning_effort' in (await bodyVia(() => new KimiLlm({ model: 'kimi-k2.6', apiKey: MOONSHOT_KEY }), llmRequest('kimi-k2.6', { reasoningEffort: 'max' })))));
-  assert.deepEqual((await bodyVia(() => new OllamaLlm({ model: 'ollama/qwen3:8b' }), llmRequest('ollama/qwen3:8b', { responseMimeType: 'application/json' }))).response_format, { type: 'json_object' });
-  assert.deepEqual((await bodyVia(() => new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY }), llmRequest('kimi-k3', { responseMimeType: 'application/json' }))).response_format, { type: 'json_object' });
-  assert.deepEqual((await bodyVia(() => new GatewayLlm({ model: 'gpt-5.4' }), llmRequest('gpt-5.4', { responseMimeType: 'application/json' }), GATEWAY_ENV)).response_format, { type: 'json_object' });
-  assert.equal((await bodyVia(() => new GatewayLlm({ model: 'gpt-5.4' }), llmRequest('gpt-5.4', { reasoningEffort: 'xhigh' }), GATEWAY_ENV)).reasoning_effort, 'xhigh');
-  // A level rides in the contract's reasoning, mapped as the compiler maps it.
-  assert.equal((await bodyVia(() => new KimiLlm({ model: 'kimi-k3', apiKey: MOONSHOT_KEY }), llmRequest('kimi-k3', { reasoningEffort: 'medium' }))).reasoning_effort, 'high');
-});
-
-test('through the shims, the final keeps the shape ADK has always seen from these classes', async () => {
-  const finalVia = async (reply: Reply) =>
-    (await withFetch([reply], {}, () => drain(new OllamaLlm({ model: 'ollama/qwen3:8b' }).generateContentAsync(llmRequest('ollama/qwen3:8b'))))).result.at(-1)!;
-  const restore = setRetryPolicyOverrides(FAST);
-  try {
-    assert.deepEqual(await finalVia(json(completion({ content: 'Done.' }, 'stop', { prompt_tokens: 3, completion_tokens: 1, total_tokens: 4 }))), {
-      content: { role: 'model', parts: [{ text: 'Done.' }] },
-      turnComplete: true,
-      usageMetadata: { promptTokenCount: 3, candidatesTokenCount: 1, totalTokenCount: 4 },
-    });
-    assert.deepEqual(await finalVia(json(completion({ content: '' }))), { content: { role: 'model', parts: [] }, turnComplete: true });
-    const http = await finalVia(json({ error: 'busy' }, 503));
-    assert.deepEqual([http.errorCode, (http as any).status, (http as any).retryable], ['OLLAMA_HTTP_ERROR', 503, true]);
-    assert.deepEqual(http.customMetadata, { [ERROR_RETRYABLE_KEY]: true, [ERROR_STATUS_KEY]: 503 });
-    assert.equal(http.finishReason, undefined);
-  } finally {
-    restore();
-  }
-});
-
 test('the adapters are ModelAdapters with the provider telemetry attributes the call to', () => {
   const adapters: ChatCompletionsAdapter[] = [
     new OllamaAdapter({ model: 'ollama/qwen3:8b' }),
@@ -942,5 +886,4 @@ test('the adapters are ModelAdapters with the provider telemetry attributes the 
     new GatewayAdapter({ model: 'gemini-3.8-flash' }),
   ];
   assert.deepEqual(adapters.map((a) => [a.provider, a.model]), [['ollama', 'ollama/qwen3:8b'], ['moonshot', 'kimi-k3'], ['gemini', 'gemini-3.8-flash']]);
-  assert.equal(new KimiLlm({ model: 'kimi-k3' }).adapter instanceof KimiAdapter, true, 'the shim wraps the adapter');
 });

@@ -41,8 +41,8 @@
  * THE STREAMING RULE:
  *   A retry is only ever made BEFORE the caller has received any response
  *   bytes. A failure after the first partial has been yielded would, if
- *   retried, replay text the user has already seen (and that ADK may have
- *   already turned into events). `fetchWithRetry` retries the request and
+ *   retried, replay text the user has already seen (and that the loop may
+ *   have already turned into events). `fetchWithRetry` retries the request and
  *   hands back the Response before its body is read; `retryUntilFirstYield`
  *   retries a generator only while it has yielded nothing.
  *

@@ -6,9 +6,7 @@
  *
  * The inputs and the capture harness are tests/helpers/capabilityInputs.ts:
  * globalThis.fetch is a stub that records the request and answers 400, so no
- * provider is called and no SDK retries; keys are fixtures. The ADK path's
- * shim classes are held to the same bodies for the same inputs in
- * tests/shimBodies.test.ts.
+ * provider is called and no SDK retries; keys are fixtures.
  *
  * The point is drift: change what an adapter sends without changing its row
  * in the matrix and one of these fails; change a row without the adapter and
@@ -17,7 +15,6 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { setLogLevel, LogLevel } from '@google/adk';
 
 import {
   CAPABILITIES,
@@ -57,9 +54,8 @@ import { CARRIED_PARTS_KIND } from '../lib/models/geminiAdapter.ts';
 import { contentToMessage, modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
 import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from '../lib/models/geminiState.ts';
 import { nativeToolOf } from '../lib/models/schemaNormalize.ts';
-import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
+import { WEB_SEARCH_MARKER } from '../lib/tools/nativeTools.ts';
 
-setLogLevel(LogLevel.ERROR);
 // The tracer prints every llm.request span to stdout unless told not to.
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -388,7 +384,7 @@ const GEMINI_CHECKS: Record<Capability, () => Promise<Observed>> = {
       geminiRequest({ nativeTools: ['code_execution'], messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }, assistant] }),
     );
     assert.deepEqual(sameTurn.body.contents[1].parts, [{ ...CODE, thoughtSignature: 'dGhvdWdodA==' }, CODE_RESULT, { text: 'The product is 42.' }]);
-    // Stored, the parts are what Gemini sent, as ADK stores them (ADR 0100); read back from the store, they replay the same.
+    // Stored, the parts are what Gemini sent, in the genai shape the session keeps (ADR 0100); read back from the store, they replay the same.
     const stored = modelResponseToLlmResponse(ran.final).content!;
     assert.deepEqual(stored.parts, [{ ...CODE, thoughtSignature: 'dGhvdWdodA==' }, CODE_RESULT, { text: 'The product is 42.' }]);
     const fromStore = await geminiExchange(
@@ -515,16 +511,13 @@ test('web_search is read by its marker: a foreign copy is the same NativeTool as
     name: 'web_search',
     description: 'a copy',
     [Symbol.for('melchizedek.nativeTool')]: 'web_search',
-    _getDeclaration: () => undefined,
-    runAsync: async () => undefined,
   };
   // A tool object reaches a request as the NativeTool its marker names
-  // (the genai mapping and the native runtime both read it with nativeToolOf);
-  // tests/shimBodies.test.ts sends the two objects through each ADK shim.
-  assert.equal(nativeToolOf(WEB_SEARCH), 'web_search');
+  // (the genai mapping and the native runtime both read it with nativeToolOf).
+  assert.equal(nativeToolOf(WEB_SEARCH_MARKER), 'web_search');
   assert.equal(nativeToolOf(foreign), 'web_search', 'the marker decides');
   for (const row of ADAPTER_ROWS) {
-    const withOriginal = request(row, { nativeTools: [nativeToolOf(WEB_SEARCH)!] });
+    const withOriginal = request(row, { nativeTools: [nativeToolOf(WEB_SEARCH_MARKER)!] });
     const withForeign = request(row, { nativeTools: [nativeToolOf(foreign)!] });
     assert.deepEqual(await capture(row, withForeign), await capture(row, withOriginal), `${row}: the marker decides`);
   }

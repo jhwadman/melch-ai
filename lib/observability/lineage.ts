@@ -18,8 +18,8 @@
  *
  * Both are deterministic and cheap; neither touches the network.
  *
- * It also names the spans each runtime opens around an agent, a model call
- * and a tool call, which the tracer's span lineage and the exporter read
+ * It also names the spans opened around an agent, a model call and a tool
+ * call (the loop's, and ADK's in rows written before 1.0.0), which the tracer's span lineage and the exporter read
  * (below, ADR 0076).
  */
 
@@ -33,14 +33,14 @@ import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 /** Schema version stamped on every ledger row (adk_turns / adk_payloads). */
 export const TELEMETRY_SCHEMA_VERSION = 2;
 
-// ── Span lineage: the names each runtime gives its spans ─────────────────────
+// ── Span lineage: the names spans are given ──────────────────────────────────
 // A turn's spans nest root → agent → model call → llm.request, with tool
-// calls under the agent. The ADK runtime opens `invoke_agent <name>`,
-// `call_llm` and `execute_tool <name>` (scope gcp.vertex.agent); the native
-// loop opens `agent.invoke <name>`, `model.call` and `tool.execute <name>`
-// (scope melchizedek.runtime, lib/runtime/native/telemetry.ts). The tracer's
-// lineage (which agent made a call, tool time) and the exporter's payload
-// tier read both schemes through these helpers (ADR 0076).
+// calls under the agent. The native loop opens `agent.invoke <name>`,
+// `model.call` and `tool.execute <name>` (scope melchizedek.runtime,
+// lib/runtime/native/telemetry.ts); ADK opened `invoke_agent <name>`,
+// `call_llm` and `execute_tool <name>` (scope gcp.vertex.agent) before 1.0.0.
+// The tracer's lineage (which agent made a call, tool time) and the
+// exporter's payload tier read both schemes through these helpers (ADR 0076).
 
 /** ADK's tracer scope. */
 export const ADK_SPAN_SCOPE = 'gcp.vertex.agent';
@@ -56,7 +56,7 @@ export function agentOfSpanName(name: string): string | null {
   return null;
 }
 
-/** True for a tool call's span on either runtime. */
+/** True for a tool call's span, under either naming scheme. */
 export function isToolSpanName(name: string): boolean {
   return TOOL_SPAN_PREFIXES.some((prefix) => name.startsWith(prefix));
 }

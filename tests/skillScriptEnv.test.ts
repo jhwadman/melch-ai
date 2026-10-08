@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { LocalScriptExecutor } from '../lib/tools/skills/executor.ts';
 import { BASE_ENV_NAMES, CappedText, SCRIPT_OUTPUT_CHAR_LIMIT, isSecretShapedEnvName, scriptEnvironment } from '../lib/tools/skills/env.ts';
@@ -22,8 +22,6 @@ import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { approvalResponsePart } from '../lib/runtime/approvals.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const FAKE = 'fake-value-not-a-credential';
 const PRINT_ENV = `console.log(JSON.stringify({ key: process.env.OPENAI_API_KEY ?? 'unset', db: process.env.DATABASE_URL ?? 'unset', allowed: process.env.WS3_3B_ALLOWED ?? 'unset', home: process.env.HOME ?? process.env.USERPROFILE ?? 'unset', path: process.env.PATH ? 'set' : 'unset', lc: process.env.LC_WS3_3B ?? 'unset' }));`;
@@ -158,7 +156,7 @@ test('the harness hands the YAML names to its executor', async () => {
   }
 });
 
-// ── End to end, on both runtimes ─────────────────────────────────────────────
+// ── End to end ───────────────────────────────────────────────────────────────
 
 function shelf(): string {
   const dir = mkdtempSync(join(tmpdir(), 'ws3-3b-shelf-'));
@@ -168,43 +166,41 @@ function shelf(): string {
   return dir;
 }
 
-for (const runtime of ['adk', 'native'] as const) {
-  test(`an approved run on ${runtime} sees the listed name and never the key`, async () => {
-    const dir = shelf();
-    const had = Object.hasOwn(process.env, 'OPENAI_API_KEY');
-    const saved = process.env.OPENAI_API_KEY;
-    process.env.OPENAI_API_KEY = FAKE;
-    process.env.WS3_3B_ALLOWED = 'yes';
-    try {
-      const cfg = validateSyndicateConfig(
-        {
-          syndicate_name: 'Probe',
-          orchestrator: { name: 'Probe', model: 'scripted/probe', instruction: 'x', skills: { dir, scripts: 'local', env: ['WS3_3B_ALLOWED'] } },
-          subagents: [],
-        },
-        't',
-      ) as SyndicateYamlConfig;
-      let seen = '';
-      const model = new ScriptedModel('scripted/probe', (req, n) => {
-        if (n === 1) return toolCall('run_skill_script', { skill_name: 'env-probe', script_path: 'scripts/probe.js' }, 'call-probe');
-        seen = JSON.stringify(lastToolResult(req) ?? null);
-        return answer('done');
-      });
-      const sessionService = new InMemorySessionService();
-      const turn = (parts: any[]) =>
-        runSyndicateTurn({ config: cfg, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: shimResolver({ probe: model }), log: () => {} }, trace: false, runtime });
-      const first = await turn([{ text: 'probe' }]);
-      assert.equal(first.status, 'input-required');
-      const second = await turn([approvalResponsePart(first.approval!.id, true)]);
-      assert.equal(second.status, 'completed');
-      assert.ok(seen.includes('\\"allowed\\":\\"yes\\"'), 'the listed name reached the script');
-      assert.ok(seen.includes('\\"key\\":\\"unset\\"'), 'the provider key did not');
-      assert.ok(!seen.includes(FAKE));
-    } finally {
-      if (had) process.env.OPENAI_API_KEY = saved;
-      else delete process.env.OPENAI_API_KEY;
-      delete process.env.WS3_3B_ALLOWED;
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-}
+test('an approved run sees the listed name and never the key', async () => {
+  const dir = shelf();
+  const had = Object.hasOwn(process.env, 'OPENAI_API_KEY');
+  const saved = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = FAKE;
+  process.env.WS3_3B_ALLOWED = 'yes';
+  try {
+    const cfg = validateSyndicateConfig(
+      {
+        syndicate_name: 'Probe',
+        orchestrator: { name: 'Probe', model: 'scripted/probe', instruction: 'x', skills: { dir, scripts: 'local', env: ['WS3_3B_ALLOWED'] } },
+        subagents: [],
+      },
+      't',
+    ) as SyndicateYamlConfig;
+    let seen = '';
+    const model = new ScriptedModel('scripted/probe', (req, n) => {
+      if (n === 1) return toolCall('run_skill_script', { skill_name: 'env-probe', script_path: 'scripts/probe.js' }, 'call-probe');
+      seen = JSON.stringify(lastToolResult(req) ?? null);
+      return answer('done');
+    });
+    const sessionService = new InProcessSessionService();
+    const turn = (parts: any[]) =>
+      runSyndicateTurn({ config: cfg, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: shimResolver({ probe: model }), log: () => {} }, trace: false });
+    const first = await turn([{ text: 'probe' }]);
+    assert.equal(first.status, 'input-required');
+    const second = await turn([approvalResponsePart(first.approval!.id, true)]);
+    assert.equal(second.status, 'completed');
+    assert.ok(seen.includes('\\"allowed\\":\\"yes\\"'), 'the listed name reached the script');
+    assert.ok(seen.includes('\\"key\\":\\"unset\\"'), 'the provider key did not');
+    assert.ok(!seen.includes(FAKE));
+  } finally {
+    if (had) process.env.OPENAI_API_KEY = saved;
+    else delete process.env.OPENAI_API_KEY;
+    delete process.env.WS3_3B_ALLOWED;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -3,14 +3,12 @@
  * call hands it (ADR 0045, ADR 0051).
  *
  * WHY this file exists:
- *   Every tool used to be an ADK FunctionTool, so running one needed ADK's
- *   loop and ADK's `Context`. The native runtime owns its loop, so it owns
- *   the tool's shape too: a name, the declaration the model receives (the
- *   model contract's ToolDeclaration, lib/models/contract.ts), and an
- *   `execute(args, ctx)` the loop calls. During the dual-runtime period the
- *   ADK runtime runs the same tools through one wrapper,
- *   lib/tools/adkTool.ts (`toFunctionTool`), so a tool is written once and
- *   runs on both.
+ *   The engine owns its loop, so it owns the tool's shape too: a name, the
+ *   declaration the model receives (the model contract's ToolDeclaration,
+ *   lib/models/contract.ts), and an `execute(args, ctx)` the loop calls.
+ *   Nothing here needs ADK's FunctionTool or its `Context`; registerTool
+ *   refuses an ADK tool (anything with runAsync), naming 1.0.0 and
+ *   defineTool.
  *
  *   A tool is usually built with `defineTool` (lib/tools/toolContract.ts),
  *   which derives the declaration from a zod schema and validates arguments
@@ -83,7 +81,7 @@ export interface ToolActions {
 }
 
 export interface ToolContext {
-  /** The run (ADK's invocation) this call belongs to. */
+  /** The run (an invocation, in ADK's word) this call belongs to. */
   readonly invocationId?: string;
   /** The agent whose model asked for the call. */
   readonly agentName?: string;
@@ -135,9 +133,8 @@ export interface ToolContext {
    * person has granted it their next message runs this call again, when
    * `accessToken(provider)` returns their token. `accessToken` asks by itself
    * when the person has not connected the provider, so most tools never
-   * call this. Present only on the native runtime, in a run with a consent
-   * step, for a call the turn runs directly (not inside a delegated
-   * subagent).
+   * call this. Present only in a run with a consent step, for a call the
+   * turn runs directly (not inside a delegated subagent).
    */
   readonly requestCredential?: (provider: string) => Promise<void>;
 }
@@ -194,26 +191,23 @@ export interface ToolsetContext {
  * Listed under an agent's tools like a Tool, but yields the tools the agent
  * has for the next request: the skills harness (lib/tools/skills/tools.ts),
  * whose tools grow as skills are loaded. The native loop expands it before
- * every request; lib/tools/adkTool.ts wraps it as an ADK BaseToolset.
+ * every request.
  */
 export interface Toolset {
   readonly name?: string;
   getTools(ctx?: ToolsetContext): Promise<unknown[]>;
 }
 
-/** True for an own Toolset: getTools, and neither a Tool nor an ADK tool or toolset. */
+/** True for an own Toolset: getTools, and neither a Tool nor an ADK-shaped tool or toolset (runAsync, processLlmRequest). */
 export function isOwnToolset(value: unknown): value is Toolset {
   if (!value || typeof value !== 'object') return false;
   const t = value as Record<string, unknown>;
   return typeof t.getTools === 'function' && typeof t.execute !== 'function' && !('runAsync' in t) && typeof t.processLlmRequest !== 'function';
 }
 
-/** The own Toolset behind `value`: the value itself, or the one an ADK toolset was made from by toAdkToolset. */
+/** The own Toolset `value` is, else undefined. */
 export function toolsetOf(value: unknown): Toolset | undefined {
-  if (isOwnToolset(value)) return value;
-  if (!value || typeof value !== 'object') return undefined;
-  const own = (value as Record<PropertyKey, unknown>)[OWN_TOOL];
-  return isOwnToolset(own) ? own : undefined;
+  return isOwnToolset(value) ? value : undefined;
 }
 
 /**
@@ -230,8 +224,7 @@ export interface InstructionTool {
 
 /**
  * Where a server-side tool names the NativeTool it stands for. A global
- * symbol, so a second copy of this module, or an ADK sentinel made from a
- * marker, still matches.
+ * symbol, so a second copy of this module still matches.
  */
 export const NATIVE_TOOL: unique symbol = Symbol.for('melchizedek.nativeTool');
 
@@ -256,8 +249,8 @@ export function nativeToolMarker(nativeTool: NativeTool, description = ''): Nati
 
 /**
  * The NativeTool `value` stands for, read from its marker: the marker
- * itself, or anything carrying the marker's symbol (the ADK sentinels in
- * lib/tools/*Tool.ts carry it). Undefined for anything else. Never by class
+ * itself, or anything carrying the marker's symbol. Undefined for anything
+ * else. Never by class
  * or by name: a client-side tool registered as `web_search` carries no
  * marker and stays a client-side tool.
  */
@@ -281,8 +274,8 @@ export function isInstructionTool(value: unknown): value is InstructionTool {
 
 /**
  * Appended to a long-running tool's description, word for word what ADK's
- * LongRunningFunctionTool appends, so a model reads the same declaration on
- * either runtime.
+ * LongRunningFunctionTool appended, so a model reads the declaration it
+ * read before 1.0.0.
  */
 export const LONG_RUNNING_NOTE =
   '\n\nNOTE: This is a long-running operation. Do not call this tool again if it has already returned some intermediate or pending status.';
@@ -302,8 +295,9 @@ export function isTool(value: unknown): value is Tool {
 // ── Approval (ADR 0028) ──────────────────────────────────────────────────────
 
 /**
- * The texts ADK's FunctionTool gate writes, kept word for word so a call
- * gated on either runtime stores the same interrupt and the same response.
+ * The texts ADK's FunctionTool gate wrote, kept word for word so a call
+ * gated now stores the interrupt and the response a session written before
+ * 1.0.0 holds.
  */
 export const APPROVAL_TEXTS = {
   hint: (name: string) =>
@@ -413,7 +407,7 @@ export interface StandaloneToolContext extends ToolContext {
 }
 
 /**
- * A ToolContext over plain data: for the native runtime, for a call made
+ * A ToolContext over plain data: for the native loop, for a call made
  * outside a run (MCP, a test), and for a caller that knows only who the call
  * is for. The runtime reads `stateDelta`, `actions` and `confirmationRequest`
  * back after the call.
@@ -488,38 +482,17 @@ export function toToolContext(ctx?: Partial<ToolContext>): ToolContext {
   return createToolContext({ userId: ctx?.userId, appName: ctx?.appName, sessionId: ctx?.sessionId });
 }
 
-// ── The bridge from the ADK runtime ──────────────────────────────────────────
+// ── Reading a listed tool ────────────────────────────────────────────────────
 
 /**
- * Where lib/tools/adkTool.ts keeps the Tool an ADK tool was made from. A
- * global symbol, so a second copy of either module still finds it.
- */
-export const OWN_TOOL: unique symbol = Symbol.for('melchizedek.tool');
-
-/**
- * The Tool behind `value`: the value itself when it is a Tool, the Tool an
- * ADK tool was made from by toFunctionTool, else undefined: a server-side
- * tool, an InstructionTool, a local subagent's AgentTool, an OpenAPI or
- * skills tool. An ADK tool that was
- * gated afterwards (lib/compile.ts sets `requireConfirmation`) yields the
- * gated Tool, so the gate survives the trip back.
+ * The Tool `value` is, else undefined (a server-side tool and an
+ * InstructionTool are not Tools).
  */
 export function toolOf(value: unknown): Tool | undefined {
-  if (isTool(value)) return value;
-  if (!value || typeof value !== 'object') return undefined;
-  const own = (value as Record<PropertyKey, unknown>)[OWN_TOOL];
-  if (!isTool(own)) return undefined;
-  return (value as { requireConfirmation?: unknown }).requireConfirmation === true ? requireApproval(own) : own;
+  return isTool(value) ? value : undefined;
 }
 
-/**
- * The InstructionTool behind `value`: the value itself, or the one an ADK
- * tool was made from by toAdkInstructionTool (lib/tools/adkTool.ts), else
- * undefined.
- */
+/** The InstructionTool `value` is, else undefined. */
 export function instructionToolOf(value: unknown): InstructionTool | undefined {
-  if (isInstructionTool(value)) return value;
-  if (!value || typeof value !== 'object') return undefined;
-  const own = (value as Record<PropertyKey, unknown>)[OWN_TOOL];
-  return isInstructionTool(own) ? own : undefined;
+  return isInstructionTool(value) ? value : undefined;
 }

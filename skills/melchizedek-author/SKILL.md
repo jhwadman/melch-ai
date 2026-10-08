@@ -7,7 +7,7 @@ description: "Design or edit a Melchizedek syndicate YAML: the file layout, requ
 
 Your syndicates live at the root of `config/agents/` in your project. The file name without `.yaml` is the id you pass to `--syndicate <id>` and A2A routes. Use lowercase letters with underscores for file names.
 
-The environment variable `MELCHIZEDEK_AGENTS_DIR` points the loader at another directory. The schema file `syndicateSchema.yaml` sits beside the examples and documents every field with its ADK counterpart.
+The environment variable `MELCHIZEDEK_AGENTS_DIR` points the loader at another directory. The schema file `syndicateSchema.yaml` sits beside the examples and documents every field, and for an agent field the Google ADK field name its key is spelled after.
 
 A minimal template ships with this skill at `assets/minimal.yaml` relative to this skill's directory. Copy it, rename it, and fill in the fields.
 

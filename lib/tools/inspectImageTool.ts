@@ -22,8 +22,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
 import { z } from 'zod';
 
-import { toFunctionTool } from './adkTool.ts';
-import { defineTool } from './toolContract.ts';
+import { asTool, defineTool } from './toolContract.ts';
 
 const VISION_MODEL = 'gemini-3.8-flash';
 
@@ -104,5 +103,5 @@ export const inspectImageContract = defineTool({
   },
 });
 
-/** ADK surface, ready for the registry. */
-export const inspectImageTool = toFunctionTool(inspectImageContract);
+/** The own Tool, ready for the registry. */
+export const inspectImageTool = asTool(inspectImageContract);

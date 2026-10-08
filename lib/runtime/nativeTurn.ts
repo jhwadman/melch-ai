@@ -1,42 +1,38 @@
 /**
- * lib/runtime/nativeTurn.ts — which runtime runs a turn, and one agent's
- * run on the native runtime (ADR 0045, ADR 0073).
+ * lib/runtime/nativeTurn.ts — one agent's run on the engine's runtime, and
+ * what the runtime refuses before a turn starts (ADR 0045, ADR 0073,
+ * ADR 0107).
  *
  * The flag itself is lib/runtime/runtimeFlag.ts.
  *
  * WHY this file exists:
- *   runSyndicateTurn (lib/runtime/syndicateTurn.ts) runs every turn on ADK
- *   by default. MELCHIZEDEK_RUNTIME=native, or the turn's `runtime: 'native'`
- *   option, runs it on the engine's own agent loop instead
- *   (lib/runtime/native/agentLoop.ts), with the agents lib/compileNative.ts
- *   builds from the same AgentSpec. The turn runner keeps its own logic —
- *   routing, guards, the relay fallback, approvals and questions read from
- *   the stored events — and swaps only what runs one agent: ADK's Runner,
- *   or runNativeAgent here. Both store the same events (ADR 0071), and the
- *   turn runner drains both with drainAgentStream.
+ *   runSyndicateTurn (lib/runtime/syndicateTurn.ts) runs every agent of a
+ *   turn on the engine's own agent loop (lib/runtime/native/agentLoop.ts),
+ *   with the agents lib/compileNative.ts builds from the AgentSpec. The turn
+ *   runner keeps its own logic — routing, guards, the relay fallback,
+ *   approvals and questions read from the stored events — and calls
+ *   runNativeAgent here for each agent, draining its events with
+ *   drainAgentStream.
  *
- * WHAT NATIVE REFUSES, before any model call, with a message naming the
- * feature and the runtime (UnsupportedOnRuntimeError): a caller's ADK agent
- * transform, and an `ask_user` tool on a workflow's agent (the schema
- * refuses it on both runtimes; a config that skipped validation is refused
- * here, ADR 0095). A workflow syndicate runs on native through the engine's
- * scheduler (lib/workflow/turn.ts, ADR 0095). An answer to an approval
- * resumes on native (lib/runtime/native/interrupts.ts), an answer to a
- * question resumes the agent that asked (lib/runtime/questions.ts, ADR
- * 0079), `context:` compacts on native (lib/runtime/native/compaction.ts),
- * and `mode: task` runs on native (lib/runtime/native/taskMode.ts).
+ * WHAT IT REFUSES, before any model call, with a message naming the
+ * feature (UnsupportedOnRuntimeError): a caller's `transformAgent` (it
+ * transformed ADK agents, and ADK left in 1.0.0), and an `ask_user` tool on
+ * a workflow's agent (the schema refuses it; a config that skipped
+ * validation is refused here, ADR 0095). A workflow syndicate runs on the
+ * engine's scheduler (lib/workflow/turn.ts, ADR 0095). An answer to an
+ * approval resumes the call (lib/runtime/native/interrupts.ts), an answer
+ * to a question resumes the agent that asked (lib/runtime/questions.ts, ADR
+ * 0079), `context:` compacts (lib/runtime/native/compaction.ts), and
+ * `mode: task` runs (lib/runtime/native/taskMode.ts).
  */
 
 import { randomUUID } from 'node:crypto';
 
-import type { BaseMemoryService, BaseSessionService } from '@google/adk';
-
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import type { ModelAdapter } from '../models/contract.ts';
-import { asSessionService } from './adkSessionBridge.ts';
 import { createTurnEvent } from './events.ts';
 import type { TurnContent, TurnEvent } from './events.ts';
-import type { MemorySearchRequest, MemorySearchResult, MemoryService } from './memoryService.ts';
+import type { MemorySearchRequest, MemoryService } from './memoryService.ts';
 import { runAgentLoop } from './native/agentLoop.ts';
 import type { AgentLoopEnd } from './native/agentLoop.ts';
 import type { NativeAgent } from './native/request.ts';
@@ -50,15 +46,15 @@ import { unsupportedOnNative } from './runtimeFlag.ts';
 // ── What native refuses before a turn starts ─────────────────────────────────
 
 /**
- * Throws UnsupportedOnRuntimeError for a syndicate or a call the native
- * runtime does not run yet.
+ * Throws UnsupportedOnRuntimeError for a syndicate or a call the runtime
+ * does not run.
  */
 export function refuseOnNative(
   config: SyndicateYamlConfig,
   call: { isWorkflow: boolean; transformAgent?: unknown },
 ): void {
   const where = config.syndicate_name || config.orchestrator?.name || 'syndicate';
-  if (call.transformAgent) throw unsupportedOnNative('transformAgent (it transforms ADK agents)', where);
+  if (call.transformAgent) throw unsupportedOnNative('transformAgent (it transformed ADK agents; the ADK runtime was removed in 1.0.0)', where);
   if (call.isWorkflow) {
     // A pause inside an agent node cannot be resumed by the native walk (lib/workflow/resume.ts).
     const asking = [config.orchestrator, ...(config.subagents ?? [])].find((agent) => (agent?.tools ?? []).includes(ASK_USER));
@@ -69,19 +65,12 @@ export function refuseOnNative(
 // ── Memory ───────────────────────────────────────────────────────────────────
 
 /**
- * The search the native loop's memory tools call: the engine's MemoryService
- * as it is, or an ADK-only service's searchMemory, which takes and returns
- * the same JSON. The caller has already pinned the namespace.
+ * The search the loop's memory tools call: the engine's MemoryService. The
+ * caller has already pinned the namespace.
  */
-export function nativeMemory(service: BaseMemoryService | MemoryService | undefined): Pick<MemoryService, 'search'> | undefined {
-  if (!service) return undefined;
-  const engine = service as Partial<MemoryService>;
-  if (typeof engine.search === 'function') return { search: (request: MemorySearchRequest) => engine.search!(request) };
-  const adk = service as Partial<BaseMemoryService>;
-  if (typeof adk.searchMemory !== 'function') return undefined;
-  return {
-    search: async (request: MemorySearchRequest) => (await adk.searchMemory!(request)) as unknown as MemorySearchResult,
-  };
+export function nativeMemory(service: MemoryService | undefined): Pick<MemoryService, 'search'> | undefined {
+  if (!service || typeof service.search !== 'function') return undefined;
+  return { search: (request: MemorySearchRequest) => service.search(request) };
 }
 
 // ── One agent's run ──────────────────────────────────────────────────────────
@@ -90,8 +79,8 @@ export interface NativeRunParams {
   agent: NativeAgent;
   /** The leaf adapter for a model id (lib/compileNative.ts nativeAdapterFor). */
   adapterFor: (model: string) => ModelAdapter;
-  /** The store, either face (lib/runtime/adkSessionBridge.ts). */
-  sessions: SessionService | BaseSessionService;
+  /** The store. */
+  sessions: SessionService;
   appName: string;
   userId: string;
   sessionId: string;
@@ -112,15 +101,15 @@ export interface NativeRunParams {
 }
 
 /**
- * Runs `agent` for one message, as ADK's Runner runs an agent: read the
+ * Runs `agent` for one message: read the
  * session (it must exist), store the message as the user's event under a
  * new `e-` invocation id, then run the agent loop on it, yielding every
  * event the loop yields. A run whose signal aborted before the message was
- * stored stores nothing, as on ADK. Returns how the loop ended, or
+ * stored stores nothing. Returns how the loop ended, or
  * undefined when it never started.
  */
 export async function* runNativeAgent(params: NativeRunParams): AsyncGenerator<TurnEvent, AgentLoopEnd | undefined> {
-  const sessions = asSessionService(params.sessions);
+  const sessions = params.sessions;
   const { appName, userId, sessionId } = params;
   const session = await sessions.get({ appName, userId, sessionId });
   if (!session) throw new Error(`Session not found: ${sessionId} (appName=${appName}, userId=${userId})`);

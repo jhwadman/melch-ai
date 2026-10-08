@@ -8,8 +8,8 @@
  *   Kimi K3 (July 2026) is the strongest open-weight model on the public
  *   coding and research boards, and Moonshot serves it first-party with
  *   tool calling, strict structured output and vision, so it earns a
- *   direct adapter rather than only the gateway path. Under ADK it runs
- *   behind KimiLlm (lib/models/kimiLlm.ts), which any `kimi-*` id routes to.
+ *   direct adapter rather than only the gateway path; any `kimi-*` id
+ *   resolves to it (resolveAdapter, lib/models/adapterResolver.ts).
  *
  * WHY the chat-completions base (lib/models/chatCompletionsAdapter.ts):
  *   Moonshot's API is OpenAI Chat Completions at https://api.moonshot.ai/v1
@@ -26,7 +26,8 @@
  *      .cn console serves mainland China) and put it in .env as
  *      MOONSHOT_API_KEY.
  *   2. Set model: "kimi-k3" (or any kimi-* id) in your YAML.
- *   registerAvailableProviders() registers this adapter when the key is set.
+ *   The adapter is available when the key is set (logProviderStatuses()
+ *   reports it).
  *   Optional: MOONSHOT_BASE_URL for a proxy that speaks the same dialect.
  *
  * THE FAMILY (platform.moonshot.ai › Model list, October 2026; USD per 1M tokens):
@@ -67,9 +68,7 @@
  *   goes as its Kimi word (`medium` → `high`, a budget → the level that
  *   covers it), `none` as `low` since K3 cannot switch thinking off, and a
  *   request with none pins DEFAULT_KIMI_REASONING_EFFORT (lib/config.ts).
- *   `max` has no contract level: an agent that needs it writes the older
- *   spelling `generateContentConfig.reasoningEffort: max`, which the ADK
- *   path carries beside the contract (ChatCompletionsRequest.olderSpelling).
+ *   `max` has no contract level, so no request sends it.
  *   K2.x models take no reasoning_effort: a `thinking: { type }` switch
  *   instead, so `none` (or a budget of 0) sends `disabled` and any other
  *   setting sends nothing. K2.7 Code (and its highspeed variant) cannot
@@ -213,9 +212,8 @@ export class KimiAdapter extends ChatCompletionsAdapter {
   }
 
   /** The reasoning controls, per generation (see the header). */
-  protected override reasoningFields(model: string, setting: ReasoningSetting | undefined, olderWord: string | undefined): Record<string, unknown> {
+  protected override reasoningFields(model: string, setting: ReasoningSetting | undefined): Record<string, unknown> {
     if (isKimiK3(model)) {
-      if (olderWord !== undefined) return { reasoning_effort: olderWord };
       if (setting === undefined) return { reasoning_effort: DEFAULT_KIMI_REASONING_EFFORT };
       const word = reasoningConfig(model, setting).reasoningEffort;
       return { reasoning_effort: word === 'none' ? 'low' : word }; // K3 cannot switch thinking off

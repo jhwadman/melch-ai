@@ -7,7 +7,7 @@
  *   `skills.scripts: local` (ADR 0029) runs a skill's own scripts after a
  *   person approves each run (run_skill_script in ./tools.ts). The harness
  *   ran them through ADK's local executor until WS3-3. This module runs
- *   them the same way, so a run returns the same result on either runtime.
+ *   them the same way, so a run returns the result it returned under ADK.
  *
  * WHAT A RUN IS, AND WHAT A SCRIPT CAN REACH (unchanged from ADK's executor):
  *   1. A fresh private directory under the OS temp directory (mkdtemp,

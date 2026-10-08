@@ -5,7 +5,6 @@
  * beyond types, so the schema can read it without pulling the compiler in.
  */
 
-import type { RetryConfig as AdkRetryConfig } from '@google/adk';
 
 /** `START` in an edge chain: the graph's entry. Not a node. */
 export const START_NAME = 'START';
@@ -79,33 +78,11 @@ export function elementNames(element: EdgeElement): string[] {
   return Object.values(element).flatMap((v) => (Array.isArray(v) ? v : [v]));
 }
 
-/** ADK's retry config from the YAML spelling. */
-export function toRetryConfig(retry: RetryYaml | undefined): AdkRetryConfig | undefined {
-  if (!retry) return undefined;
-  const out: AdkRetryConfig = {};
-  if (retry.max_attempts !== undefined) out.maxAttempts = retry.max_attempts;
-  if (retry.initial_delay !== undefined) out.initialDelay = retry.initial_delay;
-  if (retry.max_delay !== undefined) out.maxDelay = retry.max_delay;
-  if (retry.backoff_factor !== undefined) out.backoffFactor = retry.backoff_factor;
-  if (retry.jitter !== undefined) out.jitter = retry.jitter;
-  if (retry.exceptions !== undefined) out.exceptions = [...retry.exceptions];
-  return out;
-}
-
-/** The BaseNode fields a node entry's modifiers map to. */
-export function nodeSettings(node: WorkflowNodeYaml | undefined): { retryConfig?: AdkRetryConfig; timeout?: number } {
-  const out: { retryConfig?: AdkRetryConfig; timeout?: number } = {};
-  const retry = toRetryConfig(node?.retry);
-  if (retry) out.retryConfig = retry;
-  if (node?.timeout !== undefined) out.timeout = node.timeout;
-  return out;
-}
-
 /**
  * The route an output names: the `routeKey` property of an object (a parsed
  * JSON output), else the trimmed text. Never undefined, so an edge with a
- * `default` key always has something to fall back from. One function for
- * both runtimes; it lives in lib/workflow/route.ts.
+ * `default` key always has something to fall back from. It lives in
+ * lib/workflow/route.ts.
  */
 export { routeOf } from './workflow/route.ts';
 

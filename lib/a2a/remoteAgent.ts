@@ -12,9 +12,8 @@
  *
  * Built on the official A2A SDK client with its v0.3 compatibility layer on,
  * so a remote agent may speak A2A 1.0 (e.g. Microsoft Foundry) or 0.3 (most
- * other platforms today); the card decides. The client does not depend on
- * ADK, and the tool is the engine's own (remoteAgentOwnTool); the ADK
- * runtime receives it through toFunctionTool (remoteAgentTool).
+ * other platforms today); the card decides. The tool is the engine's own
+ * (remoteAgentOwnTool, also exported as remoteAgentTool).
  *
  * Security:
  *   - Every URL — the card and the endpoint the card names — passes the
@@ -33,12 +32,10 @@ import { Role, TaskState } from '@a2a-js/sdk';
 import type { AgentCard, Message, Part, Task } from '@a2a-js/sdk';
 import { ClientFactory, DefaultAgentCardResolver, JsonRpcTransportFactory, RestTransportFactory } from '@a2a-js/sdk/client';
 import type { Client } from '@a2a-js/sdk/client';
-import type { FunctionTool } from '@google/adk';
 
 import type { ToolDeclaration } from '../models/contract.ts';
 import { checkHost } from '../net/addressGuard.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
-import { toFunctionTool } from '../tools/adkTool.ts';
 import type { Tool, ToolContext } from '../tools/tool.ts';
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -252,7 +249,7 @@ export interface RemoteAgentToolParams {
 /**
  * The subagent as an own Tool (lib/tools/tool.ts, ADR 0062) with AgentTool's
  * contract (one `request` string), so an orchestrator delegates to it
- * exactly as to a local subagent, on either runtime. The remote
+ * exactly as to a local subagent. The remote
  * conversation is keyed by the local session (`ctx.sessionId`), and the call
  * aborts with the turn (`ctx.signal`). Failures come back as readable text,
  * never as a throw into the runner.
@@ -287,12 +284,7 @@ export function remoteAgentOwnTool(params: RemoteAgentToolParams): Tool {
   };
 }
 
-/**
- * The remote agent tool as the ADK runtime runs it: the FunctionTool
- * toFunctionTool (lib/tools/adkTool.ts) makes of remoteAgentOwnTool, which
- * declares the same parameters the hand-built FunctionTool declared and
- * carries the own Tool for toolOf().
- */
-export function remoteAgentTool(params: RemoteAgentToolParams): FunctionTool {
-  return toFunctionTool(remoteAgentOwnTool(params));
+/** The remote agent tool, as registerTool and an agent's tools take it: remoteAgentOwnTool's own Tool. */
+export function remoteAgentTool(params: RemoteAgentToolParams): Tool {
+  return remoteAgentOwnTool(params);
 }

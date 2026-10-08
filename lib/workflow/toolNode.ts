@@ -1,46 +1,47 @@
 /**
  * lib/workflow/toolNode.ts — a workflow `tool:` node on the engine's own
  * runtime: the registry tool run once with the previous node's output as its
- * arguments, as ADK 2.2's `ToolNode` runs it (workflow/nodes/tool_node.js).
+ * arguments, as ADK 2.2's `ToolNode` ran it (workflow/nodes/tool_node.js).
  *
  * `toolNodeRunner(context)` is a `NodeRunner` for the scheduler
  * (lib/workflow/scheduler.ts): it runs a tool node's run and leaves every
  * other kind to the runner it is given. `runToolNode(node, run, context)` is
  * the same for one run. It imports nothing from ADK, and nothing in its
  * import graph does: the tool is resolved by the caller's `resolveTool`, so
- * the registry (which builds ADK's FunctionTools) stays outside.
+ * the registry stays outside.
  *
- * ── What ADK's ToolNode does, and so what this does ──────────────────────
+ * ── What ADK's ToolNode did, and so what this does ───────────────────────
  *   1. INPUT TO ARGUMENTS (coerceToolArgs). A content's text, a string parsed
  *      as JSON when it parses (a blank string is no arguments), null or
  *      undefined as `{}`. Anything that is then not a plain object (a list,
  *      a number, text that is not JSON) throws ADK's TypeError, which fails
  *      the node as any node error does.
  *   2. ONE CALL, id `<node path>:<run id>` (`Graph.Lookup:1`), through ADK's
- *      handleFunctionCallList semantics for a single call: an own Tool runs
- *      as FunctionTool runs it (its approval gate, then execute, a throw
- *      reported as `Error in tool '<name>': <message>`); any other tool runs
- *      through its `runAsync`. A throw becomes `{ error: <message> }`, a
+ *      handleFunctionCallList semantics for a single call: the own Tool runs
+ *      as ADK's FunctionTool ran it (its approval gate, then execute, a throw
+ *      reported as `Error in tool '<name>': <message>`). An ADK tool (an
+ *      object with runAsync) is refused, naming 1.0.0 and defineTool, as
+ *      registerTool refuses one. A throw becomes `{ error: <message> }`, a
  *      result that is not an object `{ result }`, a list `{ results }`.
- *   3. ONE EVENT, built as ADK builds it and enriched as ADK's node runner
- *      enriches it: a `user` content holding the function response, the
+ *   3. ONE EVENT, built as ADK built it and enriched as ADK's node runner
+ *      enriched it: a `user` content holding the function response, the
  *      call's actions (its state writes, an approval it asked for), the run's
  *      branch, `author` the node's YAML name, `output` the response object,
  *      and `nodeInfo { path, outputFor }`. Serialized, it is the JSON ADK
- *      stores, key for key (tests/workflowToolNode.test.ts compares them).
+ *      stored, key for key (tests/workflowToolNode.test.ts compares them).
  *   4. THE OUTPUT is the response object, which the next node receives:
  *      `{ result: 'found needle' }` for a tool that returned a string.
  *
  * The event goes to `context.onEvent` before the run resolves, so a caller
  * that drains events through the turn runner's reader (drainAgentStream)
- * prints the same progress lines ADK's do: `⇢ Node: Lookup`, then
+ * prints the same progress lines ADK's did: `⇢ Node: Lookup`, then
  * `← Result: <tool> — <n> chars`, and `Running node: Lookup` to onProgress.
  *
  * The call runs inside the caller's `traceCall` when it passes one (the
- * native turn opens the engine's `tool.execute` span there, as ADK opens
+ * native turn opens the engine's `tool.execute` span there, as ADK opened
  * `execute_tool`).
  *
- * Not here: a long-running tool is refused, as ADK's ToolNode refuses it
+ * Not here: a long-running tool is refused, as ADK's ToolNode refused it
  * (resolveToolNode, which the turn also calls before any model call);
  * tool callbacks and plugins do not exist on a workflow node; retries,
  * timeouts and the node-error event are the scheduler's (WS4-2b).
@@ -116,16 +117,6 @@ export function coerceToolArgs(input: unknown): Record<string, unknown> {
 
 // ── 2. The call ──────────────────────────────────────────────────────────────
 
-/** A tool that is not an own Tool, read by shape: an ADK tool, or anything with runAsync. */
-interface RunAsyncTool {
-  name: string;
-  isLongRunning?: boolean;
-  runAsync(request: { args: Record<string, unknown>; toolContext: unknown }): Promise<unknown>;
-}
-
-function isRunAsyncTool(value: unknown): value is RunAsyncTool {
-  return !!value && typeof value === 'object' && typeof (value as { runAsync?: unknown }).runAsync === 'function' && typeof (value as { name?: unknown }).name === 'string';
-}
 
 /** ADK's normalizeCallbackResponse: a result as a function response. */
 function asResponse(value: unknown): Record<string, unknown> {
@@ -135,25 +126,27 @@ function asResponse(value: unknown): Record<string, unknown> {
 }
 
 /**
- * The registry entry for the node's tool, refused as ADK refuses it at
- * compile time: unregistered, or long-running. The turn runner calls it for
+ * The registry entry for the node's tool, refused as ADK refused it at
+ * compile time: unregistered, or long-running; and an ADK tool (anything
+ * with runAsync), which 1.0.0 no longer runs. The turn runner calls it for
  * every tool node before the walk starts, so a refusal comes before any
- * model call, as ADK's compileWorkflow throws before its Runner runs.
+ * model call.
  */
-export function resolveToolNode(node: ToolNode, context: Pick<ToolNodeContext, 'resolveTool'>): { own: Tool; name: string } | { other: RunAsyncTool; name: string } {
+export function resolveToolNode(node: ToolNode, context: Pick<ToolNodeContext, 'resolveTool'>): { own: Tool; name: string } {
   const entry = context.resolveTool(node.tool);
-  const own = toolOf(entry);
-  const other = own ? undefined : isRunAsyncTool(entry) ? entry : undefined;
-  if (!own && !other) throw new Error(`workflow node '${node.name}': tool '${node.tool}' is not registered`);
-  const name = own ? own.name : other!.name;
-  if (own ? own.longRunning === true : other!.isLongRunning === true) {
-    throw new Error(`ToolNode does not support long-running tools yet (tool '${name}').`);
+  if (!!entry && typeof entry === 'object' && 'runAsync' in entry) {
+    throw new Error(`workflow node '${node.name}': tool '${node.tool}' is an ADK tool, which melchizedek-agents 1.0.0 no longer runs (ADR 0107); define it with defineTool (melchizedek-agents) instead`);
   }
-  return own ? { own, name } : { other: other!, name };
+  const own = toolOf(entry);
+  if (!own) throw new Error(`workflow node '${node.name}': tool '${node.tool}' is not registered`);
+  if (own.longRunning === true) {
+    throw new Error(`ToolNode does not support long-running tools yet (tool '${own.name}').`);
+  }
+  return { own, name: own.name };
 }
 
 /**
- * An own Tool's call, as FunctionTool runs the Tool toFunctionTool wraps: its
+ * An own Tool's call, as ADK's FunctionTool ran a wrapped Tool: its
  * approval gate (a tool node has no resume, so a gated call always asks),
  * then execute, a throw named for the tool.
  */
@@ -196,15 +189,9 @@ export async function runToolNode(node: ToolNode, run: NodeRun, context: ToolNod
   // handleFunctionCallList starts from null: a call that threw an empty message answers `{ result: null }`.
   let response: unknown = null;
   let error: unknown;
-  const invoke = (): Promise<unknown> => {
-    if ('own' in resolved) return runOwnTool(resolved.own, args, call);
-    // The shape ADK's tools read from ADK's Context, over the same context and the same actions.
-    const toolContext = { ...call, abortSignal: run.signal, invocationContext: { invocationId: context.invocationId, branch: run.branch, userContent: context.userContent } };
-    return resolved.other.runAsync({ args, toolContext });
-  };
+  const invoke = (): Promise<unknown> => runOwnTool(resolved.own, args, call);
   try {
-    const tool = 'own' in resolved ? resolved.own : resolved.other;
-    response = await (context.traceCall ? context.traceCall({ id: functionCallId, name: resolved.name }, tool, invoke) : invoke());
+    response = await (context.traceCall ? context.traceCall({ id: functionCallId, name: resolved.name }, resolved.own, invoke) : invoke());
   } catch (e) {
     // handleFunctionCallList: an Error's message, any other throw as it is.
     error = e instanceof Error ? e.message : e;

@@ -4,9 +4,9 @@
  *
  * ADK's TypeScript port never derives a route from an agent's output, so a
  * routing map after a node gets a hidden step, `<Node>__route`, that reads
- * the route from the output and re-emits the output with it (lib/workflow.ts
- * compiles it as a FunctionNode; lib/workflow/scheduler.ts runs it itself).
- * The rule is one function both runtimes call, `routeOf`:
+ * the route from the output and re-emits the output with it (ADK ran it as
+ * a FunctionNode; lib/workflow/scheduler.ts runs it itself). The rule is one
+ * function, `routeOf`:
  *
  *   - an object output (an agent with an output schema, a join, a tool's
  *     result): its `route_key` property, `route` by default, trimmed, `''`
@@ -21,12 +21,12 @@
  * and takes the `default` edge when no key matched (scheduler.ts nextNodes),
  * so the default catches every route no key names, `''` included.
  *
- * `routeStepEvent` is the event ADK's route step stores, so a session the
- * native walk writes holds what ADK's holds: authored by the step, the
+ * `routeStepEvent` is the event ADK's route step stored, so a session the
+ * native walk writes holds what ADK's held: authored by the step, the
  * output and the route, the step's node path, no content.
  *
- * No ADK import: the ADK path (lib/workflow.ts) imports `routeOf` from here
- * through lib/workflowConfig.ts.
+ * A leaf: lib/workflowConfig.ts re-exports `routeOf` from here, and the
+ * schema imports it through that.
  */
 
 import { createTurnEvent } from '../runtime/events.ts';
@@ -78,7 +78,7 @@ export function routeStepEvent(run: RouteStepRun): TurnEvent {
   if (run.output !== undefined) event.output = run.output;
   if (run.route !== undefined) event.route = run.route as TurnRouteKey | TurnRouteKey[];
   // What enrichNodeEvent (lib/workflow/toolNode.ts) writes on this event, kept here so this module stays a leaf:
-  // lib/workflowConfig.ts re-exports routeOf, and the schema and the ADK path import it.
+  // lib/workflowConfig.ts re-exports routeOf, and the schema imports it.
   event.nodeInfo = { path: run.path, ...(run.output !== undefined ? { outputFor: [run.path] } : {}) };
   return event;
 }

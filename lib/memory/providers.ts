@@ -33,12 +33,14 @@ import { endpointFromEnv } from '../models/endpoints.ts';
 import type { ProviderEndpoint } from '../models/endpoints.ts';
 import { GoogleGenAI } from '@google/genai';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
-import type { LlmRequest, LlmResponse } from '@google/adk';
+import type { ModelAdapter } from '../models/contract.ts';
+import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../models/genaiMapping.ts';
+import type { LlmRequest, LlmResponse } from '../models/genaiMapping.ts';
 
 import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, MEMORY_EXTRACTION_MODEL } from '../config.ts';
 import { providerForModel } from '../models/providerMap.ts';
 import { resolveModel } from '../models/registry.ts';
-import { initializeTracing } from '../observability/tracer.ts';
+import { initializeTracing, traceLlmGeneration } from '../observability/tracer.ts';
 import { trimTrailingSlashes } from '../models/urls.ts';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
@@ -68,13 +70,14 @@ export interface ModelExtractorOptions {
   temperature?: number;
   maxOutputTokens?: number;
   /** Test seam: produce the adapter. Default lib/models/registry.ts resolveModel. */
-  resolve?: (model: string, apiKey?: string) => { generateContentAsync(req: LlmRequest, stream?: boolean): AsyncGenerator<LlmResponse, void> };
+  resolve?: (model: string, apiKey?: string) => ModelAdapter;
 }
 
 /**
  * Extraction on any model id. The key passed here reaches only a model of
  * the matching provider (resolveModel's BYOK rule); other providers read
- * their own key from the environment, exactly like an agent would.
+ * their own key from the environment, exactly like an agent would. The call
+ * is traced as one `llm.request` (traceLlmGeneration), as every model call is.
  */
 export function modelExtractor(opts: ModelExtractorOptions = {}): MemoryExtractor {
   const model = opts.model ?? MEMORY_EXTRACTION_MODEL;
@@ -85,16 +88,19 @@ export function modelExtractor(opts: ModelExtractorOptions = {}): MemoryExtracto
   return {
     model,
     async extract(prompt: string): Promise<string> {
-      const llm = resolve(model, opts.apiKey);
-      const request = {
+      const adapter = resolve(model, opts.apiKey);
+      const llmRequest: LlmRequest = {
         model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { temperature: opts.temperature ?? 0.1, maxOutputTokens: opts.maxOutputTokens ?? 4096 },
-        liveConnectConfig: {},
         toolsDict: {},
-      } as unknown as LlmRequest;
+      };
+      const request = llmRequestToModelRequest(llmRequest, { model, stream: false });
+      async function* inner(): AsyncGenerator<LlmResponse, void> {
+        for await (const response of adapter.generate(request)) yield modelResponseToLlmResponse(response);
+      }
       let text = '';
-      for await (const response of llm.generateContentAsync(request, false)) {
+      for await (const response of traceLlmGeneration({ provider: adapter.provider, model, request }, inner())) {
         if (response.errorCode) {
           throw new Error(`${model}: ${response.errorCode}${response.errorMessage ? ` — ${response.errorMessage}` : ''}`);
         }

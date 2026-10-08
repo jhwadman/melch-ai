@@ -4,11 +4,9 @@
  *
  * WHY this file exists:
  *   Claude's translation reads a ModelRequest and yields ModelResponses, so
- *   the native runtime (ADR 0045) can call it with no ADK in the path. On
- *   the ADK path, ClaudeLlm (lib/models/claudeLlm.ts) is this adapter behind
- *   the ADK shim (lib/models/adkShim.ts, ADR 0053): the shim charges the
- *   turn and opens the llm.request span, and this adapter only decorates
- *   that span with setLlmSpanAttribute.
+ *   the native loop (ADR 0045) calls it directly: the loop charges the turn
+ *   and opens the llm.request span (ADR 0053), and this adapter only
+ *   decorates that span with setLlmSpanAttribute.
  *
  * THE MAPPING is the Anthropic table of wiki/models/model-contract.md;
  * wiki/models/claude-adapter.md records the choices made inside it:
@@ -22,15 +20,13 @@
  *     the part they preceded as providerState (ADR 0046), and are replayed
  *     before that part within the current turn's tool loop, for this model
  *     only.
- *   - A tool result's content is the JSON of the result in the shape the ADK
- *     path stores it (`{ result }` for a value that is not an object,
- *     `{ error }` for a failure), so both runtimes send the same bytes
- *     (ADR 0055).
- *   - ClaudeLlm adds `claudeReasoning`, the older reasoning spelling read as
- *     ADR 0049 reads it, which this adapter reads in place of `reasoning`
- *     (ClaudeModelRequest, ADR 0055). The native runtime never sets it.
+ *   - A tool result's content is the JSON of the result in the shape the
+ *     stored events keep it (`{ result }` for a value that is not an object,
+ *     `{ error }` for a failure), the bytes ADK sent (ADR 0055).
+ *   - Reasoning is the contract's `reasoning`, read by claudeReasoningOf
+ *     (ADR 0049).
  *   - `outputFormat: 'json'` sends nothing: the Messages API has no JSON
- *     mode without a schema, and ClaudeLlm never sent one for
+ *     mode without a schema, and ADK's Claude path never sent one for
  *     `responseMimeType` alone (ADR 0061). The prompt asks for the JSON.
  *
  * THE ADAPTER RULES (contract.ts header) as this adapter keeps them:
@@ -70,7 +66,6 @@ import type { ProviderEndpoint } from './endpoints.ts';
 import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
 import { errorDecision, errorText } from './errorResponse.ts';
 import { adaptiveThinkingFor, claudeGeneration, claudeReasoningOf, claudeUrlImagesOn, THINKING_BINDING_BETA } from './claudeModels.ts';
-import type { ClaudeReasoning } from './claudeModels.ts';
 
 /** The provider id this adapter reports and writes its state under (lib/models/providerMap.ts). */
 export const ANTHROPIC_PROVIDER = 'anthropic';
@@ -80,19 +75,6 @@ export const THINKING_STATE_KIND = 'thinking_blocks';
 
 /** Name of the tool that carries an outputSchema answer where output_config.format is not used. */
 export const STRUCTURED_OUTPUT_TOOL = 'structured_output';
-
-/**
- * A ModelRequest as the ADK path's ClaudeLlm hands it to this adapter
- * (ADR 0055). `claudeReasoning` is the agent's older reasoning spelling
- * (generateContentConfig.reasoningEffort and thinkingConfig.thinkingBudget)
- * read as ADR 0049 reads it, which `reasoning` cannot say in full: the effort
- * words `xhigh` and `max`, `minimal` as `low`, and the budget rows' reading
- * of the budget alone. When set it is read in place of `reasoning`. The
- * native runtime never sets it.
- */
-export interface ClaudeModelRequest extends ModelRequest {
-  claudeReasoning?: ClaudeReasoning;
-}
 
 // ── Wire types (the SDK is imported dynamically, so it may be absent) ────────
 
@@ -221,7 +203,7 @@ export function anthropicTools(request: Pick<ModelRequest, 'tools' | 'nativeTool
   return tools;
 }
 
-/** A tool result's content: the JSON of the result in the shape the ADK path stores it. */
+/** A tool result's content: the JSON of the result in the shape the stored events keep it (ADR 0055). */
 function toolResultBlock(part: ToolResultPart): AnthropicContentBlock {
   const response = part.isError ? { error: part.result } : isPlainObject(part.result) ? part.result : { result: part.result };
   return {
@@ -370,7 +352,7 @@ export class ClaudeAdapter implements ModelAdapter {
   async #build(request: ModelRequest, model: string, endpoint: ProviderEndpoint): Promise<BuiltRequest> {
     // ── The request surface this model takes (ADR 0049) ──────────────────────
     const gen = claudeGeneration(model);
-    const reasoning = (request as ClaudeModelRequest).claudeReasoning ?? claudeReasoningOf(request.reasoning);
+    const reasoning = claudeReasoningOf(request.reasoning);
     // Adaptive generations: thinking, effort and drop_block from the table.
     // Budget generations keep the budget path below.
     const plan = gen.thinking === 'adaptive' ? adaptiveThinkingFor(gen, reasoning) : undefined;

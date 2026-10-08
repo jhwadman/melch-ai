@@ -10,7 +10,7 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Server } from 'node:http';
-import { InMemorySessionService } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { redisRateLimitStore } from '../lib/a2a/redisLimits.ts';
@@ -72,7 +72,7 @@ async function instance(command: (a: string[]) => Promise<unknown>) {
     defaultSyndicate: 'assistant.yaml',
     servedAgents: ['assistant.yaml'],
     serverSecret: SECRET,
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     rateLimit: { windowMs: 60_000, max: 2 },
     limitStore: (limiter) => redisRateLimitStore({ command, prefix: `t:${limiter}:` }),
     log: () => {},

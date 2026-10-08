@@ -9,22 +9,22 @@
  *     adk_session_events) parses as TurnEvent[] and serializes back to the
  *     file's exact bytes, and every field stored there is one TurnEvent
  *     declares.
- *   - getFunctionCalls, getFunctionResponses and isFinal answer as ADK's own
- *     functions do, on every fixture event and on the edge cases;
- *     createTurnEvent builds the JSON ADK's createEvent builds.
+ *   - getFunctionCalls, getFunctionResponses and isFinal answer as ADK 2.2's
+ *     own functions did, on every fixture event and on the edge cases;
+ *     createTurnEvent builds the JSON ADK 2.2's createEvent built (both
+ *     recorded in tests/fixtures/adk-reference/events).
  *   - The parse names the field it cannot read and carries every other one.
  *   - The in-process session service: copies in and out, the delta rules
- *     ADK applies, one meaning for reads and paging across stores, and every
- *     fixture replayed through it unchanged.
+ *     ADK 2.2 applied (recorded), one meaning for reads and paging across
+ *     stores, and every fixture replayed through it unchanged.
  *   - The three modules load nothing at run time and name no @google/*.
- * ADK appears here only as the reference; no model, no network.
+ * ADK appears here only as the recorded reference; no model, no network.
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Event as AdkEvent, Session as AdkSession } from '@google/adk';
 
 import {
   TurnEventError,
@@ -66,7 +66,7 @@ import type { SessionFixture } from './helpers/sessionFixtures.ts';
 import { ROOT, importGraph, runtimeImportsOf } from './helpers/importGraph.ts';
 import { adkReferences, canonical } from './helpers/adkReference.ts';
 
-// ADK's answers are recorded (tests/fixtures/adk-reference/events); ADK runs only under ADK_REFERENCE=live|record.
+// ADK 2.2's answers, recorded (tests/fixtures/adk-reference/events).
 const reference = adkReferences('events');
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -96,14 +96,6 @@ function everyStoredEvent(): Array<{ where: string; event: TurnEvent }> {
       })),
     ),
   );
-}
-
-/** The same JSON as ADK's types see it. TurnEvent is wider than ADK's Event (a string where genai has an enum), so the cast goes through unknown. */
-const asAdk = (event: TurnEvent): AdkEvent => event as unknown as AdkEvent;
-/** ADK's createEvent over a copy of `init` (live side only: it loads ADK). */
-async function adkEventFrom(init: TurnEventInit): Promise<AdkEvent> {
-  const { createEvent } = await import('@google/adk');
-  return createEvent(structuredClone(init) as unknown as Parameters<typeof createEvent>[0]);
 }
 
 // ── The stored shape ─────────────────────────────────────────────────────────
@@ -218,30 +210,12 @@ test('every field stored in the fixtures is one TurnEvent declares, at every lev
   }
 });
 
-test('a TurnEvent is what ADK stores: ADK events and sessions are assignable to the engine types', async () => {
-  // Compile-time: `npx tsc --noEmit` refuses these if the shapes drift apart.
-  const adkEvents: AdkEvent[] = loadFixture('06-thought-signature', 'verbatim').sessions[0]!.events;
-  const asTurnEvents: TurnEvent[] = adkEvents;
-  const { InMemorySessionService } = await import('@google/adk');
-  const adk = new InMemorySessionService();
-  const created: AdkSession = await adk.createSession({ appName: 'a', userId: 'u', sessionId: 's' });
-  const asSession: Session = created;
-  assert.equal(asTurnEvents.length, 4);
-  assert.equal(asSession.id, 's');
-});
+// ── Reading events as ADK 2.2 did ─────────────────────────────────────────────
 
-// ── Reading events as ADK does ───────────────────────────────────────────────
-
-test('getFunctionCalls, getFunctionResponses and isFinal answer as ADK does on every fixture event', async () => {
+test('getFunctionCalls, getFunctionResponses and isFinal answer as ADK 2.2 did (recorded) on every fixture event', async () => {
   const stored = everyStoredEvent();
-  // ADK's answers on every stored event; ours in the same shape, through the same canonical form.
-  const theirs = await reference('fixture-event-answers', async () => {
-    const adk = await import('@google/adk');
-    return stored.map(({ where, event }) => {
-      const adkEvent = asAdk(structuredClone(event));
-      return { where, calls: adk.getFunctionCalls(adkEvent), responses: adk.getFunctionResponses(adkEvent), final: adk.isFinalResponse(adkEvent) };
-    });
-  });
+  // ADK 2.2's recorded answers on every stored event; ours in the same shape, through the same canonical form.
+  const theirs = await reference<Array<{ where: string; calls: unknown; responses: unknown; final: boolean }>>('fixture-event-answers');
   const ours = canonical(stored.map(({ where, event }) => ({ where, calls: getFunctionCalls(event), responses: getFunctionResponses(event), final: isFinal(event) })));
   assert.equal(theirs.length, ours.length, 'one recorded answer per stored event');
   let finals = 0;
@@ -269,7 +243,7 @@ test('the helpers return the parts’ own call and response objects, in order', 
   assert.deepEqual(getFunctionCalls(createTurnEvent()), []);
 });
 
-test('isFinal matches ADK on every way an event can end, or not end, a run', async () => {
+test('isFinal matches the recorded ADK 2.2 answer on every way an event can end, or not end, a run', async () => {
   const call = { functionCall: { name: 'lookup', args: {}, id: 'c1' } };
   const response = { functionResponse: { name: 'lookup', id: 'c1', response: { result: 'ok' } } };
   const cases: Array<[string, TurnEventInit, boolean]> = [
@@ -286,12 +260,7 @@ test('isFinal matches ADK on every way an event can end, or not end, a run', asy
     ['a code result followed by text', { content: { role: 'model', parts: [{ codeExecutionResult: { output: '2' } }, { text: 'it is 2' }] } }, true],
     ['a partial that skips summarization', { partial: true, actions: { skipSummarization: true } }, true],
   ];
-  const adkFinal = await reference('is-final-cases', async () => {
-    const { isFinalResponse } = await import('@google/adk');
-    const out: Array<{ label: string; final: boolean }> = [];
-    for (const [label, init] of cases) out.push({ label, final: isFinalResponse(await adkEventFrom(init)) });
-    return out;
-  });
+  const adkFinal = await reference<Array<{ label: string; final: boolean }>>('is-final-cases');
   assert.deepEqual(adkFinal.map((c) => c.label), cases.map(([label]) => label), 'one recorded answer per case');
   for (const [i, [label, init, expected]] of cases.entries()) {
     const event = createTurnEvent({ id: 'evfixed1', timestamp: 1, ...init });
@@ -301,21 +270,17 @@ test('isFinal matches ADK on every way an event can end, or not end, a run', asy
   assert.equal(hasTrailingCodeExecutionResult(createTurnEvent({ content: { parts: [] } })), false);
 });
 
-// ── Making events as ADK does ────────────────────────────────────────────────
+// ── Making events as ADK 2.2 did ──────────────────────────────────────────────
 
-test('createTurnEvent builds the JSON ADK’s createEvent builds, key order included', async () => {
+test('createTurnEvent builds the JSON ADK 2.2’s createEvent built (recorded), key order included', async () => {
   const inits: TurnEventInit[] = [
     { id: 'abcdEFG1', timestamp: 1767225600000 },
     { author: 'user', invocationId: 'e-1', content: { role: 'user', parts: [{ text: 'hi' }] }, id: 'abcdEFG2', timestamp: 2 },
     { invocationId: 'e-1', author: 'Analyst', id: 'abcdEFG3', timestamp: 3, content: { role: 'model', parts: [{ text: 'x' }] }, turnComplete: true, usageMetadata: { promptTokenCount: 4 } },
     { id: 'abcdEFG4', timestamp: 4, actions: { stateDelta: { k: 1 }, skipSummarization: true }, longRunningToolIds: ['c1'], branch: 'Boss.Scout' },
   ];
-  // ADK's events as JSON text, so the recording keeps their key order.
-  const theirs = await reference('create-event-json', async () => {
-    const out: string[] = [];
-    for (const init of inits) out.push(JSON.stringify(await adkEventFrom(init)));
-    return out;
-  });
+  // ADK 2.2's events as JSON text, so the recording keeps their key order.
+  const theirs = await reference<string[]>('create-event-json');
   assert.equal(theirs.length, inits.length);
   for (const [i, init] of inits.entries()) {
     const ours = createTurnEvent(structuredClone(init));
@@ -413,7 +378,7 @@ const ev = (id: string, timestamp: number, init: TurnEventInit = {}) =>
   createTurnEvent({ id, timestamp, invocationId: 'e-1', author: 'user', content: { role: 'user', parts: [{ text: id }] }, ...init });
 const newSession = (): Session => ({ id: 'conv', appName: 'app', userId: 'user', state: {}, events: [], lastUpdateTime: 0 });
 
-test('applyEvent applies state as ADK’s base service does, and never changes the given event', async () => {
+test('applyEvent applies state as ADK 2.2’s base service did (recorded), and never changes the given event', async () => {
   const sequence = [
     ev('e1', 10, { actions: { stateDelta: { draft: 'v1', 'temp:scratch': 1 } } }),
     ev('e2', 20, { actions: { stateDelta: { draft: 'v2', count: 1 } } }),
@@ -428,14 +393,8 @@ test('applyEvent applies state as ADK’s base service does, and never changes t
   assert.deepEqual(stored[0]!.actions.stateDelta, { draft: 'v1' }, 'the stored event loses its temp: keys');
   assert.equal(stored[1], given[1], 'an event with nothing to drop is stored as given');
 
-  // ADK's base service over the same sequence: its events as JSON text (order and shape), its state.
-  const theirs = await reference('apply-event-state', async () => {
-    const { InMemorySessionService } = await import('@google/adk');
-    const adk = new InMemorySessionService();
-    const session = await adk.createSession({ appName: 'app', userId: 'user', sessionId: 'conv' });
-    for (const e of structuredClone(sequence)) await adk.appendEvent({ session, event: asAdk(e) });
-    return { events: JSON.stringify(session.events), state: { ...session.state } };
-  });
+  // ADK 2.2's base service over the same sequence, recorded: its events as JSON text (order and shape), its state.
+  const theirs = await reference<{ events: string; state: Record<string, unknown> }>('apply-event-state');
   assert.equal(JSON.stringify(ours.events), theirs.events, 'the same events, in the same order and shape');
   assert.deepEqual({ ...ours.state }, theirs.state);
   assert.deepEqual(ours.state, { draft: 'v2', count: 1, replaced: true });
@@ -615,8 +574,8 @@ test('the three modules load nothing at run time, and nothing they reach names @
     assert.deepEqual(files.filter((f) => !allowed.includes(f)), [], `${entry}: reaches only the runtime interfaces and the model contract`);
     assert.deepEqual([...graph.values()].flat().filter((s) => !s.startsWith('.')), [], `${entry}: names no package`);
   }
-  // Control: the scan sees a real runtime import and a type-only one.
-  // ADK's values come through lib/adkPeer.ts, the one module that loads it (ADR 0102).
-  assert.ok(runtimeImportsOf('lib/session/supabaseSessionService.ts').some((s) => s.includes('adkPeer.ts')));
-  assert.ok(!runtimeImportsOf('lib/runtime/approvals.ts').some((s) => s.includes('@google/adk')), 'approvals.ts imports ADK as a type only');
+  // Control: the scan sees a real runtime import, a type-only one, and an @google/ package where one is loaded.
+  assert.ok(runtimeImportsOf('lib/session/supabaseSessionService.ts').some((s) => s.includes('runtime/sessions.ts')));
+  assert.ok(!runtimeImportsOf('lib/session/supabaseSessionService.ts').some((s) => s.includes('@supabase/')), 'its client is a type only');
+  assert.ok(runtimeImportsOf('lib/models/geminiAdapter.ts').some((s) => s.includes('@google/')), 'the scan sees an @google/ package');
 });

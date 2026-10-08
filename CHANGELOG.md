@@ -6,19 +6,210 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.0.0 — 2026-10-08
+
+Release 1.0.0: Google ADK is gone (ADR 0107). Every turn runs on the
+engine's own agent loop and workflow scheduler, which have been the default
+since 0.20.0; the ADK runtime, the ADK peer dependency and everything that
+existed only for them are removed. What a conversation stores does not
+change: sessions written by ADK, or by 0.x on either runtime, resume.
+
+### Breaking — read before upgrading
+
+- **Breaking: the ADK runtime is removed.** `native` is the only runtime.
+  `MELCHIZEDEK_RUNTIME=adk` is a startup error: `createA2AApp` (the A2A
+  server), `melchizedek-chat` and `melchizedek-worker` throw the new
+  `RuntimeRemovedError`, which names 1.0.0 and the fix, and
+  `runSyndicateTurn` throws it for `runtime: 'adk'` before the session is
+  touched. `melchizedek-doctor` reports it as a problem (`--check` fails).
+  `MELCHIZEDEK_RUNTIME=native` is still accepted and changes nothing.
+  `RuntimeName` is `'native'`; `RUNTIMES` is `['native']`.
+- **Breaking: `@google/adk` is no longer used.** It is gone from
+  `peerDependencies`, `peerDependenciesMeta` and `devDependencies`, and
+  nothing in the package loads it: uninstall it. The package has no
+  top-level `await` any more, so it loads from CommonJS through `require()`
+  again (Node's `require(esm)`: on by default from Node 22.12, behind
+  `--experimental-require-module` on 22.6–22.11). `@google/genai` stays a
+  dependency, used only by the Gemini adapter, the image tools and memory
+  embeddings.
+- **Breaking: `runSyndicateTurn` takes the engine's session and memory
+  interfaces.** `sessionService` is a `SessionService`
+  (`lib/runtime/sessions.ts`: `create`, `get`, `list`, `delete`, `append`)
+  and `memoryService` a `MemoryService` (`lib/runtime/memoryService.ts`:
+  `ingest`, `search`), no longer ADK's `BaseSessionService` and
+  `BaseMemoryService`. The parameter names, the option keys and the result
+  are unchanged. `ingestTurnMemory` takes the same two interfaces and calls
+  `memoryService.ingest`. `TurnEvents.onEvent` receives a `TurnEvent` (the
+  JSON ADK's `Event` carried). `transformAgent` transformed ADK agents: any
+  value is refused with `UnsupportedOnRuntimeError` before the session is
+  touched.
+- **Breaking: the stores and the memory service lose their ADK methods.**
+  `InProcessSessionService`, `PostgresSessionService`,
+  `SupabaseSessionService` and `ProjectedSessionService` are the engine's
+  `SessionService` only: `createSession`, `getSession`, `listSessions`,
+  `deleteSession` and `appendEvent` are gone (use `create`, `get`, `list`,
+  `delete`, `append(session, event)`). `ProjectedSessionService` takes an
+  engine store. `SupabaseVectorMemoryService` drops `addSessionToMemory`
+  and `searchMemory` (use `ingest(session, { extractionRules,
+  extractionModel })` and `search`); `namespacedMemoryService` pins `search`
+  and `ingest`. The A2A app's `storage.sessionService` and
+  `storage.memoryService` take the engine's interfaces. The stored rows are
+  unchanged.
+- **Breaking: `GEMINI_ADAPTER=adk` is an error.** Every Gemini id runs on
+  the engine's `GeminiAdapter`. `GEMINI_ADAPTER=engine` (or
+  `{ gemini: 'engine' }`) is accepted and changes nothing; `adk` throws an
+  error naming 1.0.0. `GeminiAdapterChoice` is `'engine'`.
+- **Breaking: removed exports.** From `melchizedek-agents`:
+  `AdkNotInstalledError`, `adkInstalled`, `asAdkSessionService`,
+  `asSessionService`, `compileGraph`, `compileSubagent`, `compileWorkflow`,
+  `CompiledWorkflow`, `toFunctionTool`, `registerAvailableProviders`,
+  `GatewayLlm`. From `melchizedek-agents/runtime`: the same runtime names,
+  and `retryPlugins` (self-correction is the loop's own, from `retries:`).
+  From `melchizedek-agents/compile`: `compileGraph`, `compileSubagent`,
+  `requireApprovalOn`, `requireApprovalOnBaseTool` (gate an own Tool with
+  `requireApproval`), and `CompileOptions.nodeConfig`. From
+  `melchizedek-agents/models/registry`: `registerAvailableProviders`,
+  `GatewayLlm`, `TracedGemini`. These subpaths resolved to deleted files and
+  are gone: `melchizedek-agents/models/adkShim`, `models/adkGeminiAdapter`,
+  `models/tracedGemini`, `models/claudeLlm`, `models/gptLlm`,
+  `models/grokLlm`, `models/kimiLlm`, `models/ollamaLlm`, `models/gatewayLlm`,
+  `models/openAiCompatibleLlm`, `models/fallback`, `tools/adkTool`,
+  `tools/webSearchTool`, `tools/urlContextTool`, `tools/xSearchTool`,
+  `tools/collectionsSearchTool` (the server-side tools are the markers in
+  `melchizedek-agents/tools/nativeTools`). `lib/workflow.ts` keeps the
+  `workflow:` block's contract; `compileWorkflow`, `assembleWorkflow`,
+  `toRetryConfig` and `nodeSettings` are gone. The exports map's paths are
+  unchanged.
+- **Breaking: tools are the engine's own, and ADK tools are refused.** The
+  registry holds the engine's `Tool`, `InstructionTool`, `NativeToolMarker`
+  and `Toolset` (`lib/tools/tool.ts`), with no ADK `FunctionTool` around
+  them. `webExtractTool`, `generateImageTool`, `inspectImageTool`,
+  `xApiSearchTool`, `remoteAgentTool()`, `createMcpTools()` and
+  `buildOpenApiTools()` return own `Tool`s (`declaration()`,
+  `execute(args, ctx)`). `registerTool` refuses an ADK tool (anything with
+  `runAsync`) with an error that names 1.0.0 and `defineTool`, and refuses
+  an object that is not a tool. `toFunctionTool`'s replacement: define the
+  tool with `defineTool` (a zod schema and `execute(args, ctx)`) and
+  register it; a `defineTool` contract is the engine's `Tool`.
+  `runWikiAgent` (`melchizedek-agents/wiki/agentRun`) takes `tools: Tool[]`.
+- **Breaking: a model resolver returns an id or a `ModelAdapter`.**
+  `CompileOptions.resolveModel` returns `string | ModelAdapter | undefined`
+  (`melchizedek-agents/model`), and the registry's `resolveModel` returns
+  the engine's `ModelAdapter`, with the same BYOK scoping. A resolver that
+  returns an ADK model class is refused with `UnsupportedOnRuntimeError`
+  before any model call. `registerAvailableProviders` is replaced by
+  `logProviderStatuses(log?)`, which returns and logs the provider statuses
+  and registers nothing: a model id resolves when an agent first calls it.
+  `modelExtractor`'s `resolve` seam returns a `ModelAdapter`.
+- **Breaking: a resolver's plain `{ model, apiKey }` object is refused.**
+  Anything `resolveModel` returns that is neither a model id string, a
+  `ModelAdapter` (an object with `generate()` and a string `model`) nor
+  `undefined` is refused with `UnsupportedOnRuntimeError` when the agent is
+  compiled, before any model call; the message names 1.0.0 and the type of
+  what came back, never its contents. Before, the engine passed such an
+  object over and resolved the agent's YAML id on the environment's key, so a
+  BYOK caller ran on the operator's key. A BYOK resolver returns an adapter,
+  for example `new ClaudeAdapter({ model, apiKey })` from
+  `melchizedek-agents/model`.
+- **Breaking: an ADK tool is refused everywhere.** An object with
+  `runAsync` is refused with an error naming 1.0.0 and `defineTool` wherever
+  it arrives: `registerTool`, a compiled agent's tool list, a workflow tool
+  node, a Toolset's `getTools()` and `extraTools` on a model request. Before,
+  the last two skipped it silently.
+- **Breaking: `createA2AApp` stops on `GEMINI_ADAPTER=adk`** at startup with
+  the 1.0.0 error, as it does on `MELCHIZEDEK_RUNTIME=adk`, instead of
+  failing at the first Gemini call.
+- **Breaking: dead model and tool exports removed.**
+  `melchizedek-agents/models/errorResponse` drops `providerErrorResponse` and
+  `isRetryableErrorResponse` (use `withRetryVerdict(response,
+  errorDecision(err))` and read `customMetadata['error.retryable']`);
+  `models/schemaNormalize` drops `toolDeclarationFor` (use
+  `contractToolDeclaration`); `models/claudeAdapter` drops
+  `ClaudeModelRequest` and its `claudeReasoning`; `models/chatCompletionsAdapter`
+  drops `ChatCompletionsRequest` and `OlderSpelling` (adapters take
+  `ModelRequest`). `melchizedek-agents/tools/toolContract` drops
+  `toolCallContextFrom`, and `melchizedek-agents/tools/tool` drops
+  `OWN_TOOL`; `toolOf`, `instructionToolOf` and `toolsetOf` no longer look
+  inside a wrapper. `nativeToolOf` recognises only the engine's own marker.
+  Kimi K3 no longer sends `reasoning_effort: max`, which had no contract
+  level and was reachable only through the removed older spelling.
+- **Breaking: the doctor's runtime report has no `adk` field.**
+  `runtimeReport()` returns the runtime and its source, or the problem.
+
+### Migration
+
+1. `npm uninstall @google/adk`, and unset `MELCHIZEDEK_RUNTIME=adk` and
+   `GEMINI_ADAPTER=adk` wherever they are set.
+2. Replace `new InMemorySessionService()` and
+   `asAdkSessionService(new InProcessSessionService())` with
+   `new InProcessSessionService()` (or your Postgres or Supabase store), and
+   call `create` / `get` / `append(session, event)` where you called
+   `createSession` / `getSession` / `appendEvent`.
+3. Replace a custom `BaseMemoryService` with a `MemoryService`
+   (`ingest`, `search`).
+4. Replace ADK `FunctionTool`s and `toFunctionTool(...)` with `defineTool`
+   contracts, and register them with `registerTool`.
+5. Replace `registerAvailableProviders()` with `logProviderStatuses()`.
+6. A custom `resolveModel` returns a model id or a `ModelAdapter`
+   (`resolveAdapter` from `melchizedek-agents/model`), not an ADK `BaseLlm`.
+   A resolver that returned a plain `{ model, apiKey }` object returns an
+   adapter built with that key instead (`new ClaudeAdapter({ model, apiKey })`
+   or the provider's own adapter class); the plain object is refused.
+7. Run turns through `runSyndicateTurn` where you compiled ADK agents with
+   `compileGraph`, `compileSubagent` or `compileWorkflow`.
+
+### Fixed
+
+- **Server-side tool calls are recorded again.** A GPT or Grok answer that
+  searched (web search, X search, collections) records its server-side tool
+  calls as `ToolCall` events and counts them in the ledger row's
+  `tool_calls`. Since 0.20.0 made the engine's loop the default, those
+  calls were lost: the record lived in the deleted ADK shim. The native step
+  carries them onto the final (`lib/runtime/native/step.ts`);
+  `tests/nativeLedgerCounts.test.ts` pins it.
+
+### Unchanged by design
+
+- The stored Event JSON (`adk_sessions.events`, `adk_session_events`), the
+  interrupt names (`adk_request_confirmation`, `ask_user`,
+  `adk_request_input`, `adk_request_credential`) and their argument shapes,
+  the A2A surface, and the table names. The ADK-written session fixtures
+  (`tests/fixtures/sessions`) resume.
+
+### Added and changed
+
+- **One output-token meaning on the ledger (ADR 0107).** For every
+  provider, `output_tokens` (and `llm.tokens.output`) excludes the thinking
+  and `thinking_tokens` carries it, so output plus thinking is the
+  provider's own output count. This is what the engine's loop has written
+  since 0.20.0; it supersedes the ledger clauses of ADR 0056 and ADR 0057,
+  which kept the provider's meaning on the ADK path. Rows written before
+  0.20.0 for GPT, Grok, Kimi and the gateways used that older meaning: a
+  query comparing output across that boundary subtracts `thinking_tokens`
+  from those rows.
+
+- **New exports.** From the barrel and `melchizedek-agents/runtime`:
+  `RuntimeRemovedError`, and the types `SessionService`, `Session`,
+  `SessionKey`, `MemoryService`, `MemoryEntry`, `MemoryIngestOptions`,
+  `MemorySearchRequest`, `MemorySearchResult` and `TurnEvent`. From the
+  barrel: `UnsupportedOnRuntimeError`, `logProviderStatuses`, and the types
+  `Tool` and `ToolContext`.
+- **An import-graph test holds the line** (`tests/importGraph.test.ts`):
+  nothing under `lib/` or `scripts/` names Google ADK, and `@google/genai`
+  is imported only by the Gemini adapter and its genai mapping, the image
+  tools and memory embeddings.
+
 - **A workflow syndicate runs its whole graph as a dispatch route or a
   workflow node (ADR 0106).** A `yaml_reference` to a workflow syndicate
   used to run its orchestrator alone there; it now runs the whole graph on
   the child session filed under the entry's name, as a delegated subagent
-  already did (ADR 0098). As a plan-dispatch route it runs on both runtimes,
-  its last output is the turn's answer, and the conversation keeps the
-  message and that answer. As a workflow node it runs on the native runtime,
-  its last output the node's output; the `adk` runtime refuses it with
-  `UnsupportedOnRuntimeError` before the session is touched. A `map` over
+  already did (ADR 0098). As a plan-dispatch route its last output is the
+  turn's answer, and the conversation keeps the message and that answer. As
+  a workflow node its last output is the node's output. A `map` over
   one and an `ask_user` node inside one are refused by name. Each nested
   walk has its own node-run ceiling (ADR 0105). **Breaking for a direct
-  caller:** `compileSubagent` and `compileSubagentSpec` refuse a workflow
-  reference by name instead of compiling its orchestrator; compile the entry
+  caller:** `compileSubagentSpec` refuses a workflow reference by name
+  instead of compiling its orchestrator; compile the entry
   with `compileEntrySpec`. `melchizedek-agents/compile` adds
   `compileEntrySpec`, `EntrySpec`, `workflowAgentSpecs`,
   `workflowEntryNames` and `WorkflowSpec.workflows`; the exports map and the
@@ -28,38 +219,32 @@ the starter pack and the templates), not the repo's full history.
   is allowed on a workflow node's agent: each `run_skill_script` call pauses
   the node and the walk for a person's approval, as `require_approval` does,
   and runs once after it, with the minimal script environment of ADR 0086.
-  Native runtime only; the `adk` runtime refuses it by name before any model
-  call. Still refused on an agent a `map` node runs.
+  Still refused on an agent a `map` node runs.
 
-- **Docs: `config/agents/syndicateSchema.yaml` describes 0.20.0.** Its
-  comments say that the native runtime runs every key by default and that
-  `@google/adk` is an optional peer for the `adk` runtime until 1.0.0,
-  explain the ADK spellings and "Maps to:" lines as spellings, prefer
+- **Docs: `config/agents/syndicateSchema.yaml` describes the engine as it
+  runs.** Its comments say that the runtime runs every key, explain the ADK
+  spellings and "Maps to:" lines as spellings, prefer
   `reasoning:` over `generateContentConfig.thinkingConfig`, and no longer
   call Gemini "ADK-native", plan-dispatch "A2A-only", or `require_approval`
   unsupported inside a workflow. Comments only.
 
-- **A native workflow walk has a node-run ceiling (ADR 0105).** `max_steps`
+- **A workflow walk has a node-run ceiling (ADR 0105).** `max_steps`
   counts model calls, so a routed cycle through nodes that make none (a tool
   node and its route step looping on each other) ran until the turn's
-  deadline. On the native runtime a walk now starts at most
+  deadline. A walk now starts at most
   `max(20 × max_steps, 100)` node runs (1,000 at the default of 50); the run
   that would pass it fails its node with `NodeRunLimitError`, stored as the
   workflow's node-error event, and the turn fails with the new error code
   `NODE_RUN_LIMIT` and the progress line `Stopped: the workflow reached its
   limit of <n> node runs`. A legitimate loop under the ceiling is unchanged;
-  raise `max_steps` to raise it. The adk runtime has no such ceiling (ADK's
-  `Workflow` has none) and keeps the deadline as its bound.
+  raise `max_steps` to raise it.
 
-- **Docs: the shipped documentation describes the native default (WS5-3).**
-  `README.md`, `QUICKSTART.md`, `DOCUMENTATION.md`, `AGENT_SETUP.md` and the
-  agent skills under `skills/` describe the engine as 0.20.0 runs it: the
-  native runtime owns the loop, the model contract, the tools, the sessions
-  and the workflow scheduler, and `@google/adk` is an optional peer for the
-  `adk` runtime, which 1.0.0 removes. The skills no longer tell a reader
-  that ADK is a required peer, that Gemini is "ADK-native", or that
-  `registerAvailableProviders` is how a plain ADK `LlmAgent` gets a model.
-  No code or API change.
+- **Docs: the shipped documentation describes the engine as 1.0.0 runs it
+  (WS5-3, WS5-2b).** `README.md`, `QUICKSTART.md`, `DOCUMENTATION.md`,
+  `AGENT_SETUP.md` and the agent skills under `skills/` describe the
+  engine's own loop, model contract, tools, sessions and workflow
+  scheduler, with no ADK to install, and no longer call Gemini
+  "ADK-native".
 
 ## 0.20.0 — 2026-10-08
 

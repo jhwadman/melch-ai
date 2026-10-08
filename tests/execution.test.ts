@@ -2,25 +2,21 @@
  * tests/execution.test.ts — the agent keys of ADR 0033: `context:` compacts a
  * long delegate conversation into a summary (and the summary survives the
  * storage trim), `mode: task` makes a workflow node's output its finish_task
- * arguments, `code_execution: gemini` compiles to Gemini's server-side
- * executor, and the schema puts each where it means something. Then the
- * same keys on the native runtime (WS3-5, ADR 0081): code execution and
- * task mode store the same events and return the same result on ADK and
- * native; a task-mode node's run ends on finish_task's answer with the
- * output ADK's workflow stores. Scripted models, in-memory sessions, no
- * network.
+ * arguments, and the schema puts each where it means something. Then the
+ * keys against the recorded ADK runs (WS3-5, ADR 0081): code execution and
+ * task mode store the events and return the result ADK 2.2 did; a
+ * task-mode node's run ends on finish_task's answer with the output ADK's
+ * workflow stored. Scripted models, in-memory sessions, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BuiltInCodeExecutor, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { z } from 'zod';
 
-import { compileGraph } from '../lib/compile.ts';
 import { compileNativeSubagent } from '../lib/compileNative.ts';
 import type { ModelAdapter } from '../lib/models/contract.ts';
-import { resetCircuits } from '../lib/models/fallback.ts';
+import { resetCircuits } from '../lib/models/circuitBreaker.ts';
 import { CARRIED_PARTS_KIND } from '../lib/models/geminiAdapter.ts';
 import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
 import { runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
@@ -37,20 +33,14 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
 import { ScriptedModel, answer, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
-import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
-import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import { adkReferences, canonical } from './helpers/adkReference.ts';
 
-// ADK's side of each native parity case is recorded (tests/fixtures/adk-reference/execution);
-// it runs only under ADK_REFERENCE=live|record. The static import above serves the
-// forEachRuntime cases and the compileGraph case, whose subject is the adk runtime itself.
+// ADK 2.2's side of each parity case is recorded (tests/fixtures/adk-reference/execution).
 const reference = adkReferences('execution');
-
-setLogLevel(LogLevel.ERROR);
 
 const contents = (req: any): string[] => (req.contents ?? []).map((c: any) => (c.parts ?? []).map((p: any) => p.text ?? '').join(''));
 
-forEachRuntime('context: past the threshold, earlier turns become one summary and the recent ones stay verbatim', async () => {
+test('context: past the threshold, earlier turns become one summary and the recent ones stay verbatim', async () => {
   const config = validateSyndicateConfig(
     {
       syndicate_name: 'Chat',
@@ -62,12 +52,12 @@ forEachRuntime('context: past the threshold, earlier turns become one summary an
   let n = 0;
   const chat = new ScriptedLlm('scripted/chat', () => ({ content: { role: 'model', parts: [{ text: `answer ${++n}` }] }, usageMetadata: { promptTokenCount: n * 400 }, turnComplete: true }) as any);
   const sum = new ScriptedLlm('scripted/sum', () => text('SUMMARY: the person asked three questions about trains.'));
-  const sessionService = new InMemorySessionService();
-  // A summary hides the events up to its endTime, a millisecond timestamp, on
-  // both runtimes (ADK's getActiveEvents). Scripted turns are fast enough to
+  const sessionService = new InProcessSessionService();
+  // A summary hides the events up to its endTime, a millisecond timestamp
+  // (as ADK's getActiveEvents did). Scripted turns are fast enough to
   // store the last summarized event and the next message in one millisecond,
   // which no person typing can; each turn waits one out.
-  const turn = async (t: string) => (await new Promise((resolve) => setTimeout(resolve, 2)), runSyndicateTurn({ ...runtimeOption(), config, parts: [{ text: t }], appName: 'a', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ chat, sum }) }, trace: false }));
+  const turn = async (t: string) => (await new Promise((resolve) => setTimeout(resolve, 2)), runSyndicateTurn({ config, parts: [{ text: t }], appName: 'a', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ chat, sum }) }, trace: false }));
 
   for (let i = 1; i <= 3; i++) await turn(`question ${i}`);
   assert.equal(sum.calls, 0, 'under the threshold nothing is summarized');
@@ -81,13 +71,13 @@ forEachRuntime('context: past the threshold, earlier turns become one summary an
   assert.equal(seen.at(-1), 'question 4');
   assert.ok(seen.length < 5, `the request shrank: ${seen.length} contents`);
 
-  const session = await sessionService.getSession({ appName: 'a', userId: 'u', sessionId: 's' });
+  const session = await sessionService.get({ appName: 'a', userId: 'u', sessionId: 's' });
   const compacted = session!.events.find((e: any) => e.isCompacted === true)!;
   assert.ok(compacted, 'the summary is an event in the session; the full history stays stored');
   assert.equal((trimEventForStorage(compacted) as any).isCompacted, true, 'the storage trim keeps the marker');
 });
 
-forEachRuntime('mode: task — a workflow node works with its tools, then its finish_task arguments are its output', async () => {
+test('mode: task — a workflow node works with its tools, then its finish_task arguments are its output', async () => {
   const config = validateSyndicateConfig(
     {
       syndicate_name: 'Desk',
@@ -110,18 +100,9 @@ forEachRuntime('mode: task — a workflow node works with its tools, then its fi
   const lead = new ScriptedLlm('scripted/lead', () => text('two nights in Lyon please'));
   const extractor = new ScriptedLlm('scripted/extractor', (_req, n) => (n === 1 ? call('finish_task', { city: 'Lyon', nights: 2 }) : text('done')));
   const booker = new ScriptedLlm('scripted/booker', (req) => text(`booked ${contents(req).at(-1)}`));
-  const r = await runSyndicateTurn({ ...runtimeOption(), config, parts: [{ text: 'go' }], appName: 'a', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: scriptedResolver({ lead, extractor, booker }) }, trace: false });
+  const r = await runSyndicateTurn({ config, parts: [{ text: 'go' }], appName: 'a', userId: 'u', sessionId: 's', sessionService: new InProcessSessionService(), compile: { resolveModel: scriptedResolver({ lead, extractor, booker }) }, trace: false });
   assert.equal(r.status, 'completed', r.error?.message);
   assert.deepEqual(JSON.parse(r.text.replace(/^booked /, '')), { city: 'Lyon', nights: 2 });
-});
-
-test('code_execution: gemini compiles to Gemini\'s server-side executor', async () => {
-  const config = validateSyndicateConfig(
-    { syndicate_name: 'Calc', orchestrator: { name: 'Calc', model: 'gemini-3.5-flash-lite', instruction: 'Compute.', code_execution: 'gemini' }, subagents: [] },
-    't',
-  ) as SyndicateYamlConfig;
-  const root = (await compileGraph(config)) as any;
-  assert.ok(root.codeExecutor instanceof BuiltInCodeExecutor);
 });
 
 test('schema: each key where it means something', () => {
@@ -139,7 +120,7 @@ test('schema: each key where it means something', () => {
   assert.doesNotThrow(() => validateSyndicateConfig(base({ mode: 'task' }, { workflow: { edges: [['START', 'Lead', 'Sub']] } }), 't'));
 });
 
-// ── The same keys on the native runtime (WS3-5) ──────────────────────────────
+// ── The same keys against the recorded ADK runs (WS3-5) ──────────────────────
 
 registerTool(
   'execution_lookup',
@@ -155,23 +136,22 @@ interface Conversation {
   models: Record<string, ScriptedModel>;
 }
 
-/** One conversation through runSyndicateTurn on `runtime`; each model `<key>` is a ScriptedModel under that id (Gemini's provider for a gemini- id). */
-async function converse(runtime: 'adk' | 'native', config: SyndicateYamlConfig, scripts: Scripts, turns: string[], seed: TurnEvent[] = []): Promise<Conversation> {
+/** One conversation through runSyndicateTurn; each model `<key>` is a ScriptedModel under that id (Gemini's provider for a gemini- id). */
+async function converse(config: SyndicateYamlConfig, scripts: Scripts, turns: string[], seed: TurnEvent[] = []): Promise<Conversation> {
   resetCircuits();
   const models = Object.fromEntries(
     Object.entries(scripts).map(([key, script]) => [key, new ScriptedModel(key, script, key.startsWith('gemini-') ? 'gemini' : 'scripted')]),
   );
-  // ADK's own in-memory store under ADK; the engine's on native, as a consumer without ADK holds it (ADR 0102).
-  const sessionService = runtime === 'adk' ? new InMemorySessionService() : asAdkSessionService(new InProcessSessionService());
-  const session = await sessionService.createSession({ appName: 'x', userId: 'u', sessionId: 's' });
-  for (const event of seed) await sessionService.appendEvent({ session, event: structuredClone(event) as any });
+  const sessionService = new InProcessSessionService();
+  const session = await sessionService.create({ appName: 'x', userId: 'u', sessionId: 's' });
+  for (const event of seed) await sessionService.append(session, structuredClone(event));
   const results: SyndicateTurnResult[] = [];
   for (const t of turns) {
     results.push(
-      await runSyndicateTurn({ config, parts: [{ text: t }], appName: 'x', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false, runtime }),
+      await runSyndicateTurn({ config, parts: [{ text: t }], appName: 'x', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false }),
     );
   }
-  const stored = await sessionService.getSession({ appName: 'x', userId: 'u', sessionId: 's' });
+  const stored = await sessionService.get({ appName: 'x', userId: 'u', sessionId: 's' });
   return { results, events: JSON.parse(JSON.stringify(stored?.events ?? [])) as TurnEvent[], models };
 }
 
@@ -195,13 +175,13 @@ const parityView = (c: Conversation) =>
   ) as { results: unknown[]; events: unknown; requests: Record<string, unknown[]> };
 
 /**
- * Takes ADK's side of case `name` (recorded, or run live on ADK), runs native, and holds the
- * results, the stored events and each model's requests equal. The native side takes the
- * recording's canonical form too (adkReference.ts), so ids line up.
+ * Takes ADK's recorded side of case `name`, runs the engine, and holds the results, the
+ * stored events and each model's requests equal. The engine's side takes the recording's
+ * canonical form too (adkReference.ts), so ids line up.
  */
 async function assertParity(name: string, config: SyndicateYamlConfig, scripts: Scripts, turns: string[], seed: TurnEvent[] = []): Promise<{ native: Conversation }> {
-  const adk = await reference(name, async () => parityView(await converse('adk', config, scripts, turns, seed)));
-  const native = await converse('native', config, scripts, turns, seed);
+  const adk = await reference<ReturnType<typeof parityView>>(name);
+  const native = await converse(config, scripts, turns, seed);
   const got = canonical(parityView(native));
   assert.deepEqual(got.results, adk.results, 'the results');
   assert.deepEqual(got.events, adk.events, 'the stored events');
@@ -214,7 +194,7 @@ const RESULT = { codeExecutionResult: { outcome: 'OUTCOME_OK', output: '42\n' } 
 const GEMINI = 'gemini-3.5-flash';
 const carried = (before: object[]) => ({ provider: 'gemini', kind: CARRIED_PARTS_KIND, model: GEMINI, payload: { before } });
 
-test('native: code_execution: gemini asks for the code tool, and the code and its result are stored and replayed as on ADK', async () => {
+test('native: code_execution: gemini asks for the code tool, and the code and its result are stored and replayed as ADK did', async () => {
   const config = validateSyndicateConfig(
     { syndicate_name: 'Calc', orchestrator: { name: 'Calc', model: GEMINI, instruction: 'Compute.', code_execution: 'gemini', tools: ['execution_lookup'] }, subagents: [] },
     't',
@@ -248,7 +228,7 @@ test('native: code_execution: gemini asks for the code tool, and the code and it
   );
 });
 
-test('native: a history holding raw executableCode and codeExecutionResult parts reaches the model as ADK converts it', async () => {
+test('native: a history holding raw executableCode and codeExecutionResult parts reaches the model as ADK converted it', async () => {
   const config = validateSyndicateConfig(
     { syndicate_name: 'Calc', orchestrator: { name: 'Calc', model: GEMINI, instruction: 'Compute.', code_execution: 'gemini' }, subagents: [] },
     't',
@@ -272,7 +252,7 @@ const TRIP = { type: 'OBJECT', properties: { city: { type: 'STRING' }, nights: {
 const taskSolo = (orchestrator: Record<string, unknown>) =>
   ({ syndicate_name: 'Desk', orchestrator: { name: 'Extractor', model: 'extractor', instruction: 'Extract.', mode: 'task', ...orchestrator }, subagents: [] }) as SyndicateYamlConfig;
 
-test("native: mode: task declares finish_task as ADK does, answers a missing key with ADK's error, and stores the same events", async () => {
+test("native: mode: task declares finish_task as ADK did, answers a missing key with ADK's error, and stores the same events", async () => {
   const { native } = await assertParity(
     'task-mode-finish-task',
     taskSolo({ outputSchema: TRIP, tools: ['execution_lookup'], outputKey: 'trip' }),
@@ -292,44 +272,21 @@ test("native: mode: task declares finish_task as ADK does, answers a missing key
   assert.equal(native.results[0]?.text, '{"city":"Lyon","nights":2}', 'outside a workflow the loop goes on after finish_task, as LlmAgent.runAsync does');
 });
 
-test('native: mode: task with no output schema, or a lowercase one, declares finish_task as ADK does', async () => {
+test('native: mode: task with no output schema, or a lowercase one, declares finish_task as ADK did', async () => {
   await assertParity('task-mode-no-schema', taskSolo({}), { extractor: (_r, n) => (n === 1 ? toolCall('finish_task', { result: 'did it' }, 'c1') : answer('ok')) }, ['go']);
   const lower = { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] };
   const { native } = await assertParity('task-mode-lowercase-schema', taskSolo({ outputSchema: lower }), { extractor: (_r, n) => (n === 1 ? toolCall('finish_task', { result: { city: 'Lyon' } }, 'c1') : answer('ok')) }, ['go']);
   assert.deepEqual((native.models.extractor!.requests[0]!.tools?.[0]?.parameters as any).required, ['result'], 'ADK wraps a schema whose type is not OBJECT under result');
 });
 
-test("native: a task-mode node ends on finish_task's answer, which carries the output, the outputKey and messageAsOutput as ADK's workflow stores them", async () => {
+test("native: a task-mode node ends on finish_task's answer, which carries the output, the outputKey and messageAsOutput as ADK's workflow stored them", async () => {
   const extractorYaml = { name: 'Extractor', description: 'extracts', model: 'scripted/extractor', instruction: 'Extract.', mode: 'task' as const, outputKey: 'trip', outputSchema: TRIP };
   const script: ModelScript = (_req, n) => (n === 1 ? toolCall('finish_task', { city: 'Lyon' }, 'c1') : n === 2 ? toolCall('finish_task', { city: 'Lyon', nights: 2 }, 'c2') : answer('never asked'));
 
-  // ADK: the workflow case above, its Extractor node scripted on the engine's contract.
-  const config = validateSyndicateConfig(
-    {
-      syndicate_name: 'Desk',
-      orchestrator: { name: 'Lead', model: 'scripted/lead', instruction: 'Pass it on.' },
-      subagents: [extractorYaml, { name: 'Booker', description: 'books', model: 'scripted/booker', instruction: 'Book.' }],
-      workflow: { edges: [['START', 'Lead', 'Extractor', 'Booker']] },
-    },
-    't',
-  ) as SyndicateYamlConfig;
-  // The reference: ADK's workflow runs the node (recorded; live only under ADK_REFERENCE=live|record).
-  // Kept: the turn's outcome, the events before the node (the history it saw), the node's events, and its model's first request.
-  const adk = await reference('task-node-workflow', async () => {
-    const adkModels = {
-      lead: new ScriptedModel('scripted/lead', () => answer('two nights in Lyon please')),
-      extractor: new ScriptedModel('scripted/extractor', script),
-      booker: new ScriptedModel('scripted/booker', () => answer('booked')),
-    };
-    const adkSessions = new InMemorySessionService();
-    const r = await runSyndicateTurn({ config, parts: [{ text: 'go' }], appName: 'x', userId: 'u', sessionId: 's', sessionService: adkSessions, compile: { resolveModel: shimResolver(adkModels), log: () => {} }, trace: false, runtime: 'adk' });
-    const events = JSON.parse(JSON.stringify((await adkSessions.getSession({ appName: 'x', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
-    const node = events.filter((e) => e.author === 'Extractor');
-    const { signal: _s, ...firstRequest } = adkModels.extractor.requests[0]!;
-    return JSON.parse(
-      JSON.stringify({ status: r.status, error: r.error?.message, before: events.slice(0, events.indexOf(node[0]!)), node, firstRequest }),
-    ) as { status: string; error?: string; before: TurnEvent[]; node: TurnEvent[]; firstRequest: unknown };
-  });
+  // The reference: ADK 2.2's workflow ran the node in the workflow case above (Lead, then Extractor, then
+  // Booker), its Extractor scripted with `script` (recorded). Kept: the turn's outcome, the events before the
+  // node (the history it saw), the node's events, and its model's first request.
+  const adk = await reference<{ status: string; error?: string; before: TurnEvent[]; node: TurnEvent[]; firstRequest: unknown }>('task-node-workflow');
   assert.equal(adk.status, 'completed', adk.error);
   const adkNode = adk.node;
 

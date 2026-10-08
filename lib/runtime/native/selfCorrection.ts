@@ -1,25 +1,25 @@
 /**
  * lib/runtime/native/selfCorrection.ts — self-correction on the native loop:
  * a model error and a tool error retried with reflection, as ADK's
- * reflect-and-retry plugins do it on the ADK runtime (ADR 0034, ADR 0075).
+ * reflect-and-retry plugins did it (ADR 0034, ADR 0075).
  *
  * WHY this file exists:
- *   runSyndicateTurn installs ADK's ReflectAndRetryModelPlugin and
- *   ReflectAndRetryToolPlugin on every Runner it builds, retries at their
- *   defaults unless the syndicate's `retries:` says otherwise. They change
+ *   Under ADK, runSyndicateTurn installed ADK's ReflectAndRetryModelPlugin
+ *   and ReflectAndRetryToolPlugin on every Runner it built, retries at their
+ *   defaults unless the syndicate's `retries:` said otherwise. They change
  *   what the model is sent and what the store holds, so the native loop
- *   does what they do, word for word, or a session one runtime wrote would
- *   read differently on the other:
+ *   does what they did, word for word, and a session ADK wrote reads the
+ *   same:
  *
  *   THE MODEL (`retries.model_errors`, default 2; 0 off):
  *   - The reflection tool, `adk_handle_model_error`, is one of every step's
  *     tools, after the agent's own: the plugin's beforeModelCallback adds it
  *     to the request's toolsDict last, and never to its config. Whether the
- *     model is told of it depends on the model class ADK hands the request
- *     to (ADR 0097): the ADK shim and the engine's own ADK classes declare
- *     the toolsDict, so the tool is declared; ADK's own Gemini sends the
- *     config alone, so a Gemini model is never told of it. The step asks
- *     `declaresReflectionTool` and runs the tool either way.
+ *     model was told of it depended on the model class ADK handed the
+ *     request to (ADR 0097): the engine's own classes declared the
+ *     toolsDict, so the tool was declared; ADK's own Gemini sent the config
+ *     alone, so a Gemini model was never told of it. The step keeps that:
+ *     it asks `declaresReflectionTool` and runs the tool either way.
  *   - Each response is checked (afterModelCallback), partials included. A
  *     response that calls the reflection tool itself, or whose finish reason
  *     is MALFORMED_FUNCTION_CALL, is replaced by a call to the reflection
@@ -32,8 +32,9 @@
  *     thoughtSignature, or on Gemini 3 Gemini's documented placeholder when
  *     the response had none (a MALFORMED_FUNCTION_CALL has no parts). Gemini 3
  *     rejects the next request with an unsigned current-turn call (400,
- *     "missing a thought_signature"); ADK's runtime still does. This is the
- *     one place the native loop stores what ADK would not (reflectionSigning).
+ *     "missing a thought_signature"), which ADK's plugin did not avoid. This
+ *     is the one place the native loop stores what ADK would not
+ *     (reflectionSigning).
  *   - Past the limit the step ends on ADK's error event for a callback that
  *     threw: UNKNOWN_ERROR, and the plugin manager's message.
  *
@@ -51,16 +52,16 @@
  * The texts, the argument names and the counting quirks are ADK 2.2.0's
  * (plugins/reflect_retry_*.js), the reflection tool's "attempt 1" included:
  * it reads `retryCount` where the call carries `retry_count`.
- * tests/selfCorrection.test.ts and tests/nativeLoop.test.ts hold the two
- * runtimes to the same stored events.
+ * tests/selfCorrection.test.ts and tests/nativeLoop.test.ts hold the loop
+ * to ADK's recorded events.
  *
- * ADK stays out of this file but for the LlmResponse type the step already
- * reads responses as.
+ * The step reads responses as the genai-shaped LlmResponse
+ * (lib/models/genaiMapping.ts), and so does this file.
  */
 
 import { randomUUID } from 'node:crypto';
 
-import type { LlmResponse } from '@google/adk';
+import type { LlmResponse } from '../../models/genaiMapping.ts';
 
 import { GEMINI_PROVIDER, PLACEHOLDER_THOUGHT_SIGNATURE } from '../../models/geminiState.ts';
 import type { Tool } from '../../tools/tool.ts';
@@ -84,15 +85,15 @@ const RESERVED_TOOL_CALL = 'RESERVED_TOOL_CALL';
 const MODEL_ERRORS: readonly string[] = ['MALFORMED_FUNCTION_CALL'];
 const MODEL_PLUGIN = 'reflect_retry_model_plugin';
 
-// ── Where ADK declares the reflection tool ──────────────────────────────────
+// ── Where the reflection tool is declared (ADK's rule, ADR 0097) ────────────
 
-/** Gemini adapters a caller handed over as a contract adapter or behind the ADK shim: on ADK the shim declares the toolsDict. */
+/** Gemini adapters a caller marked as declaring the toolsDict (servedThroughShim), as ADK's shim did. */
 const SHIMMED_GEMINI = new WeakSet<object>();
 
 /**
- * Marks `adapter` as one the ADK runtime would call through the ADK shim
- * (a resolver's shim or contract adapter, lib/compileNative.ts), not through
- * ADK's own Gemini. Returns it.
+ * Marks a Gemini `adapter` as one that declares the toolsDict, as a model
+ * class behind ADK's shim did, rather than standing for ADK's own Gemini.
+ * Returns it. The engine marks none itself.
  */
 export function servedThroughShim<T extends object>(adapter: T): T {
   SHIMMED_GEMINI.add(adapter);
@@ -100,23 +101,22 @@ export function servedThroughShim<T extends object>(adapter: T): T {
 }
 
 /**
- * Whether the ADK runtime would tell this adapter's model of the reflection
- * tool (ADR 0097). The plugin puts the tool in the toolsDict alone. Every
- * model class the engine hands ADK declares the toolsDict, but ADK's own
- * Gemini (and TracedGemini over it) sends only the request's config, which
- * never holds it. A Gemini adapter stands for ADK's Gemini unless a caller
- * handed it over behind the shim (servedThroughShim).
+ * Whether this adapter's model is told of the reflection tool, by ADK's
+ * rule (ADR 0097). The plugin put the tool in the toolsDict alone. Every
+ * model class the engine handed ADK declared the toolsDict, but ADK's own
+ * Gemini sent only the request's config, which never holds it. A Gemini
+ * adapter stands for ADK's Gemini unless a caller marked it
+ * (servedThroughShim).
  */
 export function declaresReflectionTool(adapter: { readonly provider: string }): boolean {
   return !standsForAdkGemini(adapter);
 }
 
 /**
- * Whether this adapter stands, on the native runtime, for ADK's own Gemini
- * (TracedGemini) on the ADK runtime: a Gemini adapter no caller handed over
- * behind the shim. The step declares no reflection tool to it (ADR 0097) and
- * stores no `turnComplete` on its events, as ADK's Gemini writes none
- * (ADR 0100).
+ * Whether this adapter stands for ADK's own Gemini: a Gemini adapter no
+ * caller marked (servedThroughShim). The step declares no reflection tool
+ * to it (ADR 0097) and stores no `turnComplete` on its events, as ADK's
+ * Gemini wrote none (ADR 0100).
  */
 export function standsForAdkGemini(adapter: { readonly provider: string }): boolean {
   return adapter.provider === GEMINI_PROVIDER && !SHIMMED_GEMINI.has(adapter);
@@ -316,7 +316,7 @@ export class SelfCorrection {
 
 // ── The reflection tool and the texts ────────────────────────────────────────
 
-/** The reflection tool as the model plugin declares it: a FunctionTool with no parameters. */
+/** The reflection tool as ADK's model plugin declared it: a tool with no parameters. */
 function reflectionTool(maxRetries: number): Tool {
   return {
     name: ADK_HANDLE_MODEL_ERROR,

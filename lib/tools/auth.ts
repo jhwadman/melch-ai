@@ -20,7 +20,7 @@
  *
  * WHOSE APP: the run pins it, as memory pins its namespace
  *   (`pinnedCredentialStore`, like namespacedMemoryService), so a delegated
- *   subagent, which ADK runs under its own app name, reads the root's
+ *   subagent, which runs under its own app name, reads the root's
  *   credentials. The consent step that puts a token is
  *   lib/tools/oauthConsent.ts (ADR 0085); the YAML that lets an agent use a
  *   provider (WS6-3c) comes later; nothing here

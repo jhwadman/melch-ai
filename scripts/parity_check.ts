@@ -27,12 +27,12 @@
  * request body. Provider error text goes to the JSON file only, scrubbed of
  * key-shaped strings.
  *
- * MELCHIZEDEK_RUNTIME (adk | native, default the library's DEFAULT_RUNTIME) picks the runtime every
- * turn runs on (the turn's runtime option, ADR 0073), and the report records
- * it.
+ * Every turn runs on the native runtime, the only one the engine has
+ * (ADR 0107), and the report records it. MELCHIZEDEK_RUNTIME may be unset or
+ * `native`; any other value is a usage error.
  *
- * --scripted swaps every provider's models for scripted ones
- * (tests/helpers/scriptedLlm.ts) so the harness tests itself offline;
+ * --scripted swaps every provider's models for scripted contract adapters
+ * (ModelAdapter, lib/models/contract.ts) so the harness tests itself offline;
  * --fault <check> (scripted only) makes the scripted models break that
  * behaviour, which must fail exactly that check. tests/parityHarness.test.ts
  * runs both.
@@ -54,8 +54,6 @@ import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { InMemorySessionService } from '@google/adk';
-import type { BaseLlm, LlmRequest, LlmResponse } from '@google/adk';
 import { z } from 'zod';
 
 import {
@@ -71,17 +69,17 @@ import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { PROVIDERS, providerForModel, providerStatuses } from '../lib/models/registry.ts';
 import type { ProviderId } from '../lib/models/registry.ts';
+import type { FinalModelResponse, Message, ModelAdapter, ModelRequest, ModelResponse, PartialModelResponse } from '../lib/models/contract.ts';
 import { toLowercaseJsonSchema } from '../lib/models/schemaNormalize.ts';
 import { patternRedactor } from '../lib/observability/redact.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
 import { DEFAULT_RUNTIME } from '../lib/runtime/runtimeFlag.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult, TurnEvents } from '../lib/runtime/syndicateTurn.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
-import { ScriptedLlm, call, streamed, text } from '../tests/helpers/scriptedLlm.ts';
-import type { Script } from '../tests/helpers/scriptedLlm.ts';
 
 // ── The checks ───────────────────────────────────────────────────────────────
 
@@ -97,7 +95,7 @@ const CHECK_LABELS: Record<CheckId, string> = {
   usage: 'token usage',
 };
 
-export type Runtime = 'adk' | 'native';
+export type Runtime = 'native';
 
 export interface CheckResult {
   id: CheckId;
@@ -134,7 +132,7 @@ export interface ParityReport {
   harness: 'parity';
   version: 1;
   mode: 'live' | 'scripted';
-  /** What MELCHIZEDEK_RUNTIME asked for, and what ran: always the same since the turn takes a runtime option. */
+  /** What MELCHIZEDEK_RUNTIME asked for, and what ran: always native. */
   runtime: { requested: Runtime; ran: Runtime };
   faults?: CheckId[];
   startedAt: string;
@@ -228,7 +226,7 @@ interface Target {
   transport: ProviderReport['transport'];
   gateway?: string;
   model: string;
-  resolveModel?: (id: string | undefined) => BaseLlm;
+  resolveModel?: (id: string | undefined) => ModelAdapter;
 }
 
 /** Ollama is funded by being there: its OpenAI-compatible endpoint must answer. */
@@ -267,7 +265,7 @@ function scriptedTargets(opts: ParityOptions): Target[] {
       provider,
       transport: 'scripted' as const,
       model: opts.models?.[provider] ?? DEFAULT_MODEL[provider],
-      resolveModel: (id: string | undefined) => new ScriptedLlm(id ?? 'scripted', scriptedBrain(faults)),
+      resolveModel: (id: string | undefined) => scriptedAdapter(id ?? 'scripted', faults),
     }));
 }
 
@@ -288,7 +286,7 @@ async function runProvider(target: Target, opts: ParityOptions): Promise<Provide
     agentsDir: FIXTURES_DIR,
     bindings: { orchestrator_model: target.model, subagent_model: target.model },
   });
-  const sessionService = new InMemorySessionService();
+  const sessionService = new InProcessSessionService();
   const sessionId = `parity-${target.provider}-${hex(4).toLowerCase()}`;
   const firstCode = `PARITY-${hex(3)}`;
   const recordCode = `PARITY-${hex(3)}`;
@@ -386,7 +384,7 @@ async function runProvider(target: Target, opts: ParityOptions): Promise<Provide
 
 const has = (haystack: string, needle: string) => haystack.toUpperCase().includes(needle.toUpperCase());
 
-/** A tool response as text: ADK wraps a string result as { result }. */
+/** A tool response as text: a string result is stored wrapped as { result }. */
 function responseText(response: unknown): string {
   const r = response as { result?: unknown } | undefined;
   if (typeof r?.result === 'string') return r.result;
@@ -439,7 +437,7 @@ function recorderSchema(config: SyndicateYamlConfig): z.ZodType {
   return z.fromJSONSchema(toLowercaseJsonSchema(declared) as Parameters<typeof z.fromJSONSchema>[0]);
 }
 
-/** ADK hands a schema'd subagent's output over as an object; a string is parsed. */
+/** A schema'd subagent's output may arrive as an object; a string is parsed. */
 function recordFrom(response: unknown): unknown {
   const r = response as Record<string, unknown> | undefined;
   const wrapped = r && typeof r === 'object' && Object.keys(r).length === 1 && typeof r.result === 'string' ? r.result : undefined;
@@ -498,30 +496,60 @@ function checkUsage(runs: TurnRun[]): CheckResult {
 
 // ── The scripted models (--scripted) ─────────────────────────────────────────
 
-const textsOf = (content: any): string[] => (content?.parts ?? []).map((p: any) => p?.text).filter((t: unknown): t is string => typeof t === 'string');
+const textsOf = (message: Message | undefined): string[] =>
+  (message?.parts ?? []).flatMap((p) => (p.type === 'text' && typeof p.text === 'string' ? [p.text] : []));
+
+/** A final answer carrying plain text. */
+const text = (t: string): FinalModelResponse => ({ partial: false, parts: [{ type: 'text', text: t }], finishReason: 'stop' });
+
+let callSeq = 0;
+
+/** A final that calls one tool, its id `call-<name>-000001`, … in order. */
+const call = (name: string, args: Record<string, unknown>): FinalModelResponse => ({
+  partial: false,
+  parts: [{ type: 'toolCall', id: `call-${name}-${String(++callSeq).padStart(6, '0')}`, name, args }],
+  finishReason: 'tool_call',
+});
+
+/** A streamed answer: text partials as the model writes them, then the final with the whole text. */
+const streamed = (...chunks: string[]): ModelResponse[] => [
+  ...chunks.map((t): PartialModelResponse => ({ partial: true, parts: [{ type: 'text', text: t }] })),
+  text(chunks.join('')),
+];
+
+/** A scripted contract adapter: every call answers from scriptedBrain, in order. */
+function scriptedAdapter(model: string, faults: ReadonlySet<CheckId>): ModelAdapter {
+  const brain = scriptedBrain(faults);
+  return {
+    provider: 'scripted',
+    model,
+    async *generate(request: ModelRequest): AsyncGenerator<ModelResponse, void> {
+      const out = brain(request);
+      for (const response of Array.isArray(out) ? out : [out]) yield response;
+    },
+  };
+}
 
 /**
  * One deterministic stand-in for every agent of the fixture, playing the role
  * the request shows: the orchestrator is offered Echo as a tool, the Recorder
- * is asked for a response schema (ADK's request carries it as responseSchema;
- * the native runtime's, read back as an LlmRequest, as responseJsonSchema),
- * anything else is Echo. A fault breaks the
+ * is asked for an output schema, anything else is Echo. A fault breaks the
  * one behaviour its check measures, so that check — and only it — must fail.
  */
-function scriptedBrain(faults: ReadonlySet<CheckId>): Script {
-  return (req: LlmRequest) => {
-    const tools = Object.keys((req as any).toolsDict ?? {});
-    const out = tools.includes('Echo') ? scriptedLead(req, faults) : req.config?.responseSchema || req.config?.responseJsonSchema ? scriptedRecorder(req, faults) : scriptedEcho(req);
+function scriptedBrain(faults: ReadonlySet<CheckId>): (req: ModelRequest) => ModelResponse | ModelResponse[] {
+  return (req) => {
+    const tools = (req.tools ?? []).map((t) => t.name);
+    const out = tools.includes('Echo') ? scriptedLead(req, faults) : req.outputSchema ? scriptedRecorder(req, faults) : scriptedEcho(req);
     return faults.has('usage') ? out : withUsage(out, req);
   };
 }
 
-function scriptedLead(req: LlmRequest, faults: ReadonlySet<CheckId>): LlmResponse | LlmResponse[] {
-  const contents = req.contents ?? [];
+function scriptedLead(req: ModelRequest, faults: ReadonlySet<CheckId>): ModelResponse | ModelResponse[] {
+  const contents = req.messages ?? [];
   const last = contents[contents.length - 1];
-  const fr = (last?.parts ?? []).find((p: any) => p?.functionResponse)?.functionResponse as { name?: string; response?: unknown } | undefined;
+  const fr = last?.role === 'tool' ? last.parts.find((p) => p.type === 'toolResult') : undefined;
   if (fr) {
-    const got = responseText(fr.response);
+    const got = responseText(fr.result);
     if (fr.name === 'Echo') return text(`Echo replied: ${got}`);
     if (fr.name === 'parity_lookup') return text(faults.has('tool') ? 'The value is VALUE-UNKNOWN.' : `The value is ${got}.`);
     return text(`${fr.name} filed the record.`);
@@ -537,22 +565,26 @@ function scriptedLead(req: LlmRequest, faults: ReadonlySet<CheckId>): LlmRespons
   return faults.has('streaming') ? text(reply) : streamed(...reply.split(/(?<= )/));
 }
 
-function scriptedEcho(req: LlmRequest): LlmResponse {
-  const ask = (req.contents ?? []).flatMap(textsOf).join('\n');
+function scriptedEcho(req: ModelRequest): FinalModelResponse {
+  const ask = (req.messages ?? []).flatMap(textsOf).join('\n');
   return text(ask.match(CODE_RE)?.[0] ?? 'There is no code word in the request.');
 }
 
-function scriptedRecorder(req: LlmRequest, faults: ReadonlySet<CheckId>): LlmResponse {
-  const code = (req.contents ?? []).flatMap(textsOf).join('\n').match(CODE_RE)?.[0] ?? '';
+function scriptedRecorder(req: ModelRequest, faults: ReadonlySet<CheckId>): FinalModelResponse {
+  const code = (req.messages ?? []).flatMap(textsOf).join('\n').match(CODE_RE)?.[0] ?? '';
   return text(JSON.stringify({ city: 'Lisbon', code, count: faults.has('structured') ? 'three' : 3 }));
 }
 
 /** Scripted usage on the reply's final response, as a provider reports it. */
-function withUsage(out: LlmResponse | LlmResponse[], req: LlmRequest): LlmResponse | LlmResponse[] {
-  const list = Array.isArray(out) ? out : [out];
+function withUsage(out: ModelResponse | ModelResponse[], req: ModelRequest): ModelResponse | ModelResponse[] {
+  const list = Array.isArray(out) ? [...out] : [out];
   const final = list[list.length - 1]!;
-  const usage = { promptTokenCount: 1 + Math.ceil(JSON.stringify(req.contents ?? []).length / 4), candidatesTokenCount: 1 + Math.ceil(JSON.stringify(final.content ?? {}).length / 4) };
-  list[list.length - 1] = { ...final, usageMetadata: usage } as LlmResponse;
+  if (final.partial) return out;
+  const usage = {
+    inputTokens: 1 + Math.ceil(JSON.stringify(req.messages ?? []).length / 4),
+    outputTokens: 1 + Math.ceil(JSON.stringify(final.parts).length / 4),
+  };
+  list[list.length - 1] = { ...final, usage };
   return Array.isArray(out) ? list : list[0]!;
 }
 
@@ -588,12 +620,12 @@ export function exitCodeFor(report: ParityReport): number {
   return report.pass ? 0 : 1;
 }
 
-/** MELCHIZEDEK_RUNTIME, validated: adk or native; unset means the library's default (DEFAULT_RUNTIME). */
+/** MELCHIZEDEK_RUNTIME, validated: unset or native, the only runtime (ADR 0107). */
 export function requestedRuntime(env: NodeJS.ProcessEnv = process.env): Runtime {
   const raw = (env.MELCHIZEDEK_RUNTIME ?? '').trim().toLowerCase();
   if (!raw) return DEFAULT_RUNTIME;
-  if (raw === 'adk' || raw === 'native') return raw;
-  throw new UsageError(`MELCHIZEDEK_RUNTIME must be adk or native (got '${raw.slice(0, 20)}')`);
+  if (raw === 'native') return raw;
+  throw new UsageError(`MELCHIZEDEK_RUNTIME must be native, the only runtime since 1.0.0 (got '${raw.slice(0, 20)}')`);
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────

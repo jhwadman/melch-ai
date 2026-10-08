@@ -5,16 +5,13 @@
  * An agent's `mcp_server_url:` connects here over SSE; every tool the
  * server lists becomes an own Tool whose declaration is the server's
  * description (bounded) and input schema, and whose execute calls the
- * server and returns its text (bounded). loadMcpTools returns them for the
- * native runtime; createMcpTools hands the ADK runtime the FunctionTool
- * toFunctionTool (lib/tools/adkTool.ts) makes of each, so both runtimes
- * declare the same parameters and run the same call.
+ * server and returns its text (bounded). loadMcpTools returns them;
+ * createMcpTools is the name the compiler calls.
  *
  * The server is an untrusted tool vendor (ADR 0041): its URL passes the
  * SSRF guard, a credential goes only to its exact host, and its
  * descriptions and results are cut to a bound.
  */
-import type { FunctionTool } from '@google/adk';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { ToolDeclaration } from '../models/contract.ts';
@@ -22,7 +19,6 @@ import { toContractJsonSchema } from '../models/schemaNormalize.ts';
 import { checkHost } from '../net/addressGuard.ts';
 import { fetchWithRedirectPolicy } from '../net/redirects.ts';
 import type { RedirectPolicy } from '../net/redirects.ts';
-import { toFunctionTool } from './adkTool.ts';
 import { MAX_RESULT_CHARS } from './tool.ts';
 import type { Tool } from './tool.ts';
 import { toGeminiSchema } from './toolContract.ts';
@@ -133,8 +129,8 @@ export async function closeMcpConnections(): Promise<void> {
  * top-level property given a type (string when the server names none) and a
  * description, in the contract's lowercase dialect. They pass through
  * Gemini's dialect first (toGeminiSchema), so the declaration is exactly
- * what the ADK runtime's FunctionTool declares: `default`, `propertyNames`,
- * `$schema` and a boolean `additionalProperties` are left out on both.
+ * what ADK's FunctionTool declared: `default`, `propertyNames`, `$schema`
+ * and a boolean `additionalProperties` are left out.
  */
 export function mcpToolParameters(inputSchema: { properties?: Record<string, unknown>; required?: string[] } | undefined): ToolDeclaration['parameters'] {
   const properties: Record<string, unknown> = {};
@@ -173,7 +169,7 @@ export async function loadMcpTools(mcpServerUrl: string): Promise<Tool[]> {
 
     return toolsResponse.tools.map((tool): Tool => {
       // MCP servers describe tools in standard lowercase JSON Schema, which
-      // is the contract's dialect; toFunctionTool derives Gemini's.
+      // is the contract's dialect; mcpToolParameters derives the parameters.
       const declaration: ToolDeclaration = {
         name: tool.name,
         description: bounded(tool.description || `MCP Tool: ${tool.name}`, MAX_MCP_DESCRIPTION_CHARS, 'description'),
@@ -215,10 +211,7 @@ export async function loadMcpTools(mcpServerUrl: string): Promise<Tool[]> {
   }
 }
 
-/**
- * The server's tools as the ADK runtime runs them: the FunctionTool
- * toFunctionTool makes of each own Tool, carrying it for toolOf().
- */
-export async function createMcpTools(mcpServerUrl: string): Promise<FunctionTool[]> {
-  return (await loadMcpTools(mcpServerUrl)).map((tool) => toFunctionTool(tool));
+/** The server's tools, as the compiler lists them on an agent: loadMcpTools' own Tools. */
+export async function createMcpTools(mcpServerUrl: string): Promise<Tool[]> {
+  return loadMcpTools(mcpServerUrl);
 }

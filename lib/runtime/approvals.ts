@@ -10,7 +10,7 @@
  * session's events and build the answer; ADK checks that the answer binds to
  * the pinned call.
  */
-import type { Event } from '@google/adk';
+import type { TurnEvent as Event } from './events.ts';
 
 /** ADK's name for the confirmation request (REQUEST_CONFIRMATION_FUNCTION_CALL_NAME). */
 export const APPROVAL_REQUEST = 'adk_request_confirmation';

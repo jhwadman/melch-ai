@@ -8,8 +8,10 @@
  * modules directly.
  *
  * The run API is plain data in, plain data out: a YAML config and text
- * parts go in, a SyndicateTurnResult comes out. Google ADK runs underneath
- * (a peer dependency) but its types are not part of what you write against.
+ * parts go in, a SyndicateTurnResult comes out. The engine runs every turn
+ * on its own agent loop; sessions and memory are its own interfaces
+ * (SessionService, MemoryService), and nothing here names Google ADK
+ * (ADR 0107).
  */
 
 // ── Load a syndicate ────────────────────────────────────────────────────────
@@ -29,12 +31,14 @@ export type {
 
 // ── Run it ──────────────────────────────────────────────────────────────────
 export { runSyndicateTurn, ingestTurnMemory } from './runtime/syndicateTurn.ts';
-// The runtime in use (native by default since 0.20.0) and the optional ADK peer (ADR 0102).
-export { DEFAULT_RUNTIME, describeRuntime, AdkNotInstalledError, adkInstalled } from './runtime/syndicateTurn.ts';
+// The runtime in use: native, the only one since 1.0.0 (ADR 0107).
+export { DEFAULT_RUNTIME, describeRuntime, RuntimeRemovedError, UnsupportedOnRuntimeError } from './runtime/syndicateTurn.ts';
 export type { RuntimeName, RuntimeSource } from './runtime/syndicateTurn.ts';
-// An in-process session store that needs no ADK; runSyndicateTurn takes it through asAdkSessionService.
+// The engine's session and memory interfaces, and the in-process store (ADR 0107).
 export { InProcessSessionService } from './runtime/sessions.ts';
-export { asAdkSessionService, asSessionService } from './runtime/adkSessionBridge.ts';
+export type { Session, SessionKey, SessionService } from './runtime/sessions.ts';
+export type { MemoryEntry, MemoryIngestOptions, MemorySearchRequest, MemorySearchResult, MemoryService } from './runtime/memoryService.ts';
+export type { TurnEvent } from './runtime/events.ts';
 export { approvalResponsePart, pendingApproval, APPROVAL_REQUEST } from './runtime/approvals.ts';
 export type { PendingApproval } from './runtime/approvals.ts';
 export type {
@@ -48,10 +52,9 @@ export type {
   TurnEvents,
   TurnStage,
 } from './runtime/syndicateTurn.ts';
-export { compileGraph, compileSubagent } from './compile.ts';
 export type { CompileOptions } from './compile.ts';
-export { compileWorkflow, isWorkflowSyndicate, describeInput } from './workflow.ts';
-export type { WorkflowConfig, WorkflowNodeYaml, EdgeElement, PendingInput, CompiledWorkflow } from './workflow.ts';
+export { isWorkflowSyndicate, describeInput } from './workflow.ts';
+export type { WorkflowConfig, WorkflowNodeYaml, EdgeElement, PendingInput } from './workflow.ts';
 
 // ── Serve it over A2A, or call a remote A2A agent ───────────────────────────
 export { createA2AApp, compileAgentCard, currentRequestContext } from './a2a/app.ts';
@@ -82,7 +85,7 @@ export { resolveTools, registerTool, registeredToolNames } from './toolRegistry.
 export { registerGuard, resolveGuards } from './guards/index.ts';
 export type { Guard, GuardResult } from './guards/index.ts';
 export { defineTool } from './tools/toolContract.ts';
-export { toFunctionTool } from './tools/adkTool.ts';
+export type { Tool, ToolContext } from './tools/tool.ts';
 
 // ── Memory ──────────────────────────────────────────────────────────────────
 export {
@@ -110,7 +113,7 @@ export {
   providerForModel,
   providerKeyPresent,
   providerStatuses,
-  registerAvailableProviders,
+  logProviderStatuses,
   resolveModel,
   // Listed as root exports in the 0.12.0 changelog but shipped only as a
   // subpath until 0.16.0.
@@ -121,7 +124,6 @@ export {
   gatewayProblem,
   gatewayUsable,
   GATEWAYS,
-  GatewayLlm,
 } from './models/registry.ts';
 
 export { loadEnv } from './loadEnv.ts';

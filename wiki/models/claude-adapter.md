@@ -1,7 +1,7 @@
 ---
 type: model-provider
 title: Claude adapter
-description: "ClaudeAdapter (lib/models/claudeAdapter.ts): Claude on the engine's model contract, reading a ModelRequest and yielding ModelResponses on the Messages API, with ClaudeLlm as its ADK shim. How it reaches Anthropic, Bedrock or Vertex AI, the choices it makes inside the contract's Anthropic mapping, what ClaudeLlm adds on the ADK path, failures, telemetry, and what only a live run can confirm."
+description: "ClaudeAdapter (lib/models/claudeAdapter.ts): Claude on the engine's model contract, reading a ModelRequest and yielding ModelResponses on the Messages API. How it reaches Anthropic, Bedrock or Vertex AI, the choices it makes inside the contract's Anthropic mapping, failures, telemetry, and what only a live run can confirm."
 tags:
   - models
   - anthropic
@@ -11,9 +11,7 @@ generated:
   at: 2026-10-07
 sources:
   - resource: lib/models/claudeAdapter.ts
-  - resource: lib/models/claudeLlm.ts
   - resource: lib/models/claudeModels.ts
-  - resource: lib/models/adkShim.ts
   - resource: tests/claudeAdapter.test.ts
   - resource: tests/claudeCurrentApi.test.ts
   - resource: tests/claudeVision.test.ts
@@ -22,17 +20,14 @@ sources:
 
 # Claude adapter
 
-`ClaudeAdapter` in `lib/models/claudeAdapter.ts` is Claude as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)). It reads a `ModelRequest`, calls the Messages API through the Anthropic SDK, and yields `ModelResponse`s. No ADK type is in its path, so the native runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls it as it is.
+`ClaudeAdapter` in `lib/models/claudeAdapter.ts` is Claude as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)). It reads a `ModelRequest`, calls the Messages API through the Anthropic SDK, and yields `ModelResponse`s. The native runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls it as it is, and `resolveAdapter` returns it for every `claude-*` id with a direct key or platform, as [provider routing](/models/provider-routing.md) describes.
 
-`ClaudeLlm` in `lib/models/claudeLlm.ts` is the same adapter behind the [ADK shim](/models/adk-shim.md): a subclass of `AdkShim` that keeps its name, its constructor options, its static `supportedModels` and `registerClaudeLlm()`. The adk runtime's registry constructs it for every `claude-*` id as [provider routing](/models/provider-routing.md) describes, so every Claude call on that runtime goes through this adapter too.
-
-The field-by-field mapping is the Anthropic table of the [model contract](/models/model-contract.md). The request surface per model generation is [ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)'s table (`lib/models/claudeModels.ts`). This page records how the adapter reaches Anthropic, the choices it makes inside the mapping, and what the ADK path adds.
+The field-by-field mapping is the Anthropic table of the [model contract](/models/model-contract.md). The request surface per model generation is [ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)'s table (`lib/models/claudeModels.ts`). This page records how the adapter reaches Anthropic and the choices it makes inside the mapping.
 
 ## Construction and the endpoint
 
 ```ts
 new ClaudeAdapter({ model, apiKey?, endpoint? })
-new ClaudeLlm({ model, apiKey?, endpoint? })   // the same options, handed to the adapter
 ```
 
 - **`endpoint`** is the platform ([ADR 0023](/decisions/0023-bring-your-own-endpoint.md)): Anthropic's API (or a proxy at `ANTHROPIC_BASE_URL`), Bedrock or Vertex AI. It defaults to `endpointFromEnv('anthropic')`, read on every call.
@@ -45,13 +40,13 @@ new ClaudeLlm({ model, apiKey?, endpoint? })   // the same options, handed to th
 The contract's Anthropic table holds, with these choices inside it:
 
 - **Reasoning** goes through one `ClaudeReasoning` (`lib/models/claudeModels.ts`): an effort word and a budget. `claudeReasoningOf` maps the contract's `reasoning` to it: a level is its effort with ADR 0047's budget for it, `{ budget_tokens: n }` is the level covering n with n as the budget, and `none` is `none` with a budget of 0. The budget rows read the budget alone; the adaptive rows read the effort (`adaptiveThinkingFor`), with the budget, when above 0, as the `max_tokens` floor.
-- **The ADK path's reasoning.** `ClaudeLlm` overrides the shim's `toModelRequest` and adds `claudeReasoning`, which the adapter reads in place of `reasoning` (`ClaudeModelRequest`, [ADR 0055](/decisions/0055-claude-adapter-keeps-the-adk-request.md)). It is the agent's `generateContentConfig` read as ADR 0049 reads it (`claudeReasoningFromConfig`): the effort word first, with `xhigh` and `max` passed through and `minimal` as `low`, else the thinking budget rounded up to a level; and the thinking budget as given. Wherever the compiler writes both spellings from `reasoning:`, the two readings agree, which `tests/claudeAdapter.test.ts` asserts on every generation. They differ only on the older spelling: an effort word above `high`, `minimal`, a word without a budget on Claude 4.6 and earlier (no thinking there, where `reasoning` would map the level to its budget), and a word and a budget that disagree. The native runtime never sets it.
+- **No older spelling.** The adapter reads the contract's `reasoning` alone (`claudeReasoningOf`); 1.0.0 removed the `claudeReasoning` extension that carried the older `generateContentConfig` spelling ([ADR 0055](/decisions/0055-claude-adapter-keeps-the-adk-request.md), [ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), so `xhigh` and `max` are not sent.
 - **System messages** are appended to the system prompt after `system`, in order, joined by blank lines. A system message's text parts join with newlines.
-- **Tool results.** A tool message is one user message of `tool_result` blocks. Each `content` is the JSON text of the result in the shape the ADK path stores it: the result when it is an object, `{ result }` when it is not, `{ error: result }` for a failure, which also sets `is_error: true`. Both runtimes therefore send the same bytes for one history, which a conversation-bound thinking block needs.
+- **Tool results.** A tool message is one user message of `tool_result` blocks. Each `content` is the JSON text of the result in the shape a stored event holds it: the result when it is an object, `{ result }` when it is not, `{ error: result }` for a failure, which also sets `is_error: true`. A history read back from storage therefore sends the same bytes as it did live, which a conversation-bound thinking block needs.
 - **Images.** Only user messages carry blobs. A blob typed `application/octet-stream`, the genai mapping's type for a part that names none, is untyped: inline data goes as `image/png`, and a URL is typed by its extension, or sent untyped when the extension is unknown. A type Anthropic refuses, a URL that is not `https`, and a URL on Bedrock or Vertex AI are dropped, named on `llm.image.dropped` (never the URL) with one warning per reason per adapter.
-- **Tools.** A client tool goes as `{ name, description, input_schema }`. A `strict` one goes with the strict form of its schema and `strict: true`. `web_search` becomes Anthropic's `web_search_20250305` server tool (`max_uses: 5`) on Anthropic's own API; elsewhere it is dropped with `llm.web_search.omitted` and one warning. Every other native tool is dropped without a warning, since `lib/models/capabilities.ts` and the compiler say so in advance. Each drop is named on `llm.capability.dropped`. `anthropicTools(request)` gives the list before the platform is known, and `buildAnthropicTools(llmRequest)` in `claudeLlm.ts` is the same for an LlmRequest.
+- **Tools.** A client tool goes as `{ name, description, input_schema }`. A `strict` one goes with the strict form of its schema and `strict: true`. `web_search` becomes Anthropic's `web_search_20250305` server tool (`max_uses: 5`) on Anthropic's own API; elsewhere it is dropped with `llm.web_search.omitted` and one warning. Every other native tool is dropped without a warning, since `lib/models/capabilities.ts` and the compiler say so in advance. Each drop is named on `llm.capability.dropped`. `anthropicTools(request)` gives the list before the platform is known.
 - **Tool choice.** `auto` sends nothing. `none`, `required` and `{ name }` are sent as `{ type: 'none' }`, `{ type: 'any' }` and `{ type: 'tool', name }` when a tool is sent. A forced choice is weakened to `auto` where the model refuses forcing or the setting thinks, with `llm.tool_choice.weakened` set to `required` or `named`.
-- **Structured output.** `output_config.format` where the row takes it. Elsewhere, and for a schema the SDK's transform refuses, a `structured_output` tool carries the schema: forced only when the model takes forcing, the setting does not think and no other tool is sent, else offered under `auto`. `llm.structured_output` names which (`output_format`, `forced_tool`, `tool_auto`). `outputFormat: 'json'` sends nothing: the Messages API has no JSON mode without a schema, and `ClaudeLlm` never sent one for `responseMimeType` alone ([ADR 0061](/decisions/0061-json-mode-on-the-contract.md)).
+- **Structured output.** `output_config.format` where the row takes it. Elsewhere, and for a schema the SDK's transform refuses, a `structured_output` tool carries the schema: forced only when the model takes forcing, the setting does not think and no other tool is sent, else offered under `auto`. `llm.structured_output` names which (`output_format`, `forced_tool`, `tool_auto`). `outputFormat: 'json'` sends nothing: the Messages API has no JSON mode without a schema ([ADR 0061](/decisions/0061-json-mode-on-the-contract.md)).
 - **`max_tokens`** is `sampling.maxOutputTokens`, default 4,096, raised to fit thinking. No sampling field is sent.
 - **The signal** is `request.signal`, else the turn's (`currentTurnSignal`). It goes to the SDK, which aborts its fetch, and an aborted signal also ends the call at once.
 
@@ -63,7 +58,7 @@ The contract's Anthropic table holds, with these choices inside it:
 - **The structured-output tool's call** becomes the answer's text, `JSON.stringify(input)`, only when the request offered that tool.
 - **Finish reasons.** `tool_call` whenever a tool call is there. `refusal` is `content_filter`, `max_tokens` and `model_context_window_exceeded` are `max_tokens`, and `pause_turn` is `other`. None of these is an error, and each keeps the text that came.
 - **Usage.** Input is `input_tokens` plus both cache counts, output is `output_tokens`, and the cache counts are reported when above 0. Thinking is not reported apart.
-- **Grounding.** A `server_tool_use` named `web_search` gives a search query. A `web_search_result_location` citation on a text block gives a citation with its URL, title and cited text, spanning that block in the final's text. Behind the shim these become the event's `groundingMetadata`, which the A2A server reports as web sources.
+- **Grounding.** A `server_tool_use` named `web_search` gives a search query. A `web_search_result_location` citation on a text block gives a citation with its URL, title and cited text, spanning that block in the final's text. The native step stores these as the event's `groundingMetadata`, which the A2A server reports as web sources.
 - **Dropped blocks.** `input_transformations` of type `thinking_dropped` with a known reason set `llm.thinking.dropped` ([ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)).
 
 ## Failures
@@ -78,20 +73,20 @@ Every call ends with exactly one final, and a failure is that final with `error`
 | The call failed, after the SDK's own retries | `ANTHROPIC_ERROR`, with `status` when it had one | `lib/models/retry.ts`'s classification |
 | The signal aborted, before or during the call | `ANTHROPIC_ERROR` | false |
 
-The message is the SDK's or the platform's, with key-shaped text removed (`errorText`, `lib/models/errorResponse.ts`). Behind the shim the final becomes an `LlmResponse` with `errorCode`, `errorMessage` and the verdict in `customMetadata['error.retryable']` and `['error.status']`, which `FallbackLlm` reads ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). A setup failure carries `error.retryable: false` there, which `FallbackLlm` reads as it reads a response with no verdict: passed on, never redirected.
+The message is the SDK's or the platform's, with key-shaped text removed (`errorText`, `lib/models/errorResponse.ts`). The fallback rules read `error.retryable` and `error.status` ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)); a setup failure carries `retryable: false`, so it is passed on, never redirected. The stored event keeps the code, the scrubbed message and the verdict (`customMetadata['error.retryable']` and `['error.status']`).
 
 Retries are the Anthropic SDK's own two, before anything is yielded. A stream that breaks after a delta is reported, never replayed.
 
 ## Telemetry
 
-The adapter sets attributes on the active span and opens none: `llm.image.dropped`, `llm.web_search.native`, `llm.web_search.omitted`, `llm.capability.dropped`, `llm.thinking.omitted`, `llm.thinking.dropped`, `llm.structured_output` and `llm.tool_choice.weakened`. The caller opens the `llm.request` span and charges the turn ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)): the native loop's model step, or on the adk runtime the shim, so `ClaudeLlm`'s spans carry the same attributes. Mapped through the shim, a Claude event carries `finishReason` as a Gemini event does, and `groundingMetadata` when Claude searched.
+The adapter sets attributes on the active span and opens none: `llm.image.dropped`, `llm.web_search.native`, `llm.web_search.omitted`, `llm.capability.dropped`, `llm.thinking.omitted`, `llm.thinking.dropped`, `llm.structured_output` and `llm.tool_choice.weakened`. The caller, the native loop's model step, opens the `llm.request` span and charges the turn ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)). A stored Claude event carries `finishReason` as a Gemini event does, and `groundingMetadata` when Claude searched.
 
 ## What the offline tests assert
 
 - `tests/claudeCurrentApi.test.ts` (each generation's thinking, effort, structured output, a resumed turn read back from stored rows, URL images and Bedrock) and `tests/claudeVision.test.ts` (image blocks and their drops) drive `ClaudeAdapter` with ModelRequests against a stubbed `fetch` or a fake platform client, inside an `llm.request` span (`tests/helpers/claudeCapture.ts`), and assert the body the real SDK sends.
-- `tests/reasoningState.test.ts` and `tests/errorResponse.test.ts` drive `ClaudeLlm` with LlmRequests: the reasoning state through ADK's runner and storage, and the error event `FallbackLlm` reads.
-- `tests/capabilityMatrix.test.ts`, `tests/endpoints.test.ts` and `tests/models.test.ts` drive `ClaudeAdapter` (and `anthropicTools`) with ModelRequests, Bedrock and the Vertex AI SDK check included. `tests/shimBodies.test.ts` holds `ClaudeLlm` to the adapter's body for every capability-matrix input, on Claude 4.6 and on Opus 5.5.
-- `tests/claudeAdapter.test.ts` drives `ClaudeAdapter` with ModelRequests and asserts the same bodies. On every generation and every reasoning setting, a ModelRequest's body equals the one `ClaudeLlm` sends for the LlmRequest the compiler builds. It also covers tool choice and its weakening, strict tools, dropped native tools, tool results, images, Bedrock, both response paths, finish reasons, grounding, every failure row and the abort, and the older spelling only `ClaudeLlm` reads.
+- `tests/reasoningState.test.ts` carries the signed thinking blocks through the native loop and storage.
+- `tests/capabilityMatrix.test.ts`, `tests/endpoints.test.ts` and `tests/models.test.ts` drive `ClaudeAdapter` (and `anthropicTools`) with ModelRequests, Bedrock and the Vertex AI SDK check included.
+- `tests/claudeAdapter.test.ts` drives `ClaudeAdapter` with ModelRequests and asserts the bodies on every generation and every reasoning setting. It also covers tool choice and its weakening, strict tools, dropped native tools, tool results, images, Bedrock, both response paths, finish reasons, grounding, every failure row and the abort.
 
 ## Confirmed only against documentation
 

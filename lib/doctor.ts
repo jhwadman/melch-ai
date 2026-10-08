@@ -19,9 +19,8 @@
  * come from lib/models/gateway.ts and lib/models/capabilities.ts, the same
  * modules the registry and the A2A server use, so the report cannot
  * disagree with what a run would do. The runtime line comes from
- * lib/runtime/runtimeFlag.ts, which a turn reads (ADR 0102); whether
- * @google/adk is installed is a module resolution, so the doctor never
- * loads ADK to answer it.
+ * lib/runtime/runtimeFlag.ts, which a turn reads (ADR 0107): a leftover
+ * MELCHIZEDEK_RUNTIME=adk is a problem.
  */
 
 import fs from 'node:fs';
@@ -107,21 +106,19 @@ export interface Unlock {
   syndicates: string[];
 }
 
-/** The runtime a turn would run on here, where that came from, and the optional ADK peer (ADR 0102). */
+/** The runtime a turn would run on here, and where that came from (ADR 0107). */
 export interface DoctorRuntime {
   /** The runtime in use; undefined when MELCHIZEDEK_RUNTIME holds a value no turn accepts (`problem` says so). */
   runtime?: RuntimeName;
   /** Where it came from: MELCHIZEDEK_RUNTIME, or the default (a turn's own option is the caller's, not the environment's). */
   source?: RuntimeSource;
-  /** @google/adk: whether it resolves from here, its version, and whether the runtime in use needs it. */
-  adk: { installed: boolean; version?: string; needed: boolean };
   /** Why no turn would run as configured, if none would. */
   problem?: string;
 }
 
 export interface DoctorResult {
   agentsDir: string;
-  /** The runtime in use and whether @google/adk is installed. */
+  /** The runtime in use. */
   runtime: DoctorRuntime;
   syndicates: DoctorSyndicate[];
   unlocks: Unlock[];
@@ -153,49 +150,18 @@ function resolvable(module: string): boolean {
   }
 }
 
-/** The installed version of a package that resolves from here, read from its package.json (its exports map may hide it). */
-function installedVersion(module: string): string | undefined {
-  try {
-    let dir = path.dirname(createRequire(import.meta.url).resolve(module));
-    for (let i = 0; i < 8; i++) {
-      const file = path.join(dir, 'package.json');
-      if (fs.existsSync(file)) {
-        const pkg = JSON.parse(fs.readFileSync(file, 'utf8')) as { name?: string; version?: string };
-        if (pkg.name === module) return pkg.version;
-      }
-      const up = path.dirname(dir);
-      if (up === dir) break;
-      dir = up;
-    }
-  } catch {
-    // Not resolvable, or unreadable: no version to report.
-  }
-  return undefined;
-}
-
-/** The ADK peer, as an install command names it. */
-const ADK_PEER = '@google/adk';
-
 /**
  * The runtime a turn would run on under this environment (lib/runtime/
- * runtimeFlag.ts), where that came from, and whether @google/adk resolves.
- * `adk` without the package is a problem: every turn would fail.
+ * runtimeFlag.ts), and where that came from. MELCHIZEDEK_RUNTIME=adk is a
+ * problem: every turn, and the server's startup, would fail
+ * (RuntimeRemovedError, ADR 0107).
  */
-export function runtimeReport(env: NodeJS.ProcessEnv = process.env, adkResolvable: (module: string) => boolean = resolvable): DoctorRuntime {
-  const installed = adkResolvable(ADK_PEER);
-  const adk = { installed, ...(installed && installedVersion(ADK_PEER) ? { version: installedVersion(ADK_PEER) } : {}) };
-  let chosen: { runtime: RuntimeName; source: RuntimeSource };
+export function runtimeReport(env: NodeJS.ProcessEnv = process.env): DoctorRuntime {
   try {
-    chosen = describeRuntime(undefined, env);
+    return describeRuntime(undefined, env);
   } catch (err) {
-    return { adk: { ...adk, needed: false }, problem: err instanceof Error ? err.message : String(err) };
+    return { problem: err instanceof Error ? err.message : String(err) };
   }
-  const needed = chosen.runtime === 'adk';
-  return {
-    ...chosen,
-    adk: { ...adk, needed },
-    ...(needed && !installed ? { problem: `MELCHIZEDEK_RUNTIME=adk needs ${ADK_PEER}, which is not installed: npm install ${ADK_PEER}@~2.2.0, or unset MELCHIZEDEK_RUNTIME to run on native` } : {}),
-  };
 }
 
 /** One row per provider that is not on its vendor's public API with an env key. */
@@ -612,17 +578,14 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
   lines.push(`${c.bold}melchizedek doctor${c.reset} ${c.dim}· ${result.agentsDir}${c.reset}`);
   lines.push('');
 
-  // The runtime a turn would run on, where that came from, and the ADK peer (ADR 0102).
+  // The runtime a turn would run on, and where that came from (ADR 0107).
   if (result.runtime) {
     const rt = result.runtime;
-    const adk = rt.adk.installed
-      ? `${ADK_PEER} ${rt.adk.version ?? ''}`.trimEnd() + ' installed'
-      : `${ADK_PEER} not installed${rt.adk.needed ? '' : ' (needed only for MELCHIZEDEK_RUNTIME=adk)'}`;
     const source = rt.source === 'default' ? 'the default' : rt.source;
     lines.push(
       rt.problem
         ? `runtime     ${c.red}✗${c.reset} ${rt.runtime ? `${rt.runtime} ${c.dim}(${source})${c.reset} · ` : ''}${c.red}${rt.problem}${c.reset}`
-        : `runtime     ${c.green}✓${c.reset} ${rt.runtime} ${c.dim}(${source})${c.reset} · ${c.dim}${adk}${c.reset}`,
+        : `runtime     ${c.green}✓${c.reset} ${rt.runtime} ${c.dim}(${source})${c.reset}`,
     );
   }
 

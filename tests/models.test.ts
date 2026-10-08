@@ -10,14 +10,11 @@
  *
  * The adapters are driven on the engine's contract (lib/models/contract.ts,
  * ADR 0048): a ModelRequest in, the wire body and the ModelResponses out,
- * so the native runtime inherits every case. Under ADK each adapter runs
- * behind its shim class (OllamaLlm, KimiLlm, GatewayLlm, GrokLlm, GptLlm,
- * ClaudeLlm), which tests/shimBodies.test.ts holds to the same bodies.
+ * the shape the native runtime calls them in.
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { setLogLevel, LogLevel, LlmAgent, AgentTool, LOAD_MEMORY } from '@google/adk';
 
 import type { FinalModelResponse, ModelAdapter, ModelRequest, ModelResponse, ToolDeclaration } from '../lib/models/contract.ts';
 import { contractToolDeclaration, toLowercaseJsonSchema } from '../lib/models/schemaNormalize.ts';
@@ -27,12 +24,7 @@ import {
   providerStatuses,
   resolveModel,
 } from '../lib/models/registry.ts';
-import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
-import { GrokLlm } from '../lib/models/grokLlm.ts';
-import { KimiLlm } from '../lib/models/kimiLlm.ts';
-import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
-import { GptLlm } from '../lib/models/gptLlm.ts';
-import { anthropicTools } from '../lib/models/claudeAdapter.ts';
+import { ClaudeAdapter, anthropicTools } from '../lib/models/claudeAdapter.ts';
 import {
   GptAdapter,
   extractServerToolCalls,
@@ -45,15 +37,13 @@ import { GrokAdapter } from '../lib/models/grokAdapter.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
 import { KimiAdapter } from '../lib/models/kimiAdapter.ts';
 import { GatewayAdapter } from '../lib/models/gatewayAdapter.ts';
-import type { ChatCompletionsRequest } from '../lib/models/chatCompletionsAdapter.ts';
 import { splitThinkBlocks, ThinkStreamSplitter } from '../lib/models/chatCompletionsAdapter.ts';
-import { mapUsage } from '../lib/models/openAiCompatibleLlm.ts';
+import { subagentTool } from '../lib/runtime/native/delegate.ts';
+import { loadMemoryTool } from '../lib/tools/memoryTools.ts';
 import { captureBody } from './helpers/capabilityInputs.ts';
 
-setLogLevel(LogLevel.WARN);
-
 /** A minimal ModelRequest: one user turn. */
-function makeRequest(overrides: Partial<ChatCompletionsRequest> = {}): ChatCompletionsRequest {
+function makeRequest(overrides: Partial<ModelRequest> = {}): ModelRequest {
   return {
     model: 'ollama/qwen3:8b',
     messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
@@ -135,20 +125,20 @@ test('providerForModel maps every prefix to its provider', () => {
   assert.equal(providerForModel('kimi-k2.7-code-highspeed'), 'moonshot');
   assert.equal(providerForModel('ollama/qwen3:8b'), 'ollama');
   assert.equal(providerForModel('gemini-3.5-flash-lite'), 'gemini');
-  assert.equal(providerForModel('something-unknown'), 'gemini'); // ADK-native default
+  assert.equal(providerForModel('something-unknown'), 'gemini'); // the default provider
 });
 
 test('resolveModel returns the right adapter instance; model id wins over header', () => {
-  assert.ok(resolveModel('ollama/qwen3:8b', { defaultProvider: 'anthropic' }) instanceof OllamaLlm);
-  assert.ok(resolveModel('claude-sonnet-4-6') instanceof ClaudeLlm);
-  assert.ok(resolveModel('grok-4-1-fast-reasoning') instanceof GrokLlm);
-  assert.ok(resolveModel('gpt-5-mini') instanceof GptLlm);
-  assert.ok(resolveModel('kimi-k3') instanceof KimiLlm);
+  assert.ok(resolveModel('ollama/qwen3:8b', { defaultProvider: 'anthropic' }) instanceof OllamaAdapter);
+  assert.ok(resolveModel('claude-sonnet-4-6') instanceof ClaudeAdapter);
+  assert.ok(resolveModel('grok-4-1-fast-reasoning') instanceof GrokAdapter);
+  assert.equal(resolveModel('gpt-5-mini').constructor, GptAdapter);
+  assert.ok(resolveModel('kimi-k3') instanceof KimiAdapter);
 });
 
 test('resolveModel uses the deprecated provider header only when model is absent', () => {
-  assert.ok(resolveModel(undefined, { defaultProvider: 'ollama' }) instanceof OllamaLlm);
-  assert.ok(resolveModel(undefined, { defaultProvider: 'anthropic' }) instanceof ClaudeLlm);
+  assert.ok(resolveModel(undefined, { defaultProvider: 'ollama' }) instanceof OllamaAdapter);
+  assert.ok(resolveModel(undefined, { defaultProvider: 'anthropic' }) instanceof ClaudeAdapter);
 });
 
 test('providerStatuses reflects env keys; ollama is always available', () => {
@@ -210,19 +200,6 @@ test('ThinkStreamSplitter flushes a held partial tag that never completed', () =
   assert.deepEqual(s.flush(), { reasoning: '', answer: '<thi' });
 });
 
-test('mapUsage maps OpenAI-style usage to GenAI usageMetadata', () => {
-  assert.deepEqual(
-    mapUsage({
-      prompt_tokens: 10,
-      completion_tokens: 20,
-      total_tokens: 30,
-      completion_tokens_details: { reasoning_tokens: 5 },
-    }),
-    { promptTokenCount: 10, candidatesTokenCount: 20, thoughtsTokenCount: 5, totalTokenCount: 30 },
-  );
-  assert.equal(mapUsage(undefined), undefined);
-});
-
 test('OllamaAdapter yields the thinking, the answer and the usage from a stubbed response', async () => {
   const originalFetch = globalThis.fetch;
   let requestedUrl = '';
@@ -257,7 +234,7 @@ test('OllamaAdapter yields the thinking, the answer and the usage from a stubbed
 // ── Moonshot Kimi: the reasoning controls per generation ────────────────────
 
 /** The body KimiAdapter posts for one request, captured from a stubbed fetch. */
-async function kimiBody(model: string, fields: Partial<ChatCompletionsRequest> = {}): Promise<any> {
+async function kimiBody(model: string, fields: Partial<ModelRequest> = {}): Promise<any> {
   const originalFetch = globalThis.fetch;
   const savedKey = process.env.MOONSHOT_API_KEY;
   process.env.MOONSHOT_API_KEY = 'fixture-moonshot-0123456789abcdef'; // gitleaks:allow (test fixture)
@@ -294,8 +271,7 @@ test('KimiAdapter: kimi-k3 pins reasoning_effort below max, keeps an explicit ef
   assert.equal(pinned.model, 'kimi-k3');
   assert.equal(pinned.reasoning_effort, 'high');
   assert.ok(!('thinking' in pinned));
-  // `max` is no contract level: the ADK path carries it as the older spelling (ADR 0057).
-  assert.equal((await kimiBody('kimi-k3', { olderSpelling: { reasoningEffort: 'max' } })).reasoning_effort, 'max');
+  assert.equal((await kimiBody('kimi-k3', { reasoning: 'low' })).reasoning_effort, 'low');
   // K3 cannot switch thinking off: "none" becomes the lightest effort.
   assert.equal((await kimiBody('kimi-k3', { reasoning: 'none' })).reasoning_effort, 'low');
 });
@@ -350,9 +326,9 @@ test('OllamaAdapter (SSE) streams reasoning and text, then repeats the whole tex
     const streamedText = responses.flatMap((r) => (r.partial ? r.parts.filter((p) => p.type === 'text').map((p) => p.text) : []));
     assert.deepEqual(streamedText, ['Hello', ' world']);
 
-    // The final is the ONLY response ADK persists (runner: `if
-    // (!event.partial) appendEvent(...)`), so it must carry the whole
-    // reply — otherwise the turn renders on screen and vanishes from history.
+    // The final is the ONLY response the runtime persists (partials are
+    // never appended to the session), so it must carry the whole reply —
+    // otherwise the turn renders on screen and vanishes from history.
     const final = finalOf(responses);
     assert.equal(responses.filter((r) => !r.partial).length, 1, 'exactly one final');
     assert.equal(textOf(final), 'Hello world');
@@ -515,11 +491,6 @@ test('Grok speaks the Responses API dialect (GrokAdapter extends GptAdapter, xAI
   // xAI retired chat-completions Live Search (410); Grok now rides the
   // Responses-shaped Agent Tools API through the GPT translator.
   assert.ok(new GrokAdapter({ model: 'grok-4.5' }) instanceof GptAdapter);
-  assert.ok(new GrokLlm({ model: 'grok-4.5' }) instanceof GptLlm, 'and its ADK shim is a GptLlm');
-  assert.deepEqual(
-    GrokLlm.supportedModels.map((p) => String(p)),
-    [String(/^grok-.+/)],
-  );
 
   // Without a key, the adapter yields the xAI-specific MISSING_API_KEY error
   // (proves the env/key overrides are wired, no network involved).
@@ -739,15 +710,16 @@ test('GptAdapter sends lowercase function schemas and the native web_search', as
   assert.ok(tools.some((t) => t.type === 'web_search')); // OpenAI-native tool
 });
 
-// ── Real ADK tool objects reach every non-Gemini adapter with their schema ───
-// Plain objects carry a `parameters` key. Real ADK AgentTool and load_memory
-// keep their schema only in _getDeclaration(), and reading `.parameters`
-// sent `{}` — the root cause of plans/gpt-agenttool-delegation.md. These use
-// the real classes, declared as a request carries them (contractToolDeclaration).
+// ── Engine tool objects reach every non-Gemini adapter with their schema ─────
+// Plain objects carry a `parameters` key. A subagent tool and load_memory
+// keep their schema only in declaration() (or their zod schema), and reading
+// `.parameters` sent `{}` — the root cause of plans/gpt-agenttool-delegation.md.
+// These use the engine's own tools, declared as a request carries them
+// (contractToolDeclaration).
 
 function realTools(): ToolDeclaration[] {
-  const sub = new LlmAgent({ name: 'XScout', description: 'Sweeps X for a ticker', model: 'gemini-3.5-flash-lite', instruction: 'x' });
-  return [new AgentTool({ agent: sub }), LOAD_MEMORY].map((tool) => {
+  const sub = subagentTool({ name: 'XScout', description: 'Sweeps X for a ticker', model: 'gemini-3.5-flash-lite', instruction: 'x' });
+  return [sub, loadMemoryTool].map((tool) => {
     const declaration = contractToolDeclaration(tool);
     assert.ok(declaration, `${tool.name} declares a function`);
     return declaration;
@@ -756,7 +728,7 @@ function realTools(): ToolDeclaration[] {
 
 function assertDelegationSchemas(byName: (n: string) => any) {
   const delegate = byName('XScout');
-  assert.ok(delegate, 'AgentTool must be declared');
+  assert.ok(delegate, 'the subagent tool must be declared');
   assert.equal(delegate.type, 'object');
   assert.equal(delegate.properties.request.type, 'string');
   assert.deepEqual(delegate.required, ['request']);
@@ -765,17 +737,17 @@ function assertDelegationSchemas(byName: (n: string) => any) {
   assert.ok(memory.properties.query, 'load_memory keeps its query argument');
 }
 
-test('GPT adapter declares AgentTool and load_memory arguments', async () => {
+test('GPT adapter declares subagent tool and load_memory arguments', async () => {
   const tools: any[] = (await gptBody(makeRequest({ model: 'gpt-5-mini', tools: realTools() }))).tools;
   assertDelegationSchemas((n) => tools.find((t) => t.name === n)?.parameters);
 });
 
-test('Claude adapter declares AgentTool and load_memory arguments', () => {
+test('Claude adapter declares subagent tool and load_memory arguments', () => {
   const tools: any[] = anthropicTools({ tools: realTools() });
   assertDelegationSchemas((n) => tools.find((t) => t.name === n)?.input_schema);
 });
 
-test('chat-completions adapters (Ollama, gateway) declare AgentTool and load_memory arguments', () => {
+test('chat-completions adapters (Ollama, gateway) declare subagent tool and load_memory arguments', () => {
   const request = makeRequest({ tools: realTools() });
   for (const adapter of [new OllamaAdapter({ model: 'ollama/qwen3:8b' }), new GatewayAdapter({ model: 'claude-sonnet-4-6' })]) {
     const tools = adapter.toolsFor(request) as any[];
@@ -783,9 +755,9 @@ test('chat-completions adapters (Ollama, gateway) declare AgentTool and load_mem
   }
 });
 
-test('an AgentTool whose subagent has no description is still declared', async () => {
-  const sub = new LlmAgent({ name: 'Quiet', model: 'gemini-3.5-flash-lite', instruction: 'x' });
-  const declaration = contractToolDeclaration(new AgentTool({ agent: sub }));
+test('a subagent tool whose subagent has no description is still declared', async () => {
+  const sub = { name: 'Quiet', model: 'gemini-3.5-flash-lite', instruction: 'x' };
+  const declaration = contractToolDeclaration(subagentTool(sub));
   assert.ok(declaration);
   const tools: any[] = (await gptBody(makeRequest({ model: 'gpt-5-mini', tools: [declaration] }))).tools;
   assert.ok(tools.some((t) => t.name === 'Quiet'));

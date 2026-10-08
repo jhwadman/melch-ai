@@ -1,71 +1,62 @@
 /**
- * tests/helpers/scriptedLlm.ts — a deterministic ADK model for offline tests
- * of the turn runtime: the ADK shim (lib/models/adkShim.ts) around a
- * ScriptedModel (./scriptedModel.ts), so the step budget, cancellation and
- * the llm.request span in lib/runtime/turnControl.ts apply to it exactly as
- * they do to every adapter in production.
+ * tests/helpers/scriptedLlm.ts — a deterministic model for offline tests of
+ * the turn runtime whose script is written in genai's terms: a function from
+ * (LlmRequest, call number, signal) to the LlmResponses of that call
+ * (lib/models/genaiMapping.ts). It may be async and may await the signal to
+ * model a hung provider.
  *
- * A script is written in ADK's terms, a function from (request, call
- * number, signal) to the LlmResponses of that call; it may be async and may
- * await the signal to model a hung provider. The shim hands the call to its
- * ScriptedModel as a ModelRequest; the model runs the script on the
- * LlmRequest that request was mapped from, and yields each LlmResponse as a
- * ModelResponse (llmResponseToModelResponse). ADK then receives the response
- * exactly as the script wrote it, not its round trip through the contract,
- * so a test that compares this model with a contract script behind the shim
- * (the boundary suite, tests/syndicateTurn.test.ts) still compares two
- * different paths.
+ * ScriptedLlm is a ModelAdapter (lib/models/contract.ts) around a
+ * ScriptedModel (./scriptedModel.ts): the loop hands it a ModelRequest, the
+ * script reads the LlmRequest that request maps to
+ * (modelRequestToLlmRequest), and each LlmResponse the script writes reaches
+ * the loop as a ModelResponse (llmResponseToModelResponse). The loop charges
+ * and traces the call as it does every adapter's (lib/runtime/turnControl.ts).
  *
- * On the native runtime the loop calls the ScriptedModel itself, with no
- * LlmRequest behind its ModelRequest: the script then reads the LlmRequest
- * that request maps to (modelRequestToLlmRequest), and the loop reads the
- * script's responses through the contract, which is the native path.
+ * It is marked as a caller's adapter (servedThroughShim,
+ * lib/runtime/native/selfCorrection.ts), as it was when it reached the loop
+ * through the pre-1.0 shim, so a Gemini-provider script is told of the
+ * reflection tool as the recorded references expect.
  *
- * `model` is the ScriptedModel: its `requests` are the ModelRequests the
- * shim handed it. `requests` here are the LlmRequests ADK sent.
+ * `adapter` is the ScriptedModel: its `requests` are the ModelRequests the
+ * loop sent. `requests` here are the LlmRequests the script read.
  */
 
-import type { LlmRequest, LlmResponse } from '@google/adk';
-import type { ModelRequest, ModelResponse } from '../../lib/models/contract.ts';
-import { AdkShim } from '../../lib/models/adkShim.ts';
+import type { ModelAdapter, ModelRequest, ModelResponse } from '../../lib/models/contract.ts';
 import { llmResponseToModelResponse, modelRequestToLlmRequest } from '../../lib/models/genaiMapping.ts';
-import type { ModelRequestOptions } from '../../lib/models/genaiMapping.ts';
+import type { LlmRequest, LlmResponse } from '../../lib/models/genaiMapping.ts';
+import { servedThroughShim } from '../../lib/runtime/native/selfCorrection.ts';
 import { ScriptedModel } from './scriptedModel.ts';
+
+export type { LlmRequest, LlmResponse };
 
 /** One response, or several in order (streaming chunks, then the full reply). */
 export type Script = (request: LlmRequest, call: number, signal?: AbortSignal) => LlmResponse | LlmResponse[] | Promise<LlmResponse | LlmResponse[]>;
 
-export class ScriptedLlm extends AdkShim {
-  declare readonly adapter: ScriptedModel;
-  /** The LlmRequest each ModelRequest the shim built was mapped from. */
-  readonly #sources: WeakMap<ModelRequest, LlmRequest>;
-  /** The LlmResponse the script wrote for each ModelResponse the model yielded. */
-  readonly #written: WeakMap<ModelResponse, LlmResponse>;
-  /** The LlmRequests ADK sent, one per call that reached the script. */
+export class ScriptedLlm implements ModelAdapter {
+  readonly adapter: ScriptedModel;
+  /** The LlmRequests the script read, one per call that reached it. */
   readonly requests: LlmRequest[];
+  readonly model: string;
 
-  constructor(model: string, script: Script) {
-    const sources = new WeakMap<ModelRequest, LlmRequest>();
-    const written = new WeakMap<ModelResponse, LlmResponse>();
+  constructor(model: string, script: Script, provider = 'scripted') {
     const requests: LlmRequest[] = [];
-    super(
-      new ScriptedModel(model, async (request, call, signal) => {
-        // Under ADK the shim mapped the request from an LlmRequest; on the
-        // native runtime the loop hands the adapter its ModelRequest
-        // directly, so the script reads the LlmRequest it maps to.
-        const llmRequest = sources.get(request) ?? modelRequestToLlmRequest(request);
+    this.model = model;
+    this.adapter = new ScriptedModel(
+      model,
+      async (request, call, signal) => {
+        const llmRequest = modelRequestToLlmRequest(request);
         requests.push(llmRequest);
         const out = await script(llmRequest, call, signal);
-        return (Array.isArray(out) ? out : [out]).map((response) => {
-          const mapped = llmResponseToModelResponse(response, { model });
-          written.set(mapped, response);
-          return mapped;
-        });
-      }),
+        return (Array.isArray(out) ? out : [out]).map((response) => llmResponseToModelResponse(response, { model }));
+      },
+      provider,
     );
-    this.#sources = sources;
-    this.#written = written;
     this.requests = requests;
+    servedThroughShim(this);
+  }
+
+  get provider(): string {
+    return this.adapter.provider;
   }
 
   /** The calls that reached the script; a call the turn refused never does. */
@@ -73,14 +64,8 @@ export class ScriptedLlm extends AdkShim {
     return this.adapter.calls;
   }
 
-  protected override toModelRequest(llmRequest: LlmRequest, options: ModelRequestOptions): ModelRequest {
-    const request = super.toModelRequest(llmRequest, options);
-    this.#sources.set(request, llmRequest);
-    return request;
-  }
-
-  protected override toLlmResponse(response: ModelResponse): LlmResponse {
-    return this.#written.get(response) ?? super.toLlmResponse(response);
+  generate(request: ModelRequest): AsyncIterable<ModelResponse> {
+    return this.adapter.generate(request);
   }
 }
 

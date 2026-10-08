@@ -8,7 +8,8 @@
  *     - Service construction (SupabaseSessionService, SupabaseVectorMemoryService)
  */
 
-import type { BaseSessionService, BaseMemoryService } from '@google/adk';
+import type { SessionService } from '../runtime/sessions.ts';
+import type { MemoryService } from '../runtime/memoryService.ts';
 import { isPlaceholderValue } from '../loadEnv.ts';
 import type { Embedder, MemoryExtractor } from '../memory/providers.ts';
 
@@ -18,8 +19,8 @@ import type { RlsHardeningStatus, RlsRow } from '../storage/rlsStatus.ts';
 export type { RlsHardeningStatus } from '../storage/rlsStatus.ts';
 
 export interface PersistenceServices {
-  sessionService: BaseSessionService;
-  memoryService: BaseMemoryService | undefined;
+  sessionService: SessionService;
+  memoryService: MemoryService | undefined;
   /**
    * Checks whether the database hardening in db/hardening.sql has been
    * applied (RLS enabled on adk_memory_facts, adk_sessions and — where it
@@ -83,7 +84,7 @@ export async function createSupabaseServices(
   const sessionService = new SupabaseSessionService(supabase);
 
   // ── Memory service (optional) ──────────────────────────────────────────────
-  let memoryService: BaseMemoryService | undefined;
+  let memoryService: MemoryService | undefined;
   if (options.withMemory) {
     const { SupabaseVectorMemoryService } = await import(
       '../memory/supabaseMemoryService.ts'

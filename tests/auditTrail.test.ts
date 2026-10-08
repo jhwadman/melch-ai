@@ -3,9 +3,6 @@
  * authentication, a task's outcome and an erasure each leave one event with
  * the caller, the source address and a scope HASH, never the scope key or
  * any conversation content. Offline: a scripted model, a stub storage.
- *
- * The cases that run a turn run on both runtimes, through
- * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -17,16 +14,13 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import type { A2AApp } from '../lib/a2a/app.ts';
 import { postgresAuditSink, scopeHashOf } from '../lib/observability/audit.ts';
 import type { AuditEvent } from '../lib/observability/audit.ts';
 import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
-import { forEachRuntime } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const SECRET = 'test-secret-0123456789abcdef0123456789'; // gitleaks:allow (test fixture)
 const dir = mkdtempSync(join(tmpdir(), 'melch-audit-'));
@@ -43,7 +37,7 @@ before(async () => {
     defaultSyndicate: 'echo.yaml',
     serverSecret: SECRET,
     storage: {
-      sessionService: new InMemorySessionService(),
+      sessionService: new InProcessSessionService(),
       erase: async () => ({ memory_facts: 2, sessions: 1, turns: 3, spans: 0, payloads: 0, verdicts: 0, labels: 0, tasks: 1, memory_markers: 1, task_tools: 0, credentials: 1 }),
     },
     audit: (e) => events.push(e),
@@ -64,7 +58,7 @@ after(async () => {
 
 const headers = { Authorization: `Bearer ${SECRET}`, 'X-User-Id': 'alice.smith', 'Content-Type': 'application/json' };
 
-forEachRuntime('a failed authentication is recorded as denied, with the source address', async () => {
+test('a failed authentication is recorded as denied, with the source address', async () => {
   events.length = 0;
   const res = await fetch(`${base}/.well-known/agent-card.json`, { headers: { Authorization: 'Bearer wrong' } });
   assert.equal(res.status, 401);
@@ -75,7 +69,7 @@ forEachRuntime('a failed authentication is recorded as denied, with the source a
   assert.equal(e.detail?.path, '/.well-known/agent-card.json');
 });
 
-forEachRuntime("a task's outcome is recorded with the caller and a scope hash, and no content", async () => {
+test("a task's outcome is recorded with the caller and a scope hash, and no content", async () => {
   events.length = 0;
   const res = await fetch(`${base}/a2a/jsonrpc`, {
     method: 'POST',
@@ -94,7 +88,7 @@ forEachRuntime("a task's outcome is recorded with the caller and a scope hash, a
   assert.doesNotMatch(serialized, /alice\.smith|recipe|basil/, 'no scope key and no conversation content');
 });
 
-forEachRuntime('an erasure is recorded with its counts and a scope hash', async () => {
+test('an erasure is recorded with its counts and a scope hash', async () => {
   events.length = 0;
   const res = await fetch(`${base}/memory`, { method: 'DELETE', headers });
   assert.equal(res.status, 200);

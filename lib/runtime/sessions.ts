@@ -4,14 +4,13 @@
  * ADR 0052).
  *
  * WHY this file exists:
- *   The native runtime reads and writes sessions without ADK. The durable
- *   stores (lib/session/supabaseSessionService.ts, lib/storage/postgres/
- *   sessionService.ts) and the transcript projection (lib/session/
- *   transcript.ts) implement SessionService beside ADK's BaseSessionService,
- *   and lib/runtime/adkSessionBridge.ts gives a store that has only one of
- *   the two the other, until ADK leaves at 1.0 (ADR 0058). The shapes are
- *   ADK's JSON (a Session holds TurnEvents, lib/runtime/events.ts), so both
- *   runtimes read and write the same rows.
+ *   The engine reads and writes sessions through this interface. The
+ *   durable stores (lib/session/supabaseSessionService.ts, lib/storage/
+ *   postgres/sessionService.ts), the transcript projection (lib/session/
+ *   transcript.ts) and InProcessSessionService below implement it
+ *   (ADR 0058, ADR 0107). The shapes are ADK's JSON (a Session holds
+ *   TurnEvents, lib/runtime/events.ts), so a session ADK wrote before 1.0.0
+ *   reads and resumes as one the engine wrote.
  *
  * ONE MEANING ACROSS STORES:
  *   Where ADK's own services disagree with the engine's durable stores, the
@@ -29,9 +28,8 @@
  *   - `app:` and `user:` state keys stay in the session's own state, as both
  *     durable stores keep them; ADK's in-memory store shares them across
  *     sessions. No syndicate writes such a key.
- *   The method names are not ADK's (create, not createSession), so one class
- *   can implement this interface and extend ADK's base during the dual
- *   period without either signature constraining the other.
+ *   The method names are not ADK's (create, not createSession): a caller
+ *   moving from ADK's services renames each call (create, get, append).
  *
  * NO RUNTIME IMPORTS: every import here is a type, and nothing in this
  * module's import graph names @google/* (tests/events.test.ts asserts it).
@@ -146,7 +144,7 @@ export function withoutTempKeys(record: Record<string, unknown>): Record<string,
 }
 
 /**
- * Applies one event to a live session, as ADK's BaseSessionService does,
+ * Applies one event to a live session, as ADK's BaseSessionService did,
  * and returns the event as a store keeps it:
  *   1. A partial event is returned as it is, and the session is untouched.
  *   2. The stored event's `stateDelta` loses its `temp:` keys (a copy; the

@@ -1,55 +1,47 @@
 /**
  * tests/kimiReasoningState.test.ts — Kimi's reasoning_content carried across
  * the steps of a tool loop (replaysReasoningContent in
- * lib/models/openAiCompatibleLlm.ts, ADR 0046).
+ * lib/models/chatCompletionsAdapter.ts, KimiAdapter in lib/models/kimiAdapter.ts,
+ * ADR 0046).
  *
  * Offline: the chat-completions adapters talk to a fetch stub that answers in
  * Moonshot's wire format (JSON and SSE), and the subagent is scripted. Keys
  * are fixtures.
  *
  * What is proved here:
- *   - through a REAL ADK Runner, on both the streamed and the non-streamed
- *     path, Kimi writes the response's reasoning_content as providerState on
- *     the part that followed it, and the second request of the tool loop
- *     sends it back on the assistant message that holds the call;
- *   - each assistant message of the turn gets its own, earlier turns' get
- *     none, and only ids Moonshot documents as wanting it opt in;
- *   - only the reasoning_content field is carried, never <think> blocks or
- *     a `reasoning` field;
- *   - Ollama and the gateway (whose provider id for kimi-k3 IS moonshot)
- *     neither write nor send it;
+ *   - through runSyndicateTurn on the native loop, on both the streamed and
+ *     the non-streamed path, KimiAdapter writes the response's
+ *     reasoning_content as providerState on the part that followed it, and
+ *     the second request of the tool loop sends it back on the assistant
+ *     message that holds the call;
+ *   - only ids Moonshot documents as wanting it opt in;
+ *   - Ollama neither writes nor sends it;
  *   - a model switch between steps drops it.
+ * The request-body rules per message (which turn, which provider and model,
+ * <think> blocks and the `reasoning` field, the gateway) are
+ * tests/chatCompletionsAdapter.test.ts's.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { BaseLlm, InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
-import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
 
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import { KimiLlm, wantsReasoningReplay } from '../lib/models/kimiLlm.ts';
-import { OllamaLlm } from '../lib/models/ollamaLlm.ts';
-import { GatewayLlm } from '../lib/models/gatewayLlm.ts';
-import { REASONING_CONTENT_KIND } from '../lib/models/openAiCompatibleLlm.ts';
+import type { ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
+import { KimiAdapter, wantsReasoningReplay } from '../lib/models/kimiAdapter.ts';
+import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
+import { REASONING_CONTENT_KIND } from '../lib/models/chatCompletionsAdapter.ts';
+import { llmRequestToModelRequest } from '../lib/models/genaiMapping.ts';
+import type { LlmRequest } from '../lib/models/genaiMapping.ts';
 import { providerStateOf } from '../lib/models/providerState.ts';
-import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
-import { assertRefusesModelClass, forEachRuntime } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
+import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
 
 const APP = 'test-app';
 const USER = 'u1';
 const MOONSHOT_KEY = 'fixture-moonshot-0123456789abcdef'; // gitleaks:allow (test fixture)
-/** The gateway's env for a capture; undefined clears a developer's own value. */
-const GATEWAY_ENV = {
-  MODEL_GATEWAY: 'openrouter',
-  MODEL_GATEWAY_API_KEY: 'fixture-gateway-0123456789abcdef', // gitleaks:allow (test fixture)
-  MODEL_GATEWAY_BASE_URL: undefined,
-  MODEL_GATEWAY_MODEL_MAP: undefined,
-};
 
 const REASONING_1 = 'Scout knows where it is; ask it.';
 const REASONING_2 = 'Scout answered; say so.';
@@ -133,35 +125,19 @@ async function withMoonshot<T>(replies: Reply[], body: (sent: any[]) => Promise<
   }
 }
 
-/** Sets (or, for undefined, clears) env vars for the body, restoring what was there. */
-async function withEnv<T>(env: Record<string, string | undefined>, body: () => Promise<T>): Promise<T> {
-  const saved = Object.fromEntries(Object.keys(env).map((k) => [k, process.env[k]]));
-  for (const [k, v] of Object.entries(env)) {
-    if (v === undefined) delete process.env[k];
-    else process.env[k] = v;
-  }
-  try {
-    return await body();
-  } finally {
-    for (const [k, v] of Object.entries(saved)) {
-      if (v === undefined) delete process.env[k];
-      else process.env[k] = v;
-    }
-  }
-}
-
 // ── A syndicate whose boss is the adapter under test ─────────────────────────
 
 const config: SyndicateYamlConfig = {
   syndicate_name: 'Test',
-  orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Delegate to Scout.', generateContentConfig: { reasoningEffort: 'low' } },
+  orchestrator: { name: 'Boss', model: 'kimi-k3', instruction: 'Delegate to Scout.', generateContentConfig: { reasoningEffort: 'low' } },
   subagents: [{ name: 'Scout', model: 'scripted/scout', instruction: 'Answer.', description: 'Finds things' }],
 } as SyndicateYamlConfig;
 
 const scout = () => new ScriptedLlm('scripted/scout', () => text('in the attic'));
-const kimi = (model = 'kimi-k3') => new KimiLlm({ model, apiKey: MOONSHOT_KEY });
+const kimi = (model = 'kimi-k3') => new KimiAdapter({ model, apiKey: MOONSHOT_KEY });
 
-function turn(boss: BaseLlm, sessionService = new InMemorySessionService(), streaming = false) {
+function turn(boss: ModelAdapter, sessionService = new InProcessSessionService(), streaming = false) {
+  const subagent = scout();
   return runSyndicateTurn({
     config,
     parts: [{ text: 'find the thing' }],
@@ -169,7 +145,7 @@ function turn(boss: BaseLlm, sessionService = new InMemorySessionService(), stre
     userId: USER,
     sessionId: 's1',
     sessionService,
-    compile: { resolveModel: scriptedResolver({ boss, scout: scout() } as any) },
+    compile: { resolveModel: (id: string | undefined) => (id === 'scripted/scout' ? subagent : boss) },
     trace: false,
     streaming,
   });
@@ -178,33 +154,30 @@ function turn(boss: BaseLlm, sessionService = new InMemorySessionService(), stre
 /** The assistant messages of a chat-completions request body. */
 const assistants = (body: any): any[] => (body.messages ?? []).filter((m: any) => m.role === 'assistant');
 
-/**
- * A resolver that returns an ADK model class which is neither the shim nor
- * Gemini (StepSwitch here) is refused on native before any model call
- * (ADR 0088): these cases run on ADK, and on native assert the refusal.
- */
 /** One model per step, in order: a model switch between steps, as a fallback makes one. */
-class StepSwitch extends BaseLlm {
-  private calls = 0;
-  private readonly steps: BaseLlm[];
-  constructor(steps: BaseLlm[]) {
-    super({ model: 'scripted/switch' });
-    this.steps = steps;
+class StepSwitch implements ModelAdapter {
+  readonly model = 'scripted/switch';
+  #calls = 0;
+  #current: ModelAdapter;
+  readonly #steps: ModelAdapter[];
+  constructor(steps: ModelAdapter[]) {
+    this.#steps = steps;
+    this.#current = steps[0];
   }
-  async *generateContentAsync(request: LlmRequest, stream?: boolean, signal?: AbortSignal): AsyncGenerator<LlmResponse, void> {
-    const model = this.steps[Math.min(this.calls++, this.steps.length - 1)];
-    yield* model.generateContentAsync(request, stream, signal);
+  get provider(): string {
+    return this.#current.provider;
   }
-  async connect(): Promise<BaseLlmConnection> {
-    throw new Error('no live connections');
+  generate(request: ModelRequest): AsyncIterable<ModelResponse> {
+    this.#current = this.#steps[Math.min(this.#calls++, this.#steps.length - 1)];
+    return this.#current.generate({ ...request, model: this.#current.model });
   }
 }
 
-// ── Through a real ADK Runner ────────────────────────────────────────────────
+// ── Through runSyndicateTurn on the native loop ──────────────────────────────
 
 for (const streaming of [false, true]) {
-  test(`kimi-k3 (${streaming ? 'SSE' : 'JSON'}): the second request of the tool loop sends reasoning_content back on the call's assistant message`, async () => {
-    const sessions = new InMemorySessionService();
+  test(`native turn, kimi-k3 (${streaming ? 'SSE' : 'JSON'}): the second request of the tool loop sends reasoning_content back on the call's assistant message`, async () => {
+    const sessions = new InProcessSessionService();
     await withMoonshot([callScout, answer], async (sent) => {
       const r = await turn(kimi(), sessions, streaming);
       assert.equal(r.status, 'completed', JSON.stringify(r.error));
@@ -224,7 +197,7 @@ for (const streaming of [false, true]) {
       assert.ok(!wire.includes(REASONING_2));
 
       // Stored on the call part, bound to the provider and the model.
-      const s = await sessions.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+      const s = await sessions.get({ appName: APP, userId: USER, sessionId: 's1' });
       const parts = (s?.events ?? []).flatMap((e) => e.content?.parts ?? []);
       const stored = parts.find((p: any) => p.functionCall?.name === 'Scout');
       assert.deepEqual(providerStateOf(stored, 'moonshot', REASONING_CONTENT_KIND, 'kimi-k3'), {
@@ -240,15 +213,9 @@ for (const streaming of [false, true]) {
   });
 }
 
-forEachRuntime('a model switch between steps drops it: kimi-k3 then kimi-k2.6', async (runtime) => {
+test('native turn: a model switch between steps drops it: kimi-k3 then kimi-k2.6', async () => {
   await withMoonshot([callScout, answer], async (sent) => {
-    const boss = new StepSwitch([kimi('kimi-k3'), kimi('kimi-k2.6')]);
-    if (runtime === 'native') {
-      await assertRefusesModelClass(turn(boss), 'StepSwitch');
-      assert.equal(sent.length, 0, 'no model was called');
-      return;
-    }
-    const r = await turn(boss);
+    const r = await turn(new StepSwitch([kimi('kimi-k3'), kimi('kimi-k2.6')]));
     assert.equal(r.status, 'completed', JSON.stringify(r.error));
     assert.equal(sent[1].model, 'kimi-k2.6');
     const [call] = assistants(sent[1]);
@@ -258,15 +225,9 @@ forEachRuntime('a model switch between steps drops it: kimi-k3 then kimi-k2.6', 
   });
 });
 
-forEachRuntime('a provider switch drops it: kimi-k3 then Ollama', async (runtime) => {
+test('native turn: a provider switch drops it: kimi-k3 then Ollama', async () => {
   await withMoonshot([callScout, answer], async (sent) => {
-    const boss = new StepSwitch([kimi('kimi-k3'), new OllamaLlm({ model: 'ollama/qwen3:8b' })]);
-    if (runtime === 'native') {
-      await assertRefusesModelClass(turn(boss), 'StepSwitch');
-      assert.equal(sent.length, 0, 'no model was called');
-      return;
-    }
-    const r = await turn(boss);
+    const r = await turn(new StepSwitch([kimi('kimi-k3'), new OllamaAdapter({ model: 'ollama/qwen3:8b' })]));
     assert.equal(r.status, 'completed', JSON.stringify(r.error));
     assert.equal(sent[1].model, 'qwen3:8b');
     assert.ok(!JSON.stringify(sent[1]).includes(REASONING_1));
@@ -278,8 +239,8 @@ forEachRuntime('a provider switch drops it: kimi-k3 then Ollama', async (runtime
 const state = (payload: string, model = 'kimi-k3', provider = 'moonshot') => ({ provider, kind: REASONING_CONTENT_KIND, model, payload });
 
 /** Two turns: the first a finished tool loop, the second mid-loop with two steps. */
-function twoTurns(model: string): LlmRequest {
-  return {
+function twoTurns(model: string): ModelRequest {
+  return llmRequestToModelRequest({
     model,
     contents: [
       { role: 'user', parts: [{ text: 'first question' }] },
@@ -295,102 +256,39 @@ function twoTurns(model: string): LlmRequest {
     liveConnectConfig: {},
     toolsDict: {},
     config: {},
-  } as unknown as LlmRequest;
+  } as unknown as LlmRequest);
 }
 
-/** The body an adapter posts for `request` (the reply is a 400). */
-async function bodyFor(llm: BaseLlm, request: LlmRequest): Promise<any> {
-  return withMoonshot([], async (sent) => {
-    for await (const _ of llm.generateContentAsync(request, false)) {
-      // drain; the 400 surfaces as an error response
-    }
-    assert.equal(sent.length, 1);
-    return sent[0];
-  });
+/** Every response an adapter yields for `request`. */
+async function collect(adapter: ModelAdapter, request: ModelRequest): Promise<ModelResponse[]> {
+  const out: ModelResponse[] = [];
+  for await (const r of adapter.generate(request)) out.push(r);
+  return out;
 }
-
-test("each assistant message of the turn's tool loop gets its own reasoning_content; earlier turns' get none", async () => {
-  const messages = assistants(await bodyFor(kimi('kimi-k3'), twoTurns('kimi-k3')));
-  assert.deepEqual(
-    messages.map((m) => [m.content, m.tool_calls?.[0]?.id ?? null, m.reasoning_content ?? null]),
-    [
-      [null, 'old_1', null],
-      ['first answer', null, null],
-      ['Checking.', 'c1', 'step one'],
-      [null, 'c2', 'step two'],
-    ],
-  );
-});
-
-test("another provider's or another model's state on the same part is skipped", async () => {
-  const request = twoTurns('kimi-k3');
-  const parts = (request.contents[7].parts ?? []) as any[];
-  parts[0].providerState = state('step two', 'kimi-k2.6');
-  (request.contents[5].parts as any[])[0].providerState = state('step one', 'kimi-k3', 'anthropic');
-  const messages = assistants(await bodyFor(kimi('kimi-k3'), request));
-  assert.ok(messages.every((m) => m.reasoning_content === undefined), JSON.stringify(messages));
-});
 
 test('Ollama sends none and writes none', async () => {
-  const ollama = () => new OllamaLlm({ model: 'ollama/qwen3:8b' });
+  const ollama = () => new OllamaAdapter({ model: 'ollama/qwen3:8b' });
   for (const provider of ['ollama', 'moonshot']) {
     const request = twoTurns('ollama/qwen3:8b');
-    for (const c of request.contents) for (const p of (c.parts ?? []) as any[]) if (p.providerState) p.providerState.provider = provider;
-    const body = await bodyFor(ollama(), request);
+    for (const m of request.messages) for (const p of m.parts as any[]) if (p.providerState) p.providerState.provider = provider;
+    const body = await withMoonshot([], async (sent) => {
+      await collect(ollama(), request); // the 400 surfaces as an error final
+      assert.equal(sent.length, 1);
+      return sent[0];
+    });
+    assert.ok(body.messages.some((m: any) => m.tool_calls), 'the history reached the wire');
     assert.ok(!JSON.stringify(body).includes('reasoning_content'), `${provider} state reached Ollama's wire`);
   }
   await withMoonshot([callScout], async () => {
-    const out: LlmResponse[] = [];
-    for await (const r of ollama().generateContentAsync(twoTurns('ollama/qwen3:8b'), false)) out.push(r);
+    const out = await collect(ollama(), twoTurns('ollama/qwen3:8b'));
     const final = out.find((r) => !r.partial)!;
-    assert.ok(final.content?.parts?.every((p: any) => p.providerState === undefined), 'Ollama wrote reasoning state');
-    assert.ok(out.some((r) => r.partial && (r.content?.parts?.[0] as any)?.thought), 'the scratchpad is still displayed');
-  });
-});
-
-test('the gateway serving kimi-k3 sends none and writes none, though its provider id is moonshot', async () => {
-  await withEnv(GATEWAY_ENV, async () => {
-    const body = await bodyFor(new GatewayLlm({ model: 'kimi-k3' }), twoTurns('kimi-k3'));
-    assert.equal(body.model, 'moonshotai/kimi-k3');
-    assert.ok(!JSON.stringify(body).includes('reasoning_content'));
-    await withMoonshot([callScout], async () => {
-      const out: LlmResponse[] = [];
-      for await (const r of new GatewayLlm({ model: 'kimi-k3' }).generateContentAsync(twoTurns('kimi-k3'), false)) out.push(r);
-      const final = out.find((r) => !r.partial)!;
-      assert.ok(final.content?.parts?.length, JSON.stringify(final));
-      assert.ok(final.content!.parts!.every((p: any) => p.providerState === undefined), 'the gateway wrote reasoning state');
-    });
+    assert.ok(final.parts.length > 0, JSON.stringify(final));
+    assert.ok(final.parts.every((p) => p.providerState === undefined), 'Ollama wrote reasoning state');
+    assert.ok(out.some((r) => r.partial && r.parts[0]?.type === 'thinking'), 'the scratchpad is still displayed');
   });
 });
 
 test('the ids Moonshot documents as wanting reasoning_content back opt in, and only those', () => {
   for (const id of ['kimi-k3', 'kimi-k2.6', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed']) assert.ok(wantsReasoningReplay(id), id);
   for (const id of ['kimi-k2-turbo-preview', 'kimi-k2.5', 'kimi-latest']) assert.ok(!wantsReasoningReplay(id), id);
-});
-
-test('with no user content opening the turn, every assistant message is in it', async () => {
-  const request = twoTurns('kimi-k3');
-  request.contents = request.contents.slice(5); // [model(text + call), result, model(call), result]
-  const messages = assistants(await bodyFor(kimi('kimi-k3'), request));
-  assert.deepEqual(messages.map((m) => m.reasoning_content ?? null), ['step one', 'step two']);
-});
-
-test('only the reasoning_content field is carried: <think> blocks and a `reasoning` field are not', async () => {
-  for (const reply of [
-    { content: '<think>scratch</think>It is in the attic.' },
-    { content: 'It is in the attic.', reasoning: 'scratch' },
-  ]) {
-    await withMoonshot([reply], async () => {
-      const out: LlmResponse[] = [];
-      for await (const r of kimi().generateContentAsync(twoTurns('kimi-k3'), false)) out.push(r);
-      const final = out.find((r) => !r.partial)!;
-      assert.deepEqual(final.content?.parts, [{ text: 'It is in the attic.' }], JSON.stringify(reply));
-      assert.ok(out.some((r) => r.partial && (r.content?.parts?.[0] as any)?.thought), 'the scratchpad is still displayed');
-    });
-  }
-});
-
-test('kimi-k2.6 writes and replays its own, like K3', async () => {
-  const messages = assistants(await bodyFor(kimi('kimi-k2.6'), twoTurns('kimi-k2.6')));
-  assert.deepEqual(messages.map((m) => m.reasoning_content ?? null), [null, null, 'step one', 'step two']);
 });

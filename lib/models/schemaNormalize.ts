@@ -2,27 +2,27 @@
  * lib/models/schemaNormalize.ts — JSON-Schema dialect bridge.
  *
  * WHY this file exists:
- *   The ADK is Gemini-native, and Gemini's Schema type spells JSON-Schema
+ *   Gemini's Schema type spells JSON-Schema
  *   types in UPPERCASE ('OBJECT', 'STRING', …). Every other provider this
  *   framework routes to (Anthropic, OpenAI, xAI, Ollama's OpenAI-compatible
  *   endpoint) requires standard lowercase JSON-Schema types and rejects the
  *   Gemini spelling — Anthropic, for example, with:
  *     400 invalid_request_error: tools.N.custom.input_schema.type:
  *         Input should be 'object'
- *   Tools are declared once (YAML / MCP discovery) in the Gemini dialect, so
- *   every non-Gemini adapter runs its tool schemas through this function at
- *   request-build time. See DOCUMENTATION.md §7.1.
+ *   A schema that arrives in the Gemini dialect (MCP discovery, an OpenAPI
+ *   document, a hand-built tool) is converted once, where the tool enters.
+ *   See DOCUMENTATION.md §7.1.
  *
  *   The engine's own model contract (lib/models/contract.ts, ADR 0048) takes
  *   tools in its own shape instead: contractToolDeclaration() builds a
- *   ToolDeclaration from an own Tool (lib/tools/tool.ts), an ADK tool or a
- *   defineTool contract, converting Gemini's dialect once, where the tool
- *   enters, and nativeToolOf() names the server-side tools that declare
- *   nothing. The functions above stay as they are for the ADK path's adapters.
+ *   ToolDeclaration from an own Tool (lib/tools/tool.ts), a defineTool
+ *   contract or a plain declared object, converting Gemini's dialect once,
+ *   where the tool enters, and nativeToolOf() names the server-side tools
+ *   that declare nothing.
  *
  *   zodInputJsonSchema() is the one place a zod schema becomes JSON Schema,
- *   for every surface: the declaration, the ADK FunctionTool and the MCP
- *   tools/list entry all derive from it.
+ *   for every surface: the declaration and the MCP tools/list entry both
+ *   derive from it.
  */
 
 import { z } from 'zod';
@@ -50,7 +50,7 @@ export function zodInputJsonSchema(schema: z.ZodType): Record<string, unknown> {
 }
 
 /**
- * Deep-clones a Gemini/ADK-style JSON schema, lowercasing every `type` value
+ * Deep-clones a Gemini-style JSON schema, lowercasing every `type` value
  * ('OBJECT' → 'object', ['STRING','NULL'] → ['string','null']) while leaving
  * `description`, `enum`, `required`, `format`, and unknown keywords untouched.
  * Never mutates the input — a Gemini agent may hold the same tool object.
@@ -87,50 +87,6 @@ function normalizeNode(node: unknown): unknown {
     }
   }
   return out;
-}
-
-/**
- * The declaration a non-Gemini adapter should send for one ADK tool:
- * name, description, and a lowercase JSON-Schema `parameters`.
- *
- * Read from the tool's own `_getDeclaration()` — the same source ADK's Gemini
- * path uses — and only fall back to a `parameters` property for plain objects
- * (tests, hand-built tools). Reading `.parameters` directly was the bug behind
- * plans/gpt-agenttool-delegation.md: `AgentTool` and ADK's `load_memory` keep
- * their schema ONLY in `_getDeclaration()`, so every Claude / GPT / Grok /
- * Ollama / gateway orchestrator was told its subagents took no arguments and
- * called them with `{}`. A FunctionTool built from a zod object is also
- * converted here (ADK's `toSchema`), where `.parameters` would be the raw zod
- * object. Returns undefined for tools that declare nothing (the server-side
- * search sentinels) and for tools with no name.
- */
-export function toolDeclarationFor(tool: unknown): {
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
-} | undefined {
-  if (!tool || typeof tool !== 'object' || nativeToolMarkerOf(tool)) return undefined;
-  const t = tool as Record<string, any>;
-  let decl: Record<string, any> | undefined;
-  if (typeof t._getDeclaration === 'function') {
-    try {
-      decl = t._getDeclaration() ?? undefined;
-    } catch {
-      decl = undefined;
-    }
-    // A tool that implements _getDeclaration and returns nothing declares
-    // nothing (search sentinels): do not resurrect it from other fields.
-    if (!decl) return undefined;
-  }
-  const name = decl?.name ?? t.name;
-  if (!name || typeof name !== 'string') return undefined;
-  const description = decl?.description ?? t.description ?? '';
-  const parameters = decl ? decl.parameters : t.parameters;
-  return {
-    name,
-    description: typeof description === 'string' ? description : '',
-    parameters: toLowercaseJsonSchema(parameters ?? { type: 'object', properties: {} }),
-  };
 }
 
 /**
@@ -181,9 +137,9 @@ const SUBSCHEMA_MAP_KEYWORDS = new Set(['properties', 'patternProperties', '$def
 const INTEGER_KEYWORDS = ['minLength', 'maxLength', 'minItems', 'maxItems', 'minProperties', 'maxProperties'] as const;
 
 /**
- * What a declaration built from a zod schema leaves out, as the ADK path
- * (toGeminiSchema) leaves it out, so a contract declares the same
- * parameters whichever path resolves it: the `default` keyword (zod applies
+ * What a declaration built from a zod schema leaves out, as toGeminiSchema
+ * leaves it out, so a contract declares the same parameters whichever
+ * surface resolves it: the `default` keyword (zod applies
  * defaults at parse time, and the field is already optional), and an
  * `additionalProperties` that is only `true` or `false`. An
  * `additionalProperties` holding a schema, a record's value schema, is kept.
@@ -192,17 +148,6 @@ function dropZodOnlyKeywords(node: Record<string, unknown>): void {
   delete node.default;
   if (typeof node.additionalProperties === 'boolean') delete node.additionalProperties;
 }
-
-/** ADK's built-ins that a model runs itself, by the NativeTool their name is. */
-const ADK_IN_MODEL_NATIVE_TOOLS: readonly NativeTool[] = ['google_search', 'url_context'];
-
-/**
- * ADK's markers, read through the global symbol registry so this module
- * imports nothing from ADK: a tool the model runs itself (GOOGLE_SEARCH,
- * ADK's URL_CONTEXT) and Gemini's built-in code executor.
- */
-const ADK_IN_MODEL_TOOL = Symbol.for('google.adk.inModelTool');
-const ADK_BUILT_IN_CODE_EXECUTOR = Symbol.for('google.adk.builtInCodeExecutor');
 
 /** A deep copy of a JSON value, so a walk can change it without touching a tool's own schema. */
 function cloneJson(value: unknown): unknown {
@@ -328,10 +273,10 @@ export function toContractJsonSchema(schema: unknown, options: { strict?: boolea
 
 /**
  * The parameters a zod schema declares, in the contract's dialect: its
- * input side (zodInputJsonSchema) without the keywords the ADK path cannot
- * carry (dropZodOnlyKeywords). defineTool's declaration() and
+ * input side (zodInputJsonSchema) without the keywords Gemini's dialect
+ * cannot carry (dropZodOnlyKeywords). defineTool's declaration() and
  * contractToolDeclaration() both build from here, so a contract declares the
- * same parameters on either runtime.
+ * same parameters wherever it is resolved.
  */
 export function zodToolParameters(schema: z.ZodType, options: { strict?: boolean } = {}): JsonSchema {
   return contractSchema(zodInputJsonSchema(schema), true, options.strict === true);
@@ -341,7 +286,7 @@ function contractSchema(schema: unknown, fromZod: boolean, strict: boolean): Jso
   return mapSchemaNodes(schema, (node) => toContractNode(node, fromZod, strict)) ?? { type: 'object', properties: {} };
 }
 
-/** A defineTool contract (lib/tools/toolContract.ts), told apart from an ADK tool, which has runAsync. */
+/** A defineTool contract (lib/tools/toolContract.ts), told apart from an object with runAsync (an ADK tool, which registerTool refuses). */
 function isToolContract(tool: Record<string, unknown>): tool is Record<string, unknown> & ToolContract {
   const schema = tool.schema as { safeParse?: unknown } | undefined;
   return !!schema && typeof schema.safeParse === 'function' && typeof tool.execute === 'function' && !('runAsync' in tool);
@@ -357,12 +302,10 @@ function isToolContract(tool: Record<string, unknown>): tool is Record<string, u
  *   execute): built directly from its zod schema (zodToolParameters), never
  *   through Gemini's uppercase dialect. The input side is declared, so a
  *   field with a default is optional; the `default` keyword and a boolean
- *   `additionalProperties` are left out, as the ADK path leaves them out,
- *   and a record's value schema is kept, as the ADK path keeps it. The
- *   contract and the FunctionTool that toFunctionTool() makes of it declare
- *   the same parameters.
- * - An ADK tool (FunctionTool, AgentTool, the memory tools, MCP tools): read
- *   from its own `_getDeclaration()` (ADR 0019), `parameters` or else
+ *   `additionalProperties` are left out, as toGeminiSchema leaves them out,
+ *   and a record's value schema is kept.
+ * - An object with its own `_getDeclaration()` (ADR 0019; the genai
+ *   mapping's declared tools): read from it, `parameters` or else
  *   `parametersJsonSchema`, and converted from Gemini's dialect once, here.
  * - A plain object with `name` and `parameters` (tests, hand-built tools).
  *
@@ -370,7 +313,7 @@ function isToolContract(tool: Record<string, unknown>): tool is Record<string, u
  * and the declaration carries `strict: true`. Returns undefined for a tool
  * that declares nothing (a server-side tool: see nativeToolOf, or an
  * InstructionTool such as `preload_memory`, which only writes into the
- * instruction, as itself or as its ADK tool) and for one with no name.
+ * instruction) and for one with no name.
  */
 export function contractToolDeclaration(tool: unknown, options: { strict?: boolean } = {}): ToolDeclaration | undefined {
   if (!isPlainObject(tool) || isInstructionTool(tool) || nativeToolMarkerOf(tool)) return undefined;
@@ -414,29 +357,16 @@ export function contractToolDeclaration(tool: unknown, options: { strict?: boole
 
 /**
  * The NativeTool a tool object stands for, or undefined for any other tool.
- * Recognised by marker, never by class or by shape, and every marker lives
- * in the global symbol registry, so a second copy of a module (or of ADK)
- * still matches (ADR 0062):
- *   - the engine's own marker (lib/tools/tool.ts, NATIVE_TOOL): a
- *     NativeToolMarker (lib/tools/nativeTools.ts) and the ADK sentinel made
- *     from it (lib/tools/webSearchTool.ts and its siblings);
- *   - Gemini code execution: ADK's built-in code executor, by ADK's marker
- *     (the agent's `codeExecutor`, from `code_execution: gemini`);
- *   - ADK's own GOOGLE_SEARCH and URL_CONTEXT, by ADK's marker for a tool
- *     the model runs, and their name.
+ * Recognised by marker, never by class or by shape: the engine's own marker
+ * (lib/tools/tool.ts, NATIVE_TOOL) on a NativeToolMarker
+ * (lib/tools/nativeTools.ts). The marker lives in the global symbol
+ * registry, so a second copy of a module still matches (ADR 0062).
  * A client-side tool registered under one of those names carries no marker,
  * so it stays a client-side tool, as does a tool that merely declares
- * nothing. ADK's other in-model tools (Vertex AI Search, enterprise web
- * search, Maps grounding, RAG retrieval) have no NativeTool: they are
- * undefined here and declare nothing, so a caller building a request
- * reports them as dropped.
+ * nothing. Any other object is undefined here and declares nothing, so a
+ * caller building a request reports it as dropped.
  */
 export function nativeToolOf(tool: unknown): NativeTool | undefined {
   if (!tool || typeof tool !== 'object') return undefined;
-  const own = nativeToolMarkerOf(tool);
-  if (own) return own;
-  const t = tool as Record<PropertyKey, unknown>;
-  if (t[ADK_BUILT_IN_CODE_EXECUTOR] === true) return 'code_execution';
-  if (t[ADK_IN_MODEL_TOOL] !== true) return undefined;
-  return ADK_IN_MODEL_NATIVE_TOOLS.find((n) => n === t.name);
+  return nativeToolMarkerOf(tool);
 }

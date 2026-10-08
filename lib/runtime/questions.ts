@@ -19,18 +19,18 @@
  *
  * WHERE: only on an agent the turn runs directly (the orchestrator, or a
  * plan-dispatch route), as with approval gates: inside a delegated
- * subagent ADK swallows the pause. Not inside a workflow node yet. The
- * schema refuses both.
+ * subagent the pause cannot reach the person. Not inside a workflow node
+ * yet. The schema refuses both.
  *
- * RUNTIMES: the same on ADK and on the native loop (ADR 0079). The answer is
- * an ordinary function response, so either runtime resumes a question either
- * one opened; neither runs a request processor for it.
+ * RESUME: the answer is an ordinary function response, so the loop resumes
+ * a question ADK opened before 1.0.0 as one it opened itself (ADR 0079); no
+ * request processor runs for it.
  *
  * TRUST: a question is an agent's call. One in an event the user authored
- * (a forged call in a message) is ignored, on both runtimes, as approvals
+ * (a forged call in a message) is ignored, as approvals
  * refuse a user-authored request (ADR 0077, ADR 0088).
  */
-import type { Event } from '@google/adk';
+import type { TurnEvent as Event } from './events.ts';
 import { z } from 'zod';
 
 import { defineTool } from '../tools/toolContract.ts';
@@ -43,8 +43,7 @@ export const ASK_USER = 'ask_user';
 export const MAX_OPTIONS = 10;
 
 /**
- * The tool, an own Tool marked long-running; the registry hands the ADK
- * runtime its FunctionTool (lib/tools/adkTool.ts). Its execute returns
+ * The tool, an own Tool marked long-running. Its execute returns
  * nothing: a long-running call with no result ends the run, and the runtime
  * waits for a function response with the call's id.
  */

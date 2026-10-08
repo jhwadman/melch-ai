@@ -1,9 +1,7 @@
 /**
  * tests/governance.test.ts — usage, budgets, metrics and per-caller rate
  * limits (ADR 0026), offline: scripted models, in-memory stores, a live
- * createA2AApp on an ephemeral port. The cases that run a turn run on both
- * runtimes (tests/helpers/runtime.ts): the turn's option, or
- * MELCHIZEDEK_RUNTIME through the server.
+ * createA2AApp on an ephemeral port.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -16,8 +14,8 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
-import type { LlmResponse } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import type { LlmResponse } from '../lib/models/genaiMapping.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { callerTokens, hashCallerToken, parseCallers } from '../lib/a2a/identity.ts';
@@ -28,9 +26,6 @@ import type { TaskRecord } from '../lib/observability/metrics.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, sentTexts } from './helpers/scriptedLlm.ts';
-import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 /** A reply that reports token usage, as a real provider does. */
 const answer = (t: string): LlmResponse =>
@@ -53,15 +48,14 @@ process.env.MELCHIZEDEK_AGENTS_DIR = dir;
 
 // ── Usage ────────────────────────────────────────────────────────────────────
 
-forEachRuntime('a turn reports its model calls and the tokens the provider counted', async () => {
+test('a turn reports its model calls and the tokens the provider counted', async () => {
   const r = await runSyndicateTurn({
-    ...runtimeOption(),
     config: { syndicate_name: 'Echo', orchestrator: { name: 'Echo', model: 'scripted/echo', instruction: 'Echo.' }, subagents: [] } as SyndicateYamlConfig,
     parts: [{ text: 'hi' }],
     appName: 'test',
     userId: 'u',
     sessionId: 's-usage',
-    sessionService: new InMemorySessionService(),
+    sessionService: new InProcessSessionService(),
     compile: { resolveModel: () => echo() },
     trace: false,
   });
@@ -148,7 +142,7 @@ const callers = parseCallers(`alpha:${hashCallerToken(ALPHA)}; beta:${hashCaller
 async function serve(options: Record<string, unknown>) {
   const app = await createA2AApp({
     defaultSyndicate: 'echo.yaml',
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     resolveModel: () => echo(),
     log: () => {},
     warn: () => {},
@@ -177,7 +171,7 @@ async function send(url: string, token: string) {
   return { status: res.status, state: body?.result?.status?.state as string | undefined, text: body?.result?.status?.message?.parts?.[0]?.text as string | undefined };
 }
 
-forEachRuntime('a caller over budget is rejected with the reason; metrics and task records say so', async () => {
+test('a caller over budget is rejected with the reason; metrics and task records say so', async () => {
   const records: TaskRecord[] = [];
   const { srv, url } = await serve({
     policy: budgets({ perCaller: { tasks: 2 } }),
@@ -211,7 +205,7 @@ forEachRuntime('a caller over budget is rejected with the reason; metrics and ta
   }
 });
 
-forEachRuntime('a policy that cannot read its store refuses (fail closed)', async () => {
+test('a policy that cannot read its store refuses (fail closed)', async () => {
   const broken: UsageStore = { get: async () => { throw new Error('db down'); }, add: async () => {} };
   const { srv, url } = await serve({ policy: budgets({ perCaller: { tasks: 10 } }, { store: broken }) });
   try {
@@ -223,7 +217,7 @@ forEachRuntime('a policy that cannot read its store refuses (fail closed)', asyn
   }
 });
 
-forEachRuntime('with an authenticator the rate limit is per caller, not per IP', async () => {
+test('with an authenticator the rate limit is per caller, not per IP', async () => {
   const { srv, url } = await serve({ rateLimit: { windowMs: 60_000, max: 1 } });
   try {
     assert.equal((await send(url, ALPHA)).status, 200);
@@ -284,12 +278,12 @@ test('redactRow rewrites text values and keeps identifier columns', async () => 
   assert.deepEqual(out.span, { traceId: 'c@d.co', note: '[redacted:email]' });
 });
 
-forEachRuntime('under the plain shared secret every holder is one caller, so perCaller budgets apply', async () => {
+test('under the plain shared secret every holder is one caller, so perCaller budgets apply', async () => {
   const SECRET = 'shared-secret-0123456789abcdef0123456789';
   const records: TaskRecord[] = [];
   const app = await createA2AApp({
     defaultSyndicate: 'echo.yaml',
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     resolveModel: () => echo(),
     serverSecret: SECRET,
     keyMode: 'server',

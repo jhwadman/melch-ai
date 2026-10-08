@@ -1,24 +1,18 @@
 /**
  * lib/model.ts — the `melchizedek-agents/model` entry: the engine's model
- * layer on its own, with no @google/adk (ADR 0068).
+ * layer on its own (ADR 0068).
  *
  * What it holds: the model contract's types (ADR 0048), every provider's
  * contract adapter, resolveAdapter and resolveAdapterWithFallback over the
  * one prefix table (ADR 0060), FallbackAdapter and the circuit breaker's
  * helpers (ADR 0044). A consumer can call any model through it without
- * installing ADK, the peer dependency the rest of the package needs.
+ * loading the compiler or the runtime.
  *
- * What it leaves out, because each loads ADK: AdkGeminiAdapter, the ADK
- * shims (ClaudeLlm, GptLlm and the rest), TracedGemini, resolveModel and
- * registerAvailableProviders. They stay at `melchizedek-agents/models/*`.
+ * Gemini: resolveAdapter returns the engine's GeminiAdapter for a Gemini id;
+ * GEMINI_ADAPTER=adk throws, naming 1.0.0 (ADR 0107).
  *
- * Gemini: resolveAdapter here returns the engine's GeminiAdapter for a
- * Gemini id. Asking for `adk` (the option, or GEMINI_ADAPTER=adk) throws and
- * names `melchizedek-agents/models/registry`, whose resolveAdapter keeps
- * ADR 0060's default until gate G3.
- *
- * tests/packageSurface.test.ts walks this module's runtime import graph and
- * fails if any module in it names @google/adk.
+ * tests/packageSurface.test.ts walks this module's runtime import graph:
+ * @google/* appears in it only in the Gemini adapter and the genai mapping.
  */
 
 // ── The contract ────────────────────────────────────────────────────────────

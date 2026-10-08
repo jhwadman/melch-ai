@@ -301,38 +301,24 @@ test('plan-dispatch orchestrators do not need delegation', () => {
   }
 });
 
-// ── The runtime line (ADR 0102) ──────────────────────────────────────────────
+// ── The runtime line (ADR 0102, ADR 0107) ──────────────────────────────────────────────
 
-const installed = () => true;
-const absent = () => false;
-
-test('the runtime line: native by default, where it came from, and whether @google/adk is installed', () => {
-  assert.deepStrictEqual(runtimeReport({}, absent), { runtime: 'native', source: 'default', adk: { installed: false, needed: false } });
-  const withAdk = runtimeReport({}, installed);
-  assert.strictEqual(withAdk.adk.installed, true);
-  assert.strictEqual(withAdk.adk.needed, false);
-  assert.strictEqual(withAdk.problem, undefined);
-  assert.deepStrictEqual(
-    { ...runtimeReport({ MELCHIZEDEK_RUNTIME: 'native' }, absent) },
-    { runtime: 'native', source: 'MELCHIZEDEK_RUNTIME', adk: { installed: false, needed: false } },
-  );
-  const adk = runtimeReport({ MELCHIZEDEK_RUNTIME: 'adk' }, installed);
-  assert.strictEqual(adk.runtime, 'adk');
-  assert.strictEqual(adk.source, 'MELCHIZEDEK_RUNTIME');
-  assert.strictEqual(adk.adk.needed, true);
-  assert.strictEqual(adk.problem, undefined);
+test('the runtime line: native by default, and where it came from', () => {
+  assert.deepStrictEqual(runtimeReport({}), { runtime: 'native', source: 'default' });
+  assert.deepStrictEqual(runtimeReport({ MELCHIZEDEK_RUNTIME: 'native' }), { runtime: 'native', source: 'MELCHIZEDEK_RUNTIME' });
+  assert.deepStrictEqual(runtimeReport({ MELCHIZEDEK_RUNTIME: '  ' }), { runtime: 'native', source: 'default' });
 });
 
-test('the runtime line: adk without @google/adk, and a value no turn accepts, are problems --check fails on', () => {
-  const missing = runtimeReport({ MELCHIZEDEK_RUNTIME: 'adk' }, absent);
-  assert.strictEqual(missing.runtime, 'adk');
-  assert.match(missing.problem ?? '', /needs @google\/adk, which is not installed: npm install @google\/adk@~2\.2\.0/);
-  const invalid = runtimeReport({ MELCHIZEDEK_RUNTIME: 'langgraph' }, installed);
+test('the runtime line: a leftover MELCHIZEDEK_RUNTIME=adk, and a value no turn accepts, are problems --check fails on', () => {
+  const removed = runtimeReport({ MELCHIZEDEK_RUNTIME: 'adk' });
+  assert.strictEqual(removed.runtime, undefined);
+  assert.match(removed.problem ?? '', /MELCHIZEDEK_RUNTIME is "adk", but the adk runtime was removed in melchizedek-agents 1\.0\.0/);
+  const invalid = runtimeReport({ MELCHIZEDEK_RUNTIME: 'langgraph' });
   assert.strictEqual(invalid.runtime, undefined);
-  assert.match(invalid.problem ?? '', /MELCHIZEDEK_RUNTIME must be "adk" or "native"/);
+  assert.match(invalid.problem ?? '', /MELCHIZEDEK_RUNTIME must be "native"/);
 });
 
-test('renderDoctor prints the runtime line first, and the ADK version this checkout resolves', () => {
+test('renderDoctor prints the runtime line first', () => {
   withEnv({}, () => {
     const saved = process.env.MELCHIZEDEK_RUNTIME;
     delete process.env.MELCHIZEDEK_RUNTIME;
@@ -340,15 +326,10 @@ test('renderDoctor prints the runtime line first, and the ADK version this check
       const result = runDoctor({ agentsDir: AGENTS });
       assert.strictEqual(result.runtime.runtime, 'native');
       assert.strictEqual(result.runtime.source, 'default');
-      // The repository installs @google/adk as a dev dependency.
-      assert.strictEqual(result.runtime.adk.installed, true);
-      assert.match(result.runtime.adk.version ?? '', /^\d+\.\d+\.\d+/);
       const lines = renderDoctor(result).split('\n');
-      assert.match(lines[2] ?? '', /^runtime {5}✓ native \(the default\) · @google\/adk \d+\.\d+\.\d+\S* installed$/);
-      const missing = renderDoctor({ ...result, runtime: runtimeReport({ MELCHIZEDEK_RUNTIME: 'adk' }, absent) }).split('\n')[2] ?? '';
-      assert.match(missing, /^runtime {5}✗ adk \(MELCHIZEDEK_RUNTIME\) · MELCHIZEDEK_RUNTIME=adk needs @google\/adk/);
-      const without = renderDoctor({ ...result, runtime: runtimeReport({}, absent) }).split('\n')[2] ?? '';
-      assert.match(without, /@google\/adk not installed \(needed only for MELCHIZEDEK_RUNTIME=adk\)$/);
+      assert.match(lines[2] ?? '', /^runtime {5}✓ native \(the default\)$/);
+      const removed = renderDoctor({ ...result, runtime: runtimeReport({ MELCHIZEDEK_RUNTIME: 'adk' }) }).split('\n')[2] ?? '';
+      assert.match(removed, /^runtime {5}✗ MELCHIZEDEK_RUNTIME is "adk", but the adk runtime was removed in melchizedek-agents 1\.0\.0/);
     } finally {
       if (saved !== undefined) process.env.MELCHIZEDEK_RUNTIME = saved;
     }

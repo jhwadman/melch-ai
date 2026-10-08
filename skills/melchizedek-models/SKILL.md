@@ -44,7 +44,7 @@ Each provider requires a distinct environment variable in your `.env` file or pr
 - Moonshot AI (Kimi): `MOONSHOT_API_KEY`
 - Ollama: no key for `ollama/*`
 
-A provider is available only when its matching key is present. When you omit the key, the doctor and the startup log report the provider as disabled, and any agent on that provider fails its turn with an error naming the key, such as `ANTHROPIC_API_KEY is not set in environment.` On the optional `adk` runtime the same agent fails with `Model not found`.
+A provider is available only when its matching key is present. When you omit the key, the doctor and the startup log report the provider as disabled, and any agent on that provider fails its turn with an error naming the key, such as `ANTHROPIC_API_KEY is not set in environment.`
 
 The `# tier:` comment on the first line of every starter-pack file states its cost class: `keyless`, a single provider name, or `multi-provider`. The doctor command verifies this comment against the models declared in the file.
 
@@ -138,7 +138,7 @@ npm run demo:models
 
 This command sends one prompt through each agent.
 
-In code, import `registerAvailableProviders` from `melchizedek-agents`. This function reports which providers have a key in your environment; with the optional `@google/adk` installed, it also registers them for the `adk` runtime. To call any of these ids directly, use `resolveAdapter(modelId)` from `melchizedek-agents/model`, which needs no ADK. To make a single model call without a YAML file inside a clone, run:
+In code, import `logProviderStatuses` from `melchizedek-agents`. This function reports which providers have a key in your environment and, given a log function, logs one line per provider; it registers nothing. To call any of these ids directly, use `resolveAdapter(modelId)` from `melchizedek-agents/model`. To make a single model call without a YAML file inside a clone, run:
 
 ```bash
 npm run demo:direct -- --model ollama/qwen3:8b hello
@@ -148,7 +148,7 @@ npm run demo:direct -- --model ollama/qwen3:8b hello
 
 When a model fails to run, consult the error message:
 
-- `<KEY> is not set in environment.` (for example `OPENAI_API_KEY`), or `Model not found` on the optional `adk` runtime: The provider's key is unset for a `claude-*`, `gpt-*`, `grok-*`, or `kimi-*` id. Set the required provider key, or supply `MODEL_GATEWAY` and `MODEL_GATEWAY_API_KEY`.
+- `<KEY> is not set in environment.` (for example `OPENAI_API_KEY`): The provider's key is unset for a `claude-*`, `gpt-*`, `grok-*`, or `kimi-*` id. Set the required provider key, or supply `MODEL_GATEWAY` and `MODEL_GATEWAY_API_KEY`.
 - `GATEWAY_HTTP_ERROR ... 404/400`: The gateway rejected the mapped id. Fix the name with `MODEL_GATEWAY_MODEL_MAP`.
 - `GATEWAY_KEY_MISSING`: You set `MODEL_GATEWAY` without `MODEL_GATEWAY_API_KEY`. Set `MODEL_GATEWAY_API_KEY` in your `.env` file.
 - `OLLAMA_UNREACHABLE`: Ollama is not running (`ollama serve`) or you have not pulled the requested model (`ollama list`).

@@ -9,19 +9,16 @@
  *   description, zod schema, execute — and `defineTool` makes it an own
  *   Tool (lib/tools/tool.ts) that every surface derives from:
  *
- *     defineTool(...) ──► declaration()          the native runtime (ADR 0048 shape)
- *                    ├──► toFunctionTool()        the ADK runtime (lib/tools/adkTool.ts)
+ *     defineTool(...) ──► declaration()          the native loop (ADR 0048 shape)
  *                    └──► toMcpToolDefinition()   MCP tools/list entry
  *
  *   The zod schema is the single source of truth. zodInputJsonSchema()
  *   (lib/models/schemaNormalize.ts) emits standard JSON Schema for the
  *   schema's input side, so a field with a default is optional to the
- *   model; toGeminiSchema() below derives the ADK dialect from it.
+ *   model; toGeminiSchema() below derives Gemini's dialect from it.
  *
- *   No ADK here: this module and lib/tools/tool.ts import nothing from
- *   @google/* at runtime, so the native runtime runs a contract without ADK.
- *   The ADK wrapper, toFunctionTool, lives at the boundary in
- *   lib/tools/adkTool.ts.
+ *   A LEAF for Google's packages: this module and lib/tools/tool.ts import
+ *   nothing from @google/* (tests/importGraph.test.ts).
  *
  *   DELIBERATELY NOT HERE: exposure. Defining a contract publishes nothing.
  *   An agent sees the tool only when its name is added to TOOL_MAP in
@@ -38,8 +35,8 @@ import { LONG_RUNNING_NOTE, capResult, isTool, toToolContext } from './tool.ts';
 import type { Tool, ToolContext } from './tool.ts';
 
 /**
- * Who a tool call is for, when the surface knows. The ADK surface fills it
- * from the invocation (the A2A server's scope key is the user id); the MCP
+ * Who a tool call is for, when the surface knows. The native loop fills it
+ * from the run (the A2A server's scope key is the user id); the MCP
  * surface has no caller and passes nothing. A tool that keeps per-user state
  * scopes it by `userId`; most tools ignore it. Every ToolContext carries
  * these fields.
@@ -115,7 +112,7 @@ function invalidArguments(name: string, error: { issues: Array<{ path: PropertyK
  * STRING (never throws) when they do not parse, so the calling model sees
  * what to fix and can retry. Unknown keys are stripped by zod's default
  * object behavior. A long-running tool's description carries
- * LONG_RUNNING_NOTE, as ADK's LongRunningFunctionTool writes it.
+ * LONG_RUNNING_NOTE, as ADK's LongRunningFunctionTool wrote it.
  */
 export function defineTool<S extends z.ZodType, R = string>(spec: ToolSpec<S, R>): DefinedTool<S, R> {
   const longRunning = spec.longRunning === true;
@@ -178,14 +175,6 @@ export async function executeContract(
   return contract.execute(parsed.data, context);
 }
 
-/** The call context from an ADK ToolContext (undefined outside a run). */
-export function toolCallContextFrom(toolContext: unknown): ToolCallContext | undefined {
-  const inv = (toolContext as { invocationContext?: { userId?: string; appName?: string; session?: { id?: string } } } | undefined)
-    ?.invocationContext;
-  if (!inv) return undefined;
-  return { userId: inv.userId, appName: inv.appName, sessionId: inv.session?.id };
-}
-
 /**
  * Standard JSON Schema for the contract's input — the canonical dialect
  * (MCP inputSchema; also what four of our five providers natively accept).
@@ -196,7 +185,7 @@ export function toStandardJsonSchema(contract: ToolContract<any>): Record<string
 }
 
 /**
- * Standard JSON Schema → Gemini/ADK dialect. The inverse of
+ * Standard JSON Schema → Gemini's dialect. The inverse of
  * schemaNormalize.toLowercaseJsonSchema(): every `type` value is UPPERCASED
  * ('object' → 'OBJECT'). Also drops keywords the Gemini API rejects or
  * ignores: an `additionalProperties` that is only `true` or `false`,

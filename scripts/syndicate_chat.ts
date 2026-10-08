@@ -11,22 +11,17 @@ import type { PendingApproval } from '../lib/runtime/syndicateTurn.ts';
 import { getFunctionCalls, getFunctionResponses } from '../lib/runtime/events.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
-import { asAdkSessionService, asSessionService } from '../lib/runtime/adkSessionBridge.ts';
-import type { EitherSessionService } from '../lib/runtime/adkSessionBridge.ts';
-import { asAdkMemoryService } from '../lib/runtime/adkMemoryBridge.ts';
-import type { EitherMemoryService } from '../lib/runtime/adkMemoryBridge.ts';
+import type { SessionService } from '../lib/runtime/sessions.ts';
+import type { MemoryService } from '../lib/runtime/memoryService.ts';
+import { runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
 import { randomUUID } from 'node:crypto';
 import { loadEnv } from '../lib/loadEnv.ts';
 
-// ── LLM Provider Registration ─────────────────────────────────────────────────
-// WHY: Import only — registration is deferred to main() so it runs AFTER
-// loadEnv() has populated process.env from .env. If registered here at module
-// load time, provider API keys would always be undefined and the non-Gemini
-// adapters would never be added to the LLMRegistry, causing "Model not
-// found" errors. registerAvailableProviders() gates each adapter on its key.
+// ── Model routing ─────────────────────────────────────────────────────────────
+// A model id resolves when an agent first calls it (lib/models/registry.ts),
+// after loadEnv() has read the keys from .env.
 import {
-	registerAvailableProviders,
 	providerForModel,
 	providerKeyPresent,
 	PROVIDERS,
@@ -40,7 +35,7 @@ import {
 	createSupabaseServices,
 } from '../lib/persistence/supabaseProvider.ts';
 
-// The engine's level, which ADK's logger follows: no INFO chatter in the chat.
+// The engine's level: no INFO chatter in the chat.
 setLogLevel('warn');
 
 const c = {
@@ -147,12 +142,8 @@ async function main(): Promise<void> {
 	if (process.env.OTEL_CONSOLE_SPANS === undefined) process.env.OTEL_CONSOLE_SPANS = 'false';
 
 
-	// ── Register LLM providers ───────────────────────────────────────────────
-	// WHY: Must run AFTER loadEnv() so that API keys from .env are available.
-	// One call registers every adapter whose credentials exist (Ollama needs
-	// none): the YAML `model` string then routes through the LLMRegistry to
-	// the right provider — claude-*, gpt-*, grok-*, ollama/*, gemini-*.
-	registerAvailableProviders();
+	// MELCHIZEDEK_RUNTIME=adk (removed in 1.0.0) stops the chat here, naming the release.
+	runtimeSetting();
 
 	const apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
 	if (apiKey) {
@@ -197,7 +188,7 @@ async function main(): Promise<void> {
 	// demanding any cloud key would be an artificial gate. Each cloud model in
 	// the graph requires ITS provider's key: claude-* → ANTHROPIC_API_KEY,
 	// gpt-* → OPENAI_API_KEY, grok-* → XAI_API_KEY, gemini-* (or no model,
-	// the ADK default) → the Gemini key. Gemini-backed tools (google_search /
+	// the default model) → the Gemini key. Gemini-backed tools (google_search /
 	// generate_image / long-term memory embeddings) still need the Gemini key
 	// regardless of the inference model, and fail with a clear API error.
 	const declaredModels = [
@@ -207,7 +198,7 @@ async function main(): Promise<void> {
 	const requiredProviders = new Set<ProviderId>(
 		declaredModels.length > 0
 			? declaredModels.map((m) => providerForModel(m))
-			: ['gemini'], // no model declared anywhere → ADK's Gemini default
+			: ['gemini'], // no model declared anywhere → the Gemini default
 	);
 	if (!config.orchestrator.model) requiredProviders.add('gemini');
 	const missingKeys = [...requiredProviders].filter(
@@ -241,11 +232,9 @@ async function main(): Promise<void> {
 	// The same services the server would use for this syndicate's
 	// memory_system: Supabase sessions (and the memory service for
 	// long-term) when configured, process memory otherwise.
-	// The engine's stores (ADR 0080): the in-process one, or Supabase's,
-	// which has both faces. The turn runner takes ADK's face (its signature
-	// is fixed), and follows MELCHIZEDEK_RUNTIME for the runtime.
-	let sessionService: EitherSessionService = new InProcessSessionService();
-	let memoryService: EitherMemoryService | undefined;
+	// The engine's stores (ADR 0080, ADR 0107): the in-process one, or Supabase's.
+	let sessionService: SessionService = new InProcessSessionService();
+	let memoryService: MemoryService | undefined;
 	if (persistence.sessionService === 'supabase') {
 		const services = await createSupabaseServices({
 			// Empty only when an all-local syndicate runs keyless — then
@@ -258,9 +247,9 @@ async function main(): Promise<void> {
 	}
 
 	const appName = config.syndicate_name || 'melchizedek-syndicate';
-	await asSessionService(sessionService).create({ appName, userId: SESSION_USER_ID, sessionId: SESSION_ID, state: {} });
-	const turnSessions = asAdkSessionService(sessionService);
-	const turnMemory = memoryService ? asAdkMemoryService(memoryService) : undefined;
+	await sessionService.create({ appName, userId: SESSION_USER_ID, sessionId: SESSION_ID, state: {} });
+	const turnSessions = sessionService;
+	const turnMemory = memoryService;
 	banner(config, persistence, mergedBindings, SESSION_ID);
 
 	// Plan-dispatch, nested yaml_reference syndicates, guards and the
@@ -431,7 +420,7 @@ async function main(): Promise<void> {
  * reply streamed token by token, and inline images saved to outputs/.
  *
  * Under SSE the reply arrives as partials and is then REPEATED whole on the
- * final event (the one ADK persists to session history): show the partials,
+ * final event (the one the store keeps in session history): show the partials,
  * skip the repeat.
  */
 function makePrinter() {

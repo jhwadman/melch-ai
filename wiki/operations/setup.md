@@ -25,7 +25,7 @@ Prereq everywhere: Node ≥ 22.6 (`--experimental-strip-types` runs the TypeScri
 
 A Google AI Studio key (`GOOGLE_GENAI_API_KEY`) is the only requirement for the Gemini-default syndicates. `npm run chat:syndicate` starts the REPL on the default syndicate, and `npm run chat:syndicate -- --syndicate <name>` runs any other (`npx melchizedek-chat --syndicate <name>` from the installed package); most starter-pack syndicates also have an `npm run syndicate:<name>` alias — the catalog with run commands is generated per-team in [/agents/](/agents/).
 
-Not sure which keys the syndicates you want actually need? `npm run doctor` (`npx melchizedek-doctor`) reads every YAML the loader can see, resolves each model under your `.env`, and prints what is ready, what is blocked, and which variable unlocks what — read-only, no key value shown ([provider routing](/models/provider-routing.md)). Its first line is the runtime a turn runs on (`native` by default, or what `MELCHIZEDEK_RUNTIME` says) and whether `@google/adk`, the optional peer only the `adk` runtime needs, is installed ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)).
+Not sure which keys the syndicates you want actually need? `npm run doctor` (`npx melchizedek-doctor`) reads every YAML the loader can see, resolves each model under your `.env`, and prints what is ready, what is blocked, and which variable unlocks what — read-only, no key value shown ([provider routing](/models/provider-routing.md)). Its first line is the runtime a turn runs on, `native`; a `MELCHIZEDEK_RUNTIME=adk` left in the environment is reported as a problem, because every surface refuses to start with it ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)).
 
 ## Path A′ — keyless and local
 

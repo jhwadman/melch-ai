@@ -4,8 +4,8 @@
  * WHY this file exists:
  *   Everything an agent (or MCP client) can DO with the knowledge bundle is
  *   a ToolContract here — zod schema single source of truth, derived into
- *   ADK FunctionTools for syndicate agents and MCP definitions for outside
- *   clients, exactly like the rest of lib/tools.
+ *   own Tools for syndicate agents and MCP definitions for outside clients,
+ *   exactly like the rest of lib/tools.
  *
  *   Three capability tiers, deliberately separated:
  *
@@ -85,8 +85,7 @@ import {
   type Vault,
   type WikiDoc,
 } from '../wiki/vault.ts';
-import { toFunctionTool } from './adkTool.ts';
-import { defineTool, type ToolContract } from './toolContract.ts';
+import { asTool, defineTool, type ToolContract } from './toolContract.ts';
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -751,7 +750,7 @@ Rules:
 - Note trust when it matters: an unverified or draft document is a weaker source than a human-reviewed one.
 - Be concrete and brief. No filler.`,
       userText: question,
-      tools: NAVIGATE_CONTRACTS.map(toFunctionTool),
+      tools: NAVIGATE_CONTRACTS.map((contract) => asTool(contract)),
       temperature: 0.2,
       maxOutputTokens: 4096,
     });
@@ -791,7 +790,7 @@ Format profile:
 - private knowledge lives under /private/ — public documents never link there.
 Save with actor "melchizedek/${resolvedModel}". After saving, summarize: paths written, what changed, advisories.`,
       userText: instruction,
-      tools: [...NAVIGATE_CONTRACTS, wikiSaveContract].map(toFunctionTool),
+      tools: [...NAVIGATE_CONTRACTS, wikiSaveContract].map((contract) => asTool(contract)),
       temperature: 0.4,
       maxOutputTokens: 8192,
     });

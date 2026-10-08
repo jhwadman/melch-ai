@@ -1,14 +1,16 @@
 /**
  * tests/helpers/sessionFixtures.ts — loads the ADK session compatibility
- * fixtures (tests/fixtures/sessions/*.json, written by generate.ts there) and
- * seeds a session service with them, so a test can read or resume a session
- * exactly as a store hands it back.
+ * fixtures (tests/fixtures/sessions/*.json, written by ADK 2.2 before 1.0.0
+ * removed it) and seeds a session service with them, so a test can read or
+ * resume a session exactly as a store hands it back.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { BaseSessionService, Event } from '@google/adk';
+import type { TurnEvent as Event } from '../../lib/runtime/events.ts';
+import { InProcessSessionService } from '../../lib/runtime/sessions.ts';
+import type { SessionService } from '../../lib/runtime/sessions.ts';
 
 
 export const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'sessions');
@@ -55,18 +57,17 @@ export function conversation(fixture: SessionFixture): SessionFixture['sessions'
 
 /**
  * A session service holding the fixture's rows, built the way a store's
- * getSession hands them back: each row created, then each stored event
- * appended in order. Appending rebuilds state from the events' deltas, and
- * that state must equal the row's stored state. Without `store`, ADK's
- * InMemorySessionService.
+ * `get` hands them back: each row created, then each stored event appended
+ * in order. Appending rebuilds state from the events' deltas, and that state
+ * must equal the row's stored state. Without `store`, the engine's
+ * InProcessSessionService.
  */
-export async function seedSessions(fixture: SessionFixture, store?: BaseSessionService): Promise<BaseSessionService> {
-  // ADK's in-memory store unless the caller passes one; loaded only then, so a suite that passes the engine's store never needs ADK.
-  const service = store ?? new (await import('@google/adk')).InMemorySessionService();
+export async function seedSessions<S extends SessionService = InProcessSessionService>(fixture: SessionFixture, store?: S): Promise<S> {
+  const service = (store ?? new InProcessSessionService()) as S;
   for (const row of fixture.sessions) {
-    const session = await service.createSession({ appName: row.appName, userId: row.userId, sessionId: row.sessionId });
-    for (const event of structuredClone(row.events)) await service.appendEvent({ session, event });
-    const seeded = await service.getSession({ appName: row.appName, userId: row.userId, sessionId: row.sessionId });
+    const session = await service.create({ appName: row.appName, userId: row.userId, sessionId: row.sessionId });
+    for (const event of structuredClone(row.events)) await service.append(session, event);
+    const seeded = await service.get({ appName: row.appName, userId: row.userId, sessionId: row.sessionId });
     if (JSON.stringify(seeded?.state ?? {}) !== JSON.stringify(row.state)) {
       throw new Error(`${fixture.fixture}/${row.appName}: the state replayed from the events differs from the stored state`);
     }

@@ -18,14 +18,14 @@ sources:
   - resource: lib/memory/erase.ts
   - resource: lib/storage/postgres/index.ts
   - resource: lib/session/transcript.ts
-  - resource: tests/fixtures/sessions/generate.ts
+  - resource: tests/fixtures/sessions/scenarios.ts
   - resource: tests/sessionFixtures.test.ts
   - resource: tests/geminiNativeTools.test.ts
 ---
 
 # Memory architecture
 
-Long-term memory is `SupabaseVectorMemoryService`, backed by one Postgres table (`adk_memory_facts`, created by `db/migrations/0001_base.sql` and reproduced on the [schema page](/memory/schema.md)) with pgvector embeddings (768 dims by default). It implements the engine's own `MemoryService` ([sessions and events](/memory/sessions.md)), whose `ingest` and `search` hold the logic, and ADK's `BaseMemoryService`, whose `addSessionToMemory` and `searchMemory` hand their arguments to those two. The ADK runtime and the turn runner's ingestion call ADK's names; the native runtime and the engine's memory tools call the engine's. The A2A server and the REPL take a memory service with either face and hand the turn runner ADK's through `asAdkMemoryService` (`lib/runtime/adkMemoryBridge.ts`), which passes this service through unchanged ([ADR 0080](/decisions/0080-surfaces-on-the-engines-own-interfaces.md)). Both reach the same logic and the same silos ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)).
+Long-term memory is `SupabaseVectorMemoryService`, backed by one Postgres table (`adk_memory_facts`, created by `db/migrations/0001_base.sql` and reproduced on the [schema page](/memory/schema.md)) with pgvector embeddings (768 dims by default). It implements the engine's own `MemoryService` ([sessions and events](/memory/sessions.md)), whose `ingest` and `search` hold the logic. The turn runner's ingestion, the native loop and the engine's memory tools call them, and the A2A server and the REPL hand the turn runner the service as it is ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md), [ADR 0080](/decisions/0080-surfaces-on-the-engines-own-interfaces.md)).
 
 ## What computes it
 
@@ -51,7 +51,7 @@ The memory logic runs on a `MemoryStore` (`lib/memory/store.ts`), the five datab
 
 `postgresStorage({ connectionString })` also provides sessions, A2A tasks and erase on the same connection:
 
-- **Sessions** are stored one row per event in `adk_session_events`, so two turns on one conversation both land. An event whose id the session already holds replaces its row. The session service serves the ADK runtime and the engine's own session interface from the same rows ([sessions and events](/memory/sessions.md)).
+- **Sessions** are stored one row per event in `adk_session_events`, so two turns on one conversation both land. An event whose id the session already holds replaces its row. The session service implements the engine's own session interface on those rows ([sessions and events](/memory/sessions.md)).
 - **A2A tasks** in `adk_a2a_tasks` are scoped to their owner and shared by every instance.
 - **`erase(scopeKey)`** removes a scope's facts and ingestion markers, conversations (sub-agent rows included), ledger rows, A2A tasks on a whole-scope erase, its task-tool list, and the third-party tokens held for its tools (every app's, or on a namespace erase that namespace's own, migration 0013) in one transaction (`melchizedek_erase_scope`). A namespace erase keeps a ledger row or task only when its conversation is still live in another namespace, so conversations whose sessions expired are erased too (migration 0011).
 
@@ -61,15 +61,15 @@ The suite `tests/postgresStorage.test.ts` runs all of it against a real Postgres
 
 ### Stored event shape
 
-A stored event is an ADK `Event` serialized as JSON, and the rows already in `adk_sessions.events` and `adk_session_events` are never migrated. The two stores hold it in different forms. The Supabase service passes each event through `trimEventForStorage` (`lib/session/transcript.ts`): a `thoughtSignature` on a function call becomes Gemini's skip value, and other signatures are dropped. A tool result over 2,000 characters keeps its `id` and `name`, so it stays paired with its call, but its `response` becomes `{ "elided": "<size> chars dropped before storage — …" }`, with the size in en-US digit grouping (`2,563`) whatever the server's locale. The Postgres adapter keeps the event verbatim. A DELEGATE subagent writes its own row, keyed by its name as `app_name` with the conversation's session id. A plan-dispatch classifier runs in a throwaway in-memory lane and writes nothing. The engine's own type for a stored event is `TurnEvent`, which reads both forms, and its session and memory interfaces are described in [sessions and events](/memory/sessions.md).
+A stored event is ADK's `Event` JSON, which the engine writes and reads as `TurnEvent`, and the rows already in `adk_sessions.events` and `adk_session_events` are never migrated. The two stores hold it in different forms. The Supabase service passes each event through `trimEventForStorage` (`lib/session/transcript.ts`): a `thoughtSignature` on a function call becomes Gemini's skip value, and other signatures are dropped. A tool result over 2,000 characters keeps its `id` and `name`, so it stays paired with its call, but its `response` becomes `{ "elided": "<size> chars dropped before storage — …" }`, with the size in en-US digit grouping (`2,563`) whatever the server's locale. The Postgres adapter keeps the event verbatim. A DELEGATE subagent writes its own row, keyed by its name as `app_name` with the conversation's session id. A plan-dispatch classifier runs in a throwaway in-memory lane and writes nothing. The engine's own type for a stored event is `TurnEvent`, which reads both forms, and its session and memory interfaces are described in [sessions and events](/memory/sessions.md).
 
 An orchestrator outside plan-dispatch reads its stored session unprojected, so its next turn's prompt replays earlier tool calls and their results as stored. From a trimmed row, the model receives the elision marker in place of the result.
 
-`tests/fixtures/sessions/` freezes these shapes as written by the ADK runtime, so any runtime behind `runSyndicateTurn` can be shown to read and resume the conversations production already holds. There are eight fixtures: a DELEGATE turn, a plan-dispatch turn, an open approval, an open `ask_user` question, a workflow paused at an `ask_user` node, a Gemini turn with a `thoughtSignature` on a function call, a two-turn conversation, and a tool result over 2,000 characters with an answer read from it. The signature and the long result are frozen in both stored forms, because trimming rewrites them. `generate.ts` writes the fixtures on demand, never under `npm test`. It drives real ADK objects through `runSyndicateTurn` with scripted models and normalizes ids and timestamps. The elided size needs no rewrite, because it is en-US on any machine, so regenerating writes the same bytes in any locale. With `--check` it exits 1 when a fixture no longer matches what the runtime writes, which is what a dependency bump that changes the stored shape looks like. `npm run fixtures:sessions:check` runs that check, and CI's test job runs it after the offline suite on both Node versions. What ADK sends a model, the order its workflow stores events in and the errors it fails with are frozen beside them in `tests/fixtures/adk-reference`, recorded by the parity suites themselves ([ADR 0108](/decisions/0108-adk-reference-recorded-by-the-parity-suites.md)). `tests/sessionFixtures.test.ts` parses each fixture, finds the open approval and question with `pendingApproval` and `pendingQuestion`, and resumes the approval, the question, the paused workflow and each completed conversation from the stored events alone, the long result from both forms.
+`tests/fixtures/sessions/` freezes these shapes as ADK wrote them, so the engine can be shown to read and resume the conversations production already holds. There are eight fixtures: a DELEGATE turn, a plan-dispatch turn, an open approval, an open `ask_user` question, a workflow paused at an `ask_user` node, a Gemini turn with a `thoughtSignature` on a function call, a two-turn conversation, and a tool result over 2,000 characters with an answer read from it. The signature and the long result are frozen in both stored forms, because trimming rewrites them. The fixtures are data: ADK wrote them, ids and timestamps normalized (`scenarios.ts` describes each), and nothing regenerates them. What ADK sends a model, the order its workflow stores events in and the errors it fails with are frozen beside them in `tests/fixtures/adk-reference`, recorded by the parity suites themselves ([ADR 0108](/decisions/0108-adk-reference-recorded-by-the-parity-suites.md)). `tests/sessionFixtures.test.ts` parses each fixture, finds the open approval and question with `pendingApproval` and `pendingQuestion`, and resumes the approval, the question, the paused workflow and each completed conversation from the stored events alone, the long result from both forms.
 
 ## Write path
 
-`ingest` (ADK's `addSessionToMemory`) serializes the session's events, then a low-temperature extraction model distills them into one-line records:
+`ingest` serializes the session's events, then a low-temperature extraction model distills them into one-line records:
 
 ```
 [TAG | date: | source: | status: | keys: ] fact text
@@ -91,12 +91,12 @@ A `CORRECTION` record carries a quote of what it supersedes. The service embeds 
 
 ## Recall
 
-`search` (ADK's `searchMemory`) is hybrid: pgvector cosine (top 24 via the `match_memory_facts` RPC), then in-process re-ranking — boosts for index-key hits (+0.12), year (+0.08) and month (+0.10) matches parsed from the query, and active status (+0.05) — sliced to 10. Agents reach it by declaring `load_memory` / `preload_memory` in YAML with `memory_system: "long-term"`. Both are the engine's own tools (`lib/tools/memoryTools.ts`, [tool contracts](/tools/tool-contracts.md)):
+`search` is hybrid: pgvector cosine (top 24 via the `match_memory_facts` RPC), then in-process re-ranking — boosts for index-key hits (+0.12), year (+0.08) and month (+0.10) matches parsed from the query, and active status (+0.05) — sliced to 10. Agents reach it by declaring `load_memory` / `preload_memory` in YAML with `memory_system: "long-term"`. Both are the engine's own tools (`lib/tools/memoryTools.ts`, [tool contracts](/tools/tool-contracts.md)):
 
 - `preload_memory` searches with the first text part of the message that started the run and writes the recalled facts into the instruction before each request, inside a `<PAST_CONVERSATIONS>` block.
 - `load_memory` searches with a query the model chooses and returns the facts as text, and while the run has memory it adds a note to the instruction saying so.
 
-Both run the same on either runtime. On the native runtime, the [Gemini adapter](/models/gemini-adapter.md#from-the-native-step) receives `load_memory` as a function declaration and both tools' text in the system instruction; `tests/geminiNativeTools.test.ts` runs a session in which Gemini calls `load_memory` and answers from the facts it returns.
+The [Gemini adapter](/models/gemini-adapter.md#from-the-native-step) receives `load_memory` as a function declaration and both tools' text in the system instruction; `tests/geminiNativeTools.test.ts` runs a session in which Gemini calls `load_memory` and answers from the facts it returns.
 
 Both search through the tool context's `searchMemory`, bound to the run's own `<appName>/<userId>` silo, so a query chooses what to recall and never whose. A model reads the same declaration, note, results and block that ADK's tools of the same names produced.
 

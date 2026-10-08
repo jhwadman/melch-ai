@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemorySessionService } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { SupabaseVectorMemoryService } from '../lib/memory/supabaseMemoryService.ts';
@@ -43,7 +43,7 @@ async function serveDesk(memoryService: unknown) {
   const app = await createA2AApp({
     defaultSyndicate: 'desk.yaml',
     serverSecret: 'test-secret-0123456789abcdef0123456789', // gitleaks:allow (test fixture)
-    storage: { sessionService: new InMemorySessionService(), memoryService: memoryService as any },
+    storage: { sessionService: new InProcessSessionService(), memoryService: memoryService as any },
     log: () => {},
     warn: () => {},
   });

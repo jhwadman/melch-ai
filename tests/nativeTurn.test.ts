@@ -1,39 +1,32 @@
 /**
  * tests/nativeTurn.test.ts — runSyndicateTurn on the native runtime
- * (MELCHIZEDEK_RUNTIME=native or `runtime: 'native'`, WS2-10, ADR 0073).
+ * (WS2-10, ADR 0073, ADR 0107).
  *
- * Each parity case runs the same conversation through runSyndicateTurn on
- * ADK and on native, with the same scripted model behind the ADK shim (the
- * native turn calls the shim's own adapter), and requires the same result
- * (status, text, usage, route, pause) and the same stored events, ids and
- * times aside. Then what native refuses before any model call, an approval
- * opened on one runtime resumed on the other, a question answered on native, the run's temp: state, and the
- * wiki agent runner on the flag. Offline: scripted adapters only.
- *
- * ADK's side of each parity case is recorded (tests/fixtures/adk-reference/
- * nativeturn) and runs live only under ADK_REFERENCE=live|record
- * (tests/helpers/adkReference.ts). The cases whose subject is the ADK
- * runtime itself (an approval opened on one runtime and resumed on the
- * other, an ADK model class run by ADK) still run ADK, imported where used.
+ * Each parity case runs a conversation through runSyndicateTurn and holds
+ * it to the same conversation as ADK 2.2 ran it, with the same scripted
+ * model behind the pre-1.0 shim, recorded in
+ * tests/fixtures/adk-reference/nativeturn (tests/helpers/adkReference.ts):
+ * the same result (status, text, usage, route, pause) and the same stored
+ * events, ids and times aside. Then what native refuses before any model
+ * call, an approval ADK opened (recorded) resumed through the turn runner, a
+ * question answered, the run's temp: state, and the wiki agent runner.
+ * Offline: scripted adapters only.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { BaseLlmConnection, LlmResponse } from '@google/adk';
 import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter, ModelResponse } from '../lib/models/contract.ts';
-import { adkShim } from '../lib/models/adkShim.ts';
-import { TracedGemini } from '../lib/models/registry.ts';
 import { unrunnableModelClass } from '../lib/compileNative.ts';
-import { resetCircuits } from '../lib/models/fallback.ts';
+import { resetCircuits } from '../lib/models/circuitBreaker.ts';
 import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
-import { approvalResponsePart } from '../lib/runtime/approvals.ts';
+import { approvalResponsePart, pendingApproval } from '../lib/runtime/approvals.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
+import { servedThroughShim } from '../lib/runtime/native/selfCorrection.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { UnsupportedOnRuntimeError, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
@@ -42,18 +35,13 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { runWikiAgent } from '../lib/wiki/agentRun.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, streamedAnswer, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
+// ADK's side of each parity case, as ADK 2.2 recorded it (tests/fixtures/adk-reference/nativeturn).
 const reference = adkReferences('nativeTurn');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
-/** ADK's in-memory session store: only where ADK runs (a reference's live side, or a case whose subject is the ADK runtime). */
-const adkSessions = async () => new (await import('@google/adk')).InMemorySessionService();
-/** The engine's in-memory store, in the session API a test reads (ADR 0102). */
-const engineSessions = () => asAdkSessionService(new InProcessSessionService());
+/** The engine's in-memory store (ADR 0102). */
+const engineSessions = () => new InProcessSessionService();
 
 const APP = 'native-turn';
 const USER = 'u1';
@@ -97,7 +85,6 @@ interface Turn {
   /** The message, from the previous turn's result: an answer to the approval it opened. */
   answer?: (previous: SyndicateTurnResult) => unknown[];
   streaming?: boolean;
-  runtime?: 'adk' | 'native';
 }
 
 interface Run {
@@ -107,10 +94,10 @@ interface Run {
   deltas: string[][];
 }
 
-async function converse(runtime: 'adk' | 'native', config: SyndicateYamlConfig, scripts: Models, turns: Turn[]): Promise<Run> {
+async function converse(config: SyndicateYamlConfig, scripts: Models, turns: Turn[]): Promise<Run> {
   resetCircuits();
   const models = Object.fromEntries(Object.entries(scripts).map(([key, script]) => [key, new ScriptedModel(`scripted/${key}`, script)]));
-  const sessionService = runtime === 'adk' ? await adkSessions() : engineSessions();
+  const sessionService = engineSessions();
   const results: SyndicateTurnResult[] = [];
   const deltas: string[][] = [];
   for (const t of turns) {
@@ -126,12 +113,11 @@ async function converse(runtime: 'adk' | 'native', config: SyndicateYamlConfig, 
         sessionService,
         compile: { resolveModel: shimResolver(models), log: () => {} },
         trace: false,
-        runtime: t.runtime ?? runtime,
         ...(t.streaming ? { streaming: true, events: { onTextDelta: (x: string) => d.push(x) } } : {}),
       }),
     );
   }
-  const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+  const session = await sessionService.get({ appName: APP, userId: USER, sessionId: 's1' });
   return { results, events: JSON.parse(JSON.stringify(session?.events ?? [])) as TurnEvent[], models, deltas };
 }
 
@@ -173,25 +159,13 @@ interface AdkRun {
 const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 /**
- * The conversation on native, held to ADK's run of it (case `name`, recorded
- * or live): the same results, stored events, model calls and text deltas.
- * ADK's sends are taken out of `sent`, so it holds native's alone; ADK's are
- * `adk.sent`.
+ * The conversation on native, held to ADK's recorded run of it (case
+ * `name`): the same results, stored events, model calls and text deltas.
+ * `sent` holds native's sends; ADK's are `adk.sent`.
  */
 async function assertParity(name: string, config: SyndicateYamlConfig, scripts: Models, turns: Turn[] = [{}]): Promise<{ adk: AdkRun; native: Run }> {
-  const adk = await reference(name, async (): Promise<AdkRun> => {
-    const from = sent.length;
-    const run = await converse('adk', config, scripts, turns);
-    return {
-      outcomes: run.results.map(outcome),
-      events: run.events,
-      calls: Object.fromEntries(Object.entries(run.models).map(([k, m]) => [k, m.calls])),
-      systems: Object.fromEntries(Object.entries(run.models).map(([k, m]) => [k, m.requests.map((r) => r.system)])),
-      deltas: run.deltas,
-      sent: sent.splice(from),
-    };
-  });
-  const native = await converse('native', config, scripts, turns);
+  const adk = await reference<AdkRun>(name);
+  const native = await converse(config, scripts, turns);
   assert.deepEqual(asJson(native.results.map(outcome)), adk.outcomes, 'the results');
   assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events');
   for (const key of Object.keys(scripts)) assert.equal(native.models[key]?.calls, adk.calls[key], `calls to ${key}`);
@@ -229,7 +203,7 @@ test('MELCHIZEDEK_RUNTIME=native selects the native runtime when the turn names 
       sessionService: engineSessions(),
       compile: { resolveModel: shimResolver({ boss }) },
       trace: false,
-      // Native refuses an ADK agent transform: reaching it proves the runtime.
+      // The native runtime refuses an agent transform before any model call: reaching it proves the env was read.
       transformAgent: (a) => a,
     }).catch((e: unknown) => e);
     assert.ok(r instanceof UnsupportedOnRuntimeError, 'the env chose native');
@@ -292,27 +266,37 @@ test('parity: a gated call pauses the turn input-required, and the answer resume
     assert.equal(native.results[0]?.status, 'input-required');
     assert.equal(native.results[1]?.status, 'completed', native.results[1]?.error?.message);
     assert.equal(native.results[1]?.text, approved ? 'done: "sent to ops@acme.test"' : 'done: "This tool call is rejected."');
-    assert.deepEqual([...adk.sent, ...sent], approved ? ['ops@acme.test', 'ops@acme.test'] : [], 'the pinned call ran once per runtime, only when approved');
+    assert.deepEqual([...adk.sent, ...sent], approved ? ['ops@acme.test', 'ops@acme.test'] : [], 'the pinned call ran once on each side, only when approved');
   }
 });
 
-test('an approval opened on one runtime resumes on the other, and the pinned call runs once', async () => {
+test('an approval ADK opened resumes through runSyndicateTurn, and the pinned call runs once', async () => {
   const config = syndicate({ instruction: 'Send notes.', tools: ['native_turn_send'], require_approval: ['native_turn_send'] });
-  const script: ModelScript = (req, n) => (n === 1 ? toolCall('native_turn_send', { to: 'ops@acme.test' }, 'call-send') : answer(`done: ${lastToolResult(req)?.result}`));
-  for (const [opens, resumes] of [['native', 'adk'], ['adk', 'native']] as const) {
-    sent.length = 0;
-    const boss = new ScriptedModel('scripted/boss', script);
-    const sessionService = await adkSessions();
-    const base = { config, appName: APP, userId: USER, sessionId: `pause-${opens}`, sessionService, compile: { resolveModel: shimResolver({ boss }) }, trace: false as const };
-    const paused = await runSyndicateTurn({ ...base, parts: [{ text: 'tell ops' }], runtime: opens });
-    assert.equal(paused.status, 'input-required');
-    assert.deepEqual(sent, [], 'nothing ran before the approval');
-    const resumed = await runSyndicateTurn({ ...base, parts: [approvalResponsePart(paused.approval!.id, true)], runtime: resumes });
-    assert.equal(resumed.status, 'completed', resumed.error?.message);
-    assert.equal(resumed.text, 'done: sent to ops@acme.test');
-    assert.deepEqual(sent, ['ops@acme.test'], `opened on ${opens}, resumed on ${resumes}`);
-    assert.equal(boss.calls, 2, 'the resume did not start the turn over');
-  }
+  // The session as ADK left it after the first turn (recorded): the approval open.
+  const adk = await reference<AdkRun>('gated-call-approved');
+  const answerAt = adk.events.findIndex((e, i) => i > 0 && e.author === 'user');
+  const opened = adk.events.slice(0, answerAt);
+  const pending = pendingApproval(opened as unknown as Parameters<typeof pendingApproval>[0]);
+  assert.ok(pending, 'ADK left the approval open');
+  sent.length = 0;
+  const boss = new ScriptedModel('scripted/boss', (req) => answer(`done: ${lastToolResult(req)?.result}`));
+  const sessionService = engineSessions();
+  const session = await sessionService.create({ appName: APP, userId: USER, sessionId: 'pause-adk' });
+  for (const event of structuredClone(opened)) await sessionService.append(session, event);
+  const resumed = await runSyndicateTurn({
+    config,
+    parts: [approvalResponsePart(pending.id, true)],
+    appName: APP,
+    userId: USER,
+    sessionId: 'pause-adk',
+    sessionService,
+    compile: { resolveModel: shimResolver({ boss }) },
+    trace: false,
+  });
+  assert.equal(resumed.status, 'completed', resumed.error?.message);
+  assert.equal(resumed.text, 'done: sent to ops@acme.test');
+  assert.deepEqual(sent, ['ops@acme.test'], 'opened on ADK, resumed on native');
+  assert.equal(boss.calls, 1, 'the resume did not start the turn over');
 });
 
 test('parity: dispatch resumes the route that asked on native, the classifier skipped, as on ADK', async () => {
@@ -339,7 +323,7 @@ test('parity: dispatch resumes the route that asked on native, the classifier sk
   assert.equal(native.results[1]?.route?.decidedBy, 'approval');
   assert.equal(native.models.router?.calls, 1, 'the classifier ran once, for the original message');
   assert.equal(native.results[1]?.text, 'sent: sent to pr@acme.test');
-  assert.deepEqual([...adk.sent, ...sent], ['pr@acme.test', 'pr@acme.test'], 'once per runtime');
+  assert.deepEqual([...adk.sent, ...sent], ['pr@acme.test', 'pr@acme.test'], 'once on each side');
 });
 
 test('parity: an ask_user call pauses the turn with the question, and the answer resumes it on native as on ADK (WS2-7b)', async () => {
@@ -378,13 +362,13 @@ test('parity: a DELEGATE syndicate delegates to its subagent and relays the answ
   assert.deepEqual(native.results[0]?.answer?.delegations, ['Scout']);
 });
 
-test('a resolver may answer an id with a model under another id: the request goes out under that id on both runtimes, as ADK sends it', async () => {
+test('a resolver may answer an id with a model under another id: the request goes out under that id, as ADK sends it', async () => {
   // A gateway stand-in or a caller's alias: the YAML says scripted/boss, the
   // resolver returns a model whose own id is provider-model-x. ADK's LlmAgent
-  // sends the request under the model's id, so the adapter (which chooses
+  // sent the request under the model's id, so the adapter (which chooses
   // thinking, replay and pricing by it) must see that id on native too.
   const seen: Record<string, string[]> = { adk: [], native: [] };
-  const run = async (runtime: 'adk' | 'native') => {
+  const run = async (runtime: 'native') => {
     const boss = new ScriptedModel('provider-model-x', (req, n) => {
       seen[runtime]!.push(req.model);
       return n === 1 ? toolCall('Scout', { request: 'look' }, 'call-scout') : answer('done');
@@ -393,24 +377,20 @@ test('a resolver may answer an id with a model under another id: the request goe
       seen[runtime]!.push(req.model);
       return answer('here');
     });
-    const resolve = (id: string | undefined) => adkShim(id === 'scripted/scout' ? scout : boss);
+    const resolve = (id: string | undefined) => servedThroughShim(id === 'scripted/scout' ? scout : boss);
     const r = await runSyndicateTurn({
       config: syndicate({ instruction: 'Delegate to Scout.' }, { subagents: [{ name: 'Scout', model: 'scripted/scout', instruction: 'Find.', description: 'Finds' }] }),
       parts: [{ text: 'find it' }],
       appName: APP,
       userId: USER,
       sessionId: `alias-${runtime}`,
-      sessionService: runtime === 'adk' ? await adkSessions() : engineSessions(),
+      sessionService: engineSessions(),
       compile: { resolveModel: resolve, log: () => {} },
       trace: false,
-      runtime,
     });
     assert.equal(r.status, 'completed', `${runtime}: ${r.error?.message}`);
   };
-  seen.adk = await reference('resolver-alias', async () => {
-    await run('adk');
-    return seen.adk!;
-  });
+  seen.adk = await reference<string[]>('resolver-alias');
   await run('native');
   assert.deepEqual(seen.adk, ['provider-model-x', 'provider-model-y', 'provider-model-x']);
   assert.deepEqual(seen.native, seen.adk);
@@ -437,8 +417,8 @@ test('parity: an adapter that throws ends the step on ADK’s error event (UNKNO
     [new Error(JSON.stringify({ error: { code: 'QUOTA', message: 'over quota' } })), 'QUOTA', 'over quota'],
   ];
   for (const [error, code, message] of cases) {
-    const run = async (runtime: 'adk' | 'native') => {
-      const sessionService = runtime === 'adk' ? await adkSessions() : engineSessions();
+    const run = async () => {
+      const sessionService = engineSessions();
       const result = await runSyndicateTurn({
         config: syndicate({}),
         parts: [{ text: 'hello' }],
@@ -446,18 +426,14 @@ test('parity: an adapter that throws ends the step on ADK’s error event (UNKNO
         userId: USER,
         sessionId: 's1',
         sessionService,
-        compile: { resolveModel: () => adkShim(throwingAdapter('scripted/boss', error)), log: () => {} },
+        compile: { resolveModel: () => servedThroughShim(throwingAdapter('scripted/boss', error)), log: () => {} },
         trace: false,
-        runtime,
       });
-      const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+      const session = await sessionService.get({ appName: APP, userId: USER, sessionId: 's1' });
       return { result, events: JSON.parse(JSON.stringify(session?.events ?? [])) as TurnEvent[] };
     };
-    const adk = await reference(`throwing-adapter-${code}`, async () => {
-      const r = await run('adk');
-      return { outcome: outcome(r.result), events: r.events };
-    });
-    const native = await run('native');
+    const adk = await reference<{ outcome: unknown; events: TurnEvent[] }>(`throwing-adapter-${code}`);
+    const native = await run();
     assert.equal(native.result.status, 'failed');
     assert.deepEqual(native.result.error, { code, message });
     assert.deepEqual(asJson(outcome(native.result)), adk.outcome);
@@ -473,11 +449,11 @@ test('parity: with a fallback_model, a thrown provider failure is answered by th
     ['after an answer', [answer('half an answer')], 0],
   ] as const) {
     const runs: Record<string, { outcome: unknown; events: TurnEvent[]; calls: [number, number] }> = {};
-    const run = async (runtime: 'adk' | 'native') => {
+    const run = async () => {
       resetCircuits();
       const primary = throwingAdapter('scripted/primary', fails, [...before]);
       const backup = new ScriptedModel('scripted/backup', () => answer('from the backup'));
-      const sessionService = runtime === 'adk' ? await adkSessions() : engineSessions();
+      const sessionService = engineSessions();
       const result = await runSyndicateTurn({
         config: syndicate({ model: 'scripted/primary', fallback_model: 'scripted/backup' }),
         parts: [{ text: 'hello' }],
@@ -485,19 +461,18 @@ test('parity: with a fallback_model, a thrown provider failure is answered by th
         userId: USER,
         sessionId: 's1',
         sessionService,
-        compile: { resolveModel: (id) => adkShim(id === 'scripted/backup' ? backup : primary), log: () => {} },
+        compile: { resolveModel: (id) => servedThroughShim(id === 'scripted/backup' ? backup : primary), log: () => {} },
         trace: false,
-        runtime,
       });
-      const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+      const session = await sessionService.get({ appName: APP, userId: USER, sessionId: 's1' });
       return { outcome: asJson(outcome(result)), events: JSON.parse(JSON.stringify(session?.events ?? [])) as TurnEvent[], calls: [primary.calls, backup.calls] as [number, number] };
     };
-    runs.adk = await reference(`fallback-${label}`, () => run('adk'));
-    runs.native = await run('native');
-    for (const runtime of ['adk', 'native'] as const) {
-      const [primaryCalls, fallbackCalls] = runs[runtime]!.calls;
-      assert.equal(primaryCalls, 1, `${runtime} ${label}`);
-      assert.equal(fallbackCalls, backupCalls, `${runtime} ${label}: calls to the fallback`);
+    runs.adk = await reference<{ outcome: unknown; events: TurnEvent[]; calls: [number, number] }>(`fallback-${label}`);
+    runs.native = await run();
+    for (const side of ['adk', 'native'] as const) {
+      const [primaryCalls, fallbackCalls] = runs[side]!.calls;
+      assert.equal(primaryCalls, 1, `${side} ${label}`);
+      assert.equal(fallbackCalls, backupCalls, `${side} ${label}: calls to the fallback`);
     }
     assert.deepEqual(runs.native!.outcome, runs.adk!.outcome, label);
     assert.deepEqual(comparable(runs.native!.events), comparable(runs.adk!.events), `${label}: the stored events`);
@@ -540,7 +515,6 @@ test('a traced native turn has the turn runner’s root span over the loop’s a
       sessionService: engineSessions(),
       compile: { resolveModel: shimResolver({ boss }) },
       trace: { syndicateName: 'traced-native' },
-      runtime: 'native',
     });
     assert.equal(r.status, 'completed');
     await flushTracing();
@@ -570,7 +544,6 @@ test('native refuses a transform and an ask_user tool on a workflow node at comp
       sessionService: engineSessions(),
       compile: { resolveModel: shimResolver({ boss, scout }) },
       trace: false,
-      runtime: 'native',
       ...extra,
     });
   const refused = (pattern: RegExp) => (e: unknown) => e instanceof UnsupportedOnRuntimeError && pattern.test(e.message) && /native runtime/.test(e.message);
@@ -593,47 +566,41 @@ test('native refuses a transform and an ask_user tool on a workflow node at comp
   assert.equal(off.status, 'completed');
 });
 
-/** An ADK model class with no contract adapter behind it: neither a shim nor ADK's Gemini. ADK's own class, so made where the case runs. */
-async function customAdkModel() {
-  const { BaseLlm } = await import('@google/adk');
-  return new (class CustomAdkModel extends BaseLlm {
-    calls = 0;
-    constructor() {
-      super({ model: 'scripted/custom' });
-    }
-    async *generateContentAsync(): AsyncGenerator<LlmResponse, void> {
-      this.calls++;
-      yield { content: { role: 'model', parts: [{ text: 'custom' }] }, turnComplete: true };
-    }
-    async connect(): Promise<BaseLlmConnection> {
-      throw new Error('no live connections');
-    }
-  })();
+/**
+ * What a 0.x resolver returned for an ADK model class: an object carrying
+ * ADK's own BaseLlm mark (registered with Symbol.for, so it is ADK's mark
+ * without ADK), with no contract adapter behind it.
+ */
+class CustomAdkModel {
+  readonly model = 'scripted/custom';
+  calls = 0;
+  constructor() {
+    Object.defineProperty(this, Symbol.for('google.adk.baseModel'), { value: true });
+  }
 }
 
-test('a resolver returning an ADK model class with no adapter behind it is refused on native before any model call, and runs on ADK (ADR 0088)', async () => {
+test('a resolver returning an ADK model class is refused before any model call (ADR 0088, ADR 0107)', async () => {
   const boss = new ScriptedModel('scripted/boss', () => answer('never'));
   const scout = new ScriptedModel('scripted/scout', () => answer('never'));
-  const custom = await customAdkModel();
+  const custom = new CustomAdkModel();
   const shims = shimResolver({ boss, scout });
-  const resolveModel = (id: string | undefined) => (id === 'scripted/custom' ? custom : shims(id));
-  const run = async (config: SyndicateYamlConfig, runtime: 'adk' | 'native' = 'native') =>
+  const resolveModel = ((id: string | undefined) => (id === 'scripted/custom' ? custom : shims(id))) as unknown as (id: string | undefined) => ModelAdapter;
+  const run = async (config: SyndicateYamlConfig) =>
     runSyndicateTurn({
       config,
       parts: [{ text: 'go' }],
       appName: APP,
       userId: USER,
-      sessionId: `custom-${runtime}`,
-      sessionService: runtime === 'adk' ? await adkSessions() : engineSessions(),
+      sessionId: 'custom',
+      sessionService: engineSessions(),
       compile: { resolveModel },
       trace: false,
-      runtime,
     });
   const refused = (id: string, where: string) => (e: unknown) =>
     e instanceof UnsupportedOnRuntimeError &&
     e.runtime === 'native' &&
     e.message.startsWith(`${where}: the ADK model class CustomAdkModel that resolveModel returned for '${id}'`) &&
-    /adkShim\(adapter\) from melchizedek-agents\/models\/adkShim/.test(e.message);
+    e.message.includes('ADK model classes left in 1.0.0');
 
   // The agent's own model, a delegated subagent's, its fallback and its summary model.
   await assert.rejects(run(syndicate({ model: 'scripted/custom' })), refused('scripted/custom', 'Solo'));
@@ -643,17 +610,41 @@ test('a resolver returning an ADK model class with no adapter behind it is refus
   await assert.rejects(run(syndicate({ context: { compact_after_tokens: 1000, summary_model: 'scripted/custom' } })), refused('scripted/custom', 'Solo'));
   assert.equal(boss.calls + scout.calls + custom.calls, 0, 'no model was called');
 
-  // ADK runs the class itself.
-  const onAdk = await run(syndicate({ model: 'scripted/custom' }), 'adk');
-  assert.equal(onAdk.status, 'completed', onAdk.error?.message);
-  assert.equal(onAdk.text, 'custom');
-
-  // What native does run: an id, a contract adapter, a shim, ADK's Gemini (its key reaches the registry's adapter).
+  // What native does run: an id, a contract adapter, an adapter marked as served through the shim.
   assert.equal(unrunnableModelClass('scripted/boss'), undefined);
   assert.equal(unrunnableModelClass(boss), undefined);
-  assert.equal(unrunnableModelClass(adkShim(boss)), undefined);
-  assert.equal(unrunnableModelClass(new TracedGemini({ model: 'gemini-3.8-flash', apiKey: 'fixture-not-a-key' })), undefined);
+  assert.equal(unrunnableModelClass(servedThroughShim(new ScriptedModel('scripted/shimmed', () => answer('x')))), undefined);
   assert.equal(unrunnableModelClass(custom), 'CustomAdkModel');
+});
+
+test('a resolver returning a plain { model, apiKey } object is refused, never run on the env key (1.0.0)', async () => {
+  const boss = new ScriptedModel('scripted/boss', () => answer('never'));
+  const shims = shimResolver({ boss });
+  const byok = { model: 'scripted/custom', apiKey: 'sk-test-not-a-real-key' };
+  const resolveModel = ((id: string | undefined) => (id === 'scripted/custom' ? byok : shims(id))) as unknown as (id: string | undefined) => ModelAdapter;
+  const run = async (config: SyndicateYamlConfig) =>
+    runSyndicateTurn({
+      config,
+      parts: [{ text: 'go' }],
+      appName: APP,
+      userId: USER,
+      sessionId: 'byok-object',
+      sessionService: engineSessions(),
+      compile: { resolveModel },
+      trace: false,
+    });
+  const refused = (where: string) => (e: unknown) =>
+    e instanceof UnsupportedOnRuntimeError &&
+    e.runtime === 'native' &&
+    e.message.startsWith(`${where}: the plain object that resolveModel returned for 'scripted/custom'`) &&
+    e.message.includes('1.0.0') &&
+    e.message.includes('return a model id or a ModelAdapter (e.g. new ClaudeAdapter({ model, apiKey }))') &&
+    !e.message.includes('sk-test-not-a-real-key');
+
+  // The agent's own model, and an id the loop asks for later (its fallback).
+  await assert.rejects(run(syndicate({ model: 'scripted/custom' })), refused('Solo'));
+  await assert.rejects(run(syndicate({ fallback_model: 'scripted/custom' })), refused('Solo'));
+  assert.equal(boss.calls, 0, 'no model was called');
 });
 
 test('an unknown runtime name is a configuration error', async () => {
@@ -668,22 +659,21 @@ test('an unknown runtime name is a configuration error', async () => {
       trace: false,
       runtime: 'loop' as 'native',
     }),
-    /must be "adk" or "native"/,
+    /must be "native"/,
   );
 });
 
-// ── The wiki agent runner on the flag ────────────────────────────────────────
+// ── The wiki agent runner ────────────────────────────────────────────────────
 
-test('runWikiAgent follows the runtime: native runs the agent on the loop with its tools', async () => {
+test('runWikiAgent runs the agent on the loop with its tools', async () => {
   const model = new ScriptedModel('ollama/wiki-test', (req, n) =>
     n === 1 ? toolCall('native_turn_lookup', { key: 'wiki' }, 'call-w') : answer(`summary: ${lastToolResult(req)?.result}`),
   );
-  // runWikiAgent takes ADK's FunctionTool (lib/wiki/agentRun.ts), so this case still imports ADK.
-  const { FunctionTool } = await import('@google/adk');
-  const tool = new FunctionTool({
+  // runWikiAgent takes the engine's own Tools (lib/wiki/agentRun.ts): a defineTool contract is one.
+  const tool = defineTool({
     name: 'native_turn_lookup',
     description: 'Look a key up.',
-    parameters: z.object({ key: z.string() }),
+    schema: z.object({ key: z.string() }),
     execute: async ({ key }) => `found ${key}`,
   });
   const result = await runWikiAgent({
@@ -693,7 +683,6 @@ test('runWikiAgent follows the runtime: native runs the agent on the loop with i
     instruction: 'Summarize.',
     userText: 'summarize the page',
     tools: [tool],
-    runtime: 'native',
     adapterFor: (): ModelAdapter => model,
   });
   assert.deepEqual(result, { text: 'summary: found wiki' });

@@ -37,8 +37,8 @@ export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
  * Default Claude model used by the A2A server when a claude-* model is
  * requested but no specific identifier is provided.
  *
- * Requires ANTHROPIC_API_KEY to be set. The ClaudeLlm provider in
- * lib/models/claudeLlm.ts handles routing automatically via LLMRegistry.
+ * Requires ANTHROPIC_API_KEY to be set. A claude-* id resolves to
+ * ClaudeAdapter (lib/models/claudeAdapter.ts) through resolveAdapter.
  */
 export const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-6';
 
@@ -46,13 +46,13 @@ export const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-6';
  * Default OpenAI model used when a gpt-* model is requested but no specific
  * identifier is provided. Requires OPENAI_API_KEY. gpt-5-mini is the
  * lightweight reasoning tier — enough for subagent work, and it exposes
- * reasoning summaries via the Responses API (lib/models/gptLlm.ts).
+ * reasoning summaries via the Responses API (lib/models/gptAdapter.ts).
  */
 export const DEFAULT_GPT_MODEL = 'gpt-5-mini';
 
 /**
  * Default xAI model used when a grok-* model is requested but no specific
- * identifier is provided. Requires XAI_API_KEY (lib/models/grokLlm.ts).
+ * identifier is provided. Requires XAI_API_KEY (lib/models/grokAdapter.ts).
  * grok-4.7 is a reasoning model (reasoning cannot be disabled); it returns
  * reasoning summaries, which the adapter surfaces as thinking.
  */
@@ -71,7 +71,7 @@ export const DEFAULT_GROK_REASONING_EFFORT = 'medium';
 /**
  * Default Moonshot model used when a kimi-* model is requested but no
  * specific identifier is provided. Requires MOONSHOT_API_KEY
- * (lib/models/kimiLlm.ts). kimi-k3 is the flagship, priced like a mid-tier
+ * (lib/models/kimiAdapter.ts). kimi-k3 is the flagship, priced like a mid-tier
  * closed model ($3 / $15, Claude Sonnet 4.6's price; Sonnet 5.5 is cheaper);
  * kimi-k2.6 is the general tier at a quarter of that (the family table and
  * the cost note are in the adapter's header).
@@ -96,7 +96,7 @@ export const DEFAULT_KIMI_REASONING_EFFORT = 'high';
 export const DEFAULT_MAX_STEPS = 50;
 
 /**
- * Default open-weight model, served locally by Ollama (lib/models/ollamaLlm.ts).
+ * Default open-weight model, served locally by Ollama (lib/models/ollamaAdapter.ts).
  * qwen3:8b is the smallest pulled model that supports tool calling — the
  * floor capability for syndicate delegation. Vision work uses ollama/qwen3-vl:8b.
  */

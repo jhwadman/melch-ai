@@ -5,20 +5,15 @@
  * WHY this file exists:
  *   web_search, x_search, url_context and collections_search are run by the
  *   provider, not here: the model asks its own vendor to search or read, and
- *   the answer arrives inside the model's response. Each was an ADK BaseTool
- *   that declared nothing and left itself in the request for the adapter to
- *   find. The native runtime needs them without ADK, so each is first a
- *   NativeToolMarker (lib/tools/tool.ts): a name, a description for a reader,
- *   and the NativeTool it stands for. A marker declares no function; a
- *   request carries it in `nativeTools`, and each adapter adds its
- *   provider's tool object or drops it (lib/models/capabilities.ts).
- *
- *   The ADK runtime keeps its sentinels (lib/tools/webSearchTool.ts and its
- *   siblings), which carry the same marker symbol, so every reader
- *   (nativeToolOf in lib/models/schemaNormalize.ts) recognises both by
- *   marker. lib/tools/adkTool.ts turns a marker into its sentinel
- *   (toAdkNativeTool). google_search is ADK's own GOOGLE_SEARCH on that
- *   runtime, recognised by ADK's marker.
+ *   the answer arrives inside the model's response. Under ADK each was a
+ *   BaseTool that declared nothing and left itself in the request for the
+ *   adapter to find. Here each is a NativeToolMarker (lib/tools/tool.ts): a
+ *   name, a description for a reader, and the NativeTool it stands for. A
+ *   marker declares no function; a request carries it in `nativeTools`, and
+ *   each adapter adds its provider's tool object or drops it
+ *   (lib/models/capabilities.ts). Every reader (nativeToolOf in
+ *   lib/models/schemaNormalize.ts) recognises a marker by its symbol, never
+ *   by class.
  *
  *   Code execution is not here: it is an agent's `code_execution: gemini`,
  *   not a tool it lists, and reaches the request as the agent's code

@@ -6,10 +6,10 @@
  *   - Every tool the registry resolves declares lowercase JSON Schema, or is
  *     a NativeTool, or is preload_memory (a request processor with nothing
  *     to declare).
- *   - Real ADK AgentTool and load_memory objects keep their argument schemas,
- *     and Gemini's dialect (int64 strings, `nullable`) is converted.
- *   - A defineTool contract declares the same parameters directly from zod
- *     and through the FunctionTool toFunctionTool() makes of it.
+ *   - A subagent tool and load_memory keep their argument schemas, and
+ *     Gemini's dialect (int64 strings, `nullable`) is converted.
+ *   - A defineTool contract declares the same parameters as its bare
+ *     contract (name, description, zod schema).
  *   - The strict variant reaches every object node, however deep.
  *   - The server-side tools map to their NativeTool by marker and name.
  *
@@ -19,23 +19,27 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { z } from 'zod';
-import { AgentTool, BuiltInCodeExecutor, FunctionTool, GOOGLE_SEARCH, LOAD_MEMORY, LlmAgent, PRELOAD_MEMORY, URL_CONTEXT as ADK_URL_CONTEXT, setLogLevel, LogLevel } from '@google/adk';
-import type { Schema } from '@google/genai';
 
 import type { NativeTool, ToolDeclaration } from '../lib/models/contract.ts';
-import { contractToolDeclaration, nativeToolOf, toContractJsonSchema, toolDeclarationFor } from '../lib/models/schemaNormalize.ts';
+import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from '../lib/models/schemaNormalize.ts';
 import { registeredToolNames, resolveTools } from '../lib/toolRegistry.ts';
-import { toFunctionTool } from '../lib/tools/adkTool.ts';
+import { subagentTool as nativeSubagentTool } from '../lib/runtime/native/delegate.ts';
+import type { Tool } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
+import type { ToolContract } from '../lib/tools/toolContract.ts';
 import { WIKI_AGENT_TOOL_CONTRACTS } from '../lib/tools/wikiTools.ts';
 import { SCIENCE_TOOL_CONTRACTS } from '../lib/tools/scienceTools.ts';
 import { TASK_TOOL_CONTRACTS } from '../lib/tools/taskTools.ts';
-import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
-import { X_SEARCH } from '../lib/tools/xSearchTool.ts';
-import { COLLECTIONS_SEARCH } from '../lib/tools/collectionsSearchTool.ts';
-import { URL_CONTEXT } from '../lib/tools/urlContextTool.ts';
+import {
+  COLLECTIONS_SEARCH_MARKER,
+  GOOGLE_SEARCH_MARKER,
+  URL_CONTEXT_MARKER,
+  WEB_SEARCH_MARKER,
+  X_SEARCH_MARKER,
+} from '../lib/tools/nativeTools.ts';
 
-setLogLevel(LogLevel.ERROR);
+const [LOAD_MEMORY] = resolveTools(['load_memory']);
+const [PRELOAD_MEMORY] = resolveTools(['preload_memory']);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,8 +88,8 @@ function assertStrict(where: string, schema: unknown): void {
   assert.ok(objects > 0, `${where}: no object node to check`);
 }
 
-function subagentTool(name: string, extra: Record<string, unknown> = {}): AgentTool {
-  return new AgentTool({ agent: new LlmAgent({ name, description: `${name} does one thing`, model: 'gemini-3.5-flash-lite', instruction: 'x', ...extra }) });
+function subagentTool(name: string): Tool {
+  return nativeSubagentTool({ name, description: `${name} does one thing`, model: 'gemini-3.5-flash-lite', instruction: 'x' });
 }
 
 // ── The registry ─────────────────────────────────────────────────────────────
@@ -129,55 +133,15 @@ test('every tool the registry resolves declares lowercase JSON Schema or is a Na
   }
 });
 
-test('a registry tool declares what the ADK path declares, in the contract dialect', () => {
-  for (const name of registeredToolNames()) {
-    const [tool] = resolveTools([name]);
-    const decl = contractToolDeclaration(tool);
-    const legacy = toolDeclarationFor(tool);
-    if (!decl || !legacy) {
-      assert.equal(decl, legacy, `${name}: both or neither declare`);
-      continue;
-    }
-    assert.equal(decl.name, legacy.name);
-    assert.equal(decl.description, legacy.description);
-    // The same properties and required list; only the dialect differs.
-    assert.deepEqual(Object.keys(decl.parameters.properties as object), Object.keys(legacy.parameters.properties as object), name);
-    assert.deepEqual(decl.parameters.required, legacy.parameters.required, name);
-  }
-});
+// ── Subagent and memory tools (ADR 0019) ─────────────────────────────────────
 
-// ── Real ADK tools (ADR 0019) ────────────────────────────────────────────────
-
-test('an AgentTool declares its request argument', () => {
+test('a subagent tool declares its request argument', () => {
   const decl = contractToolDeclaration(subagentTool('XScout'))!;
   assert.deepEqual(decl, {
     name: 'XScout',
     description: 'XScout does one thing',
     parameters: { type: 'object', properties: { request: { type: 'string' } }, required: ['request'] },
   });
-});
-
-test("an AgentTool over a subagent with an input schema declares it, out of Gemini's dialect", () => {
-  const tool = subagentTool('Forecast', {
-    inputSchema: z.object({ city: z.string().min(2), days: z.number().nullable(), unit: z.enum(['c', 'f']).nullable() }),
-  });
-  // ADK writes Gemini's dialect: int64 bounds as strings, OpenAPI's nullable.
-  const gemini = (tool as any)._getDeclaration().parameters;
-  assert.equal(gemini.properties.city.minLength, '2');
-  assert.equal(gemini.properties.days.nullable, true);
-
-  const decl = contractToolDeclaration(tool)!;
-  assert.deepEqual(decl.parameters, {
-    type: 'object',
-    properties: {
-      city: { type: 'string', minLength: 2 },
-      days: { type: ['number', 'null'] },
-      unit: { type: ['string', 'null'], enum: ['c', 'f', null] },
-    },
-    required: ['city', 'days', 'unit'],
-  });
-  assertContractDialect('Forecast', decl.parameters);
-  assert.equal(gemini.properties.days.nullable, true, 'the tool keeps its own declaration');
 });
 
 test('load_memory declares its query argument', () => {
@@ -188,18 +152,15 @@ test('load_memory declares its query argument', () => {
 });
 
 test('preload_memory and the server-side tools declare nothing', () => {
-  for (const tool of [PRELOAD_MEMORY, WEB_SEARCH, X_SEARCH, COLLECTIONS_SEARCH, URL_CONTEXT, GOOGLE_SEARCH, ADK_URL_CONTEXT]) {
+  for (const tool of [PRELOAD_MEMORY, WEB_SEARCH_MARKER, X_SEARCH_MARKER, COLLECTIONS_SEARCH_MARKER, URL_CONTEXT_MARKER, GOOGLE_SEARCH_MARKER]) {
     assert.equal(contractToolDeclaration(tool), undefined, (tool as { name: string }).name);
   }
 });
 
-test('an MCP-style FunctionTool in uppercase is lowercased by keyword, not by key name', () => {
+test('an MCP-style tool declared in uppercase is lowercased by keyword, not by key name', () => {
   // The shape lib/tools/mcpToolFactory.ts builds. A property named `type`
   // holds a schema; a name-blind walk copies it verbatim, uppercase and all.
-  const tool = new FunctionTool({
-    name: 'file_issue',
-    description: 'File an issue',
-    parameters: {
+  const parameters = {
       type: 'OBJECT',
       properties: {
         type: { type: 'STRING', enum: ['BUG', 'FEATURE'] },
@@ -207,9 +168,12 @@ test('an MCP-style FunctionTool in uppercase is lowercased by keyword, not by ke
         meta: { type: 'OBJECT', properties: { default: { type: 'BOOLEAN' } } },
       },
       required: ['type'],
-    } as unknown as Schema,
+  } as unknown as ToolDeclaration['parameters'];
+  const tool: Tool = {
+    name: 'file_issue',
+    declaration: () => ({ name: 'file_issue', description: 'File an issue', parameters }),
     execute: async () => '',
-  });
+  };
   assert.deepEqual(contractToolDeclaration(tool)!.parameters, {
     type: 'object',
     properties: {
@@ -256,19 +220,20 @@ const PROBE = defineTool({
 
 const CONTRACTS = [...WIKI_AGENT_TOOL_CONTRACTS, ...SCIENCE_TOOL_CONTRACTS, ...TASK_TOOL_CONTRACTS, PROBE];
 
-test('a defineTool contract declares the same parameters directly and through its FunctionTool', () => {
+test('a defineTool contract declares the same parameters as its bare contract', () => {
   for (const contract of CONTRACTS) {
     for (const strict of [false, true]) {
       const direct = contractToolDeclaration(contract, { strict });
-      const viaAdk = contractToolDeclaration(toFunctionTool(contract), { strict });
+      const bare: ToolContract<any> = { name: contract.name, description: contract.description, schema: contract.schema, execute: contract.execute };
+      const viaContract = contractToolDeclaration(bare, { strict });
       assert.ok(direct, `${contract.name} is declared`);
-      assert.deepEqual(direct, viaAdk, `${contract.name}${strict ? ' (strict)' : ''}`);
+      assert.deepEqual(direct, viaContract, `${contract.name}${strict ? ' (strict)' : ''}`);
       assertContractDialect(contract.name, direct!.parameters);
     }
   }
 });
 
-test("a contract's declaration comes from zod, without the keywords the ADK path cannot carry", () => {
+test("a contract's declaration comes from zod, without the keywords a function declaration does not carry", () => {
   const decl = contractToolDeclaration(PROBE)!;
   assert.equal(decl.name, 'probe');
   assert.equal(decl.description, PROBE.description);
@@ -279,7 +244,7 @@ test("a contract's declaration comes from zod, without the keywords the ADK path
   assert.deepEqual(
     props.counts,
     { type: 'object', additionalProperties: { type: 'number' } },
-    "a map keeps its value schema, as the ADK path keeps it",
+    'a map keeps its value schema',
   );
   assert.ok(!(decl.parameters.required as string[]).includes('limit'), 'a field with a default is optional');
   for (const node of schemaNodes(decl.parameters)) {
@@ -391,7 +356,7 @@ test('the strict form reaches an object that nullable moved into an anyOf branch
 });
 
 test('a strict declaration leaves the tool and its non-strict declaration as they were', () => {
-  const tool = toFunctionTool(PROBE);
+  const tool = PROBE;
   const plain = contractToolDeclaration(tool)!;
   contractToolDeclaration(tool, { strict: true });
   assert.deepEqual(contractToolDeclaration(tool), plain);
@@ -402,13 +367,11 @@ test('a strict declaration leaves the tool and its non-strict declaration as the
 
 test('the server-side tools map to their NativeTool', () => {
   const cases: Array<[unknown, NativeTool]> = [
-    [WEB_SEARCH, 'web_search'],
-    [GOOGLE_SEARCH, 'google_search'],
-    [URL_CONTEXT, 'url_context'],
-    [ADK_URL_CONTEXT, 'url_context'],
-    [X_SEARCH, 'x_search'],
-    [COLLECTIONS_SEARCH, 'collections_search'],
-    [new BuiltInCodeExecutor(), 'code_execution'],
+    [WEB_SEARCH_MARKER, 'web_search'],
+    [GOOGLE_SEARCH_MARKER, 'google_search'],
+    [URL_CONTEXT_MARKER, 'url_context'],
+    [X_SEARCH_MARKER, 'x_search'],
+    [COLLECTIONS_SEARCH_MARKER, 'collections_search'],
   ];
   for (const [tool, expected] of cases) assert.equal(nativeToolOf(tool), expected, expected);
 });
@@ -418,20 +381,23 @@ test('NativeTool is recognised by marker, not by class or shape (ADR 0062)', () 
   assert.equal(nativeToolOf({ name: 'x_search', _getDeclaration: () => undefined, [Symbol.for('melchizedek.nativeTool')]: 'x_search' }), 'x_search');
   // The shape alone (a name and no declaration) is no longer enough.
   assert.equal(nativeToolOf({ name: 'x_search', _getDeclaration: () => undefined }), undefined);
-  // ADK's markers live in the global symbol registry.
-  assert.equal(nativeToolOf({ name: 'google_search', [Symbol.for('google.adk.inModelTool')]: true }), 'google_search');
-  assert.equal(nativeToolOf({ [Symbol.for('google.adk.builtInCodeExecutor')]: true }), 'code_execution');
+  // Only the engine's own marker counts: 1.0.0 removed ADK, and an object with ADK's old markers is no NativeTool.
+  assert.equal(nativeToolOf({ name: 'google_search', [Symbol.for('google.adk.inModelTool')]: true }), undefined);
+  assert.equal(nativeToolOf({ [Symbol.for('google.adk.builtInCodeExecutor')]: true }), undefined);
 });
 
 test('a client-side tool is never a NativeTool, whatever its name', () => {
-  const clientSearch = new FunctionTool({
+  const clientSearch: Tool = {
     name: 'web_search',
-    description: 'A client-side search someone registered under the same name',
-    parameters: z.object({ q: z.string() }),
+    declaration: () => ({
+      name: 'web_search',
+      description: 'A client-side search someone registered under the same name',
+      parameters: { type: 'object', properties: { q: { type: 'string' } }, required: ['q'] },
+    }),
     execute: async () => '',
-  });
+  };
   const contract = defineTool({ name: 'web_search', description: 'search', schema: z.object({ q: z.string() }), execute: async () => '' });
-  for (const tool of [clientSearch, contract, toFunctionTool(contract), LOAD_MEMORY, subagentTool('Scout'), PRELOAD_MEMORY]) {
+  for (const tool of [clientSearch, contract, LOAD_MEMORY, subagentTool('Scout'), PRELOAD_MEMORY]) {
     assert.equal(nativeToolOf(tool), undefined, (tool as { name: string }).name);
   }
   assert.ok(contractToolDeclaration(clientSearch), 'and it is declared');

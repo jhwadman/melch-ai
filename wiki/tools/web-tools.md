@@ -7,10 +7,10 @@ tags:
   - web
 generated:
   by: process:wiki-build
-  at: 2026-09-25
+  at: 2026-10-08
 sources:
   - resource: lib/tools/webExtractTool.ts
-  - resource: lib/tools/webSearchTool.ts
+  - resource: lib/tools/nativeTools.ts
   - resource: lib/tools/xApiSearchTool.ts
 ---
 

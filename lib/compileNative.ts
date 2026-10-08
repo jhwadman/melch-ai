@@ -1,43 +1,36 @@
 /**
- * lib/compileNative.ts — an AgentSpec as the native runtime runs it: the
- * NativeAgent the agent loop takes (ADR 0045, ADR 0073).
+ * lib/compileNative.ts — an AgentSpec as the runtime runs it: the
+ * NativeAgent the agent loop takes (ADR 0045, ADR 0073, ADR 0107).
  *
  * WHY this file exists:
- *   lib/compile.ts turns a YAML agent into a runtime-neutral AgentSpec, and
- *   lib/compileAdk.ts builds ADK's LlmAgent from it. This file builds the
- *   native loop's agent from the same spec (lib/runtime/native/request.ts,
- *   NativeAgent), so both runtimes run the agent the YAML describes, with
- *   the same tools, instruction and config. tests/compile.test.ts compiles
- *   one spec both ways and requires the same first request.
+ *   lib/compile.ts turns a YAML agent into an AgentSpec. This file builds
+ *   the loop's agent from it (lib/runtime/native/request.ts, NativeAgent),
+ *   with the tools, instruction and config the YAML describes.
  *
- * TOOLS: each resolved tool is handed to the loop as the own Tool or
- * InstructionTool behind it (lib/tools/tool.ts), else as itself: an MCP
- * tool, the skills toolset, a gated registry FunctionTool, which the loop
- * runs by shape during the dual period (ADR 0071). A delegated subagent
- * becomes a subagentTool holding its own NativeAgent, which the loop runs as
- * a child loop (lib/runtime/native/delegate.ts, ADR 0074), a nested
- * syndicate as its orchestrator's agent, a nested workflow syndicate as a
- * workflowSubagentTool whose call walks the whole graph (ADR 0098); a remote A2A subagent is the own
- * Tool the ADK runtime's FunctionTool wraps (lib/a2a/remoteAgent.ts).
+ * TOOLS: each resolved tool is handed to the loop as the own Tool,
+ * InstructionTool or Toolset it is (lib/tools/tool.ts). A delegated
+ * subagent becomes a subagentTool holding its own NativeAgent, which the
+ * loop runs as a child loop (lib/runtime/native/delegate.ts, ADR 0074), a
+ * nested syndicate as its orchestrator's agent, a nested workflow syndicate
+ * as a workflowSubagentTool whose call walks the whole graph (ADR 0098); a
+ * remote A2A subagent is its own Tool (lib/a2a/remoteAgent.ts).
  *
- * EVERY AGENT KEY COMPILES for the native loop: `context:` is handed to
- * the loop, which compacts as ADK does (lib/runtime/native/compaction.ts,
- * WS2-9); `mode: task` and `code_execution: gemini` pass through, the
- * request declaring finish_task (lib/runtime/native/taskMode.ts) and asking
- * Gemini for its code-execution tool (lib/runtime/native/request.ts). What
- * native does not run yet (workflows, resuming an approval or a
- * question, a caller's agent transform) is refused by the turn runner
- * (lib/runtime/nativeTurn.ts), which owns those choices.
+ * EVERY AGENT KEY COMPILES: `context:` is handed to the loop, which
+ * compacts (lib/runtime/native/compaction.ts); `mode: task` and
+ * `code_execution: gemini` pass through, the request declaring finish_task
+ * (lib/runtime/native/taskMode.ts) and asking Gemini for its
+ * code-execution tool (lib/runtime/native/request.ts). What the runtime
+ * does not run is refused by the turn runner (lib/runtime/nativeTurn.ts).
  *
  * THE MODEL: the loop calls a model through its contract adapter. A
- * resolver may return an id, a contract adapter, an ADK shim (which carries
- * one) or ADK's Gemini (TracedGemini), whose key reaches the registry's
- * Gemini adapter. Any other ADK model class has no adapter behind it, so
- * compileNative and nativeAdapterFor refuse it with UnsupportedOnRuntimeError
- * before any model call, naming adkShim as the way to run it on native,
- * rather than run the registry's model for that id in its place (ADR 0088).
- * ADK classes are told apart by ADK's own Symbol.for marks, so this file
- * imports nothing from ADK.
+ * resolver returns an id, a ModelAdapter or undefined. Anything else is
+ * refused with UnsupportedOnRuntimeError by compileNative and
+ * nativeAdapterFor before any model call, rather than run the registry's
+ * model for that id in its place (ADR 0088, ADR 0107): an ADK model class (a
+ * resolver written for 0.x) has no adapter behind it, and a plain
+ * `{ model, apiKey }` object would run on the operator's env key, not the
+ * caller's. ADK classes are told apart by ADK's own Symbol.for marks, so
+ * this file imports nothing from ADK.
  */
 
 import { remoteAgentOwnTool } from './a2a/remoteAgent.ts';
@@ -45,10 +38,9 @@ import { compileSpec, compileSubagentSpec, workflowAgentSpecs } from './compile.
 import type { AgentSpec, CompileOptions, WorkflowSpec } from './compile.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import type { ModelAdapter } from './models/contract.ts';
-import { providerForModel, resolveAdapter } from './models/registry.ts';
+import { resolveAdapter } from './models/registry.ts';
 import { subagentTool, workflowSubagentTool } from './runtime/native/delegate.ts';
 import type { WorkflowSubagent } from './runtime/native/delegate.ts';
-import { servedThroughShim } from './runtime/native/selfCorrection.ts';
 import type { NativeAgent } from './runtime/native/request.ts';
 import { unsupportedOnNative } from './runtime/runtimeFlag.ts';
 export { UnsupportedOnRuntimeError, unsupportedOnNative } from './runtime/runtimeFlag.ts';
@@ -57,44 +49,72 @@ import { buildWorkflowGraph } from './workflow/graph.ts';
 import type { WorkflowGraph } from './workflow/graph.ts';
 import { refuseUnrunnableNodes, runNativeWorkflow } from './workflow/turn.ts';
 
-/** A resolved tool as the loop holds it: the own Tool, InstructionTool or Toolset behind it, else the object itself. */
+/**
+ * A resolved tool as the loop holds it: the own Tool, InstructionTool or
+ * Toolset behind it, else the object itself. An ADK tool (anything with
+ * runAsync) is refused, naming 1.0.0 and defineTool, as registerTool
+ * refuses one.
+ */
 function nativeTool(tool: unknown): unknown {
+  if (!!tool && typeof tool === 'object' && 'runAsync' in tool) {
+    const name = String((tool as { name?: unknown }).name ?? '<unnamed>');
+    throw new Error(`compile: '${name}' is an ADK tool, which melchizedek-agents 1.0.0 no longer runs (ADR 0107); define it with defineTool (melchizedek-agents) instead`);
+  }
   return toolOf(tool) ?? instructionToolOf(tool) ?? toolsetOf(tool) ?? tool;
 }
 
-/** ADK's own marks on its model classes (BaseLlm, Gemini), registered with Symbol.for so they hold across copies of ADK. */
+/** ADK's own mark on its model classes, registered with Symbol.for so it holds across copies of ADK. */
 const ADK_BASE_MODEL = Symbol.for('google.adk.baseModel');
-const ADK_GEMINI_MODEL = Symbol.for('google.adk.geminiModel');
 
 const marked = (value: unknown, mark: symbol): boolean => !!value && typeof value === 'object' && (value as Record<symbol, unknown>)[mark] === true;
 
 /**
- * The class name of an ADK model the native runtime cannot run, else
- * undefined: an ADK BaseLlm that is neither ADK's Gemini (TracedGemini
- * included) nor a shim carrying a contract adapter (lib/models/adkShim.ts).
+ * The class name of an ADK model the runtime cannot run, else undefined:
+ * any ADK BaseLlm (ADR 0107; the ADK runtime that ran one left in 1.0.0).
  */
 export function unrunnableModelClass(resolved: unknown): string | undefined {
-  if (!marked(resolved, ADK_BASE_MODEL) || marked(resolved, ADK_GEMINI_MODEL)) return undefined;
-  if (isModelAdapter((resolved as { adapter?: unknown }).adapter)) return undefined;
+  if (!marked(resolved, ADK_BASE_MODEL)) return undefined;
   const name = (resolved as { constructor?: { name?: unknown } }).constructor?.name;
   return typeof name === 'string' && name ? name : 'BaseLlm';
 }
 
-/** Throws UnsupportedOnRuntimeError when `resolved` is an ADK model class native cannot run (see the header). */
+/**
+ * Throws UnsupportedOnRuntimeError when `resolved` is not a model id, a
+ * ModelAdapter or undefined: an ADK model class native cannot run, or any
+ * other value, such as a plain `{ model, apiKey }` object, which would
+ * otherwise run on the operator's env key in place of the caller's (see the
+ * header).
+ */
 function refuseModelClass(resolved: unknown, modelId: string | undefined, where: string): void {
+  const forId = modelId ? ` for '${modelId}'` : '';
   const name = unrunnableModelClass(resolved);
-  if (!name) return;
+  if (name) {
+    throw unsupportedOnNative(
+      `the ADK model class ${name} that resolveModel returned${forId}, which has no contract adapter behind it ` +
+        `(ADK model classes left in 1.0.0; return a model id or a ModelAdapter from melchizedek-agents/model)`,
+      where,
+    );
+  }
+  if (resolved === undefined || typeof resolved === 'string' || isModelAdapter(resolved)) return;
   throw unsupportedOnNative(
-    `the ADK model class ${name} that resolveModel returned${modelId ? ` for '${modelId}'` : ''}, which has no contract adapter behind it ` +
-      `(return the ModelAdapter itself, or adkShim(adapter) from melchizedek-agents/models/adkShim, to run it on native)`,
+    `the ${describeResolved(resolved)} that resolveModel returned${forId} (melchizedek-agents 1.0.0 accepts only a model id, a ModelAdapter or undefined; ` +
+      `return a model id or a ModelAdapter (e.g. new ClaudeAdapter({ model, apiKey })) from melchizedek-agents/model)`,
     where,
   );
 }
 
+/** What a resolver returned, named for a refusal: its type, never its contents (a key may be among them). */
+function describeResolved(value: unknown): string {
+  if (value === null) return 'null';
+  if (typeof value !== 'object') return `${typeof value} value`;
+  const ctor = (value as { constructor?: { name?: unknown } }).constructor?.name;
+  return typeof ctor === 'string' && ctor && ctor !== 'Object' ? `${ctor} instance` : 'plain object';
+}
+
 /**
  * The NativeAgent for `spec`. Throws when no model id is known, and
- * UnsupportedOnRuntimeError when the resolver returned an ADK model class
- * the loop cannot call (see the header).
+ * UnsupportedOnRuntimeError when the resolver returned anything but an id,
+ * a ModelAdapter or undefined (see the header).
  */
 export function compileNative(spec: AgentSpec): NativeAgent {
   refuseModelClass(spec.resolvedModel, spec.model ?? spec.modelId, spec.name);
@@ -130,12 +150,11 @@ export function compileNative(spec: AgentSpec): NativeAgent {
 }
 
 /**
- * The model id a request is sent under, as ADK's LlmAgent sends it: the id
- * of the model object the resolver returned (an ADK model or a contract
- * adapter carries its own), else the id the resolver returned, else the
- * spec's. A resolver may answer a YAML id with a model under another id (a
- * gateway stand-in, a caller's alias); the adapter, the span and the
- * circuit breaker then see that id on both runtimes.
+ * The model id a request is sent under: the id of the adapter the resolver
+ * returned, else the id the resolver returned, else the spec's. A resolver
+ * may answer a YAML id with a model under another id (a gateway stand-in, a
+ * caller's alias); the adapter, the span and the circuit breaker then see
+ * that id.
  */
 export function wireModelOf(spec: Pick<AgentSpec, 'modelId' | 'resolvedModel'>): string | undefined {
   const resolved = spec.resolvedModel;
@@ -162,11 +181,9 @@ export interface NativeWorkflow {
 }
 
 /**
- * A workflow spec for the native walk: the graph, every agent compiled for
- * native from the same specs ADK's assembleWorkflow builds its agents from,
- * and the registry's lookup for tool nodes. A tool node ADK's compile
- * refuses (an unregistered or long-running tool) is refused here, before
- * any model call, with ADK's message.
+ * A workflow spec for the walk: the graph, every agent compiled from its
+ * spec, and the registry's lookup for tool nodes. An unregistered or
+ * long-running tool node is refused here, before any model call.
  */
 export function compileNativeWorkflow(spec: WorkflowSpec): NativeWorkflow {
   const graph = buildWorkflowGraph(spec.config);
@@ -181,8 +198,7 @@ export function compileNativeWorkflow(spec: WorkflowSpec): NativeWorkflow {
 /**
  * A nested workflow as the delegated subagent the native loop calls (ADR
  * 0098): one call walks the whole graph with runNativeWorkflow on the child
- * session lib/runtime/native/delegate.ts opened, as ADK's AgentTool runs a
- * Workflow on its own Runner.
+ * session lib/runtime/native/delegate.ts opened.
  */
 export function workflowSubagentOf(workflow: NativeWorkflow): WorkflowSubagent {
   return {
@@ -223,35 +239,23 @@ function isModelAdapter(value: unknown): value is ModelAdapter {
 }
 
 /**
- * The contract adapter behind what a resolver returned: an ADK shim's own
- * adapter; for an ADK class that is not a shim (TracedGemini, ADK's Gemini)
- * the registry's adapter under the key the instance carries, so a caller's
- * BYOK key still pays for the call; else the registry's for the id.
+ * The contract adapter behind what a resolver returned: the adapter itself,
+ * else the registry's for the id (`model` when the resolver returned
+ * undefined or an empty id). Anything else is refused (refuseModelClass).
  */
 function adapterOf(resolved: unknown, model: string): ModelAdapter {
   if (isModelAdapter(resolved)) return resolved;
   refuseModelClass(resolved, model, 'the native runtime');
-  if (typeof resolved === 'string') return resolveAdapter(resolved || model);
-  if (!resolved || typeof resolved !== 'object') return resolveAdapter(model);
-  const held = resolved as { adapter?: unknown; apiKey?: unknown; vertexai?: unknown };
-  // On ADK a shim declares the toolsDict, the reflection tool included, whatever its adapter (ADR 0097).
-  if (isModelAdapter(held.adapter)) return servedThroughShim(held.adapter);
-  // On Vertex AI the client authenticates with the platform's credentials, never a key (ADR 0023).
-  if (typeof held.apiKey === 'string' && held.apiKey && held.vertexai !== true) {
-    return resolveAdapter(model, { apiKey: held.apiKey, keyProvider: providerForModel(model) });
-  }
-  return resolveAdapter(model);
+  return resolveAdapter((resolved as string | undefined) || model);
 }
 
 /**
- * The loop's `adapterFor` under the same model resolution the ADK runtime
- * uses: the leaf adapter behind what CompileOptions.resolveModel returns
- * (an ADK shim carries its contract adapter, so a caller's BYOK key on a
- * shimmed provider reaches the call), else resolveAdapter for the id
+ * The loop's `adapterFor`: the adapter CompileOptions.resolveModel returns
+ * (so a caller's BYOK key reaches the call), else resolveAdapter for the id
  * (lib/models/registry.ts). The spec's own resolution, and each delegated
  * subagent's, is reused for the id its agent runs under (wireModelOf).
  * Each agent's `fallback_model:` and compaction `summary_model` are
- * resolved here, as compileAdk resolves them at compile time, so a model
+ * resolved here, at compile time, so a model
  * class native cannot run is refused before any model call; any other id
  * is resolved when first asked for. Each is kept.
  */

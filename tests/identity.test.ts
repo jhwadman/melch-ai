@@ -7,9 +7,6 @@
  * key-hash silo reaches the same conversations the shared secret did, so a
  * deployment moves to per-caller tokens without moving any data, and model
  * key rotation stops mattering.
- *
- * The cases that run a turn run on both runtimes, through
- * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -22,7 +19,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 
 import { createA2AApp, currentRequestContext } from '../lib/a2a/app.ts';
@@ -38,9 +35,6 @@ import {
   trustedHeader,
 } from '../lib/a2a/identity.ts';
 import { ScriptedLlm, sentTexts, text } from './helpers/scriptedLlm.ts';
-import { forEachRuntime } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const dir = mkdtempSync(join(tmpdir(), 'melch-identity-'));
 writeFileSync(join(dir, 'echo.yaml'), [
@@ -174,7 +168,7 @@ async function serve(options: Record<string, unknown>) {
   const app = await createA2AApp({
     defaultSyndicate: 'echo.yaml',
     storage: {
-      sessionService: new InMemorySessionService(),
+      sessionService: new InProcessSessionService(),
       erase: async (scopeKey: string, o: { includeNested?: boolean }) => {
         erased.push({ scopeKey, includeNested: o.includeNested });
         return { memory_facts: 0 } as any;
@@ -218,7 +212,7 @@ async function erasedScope(url: string, headers: Record<string, string>) {
   return erased[0];
 }
 
-forEachRuntime('a caller token on the old silo reaches the conversation the shared secret started', async () => {
+test('a caller token on the old silo reaches the conversation the shared secret started', async () => {
   const callers = parseCallers(`alpha:${hashCallerToken(ALPHA)}:${SILO}; beta:${hashCallerToken(BETA)}`);
   const { srv, url } = await serve({ keyMode: 'byok', ...firstOf(callerTokens(callers), sharedSecret({ secret: SECRET, keyMode: 'byok' })) });
   try {
@@ -249,7 +243,7 @@ forEachRuntime('a caller token on the old silo reaches the conversation the shar
   }
 });
 
-forEachRuntime('byok billing holds under an authenticator: no X-API-Key, no task', async () => {
+test('byok billing holds under an authenticator: no X-API-Key, no task', async () => {
   const { srv, url } = await serve({ keyMode: 'byok', ...callerTokens(parseCallers(`alpha:${hashCallerToken(ALPHA)}`)) });
   try {
     assert.equal((await send(url, { Authorization: `Bearer ${ALPHA}` }, 'hi', 'c1')).status, 401);
@@ -264,7 +258,7 @@ forEachRuntime('byok billing holds under an authenticator: no X-API-Key, no task
   }
 });
 
-forEachRuntime('a JWT caller runs in server key mode with the token as the user', async () => {
+test('a JWT caller runs in server key mode with the token as the user', async () => {
   const auth = jwtIdentity({ secret: JWT_SECRET, issuer: 'https://idp.example', audience: 'melchizedek' });
   const { srv, url } = await serve({ keyMode: 'server', ...auth });
   try {
@@ -282,7 +276,7 @@ forEachRuntime('a JWT caller runs in server key mode with the token as the user'
   }
 });
 
-forEachRuntime('a trusted header needs the server secret, and is read only behind it', async () => {
+test('a trusted header needs the server secret, and is read only behind it', async () => {
   await assert.rejects(() => serve({ ...trustedHeader({ header: 'X-Authenticated-User' }) }), /serverSecret/);
   const { srv, url } = await serve({ serverSecret: SECRET, ...trustedHeader({ header: 'X-Authenticated-User' }) });
   try {
@@ -297,7 +291,7 @@ forEachRuntime('a trusted header needs the server secret, and is read only behin
   }
 });
 
-forEachRuntime('plain secret mode: the secret is an operator credential; no secret, no operator', async () => {
+test('plain secret mode: the secret is an operator credential; no secret, no operator', async () => {
   const xp = (url: string, h: Record<string, string>) =>
     fetch(`${url}/v1/operator-only`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...h }, body: '{}' }).then((r) => r.status);
   const gated = await serve({ serverSecret: SECRET, keyMode: 'server' });

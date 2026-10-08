@@ -3,7 +3,6 @@
  * (ADR 0041): `mcp_tools` exposes only the named ones, `require_approval` can
  * gate them on a dispatch route, and a server's descriptions and results are
  * bounded. Offline: an MCP SSE server in this process, scripted models.
- * The turn case runs on both runtimes (tests/helpers/runtime.ts).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -11,7 +10,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Server as HttpServer } from 'node:http';
 import express from 'express';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -22,9 +21,6 @@ import { approvalResponsePart } from '../lib/runtime/approvals.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
-import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const calls: string[] = [];
 let http: HttpServer;
@@ -72,9 +68,10 @@ after(async () => {
 test("a server's long description and long result are cut and say so", async () => {
   const tools = await createMcpTools(url);
   const verbose = tools.find((t) => t.name === 'verbose')!;
-  assert.ok(verbose.description.length < MAX_MCP_DESCRIPTION_CHARS + 60);
-  assert.match(verbose.description, /\[description cut at 1000 characters\]$/);
-  const result = String(await (verbose as any).execute({}));
+  const description = verbose.declaration().description ?? '';
+  assert.ok(description.length < MAX_MCP_DESCRIPTION_CHARS + 60);
+  assert.match(description, /\[description cut at 1000 characters\]$/);
+  const result = String(await verbose.execute({}, {} as any));
   assert.ok(result.length < MAX_MCP_RESULT_CHARS + 60);
   assert.match(result, /\[result cut at 20000 characters\]$/);
 });
@@ -92,7 +89,7 @@ test('schema: mcp_tools needs mcp_server_url, and require_approval may name an M
   validateSyndicateConfig({ ...base, subagents: [{ name: 'Ops', model: 'gemini-x', instruction: 'o', description: 'd', mcp_server_url: url, mcp_tools: ['lookup', 'delete_all'], require_approval: ['delete_all'] }] }, 't');
 });
 
-forEachRuntime('a route sees only its mcp_tools, and a gated MCP tool waits for a person', async () => {
+test('a route sees only its mcp_tools, and a gated MCP tool waits for a person', async () => {
   calls.length = 0;
   const config = {
     syndicate_name: 'Desk',
@@ -110,9 +107,9 @@ forEachRuntime('a route sees only its mcp_tools, and a gated MCP tool waits for 
     if (n === 1) offered = ((req as any).config?.tools ?? []).flatMap((t: any) => t.functionDeclarations ?? []).map((d: any) => d.name);
     return n === 1 ? call('delete_all', {}) : text('done');
   });
-  const sessionService = new InMemorySessionService();
+  const sessionService = new InProcessSessionService();
   const turn = (parts: any[]) =>
-    runSyndicateTurn({ ...runtimeOption(), config, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ router, chat, ops }) }, trace: false });
+    runSyndicateTurn({ config, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ router, chat, ops }) }, trace: false });
 
   const first = await turn([{ text: 'clean up' }]);
   assert.ok(offered.includes('lookup') && offered.includes('delete_all'), `offered: ${offered.join(', ')}`);

@@ -2,15 +2,16 @@
  * tests/approvals.test.ts — approval gates (ADR 0028): a tool listed in an
  * agent's require_approval runs only after the next message approves the
  * exact call. Scripted models, in-memory sessions, no provider calls.
- * Each turn-level case runs on both runtimes (tests/helpers/runtime.ts);
- * tests/nativeTurn.test.ts resumes an approval across them.
+ * tests/nativeApprovals.test.ts resumes an approval ADK 2.2 stored (session
+ * fixture 03).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FunctionTool, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
-import type { Event } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
+import type { TurnEvent as Event } from '../lib/runtime/events.ts';
 import { z } from 'zod';
 
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
@@ -20,17 +21,14 @@ import { SKIP_SIGNATURE, trimEventForStorage } from '../lib/session/transcript.t
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
-import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const sent: string[] = [];
 registerTool(
   'approval_test_send',
-  new FunctionTool({
+  defineTool({
     name: 'approval_test_send',
     description: 'Send a note.',
-    parameters: z.object({ to: z.string() }),
+    schema: z.object({ to: z.string() }),
     execute: async ({ to }) => {
       sent.push(to);
       return `sent to ${to}`;
@@ -56,10 +54,9 @@ function delegateConfig(): SyndicateYamlConfig {
 }
 
 function runner(config: SyndicateYamlConfig, models: Record<string, ScriptedLlm>) {
-  const sessionService = new InMemorySessionService();
+  const sessionService = new InProcessSessionService();
   return (parts: any[]) =>
     runSyndicateTurn({
-      ...runtimeOption(),
       config,
       parts,
       appName: 'app',
@@ -71,7 +68,7 @@ function runner(config: SyndicateYamlConfig, models: Record<string, ScriptedLlm>
     });
 }
 
-forEachRuntime('delegate: the gated call waits, then runs once approved', async () => {
+test('delegate: the gated call waits, then runs once approved', async () => {
   sent.length = 0;
   const boss = new ScriptedLlm('scripted/boss', (req, n) => (n === 1 ? call('approval_test_send', { to: 'ops@acme.test' }) : text(`done ${lastResponse(req)}`)));
   const turn = runner(delegateConfig(), { boss });
@@ -90,7 +87,7 @@ forEachRuntime('delegate: the gated call waits, then runs once approved', async 
   assert.match(second.text, /done \{"result":"sent to ops@acme.test"\}/);
 });
 
-forEachRuntime('delegate: a refusal never runs the call and the model is told', async () => {
+test('delegate: a refusal never runs the call and the model is told', async () => {
   sent.length = 0;
   const boss = new ScriptedLlm('scripted/boss', (req, n) => (n === 1 ? call('approval_test_send', { to: 'x@acme.test' }) : text(`saw ${lastResponse(req)}`)));
   const turn = runner(delegateConfig(), { boss });
@@ -101,7 +98,7 @@ forEachRuntime('delegate: a refusal never runs the call and the model is told', 
   assert.match(second.text, /rejected/);
 });
 
-forEachRuntime('an answer that names no open request fails without running anything', async () => {
+test('an answer that names no open request fails without running anything', async () => {
   const boss = new ScriptedLlm('scripted/boss', () => text('hi'));
   const r = await runner(delegateConfig(), { boss })([approvalResponsePart('adk-nope', true)]);
   assert.equal(r.status, 'failed');
@@ -109,7 +106,7 @@ forEachRuntime('an answer that names no open request fails without running anyth
   assert.equal(boss.calls ?? 0, 0);
 });
 
-forEachRuntime('dispatch: the resume skips the classifier and runs the route that asked', async () => {
+test('dispatch: the resume skips the classifier and runs the route that asked', async () => {
   sent.length = 0;
   const config = {
     syndicate_name: 'Desk',

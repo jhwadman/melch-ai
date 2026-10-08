@@ -3,16 +3,11 @@
  *
  * WHY this file exists:
  *   A surface (the A2A server bin, the REPL, the worker, the demos) chooses
- *   how much the engine prints. That choice is the engine's, set here,
- *   rather than a call to ADK's logger from every script. While the ADK
- *   runtime is loaded it follows this level: lib/compileAdk.ts subscribes
- *   and sets ADK's logger to the same level, so a surface that runs a turn
- *   never names ADK to quiet it. When ADK leaves, that subscription goes and
- *   nothing else changes.
+ *   how much the engine prints. That choice is the engine's, set here, and
+ *   a module that prints subscribes with onLogLevel.
  *
  * DEFAULT: `info`, and nothing is pushed to a subscriber until a surface
- *   sets a level. A process that never calls setLogLevel keeps ADK's own
- *   default, and a test that sets ADK's level itself keeps what it set.
+ *   sets a level.
  *
  * A leaf: no imports, so nothing in its import graph names @google/*.
  */

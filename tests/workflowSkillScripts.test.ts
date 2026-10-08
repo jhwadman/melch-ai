@@ -5,9 +5,8 @@
  * tool raises (ADR 0098): the turn ends `input-required` with
  * `result.approval`, and the person's decision resumes the node's own run,
  * which runs the script once or refuses it, and walks on. The script runs
- * with ADR 0086's minimal environment, unchanged. Native runs it; ADK, whose
- * workflow resume never runs the pinned call, refuses it by name before any
- * model call. Scripted models, in-memory sessions, a real script on disk.
+ * with ADR 0086's minimal environment, unchanged. Scripted models, in-memory
+ * sessions, a real script on disk.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -16,17 +15,14 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
 import { approvalResponsePart } from '../lib/runtime/approvals.ts';
-import { UnsupportedOnRuntimeError } from '../lib/runtime/runtimeFlag.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { SyndicateValidationError, validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const FAKE = 'fake-value-not-a-credential';
 /** The script: one mark in the tally file per run, and what it can see of the environment. */
@@ -61,7 +57,7 @@ function chain(dir: string, run: Record<string, unknown> = {}): SyndicateYamlCon
 
 const lastText = (request: ModelRequest) => requestTexts(request).at(-1) ?? '';
 
-function conversation(cfg: SyndicateYamlConfig, runtime: 'adk' | 'native' = 'native') {
+function conversation(cfg: SyndicateYamlConfig) {
   const models = {
     plan: new ScriptedModel('scripted/plan', (request) => answer(`plan(${lastText(request)})`)),
     run: new ScriptedModel('scripted/run', (request, n) =>
@@ -69,9 +65,9 @@ function conversation(cfg: SyndicateYamlConfig, runtime: 'adk' | 'native' = 'nat
     ),
     report: new ScriptedModel('scripted/report', (request) => answer(`report(${lastText(request)})`)),
   };
-  const sessionService = new InMemorySessionService();
+  const sessionService = new InProcessSessionService();
   const turn = (parts: any[]) =>
-    runSyndicateTurn({ runtime, config: cfg, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false });
+    runSyndicateTurn({ config: cfg, parts, appName: 'app', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: shimResolver(models), log: () => {} }, trace: false });
   return { turn, models, sessionService };
 }
 
@@ -148,23 +144,6 @@ test('native: a plain-text message while the script waits repeats the request an
       assert.equal(marks(tally), 0);
       assert.equal(models.run.calls, 1);
     });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('adk: skill scripts on a workflow node are refused by name before any model call', async () => {
-  const { dir } = shelf();
-  try {
-    const { turn, models, sessionService } = conversation(chain(dir), 'adk');
-    await assert.rejects(
-      turn([{ text: 'count' }]),
-      (e: unknown) =>
-        e instanceof UnsupportedOnRuntimeError &&
-        /^Graph: skill scripts \(run_skill_script, an approval pause\) on a workflow node \(Run\) is not supported on the adk runtime yet\. Run it on the native runtime/.test((e as Error).message),
-    );
-    assert.equal(models.plan.calls, 0);
-    assert.equal(await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' }), undefined);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

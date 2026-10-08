@@ -5,7 +5,7 @@
  * WHY HERE: the compiler maps an agent's `reasoning:` key through this, and
  * a model adapter on the contract (lib/models/geminiAdapter.ts) maps a
  * ModelRequest's `reasoning` the same way. Keeping it out of lib/compile.ts
- * keeps ADK out of an adapter's imports. lib/compile.ts re-exports both
+ * keeps the compiler out of an adapter's imports. lib/compile.ts re-exports both
  * names, so existing imports keep working.
  */
 import type { ReasoningLevel, ReasoningSetting } from './contract.ts';

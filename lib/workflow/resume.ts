@@ -32,8 +32,8 @@
  * (`isFastForwardable`), reruns a paused node that reruns on resume
  * (`rerunsOnResume`) on its recorded input with the answers in
  * `NodeRun.resumeInputs`, and walks on. An ask_user node rerun with an
- * answer outputs `{ reply, input }` (pause.ts), as the FunctionNode
- * lib/workflow.ts compiles does.
+ * answer outputs `{ reply, input }` (pause.ts), as ADK's FunctionNode for
+ * it did.
  *
  * TRUST: the answers are the person's words and the stored events are the
  * session's; both are data the walk carries, never instructions this module
@@ -359,8 +359,8 @@ export function isFastForwardable(run: PriorNodeRun): boolean {
 }
 
 /**
- * ADK's rerunOnResume, by node kind as lib/workflow.ts compiles them: an
- * agent (LlmAgent), an ask_user node (its FunctionNode sets it) and a map
+ * ADK's rerunOnResume, by node kind as ADK built them: an agent
+ * (LlmAgent), an ask_user node (its FunctionNode set it) and a map
  * (ParallelWorker) run again on resume; a tool node, a join and a route
  * step (BaseNode's default) do not, and resolve to their answers instead.
  */

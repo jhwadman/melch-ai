@@ -1,13 +1,12 @@
 /**
- * tests/helpers/workflowParity.ts — one workflow syndicate run on both
- * runtimes with the same scripted models, for the workflow parity suites.
+ * tests/helpers/workflowParity.ts — one workflow syndicate run with
+ * scripted models and held equal to ADK's recorded side, for the workflow
+ * parity suites.
  *
- * `onAdk` runs the turn on ADK (runSyndicateTurn, runtime adk:
- * compileWorkflow, ADK's Runner). `onNativeTurn` runs the same turn on
- * native (runSyndicateTurn, runtime native: lib/workflow/turn.ts). `adkSide`
- * is ADK's side as the suites compare it: recorded in
- * tests/fixtures/adk-reference (tests/helpers/adkReference.ts), run live on
- * ADK only under ADK_REFERENCE=live|record. `onNative`
+ * `onNativeTurn` runs the turn (runSyndicateTurn: lib/workflow/turn.ts).
+ * `adkSide` is ADK's side as the suites compare it, recorded in
+ * tests/fixtures/adk-reference by WS5-2a before 1.0.0 removed ADK
+ * (tests/helpers/adkReference.ts). `onNative`
  * drives the native modules by hand, as the turn wires them: the user's
  * message stored as the Runner stores it, then the scheduler
  * (lib/workflow/scheduler.ts) with the ask_user and tool node runners
@@ -25,7 +24,6 @@ import type { ModelAdapter, ModelRequest } from '../../lib/models/contract.ts';
 import { createTurnEvent } from '../../lib/runtime/events.ts';
 import type { TurnContent, TurnEvent } from '../../lib/runtime/events.ts';
 import type { NativeAgent } from '../../lib/runtime/native/request.ts';
-import { asAdkSessionService } from '../../lib/runtime/adkSessionBridge.ts';
 import { InProcessSessionService } from '../../lib/runtime/sessions.ts';
 import { drainAgentStream, runSyndicateTurn } from '../../lib/runtime/syndicateTurn.ts';
 import { validateSyndicateConfig } from '../../lib/syndicateSchema.ts';
@@ -70,13 +68,6 @@ export interface AdkSide extends Omit<Side, 'models'> {
 /** A model's requests as a side compares them: the signal aside, in JSON's form (what a recording holds). */
 export const requestsOf = (m: ScriptedModel): Array<Omit<ModelRequest, 'signal'>> => JSON.parse(JSON.stringify(m.requests.map(({ signal: _s, ...r }) => r)));
 
-/** A live ADK Side in the recorded form. */
-export const recordedSide = ({ models, ...side }: Side): AdkSide => ({
-  ...side,
-  requests: Object.fromEntries(Object.entries(models).map(([k, m]) => [k, requestsOf(m)])),
-  calls: Object.fromEntries(Object.entries(models).map(([k, m]) => [k, m.calls])),
-});
-
 const modelsFor = (scripts: Scripts) => Object.fromEntries(Object.entries(scripts).map(([key, script]) => [key, new ScriptedModel(`scripted/${key}`, script)]));
 
 const routesOf = (events: TurnEvent[]) => Object.fromEntries(events.filter((e) => e.route !== undefined).map((e) => [e.author!, e.route]));
@@ -96,12 +87,11 @@ export async function progressOf(events: TurnEvent[]): Promise<string[]> {
   return progress;
 }
 
-/** The turn through runSyndicateTurn on `runtime`. */
-async function onTurn(runtime: 'adk' | 'native', cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> {
+/** Native: the turn as runSyndicateTurn runs it on the engine's scheduler (lib/workflow/turn.ts). */
+export async function onNativeTurn(cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> {
   const models = modelsFor(scripts);
-  // ADK's own in-memory store under ADK; the engine's on native, as a consumer without ADK holds it (ADR 0102).
-  const sessionService = runtime === 'adk' ? new (await import('@google/adk')).InMemorySessionService() : asAdkSessionService(new InProcessSessionService());
-  if (state) await sessionService.createSession({ appName: 'app', userId: 'u', sessionId: 's', state });
+  const sessionService = new InProcessSessionService();
+  if (state) await sessionService.create({ appName: 'app', userId: 'u', sessionId: 's', state });
   const progress: string[] = [];
   const r = await runSyndicateTurn({
     config: cfg,
@@ -112,22 +102,14 @@ async function onTurn(runtime: 'adk' | 'native', cfg: SyndicateYamlConfig, scrip
     sessionService,
     compile: { resolveModel: shimResolver(models), log: () => {} },
     trace: false,
-    runtime,
     events: { onProgress: (t: string) => progress.push(t) },
   });
-  const events = JSON.parse(JSON.stringify((await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
+  const events = JSON.parse(JSON.stringify((await sessionService.get({ appName: 'app', userId: 'u', sessionId: 's' }))!.events)) as TurnEvent[];
   return { status: r.status, ...(r.error ? { error: r.error.message } : {}), events, models, progress, routes: routesOf(events), output: terminalOutput(cfg, events) };
 }
 
-/** ADK, live: the turn as runSyndicateTurn runs it on ADK's Runner. Only inside a reference's live callback. */
-export const onAdk = (cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> => onTurn('adk', cfg, scripts, text, state);
-
-/** ADK's side of case `name`: the recording, or (ADK_REFERENCE=live|record) the turn on ADK's Runner. */
-export const adkSide = (reference: AdkReference, name: string, cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<AdkSide> =>
-  reference(name, async () => recordedSide(await onAdk(cfg, scripts, text, state)));
-
-/** Native: the turn as runSyndicateTurn runs it on the engine's scheduler (lib/workflow/turn.ts). */
-export const onNativeTurn = (cfg: SyndicateYamlConfig, scripts: Scripts, text: string, state?: Record<string, unknown>): Promise<Side> => onTurn('native', cfg, scripts, text, state);
+/** ADK's side of case `name`, as recorded. */
+export const adkSide = (reference: AdkReference, name: string): Promise<AdkSide> => reference<AdkSide>(name);
 
 /** Every agent of the syndicate compiled for native, by YAML name. */
 export async function nativeAgents(cfg: SyndicateYamlConfig): Promise<Map<string, NativeAgent>> {
@@ -166,7 +148,7 @@ export async function onNative(cfg: SyndicateYamlConfig, scripts: Scripts, text:
   let error: string | undefined;
   try {
     const run = await runWorkflowGraph(buildWorkflowGraph(cfg), { input: userContent, runNode, onEvent: runtime.onEvent });
-    // A paused walk: the workflow's own record, as ADK's Workflow writes it.
+    // A paused walk: the workflow's own record, as the turn writes it.
     if (run.interruptIds.length > 0) {
       await runtime.store(workflowPauseEvent({ name: cfg.syndicate_name, invocationId, input: text, interruptIds: run.interruptIds }));
       status = 'input-required';
@@ -213,7 +195,7 @@ function agrees(native: Side, adk: AdkSide, scripts: Scripts, how: string): void
 }
 
 /**
- * Takes ADK's side of the case (recorded, or live), runs it on the native modules by hand, and through the
+ * Takes ADK's recorded side of the case, runs it on the native modules by hand, and through the
  * native turn, and holds both native sides equal to ADK's; the turn's status
  * too, which the hand-driven side only approximates.
  */
@@ -225,7 +207,7 @@ export async function bothAgree(
   text: string,
   state?: Record<string, unknown>,
 ): Promise<{ adk: AdkSide; native: Side; turn: Side }> {
-  const adk = await adkSide(reference, name, cfg, scripts, text, state);
+  const adk = await adkSide(reference, name);
   const native = await onNative(cfg, scripts, text, state);
   agrees(native, adk, scripts, 'the native walk');
   const turn = await onNativeTurn(cfg, scripts, text, state);

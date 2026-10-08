@@ -17,14 +17,11 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LogLevel, setLogLevel } from '@google/adk';
 
 import { CHECKS, exitCodeFor, parseArgs, renderReport, requestedRuntime, runParity, UsageError } from '../scripts/parity_check.ts';
 import type { ParityReport } from '../scripts/parity_check.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { REDACTION_PATTERNS } from '../lib/observability/redact.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 /** Key-shaped strings (the ledger's own patterns), and header or body markers. */
 const SECRET_SHAPES = new RegExp(`${REDACTION_PATTERNS.secret.source}|x-api-key|authorization|"messages"|"contents"`, 'i');
@@ -87,7 +84,7 @@ test('the table: one row per provider, one column per check, failures named', as
 
 test('no provider ran: the run fails', () => {
   const empty: ParityReport = {
-    harness: 'parity', version: 1, mode: 'live', runtime: { requested: 'adk', ran: 'adk' },
+    harness: 'parity', version: 1, mode: 'live', runtime: { requested: 'native', ran: 'native' },
     startedAt: '', finishedAt: '', durationMs: 0, providers: [], skipped: [{ provider: 'xai', reason: 'XAI_API_KEY not set' }], pass: false,
   };
   assert.equal(exitCodeFor(empty), 1);
@@ -95,9 +92,10 @@ test('no provider ran: the run fails', () => {
   assert.match(renderReport(empty), /xai — XAI_API_KEY not set/);
 });
 
-test('MELCHIZEDEK_RUNTIME: adk by default, native runs every turn on native, anything else a usage error', async () => {
+test('MELCHIZEDEK_RUNTIME: native by default and when named, adk or anything else a usage error', async () => {
   assert.equal(requestedRuntime({}), 'native');
   assert.equal(requestedRuntime({ MELCHIZEDEK_RUNTIME: 'NATIVE' }), 'native');
+  assert.throws(() => requestedRuntime({ MELCHIZEDEK_RUNTIME: 'adk' }), UsageError);
   assert.throws(() => requestedRuntime({ MELCHIZEDEK_RUNTIME: 'langgraph' }), UsageError);
   const report = await runParity({ scripted: true, runtime: 'native' });
   assert.deepEqual(report.runtime, { requested: 'native', ran: 'native' });
@@ -146,4 +144,5 @@ test('CLI --scripted with a deliberately failing check: exit non-zero', () => {
 test('CLI: a usage error exits 2', () => {
   assert.equal(cli(['--bogus']).status, 2);
   assert.equal(cli(['--scripted'], { MELCHIZEDEK_RUNTIME: 'other' }).status, 2);
+  assert.equal(cli(['--scripted'], { MELCHIZEDEK_RUNTIME: 'adk' }).status, 2);
 });

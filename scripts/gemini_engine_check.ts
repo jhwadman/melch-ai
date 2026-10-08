@@ -2,11 +2,11 @@
 /**
  * scripts/gemini_engine_check.ts — the live run gate G3 asks for (ADR 0045,
  * ADR 0100): the engine's own GeminiAdapter (lib/models/geminiAdapter.ts)
- * against the real Gemini API, on both runtimes, for what only a live call
- * can confirm.
+ * against the real Gemini API on the native runtime, for what only a live
+ * call can confirm.
  *
  * Four cases, each one syndicate with one Gemini orchestrator, run through
- * runSyndicateTurn on an in-memory session:
+ * runSyndicateTurn on an in-process session:
  *
  *   grounding   web_search and url_context: an answer, with grounding
  *               metadata on a stored event
@@ -19,10 +19,8 @@
  *               low: the second turn's requests carry the first turn's history
  *               (earlier turns' signatures left out) and Gemini accepts them
  *
- * Each case runs on `adk` (the ADK runtime, the adapter behind the ADK shim
- * through CompileOptions.resolveModel) and on `native` (GEMINI_ADAPTER=engine).
- * `--gemini adk` runs the native side on the wrapper over ADK's Gemini
- * instead, and the ADK side on ADK's own Gemini, for a baseline.
+ * Each case runs on `native`, the only runtime (ADR 0107), with
+ * GEMINI_ADAPTER=engine. `--runtimes` accepts `native` only.
  *
  * Only case names, runtimes, outcomes, counts and timings are printed — never
  * a key, a request body or the model's answer. An error message is printed
@@ -31,8 +29,7 @@
  * Usage:
  *   node --experimental-strip-types scripts/gemini_engine_check.ts
  *   node --experimental-strip-types scripts/gemini_engine_check.ts --model gemini-3.5-flash
- *   node --experimental-strip-types scripts/gemini_engine_check.ts --cases grounding,code --runtimes native
- *   node --experimental-strip-types scripts/gemini_engine_check.ts --gemini adk
+ *   node --experimental-strip-types scripts/gemini_engine_check.ts --cases grounding,code
  *
  * Needs GOOGLE_GENAI_API_KEY (or GEMINI_API_KEY), or GEMINI_PLATFORM=vertex
  * with its project and location. Every case is a billed call.
@@ -43,26 +40,24 @@
 import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-import { InMemorySessionService } from '@google/adk';
 import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { loadEnv } from '../lib/loadEnv.ts';
-import { adkShim } from '../lib/models/adkShim.ts';
-import { GeminiAdapter } from '../lib/models/geminiAdapter.ts';
 import { providerForModel, providerStatuses } from '../lib/models/registry.ts';
 import { patternRedactor } from '../lib/observability/redact.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult, TurnEvents } from '../lib/runtime/syndicateTurn.ts';
+import { RUNTIMES } from '../lib/runtime/runtimeFlag.ts';
 import type { RuntimeName } from '../lib/runtime/runtimeFlag.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 
 export const CASES = ['grounding', 'code', 'mixed', 'session'] as const;
 export type CaseName = (typeof CASES)[number];
-const RUNTIMES: readonly RuntimeName[] = ['adk', 'native'];
 const DEFAULT_MODEL = 'gemini-3.8-flash';
 const TURN_DEADLINE_MS = 180_000;
 const ERROR_MAX = 240;
@@ -151,23 +146,13 @@ function syndicate(name: CaseName, agent: Record<string, unknown>): SyndicateYam
   ) as SyndicateYamlConfig;
 }
 
-/** One case on one runtime. The environment's GEMINI_ADAPTER is set for the native side only. */
-async function runCase(
-  name: CaseName,
-  spec: CaseSpec,
-  runtime: RuntimeName,
-  gemini: 'engine' | 'adk',
-): Promise<{ failure?: string; runs: TurnRun[]; ms: number }> {
+/** One case on one runtime, with GEMINI_ADAPTER=engine for its duration. */
+async function runCase(name: CaseName, spec: CaseSpec, runtime: RuntimeName): Promise<{ failure?: string; runs: TurnRun[]; ms: number }> {
   const config = syndicate(name, spec.agent);
-  const sessionService = new InMemorySessionService();
+  const sessionService = new InProcessSessionService();
   const sessionId = `gemini-check-${name}-${runtime}-${Date.now()}`;
-  const resolveModel =
-    runtime === 'adk' && gemini === 'engine'
-      ? (id: string | undefined) => (id && providerForModel(id) === 'gemini' ? adkShim(new GeminiAdapter({ model: id })) : id)
-      : undefined;
   const saved = process.env.GEMINI_ADAPTER;
-  if (runtime === 'native') process.env.GEMINI_ADAPTER = gemini;
-  else delete process.env.GEMINI_ADAPTER;
+  process.env.GEMINI_ADAPTER = 'engine';
   const runs: TurnRun[] = [];
   const t0 = Date.now();
   try {
@@ -191,7 +176,6 @@ async function runCase(
           userId: 'gemini-check',
           sessionId,
           sessionService,
-          ...(resolveModel ? { compile: { resolveModel } } : {}),
           deadlineMs: TURN_DEADLINE_MS,
           runtime,
           trace: false,
@@ -210,18 +194,16 @@ async function runCase(
   return { failure: spec.verdict(runs), runs, ms: Date.now() - t0 };
 }
 
-function parseArgs(argv: string[]): { model: string; cases: CaseName[]; runtimes: RuntimeName[]; gemini: 'engine' | 'adk' } | string {
+function parseArgs(argv: string[]): { model: string; cases: CaseName[]; runtimes: RuntimeName[] } | string {
   let model = DEFAULT_MODEL;
   let cases: CaseName[] = [...CASES];
   let runtimes: RuntimeName[] = [...RUNTIMES];
-  let gemini: 'engine' | 'adk' = 'engine';
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const value = argv[i + 1];
     if (flag === '--model' && value) model = value;
     else if (flag === '--cases' && value) cases = value.split(',').map((c) => c.trim()) as CaseName[];
     else if (flag === '--runtimes' && value) runtimes = value.split(',').map((r) => r.trim()) as RuntimeName[];
-    else if (flag === '--gemini' && (value === 'engine' || value === 'adk')) gemini = value;
     else return `unknown or incomplete argument: ${flag}`;
     i++;
   }
@@ -229,8 +211,8 @@ function parseArgs(argv: string[]): { model: string; cases: CaseName[]; runtimes
   const badCase = cases.find((c) => !CASES.includes(c));
   if (badCase) return `unknown case: ${badCase} (one of ${CASES.join(', ')})`;
   const badRuntime = runtimes.find((r) => !RUNTIMES.includes(r));
-  if (badRuntime) return `unknown runtime: ${badRuntime} (adk or native)`;
-  return { model, cases, runtimes, gemini };
+  if (badRuntime) return `unknown runtime: ${badRuntime} (native is the only runtime)`;
+  return { model, cases, runtimes };
 }
 
 /** `readEnvFile: false` leaves .env unread (the offline test sets its own fixture env). */
@@ -248,12 +230,12 @@ export async function main(argv = process.argv.slice(2), options: { readEnvFile?
     return 2;
   }
   registerTool(TOOL, lookup, { override: true });
-  console.log(`Gemini ${args.model} · adapter ${args.gemini === 'engine' ? 'GeminiAdapter (engine)' : 'ADK Gemini (baseline)'}`);
+  console.log(`Gemini ${args.model} · adapter GeminiAdapter (engine)`);
   const all = specs(args.model);
   let failed = 0;
   for (const name of args.cases) {
     for (const runtime of args.runtimes) {
-      const { failure, runs, ms } = await runCase(name, all[name], runtime, args.gemini);
+      const { failure, runs, ms } = await runCase(name, all[name], runtime);
       if (failure) failed++;
       const calls = runs.reduce((n, r) => n + (r.result?.usage.llmCalls ?? 0), 0);
       const code = runs.reduce((n, r) => n + r.codeParts, 0);

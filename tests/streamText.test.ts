@@ -7,8 +7,7 @@
  * them; narration before a tool call is discarded; the artifact is closed
  * with the text the user actually receives; a syndicate with guards never
  * streams; and the final status message is unchanged for clients that read
- * only that. The server cases run on both runtimes, through
- * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
+ * only that.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -21,8 +20,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
-import type { LlmResponse } from '@google/adk';
+import type { LlmResponse } from '../lib/models/genaiMapping.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import type { A2AApp } from '../lib/a2a/app.ts';
@@ -34,9 +32,6 @@ import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { drainAgentStream } from '../lib/runtime/syndicateTurn.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, streamedAnswer, toolCall } from './helpers/scriptedModel.ts';
-import { forEachRuntime } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const SECRET = 'test-secret-0123456789abcdef0123456789'; // gitleaks:allow (test fixture)
 const dir = mkdtempSync(join(tmpdir(), 'melch-stream-'));
@@ -79,7 +74,7 @@ before(async () => {
   built = await createA2AApp({
     defaultSyndicate: 'writer.yaml',
     serverSecret: SECRET,
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     keyMode: 'byok',
     streamText: true,
     resolveModel: (id) => models[(id ?? '').replace('scripted/', '')]!(),
@@ -127,7 +122,7 @@ const finalText = (results: any[]) => {
   return { state: final?.status?.state, text: (final?.status?.message?.parts ?? []).map((p: any) => p.text ?? '').join('') };
 };
 
-forEachRuntime('chunks stream as an answer artifact, then close with the whole text', async () => {
+test('chunks stream as an answer artifact, then close with the whole text', async () => {
   const results = await streamResults('writer', 'hi');
   assert.deepEqual(artifacts(results), [
     { text: 'Hello', append: false, last: false },
@@ -138,7 +133,7 @@ forEachRuntime('chunks stream as an answer artifact, then close with the whole t
   assert.deepEqual(finalText(results), { state: 'completed', text: 'Hello, world.' });
 });
 
-forEachRuntime('narration before a tool call is withdrawn; only the answer remains', async () => {
+test('narration before a tool call is withdrawn; only the answer remains', async () => {
   const results = await streamResults('narrator', 'look it up');
   const a = artifacts(results);
   assert.deepEqual(a[0], { text: 'Let me check. ', append: false, last: false });
@@ -147,7 +142,7 @@ forEachRuntime('narration before a tool call is withdrawn; only the answer remai
   assert.equal(finalText(results).text, 'Final answer.');
 });
 
-forEachRuntime('a syndicate with guards never streams; the guarded text arrives whole', async () => {
+test('a syndicate with guards never streams; the guarded text arrives whole', async () => {
   const results = await streamResults('guarded', 'hi');
   assert.deepEqual(artifacts(results), []);
   assert.deepEqual(finalText(results), { state: 'completed', text: 'HELLO, WORLD.' });

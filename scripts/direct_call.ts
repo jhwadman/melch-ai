@@ -7,8 +7,8 @@
  * block marked "the direct call" below is the whole integration surface of
  * the engine's model contract (lib/models/contract.ts, ADR 0048): resolve an
  * adapter for a model id, send it a request, read its responses. In your own
- * repo the import is `melchizedek-agents/model`, which loads no
- * `@google/adk` (ADR 0068).
+ * repo the import is `melchizedek-agents/model`, which loads neither the
+ * compiler nor the runtime (ADR 0068).
  *
  * The id's prefix picks the provider (gemini-*, claude-*, gpt-*, grok-*,
  * kimi-*, ollama/*), and the provider's key comes from the environment, or

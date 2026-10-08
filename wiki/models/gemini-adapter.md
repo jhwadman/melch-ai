@@ -1,7 +1,7 @@
 ---
 type: model-provider
 title: Gemini adapter
-description: "GeminiAdapter (lib/models/geminiAdapter.ts): Gemini behind the engine's model contract on @google/genai directly, with no ADK in the path. How it reaches the Gemini API or Vertex AI, the choices it makes inside the contract's Gemini mapping, grounding, code execution and server-side invocations, thought signatures, failures, and what only a live run can confirm."
+description: "GeminiAdapter (lib/models/geminiAdapter.ts): Gemini behind the engine's model contract on @google/genai directly, the only Gemini adapter. How it reaches the Gemini API or Vertex AI, the choices it makes inside the contract's Gemini mapping, grounding, code execution and server-side invocations, thought signatures, failures, and what only a live run can confirm."
 tags:
   - models
   - gemini
@@ -25,9 +25,9 @@ sources:
 
 # Gemini adapter
 
-`GeminiAdapter` in `lib/models/geminiAdapter.ts` is Gemini as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)). It calls `@google/genai` itself: `models.generateContent`, or `models.generateContentStream` when the request streams. ADK's `Gemini` class plays no part in it. It is the native runtime's Gemini ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
+`GeminiAdapter` in `lib/models/geminiAdapter.ts` is Gemini as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)). It calls `@google/genai` itself: `models.generateContent`, or `models.generateContentStream` when the request streams. It is the native runtime's Gemini ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
 
-On the optional adk runtime every Gemini id is served by `TracedGemini`, ADK's `Gemini` wrapped in `lib/models/tracedGemini.ts`, as [provider routing](/models/provider-routing.md) describes. On the contract, the registry's `resolveAdapter` returns this adapter for every Gemini id by default, so it serves Gemini on the native runtime, the default ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md), [ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)); `GEMINI_ADAPTER=adk` or the option `{ gemini: 'adk' }` selects [the wrapper over ADK's Gemini](/models/adk-gemini-adapter.md) instead, for one release, with `@google/adk` installed ([ADR 0060](/decisions/0060-engine-owned-registry.md)). The ADK-free entry `melchizedek-agents/model` has no wrapper, so its `resolveAdapter` returns this adapter for every Gemini id and refuses `adk` ([ADR 0068](/decisions/0068-model-entry-without-adk.md)).
+`resolveAdapter` (the registry's and `melchizedek-agents/model`'s) returns this adapter for every Gemini id, as [provider routing](/models/provider-routing.md) describes ([ADR 0060](/decisions/0060-engine-owned-registry.md), [ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)). It is the only Gemini adapter: `GEMINI_ADAPTER=engine` changes nothing, and `GEMINI_ADAPTER=adk` (or the option `{ gemini: 'adk' }`) is an error naming 1.0.0, the release that removed the Gemini path through ADK ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)).
 
 The field-by-field mapping is the Gemini table of the [model contract](/models/model-contract.md). This page records how the adapter reaches Gemini, the choices it makes inside that table, and what the offline tests cannot confirm.
 
@@ -39,7 +39,7 @@ new GeminiAdapter({ model, apiKey?, endpoint?, clientFactory?, placeholderSignat
 
 - **`endpoint`** is the platform ([ADR 0023](/decisions/0023-bring-your-own-endpoint.md)). It defaults to `endpointFromEnv('gemini')` from `lib/models/endpoints.ts`, read on the first call, and the client is built once.
 - **The Gemini API.** The key is the first of: `apiKey`, the endpoint's `apiKey`, then `GOOGLE_GENAI_API_KEY`, `GOOGLE_API_KEY` and `GEMINI_API_KEY`, in ADK's order. The client is built with `vertexai: false`, so the SDK's own `GOOGLE_GENAI_USE_VERTEXAI` cannot override a platform the endpoint has chosen.
-- **Vertex AI.** The client is built with `vertexai: true` and the endpoint's `project` and `location`, and it authenticates with Google Application Default Credentials. No AI Studio key is sent, a caller's included, as with `TracedGemini`.
+- **Vertex AI.** The client is built with `vertexai: true` and the endpoint's `project` and `location`, and it authenticates with Google Application Default Credentials. No AI Studio key is sent, a caller's included.
 - **The wire model** is `platformModel(endpoint, model)`, so `GEMINI_MODEL_MAP` applies.
 - **`clientFactory`** builds the client from the derived `GoogleGenAIOptions`. The default is `new GoogleGenAI(options)`, and tests inject a fake.
 - **`placeholderSignatures`** turns on Gemini's placeholder thought signature (see [Thought signatures](#thought-signatures)). The default is `PLACEHOLDER_SIGNATURES_BY_DEFAULT`, which is false.
@@ -57,7 +57,7 @@ The contract's Gemini table holds, with these choices inside it:
 
 - **Schemas go as written.** Tool parameters go in `functionDeclarations[].parametersJsonSchema`, and `outputSchema` goes in `responseJsonSchema` with `responseMimeType: 'application/json'`. Both are lowercase JSON Schema. Nothing converts them to Gemini's uppercase `Schema` dialect, and `parameters` and `responseSchema` are never set. `outputFormat: 'json'` without a schema sends `responseMimeType: 'application/json'` alone, Gemini's JSON mode ([ADR 0061](/decisions/0061-json-mode-on-the-contract.md)).
 - **Native tools.** `web_search` and `google_search` become one `googleSearch` tool. `url_context` becomes `urlContext`, and `code_execution` becomes `codeExecution`. `x_search` and `collections_search` are dropped: the span carries `llm.capability.dropped`, and the adapter warns once per tool. `llm.web_search.native` marks a grounded request.
-- **Server-side invocations.** When native tools sit beside function declarations, `toolConfig.includeServerSideToolInvocations: true` is sent, as the ADK path sends it (`lib/compile.ts`), and Gemini returns its server-side `toolCall` and `toolResponse` parts. It goes on the Gemini API only: `@google/genai` throws before any request when a Vertex AI client is given it ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)). With function declarations alone, or native tools alone, it is not sent.
+- **Server-side invocations.** When native tools sit beside function declarations, `toolConfig.includeServerSideToolInvocations: true` is sent, and Gemini returns its server-side `toolCall` and `toolResponse` parts. It goes on the Gemini API only: `@google/genai` throws before any request when a Vertex AI client is given it ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)). With function declarations alone, or native tools alone, it is not sent.
 - **Tool choice** is sent only when function declarations are present. `auto`, `none`, `required` and `{ name }` become `AUTO`, `NONE`, `ANY`, and `ANY` with `allowedFunctionNames`. Any `strict` declaration makes the mode `VALIDATED` when the choice is `auto` or absent. With no choice, no strict tool and no server-side invocations, no `toolConfig` is sent, which leaves the provider default.
 - **Reasoning** maps through `reasoningConfig` in `lib/compile.ts` ([ADR 0047](/decisions/0047-provider-neutral-reasoning-key.md)) for the request's model id, as the YAML names it. Gemini 3 gets a `thinkingLevel`, and Gemini 1.x and 2.x a `thinkingBudget`, as does any `budget_tokens` above 0. `includeThoughts: true` is added unless the setting is `none` (or a budget of 0). The effort word that `reasoningConfig` also returns is never sent.
 - **Sampling** maps to `temperature`, `topP`, `maxOutputTokens` and `stopSequences`, as given. `maxOutputTokens` is not raised for thinking.
@@ -68,7 +68,7 @@ The contract's Gemini table holds, with these choices inside it:
   - A content left with no parts is not sent, because Vertex AI rejects the whole request for one.
   - `providerState` itself never reaches the wire.
 - **Call ids.** An id that starts with `adk-` (the engine's, and ADK's) or `genai-noid-` (minted by the [genai mapping](/models/model-contract.md#the-reverse-directions); `MINTED_CALL_ID_PREFIX` in `lib/models/geminiState.ts`) is left off the wire, on the call and on its `functionResponse`. Gemini's own ids go back.
-- **The signal** is `request.signal` alone, sent in `config.abortSignal`. The adapter reads no turn state: its caller passes the turn's signal ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)): the native loop's model step, or the [ADK shim](/models/adk-shim.md) on the adk runtime.
+- **The signal** is `request.signal` alone, sent in `config.abortSignal`. The adapter reads no turn state: its caller, the native loop's model step, passes the turn's signal ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)).
 
 ## The response
 
@@ -90,7 +90,7 @@ The adapter writes a part's `thoughtSignature` as `providerState: { provider: 'g
 
 - **A signature on a thought part moves forward** to the next part Gemini sent, an output part or a carried part. When that part has a signature of its own, its own wins. A trailing signature with no part after it stays with the last part, if that part has none of its own.
 - **An empty text part carrying a signature** closes the text before it. That is how a streamed answer's signature usually arrives.
-- **On replay**, a signature goes back on the same part, and carried parts go back immediately before the part that holds them, with their own signatures. A carried part read back from a stored event (the mapping's `genai_part` state holding `executableCode`, `codeExecutionResult`, `toolCall` or `toolResponse`) goes back as that part, verbatim, in its place. All of this happens only on assistant messages of the current turn: those after the last user message (`currentTurnStart`). Earlier turns' signatures and carried parts are left out; ADK's Gemini sends an earlier turn's stored parts as they are.
+- **On replay**, a signature goes back on the same part, and carried parts go back immediately before the part that holds them, with their own signatures. A carried part read back from a stored event (the mapping's `genai_part` state holding `executableCode`, `codeExecutionResult`, `toolCall` or `toolResponse`) goes back as that part, verbatim, in its place. All of this happens only on assistant messages of the current turn: those after the last user message (`currentTurnStart`). Earlier turns' signatures and carried parts are left out.
 - **Model-bound.** Only this model's signatures, or ones that name no model, are replayed. Another provider's state, or another Gemini model's signature, is ignored. Another Gemini model's carried parts go back without their signatures.
 - **A signature stored on a thinking part** goes on the next part sent from that message.
 - **The placeholder.** Gemini 3 rejects a current-turn step whose first function call has no signature, as after a mid-turn fallback from another provider or model. With `placeholderSignatures: true`, that call gets `PLACEHOLDER_THOUGHT_SIGNATURE` (`skip_thought_signature_validator`, Gemini's documented value). It is off by default: [the live check](#the-live-check) does not exercise it, so it stays unconfirmed. The constant lives in `lib/models/geminiState.ts`, and this module re-exports it; the native loop's self-correction signs a Gemini 3 reflection call with it ([ADR 0103](/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md)).
@@ -116,20 +116,20 @@ Every call ends with exactly one final, and a failure is that final with `error`
 
 ## Telemetry
 
-The adapter sets attributes on the active span: `llm.retries`, `llm.http_status`, `llm.finish_reason`, `llm.web_search.native` and `llm.capability.dropped`. It opens no span of its own and does not charge the turn's step budget. Both stay with the caller ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)): the native loop's model step, or on the adk runtime the [ADK shim](/models/adk-shim.md), both through `traceLlmGeneration`. The [wrapper over ADK's Gemini](/models/adk-gemini-adapter.md) keeps the same rule.
+The adapter sets attributes on the active span: `llm.retries`, `llm.http_status`, `llm.finish_reason`, `llm.web_search.native` and `llm.capability.dropped`. It opens no span of its own and does not charge the turn's step budget. Both stay with the caller, the native loop's model step, through `traceLlmGeneration` ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)).
 
 ## From the native step
 
 On the native runtime the adapter receives the request the [native step](/overview/native-loop.md) builds (`buildModelRequest`, `lib/runtime/native/request.ts`). The step reads each tool by marker ([ADR 0062](/decisions/0062-server-side-tools-as-markers.md)):
 
-- **Server-side tools are request flags.** On a Gemini model, `web_search` and `google_search` reach the adapter as the `nativeTools` entry `web_search`, and `url_context` as `url_context`. None is declared as a function, and none is handed to the loop to run. The adapter sends them as `{ googleSearch: {} }` and `{ urlContext: {} }`. On another model, `url_context` adds no flag, and `google_search` is refused as the adk runtime refuses it. The registry hands the adk runtime its own objects: the shared `WEB_SEARCH` and `URL_CONTEXT` sentinels, and ADK's `GOOGLE_SEARCH`.
+- **Server-side tools are request flags.** On a Gemini model, `web_search` and `google_search` reach the adapter as the `nativeTools` entry `web_search`, and `url_context` as `url_context`. None is declared as a function, and none is handed to the loop to run. The adapter sends them as `{ googleSearch: {} }` and `{ urlContext: {} }`. On another model, `url_context` adds no flag, and `google_search` is refused.
 - **Memory tools** ([ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md)). `load_memory` is a function declaration whose `parametersJsonSchema` is its lowercase schema as written. While the run has memory, its note and `preload_memory`'s `<PAST_CONVERSATIONS>` block go in `systemInstruction`, in the agent's tool order. Without memory, neither writes anything. The model's `load_memory` call goes back to Gemini as a `functionCall`, and the tool's result as the matching `functionResponse`, with the engine's minted call id kept off the wire.
 
-`tests/geminiNativeTools.test.ts` asserts all of this on the real `GoogleGenAI` client over a stubbed `fetch`. It runs a two-step session in which Gemini calls `load_memory` and answers from the result; the test runs the tool itself between the two model steps, as the loop's tool step does. It also compiles the model zoo, the research example and Ares, builds each Gemini agent's native request from the agent `compileNative` builds (`lib/compileNative.ts`), and asserts the tools on the wire: the Zookeeper's six explainers, research's evidence tools and Triage's schema with no tools, Ares's `WarScribe` and `load_memory` with the preloaded facts, and `WarScribe`'s `googleSearch` alone. A delegating root's subagents are handed over there as the `AgentTool`s the adk runtime compiles, since the test builds requests only; delegation on the native loop (`lib/runtime/native/delegate.ts`) is held by the boundary suite, `tests/syndicateTurn.test.ts`, on both runtimes.
+`tests/geminiNativeTools.test.ts` asserts all of this on the real `GoogleGenAI` client over a stubbed `fetch`. It runs a two-step session in which Gemini calls `load_memory` and answers from the result; the test runs the tool itself between the two model steps, as the loop's tool step does. It also compiles the model zoo, the research example and Ares, builds each Gemini agent's native request from the agent `compileNative` builds (`lib/compileNative.ts`), and asserts the tools on the wire: the Zookeeper's six explainers, research's evidence tools and Triage's schema with no tools, Ares's `WarScribe` and `load_memory` with the preloaded facts, and `WarScribe`'s `googleSearch` alone. The test builds requests only; delegation on the native loop (`lib/runtime/native/delegate.ts`) is held by the boundary suite, `tests/syndicateTurn.test.ts`.
 
 ## Where it differs from ADK's Gemini on the wire
 
-For the same agent, the request differs from the one ADK's `Gemini` (`TracedGemini`) sends in three places. Each is a choice that changes nothing Gemini does, and nothing stored depends on any of them ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)):
+For the same agent, the request differs from the one ADK's `Gemini` sent, as recorded in `tests/fixtures/adk-reference/` ([ADR 0108](/decisions/0108-adk-reference-recorded-by-the-parity-suites.md)), in three places. Each is a choice that changes nothing Gemini does, and nothing stored depends on any of them ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)):
 
 - **Schemas** are JSON Schema in `parametersJsonSchema` and `responseJsonSchema`, where ADK sends Gemini's `Schema` in `parameters` and `responseSchema`, with upper-case types. A YAML schema written in Gemini's dialect (`type: OBJECT`) reaches this adapter lowercased.
 - **The system instruction** carries no `role`. ADK's sets `role: 'user'` on it.
@@ -137,7 +137,7 @@ For the same agent, the request differs from the one ADK's `Gemini` (`TracedGemi
 
 Two more differences show only on some requests: the tools' order (ADK's code executor puts `codeExecution` first, this adapter puts function declarations first; Gemini reads them as a set), and an earlier turn's code execution parts, which ADK's Gemini sends as stored and this adapter leaves out (ADR 0065).
 
-`tests/geminiTurnParity.test.ts` runs a Gemini agent, a workflow node, code execution, and code execution beside a function tool through `runSyndicateTurn` on both runtimes, with this adapter serving native (the test sets `GEMINI_ADAPTER=engine`, beside a run with `adk`), and holds the requests to ADK's apart from these differences, and the stored events to ADK's in full, the `executableCode` and `codeExecutionResult` parts included.
+`tests/geminiTurnParity.test.ts` runs a Gemini agent, a workflow node, code execution, and code execution beside a function tool through `runSyndicateTurn` with this adapter, and holds the requests to ADK's recorded ones apart from these differences, and the stored events to ADK's in full, the `executableCode` and `codeExecutionResult` parts included.
 
 ## The capability matrix
 
@@ -155,14 +155,14 @@ The matrix's Gemini column ([ADR 0019](/decisions/0019-multi-model-parity-matrix
 
 ## The live check
 
-`scripts/gemini_engine_check.ts` is the live run gate G3 asked for, and its passing run is in G3's signed line ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). It runs four cases through `runSyndicateTurn` with this adapter on both runtimes: behind the ADK shim on `adk` (through `CompileOptions.resolveModel`), and with `GEMINI_ADAPTER=engine` set by the script on `native`.
+`scripts/gemini_engine_check.ts` is the live run gate G3 asked for, and its passing run is in G3's signed line ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). It runs four cases through `runSyndicateTurn` with this adapter on the native runtime.
 
 - **grounding**: `web_search` and `url_context`; it passes on an answer with grounding metadata on a stored event.
 - **code**: `code_execution: gemini`; Gemini runs Python and answers with its result.
 - **mixed**: a function tool beside `code_execution` and `web_search`, at reasoning `low`, so server-side invocations come back beside a signed call.
 - **session**: two turns on one session, a tool call in each, at reasoning `low`.
 
-`--model` picks the Gemini id (default `gemini-3.8-flash`), `--cases` and `--runtimes` narrow the run, and `--gemini adk` runs ADK's Gemini on the same cases as a baseline. It prints case names, runtimes, outcomes, counts and timings only; an error message is printed scrubbed of key-shaped strings. `tests/geminiEngineCheck.test.ts` runs it offline against a stubbed Gemini API.
+`--model` picks the Gemini id (default `gemini-3.8-flash`), `--cases` narrows the run (`--runtimes` accepts `native` only). It prints case names, runtimes, outcomes, counts and timings only; an error message is printed scrubbed of key-shaped strings. `tests/geminiEngineCheck.test.ts` runs it offline against a stubbed Gemini API.
 
 ## What the offline tests assert
 

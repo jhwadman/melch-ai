@@ -7,9 +7,9 @@
  * only by the turn's deadline (native-loop-security R4). The scheduler now
  * starts at most `nodeRunCeiling(max_steps)` node runs per walk: the run
  * that would pass it fails its node with NodeRunLimitError, reported as any
- * node that gave up, and the turn fails NODE_RUN_LIMIT. ADK's Workflow has
- * no such ceiling: the same YAML on the adk runtime runs a long bounded loop
- * to its end. No models but scripted ones, no network.
+ * node that gave up, and the turn fails NODE_RUN_LIMIT. A bounded loop under
+ * the ceiling stores the events ADK 2.2 recorded for it. No models but
+ * scripted ones, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -26,16 +26,11 @@ import { MIN_NODE_RUNS, NODE_RUNS_PER_STEP, NODE_RUN_LIMIT, NodeRunLimitError, n
 import type { SchedulerEvent } from '../lib/workflow/scheduler.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { answer } from './helpers/scriptedModel.ts';
-import { agent, adkSide, comparable, onAdk, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { agent, adkSide, comparable, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
-// ADK's side of the parity case is recorded (tests/fixtures/adk-reference/workflownoderunlimit); ADK runs only under
-// ADK_REFERENCE=live|record, and in the last case, whose subject is the adk runtime itself (WS5-2b deletes it with ADK).
+// ADK's side of the parity case is recorded (tests/fixtures/adk-reference/workflownoderunlimit).
 const reference = adkReferences('workflowNodeRunLimit');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 // ── The ceiling on the scheduler ─────────────────────────────────────────────
 
@@ -152,26 +147,12 @@ test('native: a tool node looping on its route step fails the turn NODE_RUN_LIMI
   assert.equal(turn.models.done!.calls, 0);
 });
 
-test('a bounded tool-node loop under the ceiling completes, and stores the same events on both runtimes', async () => {
-  const adk = await adkSide(reference, 'bounded-tool-node-loop', POLLING, scriptsUntil(10), 'go');
+test('a bounded tool-node loop under the ceiling completes, and stores the events ADK recorded', async () => {
+  const adk = await adkSide(reference, 'bounded-tool-node-loop');
   const native = await onNativeTurn(POLLING, scriptsUntil(10), 'go');
   assert.equal(native.status, 'completed');
   assert.equal(adk.status, 'completed');
   assert.equal(native.output, 'finished');
   assert.deepEqual(comparable(native.events), comparable(adk.events));
   assert.deepEqual(native.progress, adk.progress);
-});
-
-test('native only: a loop longer than the ceiling fails on native and runs to its end on adk, which has no node-run ceiling', async () => {
-  // 60 polls are 121 node runs on native (Triage, then Poll and its route step 60 times each, then Done).
-  const native = await onNativeTurn(POLLING, scriptsUntil(60), 'go');
-  assert.equal(native.status, 'failed');
-  assert.match(native.error ?? '', /limit of 100 node runs/);
-  polls = 0;
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-  const adk = await onAdk(POLLING, scriptsUntil(60), 'go');
-  assert.equal(adk.status, 'completed');
-  assert.equal(adk.output, 'finished');
-  assert.equal(polls, 60);
 });

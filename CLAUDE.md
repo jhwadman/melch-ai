@@ -1,7 +1,7 @@
 # melchizedek-agents
 
 An agent-orchestration framework: syndicates of agents declared in YAML, run
-on Google ADK behind one turn runner, served over A2A, with memory, a
+on the engine's own agent loop behind one turn runner, served over A2A, with memory, a
 telemetry ledger and a knowledge-bundle wiki. This repository is the source of
 truth for the engine and the published npm package `melchizedek-agents`.
 
@@ -34,8 +34,8 @@ reading for a change that opens a new surface.
   The prose docs point to them and never repeat the DDL.
 - Every surface runs turns through `lib/runtime/syndicateTurn.ts`
   (`runSyndicateTurn`); the A2A server is `lib/a2a/app.ts` (`createA2AApp`)
-  with `scripts/a2a_server.ts` as a thin bin. ADK stays behind that seam
-  (ADR 0024); `tests/syndicateTurn.test.ts` is the boundary suite.
+  with `scripts/a2a_server.ts` as a thin bin. The engine's own loop is the one
+  runtime behind that seam (ADR 0024, ADR 0107); `tests/syndicateTurn.test.ts` is the boundary suite.
 - The `exports` map in `package.json` and the `lib/index.ts` barrel are a
   versioned public API: a change to either needs a version bump and a
   `CHANGELOG.md` entry in the same change (`package-surface`).

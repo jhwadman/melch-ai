@@ -1,23 +1,18 @@
 /**
  * lib/models/adapterResolver.ts — one model id to one ModelAdapter on the
- * engine's own contract (ADR 0048, ADR 0060), with no @google/adk in its
- * import graph.
+ * engine's own contract (ADR 0048, ADR 0060, ADR 0107).
  *
- * WHY its own module: lib/models/registry.ts imports ADK (it registers the
- * ADK classes and builds TracedGemini), so the `melchizedek-agents/model`
- * entry (lib/model.ts) cannot load it. The routing step both paths share
- * (routeFor: the provider from the prefix table, the caller's endpoint merged
- * over the environment's, the transport from planTransport), the BYOK scoping
- * and the contract adapter table live here; registry.ts imports them for
- * resolveModel and for its own resolveAdapter.
+ * The routing step (routeFor: the provider from the prefix table, the
+ * caller's endpoint merged over the environment's, the transport from
+ * planTransport), the BYOK scoping and the contract adapter table live
+ * here. lib/models/registry.ts re-exports the resolver and builds
+ * resolveModel on it; `melchizedek-agents/model` (lib/model.ts) exports it
+ * with no compiler or runtime in its import graph (ADR 0068).
  *
- * GEMINI (ADR 0068, ADR 0100): a Gemini id gets the engine's GeminiAdapter
- * unless `adk` is asked for, by the option or by GEMINI_ADAPTER=adk.
- * `adapterResolver(adkGemini)` takes the factory for the temporary
- * AdkGeminiAdapter from its caller: registry.ts passes one, so `adk` works
- * there for one release (with @google/adk installed). The resolver exported
- * here has none, so asking it for `adk` throws and names the entry that has
- * it.
+ * GEMINI (ADR 0100, ADR 0107): a Gemini id gets the engine's GeminiAdapter.
+ * GEMINI_ADAPTER=engine, or the `gemini: 'engine'` option, is accepted and
+ * changes nothing; `adk`, the ADK Gemini adapter that 1.0.0 removed, throws
+ * an error naming the release.
  */
 
 import type { ModelAdapter } from './contract.ts';
@@ -81,20 +76,24 @@ export function normalizeProvider(provider?: string): ProviderId {
   return 'gemini';
 }
 
-/**
- * Which adapter serves a Gemini id on the contract path: `adk`, the temporary
- * AdkGeminiAdapter over ADK's Gemini (lib/models/adkGeminiAdapter.ts), or
- * `engine`, the engine's own GeminiAdapter on @google/genai
- * (lib/models/geminiAdapter.ts).
- */
-export type GeminiAdapterChoice = 'adk' | 'engine';
+/** Which adapter serves a Gemini id: the engine's GeminiAdapter (lib/models/geminiAdapter.ts), the only one since 1.0.0. */
+export type GeminiAdapterChoice = 'engine';
 
-/** GEMINI_ADAPTER as set (`adk` or `engine`), or undefined when unset. Any other value is a configuration error. */
+/** The error for GEMINI_ADAPTER=adk, or the `gemini: 'adk'` option: the ADK Gemini adapter left in 1.0.0. */
+function adkGeminiRemoved(source: string): Error {
+  return new Error(
+    `${source} asks for the ADK Gemini adapter, which was removed in melchizedek-agents 1.0.0 (ADR 0107): ` +
+      `every Gemini id runs on the engine's GeminiAdapter. Unset ${source} (or set it to "engine").`,
+  );
+}
+
+/** GEMINI_ADAPTER as set (`engine`), or undefined when unset. `adk` throws, naming 1.0.0; any other value is a configuration error. */
 export function geminiAdapterSetting(env: NodeJS.ProcessEnv = process.env): GeminiAdapterChoice | undefined {
   const raw = env.GEMINI_ADAPTER?.trim().toLowerCase();
   if (!raw) return undefined;
-  if (raw === 'adk' || raw === 'engine') return raw;
-  throw new Error('GEMINI_ADAPTER must be "adk" or "engine".');
+  if (raw === 'engine') return raw;
+  if (raw === 'adk') throw adkGeminiRemoved('GEMINI_ADAPTER');
+  throw new Error('GEMINI_ADAPTER must be "engine" (the only Gemini adapter since 1.0.0).');
 }
 
 export interface ResolveAdapterOptions {
@@ -112,19 +111,14 @@ export interface ResolveAdapterOptions {
   /** Where requests go (ADR 0023), merged over the environment's endpoint for the model's provider. */
   endpoint?: Partial<ProviderEndpoint>;
   /**
-   * Which Gemini adapter a Gemini id gets. Default: GEMINI_ADAPTER, else
-   * `engine` (since 0.20.0, ADR 0100). `adk` is available for one release
-   * through `melchizedek-agents/models/registry` with @google/adk installed;
-   * `melchizedek-agents/model` has no `adk`.
+   * Which Gemini adapter a Gemini id gets: `engine`, the only one (ADR 0107).
+   * GEMINI_ADAPTER is still read, so `adk` there throws.
    */
   gemini?: GeminiAdapterChoice;
 }
 
 /** What a direct route's adapter is built from. */
 export type AdapterRoute = Pick<Route, 'model' | 'apiKey' | 'endpoint'>;
-
-/** Builds the temporary AdkGeminiAdapter; only lib/models/registry.ts supplies one. */
-export type AdkGeminiFactory = (route: AdapterRoute) => ModelAdapter;
 
 export interface AdapterResolver {
   resolveAdapter(modelId: string, options?: ResolveAdapterOptions): ModelAdapter;
@@ -145,22 +139,11 @@ const CONTRACT_ADAPTER: Record<Exclude<ProviderId, 'gemini'>, (r: Route) => Mode
   moonshot: (r) => new KimiAdapter({ model: r.model, apiKey: r.apiKey, baseUrl: r.endpoint?.baseURL }),
 };
 
-/**
- * A resolver over the one prefix table. A Gemini id gets GeminiAdapter
- * unless `adk` is asked for (ADR 0100). With `adkGemini`, `adk` gets
- * AdkGeminiAdapter (ADR 0060); without it, asking for `adk` throws (ADR 0068).
- */
-export function adapterResolver(adkGemini?: AdkGeminiFactory): AdapterResolver {
-  const geminiFor = (r: Route, choice: GeminiAdapterChoice): ModelAdapter => {
-    const route: AdapterRoute = { model: r.model, apiKey: r.apiKey, endpoint: r.endpoint };
-    if (choice === 'engine') return new GeminiAdapter(route);
-    if (!adkGemini) {
-      throw new Error(
-        'The ADK Gemini adapter is not available from melchizedek-agents/model, which loads no @google/adk. ' +
-          'Use gemini: "engine" (or unset GEMINI_ADAPTER), or resolve through melchizedek-agents/models/registry.',
-      );
-    }
-    return adkGemini(route);
+/** A resolver over the one prefix table. A Gemini id gets GeminiAdapter (ADR 0100, ADR 0107). */
+export function adapterResolver(): AdapterResolver {
+  const geminiFor = (r: Route, choice: string): ModelAdapter => {
+    if (choice !== 'engine') throw adkGeminiRemoved(`The gemini option ("${choice}")`);
+    return new GeminiAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint });
   };
 
   function resolveAdapter(modelId: string, options: ResolveAdapterOptions = {}): ModelAdapter {
@@ -188,18 +171,17 @@ export function adapterResolver(adkGemini?: AdkGeminiFactory): AdapterResolver {
   return { resolveAdapter, resolveAdapterWithFallback };
 }
 
-const ADK_FREE = adapterResolver();
+const RESOLVER = adapterResolver();
 
 /**
  * Resolves a model id to the engine's own ModelAdapter (ADR 0048), from the
- * prefix table and the transport rule resolveModel uses, with no ADK: the
- * provider's adapter when its key (env, BYOK or endpoint) is present, the
- * gateway's when it is absent and MODEL_GATEWAY is set. A Gemini id gets
- * GeminiAdapter (ADR 0068). The adapter opens no span and charges nothing:
+ * prefix table and the transport rule: the provider's adapter when its key
+ * (env, BYOK or endpoint) is present, the gateway's when it is absent and
+ * MODEL_GATEWAY is set. A Gemini id gets GeminiAdapter. The adapter opens no span and charges nothing:
  * its caller does (ADR 0053).
  */
 export function resolveAdapter(modelId: string, options: ResolveAdapterOptions = {}): ModelAdapter {
-  return ADK_FREE.resolveAdapter(modelId, options);
+  return RESOLVER.resolveAdapter(modelId, options);
 }
 
 /**
@@ -215,5 +197,5 @@ export function resolveAdapterWithFallback(
   options: ResolveAdapterOptions = {},
   fallbackOptions: FallbackAdapterOptions = {},
 ): ModelAdapter {
-  return ADK_FREE.resolveAdapterWithFallback(modelId, fallbackId, options, fallbackOptions);
+  return RESOLVER.resolveAdapterWithFallback(modelId, fallbackId, options, fallbackOptions);
 }

@@ -1,16 +1,17 @@
 /**
- * lib/models/errorResponse.ts — an ADK adapter's error response, saying
- * whether another attempt or another model may succeed.
+ * lib/models/errorResponse.ts — what a failed provider call says about
+ * trying again, and the genai-shaped error response that carries it.
  *
- * WHY: every adapter but Gemini reports a failed provider call as a yielded
- * LlmResponse carrying `errorCode`, never a throw. FallbackLlm
- * (lib/models/fallback.ts, ADR 0044) must tell a provider-side failure from
- * the request's own error without parsing a message, so an adapter's catch
- * site builds that response here, with the retry policy's verdict in its
- * customMetadata (Claude, GPT and Grok, and the chat-completions base for
- * Kimi, Ollama and the gateway). A
- * response without the verdict is read as not retryable: passed on, never
- * redirected.
+ * WHY: an adapter reports a failed provider call as a final response with
+ * `error`, never a throw, and the fallback (FallbackAdapter,
+ * lib/models/fallbackAdapter.ts, ADR 0044) must tell a provider-side
+ * failure from the request's own error without parsing a message. The
+ * adapters' catch sites (Claude, GPT and Grok, and the chat-completions base
+ * for Kimi, Ollama and the gateway) take the verdict and the scrubbed text
+ * from here (errorDecision, statusDecision, errorText). A genai-shaped
+ * LlmResponse (lib/models/genaiMapping.ts) carries the same verdict in its
+ * customMetadata (withRetryVerdict). A response without the verdict is read
+ * as not retryable: passed on, never redirected.
  *
  *   'error.retryable'  true when lib/models/retry.ts classifies the failure
  *                      retryable (408/409/425/429/5xx, a connection reset);
@@ -22,7 +23,7 @@
  * leaves the adapter, so an error never carries a key into a session, the
  * ledger or a log.
  */
-import type { LlmResponse } from '@google/adk';
+import type { LlmResponse } from './genaiMapping.ts';
 
 import { patternRedactor } from '../observability/redact.ts';
 import { classifyError, isRetryableStatus } from './retry.ts';
@@ -66,18 +67,4 @@ export function withRetryVerdict(response: LlmResponse, decision: RetryDecision)
       ...(decision.status !== undefined ? { [ERROR_STATUS_KEY]: decision.status } : {}),
     },
   };
-}
-
-/**
- * The error response for a caught provider error: `errorCode`, the message
- * (the error's own text unless the adapter words it), and the verdict from
- * classifyError.
- */
-export function providerErrorResponse(err: unknown, errorCode: string, errorMessage: string = errorText(err)): LlmResponse {
-  return withRetryVerdict({ errorCode, errorMessage }, errorDecision(err));
-}
-
-/** True when a response is an error its adapter marked retryable: a provider-side failure. */
-export function isRetryableErrorResponse(response: LlmResponse): boolean {
-  return !!response.errorCode && response.customMetadata?.[ERROR_RETRYABLE_KEY] === true;
 }

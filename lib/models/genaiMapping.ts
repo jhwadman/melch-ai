@@ -1,16 +1,15 @@
 /**
- * lib/models/genaiMapping.ts — @google/genai `Content`, and ADK's LlmRequest
- * and LlmResponse, to and from the engine's model contract
+ * lib/models/genaiMapping.ts — @google/genai `Content`, and the genai-shaped
+ * LlmRequest and LlmResponse, to and from the engine's model contract
  * (lib/models/contract.ts, ADR 0048).
  *
  * WHY this file exists:
- *   The ADK runtime holds and stores @google/genai `Content`: the history of
- *   an LlmRequest, and the `content` of every stored event. The native
- *   runtime and every adapter on the contract speak `Message` and `Part`.
- *   This module converts between the two, so the native runtime can read a
- *   session ADK stored, and an adapter can move onto the contract while ADK
- *   still runs: its ADK class maps the LlmRequest in and each ModelResponse
- *   out. It is pure (no I/O, clock or randomness) and never mutates its
+ *   Every stored event's `content` is @google/genai `Content`, the shape ADK
+ *   wrote and the engine keeps (ADR 0045's fixed shapes). The native loop
+ *   and every adapter on the contract speak `Message` and `Part`. This
+ *   module converts between the two, so the loop reads a session ADK stored
+ *   before 1.0.0 as it reads its own, and stores each answer in the same
+ *   shape (modelResponseToLlmResponse). It is pure (no I/O, clock or randomness) and never mutates its
  *   input; leaf values (args, results, payloads) are shared, not copied.
  *   The contract stays a leaf: only this module names @google/*.
  *   wiki/models/model-contract.md ("From genai Content") is the spec.
@@ -63,7 +62,8 @@
  *   genai bytes cannot tell the two apart.
  *
  *   Ids. A ToolCallPart always has an id. A genai call without one (Gemini
- *   returns none, and ADK strips its own `adk-` ids from every request) gets
+ *   returns none, and the engine strips its own `adk-` ids from every
+ *   request, as ADK did) gets
  *   `genai-noid-<content>-<part>`, from its position, and a result without
  *   one takes the id of the latest open minted call of the same name, else
  *   one of its own (it then answers no call in the history). Back, a minted
@@ -91,27 +91,24 @@
  * true`; usage in Gemini's meanings (usageToMetadata); error as `errorCode`
  * and `errorMessage`, key-shaped text scrubbed, with `retryable` and
  * `status` as customMetadata['error.retryable'] and ['error.status']
- * (withRetryVerdict, lib/models/errorResponse.ts), the only place
- * FallbackLlm reads whether a fallback may answer; finishReason as
+ * (withRetryVerdict, lib/models/errorResponse.ts); finishReason as
  * Gemini's, except that an error whose code is one of Gemini's finish
- * reasons (the Gemini adapters keep it verbatim: MALFORMED_FUNCTION_CALL,
- * RECITATION, ...) gets that reason itself, as ADK's Gemini reports both, so
- * self-correction retries a malformed call and the stored event reads the
- * same on either runtime (ADR 0088); grounding as the `webSearchQueries` and
+ * reasons (the Gemini adapter keeps it verbatim: MALFORMED_FUNCTION_CALL,
+ * RECITATION, ...) gets that reason itself, as ADK's Gemini reported both,
+ * so self-correction retries a malformed call and the stored event reads as
+ * one ADK stored (ADR 0088); grounding as the `webSearchQueries` and
  * `groundingChunks[].web` that lib/grounding.ts reads. Not carried, since
  * an LlmResponse has no field for them: `cacheWriteTokens`, a citation's
  * span and cited text, and which native tool ran a query.
  *
- * THE REVERSE: a contract adapter over an ADK BaseLlm (lib/models/
- * adkGeminiAdapter.ts, the wrapper over ADK's Gemini) maps the ModelRequest
- * it is given to an LlmRequest, and each LlmResponse back.
+ * THE REVERSE: a ModelRequest as a genai-shaped LlmRequest, and each
+ * LlmResponse back, for a caller that holds a genai-speaking model.
  *
- *   modelRequestToLlmRequest builds the LlmRequest ADK's path builds for a
- *   Gemini model: the system prompt as `systemInstruction`; the messages as
+ *   modelRequestToLlmRequest builds the genai-shaped request for a Gemini
+ *   model: the system prompt as `systemInstruction`; the messages as
  *   above; client tools as `functionDeclarations` with the lowercase schema
  *   in `parametersJsonSchema`, and in `toolsDict` as declaration-only
- *   entries, where llmRequestToModelRequest and the ADK-path adapters read
- *   them; native tools as Gemini's tool objects, in the request's order;
+ *   entries, where llmRequestToModelRequest reads them; native tools as Gemini's tool objects, in the request's order;
  *   toolChoice and strict as the function-calling mode, sent only beside
  *   declarations; the output schema as `responseJsonSchema`, and
  *   `outputFormat: 'json'` without one as `responseMimeType:
@@ -120,7 +117,7 @@
  *   it; sampling; the signal as `config.abortSignal`. What does not come
  *   back the same through llmRequestToModelRequest: `google_search` reads as
  *   `web_search`; `x_search` and `collections_search` are left out (Gemini
- *   has no tool for them, and ADK adds their sentinels only for xAI); `auto`
+ *   has no tool for them, and they go only to xAI); `auto`
  *   reads as absent, and a choice without tools is not sent; one strict tool
  *   makes every tool strict, and strict is lost beside a forced choice; a
  *   level a model renders as a budget or another word reads back as that
@@ -144,10 +141,13 @@
  *   display only (the caller yields it as a partial).
  *
  * USAGE MEANINGS. usageToMetadata and usageFromMetadata use Gemini's: its
- * `candidatesTokenCount` excludes the thinking in `thoughtsTokenCount`. The
- * ADK-path GPT and chat-completions adapters write `candidatesTokenCount`
- * with reasoning included, so usageFromMetadata on an event they stored
- * counts that reasoning twice in `outputTokens`.
+ * `candidatesTokenCount` excludes the thinking in `thoughtsTokenCount`.
+ * Every adapter's final is stored and charged through usageToMetadata, so
+ * this is the ledger's one meaning for every provider (ADR 0107).
+ * Events the GPT and chat-completions adapters stored under ADK (before
+ * 1.0.0) carry `candidatesTokenCount` with reasoning included, so
+ * usageFromMetadata on such an event counts that reasoning twice in
+ * `outputTokens`.
  */
 
 import { FinishReason, FunctionCallingConfigMode } from '@google/genai';
@@ -158,10 +158,10 @@ import type {
   GenerateContentResponseUsageMetadata,
   GroundingMetadata,
   Part as GenaiPart,
+  CitationMetadata,
   Tool,
   ToolConfig,
 } from '@google/genai';
-import type { BaseTool, LlmRequest, LlmResponse } from '@google/adk';
 
 import type {
   Citation,
@@ -191,6 +191,57 @@ import { CARRIED_PARTS_KIND, GEMINI_PROVIDER, GENAI_PART_KIND, MINTED_CALL_ID_PR
 import { reasoningConfig } from './reasoning.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './schemaNormalize.ts';
 import { MAX_VALUE_DEPTH, nestedDeeperThan } from '../runtime/valueDepth.ts';
+
+// ── The genai request and response shapes (ADR 0107) ─────────────────────────
+
+/**
+ * A tool as a request's `toolsDict` holds it: a name and, for a function
+ * tool, `_getDeclaration()` giving its declaration with a lowercase schema as
+ * `parameters` (contractToolDeclaration reads it). A server-side tool carries
+ * its NativeTool marker instead (lib/tools/tool.ts NATIVE_TOOL).
+ */
+export interface DeclaredTool {
+  name: string;
+  description?: string;
+  isLongRunning?: boolean;
+  _getDeclaration?(): unknown;
+  [key: string | symbol]: unknown;
+}
+
+/**
+ * One model request in genai's shape: the JSON ADK's LlmRequest carried,
+ * owned by the engine since 1.0.0. The summarizer, the memory extractor and
+ * the tracer build or read it; llmRequestToModelRequest maps it onto the
+ * contract.
+ */
+export interface LlmRequest {
+  model?: string;
+  contents: Content[];
+  config?: GenerateContentConfig;
+  liveConnectConfig?: Record<string, unknown>;
+  toolsDict: Record<string, DeclaredTool>;
+  allowedTools?: string[];
+}
+
+/**
+ * One model response in genai's shape: the JSON ADK's LlmResponse carried,
+ * and what a stored model event is made from (lib/runtime/native/step.ts).
+ * Owned by the engine since 1.0.0.
+ */
+export interface LlmResponse {
+  content?: Content;
+  groundingMetadata?: GroundingMetadata;
+  citationMetadata?: CitationMetadata;
+  partial?: boolean;
+  turnComplete?: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+  interrupted?: boolean;
+  customMetadata?: Record<string, unknown>;
+  usageMetadata?: GenerateContentResponseUsageMetadata;
+  finishReason?: FinishReason;
+  modelVersion?: string;
+}
 
 /**
  * The provider id the mapping writes its own state under (only a Gemini
@@ -555,7 +606,7 @@ export function messagesToContents(history: { system?: string; messages: readonl
 
 // ── LlmRequest → ModelRequest ────────────────────────────────────────────────
 
-/** What an LlmRequest does not carry: ADK passes these to generateContentAsync beside it. */
+/** What an LlmRequest does not carry: the caller passes these beside it, as ADK did to generateContentAsync. */
 export interface ModelRequestOptions {
   /** The model id; default the request's own `model`. */
   model?: string;
@@ -641,7 +692,7 @@ export function samplingOf(config: GenerateContentConfig | undefined): Sampling 
   return Object.keys(sampling).length > 0 ? sampling : undefined;
 }
 
-/** An ADK LlmRequest as a ModelRequest (see the header for what is not mapped). */
+/** A genai-shaped LlmRequest as a ModelRequest (see the header for what is not mapped). */
 export function llmRequestToModelRequest(llmRequest: LlmRequest, options: ModelRequestOptions = {}): ModelRequest {
   const model = options.model ?? llmRequest.model;
   if (!model) throw new TypeError('llmRequestToModelRequest: the request names no model, and none was given');
@@ -755,8 +806,8 @@ export const TOO_DEEP_ARGUMENTS = `[arguments nested deeper than ${MAX_VALUE_DEP
 /**
  * One part of a model's answer as the contract allows it (lib/models/
  * contract.ts), or undefined to drop it. The contract binds an adapter, and
- * a model's answer is untrusted input to the runtime that stores it, so the
- * runtimes hold an adapter to it here rather than store a part no reader
+ * a model's answer is untrusted input to the loop that stores it, so the
+ * loop holds an adapter to it here rather than store a part no reader
  * expects (WS5-5, wiki/operations/native-loop-security.md):
  *   - a part that is not an object, of no known kind, or a tool result (an
  *     answer holds none) is dropped;
@@ -804,8 +855,8 @@ function contractOutputPart(part: unknown): Part | undefined {
 /**
  * `response` with each part held to the contract (contractOutputPart): the
  * same object when every part already is, else a copy with the parts
- * checked. Used by modelResponseToLlmResponse (the ADK shim's mapping) and
- * by the native step, so both runtimes read and store the same answer. A
+ * checked. Used by modelResponseToLlmResponse and by the native step, so the
+ * step reads the same answer it stores. A
  * response that is not an object is returned as it is: the caller fails on
  * it as on any adapter that broke the contract.
  */
@@ -818,7 +869,7 @@ export function contractModelResponse<R extends ModelResponse>(response: R): R {
   return { ...response, parts: checked.filter((p): p is Part => p !== undefined) } as R;
 }
 
-/** A ModelResponse as the LlmResponse ADK expects from a model (see the header). */
+/** A ModelResponse as a genai-shaped LlmResponse, the shape a stored model event is made from (see the header). */
 export function modelResponseToLlmResponse(unchecked: ModelResponse): LlmResponse {
   const response = contractModelResponse(unchecked);
   const parts = partsToGenai(response.parts as Part[]);
@@ -833,8 +884,8 @@ export function modelResponseToLlmResponse(unchecked: ModelResponse): LlmRespons
     ...(groundingMetadata ? { groundingMetadata } : {}),
     turnComplete: true,
   };
-  // FallbackLlm reads the verdict from customMetadata alone (ADR 0044): an
-  // error without it would be passed on, never answered by the fallback.
+  // A reader of this shape takes the verdict from customMetadata alone
+  // (ADR 0044): an error without it reads as not retryable.
   if (!response.error) return llmResponse;
   const { retryable, status } = response.error;
   return withRetryVerdict(llmResponse, { retryable, ...(status !== undefined ? { status } : {}) });
@@ -858,12 +909,12 @@ export function nativeToolsWithoutGeminiTool(tools: readonly NativeTool[] = []):
 /**
  * A toolsDict entry that only declares. `_getDeclaration()` gives the
  * declaration with its lowercase schema as `parameters`, where
- * llmRequestToModelRequest (contractToolDeclaration) and the ADK-path
- * adapters (toolDeclarationFor) read it. It is never run: ADK's Gemini sends
- * `config.tools`, and nothing calls a tool out of a request.
+ * llmRequestToModelRequest (contractToolDeclaration) reads it. It is never
+ * run: a Gemini request sends `config.tools`, and nothing calls a tool out
+ * of a request.
  */
-function declaredTool({ name, description, parameters }: ToolDeclaration): BaseTool {
-  return { name, description, isLongRunning: false, _getDeclaration: () => ({ name, description, parameters }) } as unknown as BaseTool;
+function declaredTool({ name, description, parameters }: ToolDeclaration): DeclaredTool {
+  return { name, description, isLongRunning: false, _getDeclaration: () => ({ name, description, parameters }) };
 }
 
 /** The function-calling mode for the request's tool choice and strict tools, sent only beside declarations. */
@@ -886,7 +937,7 @@ function toolConfigOf(request: ModelRequest): ToolConfig | undefined {
   return mode ? { functionCallingConfig: { mode } } : undefined;
 }
 
-/** A ModelRequest as the LlmRequest ADK's path builds for a Gemini model (see the header for what does not come back the same). */
+/** A ModelRequest as the genai-shaped request for a Gemini model (see the header for what does not come back the same). */
 export function modelRequestToLlmRequest(request: ModelRequest): LlmRequest {
   const config: GenerateContentConfig = {};
   if (request.system) config.systemInstruction = request.system;
@@ -996,7 +1047,7 @@ function outputPartsOf(parts: readonly Part[], model: string | undefined): Outpu
   return out.map((p) => (isSignatureState(p.providerState) && p.providerState.model === undefined ? { ...p, providerState: { ...p.providerState, model } } : p));
 }
 
-/** An ADK error code as the contract's error, with the verdict the adapter stamped (withRetryVerdict). `STOP` is no error. */
+/** A genai-shaped error code as the contract's error, with the verdict the adapter stamped (withRetryVerdict). `STOP` is no error. */
 function errorOf(response: LlmResponse): ModelError | undefined {
   const code = response.errorCode;
   if (!code || code === 'STOP') return undefined;

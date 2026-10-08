@@ -59,8 +59,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
-import { toFunctionTool } from './adkTool.ts';
-import { defineTool } from './toolContract.ts';
+import { asTool, defineTool } from './toolContract.ts';
 
 export const X_API_SEARCH_TOOL_NAME = 'x_api_search';
 
@@ -658,5 +657,5 @@ export const xApiSearchContract = defineTool({
   execute: (input) => runXApiSearch(input),
 });
 
-/** ADK surface, registered under its contract name in lib/toolRegistry.ts. */
-export const xApiSearchTool = toFunctionTool(xApiSearchContract);
+/** The own Tool, registered under its contract name in lib/toolRegistry.ts. */
+export const xApiSearchTool = asTool(xApiSearchContract);

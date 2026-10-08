@@ -36,6 +36,8 @@ sources:
 6. **The pin.** A live ADK side that goes through `runSyndicateTurn` passes `runtime: 'adk'`: since 0.20.0 an unpinned side follows `MELCHIZEDEK_RUNTIME`, which defaults to native.
 7. **What is not recorded.** Tests whose subject is ADK itself (the adk runtime's own cases, including a `forEachRuntime` case's `[adk]` variant and an `acrossRuntimes` direction written on adk, the shim, the session bridges, `compileAdk`, `TracedGemini`, `AdkGeminiAdapter`, ADK-only refusals) keep running ADK. 1.0.0 (WS5-2b) deletes them with the code, together with `live`, `record`, the recorder, the check and the CI step; the fixture branch stays.
 
+> **Note (2026-10-08):** With ADK removed in 1.0.0 ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), `tests/helpers/adkReference.ts` keeps only the fixture branch: `reference(case)` reads the recording. The `live` and `record` modes, `scripts/ci/record_adk_references.ts`, the `fixtures:adk:*` scripts and their CI steps are retired, and the recordings are data.
+
 ## Alternatives considered
 
 - **A separate recorder that re-implements each case's ADK side.** It is what the brief first sketches, and it keeps the tests free of any recording code. Every case would be written twice, once in the test and once in the recorder, and the two would drift: the recording would no longer be "the ADK side exactly as the test runs it". Running the tests in record mode makes the test the recorder, and the test's assertions check the recording as it is written.

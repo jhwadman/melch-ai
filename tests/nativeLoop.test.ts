@@ -2,14 +2,15 @@
  * tests/nativeLoop.test.ts — the native loop for one agent
  * (lib/runtime/native/agentLoop.ts, WS2-5b, ADR 0066).
  *
- * The parity cases run a syndicate on the ADK runtime (runSyndicateTurn,
- * a scripted adapter behind the shim), then the same conversation through
- * runAgentLoop with the same script: the store must hold the same events,
+ * The parity cases read a syndicate's conversation as ADK 2.2 ran it
+ * through runSyndicateTurn (a scripted adapter behind the pre-1.0 shim),
+ * recorded in tests/fixtures/adk-reference/nativeloop, then run the same
+ * conversation through runAgentLoop with the same script: the store must hold the same events,
  * ids and times aside. They cover every single-agent case of the boundary
  * suite (tests/syndicateTurn.test.ts) and the loop's own cases: tool calls
  * and their results, parallel calls, a throwing tool, an unknown tool,
  * ask_user, an approval request, outputKey, set_model_response, a skill's
- * ADK tool. Then the loop on its own: streaming, the end it reports.
+ * tools. Then the loop on its own: streaming, the end it reports.
  * Offline: scripted adapters only.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -22,9 +23,9 @@ import { z } from 'zod';
 import { compileNativeGraph } from '../lib/compileNative.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
-import { resetCircuits } from '../lib/models/fallback.ts';
+import { resetCircuits } from '../lib/models/circuitBreaker.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
-import { drainAgentStream, runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { drainAgentStream } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import type { TurnContent, TurnEvent } from '../lib/runtime/events.ts';
@@ -35,16 +36,12 @@ import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
-import { ScriptedModel, answer, failure, lastToolResult, shimResolver, streamedAnswer, toolCall, untilAborted } from './helpers/scriptedModel.ts';
+import { ScriptedModel, answer, failure, lastToolResult, streamedAnswer, toolCall, untilAborted } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
-// ADK's side of each parity case is recorded (tests/fixtures/adk-reference/nativeloop); ADK runs only under ADK_REFERENCE=live|record.
+// ADK's side of each parity case, as ADK 2.2 recorded it (tests/fixtures/adk-reference/nativeloop).
 const reference = adkReferences('nativeLoop');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 const APP = 'native-loop';
 const USER = 'u1';
@@ -100,7 +97,7 @@ registerTool(
   }),
   { override: true },
 );
-// The boundary suite's gated tool, gated by compile's requireApprovalOn.
+// The boundary suite's gated tool, gated by compile's requireApproval (lib/tools/tool.ts).
 const sent: string[] = [];
 registerTool(
   'native_loop_send',
@@ -116,7 +113,7 @@ registerTool(
   { override: true },
 );
 
-// ── The two runtimes ─────────────────────────────────────────────────────────
+// ── ADK's recorded side and the native run ───────────────────────────────────
 
 function syndicate(orchestrator: Record<string, unknown>, extra: Record<string, unknown> = {}): SyndicateYamlConfig {
   return validateSyndicateConfig(
@@ -128,7 +125,7 @@ function syndicate(orchestrator: Record<string, unknown>, extra: Record<string, 
 /** The orchestrator as the native loop runs it: the compile split's NativeAgent (lib/compileNative.ts). */
 const nativeAgentOf = (config: SyndicateYamlConfig): Promise<NativeAgent> => compileNativeGraph(config, { log: () => {} });
 
-/** Each scripted model by its key (`scripted/<key>`), built fresh for each runtime. */
+/** Each scripted model by its key (`scripted/<key>`), built fresh for each run. */
 type Models = Record<string, ModelScript>;
 const build = (scripts: Models): Record<string, ScriptedModel> =>
   Object.fromEntries(Object.entries(scripts).map(([key, script]) => [key, new ScriptedModel(`scripted/${key}`, script)]));
@@ -145,36 +142,6 @@ interface AdkRun {
   events: TurnEvent[];
   calls: Record<string, number>;
   deltas: string[][];
-}
-
-async function runOnAdk(config: SyndicateYamlConfig, scripts: Models, turns: Turn[]): Promise<AdkRun> {
-  const models = build(scripts);
-  const { InMemorySessionService } = await import('@google/adk');
-  const sessionService = new InMemorySessionService();
-  const results: AdkRun['results'] = [];
-  const deltas: string[][] = [];
-  for (const turn of turns) {
-    const d: string[] = [];
-    deltas.push(d);
-    const result = await runSyndicateTurn({
-        config,
-        parts: turn.parts ?? [{ text: 'find the thing' }],
-        appName: APP,
-        userId: USER,
-        sessionId: 's1',
-        sessionService,
-        compile: { resolveModel: shimResolver(models), log: () => {} },
-        trace: false,
-        ...(turn.signal ? { signal: turn.signal() } : {}),
-        ...(turn.streaming ? { streaming: true, events: { onTextDelta: (t: string) => d.push(t) } } : {}),
-        // The reference is ADK's: pinned, now that native is the default (ADR 0102).
-        runtime: 'adk',
-      });
-    results.push({ status: result.status, ...(result.error ? { error: { code: result.error.code, message: result.error.message } } : {}) });
-  }
-  const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 's1' });
-  const calls = Object.fromEntries(Object.entries(models).map(([key, m]) => [key, m.calls]));
-  return { results, events: JSON.parse(JSON.stringify(session?.events ?? [])) as TurnEvent[], calls, deltas };
 }
 
 interface NativeRun {
@@ -264,10 +231,10 @@ function comparable(events: TurnEvent[]): unknown {
   );
 }
 
-/** Takes ADK's side of case `name` (recorded, or live), runs it on the native loop, and asserts the stores hold the same events. */
+/** Takes ADK's recorded side of case `name`, runs it on the native loop, and asserts the stores hold the same events. */
 async function assertParity(name: string, config: SyndicateYamlConfig, scripts: Models, turns: Turn[] = [{}]): Promise<{ adk: AdkRun; native: NativeRun }> {
   resetCircuits();
-  const adk = await reference(name, () => runOnAdk(config, scripts, turns));
+  const adk = await reference<AdkRun>(name);
   resetCircuits();
   const native = await runNative(config, scripts, turns, adk);
   resetCircuits();
@@ -495,7 +462,7 @@ test('parity: an output schema beside tools ends on set_model_response, saved un
   assert.equal(native.ends[0]?.reason, 'final');
 });
 
-test('parity: a skill’s ADK tool runs through its own runAsync, and unlocks the skill’s tool', async () => {
+test('parity: a skill’s load_skill tool runs, and unlocks the skill’s tool', async () => {
   const { native } = await assertParity(
     'skill-tool',
     solo({ instruction: 'Follow skills.', skills: { dir: SKILLS, tools: ['harness_test_lookup'] } }),
@@ -643,7 +610,7 @@ test('self-correction: model_errors: 0 declares no reflection tool, and a call t
   assert.match(String(responses(native.events[2])[0]?.error_details), /^Function adk_handle_model_error is not found in the /);
 });
 
-test('self-correction: a MALFORMED_FUNCTION_CALL failure from an adapter is retried with ADK’s reflection call on both runtimes', async () => {
+test('self-correction: a MALFORMED_FUNCTION_CALL failure from an adapter is retried with ADK’s reflection call', async () => {
   // The contract carries Gemini's MALFORMED_FUNCTION_CALL as an error code; the genai mapping reads it back as the finish reason the model plugin checks (ADR 0088).
   const { native } = await assertParity('malformed-retried', solo(), {
     boss: (_r, n) => (n === 1 ? failure({ code: 'MALFORMED_FUNCTION_CALL', message: 'bad call' }) : answer('Recovered.')),
@@ -662,13 +629,13 @@ test('self-correction: a MALFORMED_FUNCTION_CALL failure from an adapter is retr
   assert.equal(native.events.at(-1)?.content?.parts?.[0]?.text, 'Recovered.');
 });
 
-test('self-correction: a MALFORMED_FUNCTION_CALL every time ends on ADK’s UNKNOWN_ERROR past model_errors, on both runtimes', async () => {
+test('self-correction: a MALFORMED_FUNCTION_CALL every time ends on ADK’s UNKNOWN_ERROR past model_errors', async () => {
   const { native } = await assertParity('malformed-every-time', solo(), { boss: () => failure({ code: 'MALFORMED_FUNCTION_CALL', message: 'bad call' }) });
   assert.equal(native.models.boss?.calls, 3);
   assert.equal(native.ends[0]?.lastEvent?.errorCode, 'UNKNOWN_ERROR');
 });
 
-test('self-correction: with model_errors: 0 a MALFORMED_FUNCTION_CALL failure is stored as the failure on both runtimes', async () => {
+test('self-correction: with model_errors: 0 a MALFORMED_FUNCTION_CALL failure is stored as the failure, as on ADK', async () => {
   const { native } = await assertParity('model-errors-0-malformed', solo({}, { retries: { model_errors: 0 } }), { boss: () => failure({ code: 'MALFORMED_FUNCTION_CALL', message: 'bad call' }) });
   assert.equal(native.ends[0]?.lastEvent?.errorCode, 'MALFORMED_FUNCTION_CALL');
   assert.equal(native.ends[0]?.lastEvent?.finishReason, 'MALFORMED_FUNCTION_CALL');
@@ -713,5 +680,24 @@ test('the loop yields partials before the event they make, and reports an empty 
   control.dispose();
   assert.deepEqual(out.map((e) => e.partial), [true]);
   assert.deepEqual(end, { reason: 'empty', steps: 1, lastEvent: undefined });
+  assert.equal(session.events.length, 1, 'nothing stored but the user event');
+});
+
+test('an ADK tool (anything with runAsync) among the agent\'s tools is refused before any model call, naming 1.0.0 and defineTool', async () => {
+  const sessions = new InProcessSessionService();
+  const session = await sessions.create({ appName: APP, userId: USER, sessionId: 'adk-tool' });
+  await sessions.append(session, { id: 'u0000001', invocationId: 'e-1', author: 'user', content: { role: 'user', parts: [{ text: 'hi' }] }, actions: {}, timestamp: 1 });
+  let calls = 0;
+  let ran = false;
+  const adapter = new ScriptedModel('scripted/solo', () => {
+    calls += 1;
+    return [{ partial: false, parts: [{ type: 'text', text: 'ok' }], finishReason: 'stop' }];
+  });
+  const adkTool = { name: 'legacy_lookup', description: 'An ADK FunctionTool, by shape.', runAsync: async () => { ran = true; return 'ran'; } };
+  const agent: NativeAgent = { name: 'Solo', model: 'scripted/solo', instruction: 'Answer.', tools: [adkTool] };
+  const loop = runAgentLoop(agent, { session, sessions, invocationId: 'e-1', adapterFor: () => adapter });
+  await assert.rejects(loop.next(), (e: Error) => /'legacy_lookup' is an ADK tool/.test(e.message) && /1\.0\.0/.test(e.message) && /defineTool/.test(e.message));
+  assert.equal(calls, 0, 'no model call');
+  assert.equal(ran, false);
   assert.equal(session.events.length, 1, 'nothing stored but the user event');
 });

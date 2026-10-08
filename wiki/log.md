@@ -3,6 +3,46 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0108-adk-reference-recorded-by-the-parity-suites.md —explains→ file:tests/helpers/adkReference.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —constrains→ module:lib/toolRegistry.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —constrains→ env:GEMINI_ADAPTER
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —constrains→ env:MELCHIZEDEK_RUNTIME
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —constrains→ module:lib/runtime/runtimeFlag.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —explains→ /overview/native-loop.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —supersedes→ /decisions/0102-native-default-and-optional-adk-peer.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —depends_on→ /decisions/0108-adk-reference-recorded-by-the-parity-suites.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —depends_on→ /decisions/0102-native-default-and-optional-adk-peer.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0107-release-1-0-0-removes-adk.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0108-adk-reference-recorded-by-the-parity-suites.md —explains→ /overview/native-loop.md
 
 by claude-code/claude-opus-5-5

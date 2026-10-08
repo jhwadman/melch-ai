@@ -2,9 +2,6 @@
  * tests/approvalsA2a.test.ts — approval gates over A2A (ADR 0028): the task
  * ends input-required with the pending call, and the caller's answer on the
  * same conversation runs or refuses it. Scripted models, ephemeral port.
- * Each case runs on both runtimes through MELCHIZEDEK_RUNTIME
- * (tests/helpers/runtime.ts), and an approval opened on one runtime is
- * answered on the other.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -16,24 +13,22 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { FunctionTool, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
 import { z } from 'zod';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
 import { ScriptedLlm, call, text } from './helpers/scriptedLlm.ts';
-import { acrossRuntimes, forEachRuntime, withRuntimeEnv } from './helpers/runtime.ts';
-
-setLogLevel(LogLevel.ERROR);
 
 const SECRET = 'test-secret-0123456789abcdef0123456789'; // gitleaks:allow (test fixture)
 const sent: string[] = [];
 registerTool(
   'a2a_approval_send',
-  new FunctionTool({
+  defineTool({
     name: 'a2a_approval_send',
     description: 'Send.',
-    parameters: z.object({ to: z.string() }),
+    schema: z.object({ to: z.string() }),
     execute: async ({ to }) => (sent.push(to), `sent to ${to}`),
   }),
   { override: true },
@@ -61,7 +56,7 @@ before(async () => {
   const built = await createA2AApp({
     defaultSyndicate: 'mailer.yaml',
     serverSecret: SECRET,
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     keyMode: 'byok',
     // A fresh script per resolution: each turn compiles its own model.
     resolveModel: () =>
@@ -99,7 +94,7 @@ async function send(parts: unknown[], ids: { contextId?: string; taskId?: string
 const statusText = (task: any) => (task.status?.message?.parts ?? []).map((p: any) => p.text ?? '').join('');
 const approvalData = (task: any) => (task.status?.message?.parts ?? []).find((p: any) => p.kind === 'data')?.data;
 
-forEachRuntime('the task ends input-required with the call; "approve" on the conversation runs it', async () => {
+test('the task ends input-required with the call; "approve" on the conversation runs it', async () => {
   sent.length = 0;
   const first = await send([{ kind: 'text', text: 'tell ops' }]);
   assert.equal(first.status.state, 'input-required');
@@ -121,7 +116,7 @@ forEachRuntime('the task ends input-required with the call; "approve" on the con
   assert.match(statusText(done), /sent to ops@acme.test/);
 });
 
-forEachRuntime('a data-part refusal never runs the call', async () => {
+test('a data-part refusal never runs the call', async () => {
   sent.length = 0;
   const first = await send([{ kind: 'text', text: 'tell ops' }]);
   const id = approvalData(first).approval_id;
@@ -129,15 +124,4 @@ forEachRuntime('a data-part refusal never runs the call', async () => {
   assert.equal(done.status.state, 'completed', statusText(done));
   assert.deepEqual(sent, []);
   assert.match(statusText(done), /rejected/);
-});
-
-acrossRuntimes('an approval opened on one runtime is approved on the other, and the call runs once', async (writer, reader) => {
-  sent.length = 0;
-  const first = await withRuntimeEnv(writer, () => send([{ kind: 'text', text: 'tell ops' }]));
-  assert.equal(first.status.state, 'input-required');
-  assert.deepEqual(sent, []);
-  const done = await withRuntimeEnv(reader, () => send([{ kind: 'text', text: 'approve' }], { contextId: first.contextId, taskId: first.id }));
-  assert.equal(done.status.state, 'completed', statusText(done));
-  assert.deepEqual(sent, ['ops@acme.test']);
-  assert.match(statusText(done), /sent to ops@acme.test/);
 });

@@ -10,8 +10,7 @@
  * tools and builds their declarations, by the rules ADK's OpenAPIToolset
  * had; the engine's own caller (lib/tools/openapi/call.ts, ADR 0067) sends
  * each call, by the rules ADK's RestApiTool had. Each operation is an own
- * Tool (lib/tools/tool.ts), which the ADK runtime runs through
- * toFunctionTool. An agent's `openapi:` list hands it a spec file:
+ * Tool (lib/tools/tool.ts). An agent's `openapi:` list hands it a spec file:
  *
  *   openapi:
  *     - spec: "specs/weather.yaml"          # beside this YAML file
@@ -60,9 +59,7 @@
  */
 import { closeSync, openSync, readSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
-import type { FunctionTool } from '@google/adk';
 
-import { toFunctionTool } from './adkTool.ts';
 import { MAX_RESULT_CHARS as TOOL_RESULT_CHARS, capResult } from './tool.ts';
 import type { Tool, ToolContext } from './tool.ts';
 import { callOperation, hostProblem } from './openapi/call.ts';
@@ -192,7 +189,7 @@ function operationTool(op: OpenApiOperation, credential: OpenApiCredential | und
 }
 
 /**
- * The own Tools one `openapi:` entry gives an agent, for either runtime.
+ * The own Tools one `openapi:` entry gives an agent.
  * Throws (failing the compile) on a missing spec, an unset auth variable,
  * an operation the spec does not have, or a server the guard refuses.
  */
@@ -228,19 +225,14 @@ export async function buildOpenApiOwnTools(entry: OpenApiConfig, baseDir: string
 }
 
 /**
- * The tools one `openapi:` entry gives an agent on the ADK runtime: each own
- * Tool through toFunctionTool, marked so require_approval can name it by
- * its operationId. ADK's RestApiTool and OpenAPIToolset are not used.
+ * The tools one `openapi:` entry gives an agent: buildOpenApiOwnTools' own
+ * Tools, each marked so require_approval can name it by its operationId.
  */
-export async function buildOpenApiTools(entry: OpenApiConfig, baseDir: string = process.cwd()): Promise<FunctionTool[]> {
-  return (await buildOpenApiOwnTools(entry, baseDir)).map((own) => {
-    const adkTool = toFunctionTool(own);
-    Object.defineProperty(adkTool, OPENAPI_TOOL, { value: openApiOperationId(own) });
-    return adkTool;
-  });
+export async function buildOpenApiTools(entry: OpenApiConfig, baseDir: string = process.cwd()): Promise<Tool[]> {
+  return buildOpenApiOwnTools(entry, baseDir);
 }
 
-/** The operationId of a tool built from an `openapi:` entry (own or ADK), or undefined. */
+/** The operationId of a tool built from an `openapi:` entry, or undefined. */
 export function openApiOperationId(tool: unknown): string | undefined {
   if (!tool || typeof tool !== 'object') return undefined;
   const id = (tool as Record<symbol, unknown>)[OPENAPI_TOOL];

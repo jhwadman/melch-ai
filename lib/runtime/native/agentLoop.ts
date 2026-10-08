@@ -4,39 +4,40 @@
  * stops calling tools or the turn stops it (ADR 0045, ADR 0066).
  *
  * WHY this file exists:
- *   On the ADK runtime this is LlmAgent.runAsyncImpl: run one step
+ *   Under ADK this was LlmAgent.runAsyncImpl: run one step
  *   (lib/runtime/native/step.ts is the native step), run the answer's
  *   function calls (ADK's handleFunctionCallList), store the response
  *   event, and step again unless the last event is a final response. A
- *   session either runtime wrote must be one the other continues, so every
- *   event this loop stores is the one ADK stores for the same answer and the
- *   same tool results, ids and times aside. tests/nativeLoop.test.ts runs
- *   the boundary suite's single-agent cases both ways and compares.
+ *   session ADK wrote must be one this loop continues, so every event this
+ *   loop stores is the one ADK stored for the same answer and the same tool
+ *   results, ids and times aside. tests/nativeLoop.test.ts runs the
+ *   boundary suite's single-agent cases and compares them with ADK's
+ *   recorded events (tests/fixtures/adk-reference/, ADR 0108).
  *
- * ONE STEP, AS ADK RUNS IT:
+ * ONE STEP, AS ADK RAN IT:
  *   1. The model step (runModelStep). Its partial events are yielded as they
  *      arrive and stored nowhere, so drainAgentStream hands their text to
- *      onTextDelta exactly as it does on the ADK path. With a
+ *      onTextDelta exactly as ADK's partials reached it. With a
  *      `fallback_model`, the step runs once per leaf adapter (ADR 0053): a
  *      provider-side failure before anything was produced is not stored,
  *      and the fallback answers the same request under its own model id, by
- *      ADK's FallbackLlm's rules and the shared circuit breaker (ADR 0044).
+ *      ADR 0044's rules and the shared circuit breaker.
  *   2. The answer's calls run in parallel, each with its own context (its
  *      own state delta and actions). Results are kept in call order:
  *      - a call naming no declared tool answers
  *        `{ error: "Function <name> is not found in the toolsDict." }`;
  *      - a tool that throws answers `{ error: "Error in tool '<name>': …" }`,
- *        the text ADK's FunctionTool writes (lib/tools/adkTool.ts);
+ *        the text ADK's FunctionTool wrote;
  *      - with self-correction's tool side on (retries.tool_errors, default
  *        3), those two answer with reflection guidance instead, counted per
  *        tool in call order (lib/runtime/native/selfCorrection.ts);
  *      - a tool that requires approval and has none asks for it, as
- *        FunctionTool's gate does: `{ error: APPROVAL_TEXTS.pending }`,
+ *        ADK's FunctionTool gate did: `{ error: APPROVAL_TEXTS.pending }`,
  *        `skipSummarization`, and the request under the call's id;
  *      - a long-running tool (ask_user) that returns nothing answers
  *        nothing; its actions, when it set any, make an event of their own;
  *      - a result that is not an object is wrapped `{ result }`, an array
- *        `{ results }`, as ADK wraps them;
+ *        `{ results }`, as ADK wrapped them;
  *      - a result nested deeper than MAX_VALUE_DEPTH levels answers
  *        `{ error: TOO_DEEP_RESULT }` instead: every later reader of the
  *        session would overflow its stack on it (lib/runtime/valueDepth.ts,
@@ -106,9 +107,10 @@
  * subAgents). The run's spans (agent.invoke, model.call,
  * tool.execute) are lib/runtime/native/telemetry.ts.
  *
- * ADK stays out of this file: an ADK tool an agent still lists during the
- * dual period (a registry FunctionTool, the skills toolset's tools) is run
- * through its runAsync with a context shaped like ADK's, by shape.
+ * No ADK import. An ADK tool (an object with runAsync) is refused, naming
+ * 1.0.0 and defineTool: among the agent's tools before the first step, and
+ * as a call's tool (one a Toolset handed over) before it runs, as
+ * registerTool refuses one (lib/toolRegistry.ts).
  */
 
 import { randomUUID } from 'node:crypto';
@@ -195,7 +197,7 @@ export type AgentLoopEndReason =
   | 'final'
   /** A call waits on a person: an ask_user call, or an approval request. `pending` holds the ids. */
   | 'paused'
-  /** The last event carries an error (a failed model call), as the ADK path stores it. */
+  /** The last event carries an error (a failed model call), as ADK stored it. */
   | 'error'
   /** The turn stopped a step (cancel, deadline, max_steps): no event was stored for it. */
   | 'stopped'
@@ -421,18 +423,18 @@ function asResponse(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** An ADK tool an agent still lists during the dual period, read by shape. */
-interface AdkShapedTool {
-  name: string;
-  isLongRunning?: boolean;
-  runAsync(request: { args: Record<string, unknown>; toolContext: unknown }): Promise<unknown>;
+/** An ADK tool (anything with runAsync), read by shape: the engine refuses it. */
+function isAdkTool(tool: unknown): boolean {
+  return !!tool && typeof tool === 'object' && 'runAsync' in tool;
 }
 
-function isAdkShaped(tool: unknown): tool is AdkShapedTool {
-  return !!tool && typeof tool === 'object' && typeof (tool as { runAsync?: unknown }).runAsync === 'function';
+/** The error an ADK tool reaching the loop throws, as registerTool's refusal words it. */
+function adkToolRefused(tool: unknown): Error {
+  const name = String((tool as { name?: unknown }).name ?? '<unnamed>');
+  return new Error(`agent loop: '${name}' is an ADK tool, which melchizedek-agents 1.0.0 no longer runs (ADR 0107); define it with defineTool (melchizedek-agents) instead`);
 }
 
-/** An own Tool's call, as FunctionTool runs it on the ADK path: its approval gate, then execute, a throw named for the tool. */
+/** An own Tool's call, as ADK's FunctionTool ran it: its approval gate, then execute, a throw named for the tool. */
 async function runOwnTool(tool: Tool, args: Record<string, unknown>, context: CallContext): Promise<unknown> {
   try {
     if (tool.requiresApproval === true) {
@@ -460,8 +462,8 @@ async function runCall(
   const context = callContext(scope, call.id || undefined, confirmation);
   const name = call.name ?? '';
   const tool = name && tools.has(name) ? tools.get(name) : undefined;
-  const callable = isTool(tool) || isAdkShaped(tool);
-  if (!callable) {
+  if (isAdkTool(tool)) throw adkToolRefused(tool);
+  if (!isTool(tool)) {
     const toolName = name || '<unnamed>';
     const notFound = `Function ${toolName} is not found in the toolsDict.`;
     const guided = await correction?.failed(toolName, call.args ?? {}, new Error(notFound));
@@ -471,8 +473,8 @@ async function runCall(
     return { part, actions: context.actions };
   }
   const args = call.args ?? {};
-  const toolName = (tool as { name: string }).name;
-  const longRunning = isTool(tool) ? tool.longRunning === true : tool.isLongRunning === true;
+  const toolName = tool.name;
+  const longRunning = tool.longRunning === true;
 
   // Delegation (WS2-6): a subagent runs as its own child loop, a nested workflow as its own walk (ADR 0098), before the generic path (delegate.ts).
   const subagent = subagentOf(tool);
@@ -486,7 +488,7 @@ async function runCall(
       ? await runSubagent(subagent, args, context, delegation)
       : workflow
         ? await runWorkflowSubagent(workflow, args, context, delegation)
-        : isTool(tool) ? await runOwnTool(tool, args, context) : await tool.runAsync({ args, toolContext: context });
+        : await runOwnTool(tool, args, context);
   } catch (e) {
     failure = e instanceof Error ? e.message : e;
     // Self-correction answers a thrown Error with reflection guidance in its place; a call waiting on a grant is not a failure.
@@ -666,7 +668,7 @@ const hasParts = (event: TurnEvent): boolean => (event.content?.parts?.length ??
 
 /**
  * One model step for the agent: its own model, and with a fallback_model
- * the fallback by ADK's FallbackLlm's rules (ADR 0044), each a leaf adapter
+ * the fallback by ADR 0044's rules, each a leaf adapter
  * called by its own step (ADR 0053).
  */
 async function* modelStep(
@@ -696,7 +698,7 @@ async function* modelStep(
         if (hasParts(event)) answered = true;
         onPartial(event);
       },
-      // FallbackLlm: a retryable failure counts against the provider, and redirects when nothing was produced.
+      // ADR 0044: a retryable failure counts against the provider, and redirects when nothing was produced.
       redirect: (final: FinalModelResponse, produced: boolean) => {
         if (!final.error?.retryable) return false;
         recordFailure(provider);
@@ -722,7 +724,7 @@ async function* modelStep(
  * Never throws for a failed model call or a failing tool: the first is the
  * last event, stored with its error, the second the call's error response.
  * An adapter that throws an Error ends the step on ADK's error event for
- * it (lib/runtime/native/step.ts). Throws where the ADK runtime throws: a
+ * it (lib/runtime/native/step.ts). Throws where ADK threw: a
  * request that cannot be built, a store that throws.
  */
 export function runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGenerator<TurnEvent, AgentLoopEnd> {
@@ -732,6 +734,8 @@ export function runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGe
 
 async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGenerator<TurnEvent, AgentLoopEnd> {
   const { session, sessions } = ctx;
+  const adkTool = (agent.tools ?? []).find(isAdkTool);
+  if (adkTool) throw adkToolRefused(adkTool);
   // The run's temp: keys, read from each event before the store drops them (lib/runtime/native/tempState.ts).
   const runTemp = createRunTempState();
   // Task-mode hook (WS3-5): a task node's run ends on finish_task's successful answer.
@@ -785,10 +789,10 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
       ...(currentTurnSignal() ? { signal: currentTurnSignal() } : {}),
     });
     if (compacted) {
-      // As ADK's Runner: a turn that stopped during the summary stores nothing and makes no step.
+      // A turn that stopped during the summary stores nothing and makes no step (as ADK's Runner recorded it).
       if (ctx.signal?.aborted || currentTurnSignal()?.aborted) return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
       // A workflow node's stamp (ADR 0093): ADK's node runner stamps the summary as it does every event its agent yields, and outside
-      // task mode its maybeSetOutput gives it the summary as output. The outputKey and task hooks never see it, as on ADK.
+      // task mode its maybeSetOutput gives it the summary as output. The outputKey and task hooks never see it.
       ctx.nodeStamp?.(compacted);
       yield await sessions.append(session, compacted);
     }

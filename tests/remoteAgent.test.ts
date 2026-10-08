@@ -3,10 +3,9 @@
  * offline: a real A2A server (lib/a2a/app.ts) on an ephemeral localhost port
  * plays the remote agent, with scripted models on both sides.
  *
- * The turn cases run on both runtimes (tests/helpers/runtime.ts): the local
- * turn through its runtime option, the remote server through
- * MELCHIZEDEK_RUNTIME. A remote subagent's turn must store the same events
- * on each, and a conversation that called it on one continues on the other.
+ * A remote subagent's turn must store the same events as the same
+ * conversation did on ADK 2.2, recorded in tests/fixtures/adk-reference/
+ * remoteagent.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -18,24 +17,20 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { a2aAuthHeaders, advertisedEndpoints, RemoteA2AAgent } from '../lib/a2a/remoteAgent.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { ScriptedLlm, call, scriptedResolver, sentTexts, text } from './helpers/scriptedLlm.ts';
-import { acrossRuntimes, forEachRuntime, runtimeOption, withRuntimeEnv } from './helpers/runtime.ts';
-import type { RuntimeName } from './helpers/runtime.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
-import { resetCircuits } from '../lib/models/fallback.ts';
+import { resetCircuits } from '../lib/models/circuitBreaker.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 import { adkReferences, canonical } from './helpers/adkReference.ts';
 
-// The all-ADK conversation the parity and cross-runtime cases are held to is
-// recorded (tests/fixtures/adk-reference/remoteagent); it runs only under ADK_REFERENCE=live|record.
+// The all-ADK conversation the parity case is held to, as ADK 2.2 recorded it
+// (tests/fixtures/adk-reference/remoteagent).
 const reference = adkReferences('remoteAgent');
-
-setLogLevel(LogLevel.ERROR);
 
 const SECRET = 'remote-secret-0123456789abcdef0123456789';
 const dir = mkdtempSync(join(tmpdir(), 'melch-remote-'));
@@ -49,7 +44,7 @@ before(async () => {
   const built = await createA2AApp({
     defaultSyndicate: 'oracle.yaml',
     serverSecret: SECRET,
-    storage: { sessionService: new InMemorySessionService() },
+    storage: { sessionService: new InProcessSessionService() },
     keyMode: 'byok',
     resolveModel: () => new ScriptedLlm('scripted/oracle', (req) => text(`oracle heard: ${sentTexts(req).join(' | ')}`)),
     log: () => {},
@@ -70,8 +65,8 @@ after(() => {
   delete process.env.A2A_AGENT_TOKENS;
 });
 
-forEachRuntime('a local orchestrator delegates to a remote agent, and the remote conversation persists', async () => {
-  const sessions = new InMemorySessionService();
+test('a local orchestrator delegates to a remote agent, and the remote conversation persists', async () => {
+  const sessions = new InProcessSessionService();
   const boss = new ScriptedLlm('scripted/boss', (req, n) => {
     const toolResult = JSON.stringify(req.contents?.at(-1) ?? '');
     return n % 2 === 1 ? call('Oracle', { request: n === 1 ? 'first question' : 'second question' }) : text(`relay: ${toolResult}`);
@@ -83,7 +78,6 @@ forEachRuntime('a local orchestrator delegates to a remote agent, and the remote
   } as any;
   const run = (msg: string) =>
     runSyndicateTurn({
-      ...runtimeOption(),
       config,
       parts: [{ text: msg }],
       appName: 'local',
@@ -102,7 +96,7 @@ forEachRuntime('a local orchestrator delegates to a remote agent, and the remote
   assert.match(second.text, /second question/);
 });
 
-forEachRuntime('a plan-dispatch route can be a remote agent', async () => {
+test('a plan-dispatch route can be a remote agent', async () => {
   const router = new ScriptedLlm('scripted/router', () => text('{"route":"Oracle"}'));
   const config = {
     syndicate_name: 'Desk',
@@ -114,13 +108,12 @@ forEachRuntime('a plan-dispatch route can be a remote agent', async () => {
     dispatch: { default_route: 'Chat' },
   } as any;
   const r = await runSyndicateTurn({
-    ...runtimeOption(),
     config,
     parts: [{ text: 'route me' }],
     appName: 'local',
     userId: 'u',
     sessionId: 'conv-2',
-    sessionService: new InMemorySessionService(),
+    sessionService: new InProcessSessionService(),
     compile: { resolveModel: scriptedResolver({ router }) },
     trace: false,
   });
@@ -183,10 +176,10 @@ test('credentials go only to the exact host, over https or to loopback', () => {
   assert.deepEqual(a2aAuthHeaders(new URL('http://localhost:4000/x'), env), { Authorization: 'Bearer dev' });
 });
 
-// ── A remote subagent on each runtime, and across them ───────────────────────
+// ── A remote subagent, held to ADK's recording ───────────────────────────────
 
-/** Two local turns that each call the remote Oracle, turn i on `on(i)` (local and remote alike); one local store. */
-async function remoteConversation(on: (turn: number) => RuntimeName, conversation: string) {
+/** Two local turns that each call the remote Oracle; one local store. */
+async function remoteConversation(conversation: string) {
   resetCircuits();
   const boss = new ScriptedModel('scripted/boss', (req, n) =>
     n % 2 === 1 ? toolCall('Oracle', { request: n === 1 ? 'first question' : 'second question' }, `call-oracle-${n}`) : answer(`relay: ${lastToolResult(req)?.result}`),
@@ -196,49 +189,37 @@ async function remoteConversation(on: (turn: number) => RuntimeName, conversatio
     orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Ask the oracle.' },
     subagents: [{ name: 'Oracle', description: 'A remote oracle', a2a_agent_url: base }],
   } as any;
-  const sessionService = new InMemorySessionService();
+  const sessionService = new InProcessSessionService();
   const results: SyndicateTurnResult[] = [];
-  for (const [i, message] of ['go', 'again'].entries()) {
-    const runtime = on(i);
+  for (const message of ['go', 'again']) {
     results.push(
-      await withRuntimeEnv(runtime, () =>
-        runSyndicateTurn({
-          runtime,
-          config,
-          parts: [{ text: message }],
-          appName: 'local',
-          userId: 'u',
-          sessionId: conversation,
-          sessionService,
-          compile: { resolveModel: shimResolver({ boss }), log: () => {} },
-          trace: false,
-        }),
-      ),
+      await runSyndicateTurn({
+        config,
+        parts: [{ text: message }],
+        appName: 'local',
+        userId: 'u',
+        sessionId: conversation,
+        sessionService,
+        compile: { resolveModel: shimResolver({ boss }), log: () => {} },
+        trace: false,
+      }),
     );
   }
-  const session = await sessionService.getSession({ appName: 'local', userId: 'u', sessionId: conversation });
+  const session = await sessionService.get({ appName: 'local', userId: 'u', sessionId: conversation });
   const events = (session?.events ?? []).map((e) => ({ ...JSON.parse(JSON.stringify(e)), id: '<id>', timestamp: 0, invocationId: '<inv>' }));
   return { results: results.map((r) => ({ status: r.status, text: r.text, error: r.error, delegations: r.answer?.delegations })), events, calls: boss.calls };
 }
 
-/** Both turns on ADK, local and remote: the reference every case below is held to, recorded once. */
-let allAdk: ReturnType<typeof remoteConversation> | undefined;
-const adkConversation = () => (allAdk ??= reference('remote-conversation-all-adk', () => remoteConversation(() => 'adk', 'remote-adk-reference')));
+type Conversation = Awaited<ReturnType<typeof remoteConversation>>;
 
-forEachRuntime('parity: a remote A2A subagent answers the same turn, and stores the same events, as on ADK', async (runtime) => {
-  const reference = await adkConversation();
+test('parity: a remote A2A subagent answers the same turn, and stores the same events, as on ADK', async () => {
+  // Both turns on ADK, local and remote, as recorded.
+  const recorded = await reference<Conversation>('remote-conversation-all-adk');
   // In the reference's canonical form (adkReference.ts): JSON, its events' ids and times fixed.
-  const run = canonical(await remoteConversation(() => runtime, `remote-parity-${runtime}`));
+  const run = canonical(await remoteConversation('remote-parity-native'));
   assert.equal(run.results[0]?.status, 'completed');
   assert.match(String(run.results[1]?.text), /oracle heard: .*first question.*second question/);
-  assert.deepEqual(run.results, reference.results);
-  assert.deepEqual(run.events, reference.events, 'the stored events');
-  assert.equal(run.calls, reference.calls);
-});
-
-acrossRuntimes('a conversation that called a remote agent on one runtime continues on the other, the remote conversation with it', async (writer, reader) => {
-  const reference = await adkConversation();
-  const run = canonical(await remoteConversation((i) => (i === 0 ? writer : reader), `remote-cross-${writer}`));
-  assert.deepEqual(run.results, reference.results);
-  assert.deepEqual(run.events, reference.events, 'the stored events');
+  assert.deepEqual(run.results, recorded.results);
+  assert.deepEqual(run.events, recorded.events, 'the stored events');
+  assert.equal(run.calls, recorded.calls);
 });

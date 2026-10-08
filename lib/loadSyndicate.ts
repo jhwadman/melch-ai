@@ -19,8 +19,8 @@ export type { WorkflowConfig } from './workflowConfig.ts';
 // ── Types ─────────────────────────────────────────────────
 // Property names mirror their ADK counterparts 1:1.
 // Sources:
-//   LlmAgentConfig      → @google/adk :: agents/llm_agent.d.ts
-//   BaseAgentConfig     → @google/adk :: agents/base_agent.d.ts
+//   LlmAgentConfig      → Google ADK 2.2 :: agents/llm_agent.d.ts
+//   BaseAgentConfig     → Google ADK 2.2 :: agents/base_agent.d.ts
 //   GenerateContentConfig → @google/genai :: GenerateContentConfig
 
 export interface ThinkingConfig {
@@ -69,7 +69,7 @@ export interface GenerateContentConfig {
 }
 
 /**
- * Maps to LlmAgentConfig (+ BaseAgentConfig) from @google/adk.
+ * Mirrors LlmAgentConfig (+ BaseAgentConfig) from Google ADK 2.2, whose names the YAML keeps.
  */
 export interface AgentYamlConfig {
   // ── BaseAgentConfig ──
@@ -238,7 +238,7 @@ export interface SyndicateYamlConfig {
   memory_extraction_model?: string;
   /** Days facts in this syndicate's namespace are kept (needs memory_namespace). */
   memory_retention_days?: number;
-  /** Optional hard technical limit for maximum ADK runner loops (LLM -> Tool cycles). */
+  /** Optional hard limit on the turn's model calls, subagents included (LLM -> Tool cycles). */
   max_steps?: number;
   /**
    * The nested `yaml_reference:` syndicates this one reaches, raw, keyed by
@@ -500,7 +500,7 @@ const SHIPPED_DIRS = ['examples', 'templates'] as const;
  * The A2A server used to read `config.guards` directly, which meant guards were
  * honoured on exactly ONE composition: a top-level syndicate. Compose the same
  * syndicate as a sub-agent — `yaml_reference:`, the repo's own idiom, already
- * used across the shipped templates — and `compileSubagent` loads the nested config, `compileGraph` never
+ * used across the shipped templates — and the compiler loads the nested config but never
  * looks at `guards`, and the server only ever consults the PARENT's list. The
  * nested syndicate's `guards: [science]` was dropped with no warning, because
  * `resolveGuards`' unknown-name path cannot fire on a list nobody read.
@@ -665,7 +665,7 @@ export function validateRegistryConfig(config: Record<string, any>): void {
   // A nested (yaml_reference) or remote (a2a_agent_url) agent brings its own
   // model and instruction.
   if (!config.name || (!config.yaml_reference && !config.a2a_agent_url && (!config.model || !config.instruction))) {
-    throw new Error(`[Validation Error] Configuration fails validation against ADK LlmAgentConfig specifications.`);
+    throw new Error(`[Validation Error] Configuration fails validation against the syndicate schema: an agent needs a name, and a model and an instruction unless it is a yaml_reference or an a2a_agent_url.`);
   }
 }
 

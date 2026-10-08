@@ -2,11 +2,10 @@
  * lib/models/fallbackAdapter.ts — `fallback_model:` and the per-provider
  * circuit breaker (ADR 0044) on the engine's own model contract (ADR 0048).
  *
- * WHY: FallbackLlm (lib/models/fallback.ts) wraps two ADK BaseLlm adapters
- * and reads a failure from a throw. On the contract a failure is a final
- * response with `error` set, never a throw, and `error.retryable` already
- * says whether another model may succeed. This wrapper is the same rule set
- * read from that: one ModelAdapter around a primary and a fallback adapter.
+ * WHY: on the contract a failure is a final response with `error` set,
+ * never a throw, and `error.retryable` already says whether another model
+ * may succeed. This wrapper is ADR 0044's rule set read from that: one
+ * ModelAdapter around a primary and a fallback adapter.
  *
  * THE RULES (ADR 0044, unchanged):
  *   - Only a provider-side failure counts and redirects: `error.retryable`
@@ -19,9 +18,9 @@
  *     was yielded and the failed final holds no parts. A call that failed
  *     midway is passed on, never replayed on another model.
  *   - The breaker (lib/models/circuitBreaker.ts) is keyed on the primary's
- *     `provider` and shared with FallbackLlm, so a provider tripped on one
- *     path is skipped on the other. While it is open the primary is not
- *     called. A success closes it; the fallback's own outcome is not counted.
+ *     `provider` and shared by every wrapped agent in the process, so a
+ *     provider tripped for one agent is skipped for the others. While it is
+ *     open the primary is not called. A success closes it; the fallback's own outcome is not counted.
  *
  * THE FALLBACK'S REQUEST: the caller's request with `model` rewritten to the
  * fallback's id. `reasoning` goes unchanged, and the fallback adapter maps it

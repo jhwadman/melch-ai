@@ -1,7 +1,7 @@
 ---
 type: model-provider
 title: Responses adapters
-description: "GptAdapter and GrokAdapter (lib/models/gptAdapter.ts, lib/models/grokAdapter.ts): GPT and Grok on the engine's model contract over OpenAI's Responses API, with GptLlm and GrokLlm as the ADK shim around them. The choices made inside the contract's OpenAI and xAI tables, reasoning replay, failures and their retry verdicts, what the ADK path keeps, and what only a live run can confirm."
+description: "GptAdapter and GrokAdapter (lib/models/gptAdapter.ts, lib/models/grokAdapter.ts): GPT and Grok on the engine's model contract over OpenAI's Responses API. The choices made inside the contract's OpenAI and xAI tables, reasoning replay, failures and their retry verdicts, the event the native step stores, and what only a live run can confirm."
 tags:
   - models
   - openai
@@ -13,18 +13,14 @@ generated:
 sources:
   - resource: lib/models/gptAdapter.ts
   - resource: lib/models/grokAdapter.ts
-  - resource: lib/models/gptLlm.ts
-  - resource: lib/models/grokLlm.ts
-  - resource: lib/models/adkShim.ts
+  - resource: lib/tools/xaiSearchParams.ts
   - resource: tests/responsesAdapter.test.ts
   - resource: tests/responsesReasoningState.test.ts
 ---
 
 # Responses adapters
 
-`GptAdapter` in `lib/models/gptAdapter.ts` is GPT as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)) on OpenAI's Responses API, through the `openai` SDK. `GrokAdapter` in `lib/models/grokAdapter.ts` extends it for xAI, whose Agent Tools API speaks the same wire at `https://api.x.ai/v1`. `GptAdapter` loads nothing from ADK at runtime, so the native runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) can call it. `GrokAdapter` reads its tool configuration through the env readers in `lib/tools/*Tool.ts`, which load ADK.
-
-`GptLlm` and `GrokLlm` (`lib/models/gptLlm.ts`, `lib/models/grokLlm.ts`) are what the adk runtime's registry registers for `gpt-*`, `o<digit>*` and `grok-*`. Each is an [ADK shim](/models/adk-shim.md) subclass around its adapter, constructed with `{ model, apiKey?, endpoint? }`, so every GPT and Grok call runs on the contract on both runtimes.
+`GptAdapter` in `lib/models/gptAdapter.ts` is GPT as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)) on OpenAI's Responses API, through the `openai` SDK. `GrokAdapter` in `lib/models/grokAdapter.ts` extends it for xAI, whose Agent Tools API speaks the same wire at `https://api.x.ai/v1`. The native runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls them directly, and `resolveAdapter` returns them for `gpt-*`, `o<digit>*` and `grok-*`. `GrokAdapter` reads its tool configuration from `lib/tools/xaiSearchParams.ts`.
 
 The field-by-field mapping is the OpenAI Responses and xAI tables of the [model contract](/models/model-contract.md). This page records the choices made inside them.
 
@@ -43,8 +39,8 @@ Setup failures are finals: `MISSING_API_KEY` without a key on a direct endpoint,
 
 ## The request
 
-- **History.** System messages join `request.system` in `instructions`, separated by a blank line. A thinking part is never sent. An assistant message puts its `function_call` items before its text, as the ADK path always built it, unless it replays reasoning (below), when it keeps the model's order.
-- **Tool results** go as `function_call_output` whose text is genai's `functionResponse.response` for the result: `{ error: result }` for a failed tool, the result when it is an object, else `{ result }`. So a conversation the ADK path stored reaches the vendor byte for byte as before.
+- **History.** System messages join `request.system` in `instructions`, separated by a blank line. A thinking part is never sent. An assistant message puts its `function_call` items before its text, unless it replays reasoning (below), when it keeps the model's order.
+- **Tool results** go as `function_call_output` whose text is genai's `functionResponse.response` for the result: `{ error: result }` for a failed tool, the result when it is an object, else `{ result }`. So a stored conversation, an ADK-written one included, reaches the vendor byte for byte as it was first sent.
 - **Blobs** go in user turns only: images as `input_image` (inline as a data URL, or an https URL), a PDF as `input_file`. A blob typed `application/octet-stream`, which the genai mapping gives a part with no type, goes as `image/png`. A URL that is not https is not sent, and the span carries `llm.image.dropped`.
 - **Tools.** Each declaration goes as given, `strict: false` unless it is strict, when its parameters take the strict form. `toolChoice` is sent only beside tools.
 - **Native tools.** GPT sends `web_search` bare on OpenAI's API and a direct proxy, and drops it on Azure OpenAI, with `llm.web_search.omitted` and a one-time warning. Grok sends `web_search` with the `XAI_WEB_SEARCH_*` domain filters, `x_search` with the `XAI_X_SEARCH_*` bounds, and `collections_search` as `file_search` over `XAI_COLLECTION_IDS`, which is left out with a warning while that is empty. Each is bare when nothing is configured. Every other native tool is dropped and named in `llm.capability.dropped`.
@@ -90,36 +86,23 @@ Every call ends with exactly one final, and a failure is that final with `error`
 
 ## Telemetry
 
-The adapters open no span and charge no turn ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)); their caller does both: the native loop's model step, or the shim on the adk runtime. They set `llm.web_search.native`, `llm.web_search.omitted`, `llm.collections_search.native`, `llm.collections_search.omitted`, `llm.capability.dropped`, `llm.image.dropped`, `llm.retry_without_reasoning`, `llm.server_tools.*` and `llm.cost.vendor_usd_ticks` on the span open around them.
+The adapters open no span and charge no turn ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)); their caller, the native loop's model step, does both. They set `llm.web_search.native`, `llm.web_search.omitted`, `llm.collections_search.native`, `llm.collections_search.omitted`, `llm.capability.dropped`, `llm.image.dropped`, `llm.retry_without_reasoning`, `llm.server_tools.*` and `llm.cost.vendor_usd_ticks` on the span open around them.
 
-## What the ADK path keeps
+## The stored event
 
-`GptLlm` overrides the shim's `toLlmResponse` so ADK's events read as they always have for these providers ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)):
-
-- `usageMetadata.candidatesTokenCount` is `output_tokens`, reasoning included. So `llm.tokens.output`, the turn's output charge, the root span's `syndicate.tokens.output` and the ledger's `output_tokens` count what they counted before.
-- The server-side calls ride on the final as `customMetadata['responses.server_tool_calls']`, and xAI's counters as `['responses.server_tool_usage']`. The root span turns them into `ToolCall` events, so `adk_turns.tool_calls` counts a searched answer.
-- `groundingMetadata` from the adapter's grounding, so the A2A server lists the answer's web sources, as it does for Gemini (the owner's decision, 2026-10-08).
-
-The events gain `finishReason`, as every shimmed adapter's do. `buildResponsesInput` and `buildResponsesTools` (in `gptLlm.ts`) take an `LlmRequest`, map it to the contract and run the adapter's own builders. On the ADK path these differ from the earlier GPT and Grok adapters, because the contract carries them differently:
-
-- The effort words `xhigh` and `max` are not sent.
-- A call without an id gets one minted from its position, and its result the same one.
-- `fileData` images reach the model.
-- An in-stream failure has a verdict.
-- An aborted stream ends in an error, not in the text so far.
+The native step stores each final as the event ADK would store, in Gemini's usage meanings ([model contract](/models/model-contract.md#the-response)): `candidatesTokenCount` is output less reasoning, with the reasoning in `thoughtsTokenCount`. The event carries `finishReason`, and `groundingMetadata` from the adapter's grounding, so the A2A server lists the answer's web sources, as it does for Gemini. Events that ADK's `GptLlm` and `GrokLlm` stored before 1.0.0 count reasoning inside `candidatesTokenCount` and may carry the server-side calls as `customMetadata['responses.server_tool_calls']`, which the tracer still reads ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)).
 
 ## What the offline tests assert
 
-`tests/responsesAdapter.test.ts` drives the adapters with `ModelRequest` inputs through the real `openai` SDK over a stubbed `fetch`. It asserts the request bodies the ADK-path tests assert, and that `GptLlm` and `GptAdapter` post the same body for the same conversation. It also covers:
+`tests/responsesAdapter.test.ts` drives the adapters with `ModelRequest` inputs through the real `openai` SDK over a stubbed `fetch`. It asserts the request bodies and covers:
 
 - a two-step tool loop on `gpt-5-mini` (streamed and not) and `grok-4.6`;
 - the replay rules and the guarded retry;
 - both response paths, grounding and finish reasons;
 - every failure row, and a stalled stream aborted mid-way;
-- JSON mode without a schema, from `outputFormat` and, through `GptLlm` and `GrokLlm`, from `responseMimeType` alone;
-- the ADK path's usage meaning and server-side tool record.
+- JSON mode without a schema, from `outputFormat`.
 
-`tests/responsesReasoningState.test.ts` runs the reasoning replay through a real ADK runner. `tests/models.test.ts`, `tests/capabilityMatrix.test.ts` and `tests/endpoints.test.ts` drive `GptAdapter` and `GrokAdapter` with ModelRequests: the native tools and xAI's filters, the reasoning field, Azure OpenAI and a proxy, the server-side tool record. `tests/reasoningKey.test.ts` drives them with the `reasoning:` a validated YAML declares. `tests/shimBodies.test.ts` holds `GptLlm` and `GrokLlm` to the same bodies. `tests/errorResponse.test.ts` drives the ADK classes with `LlmRequest`s.
+`tests/responsesReasoningState.test.ts` runs the reasoning replay through `runSyndicateTurn` on the native loop. `tests/models.test.ts`, `tests/capabilityMatrix.test.ts` and `tests/endpoints.test.ts` drive `GptAdapter` and `GrokAdapter` with ModelRequests: the native tools and xAI's filters, the reasoning field, Azure OpenAI and a proxy, the server-side tool record. `tests/reasoningKey.test.ts` drives them with the `reasoning:` a validated YAML declares.
 
 ## Confirmed only against documentation
 

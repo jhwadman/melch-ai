@@ -25,11 +25,7 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0
 WORKDIR /app
 COPY package.json package-lock.json ./
-# @google/adk is a peer dependency of the package (the consumer owns the ADK
-# instance), so a production install of THIS repo has to add it explicitly,
-# at the version the build was tested with.
 RUN npm ci --omit=dev \
- && npm install --no-save --omit=dev "@google/adk@$(node -p "require('./package.json').devDependencies['@google/adk']")" \
  && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY config ./config

@@ -2,15 +2,15 @@
  * tests/workflowAgentNode.test.ts — an agent as a workflow node on the
  * native runtime (lib/workflow/agentNode.ts) and route derivation
  * (lib/workflow/route.ts), against ADK's Workflow on ADR 0030's routing
- * cases (ADR 0090).
+ * cases (ADR 0090), as ADK 2.2 recorded them in
+ * tests/fixtures/adk-reference/workflowagentnode.
  *
  * Each case runs one workflow syndicate with the same scripted models on
  * the engine's contract, through the shared harness
- * (tests/helpers/workflowParity.ts): on ADK (runSyndicateTurn, runtime
- * adk), on the native modules driven by hand (the scheduler with
- * agentNodeRuntime as its runNode and onEvent), and through the native
- * turn (runSyndicateTurn, runtime native, lib/workflow/turn.ts). Each native
- * side must store the same events as ADK's (ids and times aside), send
+ * (tests/helpers/workflowParity.ts): on the native modules driven by hand
+ * (the scheduler with agentNodeRuntime as its runNode and onEvent), and
+ * through the turn (runSyndicateTurn, lib/workflow/turn.ts). Each side must
+ * store the same events as ADK's recording (ids and times aside), send
  * every model the same requests, take the same routes, end on the same
  * output, and publish the same progress lines, which name declared nodes
  * only. No network.
@@ -34,20 +34,16 @@ import type { ModelScript } from './helpers/scriptedModel.ts';
 import { agent, adkSide, bothAgree, comparable, onNative, onNativeTurn, workflowConfig as config } from './helpers/workflowParity.ts';
 import type { Scripts } from './helpers/workflowParity.ts';
 import { importGraph, specifiersOf } from './helpers/importGraph.ts';
-import { adkReferences, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
-// ADK's side of each case is recorded (tests/fixtures/adk-reference/workflowagentnode); ADK runs only under ADK_REFERENCE=live|record.
+// ADK's side of each case is recorded (tests/fixtures/adk-reference/workflowagentnode).
 const reference = adkReferences('workflowAgentNode');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 
 // ── Route derivation ─────────────────────────────────────────────────────────
 
-test('routeOf: the route_key property of an object, else the trimmed text, else empty; one function on both paths', () => {
-  assert.equal(configRouteOf, routeOf, 'lib/workflowConfig.ts re-exports the one function the ADK path calls');
+test('routeOf: the route_key property of an object, else the trimmed text, else empty; one function', () => {
+  assert.equal(configRouteOf, routeOf, 'lib/workflowConfig.ts re-exports the one function');
   assert.equal(routeOf({ route: ' bug ', x: 1 }), 'bug');
   assert.equal(routeOf({ kind: 'article' }, 'kind'), 'article');
   assert.equal(routeOf({ kind: 'article' }), '', 'an absent property is the empty route, which the default catches');
@@ -111,7 +107,7 @@ test("a node's output: the text without thoughts, JSON only with a schema, nothi
   assert.equal(eventOutput({}, ev([{ text: '' }])), '', "an empty answer is the empty string, as ADK's");
 });
 
-// ── ADR 0030's routing cases, both ways ──────────────────────────────────────
+// ── ADR 0030's routing cases, against ADK's recording ──────────────────────────────────────
 
 const lastText = (req: Parameters<ModelScript>[0]) => requestTexts(req).at(-1) ?? '';
 
@@ -213,7 +209,7 @@ test('chained with the tool node runner: an agent routes, a tool node runs on it
 test("a node whose model fails, with no output, fails the walk with ADK's NodeReportedError message", async () => {
   const cfg = config({ edges: [['START', 'Triage', { bug: 'Fixer', default: 'Other' }]] }, [agent('Fixer'), agent('Other')]);
   const scripts: Scripts = { triage: () => failure({ code: 'SCRIPTED_DOWN', message: 'the model is down' }), fixer: () => answer('x'), other: () => answer('y') };
-  const adk = await adkSide(reference, 'model-fails', cfg, scripts, 'go');
+  const adk = await adkSide(reference, 'model-fails');
   const native = await onNative(cfg, scripts, 'go');
   assert.equal(native.status, 'failed');
   assert.equal(adk.status, 'failed');
@@ -221,9 +217,9 @@ test("a node whose model fails, with no output, fails the walk with ADK's NodeRe
   assert.match(adk.error ?? '', /Triage/);
   assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events up to the failure');
   assert.equal(native.models.fixer!.calls + native.models.other!.calls, 0);
-  // Through the native turn: the same events, and the turn fails as ADK's does.
+  // Through the turn: the same events, and the turn fails as ADK's did.
   const turn = await onNativeTurn(cfg, scripts, 'go');
-  assert.deepEqual(comparable(turn.events), comparable(adk.events), 'the native turn stores the same events');
+  assert.deepEqual(comparable(turn.events), comparable(adk.events), 'the turn stores the same events');
   assert.equal(turn.status, 'failed');
   assert.equal(turn.error, adk.error);
 });

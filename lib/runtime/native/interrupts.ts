@@ -8,13 +8,13 @@
  *   (agentLoop.ts) stores ADK's `adk_request_confirmation` call in place of
  *   the response, pinning the original call and its arguments, and the run
  *   ends paused. The person's answer arrives as the next user message: a
- *   function response to that call carrying `{ confirmed }`. On the ADK
- *   runtime, LlmAgent's request-confirmation processor reads it before every
- *   model step and runs the pinned call with the confirmation. This file is
- *   that processor, case for case, so an approval opened on either runtime
- *   resumes on the other and both store the same events.
+ *   function response to that call carrying `{ confirmed }`. Under ADK,
+ *   LlmAgent's request-confirmation processor read it before every model
+ *   step and ran the pinned call with the confirmation. This file is that
+ *   processor, case for case, so an approval ADK opened before 1.0.0
+ *   resumes here and the events stored are the ones ADK stored.
  *
- * BEFORE EACH STEP, AS ADK'S PROCESSOR RUNS IT:
+ * BEFORE EACH STEP, AS ADK'S PROCESSOR RAN IT:
  *   1. The answers: the function responses named `adk_request_confirmation`
  *      in the latest user event (events on another branch left out), each
  *      read as `{ confirmed, hint, payload }`, or as JSON under `response`.

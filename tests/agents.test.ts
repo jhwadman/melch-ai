@@ -15,11 +15,11 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { setLogLevel, LogLevel } from '@google/adk';
+import { setLogLevel } from '../lib/runtime/logging.ts';
 import { loadSyndicate, validateRegistryConfig } from '../lib/loadSyndicate.ts';
 import { resolveTools } from '../lib/toolRegistry.ts';
 
-setLogLevel(LogLevel.WARN);
+setLogLevel('warn');
 
 function loadEnv(): void {
   const envPath = join(process.cwd(), '.env');
@@ -79,9 +79,8 @@ test(
   'Live inference — one real turn per syndicate (RUN_LIVE_TESTS=true)',
   { skip: !liveEnabled && 'set RUN_LIVE_TESTS=true and a Gemini key to enable' },
   async (t) => {
-    const { LlmAgent, Runner, InMemorySessionService } = await import('@google/adk');
-    const { registerClaudeLlm } = await import('../lib/models/claudeLlm.ts');
-    registerClaudeLlm();
+    const { runSyndicateTurn } = await import('../lib/runtime/syndicateTurn.ts');
+    const { InProcessSessionService } = await import('../lib/runtime/sessions.ts');
 
     await Promise.all(
       agentFiles
@@ -89,27 +88,16 @@ test(
         .map((filename) =>
           t.test(`${filename} answers a live turn`, async () => {
             const config = loadSyndicate(filename);
-            const agent = new LlmAgent({
-              name: config.orchestrator.name,
-              model: config.orchestrator.model,
-              instruction: config.orchestrator.instruction,
-            });
-            const sessions = new InMemorySessionService();
-            const appName = `test-${config.syndicate_name}`;
-            await sessions.createSession({ appName, userId: 'test', sessionId: 't1' });
-            const runner = new Runner({ appName, agent, sessionService: sessions });
-            let reply = '';
-            for await (const event of runner.runAsync({
+            const result = await runSyndicateTurn({
+              config,
+              parts: [{ text: 'Reply with the single word: ready' }],
+              appName: `test-${config.syndicate_name}`,
               userId: 'test',
               sessionId: 't1',
-              newMessage: { role: 'user', parts: [{ text: 'Reply with the single word: ready' }] },
-            })) {
-              for (const part of event.content?.parts ?? []) {
-                if (typeof (part as { text?: string }).text === 'string') {
-                  reply += (part as { text: string }).text;
-                }
-              }
-            }
+              sessionService: new InProcessSessionService(),
+              trace: false,
+            });
+            const reply = result.text;
             assert.ok(reply.trim().length > 0, `Empty inference reply for ${filename}`);
           }),
         ),

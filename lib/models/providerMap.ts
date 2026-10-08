@@ -3,14 +3,15 @@
  * (as declared in an agent YAML) to its provider.
  *
  * WHY a leaf module:
- *   Both the LLM registry (lib/models/registry.ts) and the web-search
- *   abstraction (lib/tools/webSearchTool.ts) need this mapping; keeping it
+ *   The adapter resolver (lib/models/adapterResolver.ts, through
+ *   lib/models/registry.ts) and the server-side tools' per-provider routing
+ *   (lib/runtime/native/request.ts) both need this mapping; keeping it
  *   dependency-free avoids an import cycle between adapters and tools.
  *
  * Model-name conventions (see DOCUMENTATION.md §7):
  *   claude-*   → anthropic     gpt-* / o<digit>* → openai
  *   grok-*     → xai           ollama/<model>    → ollama (local, keyless)
- *   kimi-*     → moonshot      everything else   → gemini (the ADK-native default)
+ *   kimi-*     → moonshot      everything else   → gemini (the default)
  */
 
 export type ProviderId = 'gemini' | 'anthropic' | 'openai' | 'xai' | 'moonshot' | 'ollama';
@@ -31,8 +32,8 @@ export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
   ollama: { keyEnv: null, label: 'Ollama (local)' },
 };
 
-/** Maps a model id to its provider. Unknown ids default to gemini — the
- *  ADK-native provider — matching the LLMRegistry's fallback behavior. */
+/** Maps a model id to its provider. Unknown ids default to gemini, as
+ *  resolveAdapter does: a typo in a claude- id becomes a Gemini call. */
 export function providerForModel(model: string): ProviderId {
   if (/^ollama\//.test(model)) return 'ollama';
   if (/^claude-/.test(model)) return 'anthropic';

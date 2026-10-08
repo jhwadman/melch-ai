@@ -71,11 +71,11 @@ The live models are not deterministic. A failure detail separates the two causes
 
 ## The runtime flag
 
-`MELCHIZEDEK_RUNTIME` (`adk` or `native`; unset means the library's `DEFAULT_RUNTIME`, `native`; anything else is a usage error) picks the runtime; `adk` needs the optional `@google/adk` peer ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)): every turn passes it to `runSyndicateTurn` as the `runtime` option ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). The report records it as `runtime.requested` and `runtime.ran`, and the table's first line names it. The script sets the engine's log level (`lib/runtime/logging.ts`), never ADK's.
+Every turn runs on the native runtime, the engine's only one ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)). `MELCHIZEDEK_RUNTIME` may be unset or `native`; any other value, `adk` included, is a usage error. Every turn passes the runtime to `runSyndicateTurn` as the `runtime` option ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). The report records it as `runtime.requested` and `runtime.ran`, and the table's first line names it. The script sets the engine's log level (`lib/runtime/logging.ts`).
 
 ## The self-test
 
-`npm run parity -- --scripted` replaces every provider's models with scripted ones (`tests/helpers/scriptedLlm.ts`): no key, no `.env`, no network. One deterministic stand-in plays each agent's role by reading the request: it is offered `Echo` as a tool (the orchestrator), it is asked for a response schema (the Recorder; `responseSchema` in the request ADK builds, `responseJsonSchema` in the native request read back as an `LlmRequest`), or it is neither (Echo). Its report is named `parity-scripted-…` and says `mode: scripted`, so it can never pass for a live gate. `--fault <check>` (scripted only) makes the stand-ins break one behaviour.
+`npm run parity -- --scripted` replaces every provider's models with scripted contract adapters: no key, no `.env`, no network. One deterministic stand-in plays each agent's role by reading the `ModelRequest`: it is offered `Echo` as a tool (the orchestrator), it is asked for an output schema (the Recorder), or it is neither (Echo). Its report is named `parity-scripted-…` and says `mode: scripted`, so it can never pass for a live gate. `--fault <check>` (scripted only) makes the stand-ins break one behaviour.
 
 `tests/parityHarness.test.ts` runs it inside `npm test`:
 

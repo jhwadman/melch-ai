@@ -1,7 +1,7 @@
 /**
  * tests/geminiEngineCheck.test.ts — the G3 live check script
  * (scripts/gemini_engine_check.ts) run offline: its arguments, and two of its
- * cases on both runtimes against a stubbed Gemini API, so the script the
+ * cases on the native runtime against a stubbed Gemini API, so the script the
  * orchestrator runs live is known to drive the engine's GeminiAdapter and to
  * read a pass from what Gemini answers. No provider is called; the key is a
  * fixture.
@@ -52,12 +52,13 @@ test('the live check refuses a bad argument or a model that is not Gemini, befor
   assert.equal(await main(['--model', 'claude-sonnet-4-6'], { readEnvFile: false }), 2);
   assert.equal(await main(['--cases', 'everything'], { readEnvFile: false }), 2);
   assert.equal(await main(['--runtimes', 'both'], { readEnvFile: false }), 2);
+  assert.equal(await main(['--runtimes', 'adk'], { readEnvFile: false }), 2, 'the ADK runtime left in 1.0.0');
   assert.equal(await main(['--verbose'], { readEnvFile: false }), 2);
   delete process.env.GOOGLE_GENAI_API_KEY;
   assert.equal(await main([], { readEnvFile: false }), 2, 'no Gemini route');
 });
 
-test("the live check's grounding and code cases pass on both runtimes when Gemini answers as asked, and print no key", async () => {
+test("the live check's grounding and code cases pass on the native runtime when Gemini answers as asked, and print no key", async () => {
   const hosts = new Set<string>();
   let calls = 0;
   globalThis.fetch = (async (url: string | URL, init: RequestInit) => {
@@ -75,15 +76,13 @@ test("the live check's grounding and code cases pass on both runtimes when Gemin
   const exit = await main(['--cases', 'grounding,code', '--model', 'gemini-3.5-flash'], { readEnvFile: false });
   assert.equal(exit, 0, printed.join('\n'));
   assert.deepEqual([...hosts], ['generativelanguage.googleapis.com']);
-  assert.equal(calls, 4, 'one call per case per runtime');
+  assert.equal(calls, 2, 'one call per case');
   const lines = printed.filter((l) => /^(pass|FAIL)/.test(l));
-  assert.equal(lines.length, 4);
+  assert.equal(lines.length, 2);
   assert.ok(lines.every((l) => l.startsWith('pass')), lines.join('\n'));
   assert.ok(lines.some((l) => /grounding\s+native .*grounded/.test(l)));
-  // The code and its result are stored as Gemini sent them, on both runtimes (ADR 0100).
-  for (const runtime of ['adk', 'native']) {
-    assert.ok(lines.some((l) => new RegExp(`code\\s+${runtime} .*2 code parts stored`).test(l)), `code parts stored on ${runtime}`);
-  }
+  // The code and its result are stored as Gemini sent them (ADR 0100).
+  assert.ok(lines.some((l) => /code\s+native .*2 code parts stored/.test(l)), 'code parts stored');
   assert.ok(!printed.join('\n').includes(KEY), 'the key is never printed');
 });
 

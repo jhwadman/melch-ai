@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { InMemorySessionService } from '@google/adk';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 
@@ -29,7 +29,7 @@ test('/readyz: storage outages, recovery, a shared cached check, and markUnready
     servedAgents: ['assistant.yaml'],
     serverSecret: SECRET,
     storage: {
-      sessionService: new InMemorySessionService(),
+      sessionService: new InProcessSessionService(),
       schemaVersion: async () => {
         probes++;
         if (!dbUp) throw new Error('connect ECONNREFUSED db.internal:5432');

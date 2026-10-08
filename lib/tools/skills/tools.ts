@@ -4,11 +4,9 @@
  *
  * WHY this file exists:
  *   The skills harness (ADR 0029) was built on ADK's SkillToolset until
- *   WS3-3. These are the same tools as own Tools, so the native loop runs
- *   them directly and the ADK runtime runs them through the one tool
- *   adapter (lib/tools/adkTool.ts, toAdkToolset). A model is sent the same
- *   names, descriptions and parameters as before, and reads the same
- *   results and error texts, on either runtime:
+ *   WS3-3. These are the same tools as own Tools, and the native loop runs
+ *   them directly. A model is sent the same names, descriptions and
+ *   parameters as before, and reads the same results and error texts:
  *   - list_skills: the `<available_skills>` index (ADK's ListSkillsTool).
  *     The harness leaves it out, since the index is in the instruction.
  *   - load_skill: the procedure, the frontmatter and the NAMES of the files
@@ -21,8 +19,8 @@
  *     skill ships on the local executor (./executor.ts).
  *
  * ACTIVATION: load_skill appends the skill's name to the session state key
- *   `_adk_activated_skill_<agent>` (ADK's key, so a session stored by
- *   either runtime reads the same). SkillToolset.getTools reads it and adds
+ *   `_adk_activated_skill_<agent>` (ADK's key, so a session ADK stored
+ *   reads the same). SkillToolset.getTools reads it and adds
  *   the tools the activated skills name (`metadata.adk_additional_tools`,
  *   filled from `allowed-tools`), but only from the tools the YAML handed
  *   it under `skills.tools`: a skill cannot grant itself a tool the YAML
@@ -117,7 +115,7 @@ function isToolsetShaped(value: unknown): value is { getTools(ctx?: unknown): Pr
  * The tools an agent with `skills:` carries: load_skill and
  * load_skill_resource always, run_skill_script with `scripts: local`, and
  * the tools its loaded skills unlock. A toolset by shape (getTools), which
- * the native loop expands and lib/tools/adkTool.ts wraps for ADK.
+ * the native loop expands.
  */
 export class SkillToolset implements Toolset {
   readonly name = 'skill_toolset';
@@ -354,8 +352,8 @@ export class LoadSkillResourceTool extends SkillTool {
  * run_skill_script behind a person's approval: the first call asks for it
  * (the hint names the skill, the script and the arguments) and returns
  * without running; the call made again with the answer runs only when the
- * answer approved it. The confirmation travels as `adk_request_confirmation`
- * on either runtime, so the turn pauses `input-required` exactly as for
+ * answer approved it. The confirmation travels as `adk_request_confirmation`,
+ * so the turn pauses `input-required` exactly as for
  * `require_approval` (ADR 0028), with this tool's own texts.
  */
 export class RunSkillScriptTool extends SkillTool {
@@ -385,7 +383,7 @@ export class RunSkillScriptTool extends SkillTool {
     return this.#run(args);
   }
 
-  /** ADK's RunSkillScriptTool.runAsync, after the gate. */
+  /** The script run, after the gate, as ADK's RunSkillScriptTool ran it. */
   async #run(args: Record<string, unknown>): Promise<unknown> {
     const skillName = stringArg(args, 'skill_name');
     const scriptPath = stringArg(args, 'script_path');

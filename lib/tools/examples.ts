@@ -5,13 +5,11 @@
  * WHY this file exists:
  *   A YAML agent's `examples:` lists exchanges the model should imitate. ADK's
  *   ExampleTool wrote them into the system instruction of each request as a
- *   few-shot block, and the native runtime needs the same block without ADK.
+ *   few-shot block, and the native loop writes the same block.
  *   Writing into the instruction is what an InstructionTool does
  *   (lib/tools/tool.ts), so the examples are one: it declares no function,
  *   is never called, and adds the block, word for word as ExampleTool
- *   formatted it, before each request. The ADK runtime receives it through
- *   toAdkInstructionTool (lib/tools/adkTool.ts), which appends it where
- *   ExampleTool did.
+ *   formatted it, before each request, where ExampleTool appended it.
  *
  *   As with ExampleTool, the block is added only when the message that
  *   started the run begins with text. YAML examples are text alone, so the

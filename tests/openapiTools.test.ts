@@ -9,7 +9,8 @@
  * request ADK's RestApiTool built, as the reference for every argument
  * location and body encoding, the guard before each call and after each
  * redirect, a credential never sent to another origin and never in an
- * error, a log or a span, and one approval gate on both runtimes. A real
+ * error, a log or a span, and one approval gate. ADK 2.2's parse and
+ * requests are recorded in tests/fixtures/adk-reference/openapitools. A real
  * HTTP server on 127.0.0.1, a scripted fetch for public names; scripted
  * models.
  */
@@ -28,7 +29,7 @@ import { buildRequest, callOperation } from '../lib/tools/openapi/call.ts';
 import type { OpenApiCredential } from '../lib/tools/openapi/call.ts';
 import { setHostResolver } from '../lib/net/addressGuard.ts';
 import { APPROVAL_TEXTS, createToolContext, toolOf } from '../lib/tools/tool.ts';
-import { compileGraph } from '../lib/compile.ts';
+import { compileNativeGraph } from '../lib/compileNative.ts';
 import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
 import { readFileSync as readText } from 'node:fs';
 import { MAX_SPEC_BYTES, adkSnake, operationNamed, parseOpenApiDocument, parseOpenApiSpec } from '../lib/tools/openapi/parse.ts';
@@ -41,17 +42,12 @@ import { approvalResponsePart } from '../lib/runtime/approvals.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
-import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
-import { adkReferences, caseSlug, runsAdk } from './helpers/adkReference.ts';
+import { adkReferences, caseSlug } from './helpers/adkReference.ts';
 
-// ADK's parse and ADK's RestApiTool, the references for the parser and the caller, are recorded
-// (tests/fixtures/adk-reference/openapitools); ADK runs only under ADK_REFERENCE=live|record.
+// ADK 2.2's parse and ADK 2.2's RestApiTool, the references for the parser and the caller, are recorded
+// (tests/fixtures/adk-reference/openapitools).
 const reference = adkReferences('openapiTools');
-if (runsAdk()) {
-  const { LogLevel, setLogLevel } = await import('@google/adk');
-  setLogLevel(LogLevel.ERROR);
-}
 
 const seen: Array<{ method: string; url: string; auth?: string; key?: string; body: string }> = [];
 const pets: Record<string, string> = { p1: 'Rex' };
@@ -129,19 +125,12 @@ after(() => {
 });
 
 const names = (tools: Array<{ name: string }>) => tools.map((t) => t.name).sort();
-/** A tool context with the session state ADK's auth handler reads and may write. */
+/** The engine's tool context; `state` is what a call wrote to the session state. */
 function context() {
-  const state = new Map<string, unknown>();
-  return {
-    state,
-    toolContext: {
-      state: { get: (k: string) => state.get(k), set: (k: string, v: unknown) => state.set(k, v), has: (k: string) => state.has(k) },
-      getAuthResponse: () => undefined,
-      requestCredential: () => {},
-    } as any,
-  };
+  const toolContext = createToolContext();
+  return { state: toolContext.stateDelta, toolContext };
 }
-const run = (tool: any, args: Record<string, unknown>, ctx = context()) => tool.runAsync({ args, toolContext: ctx.toolContext });
+const run = (tool: any, args: Record<string, unknown>, ctx = context()) => toolOf(tool)!.execute(args, ctx.toolContext);
 
 test('toSnake names an operationId the way ADK names the tool', () => {
   assert.equal(toSnake('listPets'), 'list_pets');
@@ -176,7 +165,7 @@ test('auth comes from the environment; an unset variable fails the build', async
     assert.equal(seen[0]!.auth, 'Bearer tok-123');
     assert.equal(seen[1]!.key, 'key-456');
     // A static token is applied, never stored: session state can be durable.
-    assert.doesNotMatch(JSON.stringify([...ctx.state.entries()]), /tok-123|key-456/);
+    assert.doesNotMatch(JSON.stringify(ctx.state), /tok-123|key-456/);
   } finally {
     delete process.env.PETS_TOKEN;
     delete process.env.PETS_KEY;
@@ -255,7 +244,7 @@ function agentConfig(extra: Record<string, unknown>): SyndicateYamlConfig {
 }
 const lastResponse = (req: any) => JSON.stringify(req.contents.at(-1)?.parts?.find((p: any) => p.functionResponse)?.functionResponse?.response ?? null);
 function turnFor(config: SyndicateYamlConfig, keeper: ScriptedLlm) {
-  const sessionService = asAdkSessionService(new InProcessSessionService());
+  const sessionService = new InProcessSessionService();
   return (parts: any[]) => runSyndicateTurn({ config, parts, appName: 'a', userId: 'u', sessionId: 's', sessionService, compile: { resolveModel: scriptedResolver({ keeper }) }, trace: false });
 }
 
@@ -438,21 +427,7 @@ paths:
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/Node' } } } }
 `;
 
-/** ADK's own parse of a spec, the reference the engine's parser reproduces (until ADK leaves, ADR 0045): live only, recorded. */
-async function adkParse(text: string, specType: 'json' | 'yaml', prefix?: string) {
-  const { OpenAPIToolset } = await import('@google/adk');
-  const toolset = new OpenAPIToolset({ specStr: text, specType, ...(prefix ? { prefix } : {}) });
-  return ((await toolset.getTools()) as any[]).map((t) => ({
-    name: t.name,
-    operationId: t.operation.operationId,
-    method: t.endpoint.method,
-    path: t.endpoint.path,
-    baseUrl: t.endpoint.baseUrl,
-    authScheme: t.authScheme,
-    parameters: t.operationParser.getParameters().map((p: any) => ({ name: p.name, originalName: p.originalName, location: p.paramLocation, required: p.required, schema: p.paramSchema })),
-    declaration: contractToolDeclaration(t),
-  }));
-}
+/** An operation as the recorded reference (ADK 2.2's OpenAPIToolset, ADR 0045) holds one: name, endpoint, auth, parameters, declaration. */
 const ours = (ops: OpenApiOperation[]) =>
   ops.map((o) => ({
     name: o.name,
@@ -479,7 +454,7 @@ test('the parser names, splits and declares every operation as ADK did', async (
     ...readdirSync(EXAMPLE_SPECS).map((f) => [f, readText(join(EXAMPLE_SPECS, f), 'utf-8'), 'json'] as [string, string, 'json']),
   ];
   for (const [label, text, format, prefix] of cases) {
-    const expected = await reference(`parse-${caseSlug(label)}`, () => adkParse(text, format, prefix));
+    const expected = await reference(`parse-${caseSlug(label)}`);
     const actual = ours(parseOpenApiSpec(text, format, prefix ? { prefix } : {}));
     assert.deepEqual(JSON.parse(JSON.stringify(actual)), JSON.parse(JSON.stringify(expected)), label);
   }
@@ -488,7 +463,7 @@ test('the parser names, splits and declares every operation as ADK did', async (
     'list_pets', 'create_pet', 'pets_pet_id_get', 'get_http_status_for_pet', 'delete_pet', 'patch_pet', 'make_thing', 'param_import',
     'plant_a_very_long_operation_id_that_goes_on_and_on_past_the_',
   ]);
-  // The built tools are own Tools over the parse, through toFunctionTool on the ADK path: the declaration a model reads is the parser's.
+  // The built tools are own Tools over the parse: the declaration a model reads is the parser's.
   const built = await buildOpenApiTools({ spec: 'sink.yaml', operations: sink.map((o) => o.operationId) }, sinkDir());
   assert.deepEqual(built.map((t) => contractToolDeclaration(t)), sink.map((o) => o.declaration));
 });
@@ -671,38 +646,6 @@ async function withFetch<T>(fetchImpl: typeof fetch, fn: () => Promise<T>): Prom
   }
 }
 
-/** ADK's RestApiTool for a parsed operation, as the engine built it before it owned the call: the reference (live only, recorded). */
-async function referenceTool(op: OpenApiOperation, credential?: OpenApiCredential) {
-  const { createRestApiTool, tokenToSchemeCredential } = await import('@google/adk');
-  const tool = createRestApiTool({
-    name: op.name,
-    description: op.description,
-    endpoint: { baseUrl: op.baseUrl, path: op.path, method: op.method as any },
-    operation: op.operation as any,
-    authScheme: op.authScheme as any,
-    parameters: op.parameters.map((p) => ({ name: p.name, originalName: p.originalName, paramLocation: p.location, paramSchema: p.schema as any, description: p.description as string, required: p.required })),
-  });
-  if (credential) {
-    const [scheme, cred] =
-      credential.kind === 'bearer'
-        ? tokenToSchemeCredential('oauth2Token', undefined, undefined, credential.token)
-        : tokenToSchemeCredential('apikey', credential.in, credential.name, credential.value);
-    tool.configureAuthScheme(scheme as any);
-    tool.configureAuthCredential(cred as any);
-  }
-  return tool;
-}
-
-/** What the reference sent and answered for the arguments, against `answer` (live only, recorded). */
-async function referenceCall(op: OpenApiOperation, args: Record<string, unknown>, credential?: OpenApiCredential, answer?: (url: string) => Response) {
-  const tool = await referenceTool(op, credential);
-  const { sent, fetchImpl } = recordingFetch(answer);
-  const state = new Map<string, unknown>();
-  const toolContext = { state: { get: (k: string) => state.get(k), set: (k: string, v: unknown) => state.set(k, v), has: (k: string) => state.has(k) }, getAuthResponse: () => undefined, requestCredential: () => {} } as any;
-  const result = await withFetch(fetchImpl, () => tool.runAsync({ args, toolContext }));
-  return { sent, result };
-}
-
 test('the request is the one ADK\'s RestApiTool built, for every argument location, body encoding and credential', async () => {
   const ops = parseOpenApiSpec(SHAPES, 'yaml');
   const byId = (id: string) => ops.find((o) => o.operationId === id)!;
@@ -723,7 +666,8 @@ test('the request is the one ADK\'s RestApiTool built, for every argument locati
   ];
   for (const [i, [id, args, credential]] of cases.entries()) {
     const op = byId(id);
-    const expected = await reference(`request-${i + 1}-${id}`, () => referenceCall(op, args, credential));
+    // ADK 2.2's RestApiTool for the same operation, arguments and credential: what it sent and answered (recorded).
+    const expected = await reference<{ sent: Sent[]; result: unknown }>(`request-${i + 1}-${id}`);
     const { sent, fetchImpl } = recordingFetch();
     const result = await withFetch(fetchImpl, () => callOperation(op, args, { credential }));
     const label = `${id} ${JSON.stringify(args)}`;
@@ -747,7 +691,7 @@ test('the answer reads as RestApiTool\'s did: JSON, else { text }, and its error
   for (const [i, answer] of answers.entries()) {
     const ours = recordingFetch(answer);
     const result = await withFetch(ours.fetchImpl, () => callOperation(op!, { q: 'x' }));
-    const expected = await reference(`answer-${i + 1}`, async () => ({ result: (await referenceCall(op!, { q: 'x' }, undefined, answer)).result }));
+    const expected = await reference<{ result: unknown }>(`answer-${i + 1}`);
     assert.deepEqual(JSON.parse(JSON.stringify(result ?? null)), expected.result ?? null);
   }
   // A dot segment never reaches the network.
@@ -875,13 +819,13 @@ test('a credential is never in a log, a span or an event of a turn', async () =>
   try {
     const config = agentConfig({ operations: ['listPets', 'getPet'], auth: { bearer_env: 'PETS_TOKEN' } });
     const keeper = new ScriptedLlm('scripted/keeper', (req, n) => (n === 1 ? call('list_pets', {}) : n === 2 ? call('get_pet', { pet_id: 'p1' }) : text(`saw ${lastResponse(req)}`)));
-    const sessionService = asAdkSessionService(new InProcessSessionService());
+    const sessionService = new InProcessSessionService();
     const r = await runSyndicateTurn({ config, parts: [{ text: 'which pets?' }], appName: 'a', userId: 'u', sessionId: 's-log', sessionService, compile: { resolveModel: scriptedResolver({ keeper }), log: (m) => void lines.push(m) } });
     await flushTracing();
     assert.equal(r.status, 'completed');
     assert.equal(seen.at(-1)?.auth, 'Bearer tok-never-logged-7f3a', 'the API received the token');
     assert.ok(spans.length > 0, 'the turn was traced');
-    const session = await sessionService.getSession({ appName: 'a', userId: 'u', sessionId: 's-log' });
+    const session = await sessionService.get({ appName: 'a', userId: 'u', sessionId: 's-log' });
     for (const [where, written] of [['logs', lines.join('\n')], ['spans', spans.join('\n')], ['events', JSON.stringify(session)]] as const) {
       assert.doesNotMatch(written, /tok-never-logged-7f3a/, where);
     }
@@ -916,17 +860,18 @@ paths:
   }
 });
 
-test('approval: an OpenAPI operation takes the one gate registry tools take, on both runtimes, and a refusal sends nothing', async () => {
-  // The own Tool is marked, so require_approval may name an operation by its operationId.
+test('approval: an OpenAPI operation takes the one gate registry tools take, and a refusal sends nothing', async () => {
+  // The own Tool is marked with its operationId, so require_approval may name an operation by it.
   const [own] = await buildOpenApiOwnTools({ spec: 'pets.yaml', operations: ['createPet'] }, dir);
   assert.ok(isOpenApiTool(own));
+  const [built] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['createPet'] }, dir);
+  assert.ok(isOpenApiTool(built), 'buildOpenApiTools returns the same marked own Tools');
   const config = agentConfig({ operations: ['listPets', 'createPet'] });
   config.orchestrator.require_approval = ['createPet'];
-  const agent = (await compileGraph(config, { resolveModel: scriptedResolver({ keeper: new ScriptedLlm('scripted/keeper', () => text('x')) }) })) as any;
-  const gated = agent.tools.find((t: any) => t.name === 'create_pet');
-  const open = agent.tools.find((t: any) => t.name === 'list_pets');
-  assert.equal(gated.requireConfirmation, true, 'the ADK runtime raises adk_request_confirmation through FunctionTool');
-  assert.equal(toolOf(gated)?.requiresApproval, true, 'the native runtime reads the gated Tool back');
+  const agent = (await compileNativeGraph(config, { resolveModel: scriptedResolver({ keeper: new ScriptedLlm('scripted/keeper', () => text('x')) }) })) as any;
+  const gated = agent.tools.find((t: any) => toolOf(t)?.name === 'create_pet');
+  const open = agent.tools.find((t: any) => toolOf(t)?.name === 'list_pets');
+  assert.equal(toolOf(gated)?.requiresApproval, true, 'the gated Tool');
   assert.notEqual(toolOf(open)?.requiresApproval, true, 'an operation not named stays ungated');
 
   // The own gate: a first call asks and sends nothing; a refusal sends nothing; an approval runs it.
@@ -954,11 +899,17 @@ test('a refused approval in a turn sends nothing', async () => {
   assert.match(second.text, /rejected/);
 });
 
-test('no runtime code imports ADK\'s OpenAPI classes', () => {
+test('no runtime code imports ADK\'s OpenAPI classes, nor anything from an @google/ package but genai', () => {
   const files = (readdirSync(join(import.meta.dirname, '..', 'lib'), { recursive: true }) as string[]).filter((f) => f.endsWith('.ts'));
-  const adkImports = (source: string) => [...source.matchAll(/\bimport\s[^;]*;/g)].map((m) => m[0]).filter((s) => s.includes('@google/adk')).join('\n');
+  const imports = (source: string) => [...source.matchAll(/\bimport\s[^;]*;/g)].map((m) => m[0]).join('\n');
   const named = /\b(OpenAPIToolset|RestApiTool|createRestApiTool|tokenToSchemeCredential)\b/;
-  const offenders = files.filter((f) => named.test(adkImports(readText(join(import.meta.dirname, '..', 'lib', f), 'utf-8'))));
+  const googleOtherThanGenai = /from\s+['"]@google\/(?!genai['"])/;
+  const offenders = files.filter((f) => {
+    const found = imports(readText(join(import.meta.dirname, '..', 'lib', f), 'utf-8'));
+    return named.test(found) || googleOtherThanGenai.test(found);
+  });
   assert.deepEqual(offenders, []);
-  assert.ok(named.test(adkImports("import {\n  BaseTool,\n  createRestApiTool,\n} from '@google/adk';")), 'a multi-line import is read whole');
+  const control = imports("import {\n  BaseTool,\n  createRestApiTool,\n} from '@google/agents';");
+  assert.ok(named.test(control) && googleOtherThanGenai.test(control), 'a multi-line import is read whole');
+  assert.ok(!googleOtherThanGenai.test("import { GoogleGenAI } from '@google/genai';"));
 });
