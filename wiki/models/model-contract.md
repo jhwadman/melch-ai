@@ -22,6 +22,8 @@ sources:
   - resource: lib/models/geminiState.ts
   - resource: tests/genaiMapping.test.ts
   - resource: lib/models/adkShim.ts
+  - resource: lib/models/gptAdapter.ts
+  - resource: lib/models/grokAdapter.ts
 ---
 
 # Model contract
@@ -120,11 +122,11 @@ The codes are the ones the adapters emit under ADK, kept verbatim, so a caller m
 |---|---|---|
 | `STEP_LIMIT`, `DEADLINE_EXCEEDED`, `CANCELED` | every adapter's caller | The turn's controls (`lib/runtime/turnControl.ts`) refuse the call at the shared choke point, before it reaches the adapter: the step budget is spent, or the turn has stopped. An adapter on the contract never emits them; the code that calls it does ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), which on the ADK path is the [ADK shim](/models/adk-shim.md). |
 | `MISSING_API_KEY` | Claude, GPT, Grok, Gemini | No key on a provider's own API. |
-| `ENDPOINT_MISCONFIGURED` | Claude, GPT, Gemini | A platform (ADR 0023) that is not fully configured, or its client failed to build. |
+| `ENDPOINT_MISCONFIGURED` | Claude, GPT, Grok, Gemini | A platform (ADR 0023) that is not fully configured, or its client failed to build. |
 | `SDK_NOT_INSTALLED` | Claude, GPT, Grok | The vendor SDK (or a platform's optional peer) is absent. |
 | `ANTHROPIC_ERROR` | Claude | The Messages API call failed. |
-| `OPENAI_ERROR`, `XAI_ERROR` | GPT, Grok | The Responses call failed. |
-| `OPENAI_STREAM_ERROR`, `XAI_STREAM_ERROR` | GPT, Grok | The stream reported `response.failed` or `error`. |
+| `OPENAI_ERROR`, `XAI_ERROR` | GPT, Grok | The Responses call failed, an SSE frame named `error` included (the SDK throws it, with no HTTP status). |
+| `OPENAI_STREAM_ERROR`, `XAI_STREAM_ERROR` | GPT, Grok | The stream reported `response.failed` or an `error` event. `retryable` when the event names a status `lib/models/retry.ts` retries, or the code or type `server_error`, `rate_limit_exceeded` or `vector_store_timeout`, which also decide a thrown `error` frame. |
 | `MOONSHOT_MISSING_KEY` | Kimi | No `MOONSHOT_API_KEY`. |
 | `MOONSHOT_HTTP_ERROR`, `OLLAMA_HTTP_ERROR`, `GATEWAY_HTTP_ERROR` | Kimi, Ollama, gateway | A non-2xx status, with `status` set. |
 | `<ID>_UNREACHABLE` | Kimi, Ollama, gateway | The endpoint could not be reached. `<ID>` is `MOONSHOT`, `OLLAMA`, or the gateway's upstream provider (`GEMINI`, `ANTHROPIC`, `OPENAI`, `XAI`, `MOONSHOT`). |
@@ -220,19 +222,19 @@ The Responses API, on OpenAI's API or Azure OpenAI (ADR 0023).
 | user / assistant text | `{ role, content: [{ type: 'input_text' \| 'output_text', text }] }` |
 | `ThinkingPart` | not sent. Received from `reasoning` items' `summary`. |
 | `ToolCallPart` | `{ type: 'function_call', call_id: id, name, arguments: <JSON text> }` |
-| `ToolResultPart` | `{ type: 'function_call_output', call_id: id, output: <JSON text> }`; `isError` has no wire field, so the result says it |
-| `BlobPart` | user turns: `{ type: 'input_image', image_url }` (a data URL or the URL), or `{ type: 'input_file' }` for `application/pdf` |
+| `ToolResultPart` | `{ type: 'function_call_output', call_id: id, output: <JSON text> }`, the text being genai's `functionResponse.response`: `{ error: result }` with `isError`, the result when it is an object, else `{ result }` |
+| `BlobPart` | user turns: `{ type: 'input_image', image_url }`, a data URL (a blob typed `application/octet-stream`, which is how the genai mapping types an untyped part, as `image/png`) or an https URL; `application/pdf` as `{ type: 'input_file' }` with `filename` and `file_data` (a data URL), or `file_url`. A URL that is not https is not sent, and the span carries `llm.image.dropped`. |
 | `providerState` | `{ provider: 'openai', kind: 'reasoning_items', model, payload }`: the `reasoning` items (with `encrypted_content`, asked for by `include: ['reasoning.encrypted_content']`) that preceded the part, replayed as input items before it |
-| `tools` | `{ type: 'function', name, description, parameters, strict }`; strict sends the strict form of the schema (`toStrictJsonSchema`) |
+| `tools` | `{ type: 'function', name, description, parameters, strict }`; strict sends the strict form of the schema (`toContractJsonSchema(parameters, { strict: true })`) |
 | `nativeTools` | `web_search` → `{ type: 'web_search' }`, not sent on Azure. The rest dropped. |
-| `toolChoice` | `'auto'`, `'none'`, `'required'`, `{ type: 'function', name }` |
-| `outputSchema` | `text.format: { type: 'json_schema', name: 'response', strict: true, schema }` |
+| `toolChoice` | `'auto'`, `'none'`, `'required'`, `{ type: 'function', name }`, sent only beside tools |
+| `outputSchema` | `text.format: { type: 'json_schema', name: 'response', strict: true, schema }`, the schema in its strict form |
 | `reasoning` | reasoning ids (`o*`, `gpt-5*`): `reasoning: { effort, summary: 'auto' }`, the effort from ADR 0047's table. Other ids: nothing. A 400 on the param is retried once without it. |
 | `sampling` | `max_output_tokens`; `temperature`, `top_p` on non-reasoning ids; `stop` has no field and is dropped |
-| `stream` | `response.output_text.delta` → text partial, `response.reasoning_summary_text.delta` → thinking partial, `response.completed` → the final |
+| `stream` | `response.output_text.delta` → text partial, `response.reasoning_summary_text.delta` → thinking partial, `response.completed` → the final. A stream that ends without `response.completed` ends with a final holding the streamed text. |
 | `usage` | input `input_tokens`; cache read `input_tokens_details.cached_tokens`; output `output_tokens`; thinking `output_tokens_details.reasoning_tokens` |
 | `finishReason` | `completed` → `stop` or `tool_call`; `incomplete` with `max_output_tokens` → `max_tokens`, with `content_filter` → `content_filter` |
-| `grounding` | `url_citation` annotations on `output_text` → `citations`, offsets shifted into the final's text; `web_search_call` actions' `query` → `searchQueries` |
+| `grounding` | `url_citation` annotations on `output_text` → `citations`, the API's character offsets converted to UTF-16 and shifted into the final's text; `web_search_call` actions' `queries` (or the older `query`) → `searchQueries` |
 | errors | `MISSING_API_KEY`, `ENDPOINT_MISCONFIGURED`, `SDK_NOT_INSTALLED`, `OPENAI_ERROR`, `OPENAI_STREAM_ERROR` |
 
 ## xAI
@@ -243,11 +245,12 @@ xAI's Responses API at `https://api.x.ai/v1`: the OpenAI mapping, except as list
 |---|---|
 | `providerState` | `provider: 'xai'`, the same `reasoning_items` kind |
 | `nativeTools` | `web_search` → `{ type: 'web_search' }` plus `XAI_WEB_SEARCH_*` filters; `x_search` → `{ type: 'x_search' }` plus `XAI_X_SEARCH_*` bounds; `collections_search` → `{ type: 'file_search', vector_store_ids, max_num_results }` from `XAI_COLLECTION_IDS`, omitted while that is empty. The rest dropped. |
-| `reasoning` | `grok-4.5` and `grok-4.7` only: `reasoning.effort`, `none` sent as `low`, `medium` when the request has none. Other ids: nothing. |
+| `reasoning` | `grok-4.5`, `grok-4.6` and `grok-4.7` only: `reasoning.effort`, `none` sent as `low`, `medium` when the request has none. Other ids: nothing. The same ids replay their reasoning items. |
+| `sampling` | `temperature` and `top_p` on every id |
 | `grounding` | also `custom_tool_call` items (`x_keyword_search`, `x_semantic_search`) → `searchQueries` with tool `x_search` |
-| errors | `MISSING_API_KEY`, `SDK_NOT_INSTALLED`, `XAI_ERROR`, `XAI_STREAM_ERROR` |
+| errors | `MISSING_API_KEY`, `ENDPOINT_MISCONFIGURED`, `SDK_NOT_INSTALLED`, `XAI_ERROR`, `XAI_STREAM_ERROR` |
 
-The per-attempt timeout (`XAI_TIMEOUT_MS`) and the server-side tool counters on the span stay the adapter's own.
+The per-attempt timeout (`XAI_TIMEOUT_MS`) and the server-side tool counters on the span stay the adapter's own. Both tables are `GptAdapter` and `GrokAdapter` ([Responses adapters](/models/responses-adapters.md)).
 
 ## Chat completions: Moonshot, Ollama and the gateway
 
@@ -355,7 +358,7 @@ The compiler writes the effort word beside `thinkingConfig` from one setting, so
 | `finishReason` | `stop` and `tool_call` are `STOP`, `max_tokens` is `MAX_TOKENS`, `content_filter` is `SAFETY`, `other` is `OTHER`; `error` sets none |
 | `grounding` | `groundingMetadata`: `webSearchQueries` holds every query, and `groundingChunks[].web` each cited URL once with its title, which is what `lib/grounding.ts` reads |
 
-An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. The ADK-path GPT and chat-completions adapters write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
+An LlmResponse has no field for `cacheWriteTokens`, a citation's span and cited text, or the native tool that ran a query, so these are not carried. `usageFromMetadata` reads `usageMetadata` back into `Usage` under the meanings of the Gemini table. `GptLlm`, `GrokLlm` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)) and the chat-completions adapters write `candidatesTokenCount` with reasoning included, so on an event they stored it counts that reasoning twice in `outputTokens`.
 
 The stored Event JSON keeps its shape ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). The engine types a stored event as `TurnEvent` ([sessions and events](/memory/sessions.md)), whose content is this genai shape.
 

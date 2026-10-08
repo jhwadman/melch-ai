@@ -6,6 +6,14 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Breaking for subclasses of `GptLlm`: the vendor hooks move to
+  `GptAdapter` (ADR 0056).** `providerId()`, `baseURL()`, `apiKeyFromEnv()`,
+  `missingKeyMessage()`, `clientOptions()`, `reasoningParam()`,
+  `replaysReasoning()` and `endpoint()` are overridden on a `GptAdapter`
+  subclass now, as `GrokAdapter` does, and a `GptLlm` subclass returns it
+  from `protected static createAdapter(options)`. Code that only constructs
+  or registers `GptLlm` and `GrokLlm`, or imports their exported functions,
+  is unaffected.
 - **Breaking for one import path: `toFunctionTool` moves to
   `melchizedek-agents/tools/adkTool` (ADR 0051).**
   `melchizedek-agents/tools/toolContract` no longer exports it, so that
@@ -38,6 +46,33 @@ the starter pack and the templates), not the repo's full history.
   No schema change. The bridge between the two interfaces
   (`lib/runtime/adkSessionBridge.ts`) is internal and not in the exports
   map.
+- **GPT and Grok run on the engine's model contract (ADR 0048, ADR 0056).**
+  New modules `melchizedek-agents/models/gptAdapter` (`GptAdapter`, the
+  Responses API as a `ModelAdapter`, with `responsesInput`,
+  `responsesFunctionTools`, `responsesUsage`, `responsesServerTools`,
+  `streamErrorDecision` and `isOpenAiReasoningModel`) and
+  `melchizedek-agents/models/grokAdapter` (`GrokAdapter`,
+  `GROK_REASONING_IDS`, `XAI_BASE_URL`). `GptLlm` and `GrokLlm` keep their
+  names, constructors, `supportedModels` and exports, and are now the ADK
+  shim around these adapters. The ledger, the turn's token charge and
+  `adk_turns.tool_calls` count GPT and Grok calls as before: output tokens
+  include reasoning, and server-side searches stay on the event's
+  `customMetadata`. `AdkShim` gains a protected `toLlmResponse(response)`
+  hook for that. What changes on the wire and in the events:
+  - `grok-4.6` takes `reasoning.effort` and replays its encrypted reasoning,
+    as `grok-4.5` and `grok-4.7` do.
+  - A failure a stream reports (`response.failed`, an `error` event, or an
+    SSE frame named `error`) carries a retry verdict when it names a
+    retryable status or the code `server_error`, `rate_limit_exceeded` or
+    `vector_store_timeout`, so the fallback model answers it.
+  - An aborted stream ends in an error final instead of the text so far.
+  - A user-turn image given by an https URL reaches GPT and Grok, and a PDF
+    goes as `input_file`; `top_p` is sent beside `temperature`; a call
+    without an id gets one minted from its position, shared with its result.
+  - JSON mode without a schema (`responseMimeType: 'application/json'`
+    alone) and the older spelling's `xhigh` and `max` effort words have no
+    contract field and are no longer sent to GPT or Grok.
+  - Final events carry `finishReason`, as every shimmed adapter's do.
 - **The engine's own event, session and memory interfaces (ADR 0052).**
   Internal modules for the native runtime, not in the exports map, so
   nothing a consumer imports changes: `lib/runtime/events.ts` (`TurnEvent`,
@@ -268,8 +303,8 @@ the starter pack and the templates), not the repo's full history.
   by the fallback, a non-retryable one is passed on, and only a call that
   produced content counts as a success. Error codes and messages are
   unchanged, except that key-shaped text is now removed from the message.
-  A failure GPT or Grok report inside an open stream (`response.failed`)
-  carries no verdict and is still passed on. The retry policy now counts
+  A failure GPT or Grok report inside an open stream carries a verdict too,
+  from the event (see GPT and Grok on the model contract). The retry policy now counts
   HTTP 529, Anthropic's "overloaded", as retryable, so an overloaded Claude
   primary is answered by its fallback. New
   module `melchizedek-agents/models/errorResponse`: `providerErrorResponse`,

@@ -230,7 +230,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok(),
-    thinking_with_tools: ok('test', responsesReasoningNote('grok-4.5 and grok-4.7; other grok ids re-reason each step')),
+    thinking_with_tools: ok('test', responsesReasoningNote('grok-4.5, grok-4.6 and grok-4.7; other grok ids re-reason each step')),
     streaming: ok(),
     vision: ok('test', 'user-turn images only'),
     native_search: nativeSearch('xai'),

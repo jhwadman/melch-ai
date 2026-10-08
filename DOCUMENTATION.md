@@ -313,8 +313,8 @@ accordingly — model optionality is a single YAML line per agent:
 |---|---|---|---|---|
 | `gemini-*` | Google Gemini | ADK-native (`TracedGemini`) | `GOOGLE_GENAI_API_KEY` | ✅ grounding |
 | `claude-*` | Anthropic | `lib/models/claudeLlm.ts` | `ANTHROPIC_API_KEY` | ✅ server tool |
-| `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
-| `grok-*` | xAI | `lib/models/grokLlm.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
+| `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` around `gptAdapter.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
+| `grok-*` | xAI | `lib/models/grokLlm.ts` around `grokAdapter.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
 | `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiLlm.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
 | `ollama/*` | Local Ollama | `lib/models/ollamaLlm.ts` | none | ⚠ omitted + warning |
 | *any cloud id whose direct key is absent* | the id's own provider, via a gateway | `lib/models/gatewayLlm.ts` (chat completions) | `MODEL_GATEWAY` + `MODEL_GATEWAY_API_KEY` | ⚠ omitted + reported |
@@ -447,7 +447,8 @@ dimmed THINKING output and kept out of session history. On Claude, any
 extended thinking, tools included: the signed thinking blocks ride on the
 response's parts as `providerState` and are replayed verbatim within the
 turn's tool loop (ADR 0046). GPT's reasoning ids (o-series, `gpt-5*`) and
-`grok-4.5`/`grok-4.7` do the same with their encrypted reasoning items.
+`grok-4.5`, `grok-4.6` and `grok-4.7` do the same with their encrypted
+reasoning items.
 Their requests send `store: false`, so the vendor keeps no copy of the
 response (ADR 0050).
 
@@ -461,6 +462,11 @@ runs the turn, an adapter on the contract runs behind `AdkShim`
 (`melchizedek-agents/models/adkShim`), an ADK `BaseLlm` that charges each
 call against `max_steps`, passes the turn's abort signal and opens the
 `llm.request` span, as the ADK-path adapters do (ADR 0053).
+GPT and Grok run on the contract already: `GptLlm` and `GrokLlm` are that
+shim around `GptAdapter` (`melchizedek-agents/models/gptAdapter`) and
+`GrokAdapter` (`melchizedek-agents/models/grokAdapter`), and keep the token
+counts and server-side tool record the ledger has always had for them
+(ADR 0056).
 Gemini has two adapters on the contract, neither registered yet:
 `melchizedek-agents/models/geminiAdapter` (`GeminiAdapter`, on
 `@google/genai` with no ADK) and, until that one passes its live parity
