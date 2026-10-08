@@ -2433,6 +2433,30 @@
       "evidence": "ADR 0097 Context 1: thought signatures are stored and replayed as ADK does; the unsigned call was the reflection call that replaced the model's.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0099 Decision 2: the native default moves from 0.19.0 to 0.20.0; the gates, stop rules and 1.0.0 plan of ADR 0045 are unchanged.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0099 Context and Decision 3: #128 (ADR 0097) landed after 0.19.0 was published and ships in the next release.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0099 Decision 1: DEFAULT_RUNTIME stays adk through 0.19.x; 0.20.0 changes it only once G3 is signed and the stop rule holds.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
