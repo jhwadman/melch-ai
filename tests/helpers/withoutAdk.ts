@@ -25,21 +25,37 @@ export interface ChildResult {
   stderr: string;
 }
 
-/** The resolve hook's source: @google/adk is not installed (or, with `failWith`, fails to load with that message). */
-function hookSource(failWith?: string): string {
-  const error = failWith
-    ? `const e = new Error(${JSON.stringify(failWith)}); e.code = 'ERR_INVALID_PACKAGE_CONFIG'; throw e;`
-    : `const e = new Error("Cannot find package '@google/adk' imported from " + c.parentURL); e.code = 'ERR_MODULE_NOT_FOUND'; throw e;`;
-  return `export async function resolve(s, c, n) { if (s === '@google/adk' || s.startsWith('@google/adk/')) { ${error} } return n(s, c); }`;
-}
+/**
+ * The resolve hook's source, a constant: @google/adk is not installed, or,
+ * when the registration passes a `failWith` message as data, fails to load
+ * with that message. No value is pasted into the source.
+ */
+const HOOK_SOURCE = [
+  'let failWith;',
+  'export async function initialize(data) { failWith = data?.failWith; }',
+  'export async function resolve(s, c, n) {',
+  "  if (s === '@google/adk' || s.startsWith('@google/adk/')) {",
+  "    if (failWith !== undefined) { const e = new Error(failWith); e.code = 'ERR_INVALID_PACKAGE_CONFIG'; throw e; }",
+  "    const e = new Error(\"Cannot find package '@google/adk' imported from \" + c.parentURL); e.code = 'ERR_MODULE_NOT_FOUND'; throw e;",
+  '  }',
+  '  return n(s, c);',
+  '}',
+].join('\n');
+const HOOK_URL = 'data:text/javascript,' + encodeURIComponent(HOOK_SOURCE);
 
 /** Runs `script` (an ES module body) in a child process where @google/adk cannot be resolved. */
 export function runWithoutAdk(script: string, options: { env?: Record<string, string>; failWith?: string } = {}): ChildResult {
-  const register = `import { register } from 'node:module'; register(${JSON.stringify('data:text/javascript,' + encodeURIComponent(hookSource(options.failWith)))});`;
+  // The failWith message reaches the hook as registration data, read from the environment, never as code.
+  const register = `import { register } from 'node:module'; register(${JSON.stringify(HOOK_URL)}, { data: { failWith: process.env.WITHOUT_ADK_FAIL_WITH || undefined } });`;
   const result = spawnSync(
     process.execPath,
     ['--disable-warning=DEP0040', '--disable-warning=ExperimentalWarning', '--experimental-strip-types', '--import', 'data:text/javascript,' + encodeURIComponent(register), '--input-type=module', '-e', script],
-    { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MODEL_GATEWAY: '', GEMINI_ADAPTER: '', MELCHIZEDEK_RUNTIME: '', ...options.env }, timeout: 120_000 },
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: { ...process.env, MODEL_GATEWAY: '', GEMINI_ADAPTER: '', MELCHIZEDEK_RUNTIME: '', WITHOUT_ADK_FAIL_WITH: options.failWith ?? '', ...options.env },
+      timeout: 120_000,
+    },
   );
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
