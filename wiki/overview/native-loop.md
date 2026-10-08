@@ -55,11 +55,12 @@ Every piece matches the ADK runtime, so a session either runtime wrote is one th
 - a subagent tool (`subagentTool(agent)`, `lib/runtime/native/delegate.ts`), which runs another `NativeAgent`;
 - an InstructionTool (few-shot examples, `preload_memory`);
 - a NativeToolMarker ([server-side tools](/tools/tool-contracts.md));
-- an ADK tool or toolset an agent still lists (MCP and OpenAPI tools, the skills toolset), read by its declaration and its `getTools`.
+- an own Toolset (the [skill harness](/tools/skill-harness.md)), expanded through its `getTools` before every request;
+- an ADK tool or toolset an agent still lists (MCP and OpenAPI tools), read by its declaration and its `getTools`.
 
 An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fails the run when it is called: a subagent reaches the native loop as a subagent tool.
 
-`compileNative` (`lib/compileNative.ts`) builds it from the same `AgentSpec` that `compileAdk` (`lib/compileAdk.ts`) turns into ADK's `LlmAgent`. `compileSpec` and `compileSubagentSpec` in `lib/compile.ts` make the spec once per agent: tools resolved and gated, the skills index in the instruction, the model resolved once, the `generateContentConfig` built for that model. Each resolved tool reaches the loop as the own Tool or InstructionTool behind it, or as itself. `tests/compile.test.ts` compiles one fixture both ways and requires the same first request. `tests/nativeStep.test.ts`, `tests/nativeLoop.test.ts` and `tests/geminiNativeTools.test.ts` build their agents with it.
+`compileNative` (`lib/compileNative.ts`) builds it from the same `AgentSpec` that `compileAdk` (`lib/compileAdk.ts`) turns into ADK's `LlmAgent`. `compileSpec` and `compileSubagentSpec` in `lib/compile.ts` make the spec once per agent: tools resolved and gated, the skills index in the instruction, the model resolved once, the `generateContentConfig` built for that model. Each resolved tool reaches the loop as the own Tool, InstructionTool or Toolset behind it, or as itself. `tests/compile.test.ts` compiles one fixture both ways and requires the same first request. `tests/nativeStep.test.ts`, `tests/nativeLoop.test.ts` and `tests/geminiNativeTools.test.ts` build their agents with it.
 
 ## The request
 
@@ -84,6 +85,7 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
    - server-side tools go where the ADK runtime sends them: `web_search` on every provider, `url_context` and `google_search` on Gemini, `x_search` and `collections_search` on xAI, and `code_execution` first among Gemini's own;
    - `set_model_response` is added when step 2 asked for it, except in `mode: task`, where `finish_task` takes its place (see [Task mode](#task-mode));
    - self-correction's reflection tool, `adk_handle_model_error`, comes last when the step has a `correction` (see [Self-correction](#self-correction)).
+   After the tools, each own Tool's `contents` hook adds to the history in the same order: `load_skill_resource` shows a binary file it just answered for as inline data, as ADK's own tool does in its `processLlmRequest`. Nothing it adds is stored.
 5. **The rest.** Tool choice, the output schema or JSON mode, reasoning and sampling, each read by the shim mapping's own reader. `stream` is `false` unless the caller streams, and `signal` is the turn's.
 
 Not done by the step: resuming an input request (WS2-7b), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), and an ADK tool's own request edits beyond its declaration.
@@ -138,7 +140,7 @@ Each step, after any compaction the agent's `context:` calls for (see [Compactio
    - a tool that requires approval asks for it: `requestedToolConfirmations` under the call's id, `skipSummarization`, and the pending notice as its answer;
    - a long-running call (`ask_user`) with no result answers nothing; its actions, when it set any, make an event with no content.
 
-   A subagent tool runs the subagent as its own child loop (see [Delegation](#delegation)). An own Tool runs through `execute`. An ADK tool an agent still lists (a registry FunctionTool, the skills toolset's tools) runs through its `runAsync`, with a context shaped like ADK's. One call's response is its own event; several are merged into one, parts in call order, actions merged. Each call reads the state as the step left it, not the writes of another call in the same step.
+   A subagent tool runs the subagent as its own child loop (see [Delegation](#delegation)). An own Tool runs through `execute`. An ADK tool an agent still lists that carries no own Tool runs through its `runAsync`, with a context shaped like ADK's. One call's response is its own event; several are merged into one, parts in call order, actions merged. Each call reads the state as the step left it, not the writes of another call in the same step.
    When the turn stopped while the calls ran, nothing is stored for them and the run ends `stopped`, as ADK drops the response.
 3. **An approval request ends the run.** In place of the response, the loop stores ADK's `adk_request_confirmation` call: the original call and the confirmation as its arguments, an `adk-` id listed in `longRunningToolIds`, and the response's actions. The response itself is not stored, so a parallel call beside the gated one has no response.
 4. **`outputKey`.** Each final event of the agent carries its text in `stateDelta` under the agent's `outputKey`, written before it is stored. With an output schema, the text is parsed and validated (`z.fromJSONSchema`), kept as text when it does not parse, and saved as parsed when it does not validate.

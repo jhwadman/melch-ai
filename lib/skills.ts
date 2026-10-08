@@ -12,11 +12,15 @@
  * Safety: the source is the package's own skills/ directory (resolved by
  * walking up from this file), symlinks are never followed, and a file that
  * already exists with different content is left alone unless `force` is set.
+ * A SKILL.md's frontmatter is read by the skills harness's own parser
+ * (lib/tools/skills/frontmatter.ts), the one an agent's `skills:` uses.
  */
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { MAX_SKILL_MD_CHARS, parseSkillMd } from './tools/skills/frontmatter.ts';
 
 export type SkillTarget = 'claude' | 'agents' | 'codex' | 'cursor' | 'opencode' | 'gemini';
 
@@ -58,6 +62,21 @@ export function resolveSkillsSource(from: string = fileURLToPath(import.meta.url
   throw new Error('skills/ directory not found beside the package (looked for skills/melchizedek/SKILL.md)');
 }
 
+/**
+ * A SKILL.md's frontmatter as written, read by the harness's own parser
+ * (lib/tools/skills/frontmatter.ts: bounded, no backtracking pattern). A
+ * file that is too large, has no frontmatter or does not parse yields none,
+ * and the listing falls back to the directory's name.
+ */
+function frontmatterOf(file: string): Record<string, unknown> {
+  try {
+    if (statSync(file).size > MAX_SKILL_MD_CHARS) return {};
+    return parseSkillMd(readFileSync(file, 'utf-8')).raw;
+  } catch {
+    return {};
+  }
+}
+
 export interface SkillInfo {
   name: string;
   description: string;
@@ -69,12 +88,8 @@ export function listSkills(source: string = resolveSkillsSource()): SkillInfo[] 
   return readdirSync(source, { withFileTypes: true })
     .filter((d) => d.isDirectory() && existsSync(join(source, d.name, 'SKILL.md')))
     .map((d) => {
-      const text = readFileSync(join(source, d.name, 'SKILL.md'), 'utf-8');
-      const fm = text.startsWith('---') ? text.slice(3, text.indexOf('\n---', 3)) : '';
-      const field = (k: string): string => {
-        const m = fm.match(new RegExp(`^${k}:\\s*(.*)$`, 'm'));
-        return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
-      };
+      const fm = frontmatterOf(join(source, d.name, 'SKILL.md'));
+      const field = (k: string): string => (typeof fm[k] === 'string' ? (fm[k] as string).trim() : '');
       return { name: field('name') || d.name, description: field('description'), dir: join(source, d.name) };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

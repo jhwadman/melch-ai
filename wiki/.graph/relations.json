@@ -1633,6 +1633,86 @@
       "evidence": "wiki/overview/native-loop.md \"Task mode\": the tool, the answer, the schema and how a task node's run ends.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skills/tools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0083 Decision 3: \"The tools are own Tools with ADK's answers ... a bad call gets the { error, error_code } it got before.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skills/frontmatter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0083 Decision 2: \"The frontmatter is the text between the opening --- and the next ---, wherever that falls\" and \"A SKILL.md over 1 MiB and a frontmatter block over 64 KiB are refused before anything is parsed.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skills/executor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0083 Decision 6: \"The executor is ported with its limits unchanged\" (timeout 120 s, inherited environment, output collected whole).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skills/loader.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0083 Decision 7: \"A resource over 8 MiB is skipped and reported, at most 1000 files per skill are read, and walks stop at 12 levels.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0083 Decision 4: \"lib/compile.ts hands the ADK runtime toAdkToolset(toolset), a BaseToolset in lib/tools/adkTool.ts whose getTools passes ADK's ReadonlyContext through\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0083 Decision 5: \"The native request builder runs it [the contents hook] after the tools, in their order.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0083 Context: \"ADR 0051 gave tools their own base\"; the harness tools implement its Tool and reach ADK through its wrapper.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "/decisions/0029-skills-read-like-a-harness.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0083 keeps ADR 0029's lean load_skill, gated run_skill_script and allowed-tools permit, and records its differences as a note on ADR 0029.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skills/tools.ts",
+      "rel": "explains",
+      "evidence": "wiki/tools/skill-harness.md \"Modules\": \"lib/tools/skills/tools.ts | SkillToolset and the four tools.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skills/executor.ts",
+      "rel": "explains",
+      "evidence": "wiki/tools/skill-harness.md \"Scripts and approval\": what an approved run is and what a script can reach.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

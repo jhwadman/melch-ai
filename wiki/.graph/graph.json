@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 801,
-    "edges": 2723,
+    "nodes": 807,
+    "edges": 2771,
     "byKind": {
-      "doc": 142,
+      "doc": 143,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 133,
+      "file": 134,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 180,
+      "module": 184,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 548,
+      "links_to": 558,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 707,
+      "imports": 718,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 616,
-      "constrains": 125,
+      "derives_from": 633,
+      "constrains": 131,
       "supersedes": 6,
-      "depends_on": 56,
-      "explains": 14,
+      "depends_on": 58,
+      "explains": 16,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2520,
-      "inferred": 203
+      "extracted": 2558,
+      "inferred": 213
     },
     "isolated": 4
   },
@@ -756,7 +756,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 891
+        "words": 988
       }
     },
     {
@@ -1360,6 +1360,18 @@
       }
     },
     {
+      "id": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "kind": "doc",
+      "label": "ADR 0083: The skills harness is the engine's own: a parser, a loader, a local executor and four own Tools in a Toolset, held to the ADK harness's words",
+      "source": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1426
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1620,7 +1632,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4900
+        "words": 4951
       }
     },
     {
@@ -1704,7 +1716,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 651
+        "words": 1231
       }
     },
     {
@@ -1728,7 +1740,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1844
+        "words": 1975
       }
     },
     {
@@ -4196,6 +4208,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/skillHarnessParity.test.ts",
+      "kind": "file",
+      "label": "skillHarnessParity.test.ts",
+      "source": "tests/skillHarnessParity.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/surfacesOffAdk.test.ts",
       "kind": "file",
       "label": "surfacesOffAdk.test.ts",
@@ -4409,7 +4428,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 526
+        "lines": 527
       }
     },
     {
@@ -5111,7 +5130,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 560
+        "lines": 569
       }
     },
     {
@@ -5237,7 +5256,7 @@
       "label": "lib/skills.ts",
       "source": "lib/skills.ts",
       "attrs": {
-        "lines": 169
+        "lines": 184
       }
     },
     {
@@ -5345,7 +5364,7 @@
       "label": "lib/tools/adkTool.ts",
       "source": "lib/tools/adkTool.ts",
       "attrs": {
-        "lines": 267
+        "lines": 318
       }
     },
     {
@@ -5538,12 +5557,48 @@
       }
     },
     {
+      "id": "module:lib/tools/skills/executor.ts",
+      "kind": "module",
+      "label": "lib/tools/skills/executor.ts",
+      "source": "lib/tools/skills/executor.ts",
+      "attrs": {
+        "lines": 350
+      }
+    },
+    {
+      "id": "module:lib/tools/skills/frontmatter.ts",
+      "kind": "module",
+      "label": "lib/tools/skills/frontmatter.ts",
+      "source": "lib/tools/skills/frontmatter.ts",
+      "attrs": {
+        "lines": 224
+      }
+    },
+    {
+      "id": "module:lib/tools/skills/loader.ts",
+      "kind": "module",
+      "label": "lib/tools/skills/loader.ts",
+      "source": "lib/tools/skills/loader.ts",
+      "attrs": {
+        "lines": 245
+      }
+    },
+    {
+      "id": "module:lib/tools/skills/tools.ts",
+      "kind": "module",
+      "label": "lib/tools/skills/tools.ts",
+      "source": "lib/tools/skills/tools.ts",
+      "attrs": {
+        "lines": 413
+      }
+    },
+    {
       "id": "module:lib/tools/skillToolset.ts",
       "kind": "module",
       "label": "lib/tools/skillToolset.ts",
       "source": "lib/tools/skillToolset.ts",
       "attrs": {
-        "lines": 296
+        "lines": 189
       }
     },
     {
@@ -5561,7 +5616,7 @@
       "label": "lib/tools/tool.ts",
       "source": "lib/tools/tool.ts",
       "attrs": {
-        "lines": 459
+        "lines": 503
       }
     },
     {
@@ -8919,6 +8974,13 @@
       "evidence": "/decisions/0029-skills-read-like-a-harness.md:44"
     },
     {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md:48"
+    },
+    {
       "from": "/decisions/0030-workflow-graphs.md",
       "to": "file:config/agents/examples/pipeline.yaml",
       "rel": "derives_from",
@@ -11866,6 +11928,125 @@
       "evidence": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md:24"
     },
     {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "file:tests/skillHarness.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "file:tests/skillHarnessParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/skills.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/adkTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skills/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skills/frontmatter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skills/loader.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skills/tools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/skillToolset.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md frontmatter"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "/decisions/0029-skills-read-like-a-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md:32"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md:32"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md:32"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md:32"
+    },
+    {
+      "from": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0083-skills-harness-on-the-own-tool-base.md:47"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -14642,14 +14823,14 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:153"
+      "evidence": "/overview/native-loop.md:155"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:218"
+      "evidence": "/overview/native-loop.md:220"
     },
     {
       "from": "/overview/native-loop.md",
@@ -14663,14 +14844,14 @@
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:179"
+      "evidence": "/overview/native-loop.md:181"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:132"
+      "evidence": "/overview/native-loop.md:134"
     },
     {
       "from": "/overview/native-loop.md",
@@ -14684,14 +14865,14 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:93"
+      "evidence": "/overview/native-loop.md:95"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:214"
+      "evidence": "/overview/native-loop.md:216"
     },
     {
       "from": "/overview/native-loop.md",
@@ -14726,42 +14907,42 @@
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:179"
+      "evidence": "/overview/native-loop.md:181"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:279"
+      "evidence": "/overview/native-loop.md:281"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:220"
+      "evidence": "/overview/native-loop.md:222"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:159"
+      "evidence": "/overview/native-loop.md:161"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:207"
+      "evidence": "/overview/native-loop.md:209"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:108"
+      "evidence": "/overview/native-loop.md:110"
     },
     {
       "from": "/overview/native-loop.md",
@@ -14775,7 +14956,14 @@
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:74"
+      "evidence": "/overview/native-loop.md:75"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/tools/skill-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:58"
     },
     {
       "from": "/overview/native-loop.md",
@@ -15234,6 +15422,13 @@
     },
     {
       "from": "/tools/skill-harness.md",
+      "to": "file:tests/skillHarnessParity.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
       "to": "module:lib/compile.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -15242,6 +15437,34 @@
     {
       "from": "/tools/skill-harness.md",
       "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skills/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skills/frontmatter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skills/loader.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md frontmatter"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "module:lib/tools/skills/tools.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/tools/skill-harness.md frontmatter"
@@ -15258,28 +15481,35 @@
       "to": "/agents/harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:50"
+      "evidence": "/tools/skill-harness.md:83"
     },
     {
       "from": "/tools/skill-harness.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:46"
+      "evidence": "/tools/skill-harness.md:77"
     },
     {
       "from": "/tools/skill-harness.md",
       "to": "/decisions/0029-skills-read-like-a-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:22"
+      "evidence": "/tools/skill-harness.md:27"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md:27"
     },
     {
       "from": "/tools/skill-harness.md",
       "to": "/operations/agent-skills.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/skill-harness.md:50"
+      "evidence": "/tools/skill-harness.md:83"
     },
     {
       "from": "/tools/task-tools.md",
@@ -15475,35 +15705,42 @@
       "to": "/decisions/0062-server-side-tools-as-markers.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:62"
+      "evidence": "/tools/tool-contracts.md:64"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:44"
+      "evidence": "/tools/tool-contracts.md:46"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:52"
+      "evidence": "/tools/tool-contracts.md:54"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:44"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:84"
+      "evidence": "/tools/tool-contracts.md:86"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:55"
+      "evidence": "/tools/tool-contracts.md:57"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -15517,56 +15754,63 @@
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:70"
+      "evidence": "/tools/tool-contracts.md:72"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:76"
+      "evidence": "/tools/tool-contracts.md:78"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:74"
+      "evidence": "/tools/tool-contracts.md:76"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:45"
+      "evidence": "/tools/tool-contracts.md:47"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:76"
+      "evidence": "/tools/tool-contracts.md:78"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/tools/skill-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:45"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:76"
+      "evidence": "/tools/tool-contracts.md:78"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:76"
+      "evidence": "/tools/tool-contracts.md:78"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:76"
+      "evidence": "/tools/tool-contracts.md:78"
     },
     {
       "from": "/tools/web-tools.md",
@@ -20532,6 +20776,13 @@
       "evidence": "lib/session/transcript.ts"
     },
     {
+      "from": "module:lib/skills.ts",
+      "to": "module:lib/tools/skills/frontmatter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/skills.ts"
+    },
+    {
       "from": "module:lib/storage/postgres/credentialStore.ts",
       "to": "module:lib/tools/auth.ts",
       "rel": "imports",
@@ -21314,6 +21565,76 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/scienceTools.ts"
+    },
+    {
+      "from": "module:lib/tools/skills/executor.ts",
+      "to": "module:lib/tools/skills/loader.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skills/executor.ts"
+    },
+    {
+      "from": "module:lib/tools/skills/loader.ts",
+      "to": "module:lib/tools/skills/frontmatter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skills/loader.ts"
+    },
+    {
+      "from": "module:lib/tools/skills/tools.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skills/tools.ts"
+    },
+    {
+      "from": "module:lib/tools/skills/tools.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skills/tools.ts"
+    },
+    {
+      "from": "module:lib/tools/skills/tools.ts",
+      "to": "module:lib/tools/skills/executor.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skills/tools.ts"
+    },
+    {
+      "from": "module:lib/tools/skills/tools.ts",
+      "to": "module:lib/tools/skills/loader.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skills/tools.ts"
+    },
+    {
+      "from": "module:lib/tools/skills/tools.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skills/tools.ts"
+    },
+    {
+      "from": "module:lib/tools/skillToolset.ts",
+      "to": "module:lib/tools/skills/frontmatter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skillToolset.ts"
+    },
+    {
+      "from": "module:lib/tools/skillToolset.ts",
+      "to": "module:lib/tools/skills/loader.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skillToolset.ts"
+    },
+    {
+      "from": "module:lib/tools/skillToolset.ts",
+      "to": "module:lib/tools/skills/tools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/skillToolset.ts"
     },
     {
       "from": "module:lib/tools/taskTools.ts",

@@ -28,13 +28,19 @@
  *   - the context reaches the run's memory through ADK's own
  *     `Context.searchMemory`, so a search reads the silo ADK's tools read;
  *   - a NativeToolMarker is the shared sentinel the ADK runtime always ran
- *     for that server-side tool, which carries the same marker (ADR 0062).
+ *     for that server-side tool, which carries the same marker (ADR 0062);
+ *   - a Tool's `contents` hook adds to the request's history in the tool's
+ *     processLlmRequest, where ADK's load_skill_resource added a binary
+ *     file (ADR 0083);
+ *   - an own Toolset (the skills harness) is a BaseToolset whose getTools
+ *     lists the Toolset's tools for ADK's ReadonlyContext, each through
+ *     toAdkTool (ADR 0083).
  *
  *   toAdkTool takes any of these and picks the wrapper.
  */
 
-import { BaseTool, FunctionTool, GOOGLE_SEARCH } from '@google/adk';
-import type { Context, LlmRequest, ToolOptions, ToolProcessLlmRequest } from '@google/adk';
+import { BaseTool, BaseToolset, FunctionTool, GOOGLE_SEARCH } from '@google/adk';
+import type { Context, LlmRequest, ReadonlyContext, ToolOptions, ToolProcessLlmRequest } from '@google/adk';
 import type { Schema } from '@google/genai';
 
 import type { NativeTool } from '../models/contract.ts';
@@ -42,8 +48,8 @@ import type { TurnContent } from '../runtime/events.ts';
 import type { MemorySearchResult } from '../runtime/memoryService.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 import { COLLECTIONS_SEARCH } from './collectionsSearchTool.ts';
-import { OWN_TOOL, createToolContext, isInstructionTool, isNativeToolMarker, nativeToolMarkerOf } from './tool.ts';
-import type { InstructionTool, NativeToolMarker, Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from './tool.ts';
+import { OWN_TOOL, createToolContext, isInstructionTool, isNativeToolMarker, isOwnToolset, nativeToolMarkerOf } from './tool.ts';
+import type { InstructionTool, NativeToolMarker, Tool, ToolActions, ToolConfirmation, ToolContext, ToolState, Toolset } from './tool.ts';
 import { URL_CONTEXT } from './urlContextTool.ts';
 import { WEB_SEARCH } from './webSearchTool.ts';
 import { X_SEARCH } from './xSearchTool.ts';
@@ -158,8 +164,9 @@ export function toFunctionTool(tool: Tool | ToolContract<any>): FunctionTool {
     isLongRunning: own.longRunning === true,
     requireConfirmation: own.requiresApproval === true,
   };
-  // Only a Tool that writes into the instruction needs more than FunctionTool.
-  const adkTool = typeof own.instruction === 'function' ? new InstructingFunctionTool(options) : new FunctionTool(options);
+  // Only a Tool that writes into the request needs more than FunctionTool.
+  const writes = typeof own.instruction === 'function' || typeof own.contents === 'function';
+  const adkTool = writes ? new InstructingFunctionTool(options) : new FunctionTool(options);
   Object.defineProperty(adkTool, OWN_TOOL, { value: own });
   return adkTool;
 }
@@ -186,12 +193,16 @@ function carried<T>(adkTool: object): T {
   return (adkTool as Record<PropertyKey, unknown>)[OWN_TOOL] as T;
 }
 
-/** A FunctionTool that also appends its Tool's instruction, after declaring itself. */
+/** A FunctionTool that also writes its Tool's instruction and contents, after declaring itself. */
 class InstructingFunctionTool extends FunctionTool<Schema> {
   override async processLlmRequest(request: ToolProcessLlmRequest): Promise<void> {
     await super.processLlmRequest(request);
-    const text = await carried<Tool>(this).instruction?.(adkToolContext(request.toolContext));
+    const own = carried<Tool>(this);
+    const text = await own.instruction?.(adkToolContext(request.toolContext));
     if (text) appendInstruction(request.llmRequest, text);
+    if (own.contents && request.llmRequest.contents) {
+      await own.contents(request.llmRequest.contents as TurnContent[], adkToolContext(request.toolContext));
+    }
   }
 }
 
@@ -252,6 +263,45 @@ export function toAdkNativeTool(marker: NativeToolMarker): BaseTool {
   return adkTool;
 }
 
+// ── Toolsets (ADR 0083) ──────────────────────────────────────────────────────
+
+/**
+ * The ADK toolset for an own Toolset: getTools hands the Toolset ADK's
+ * ReadonlyContext (its agent name, invocation id and state are what a
+ * ToolsetContext reads) and returns each tool through toAdkTool, the same
+ * FunctionTool for the same Tool on every request. toolsetOf
+ * (lib/tools/tool.ts) reads the Toolset back.
+ */
+class OwnToolsetAdapter extends BaseToolset {
+  readonly #wrapped = new WeakMap<object, BaseTool>();
+
+  constructor(toolset: Toolset) {
+    super([]);
+    Object.defineProperty(this, OWN_TOOL, { value: toolset });
+  }
+
+  override async getTools(context?: ReadonlyContext): Promise<BaseTool[]> {
+    const own = carried<Toolset>(this);
+    const tools = await own.getTools(context as unknown as Parameters<Toolset['getTools']>[0]);
+    return tools.map((tool) => {
+      if (!tool || typeof tool !== 'object') throw new Error(`${own.name ?? 'toolset'} listed a tool that is not an object`);
+      let adk = this.#wrapped.get(tool);
+      if (!adk) {
+        adk = toAdkTool(tool as Tool);
+        this.#wrapped.set(tool, adk);
+      }
+      return adk;
+    });
+  }
+
+  override async close(): Promise<void> {}
+}
+
+/** ADK surface for an own Toolset: a BaseToolset carrying it. */
+export function toAdkToolset(toolset: Toolset): BaseToolset {
+  return new OwnToolsetAdapter(toolset);
+}
+
 /**
  * What the engine holds as a tool, as the ADK runtime consumes it: a Tool
  * or a defineTool contract through toFunctionTool, an InstructionTool
@@ -260,6 +310,7 @@ export function toAdkNativeTool(marker: NativeToolMarker): BaseTool {
  */
 export function toAdkTool(tool: Tool | ToolContract<any> | InstructionTool | NativeToolMarker | BaseTool): BaseTool {
   if (tool instanceof BaseTool || 'runAsync' in tool) return tool as BaseTool;
+  if (isOwnToolset(tool)) throw new Error(`${(tool as Toolset).name ?? 'a toolset'} is a toolset: wrap it with toAdkToolset`);
   if (isNativeToolMarker(tool)) return toAdkNativeTool(tool);
   if (isInstructionTool(tool)) return toAdkInstructionTool(tool);
   return toFunctionTool(tool as Tool);

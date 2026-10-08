@@ -38,11 +38,11 @@ import { providerForModel, resolveAdapter } from './models/registry.ts';
 import { subagentTool } from './runtime/native/delegate.ts';
 import type { NativeAgent } from './runtime/native/request.ts';
 export { UnsupportedOnRuntimeError, unsupportedOnNative } from './runtime/runtimeFlag.ts';
-import { instructionToolOf, toolOf } from './tools/tool.ts';
+import { instructionToolOf, toolOf, toolsetOf } from './tools/tool.ts';
 
-/** A resolved tool as the loop holds it: the own Tool or InstructionTool behind it, else the object itself. */
+/** A resolved tool as the loop holds it: the own Tool, InstructionTool or Toolset behind it, else the object itself. */
 function nativeTool(tool: unknown): unknown {
-  return toolOf(tool) ?? instructionToolOf(tool) ?? tool;
+  return toolOf(tool) ?? instructionToolOf(tool) ?? toolsetOf(tool) ?? tool;
 }
 
 /**

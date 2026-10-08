@@ -3,6 +3,46 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /tools/skill-harness.md —explains→ module:lib/tools/skills/executor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /tools/skill-harness.md —explains→ module:lib/tools/skills/tools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —depends_on→ /decisions/0029-skills-read-like-a-harness.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —constrains→ module:lib/runtime/native/request.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —constrains→ module:lib/tools/adkTool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —constrains→ module:lib/tools/skills/loader.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —constrains→ module:lib/tools/skills/executor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —constrains→ module:lib/tools/skills/frontmatter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0083-skills-harness-on-the-own-tool-base.md —constrains→ module:lib/tools/skills/tools.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/taskMode.ts
 
 by claude-code/claude-opus-5-5

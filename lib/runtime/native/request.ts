@@ -28,6 +28,8 @@
  *        `instruction(ctx)` writes: few-shot examples, preload_memory, an
  *        own Tool's note (ADR 0059, ADR 0062). The skills index is part of
  *        the instruction itself (lib/compile.ts appends it).
+ *      A Tool's `contents` hook then adds to the history, after it is
+ *      projected (load_skill_resource's binary file, ADR 0083).
  *   3. The history: the session's events projected by includeContents
  *      (lib/runtime/native/history.ts), with Gemini code execution's parts
  *      as text when the agent runs code.
@@ -58,8 +60,8 @@
  * the own-tool symbols (lib/tools/tool.ts), and only lib/models/
  * genaiMapping.ts, which stored history needs anyway (ADR 0048 item 8),
  * names @google/*. An ADK tool or toolset an agent still carries (an
- * AgentTool, an MCP or OpenAPI tool, the skills toolset) is read through
- * its declaration and `getTools`, by shape.
+ * AgentTool, an MCP or OpenAPI tool) is read through its declaration and
+ * `getTools`, by shape, as is the engine's own skills toolset.
  */
 
 import type { JsonSchema, Message, ModelRequest, NativeTool, ToolDeclaration } from '../../models/contract.ts';
@@ -362,7 +364,7 @@ async function resolveInstruction(
   return injectSessionState(instruction ?? '', ctx.state);
 }
 
-/** A toolset (ADK's skills toolset, an MCP toolset): something that yields tools, and is not one. */
+/** A toolset (the skills harness, an MCP toolset): something that yields tools, and is not one. */
 export function isToolset(value: unknown): value is { getTools(ctx?: unknown): Promise<unknown[]> } {
   if (!isObject(value)) return false;
   if (typeof value.getTools !== 'function') return false;
@@ -487,6 +489,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
   // One entry per name, in first-listed order, the later object winning (ADK's toolsDict).
   const dict = new Map<string, { tool: unknown; declaration?: ToolDeclaration; native?: NativeTool }>();
   const instructionTexts: Array<() => Promise<string | undefined>> = [];
+  const contentWriters: Array<() => Promise<void>> = [];
   for (const union of all) {
     const expanded = isToolset(union) ? await union.getTools(toolsetContext) : [union];
     for (const listedTool of expanded) {
@@ -513,6 +516,10 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
         const write = own.instruction.bind(own);
         instructionTexts.push(() => write(toolContext));
       }
+      if (own?.contents) {
+        const add = own.contents.bind(own);
+        contentWriters.push(() => add(contents, toolContext));
+      }
     }
   }
   // ADK runs each tool's processLlmRequest in turn; its instruction lands in that order.
@@ -520,6 +527,8 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
     const written = await text();
     if (written) system = appendInstructions(system, [written]);
   }
+  // ...and what it adds to the history (load_skill_resource's binary file, ADR 0083), after the history.
+  for (const write of contentWriters) await write();
 
   // 5. Everything the config says, read as the shim's mapping reads it.
   const { toolChoice, strict } = toolChoiceOf(cfg);
