@@ -50,7 +50,7 @@ import { REASONING_OLDER_SPELLING } from './syndicateSchema.ts';
 import { reasoningConfig } from './models/reasoning.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
-import { toAdkInstructionTool } from './tools/adkTool.ts';
+import { toAdkInstructionTool, toAdkToolset } from './tools/adkTool.ts';
 import { examplesInstructionTool } from './tools/examples.ts';
 import type { ExampleConfig } from './tools/examples.ts';
 import { capabilitySummary, describeCapabilities } from './models/capabilities.ts';
@@ -294,7 +294,8 @@ async function withSkills(
   const count = Object.keys(harness.skills).length;
   opts.log?.(`skills · ${agentName}: ${count} skill${count === 1 ? '' : 's'} from ${skills.dir}${skills.scripts === 'local' ? ' · scripts run after approval' : ''}`);
   for (const problem of harness.problems) opts.log?.(`⚠ skills · ${skills.dir}: not loaded — ${problem}`);
-  return { instruction: `${instruction.trimEnd()}\n\n${harness.instruction}`, tools: [...tools, harness.toolset] };
+  // The ADK face of the engine's own toolset; compileNative reads the toolset back (toolsetOf).
+  return { instruction: `${instruction.trimEnd()}\n\n${harness.instruction}`, tools: [...tools, toAdkToolset(harness.toolset)] };
 }
 
 /** True when a turn running this agent directly may pause for a person (ADR 0028). */

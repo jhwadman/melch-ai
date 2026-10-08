@@ -8,7 +8,7 @@ import assert from 'node:assert';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { validateSkillDir } from '@google/adk';
+import { validateSkillDir } from '../lib/tools/skills/loader.ts';
 import { SKILL_TARGETS, destinationsFor, installSkills, listSkills, resolveSkillsSource } from '../lib/skills.ts';
 
 function fakeSuite(): string {
@@ -103,6 +103,6 @@ test('the shipped suite resolves and every skill has frontmatter that matches it
 
 test('every shipped skill passes the strict loader a harness uses (valid frontmatter YAML, name = directory)', async () => {
   for (const s of listSkills(resolveSkillsSource())) {
-    assert.deepStrictEqual(await validateSkillDir(s.dir), [], `${s.name}: ADK's validator reports problems`);
+    assert.deepStrictEqual(await validateSkillDir(s.dir), [], `${s.name}: the harness's validator reports problems`);
   }
 });

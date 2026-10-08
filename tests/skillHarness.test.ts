@@ -10,7 +10,8 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve as resolvePath } from 'node:path';
 import { FunctionTool, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 import { z } from 'zod';
 
@@ -18,10 +19,18 @@ import { compileGraph } from '../lib/compile.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { approvalResponsePart } from '../lib/runtime/approvals.ts';
 import { registerTool } from '../lib/toolRegistry.ts';
+import { toolsetOf } from '../lib/tools/tool.ts';
 import { HarnessSkillToolset, loadSkillSuite, skillsInstruction } from '../lib/tools/skillToolset.ts';
 import { SyndicateValidationError, validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
+import type { ModelScript } from './helpers/scriptedModel.ts';
+import { ROOT, runtimeImportsOf, specifiersOf } from './helpers/importGraph.ts';
+import { loadSyndicate } from '../lib/loadSyndicate.ts';
+import type { ModelRequest } from '../lib/models/contract.ts';
+import type { TurnEvent } from '../lib/runtime/events.ts';
+import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -76,14 +85,14 @@ test('the frontmatter index is injected into the instruction; the toolset carrie
   assert.match(root.instruction, /Greet a person by name/);
   assert.doesNotMatch(root.instruction, /House style|Write one sentence/, 'bodies are never injected');
   assert.match(root.instruction, /cannot run here/);
-  const toolset = root.tools.find((t: unknown) => t instanceof HarnessSkillToolset) as HarnessSkillToolset;
+  const toolset = root.tools.map(toolsetOf).find((t: unknown) => t instanceof HarnessSkillToolset) as HarnessSkillToolset;
   assert.ok(toolset, 'the toolset is among the agent tools');
-  assert.deepEqual((await toolset.getTools()).map((t) => t.name), ['load_skill', 'load_skill_resource']);
+  assert.deepEqual((await toolset.getTools()).map((t: any) => t.name), ['load_skill', 'load_skill_resource']);
 
   const local = (await compileGraph(harnessConfig({ scripts: 'local' }))) as any;
   assert.match(local.instruction, /waits for the user's approval/);
-  const localToolset = local.tools.find((t: unknown) => t instanceof HarnessSkillToolset) as HarnessSkillToolset;
-  assert.deepEqual((await localToolset.getTools()).map((t) => t.name), ['load_skill', 'load_skill_resource', 'run_skill_script']);
+  const localToolset = local.tools.map(toolsetOf).find((t: unknown) => t instanceof HarnessSkillToolset) as HarnessSkillToolset;
+  assert.deepEqual((await localToolset.getTools()).map((t: any) => t.name), ['load_skill', 'load_skill_resource', 'run_skill_script']);
 
   const empty = skillsInstruction({}, { dir: 'x' });
   assert.match(empty, /<available_skills>\n<\/available_skills>/);
@@ -168,4 +177,197 @@ test('schema: scripts pause only where a pause can reach the caller; skills.tool
   const overlap = { ...base(), subagents: [], orchestrator: { ...base().orchestrator, tools: ['web_extract'], skills: { dir: FIXTURES, tools: ['web_extract'] } } };
   assert.throws(() => validateSyndicateConfig(overlap, 't'), /already in this agent's tools/);
   assert.throws(() => validateSyndicateConfig({ ...base(), subagents: [], orchestrator: { ...base().orchestrator, skills: { dir: FIXTURES, scripts: 'docker' } } }, 't'), /scripts/);
+});
+
+// ── The harness has no ADK, and runs the same on both runtimes (WS3-3, ADR 0083) ──
+
+const HARNESS_FILES = ['lib/tools/skillToolset.ts', 'lib/skills.ts', 'lib/tools/skills/frontmatter.ts', 'lib/tools/skills/loader.ts', 'lib/tools/skills/executor.ts', 'lib/tools/skills/tools.ts'];
+
+test('no harness file imports ADK, and nothing it loads at run time does', () => {
+  const isGoogle = (s: string) => s.startsWith('@google/');
+  for (const file of HARNESS_FILES) {
+    assert.deepEqual(specifiersOf(file).filter(isGoogle), [], `${file} names no @google/* module, not even for a type`);
+    const reached = new Set<string>();
+    const pending = [resolvePath(ROOT, file)];
+    while (pending.length > 0) {
+      const at = pending.pop()!;
+      if (reached.has(at)) continue;
+      reached.add(at);
+      for (const statement of runtimeImportsOf(at)) {
+        const quote = statement.slice(-1);
+        const spec = statement.slice(statement.lastIndexOf(quote, statement.length - 2) + 1, -1);
+        assert.ok(!isGoogle(spec), `${file} loads ${spec} through ${at}`);
+        if (spec.startsWith('.')) pending.push(resolvePath(dirname(at), spec));
+      }
+    }
+    assert.ok(reached.size >= 1);
+  }
+});
+
+const PARITY = join(process.cwd(), 'tests', 'fixtures', 'skills-parity');
+
+function nativeSyndicate(skills: Record<string, unknown>, dir = FIXTURES): SyndicateYamlConfig {
+  return validateSyndicateConfig(
+    {
+      syndicate_name: 'Harness',
+      orchestrator: { name: 'Harness', model: 'scripted/boss', instruction: 'Follow skills.', skills: { dir, ...skills } },
+      subagents: [],
+    },
+    'test',
+  ) as SyndicateYamlConfig;
+}
+
+interface Turn {
+  parts?: unknown[];
+  answer?: (previous: SyndicateTurnResult) => unknown[];
+  runtime?: 'adk' | 'native';
+}
+
+async function converse(runtime: 'adk' | 'native', config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, turns: Turn[]) {
+  const models = Object.fromEntries(Object.entries(scripts).map(([k, s]) => [k, new ScriptedModel(`scripted/${k}`, s)]));
+  const sessionService = new InMemorySessionService();
+  const results: SyndicateTurnResult[] = [];
+  for (const t of turns) {
+    results.push(
+      await runSyndicateTurn({
+        config,
+        parts: (t.answer ? t.answer(results.at(-1)!) : (t.parts ?? [{ text: 'release notes please' }])) as any[],
+        appName: 'app',
+        userId: 'u',
+        sessionId: 's',
+        sessionService,
+        compile: { resolveModel: shimResolver(models), log: () => {} },
+        trace: false,
+        runtime: t.runtime ?? runtime,
+      }),
+    );
+  }
+  const session = await sessionService.getSession({ appName: 'app', userId: 'u', sessionId: 's' });
+  return { results, events: JSON.parse(JSON.stringify(session?.events ?? [])) as TurnEvent[], models };
+}
+
+/** The output directory a script result names is minted once per toolset, so per compile. */
+const OUTPUT_DIR = /[^"\s]*melchizedek_skill_output_[A-Za-z0-9]+/g;
+const withoutOutputDir = (value: unknown): unknown =>
+  value === undefined ? undefined : JSON.parse(JSON.stringify(value), (_k, v) => (typeof v === 'string' ? v.replace(OUTPUT_DIR, '<output-dir>') : v));
+
+/** Ids, times and the output directory are minted per run; everything else must match. */
+function comparable(events: TurnEvent[]): unknown {
+  return withoutOutputDir(
+    JSON.parse(
+      JSON.stringify(events.map((e) => ({ ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' }))),
+      (_k, v) => (typeof v === 'string' && v.startsWith('adk-') ? '<adk-id>' : v),
+    ),
+  );
+}
+
+const outcome = (r: SyndicateTurnResult) =>
+  withoutOutputDir({ status: r.status, text: r.text, error: r.error?.message ?? null, approval: r.approval ? { tool: r.approval.tool, args: r.approval.args } : null });
+
+async function assertParity(config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, turns: Turn[] = [{}]) {
+  const adk = await converse('adk', config, scripts, turns);
+  const native = await converse('native', config, scripts, turns);
+  assert.deepEqual(native.results.map(outcome), adk.results.map(outcome), 'the results');
+  assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events');
+  for (const key of Object.keys(scripts)) {
+    assert.equal(native.models[key]?.calls, adk.models[key]?.calls, `calls to ${key}`);
+    assert.deepEqual(
+      withoutOutputDir(native.models[key]?.requests.map((r) => ({ system: r.system, tools: r.tools, messages: r.messages }))),
+      withoutOutputDir(adk.models[key]?.requests.map((r) => ({ system: r.system, tools: r.tools, messages: r.messages }))),
+      `what ${key} was sent`,
+    );
+  }
+  return { adk, native };
+}
+
+const resultText = (req: ModelRequest) => JSON.stringify(lastToolResult(req)?.result ?? null);
+
+test('parity: load_skill and load_skill_resource answer and store the same on native as on ADK', async () => {
+  const { native } = await assertParity(nativeSyndicate({}), {
+    boss: (req, n) =>
+      n === 1
+        ? toolCall('load_skill', { name: 'release-notes' }, 'call-load')
+        : n === 2
+          ? toolCall('load_skill_resource', { skill_name: 'release-notes', path: 'references/style.md' }, 'call-res')
+          : n === 3
+            ? toolCall('load_skill', { name: 'nope' }, 'call-nope')
+            : answer(`done ${resultText(req)}`),
+  });
+  assert.equal(native.results[0]?.status, 'completed');
+  assert.match(native.results[0]!.text, /Skill 'nope' not found\. Installed: greeting, release-notes/);
+  assert.match(JSON.stringify(native.events), /House style: one sentence per change/);
+  assert.match(JSON.stringify(native.events), /_adk_activated_skill_Harness/);
+});
+
+test('parity: allowed-tools unlocks the permitted tool after the load, on native as on ADK', async () => {
+  const { native } = await assertParity(nativeSyndicate({ tools: ['harness_test_lookup'] }), {
+    boss: (req, n) => (n === 1 ? toolCall('load_skill', { name: 'release-notes' }, 'call-load') : n === 2 ? toolCall('harness_test_lookup', { key: 'k' }, 'call-look') : answer(`got ${resultText(req)}`)),
+  });
+  const names = (i: number) => native.models.boss!.requests[i]!.tools?.map((t) => t.name) ?? [];
+  assert.ok(!names(0).includes('harness_test_lookup'), 'not offered before the load');
+  assert.ok(names(1).includes('harness_test_lookup'), 'offered once the skill is loaded');
+  assert.equal(native.results[0]?.text, 'got "looked up k"');
+});
+
+test('parity: a script run pauses for approval and runs, or is refused, on native as on ADK', async () => {
+  const script: ModelScript = (req, n) =>
+    n === 1 ? toolCall('run_skill_script', { skill_name: 'release-notes', script_path: 'scripts/version.sh', args: { tag: 'beta' } }, 'call-run') : answer(`got ${resultText(req)}`);
+  for (const approved of [true, false]) {
+    const { native } = await assertParity(nativeSyndicate({ scripts: 'local' }), { boss: script }, [
+      { parts: [{ text: 'release notes' }] },
+      { answer: (r) => [approvalResponsePart(r.approval!.id, approved)] },
+    ]);
+    assert.equal(native.results[0]?.status, 'input-required');
+    assert.equal(native.results[0]?.approval?.tool, 'run_skill_script');
+    assert.equal(native.results[1]?.status, 'completed', native.results[1]?.error?.message);
+    if (approved) assert.match(native.results[1]!.text, /version=9\.9\.9 args=--tag beta/);
+    else assert.equal(native.results[1]!.text, 'got "This script run was rejected."');
+  }
+});
+
+test('a script approval opened on one runtime resumes on the other', async () => {
+  const script: ModelScript = (req, n) => (n === 1 ? toolCall('run_skill_script', { skill_name: 'release-notes', script_path: 'scripts/version.sh' }, 'call-run') : answer(`got ${resultText(req)}`));
+  for (const [opens, resumes] of [['native', 'adk'], ['adk', 'native']] as const) {
+    const run = await converse(opens, nativeSyndicate({ scripts: 'local' }), { boss: script }, [
+      { parts: [{ text: 'x' }] },
+      { answer: (r) => [approvalResponsePart(r.approval!.id, true)], runtime: resumes },
+    ]);
+    assert.equal(run.results[0]?.status, 'input-required');
+    assert.equal(run.results[1]?.status, 'completed', run.results[1]?.error?.message);
+    assert.match(run.results[1]!.text, /version=9\.9\.9/, `opened on ${opens}, resumed on ${resumes}`);
+  }
+});
+
+test('parity: a binary resource reaches the next request as inline data on both runtimes', async () => {
+  const { native } = await assertParity(nativeSyndicate({}, PARITY), {
+    boss: (_req, n) => (n === 1 ? toolCall('load_skill_resource', { skill_name: 'kit', path: 'assets/logo.png' }, 'call-bin') : answer('seen')),
+  });
+  const logo = readFileSync(join(PARITY, 'kit', 'assets', 'logo.png')).toString('base64');
+  const second = JSON.stringify(native.models.boss!.requests[1]!.messages);
+  assert.ok(second.includes(logo), 'the file is in the request');
+  assert.match(second, /The content of binary file 'assets\/logo.png' is:/);
+  assert.ok(!JSON.stringify(native.events).includes(logo), 'and never stored');
+});
+
+test('the harness.yaml example runs under runtime native with a scripted model, storing what ADK stores', async () => {
+  const config = loadSyndicate(join(process.cwd(), 'config', 'agents', 'examples', 'harness.yaml'), { bindings: { skills_dir: FIXTURES } });
+  const { native } = await assertParity(config, {
+    'gemini-3.8-flash': (req, n) =>
+      n === 1
+        ? toolCall('load_skill', { name: 'release-notes' }, 'call-load')
+        : n === 2
+          ? toolCall('load_skill_resource', { skill_name: 'release-notes', path: 'assets/template.md' }, 'call-res')
+          : n === 3
+            ? toolCall('Checker', { request: 'RULES: one sentence per change. REQUEST: notes. DELIVERABLE: - Fixed a bug.' }, 'call-check')
+            : answer(`- Fixed a bug.\n\nFollowed: release-notes. (${resultText(req)})`),
+    'gemini-3.5-flash-lite': () => answer('PASS'),
+  });
+  assert.equal(native.results[0]?.status, 'completed', native.results[0]?.error?.message);
+  assert.match(native.results[0]!.text, /Followed: release-notes\. \("PASS"\)/);
+  assert.match(native.models['gemini-3.8-flash']!.requests[0]!.system ?? '', /<available_skills>[\s\S]*<name>release-notes<\/name>/);
+  // adk_handle_model_error is self-correction's reflection tool, on an agent with retries.
+  assert.deepEqual(
+    native.models['gemini-3.8-flash']!.requests[0]!.tools?.map((t) => t.name).filter((n) => n !== 'adk_handle_model_error'),
+    ['Checker', 'load_skill', 'load_skill_resource'],
+  );
 });
