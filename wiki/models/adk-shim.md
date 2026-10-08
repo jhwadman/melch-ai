@@ -41,6 +41,8 @@ Three families of ADK classes run behind it. `ClaudeLlm` (`lib/models/claudeLlm.
    - A turn that is spent or stopped refuses the call with `STEP_LIMIT`, `DEADLINE_EXCEEDED` or `CANCELED`. The refusal is the same `LlmResponse` `GptLlm` and the chat-completions adapters yield, and the adapter is never called.
    - One `llm.request` span covers the call, with the same attributes as on any ADK-path adapter. The adapter adds its own with `setLlmSpanAttribute`, and they land on that span.
    - The final's usage is charged to the turn.
+
+   The [native loop](/overview/native-loop.md)'s model step is the other caller, and makes the same `traceLlmGeneration` call with the same arguments, so a call is charged and traced alike on both runtimes ([ADR 0066](/decisions/0066-native-step-sends-the-adk-request.md)).
 3. **The responses.** Each `ModelResponse` the adapter yields goes back through `toLlmResponse`, in order, inside the span, so the tracer reads what it returns. By default it is `modelResponseToLlmResponse`: a partial is a `partial: true` response, and the final is `turnComplete: true` with Gemini's usage meanings and finish reason. A failed final carries `errorCode`, and its retry verdict in `customMetadata['error.retryable']`, which `FallbackLlm` reads. A subclass that stands in for an ADK-path adapter overrides `toLlmResponse` to keep what that adapter wrote beyond the contract.
 
 The shim does not repair an adapter that breaks the contract. A throw reaches ADK as a throw, as a Gemini failure does, and every response is mapped as it comes. `connect()` is refused, because live connections are outside the contract.
