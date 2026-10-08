@@ -24,7 +24,7 @@ import { LogLevel, setLogLevel } from '@google/adk';
 import type { BaseLlm, LlmRequest, LlmResponse } from '@google/adk';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
-import type { FinalModelResponse, Message, ModelAdapter, ModelRequest, ModelResponse, ToolChoiceMode, ToolDeclaration } from '../lib/models/contract.ts';
+import type { FinalModelResponse, Message, ModelAdapter, ModelRequest, ModelResponse, ToolDeclaration } from '../lib/models/contract.ts';
 import { ChatCompletionsAdapter, chatUsage, sumUsage, ENGINE_CALL_ID_PREFIX, REASONING_CONTENT_KIND } from '../lib/models/chatCompletionsAdapter.ts';
 import type { ChatCompletionsRequest } from '../lib/models/chatCompletionsAdapter.ts';
 import { OllamaAdapter } from '../lib/models/ollamaAdapter.ts';
@@ -503,32 +503,70 @@ test("tool choice: none sends no tools; the gateway sends required and a named t
   });
 });
 
-test('tool choice: Moonshot and Ollama weaken required and a named tool to auto, and the span says so', async () => {
-  for (const [adapter, model] of [[kimi(), 'kimi-k3'], [ollama(), 'ollama/qwen3:8b']] as const) {
+test('tool choice: Ollama weakens required and a named tool to auto, and the span says so', async () => {
+  for (const [toolChoice, mode] of [['required', 'required'], [{ name: 'Scout' }, 'named']] as const) {
+    const request = req('ollama/qwen3:8b', { tools: [SCOUT], toolChoice });
+    const body = await bodyOf(ollama(), request);
+    assert.ok(!('tool_choice' in body), mode);
+    assert.equal(body.tools.length, 1);
+    assert.equal((await spanOf(ollama(), request)).attributes['llm.tool_choice.weakened'], mode);
+  }
+});
+
+/** The body and the span's weakened mark for one Kimi tool choice. */
+async function kimiChoice(model: string, toolChoice: ModelRequest['toolChoice'], reasoning?: ModelRequest['reasoning']) {
+  const request = req(model, { tools: [SCOUT, LOAD_MEMORY], toolChoice, ...(reasoning !== undefined ? { reasoning } : {}) });
+  const body = await bodyOf(kimi(model), request);
+  assert.equal(body.tools.length, 2, `${model}: the tools are sent whatever the choice`);
+  return { body, weakened: (await spanOf(kimi(model), request)).attributes['llm.tool_choice.weakened'] };
+}
+
+const NAMED = { type: 'function', function: { name: 'Scout' } };
+
+test('tool choice, kimi-k3 (live, 2026-10-08): required as asked; a named tool, refused while thinking, goes as required', async () => {
+  const required = await kimiChoice('kimi-k3', 'required');
+  assert.equal(required.body.tool_choice, 'required');
+  assert.equal(required.body.reasoning_effort, 'high', 'K3 thinks while forced');
+  assert.equal(required.weakened, undefined);
+  // K3 always thinks, so `none` does not switch it off: the named choice is still refused.
+  for (const reasoning of [undefined, 'none'] as const) {
+    const named = await kimiChoice('kimi-k3', { name: 'Scout' }, reasoning);
+    assert.equal(named.body.tool_choice, 'required', String(reasoning));
+    assert.equal(named.weakened, 'named', String(reasoning));
+  }
+});
+
+test('tool choice, kimi-k2.6 (live, 2026-10-08): forced only with thinking off; otherwise auto', async () => {
+  for (const reasoning of ['none', { budget_tokens: 0 }] as const) {
+    const required = await kimiChoice('kimi-k2.6', 'required', reasoning);
+    assert.equal(required.body.tool_choice, 'required');
+    assert.deepEqual(required.body.thinking, { type: 'disabled' });
+    assert.equal(required.weakened, undefined);
+    const named = await kimiChoice('kimi-k2.6', { name: 'Scout' }, reasoning);
+    assert.deepEqual(named.body.tool_choice, NAMED);
+    assert.deepEqual(named.body.thinking, { type: 'disabled' });
+    assert.equal(named.weakened, undefined);
+  }
+  for (const reasoning of [undefined, 'low', 'high'] as const) {
     for (const [toolChoice, mode] of [['required', 'required'], [{ name: 'Scout' }, 'named']] as const) {
-      const request = req(model, { tools: [SCOUT], toolChoice });
-      const body = await bodyOf(adapter, request);
-      assert.ok(!('tool_choice' in body), `${model} ${mode}`);
-      assert.equal(body.tools.length, 1);
-      assert.equal((await spanOf(adapter, request)).attributes['llm.tool_choice.weakened'], mode);
+      const c = await kimiChoice('kimi-k2.6', toolChoice, reasoning);
+      assert.ok(!('tool_choice' in c.body), `${String(reasoning)} ${mode}`);
+      assert.ok(!('thinking' in c.body), 'thinking on');
+      assert.equal(c.weakened, mode);
     }
   }
 });
 
-/** Moonshot as it would be with forced choices verified: the shape the live check sends. */
-class ForcingKimi extends KimiAdapter {
-  protected override toolChoiceModes(): readonly ToolChoiceMode[] {
-    return ['auto', 'none', 'required', 'named'];
+test('tool choice, other Kimi ids: required and a named tool weaken to auto, thinking or not', async () => {
+  for (const model of ['kimi-k2.7-code', 'kimi-k2.7-code-highspeed']) {
+    for (const reasoning of [undefined, 'none'] as const) {
+      for (const [toolChoice, mode] of [['required', 'required'], [{ name: 'Scout' }, 'named']] as const) {
+        const c = await kimiChoice(model, toolChoice, reasoning);
+        assert.ok(!('tool_choice' in c.body), `${model} ${mode}`);
+        assert.equal(c.weakened, mode);
+      }
+    }
   }
-}
-
-test('tool choice (the live question): the wire Moonshot would get for required and a named tool', async () => {
-  const forcing = () => new ForcingKimi({ model: 'kimi-k3', apiKey: MOONSHOT_KEY });
-  const required = await bodyOf(forcing, req('kimi-k3', { tools: [SCOUT, LOAD_MEMORY], toolChoice: 'required' }));
-  assert.equal(required.tool_choice, 'required');
-  assert.equal(required.reasoning_effort, 'high', 'K3 thinks while forced');
-  const named = await bodyOf(forcing, req('kimi-k3', { tools: [SCOUT, LOAD_MEMORY], toolChoice: { name: 'Scout' } }));
-  assert.deepEqual(named.tool_choice, { type: 'function', function: { name: 'Scout' } });
 });
 
 // ── The response ─────────────────────────────────────────────────────────────

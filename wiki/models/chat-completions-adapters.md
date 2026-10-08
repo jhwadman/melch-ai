@@ -28,12 +28,12 @@ Moonshot (Kimi), Ollama and the hosted gateways speak OpenAI chat completions, s
 | Adapter | Module | `provider` | Endpoint | Forced tool choice |
 |---|---|---|---|---|
 | `OllamaAdapter` | `lib/models/ollamaAdapter.ts` | `ollama` | `OLLAMA_BASE_URL`, default `http://localhost:11434/v1`, keyless | weakened to auto |
-| `KimiAdapter` | `lib/models/kimiAdapter.ts` | `moonshot` | `MOONSHOT_BASE_URL`, default `https://api.moonshot.ai/v1`, `MOONSHOT_API_KEY` or a caller's key | weakened to auto, until verified |
+| `KimiAdapter` | `lib/models/kimiAdapter.ts` | `moonshot` | `MOONSHOT_BASE_URL`, default `https://api.moonshot.ai/v1`, `MOONSHOT_API_KEY` or a caller's key | per model (below) |
 | `GatewayAdapter` | `lib/models/gatewayAdapter.ts` | the upstream's (`providerForModel`) | `MODEL_GATEWAY`'s base, `MODEL_GATEWAY_API_KEY` | sent as asked |
 
 ## What a provider supplies
 
-A subclass gives the endpoint and headers, the wire model name (`ollama/` stripped, the gateway's mapped id), its reasoning fields, the tool choices it honours (`toolChoiceModes`), and its error wording: `missingRequirement`, `httpError`, `unreachable` and `noAnswerError`, each a code and a message. Two switches turn on shared behaviour: `replaysReasoningContent(model)` (Kimi) and `retriesWithoutThinking()` (Ollama). `transport()` is `direct`, or `gateway:<id>` for the gateway.
+A subclass gives the endpoint and headers, the wire model name (`ollama/` stripped, the gateway's mapped id), its reasoning fields, the tool choices it honours (`toolChoiceModes(model, reasoning)`, since a provider may refuse forcing only while the model thinks; a named tool it does not honour goes as `required` where that holds, else auto), and its error wording: `missingRequirement`, `httpError`, `unreachable` and `noAnswerError`, each a code and a message. Two switches turn on shared behaviour: `replaysReasoningContent(model)` (Kimi) and `retriesWithoutThinking()` (Ollama). `transport()` is `direct`, or `gateway:<id>` for the gateway.
 
 The reasoning field comes from the request's `reasoning`, mapped with `reasoningConfig` ([ADR 0047](/decisions/0047-provider-neutral-reasoning-key.md)) for the request's model, so a fallback model gets its own mapping:
 
@@ -70,7 +70,7 @@ Every failure is a final with `error` set, never a throw: a missing key or gatew
 The offline tests pin the wire for both of these; the answers need Moonshot.
 
 1. **`kimi-k2.7-code` without earlier turns' `reasoning_content`.** Moonshot asks for it across turns on K3 and K2.7 Code ("preserved thinking"). The adapter sends it only within the current turn's tool loop, because a past turn's stored history is not what the model saw. Whether K2.7 Code answers worse on a later turn without it is open.
-2. **Forced tool choice on Moonshot.** Whether Moonshot honours `tool_choice: "required"` and `{ type: "function", function: { name } }`. Until it is verified, `KimiAdapter` weakens both to auto and marks `llm.tool_choice.weakened`. If Moonshot honours them, `toolChoiceModes` lists all four.
+2. **Forced tool choice on `kimi-k2.7-code`.** The live check of 2026-10-08 covered K3 and K2.6, and `KimiAdapter.toolChoiceModes` follows it: K3 honours `required` with thinking on and refuses a named tool with it on (400 "tool_choice 'specified' is incompatible with thinking enabled"), so a named tool goes as `required`; K2.6 refuses both forced modes with thinking on and honours both with it off, so it forces only under `reasoning: none`. K2.7 Code always thinks and was not checked, so it weakens both to auto.
 
 ## Tests
 

@@ -6,6 +6,15 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Kimi forces a tool where Moonshot allows it** (checked live on
+  2026-10-08). `kimi-k3` sends `toolChoice: 'required'` as asked and a
+  named tool as `tool_choice: "required"` (Moonshot refuses a named tool
+  while K3 thinks, and K3 always thinks); `kimi-k2.6` sends both forced
+  modes as asked when `reasoning` is `none`, and weakens them to auto
+  otherwise. Other Kimi ids keep weakening both to auto. A weakened choice
+  is still marked `llm.tool_choice.weakened` on the span. In the
+  chat-completions base, a subclass's `toolChoiceModes` now also receives
+  the request's reasoning.
 - **`GeminiAdapter` covers Gemini's own features (ADR 0065).** In
   `melchizedek-agents/models/geminiAdapter` (which `resolveAdapter`
   returns only with `GEMINI_ADAPTER=engine` until gate G3):
