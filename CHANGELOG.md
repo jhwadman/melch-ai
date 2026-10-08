@@ -29,8 +29,8 @@ the starter pack and the templates), not the repo's full history.
   wording, and the shape of what they yield: usage counts the reasoning in
   `candidatesTokenCount` as before, so the ledger's counts are unchanged.
   `models/openAiCompatibleLlm` adds `olderSpellingOf` and
-  `chatUsageMetadata`. `AdkShim` gains two protected seams,
-  `toModelRequest` and `toLlmResponse`.
+  `chatUsageMetadata`. `AdkShim` gains a protected `toModelRequest` seam
+  beside `toLlmResponse` (ADR 0056); the chat shims override both.
 
   What reaches the provider changes only where the contract maps a field
   the old classes ignored or spelled as written:
@@ -51,12 +51,73 @@ the starter pack and the templates), not the repo's full history.
     `turnComplete`. A call cut off by a cancelled turn is never retryable,
     even when its last status was a 503, so no fallback answers a
     cancellation.
+- **Breaking for subclasses of `GptLlm`: the vendor hooks move to
+  `GptAdapter` (ADR 0056).** `providerId()`, `baseURL()`, `apiKeyFromEnv()`,
+  `missingKeyMessage()`, `clientOptions()`, `reasoningParam()`,
+  `replaysReasoning()` and `endpoint()` are overridden on a `GptAdapter`
+  subclass now, as `GrokAdapter` does, and a `GptLlm` subclass returns it
+  from `protected static createAdapter(options)`. Code that only constructs
+  or registers `GptLlm` and `GrokLlm`, or imports their exported functions,
+  is unaffected.
 - **Breaking for one import path: `toFunctionTool` moves to
   `melchizedek-agents/tools/adkTool` (ADR 0051).**
   `melchizedek-agents/tools/toolContract` no longer exports it, so that
   module loads nothing from `@google/adk`. Import it from
   `melchizedek-agents`, which still exports it, or from the new subpath.
   The `exports` map is unchanged.
+- **The session services serve both runtimes from the same rows, and
+  change behaviour in five places (ADR 0058).** `SupabaseSessionService`,
+  `PostgresSessionService` and `ProjectedSessionService` also implement
+  the engine's own `SessionService` (`create`, `get`, `list`, `delete`,
+  `append`) beside ADK's `BaseSessionService`, and
+  `ProjectedSessionService` accepts a store with either interface. The
+  import paths are unchanged. Through ADK's methods, to match that
+  interface:
+  - `listSessions` without a `userId` lists every user's sessions of the
+    app on the Supabase service too, as it already did on Postgres and as
+    ADK's contract says. Before, it filtered on a user named `undefined`.
+    Nothing in the engine calls it; check your own callers.
+  - `createSession` for an id that exists returns the conversation on the
+    Supabase service, as on Postgres, instead of resetting it to no events.
+    A create drops `temp:` keys from the initial state.
+  - `lastUpdateTime` and `last_update_time` are the appended event's
+    timestamp, as in ADK's own store, instead of the clock at append.
+  - On Postgres, appending an event whose id the session already holds
+    replaces that event's row instead of adding a second one.
+  - A listing with no `order` comes back in creation order, and one with
+    an `order` breaks ties by id, on both services. A `numRecentEvents`
+    below one is ignored.
+
+  No schema change. The bridge between the two interfaces
+  (`lib/runtime/adkSessionBridge.ts`) is internal and not in the exports
+  map.
+- **GPT and Grok run on the engine's model contract (ADR 0048, ADR 0056).**
+  New modules `melchizedek-agents/models/gptAdapter` (`GptAdapter`, the
+  Responses API as a `ModelAdapter`, with `responsesInput`,
+  `responsesFunctionTools`, `responsesUsage`, `responsesServerTools`,
+  `streamErrorDecision` and `isOpenAiReasoningModel`) and
+  `melchizedek-agents/models/grokAdapter` (`GrokAdapter`,
+  `GROK_REASONING_IDS`, `XAI_BASE_URL`). `GptLlm` and `GrokLlm` keep their
+  names, constructors, `supportedModels` and exports, and are now the ADK
+  shim around these adapters. The ledger, the turn's token charge and
+  `adk_turns.tool_calls` count GPT and Grok calls as before: output tokens
+  include reasoning, and server-side searches stay on the event's
+  `customMetadata`. `AdkShim` gains a protected `toLlmResponse(response)`
+  hook for that. What changes on the wire and in the events:
+  - `grok-4.6` takes `reasoning.effort` and replays its encrypted reasoning,
+    as `grok-4.5` and `grok-4.7` do.
+  - A failure a stream reports (`response.failed`, an `error` event, or an
+    SSE frame named `error`) carries a retry verdict when it names a
+    retryable status or the code `server_error`, `rate_limit_exceeded` or
+    `vector_store_timeout`, so the fallback model answers it.
+  - An aborted stream ends in an error final instead of the text so far.
+  - A user-turn image given by an https URL reaches GPT and Grok, and a PDF
+    goes as `input_file`; `top_p` is sent beside `temperature`; a call
+    without an id gets one minted from its position, shared with its result.
+  - JSON mode without a schema (`responseMimeType: 'application/json'`
+    alone) and the older spelling's `xhigh` and `max` effort words have no
+    contract field and are no longer sent to GPT or Grok.
+  - Final events carry `finishReason`, as every shimmed adapter's do.
 - **The engine's own event, session and memory interfaces (ADR 0052).**
   Internal modules for the native runtime, not in the exports map, so
   nothing a consumer imports changes: `lib/runtime/events.ts` (`TurnEvent`,
@@ -287,8 +348,8 @@ the starter pack and the templates), not the repo's full history.
   by the fallback, a non-retryable one is passed on, and only a call that
   produced content counts as a success. Error codes and messages are
   unchanged, except that key-shaped text is now removed from the message.
-  A failure GPT or Grok report inside an open stream (`response.failed`)
-  carries no verdict and is still passed on. The retry policy now counts
+  A failure GPT or Grok report inside an open stream carries a verdict too,
+  from the event (see GPT and Grok on the model contract). The retry policy now counts
   HTTP 529, Anthropic's "overloaded", as retryable, so an overloaded Claude
   primary is answered by its fallback. New
   module `melchizedek-agents/models/errorResponse`: `providerErrorResponse`,

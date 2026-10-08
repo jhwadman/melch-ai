@@ -48,7 +48,7 @@ The memory logic runs on a `MemoryStore` (`lib/memory/store.ts`), the five datab
 
 `postgresStorage({ connectionString })` also provides sessions, A2A tasks and erase on the same connection:
 
-- **Sessions** are stored one row per event in `adk_session_events`, so two turns on one conversation both land.
+- **Sessions** are stored one row per event in `adk_session_events`, so two turns on one conversation both land. An event whose id the session already holds replaces its row. The session service serves the ADK runtime and the engine's own session interface from the same rows ([sessions and events](/memory/sessions.md)).
 - **A2A tasks** in `adk_a2a_tasks` are scoped to their owner and shared by every instance.
 - **`erase(scopeKey)`** removes a scope's facts and ingestion markers, conversations (sub-agent rows included), ledger rows, A2A tasks and, on a whole-scope erase, its task-tool list in one transaction (`melchizedek_erase_scope`). A namespace erase keeps a ledger row or task only when its conversation is still live in another namespace, so conversations whose sessions expired are erased too (migration 0011).
 

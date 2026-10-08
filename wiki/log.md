@@ -31,6 +31,54 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/models/gptAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/gptAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0050-responses-reasoning-replay-without-storage.md —constrains→ module:lib/models/grokAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0050-responses-reasoning-replay-without-storage.md —constrains→ module:lib/models/gptAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0056-responses-usage-meaning-on-the-adk-path.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0056-responses-usage-meaning-on-the-adk-path.md —constrains→ module:lib/models/adkShim.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0056-responses-usage-meaning-on-the-adk-path.md —constrains→ module:lib/models/gptLlm.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —depends_on→ /decisions/0052-sessions-and-events-on-own-interfaces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/session/transcript.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/runtime/adkSessionBridge.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/storage/postgres/sessionService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0058-session-stores-with-both-faces.md —constrains→ module:lib/session/supabaseSessionService.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0009-observability-ledger.md —constrains→ module:lib/observability/tracer.ts
 
 by claude-code/claude-opus-5-5

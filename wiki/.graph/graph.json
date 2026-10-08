@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 705,
-    "edges": 1863,
+    "nodes": 714,
+    "edges": 1944,
     "byKind": {
-      "doc": 113,
+      "doc": 116,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 106,
+      "file": 109,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 144,
+      "module": 147,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 326,
+      "links_to": 348,
       "requires_env": 165,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 455,
+      "imports": 476,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 377,
-      "constrains": 46,
+      "derives_from": 403,
+      "constrains": 56,
       "supersedes": 2,
-      "depends_on": 9,
+      "depends_on": 11,
       "explains": 2,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1802,
-      "inferred": 61
+      "extracted": 1871,
+      "inferred": 73
     },
     "isolated": 4
   },
@@ -1048,6 +1048,18 @@
       }
     },
     {
+      "id": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "kind": "doc",
+      "label": "ADR 0056: GptLlm and GrokLlm keep the Responses usage meaning and the server-side tool record on the ADK path",
+      "source": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 811
+      }
+    },
+    {
       "id": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "kind": "doc",
       "label": "ADR 0057: The chat-completions adapters move onto the contract; their ADK shims keep the shape ADK saw and carry the older spelling",
@@ -1056,7 +1068,19 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 825
+        "words": 920
+      }
+    },
+    {
+      "id": "/decisions/0058-session-stores-with-both-faces.md",
+      "kind": "doc",
+      "label": "ADR 0058: The session stores implement both session interfaces, and a bridge gives a store that has one the other",
+      "source": "/decisions/0058-session-stores-with-both-faces.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1318
       }
     },
     {
@@ -1068,7 +1092,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1352
+        "words": 1383
       }
     },
     {
@@ -1092,7 +1116,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 1541
+        "words": 2086
       }
     },
     {
@@ -1164,7 +1188,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 883
+        "words": 953
       }
     },
     {
@@ -1176,7 +1200,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1141
+        "words": 1153
       }
     },
     {
@@ -1200,7 +1224,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7053
+        "words": 7208
       }
     },
     {
@@ -1212,7 +1236,19 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4051
+        "words": 4117
+      }
+    },
+    {
+      "id": "/models/responses-adapters.md",
+      "kind": "doc",
+      "label": "Responses adapters",
+      "source": "/models/responses-adapters.md",
+      "attrs": {
+        "type": "model-provider",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1732
       }
     },
     {
@@ -2780,7 +2816,7 @@
       "id": "env:OPENAI_API_KEY",
       "kind": "env",
       "label": "OPENAI_API_KEY",
-      "source": "lib/models/gptLlm.ts",
+      "source": "lib/models/gptAdapter.ts",
       "attrs": {}
     },
     {
@@ -2976,7 +3012,7 @@
       "id": "env:XAI_API_KEY",
       "kind": "env",
       "label": "XAI_API_KEY",
-      "source": "lib/models/grokLlm.ts",
+      "source": "lib/models/grokAdapter.ts",
       "attrs": {}
     },
     {
@@ -2995,7 +3031,7 @@
       "id": "env:XAI_TIMEOUT_MS",
       "kind": "env",
       "label": "XAI_TIMEOUT_MS",
-      "source": "lib/models/grokLlm.ts"
+      "source": "lib/models/grokAdapter.ts"
     },
     {
       "id": "external:https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f",
@@ -3440,6 +3476,13 @@
       "source": "tests/adkGeminiAdapter.test.ts"
     },
     {
+      "id": "file:tests/adkSessionBridge.test.ts",
+      "kind": "file",
+      "label": "adkSessionBridge.test.ts",
+      "source": "tests/adkSessionBridge.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/adkShim.test.ts",
       "kind": "file",
       "label": "adkShim.test.ts",
@@ -3583,6 +3626,12 @@
       "source": "tests/parityHarness.test.ts"
     },
     {
+      "id": "file:tests/postgresStorage.test.ts",
+      "kind": "file",
+      "label": "postgresStorage.test.ts",
+      "source": "tests/postgresStorage.test.ts"
+    },
+    {
       "id": "file:tests/publicPosture.test.ts",
       "kind": "file",
       "label": "publicPosture.test.ts",
@@ -3626,10 +3675,18 @@
       "source": "tests/redirects.test.ts"
     },
     {
+      "id": "file:tests/responsesAdapter.test.ts",
+      "kind": "file",
+      "label": "responsesAdapter.test.ts",
+      "source": "tests/responsesAdapter.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/responsesReasoningState.test.ts",
       "kind": "file",
       "label": "responsesReasoningState.test.ts",
-      "source": "tests/responsesReasoningState.test.ts"
+      "source": "tests/responsesReasoningState.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/rlsStatus.test.ts",
@@ -3858,7 +3915,7 @@
       "label": "lib/config.ts",
       "source": "lib/config.ts",
       "attrs": {
-        "lines": 150
+        "lines": 151
       }
     },
     {
@@ -3993,7 +4050,7 @@
       "label": "lib/models/adkShim.ts",
       "source": "lib/models/adkShim.ts",
       "attrs": {
-        "lines": 166
+        "lines": 169
       }
     },
     {
@@ -4141,12 +4198,30 @@
       }
     },
     {
+      "id": "module:lib/models/gptAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/gptAdapter.ts",
+      "source": "lib/models/gptAdapter.ts",
+      "attrs": {
+        "lines": 914
+      }
+    },
+    {
       "id": "module:lib/models/gptLlm.ts",
       "kind": "module",
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 831
+        "lines": 164
+      }
+    },
+    {
+      "id": "module:lib/models/grokAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/grokAdapter.ts",
+      "source": "lib/models/grokAdapter.ts",
+      "attrs": {
+        "lines": 160
       }
     },
     {
@@ -4155,7 +4230,7 @@
       "label": "lib/models/grokLlm.ts",
       "source": "lib/models/grokLlm.ts",
       "attrs": {
-        "lines": 135
+        "lines": 66
       }
     },
     {
@@ -4366,6 +4441,15 @@
       }
     },
     {
+      "id": "module:lib/runtime/adkSessionBridge.ts",
+      "kind": "module",
+      "label": "lib/runtime/adkSessionBridge.ts",
+      "source": "lib/runtime/adkSessionBridge.ts",
+      "attrs": {
+        "lines": 209
+      }
+    },
+    {
       "id": "module:lib/runtime/approvals.ts",
       "kind": "module",
       "label": "lib/runtime/approvals.ts",
@@ -4407,7 +4491,7 @@
       "label": "lib/runtime/sessions.ts",
       "source": "lib/runtime/sessions.ts",
       "attrs": {
-        "lines": 306
+        "lines": 307
       }
     },
     {
@@ -4434,7 +4518,7 @@
       "label": "lib/session/supabaseSessionService.ts",
       "source": "lib/session/supabaseSessionService.ts",
       "attrs": {
-        "lines": 235
+        "lines": 288
       }
     },
     {
@@ -4443,7 +4527,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 418
+        "lines": 481
       }
     },
     {
@@ -4479,7 +4563,7 @@
       "label": "lib/storage/postgres/sessionService.ts",
       "source": "lib/storage/postgres/sessionService.ts",
       "attrs": {
-        "lines": 277
+        "lines": 357
       }
     },
     {
@@ -8943,6 +9027,55 @@
       "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:55"
     },
     {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "file:tests/responsesAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md frontmatter"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md:25"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md:25"
+    },
+    {
       "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "to": "file:tests/chatCompletionsAdapter.test.ts",
       "rel": "derives_from",
@@ -9014,6 +9147,13 @@
     },
     {
       "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md:39"
+    },
+    {
+      "from": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -9025,6 +9165,62 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md:34"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "file:tests/adkSessionBridge.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "file:tests/postgresStorage.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/session/supabaseSessionService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "module:lib/storage/postgres/sessionService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md frontmatter"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md:26"
+    },
+    {
+      "from": "/decisions/0058-session-stores-with-both-faces.md",
+      "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0058-session-stores-with-both-faces.md:26"
     },
     {
       "from": "/memory/architecture.md",
@@ -9115,7 +9311,7 @@
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/architecture.md:61"
+      "evidence": "/memory/architecture.md:51"
     },
     {
       "from": "/memory/architecture.md",
@@ -9252,6 +9448,13 @@
     },
     {
       "from": "/memory/sessions.md",
+      "to": "file:tests/adkSessionBridge.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
       "to": "file:tests/events.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9260,6 +9463,13 @@
     {
       "from": "/memory/sessions.md",
       "to": "file:tests/helpers/importGraph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/memory/sessions.md frontmatter"
@@ -9287,52 +9497,80 @@
     },
     {
       "from": "/memory/sessions.md",
+      "to": "module:lib/session/supabaseSessionService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "module:lib/storage/postgres/sessionService.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md frontmatter"
+    },
+    {
+      "from": "/memory/sessions.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:116"
+      "evidence": "/memory/sessions.md:135"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0030-workflow-graphs.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:52"
+      "evidence": "/memory/sessions.md:57"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:22"
+      "evidence": "/memory/sessions.md:27"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:41"
+      "evidence": "/memory/sessions.md:46"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:22"
+      "evidence": "/memory/sessions.md:27"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0058-session-stores-with-both-faces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:113"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:32"
+      "evidence": "/memory/sessions.md:37"
     },
     {
       "from": "/memory/sessions.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/sessions.md:32"
+      "evidence": "/memory/sessions.md:37"
     },
     {
       "from": "/meta/building-an-llm-wiki.md",
@@ -9714,6 +9952,13 @@
     },
     {
       "from": "/models/adk-shim.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
       "to": "module:lib/models/openAiCompatibleLlm.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9724,49 +9969,63 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:51"
+      "evidence": "/models/adk-shim.md:52"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:23"
+      "evidence": "/models/adk-shim.md:24"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:33"
+      "evidence": "/models/adk-shim.md:34"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:58"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:55"
+      "evidence": "/models/adk-shim.md:59"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:25"
+      "evidence": "/models/adk-shim.md:26"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:23"
+      "evidence": "/models/adk-shim.md:24"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:25"
+      "evidence": "/models/adk-shim.md:26"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/models/responses-adapters.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:26"
     },
     {
       "from": "/models/chat-completions-adapters.md",
@@ -9862,6 +10121,13 @@
     {
       "from": "/models/chat-completions-adapters.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:59"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/chat-completions-adapters.md:59"
@@ -10064,6 +10330,20 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "module:lib/models/providerState.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -10088,112 +10368,126 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:77"
+      "evidence": "/models/model-contract.md:79"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:47"
+      "evidence": "/models/model-contract.md:49"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:94"
+      "evidence": "/models/model-contract.md:96"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:31"
+      "evidence": "/models/model-contract.md:33"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:31"
+      "evidence": "/models/model-contract.md:33"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:101"
+      "evidence": "/models/model-contract.md:103"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:31"
+      "evidence": "/models/model-contract.md:33"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:206"
+      "evidence": "/models/model-contract.md:208"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:123"
+      "evidence": "/models/model-contract.md:125"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:368"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:278"
+      "evidence": "/models/model-contract.md:281"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:367"
+      "evidence": "/models/model-contract.md:370"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:296"
+      "evidence": "/models/model-contract.md:299"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:33"
+      "evidence": "/models/model-contract.md:35"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:256"
+      "evidence": "/models/model-contract.md:259"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:33"
+      "evidence": "/models/model-contract.md:35"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/responses-adapters.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:255"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:80"
+      "evidence": "/models/model-contract.md:82"
     },
     {
       "from": "/models/provider-routing.md",
@@ -10323,6 +10617,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/models/responses-adapters.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:133"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -10348,6 +10649,125 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:66"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "file:tests/responsesAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "file:tests/responsesReasoningState.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "module:lib/models/grokLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md frontmatter"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:38"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:89"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:25"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:51"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:25"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:60"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:93"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:97"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:27"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:29"
     },
     {
       "from": "/operations/agent-skills.md",
@@ -14207,15 +14627,85 @@
       "evidence": "lib/models/genaiMapping.ts"
     },
     {
-      "from": "module:lib/models/gptLlm.ts",
+      "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
       "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptAdapter.ts",
+      "to": "env:OPENAI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/gptAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/adkShim.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gptLlm.ts"
     },
     {
       "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/models/errorResponse.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gptLlm.ts"
@@ -14229,73 +14719,94 @@
     },
     {
       "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
       "to": "module:lib/models/providerMap.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gptLlm.ts"
     },
     {
-      "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/models/providerState.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/gptLlm.ts"
-    },
-    {
-      "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/models/schemaNormalize.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/gptLlm.ts"
-    },
-    {
-      "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/observability/tracer.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/gptLlm.ts"
-    },
-    {
-      "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/runtime/turnControl.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/gptLlm.ts"
-    },
-    {
-      "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/tools/collectionsSearchTool.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/gptLlm.ts"
-    },
-    {
-      "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/tools/webSearchTool.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/gptLlm.ts"
-    },
-    {
-      "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/tools/xSearchTool.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/gptLlm.ts"
-    },
-    {
-      "from": "module:lib/models/gptLlm.ts",
-      "to": "env:OPENAI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/gptLlm.ts"
-    },
-    {
-      "from": "module:lib/models/grokLlm.ts",
+      "from": "module:lib/models/grokAdapter.ts",
       "to": "module:lib/config.ts",
       "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/models/grokLlm.ts"
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/tools/collectionsSearchTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/tools/webSearchTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/tools/xSearchTool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "env:XAI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
+      "to": "env:XAI_TIMEOUT_MS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
     },
     {
       "from": "module:lib/models/grokLlm.ts",
@@ -14306,15 +14817,8 @@
     },
     {
       "from": "module:lib/models/grokLlm.ts",
-      "to": "env:XAI_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/grokLlm.ts"
-    },
-    {
-      "from": "module:lib/models/grokLlm.ts",
-      "to": "env:XAI_TIMEOUT_MS",
-      "rel": "requires_env",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/grokLlm.ts"
     },
@@ -14942,6 +15446,20 @@
       "evidence": "lib/registry.ts"
     },
     {
+      "from": "module:lib/runtime/adkSessionBridge.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/adkSessionBridge.ts"
+    },
+    {
+      "from": "module:lib/runtime/adkSessionBridge.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/adkSessionBridge.ts"
+    },
+    {
       "from": "module:lib/runtime/events.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -15083,6 +15601,20 @@
     },
     {
       "from": "module:lib/session/supabaseSessionService.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/session/supabaseSessionService.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/session/supabaseSessionService.ts",
       "to": "module:lib/session/transcript.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -15094,6 +15626,27 @@
       "rel": "reads_table",
       "tier": "extracted",
       "evidence": "lib/session/supabaseSessionService.ts"
+    },
+    {
+      "from": "module:lib/session/transcript.ts",
+      "to": "module:lib/runtime/adkSessionBridge.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/transcript.ts"
+    },
+    {
+      "from": "module:lib/session/transcript.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/transcript.ts"
+    },
+    {
+      "from": "module:lib/session/transcript.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/session/transcript.ts"
     },
     {
       "from": "module:lib/storage/postgres/index.ts",
@@ -15192,6 +15745,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/memoryStore.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/sessionService.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/sessionService.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/sessionService.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/sessionService.ts"
     },
     {
       "from": "module:lib/storage/postgres/taskQueue.ts",

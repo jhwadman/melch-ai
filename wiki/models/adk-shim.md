@@ -15,6 +15,7 @@ sources:
   - resource: tests/syndicateTurn.test.ts
   - resource: tests/helpers/scriptedModel.ts
   - resource: lib/models/genaiMapping.ts
+  - resource: lib/models/gptLlm.ts
   - resource: lib/models/openAiCompatibleLlm.ts
 ---
 
@@ -22,7 +23,7 @@ sources:
 
 `AdkShim` in `lib/models/adkShim.ts` is an ADK `BaseLlm` that wraps one `ModelAdapter` on the engine's own [model contract](/models/model-contract.md). ADK calls `generateContentAsync(llmRequest, stream, abortSignal)` on it, and the adapter sees only a `ModelRequest`. While ADK runs every turn ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)), an adapter moves onto the contract by being registered behind the shim. ADK sees no change.
 
-The chat-completions classes run behind it: `OllamaLlm`, `KimiLlm` and `GatewayLlm` are shims around the [chat-completions adapters](/models/chat-completions-adapters.md), through `OpenAiCompatibleLlm`, and the registry constructs and registers them as before. Every other model id is served by its ADK-path adapter as [provider routing](/models/provider-routing.md) describes, until the registry ticket (WS1-3) registers contract adapters behind the shim.
+Two families of ADK classes run behind it. `GptLlm` and `GrokLlm` are subclasses of `AdkShim` around `GptAdapter` and `GrokAdapter` ([Responses adapters](/models/responses-adapters.md)). `OllamaLlm`, `KimiLlm` and `GatewayLlm` are shims around the [chat-completions adapters](/models/chat-completions-adapters.md), through `OpenAiCompatibleLlm`. The registry registers them under their own names, as before. Every other model id is served by its ADK-path adapter as [provider routing](/models/provider-routing.md) describes, until the registry ticket (WS1-3) registers contract adapters behind the shim.
 
 ## One call
 
@@ -34,7 +35,7 @@ The chat-completions classes run behind it: `OllamaLlm`, `KimiLlm` and `GatewayL
    - A turn that is spent or stopped refuses the call with `STEP_LIMIT`, `DEADLINE_EXCEEDED` or `CANCELED`. The refusal is the same `LlmResponse` `ClaudeLlm`, `GptLlm` and the chat-completions adapters yield, and the adapter is never called.
    - One `llm.request` span covers the call, with the same attributes as on any ADK-path adapter. The adapter adds its own with `setLlmSpanAttribute`, and they land on that span.
    - The final's usage is charged to the turn.
-3. **The responses.** Each `ModelResponse` the adapter yields goes back through `toLlmResponse`, by default `modelResponseToLlmResponse`, in order. A partial is a `partial: true` response, and the final is `turnComplete: true` with Gemini's usage meanings and finish reason. A failed final carries `errorCode`, and its retry verdict in `customMetadata['error.retryable']`, which `FallbackLlm` reads.
+3. **The responses.** Each `ModelResponse` the adapter yields goes back through `toLlmResponse`, in order, inside the span, so the tracer reads what it returns. By default it is `modelResponseToLlmResponse`: a partial is a `partial: true` response, and the final is `turnComplete: true` with Gemini's usage meanings and finish reason. A failed final carries `errorCode`, and its retry verdict in `customMetadata['error.retryable']`, which `FallbackLlm` reads. A subclass that stands in for an ADK-path adapter overrides `toLlmResponse` to keep what that adapter wrote beyond the contract.
 
 The shim does not repair an adapter that breaks the contract. A throw reaches ADK as a throw, as a Gemini failure does, and every response is mapped as it comes. `connect()` is refused, because live connections are outside the contract.
 
@@ -52,11 +53,14 @@ Put one shim around each leaf adapter. A fallback pair under ADK is `FallbackLlm
 
 ## Two seams for a subclass
 
-`toModelRequest(llmRequest, options)` and `toLlmResponse(response)` are protected, and the genai mapping by default. A subclass overrides them to carry what its adapter reads beside the contract, or to keep the response shape its ADK-path class yielded before the adapter moved behind the shim. The request `toModelRequest` returns is the one the span records, and `toLlmResponse` runs inside the span, so the tracer reads the response the subclass returns. `OpenAiCompatibleLlm` overrides both ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)): its request carries the older `generateContentConfig` spelling the contract leaves out, and its final keeps the chat-completions shape, usage counting the reasoning.
+Both are protected, and the genai mapping by default:
+
+- `toLlmResponse(response)` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)) keeps the response shape an ADK-path class yielded before its adapter moved behind the shim. It runs inside the span, so the tracer reads what it returns. `GptLlm` and `OpenAiCompatibleLlm` override it.
+- `toModelRequest(llmRequest, options)` ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)) carries what an adapter reads beside the contract. The span records the request it returns. `OpenAiCompatibleLlm` overrides it to carry the older `generateContentConfig` spelling the contract leaves out (Kimi K3's `max`, JSON mode without a schema).
 
 ## What changes for an adapter behind it
 
-Mapped through the default seams, an adapter's events carry `finishReason` (`STOP` for a normal stop or a tool call) as Gemini's do, and the span's `llm.tokens.output` is output less thinking, Gemini's meaning, where the ADK-path GPT adapter includes reasoning in it. The chat-completions shims keep their own: reasoning inside the output count, and a finish reason only for a reply cut short. The stored Event JSON keeps its shape.
+Mapped through the default seams, an adapter's events carry `finishReason` (`STOP` for a normal stop or a tool call) as Gemini's do, and the span's `llm.tokens.output`, the turn's output charge and the ledger's `output_tokens` are output less thinking, Gemini's meaning. The shims that stand in for ADK-path adapters keep reasoning inside the output, as those providers have always been counted: `GptLlm` and `GrokLlm`, which also keep the server-side tool record on `customMetadata` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)), and the chat-completions shims, which also set a finish reason only for a reply cut short ([ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)). The stored Event JSON keeps its shape.
 
 ## Tests
 

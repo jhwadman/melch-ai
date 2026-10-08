@@ -28,13 +28,14 @@
  *     (`currentTurnSignal()`) or when the signal ADK passes aborts, whichever
  *     comes first; an adapter hands it to its provider call.
  *
- * TWO SEAMS FOR A SUBCLASS: `toModelRequest` and `toLlmResponse` are the
- * genai mapping by default. A subclass overrides them to carry what its
- * adapter reads beside the contract, or to keep the response shape its
- * ADK-path class yielded before the move (the chat-completions shims in
- * lib/models/openAiCompatibleLlm.ts do both, ADR 0057). The request a
- * subclass returns is the one the span records, and `toLlmResponse` runs
- * inside the span, so the tracer reads the response the subclass returns.
+ * TWO SEAMS FOR A SUBCLASS, the genai mapping by default:
+ *   - `toLlmResponse` (ADR 0056) keeps what an ADK-path adapter wrote beyond
+ *     the contract: GptLlm's usage and server-side tool record, and the
+ *     chat-completions shims' usage and final shape. It runs inside the
+ *     span, so the tracer reads what it returns.
+ *   - `toModelRequest` (ADR 0057) carries what an adapter reads beside the
+ *     contract: the chat-completions shims' older generateContentConfig
+ *     spelling. The span records the request it returns.
  *
  * WHAT IT DOES NOT DO:
  *   - Repair an adapter that breaks the contract. A throw reaches ADK as a
@@ -113,17 +114,19 @@ export class AdkShim extends BaseLlm {
    * The ModelRequest the adapter receives for one LlmRequest: the genai
    * mapping's. A subclass may extend it with what its own adapter reads
    * beside the contract (an agent's older generateContentConfig spelling
-   * that the contract leaves out), so an agent keeps it on the ADK runtime.
+   * that the contract leaves out), so an agent keeps it on the ADK runtime
+   * (the chat-completions shims, ADR 0057). The span records what it returns.
    */
   protected toModelRequest(llmRequest: LlmRequest, options: ModelRequestOptions): ModelRequest {
     return llmRequestToModelRequest(llmRequest, options);
   }
 
   /**
-   * The LlmResponse ADK receives for one ModelResponse: the genai mapping's,
-   * in Gemini's meanings. A subclass may keep the shape its ADK-path class
-   * yielded before it moved onto the contract. It runs inside the span, so
-   * the tracer reads what it returns.
+   * One ModelResponse as the LlmResponse ADK sees: modelResponseToLlmResponse.
+   * It runs inside the llm.request span, so the tracer reads what it returns.
+   * A subclass that stands in for an ADK-path adapter overrides it to keep
+   * what that adapter wrote beyond the contract (GptLlm, ADR 0056; the
+   * chat-completions shims, ADR 0057).
    */
   protected toLlmResponse(response: ModelResponse): LlmResponse {
     return modelResponseToLlmResponse(response);
