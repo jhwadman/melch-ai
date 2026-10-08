@@ -85,7 +85,13 @@ export interface MapNode {
   agent: string;
   /** Concurrency of the map; absent means the runtime's default (8). */
   maxParallel?: number;
+  /**
+   * The map entry's own modifiers. ADK's compile does not hand them to its
+   * ParallelWorker, so neither runtime applies them; they are kept as written.
+   */
   settings: GraphNodeSettings;
+  /** The mapped agent's own node modifiers (`nodes.<agent>`), which ADK applies to each item's run. */
+  agentSettings: GraphNodeSettings;
 }
 
 export interface ToolNode {
@@ -275,7 +281,7 @@ function declaredNodes(agents: string[], nodeYaml: Record<string, WorkflowNodeYa
       nodes.set(name, { kind, name, settings });
     } else if (kind === 'map') {
       if (!agents.includes(entry.map!)) throw new Error(`workflow node '${name}': map names '${entry.map}', which is not an agent of this syndicate`);
-      nodes.set(name, { kind, name, agent: entry.map!, ...(entry.max_parallel !== undefined ? { maxParallel: entry.max_parallel } : {}), settings });
+      nodes.set(name, { kind, name, agent: entry.map!, ...(entry.max_parallel !== undefined ? { maxParallel: entry.max_parallel } : {}), settings, agentSettings: settingsOf(nodeYaml[entry.map!]) });
     } else if (kind === 'tool') {
       nodes.set(name, { kind, name, tool: entry.tool!, settings });
     }

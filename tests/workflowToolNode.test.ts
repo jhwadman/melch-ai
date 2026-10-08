@@ -30,7 +30,7 @@ import { registerTool, resolveTools } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { requireApproval } from '../lib/tools/tool.ts';
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
-import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
+import { nodeErrorEvent, runWorkflowGraph } from '../lib/workflow/scheduler.ts';
 import type { NodeRun } from '../lib/workflow/scheduler.ts';
 import { coerceToolArgs, enrichNodeEvent, runToolNode, toolNodeRunner } from '../lib/workflow/toolNode.ts';
 import type { ToolNodeContext } from '../lib/workflow/toolNode.ts';
@@ -234,6 +234,37 @@ for (const [label, triage] of [
   });
 }
 
+test('a tool node that fails gets the node-error event ADK writes (nodeErrorEvent)', async () => {
+  const cfg = chain('tool_node_lookup');
+  const stubs: Stubs = { Triage: () => 'not json', Reader: readerEcho };
+
+  const toStub = (a: LlmAgent) => new FunctionNode(a.name, (_ctx: unknown, input: unknown) => stubs[a.name](input)) as unknown as LlmAgent;
+  const { workflow } = await compileWorkflow(cfg, {}, toStub);
+  const sessionService = new InMemorySessionService();
+  await sessionService.createSession({ ...APP, state: { ...STATE } });
+  const runner = new Runner({ agent: workflow as any, appName: APP.appName, sessionService });
+  const adk: string[] = [];
+  await assert.rejects(async () => {
+    for await (const ev of runner.runAsync({ userId: APP.userId, sessionId: APP.sessionId, newMessage: MESSAGE })) if ((ev as any).isNodeError) adk.push(stored(ev));
+  }, TypeError);
+
+  const native: string[] = [];
+  const context: ToolNodeContext = { ...APP, invocationId: 'e-native', userContent: MESSAGE, state: () => STATE, resolveTool: (name) => resolveTools([name])[0] };
+  await assert.rejects(
+    runWorkflowGraph(buildWorkflowGraph(cfg), {
+      input: MESSAGE,
+      runNode: toolNodeRunner(context, async (r) => ({ output: stubs[(r.target as { name: string }).name](r.input) })),
+      onEvent: (e) => {
+        if (e.type === 'node_error' && e.source === 'workflow') native.push(stored(nodeErrorEvent(e, 'e-native')));
+      },
+    }),
+    TypeError,
+  );
+  assert.equal(adk.length, 1);
+  assert.deepEqual(native, adk);
+  assert.equal(JSON.parse(adk[0]).author, 'Lookup');
+});
+
 test('coerceToolArgs: a content\'s text, parsed', () => {
   assert.deepEqual(coerceToolArgs({ role: 'user', parts: [{ text: '{"q":' }, { text: '"c"}' }] }), { q: 'c' });
   assert.deepEqual(coerceToolArgs({ parts: [] }), {});
@@ -287,14 +318,14 @@ test('an unregistered tool is refused with the compile\'s message', async () => 
   const graph = buildWorkflowGraph(chain('tool_node_lookup'));
   const node = graph.nodes.get('Lookup');
   assert.equal(node?.kind, 'tool');
-  const run: NodeRun = { target: node as any, input: {}, runId: '1', path: 'Graph.Lookup', branch: undefined, signal: new AbortController().signal };
+  const run: NodeRun = { target: node as any, input: {}, runId: '1', path: 'Graph.Lookup', branch: undefined, signal: new AbortController().signal, attempt: 1 };
   await assert.rejects(runToolNode(node as any, run, { invocationId: 'i', resolveTool: () => undefined }), /^Error: workflow node 'Lookup': tool 'tool_node_lookup' is not registered$/);
 });
 
 test('toolNodeRunner hands every other run on, or refuses it by name', async () => {
   const graph = buildWorkflowGraph(chain('tool_node_lookup'));
   const triage = graph.nodes.get('Triage') as any;
-  const run: NodeRun = { target: triage, input: 'x', runId: '1', path: 'Graph.Triage', branch: undefined, signal: new AbortController().signal };
+  const run: NodeRun = { target: triage, input: 'x', runId: '1', path: 'Graph.Triage', branch: undefined, signal: new AbortController().signal, attempt: 1 };
   const context: ToolNodeContext = { invocationId: 'i', resolveTool: () => undefined };
   assert.deepEqual(await toolNodeRunner(context, () => ({ output: 'next' }))(run), { output: 'next' });
   assert.throws(() => toolNodeRunner(context)(run), /tool nodes only; Triage is a agent run/);

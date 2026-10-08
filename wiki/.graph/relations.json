@@ -2049,6 +2049,54 @@
       "evidence": "wiki/overview/workflow-agent-node.md documents runAgentNode, the node rules and agentNodeRuntime.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0089 Decision 1-6: every node attempt and map item runs through withControls, a port of ADK 2.2 runChildNode (per-attempt timeout, retry under max_attempts and exceptions with ADK backoff and jitter, no retry of an abort or a map item failure); a reported error is emitted and fails an empty attempt with NodeReportedError; a node that gives up is reported once; the walk stops on the turn signal; null output is no output.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0089 Decision 4: \"The graph model's MapNode carries agentSettings, the mapped agent's own nodes.<agent> entry\"; the map entry's own retry and timeout stay in the model as written and are not applied.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0089 Context: \"ADR 0087 gave the engine a scheduler ... and left one seam, executeNode, for the controls ADR 0030 gives a node\"; WS4-2b fills it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0089 Context and Consequences: the scheduler implements ADR 0030's retry, timeout and \"a node's error is not the turn's\" rule, and tests/workflowScheduler.test.ts runs ADR 0030's retry and timeout cases on ADK and on the scheduler.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "depends_on",
+      "evidence": "ADR 0089 Decision 3: \"signal defaults to currentTurnSignal(), so a cancel or a turn deadline from turnControl reaches every runner.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-scheduler.md section \"Retries, timeouts and node errors\" describes the loop, reported errors, giving up, abort and deadline, and map items as ADR 0089 decides them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

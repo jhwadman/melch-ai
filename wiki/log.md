@@ -3,6 +3,30 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/workflow-scheduler.md —explains→ /decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md —depends_on→ module:lib/runtime/turnControl.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md —depends_on→ /decisions/0030-workflow-graphs.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md —depends_on→ /decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md —constrains→ module:lib/workflow/graph.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md —constrains→ module:lib/workflow/scheduler.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/workflow-agent-node.md —explains→ module:lib/workflow/agentNode.ts
 
 by claude-code/claude-opus-5-5

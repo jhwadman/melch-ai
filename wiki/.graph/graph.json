@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 832,
-    "edges": 2973,
+    "nodes": 833,
+    "edges": 2989,
     "byKind": {
-      "doc": 153,
+      "doc": 154,
       "provider": 6,
       "env": 106,
       "model": 8,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 613,
+      "links_to": 616,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 749,
+      "imports": 751,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 707,
-      "constrains": 149,
+      "derives_from": 712,
+      "constrains": 151,
       "supersedes": 7,
-      "depends_on": 73,
-      "explains": 23,
+      "depends_on": 76,
+      "explains": 24,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2718,
-      "inferred": 255
+      "extracted": 2728,
+      "inferred": 261
     },
     "isolated": 4
   },
@@ -1445,6 +1445,18 @@
       }
     },
     {
+      "id": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "kind": "doc",
+      "label": "ADR 0089: The workflow scheduler's retries, timeouts, node errors and abort follow ADK's node runner",
+      "source": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1134
+      }
+    },
+    {
       "id": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
       "kind": "doc",
       "label": "ADR 0090: A workflow agent node runs on the native loop with a stamp hook, the route step stores ADK's event, and route derivation is one function",
@@ -1753,7 +1765,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 858
+        "words": 879
       }
     },
     {
@@ -1765,7 +1777,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1248
+        "words": 1802
       }
     },
     {
@@ -6027,7 +6039,7 @@
       "label": "lib/workflow/graph.ts",
       "source": "lib/workflow/graph.ts",
       "attrs": {
-        "lines": 536
+        "lines": 542
       }
     },
     {
@@ -6045,7 +6057,7 @@
       "label": "lib/workflow/scheduler.ts",
       "source": "lib/workflow/scheduler.ts",
       "attrs": {
-        "lines": 415
+        "lines": 803
       }
     },
     {
@@ -12742,6 +12754,48 @@
       "evidence": "/decisions/0088-native-parity-followups.md:39"
     },
     {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "file:tests/workflowScheduler.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md frontmatter"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md frontmatter"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md frontmatter"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md frontmatter"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md:24"
+    },
+    {
+      "from": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md:24"
+    },
+    {
       "from": "/decisions/0090-workflow-agent-node-on-the-native-loop.md",
       "to": "file:tests/workflowAgentNode.test.ts",
       "rel": "derives_from",
@@ -16012,6 +16066,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "module:lib/workflow/graph.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -16036,35 +16097,42 @@
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:22"
+      "evidence": "/overview/workflow-scheduler.md:23"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:22"
+      "evidence": "/overview/workflow-scheduler.md:23"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:23"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:66"
+      "evidence": "/overview/workflow-scheduler.md:83"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:22"
+      "evidence": "/overview/workflow-scheduler.md:23"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-graph.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:22"
+      "evidence": "/overview/workflow-scheduler.md:23"
     },
     {
       "from": "/protocols/a2a.md",
@@ -23527,6 +23595,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/route.ts"
+    },
+    {
+      "from": "module:lib/workflow/scheduler.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/scheduler.ts"
+    },
+    {
+      "from": "module:lib/workflow/scheduler.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/scheduler.ts"
     },
     {
       "from": "module:lib/workflow/scheduler.ts",

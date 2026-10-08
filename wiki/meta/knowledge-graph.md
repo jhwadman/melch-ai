@@ -29,7 +29,7 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
 | `module` | `module:<name>` | 191 | one source module |
-| `doc` | `/dir/doc.md` | 153 | a concept document in the bundle — identity is its bundle path |
+| `doc` | `/dir/doc.md` | 154 | a concept document in the bundle — identity is its bundle path |
 | `file` | `file:<name>` | 142 | a repo file that is not a source module (DDL, config, prose) |
 | `env` | `env:<name>` | 106 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 89 | one orchestrator or subagent inside a syndicate |
@@ -50,9 +50,9 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `imports` | extracted | A imports B | 749 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 707 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 613 | a resolved markdown link between documents |
+| `imports` | extracted | A imports B | 751 | a static import edge between source files |
+| `derives_from` | extracted | A derives from B | 712 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 616 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 169 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |
@@ -65,9 +65,9 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
-| `constrains` | inferred | A constrains B | 149 | a decision or doctrine limits what the target may do |
-| `depends_on` | inferred | A depends on B | 73 | the first cannot do its job unless the second holds |
-| `explains` | inferred | A explains B | 23 | the document is where the target’s rationale is written down |
+| `constrains` | inferred | A constrains B | 151 | a decision or doctrine limits what the target may do |
+| `depends_on` | inferred | A depends on B | 76 | the first cannot do its job unless the second holds |
+| `explains` | inferred | A explains B | 24 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 7 | replaces an earlier decision or document |
 | `alternative_to` | inferred | A is an alternative to B | 1 | two ways of reaching the same capability |
 | `mitigates` | inferred | A mitigates B | 1 | the mechanism exists to contain the named failure |

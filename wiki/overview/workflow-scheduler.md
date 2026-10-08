@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Workflow scheduler
-description: "The engine's own walk of a workflow graph (lib/workflow/scheduler.ts): runWorkflowGraph runs a WorkflowGraph with ADK's Workflow loop. A node runs when a predecessor's completion triggers it, fan-out gives each target its own branch, a join waits for every predecessor, a map runs its agent per item under max_parallel, and outputs flow as inputs. Routes are matched in ADK's spelling of the key. Agent, tool and ask_user nodes and map items run through a runner the caller passes in; toolNodeRunner (lib/workflow/toolNode.ts) is the runner for tool nodes and writes the event ADK's ToolNode writes. No ADK import. The native runtime does not call it yet."
+description: "The engine's own walk of a workflow graph (lib/workflow/scheduler.ts): runWorkflowGraph runs a WorkflowGraph with ADK's Workflow loop. A node runs when a predecessor's completion triggers it, fan-out gives each target its own branch, a join waits for every predecessor, a map runs its agent per item under max_parallel, and outputs flow as inputs. Routes are matched in ADK's spelling of the key. Every attempt runs under the node's retry and timeout as ADK's node runner runs it, node errors are emitted and collected, and the turn's cancel or deadline stops the walk. Agent, tool and ask_user nodes and map items run through a runner the caller passes in; toolNodeRunner (lib/workflow/toolNode.ts) is the runner for tool nodes and writes the event ADK's ToolNode writes. No ADK import. The native runtime does not call it yet."
 tags:
   - runtime
   - agents
@@ -12,6 +12,7 @@ generated:
 sources:
   - resource: lib/workflow/scheduler.ts
   - resource: lib/workflow/graph.ts
+  - resource: lib/runtime/turnControl.ts
   - resource: lib/workflow/toolNode.ts
   - resource: tests/workflowScheduler.test.ts
   - resource: tests/workflowToolNode.test.ts
@@ -19,27 +20,30 @@ sources:
 
 # Workflow scheduler
 
-`lib/workflow/scheduler.ts` runs the [workflow graph](/overview/workflow-graph.md) that `buildWorkflowGraph` builds, without ADK. It walks the graph the way ADK 2.2's `Workflow` does, so a workflow completes in the order ADK records for it. Why it copies ADK's loop, and matches routes in ADK's spelling, is [ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md). The native runtime still refuses a workflow syndicate ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). Agent nodes and map items run on it through `agentNodeRuntime` ([Workflow agent node](/overview/workflow-agent-node.md)), and the runner for tool nodes is in place (below); the scheduler is the walk the native runtime will use once ask_user nodes run on it too (WS4-4a) and the turn runner calls it (WS4-6).
+`lib/workflow/scheduler.ts` runs the [workflow graph](/overview/workflow-graph.md) that `buildWorkflowGraph` builds, without ADK. It walks the graph the way ADK 2.2's `Workflow` does, so a workflow completes in the order ADK records for it. Why it copies ADK's loop, and matches routes in ADK's spelling, is [ADR 0087](/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md). Why its retries, timeouts, node errors and abort follow ADK's node runner is [ADR 0089](/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md). The native runtime still refuses a workflow syndicate ([ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md)). Agent nodes and map items run on it through `agentNodeRuntime` ([Workflow agent node](/overview/workflow-agent-node.md)), and the runner for tool nodes is in place (below); the scheduler is the walk the native runtime will use once ask_user nodes run on it too (WS4-4a) and the turn runner calls it (WS4-6).
 
 ## The interface
 
-`runWorkflowGraph(graph, options)` resolves with `{ output, outputs, order }`:
+`runWorkflowGraph(graph, options)` resolves with `{ output, outputs, order, nodeErrors }`:
 
 - `output` is the terminal node's output.
 - `outputs` holds every node's latest output.
 - `order` lists the node names in the order they completed.
+- `nodeErrors` lists every node error the walk emitted, as `{ node, code, message }`: the shape `runSyndicateTurn` collects in `answer.nodeErrors`.
+
+It rejects with the error of the node that gave up, unchanged, or with `InvocationAbortedError` when its signal stopped it.
 
 | option | is |
 |---|---|
 | `input` | the workflow's input, which every node after `START` receives |
-| `runNode(run)` | runs an agent, tool or ask_user node, or one map item, and returns `{ output, route? }` |
-| `signal` | aborts every run in flight |
-| `onEvent(event)` | `node_start`, `node_end`, `item_start` and `item_end`, synchronously, in order |
+| `runNode(run)` | runs one attempt of an agent, tool or ask_user node, or of one map item, and returns `{ output?, route?, error? }` |
+| `signal` | stops the walk and aborts every run in flight; default: the current turn's signal (`turnControl`), so a cancel or the turn's deadline stops it |
+| `onEvent(event)` | `node_start`, `node_end`, `item_start`, `item_end` and `node_error`, synchronously, in order |
 | `nodePath`, `branch` | the workflow's own path (default: the graph's name) and branch (default: none) |
 
 `streamWorkflowGraph(graph, options)` is the same walk as an async generator. It yields each event, then returns the run. The walk does not wait for the reader.
 
-A `NodeRun` carries the `target`: the graph node, or `{ kind: 'map_item', agent, map, index }`. It also carries the `input`, the `runId` (the node's run counter, or the item's index), ADK's node `path` (`<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>`), ADK's `branch`, and an `AbortSignal`.
+A `NodeRun` carries the `target`: the graph node, or `{ kind: 'map_item', agent, map, index }`. It also carries the `input`, the `runId` (the node's run counter, or the item's index), ADK's node `path` (`<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>`), ADK's `branch`, the `attempt` (from 1), and the attempt's `AbortSignal`. A runner settles promptly once the signal aborts.
 
 ## The walk
 
@@ -60,6 +64,19 @@ Each pass starts every triggered node that is not already running, in the order 
 Only a join waits for all its predecessors. A plain node with two predecessors runs once per trigger. A trigger that arrives while the node is running runs after it.
 
 A fan-out gives each target its own branch (`Writer@1`). A successor keeps its predecessor's branch, and a join takes the common prefix of its predecessors' branches. A map item's branch is `<map's branch>.<agent>@<index>`. A map runs `min(max_parallel ?? 8, items)` workers, and each worker takes the next item. A non-list input is one item, and an empty list outputs `[]`. A node whose output is undefined passes `undefined` on and is left out of `outputs`, as in ADK. Two terminal nodes with output fail the run with ADK's message.
+
+## Retries, timeouts and node errors
+
+Every attempt of a node, and of a map item, goes through one loop that copies ADK's `runChildNode`:
+
+- **Timeout.** A node with `timeout` races each attempt against a timer. When it fires, the attempt's signal aborts and the attempt fails with `NodeTimeoutError` without waiting for the runner.
+- **Retry.** A failed attempt runs again while the node's `retry` allows it: fewer than `max_attempts` attempts so far (default 5), and the error's name in `exceptions` when a list is given. The wait is ADK's exponential backoff with its jitter (`retryDelaySeconds`). An abort and a map item's failure are never retried, and an abort cuts a backoff short.
+- **A reported error.** A runner that returns `error: { code, message }` has it emitted as `node_error` (source `node`). With no output and no route, the attempt fails with `NodeReportedError`, which may be retried. This is ADR 0030's failed attempt that is recorded, not fatal.
+- **A node that gives up** fails the walk. The walk emits `node_error` (source `workflow`, with the error's type and the attempts made) once, unless the node reported the error itself or the walk was stopped. `nodeErrorEvent(event, invocationId)` turns that report into the `isNodeError` event ADK stores for it, for every node kind. The walk then aborts the other runs and waits for them. A run that still finishes ends with its `node_end` and triggers nothing. The error is rethrown unchanged.
+- **Abort and deadline.** Once the walk's signal fires, no node starts. An attempt with a timeout ends at once with `InvocationAbortedError`. An attempt without one is awaited, as ADK awaits it.
+- **`max_concurrency`** counts every pending run, a retrying one included.
+
+A map item runs under its agent's own `retry` and `timeout` (`nodes.<agent>`, kept on the model as `MapNode.agentSettings`). An item that gives up fails the map with `DynamicNodeFailError`, reported under the map's name. The map entry's own `retry` and `timeout` are not applied, because ADK's compile does not apply them. A `null` output is no output, as on ADK: nothing is recorded and the successor runs on `undefined`.
 
 ## Tool nodes
 
@@ -88,13 +105,7 @@ The progress lines come from that event. The turn runner's reader (`drainAgentSt
 
 ## What it does not do yet
 
-These come in WS4-2b:
-
-- **Retries and timeouts.** `executeNode` is the one place every node runs, so this is where they will wrap.
-- **The node-error policy.** Today the first error aborts the workflow's signal, waits for the pending runs to settle, and is rethrown unchanged.
-- **A deadline.**
-
-Later tickets add interrupts (ask_user's pause, WS4-4a) and resuming from stored events. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)).
+Later tickets add interrupts (ask_user's pause, WS4-4a) and resuming from stored events. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)). The native workflow path (WS4-6) writes `nodeErrorEvent` where ADK writes its node-error event.
 
 ## Parity with ADK
 
@@ -109,6 +120,10 @@ The cases are:
 - a chain;
 - routing by key, by a list of targets, by `default`, and by a key spelled `01`;
 - `max_concurrency`;
-- two terminal outputs.
+- two terminal outputs;
+- null outputs in a chain, at a terminal, into a join and from a map item;
+- ADR 0030's retry and timeout cases: a thrown error and a reported error recovered, a node giving up on reported and on thrown errors, a timeout recovered and one that fails the walk;
+- map items that retry and that give up;
+- `max_concurrency` with a retrying node and with a failure.
 
-The test also checks that the module reaches ADK through no value import.
+For the error cases the test also compares every node error (path, branch, author, code, message, and for a node that gave up its error type and attempts), the stored node-error event against `nodeErrorEvent`'s, and the error the walk failed with. The retry rule and the backoff are checked against ADK's own `retry_utils` functions. An abort during a backoff, the turn's deadline, and an abort during a timed attempt are checked on the scheduler alone. The test also checks that the module reaches ADK through no value import.
