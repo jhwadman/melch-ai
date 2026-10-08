@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 698,
-    "edges": 1803,
+    "nodes": 703,
+    "edges": 1855,
     "byKind": {
-      "doc": 111,
+      "doc": 113,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 105,
+      "file": 107,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 140,
+      "module": 141,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 308,
+      "links_to": 331,
       "requires_env": 165,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 439,
+      "imports": 445,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 358,
-      "constrains": 39,
+      "derives_from": 374,
+      "constrains": 45,
       "supersedes": 2,
-      "depends_on": 9,
+      "depends_on": 10,
       "explains": 2,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1749,
-      "inferred": 54
+      "extracted": 1794,
+      "inferred": 61
     },
     "isolated": 4
   },
@@ -1048,6 +1048,18 @@
       }
     },
     {
+      "id": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "kind": "doc",
+      "label": "ADR 0055: Claude moves onto the contract and the ADK path keeps its request: the older reasoning spelling rides as an ADK-only extension, and tool results keep ADK's JSON",
+      "source": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1001
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1152,7 +1164,19 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 707
+        "words": 860
+      }
+    },
+    {
+      "id": "/models/claude-adapter.md",
+      "kind": "doc",
+      "label": "Claude adapter",
+      "source": "/models/claude-adapter.md",
+      "attrs": {
+        "type": "model-provider",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1614
       }
     },
     {
@@ -1176,7 +1200,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 6644
+        "words": 6955
       }
     },
     {
@@ -1188,7 +1212,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4007
+        "words": 4095
       }
     },
     {
@@ -2476,7 +2500,7 @@
       "id": "env:ANTHROPIC_API_KEY",
       "kind": "env",
       "label": "ANTHROPIC_API_KEY",
-      "source": "lib/models/claudeLlm.ts",
+      "source": "lib/models/claudeAdapter.ts",
       "attrs": {}
     },
     {
@@ -3441,10 +3465,24 @@
       "source": "tests/capabilityMatrix.test.ts"
     },
     {
+      "id": "file:tests/claudeAdapter.test.ts",
+      "kind": "file",
+      "label": "claudeAdapter.test.ts",
+      "source": "tests/claudeAdapter.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/claudeCurrentApi.test.ts",
       "kind": "file",
       "label": "claudeCurrentApi.test.ts",
-      "source": "tests/claudeCurrentApi.test.ts"
+      "source": "tests/claudeCurrentApi.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/claudeVision.test.ts",
+      "kind": "file",
+      "label": "claudeVision.test.ts",
+      "source": "tests/claudeVision.test.ts"
     },
     {
       "id": "file:tests/contractToolDeclarations.test.ts",
@@ -3586,7 +3624,8 @@
       "id": "file:tests/reasoningState.test.ts",
       "kind": "file",
       "label": "reasoningState.test.ts",
-      "source": "tests/reasoningState.test.ts"
+      "source": "tests/reasoningState.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/redirects.test.ts",
@@ -3953,7 +3992,7 @@
       "label": "lib/models/adkGeminiAdapter.ts",
       "source": "lib/models/adkGeminiAdapter.ts",
       "attrs": {
-        "lines": 410
+        "lines": 405
       }
     },
     {
@@ -3962,7 +4001,7 @@
       "label": "lib/models/adkShim.ts",
       "source": "lib/models/adkShim.ts",
       "attrs": {
-        "lines": 137
+        "lines": 151
       }
     },
     {
@@ -3984,12 +4023,21 @@
       }
     },
     {
+      "id": "module:lib/models/claudeAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/claudeAdapter.ts",
+      "source": "lib/models/claudeAdapter.ts",
+      "attrs": {
+        "lines": 753
+      }
+    },
+    {
       "id": "module:lib/models/claudeLlm.ts",
       "kind": "module",
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 678
+        "lines": 101
       }
     },
     {
@@ -3998,7 +4046,7 @@
       "label": "lib/models/claudeModels.ts",
       "source": "lib/models/claudeModels.ts",
       "attrs": {
-        "lines": 253
+        "lines": 304
       }
     },
     {
@@ -8876,6 +8924,90 @@
       "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:55"
     },
     {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "file:tests/claudeAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "file:tests/claudeCurrentApi.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md frontmatter"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:26"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:31"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:26"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:35"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:26"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0055-claude-adapter-keeps-the-adk-request.md:26"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -9556,6 +9688,13 @@
     },
     {
       "from": "/models/adk-shim.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md frontmatter"
+    },
+    {
+      "from": "/models/adk-shim.md",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9566,35 +9705,182 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:50"
+      "evidence": "/models/adk-shim.md:56"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:22"
+      "evidence": "/models/adk-shim.md:23"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:32"
+      "evidence": "/models/adk-shim.md:35"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:34"
+    },
+    {
+      "from": "/models/adk-shim.md",
+      "to": "/models/claude-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-shim.md:25"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:22"
+      "evidence": "/models/adk-shim.md:23"
     },
     {
       "from": "/models/adk-shim.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:24"
+      "evidence": "/models/adk-shim.md:25"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "file:tests/claudeAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "file:tests/claudeCurrentApi.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "file:tests/claudeVision.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "file:tests/reasoningState.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:38"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:81"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:25"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:62"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:25"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:29"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:87"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:48"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:27"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:29"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:27"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -9731,6 +10017,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "module:lib/models/claudeModels.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9783,49 +10076,49 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:75"
+      "evidence": "/models/model-contract.md:76"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:45"
+      "evidence": "/models/model-contract.md:46"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:92"
+      "evidence": "/models/model-contract.md:93"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:29"
+      "evidence": "/models/model-contract.md:30"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:29"
+      "evidence": "/models/model-contract.md:30"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:99"
+      "evidence": "/models/model-contract.md:100"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:29"
+      "evidence": "/models/model-contract.md:30"
     },
     {
       "from": "/models/model-contract.md",
@@ -9839,42 +10132,56 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:121"
+      "evidence": "/models/model-contract.md:122"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:198"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:360"
+      "evidence": "/models/model-contract.md:361"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:289"
+      "evidence": "/models/model-contract.md:290"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:31"
+      "evidence": "/models/model-contract.md:32"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/claude-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:188"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:31"
+      "evidence": "/models/model-contract.md:32"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:78"
+      "evidence": "/models/model-contract.md:79"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9969,6 +10276,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:50"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -9979,7 +10293,14 @@
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:141"
+      "evidence": "/models/provider-routing.md:50"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/claude-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9993,7 +10314,7 @@
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:139"
+      "evidence": "/models/provider-routing.md:50"
     },
     {
       "from": "/models/provider-routing.md",
@@ -13419,6 +13740,83 @@
       "evidence": "lib/models/capabilities.ts"
     },
     {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/claudeModels.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/providerState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/schemaNormalize.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
+      "to": "env:ANTHROPIC_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
       "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/claudeModels.ts",
       "rel": "imports",
@@ -13434,63 +13832,28 @@
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/models/errorResponse.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"
     },
     {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/models/providerState.ts",
+      "from": "module:lib/models/claudeModels.ts",
+      "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/models/schemaNormalize.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/observability/tracer.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/runtime/turnControl.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/tools/webSearchTool.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "env:ANTHROPIC_API_KEY",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
+      "evidence": "lib/models/claudeModels.ts"
     },
     {
       "from": "module:lib/models/claudeModels.ts",
       "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeModels.ts"
+    },
+    {
+      "from": "module:lib/models/claudeModels.ts",
+      "to": "module:lib/models/reasoning.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeModels.ts"

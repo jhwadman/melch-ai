@@ -6,6 +6,27 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Claude runs on the engine's model contract (ADR 0055).** New module
+  `melchizedek-agents/models/claudeAdapter`: `ClaudeAdapter`, a
+  `ModelAdapter` that reads a `ModelRequest` and yields `ModelResponse`s on
+  the Messages API (`anthropicTools`, `ClaudeModelRequest`,
+  `THINKING_STATE_KIND`, `STRUCTURED_OUTPUT_TOOL`, `ANTHROPIC_PROVIDER`).
+  `ClaudeLlm` keeps its name, options, `supportedModels`,
+  `registerClaudeLlm()`, `buildAnthropicTools()` and `THINKING_STATE_KIND`,
+  and is now that adapter behind the ADK shim, a subclass of `AdkShim`.
+  Request bodies are unchanged. What does change on a Claude call:
+  - its events carry `finishReason`, and `groundingMetadata` when Claude
+    searched the web, so the A2A server reports Claude's web sources;
+  - a failed tool's `tool_result` carries `is_error: true`;
+  - a setup error (`MISSING_API_KEY`, `ENDPOINT_MISCONFIGURED`,
+    `SDK_NOT_INSTALLED`) carries `customMetadata['error.retryable']: false`;
+  - tool schemas come from `contractToolDeclaration`: `nullable` becomes a
+    type that admits null, string integer bounds become integers, and
+    `$schema` is left out.
+  `AdkShim` gains a protected `toModelRequest(llmRequest, options)` hook.
+  `melchizedek-agents/models/claudeModels` adds `ClaudeReasoning`,
+  `claudeReasoningOf`, `claudeReasoningFromConfig` and
+  `adaptiveThinkingFor`. The `exports` map is unchanged.
 - **Breaking for one import path: `toFunctionTool` moves to
   `melchizedek-agents/tools/adkTool` (ADR 0051).**
   `melchizedek-agents/tools/toolContract` no longer exports it, so that

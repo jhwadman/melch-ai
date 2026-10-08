@@ -28,7 +28,8 @@ config/agents/examples/   the starter pack — shipped example syndicates
 lib/loadSyndicate.ts      YAML → validated config (+ variable binding)
 lib/dispatch.ts           plan-dispatch route resolution (§6)
 lib/toolRegistry.ts       tool name → live ADK tool instance
-lib/models/claudeLlm.ts   Claude adapter registered into the ADK registry
+lib/models/claudeAdapter.ts  Claude on the engine's model contract
+lib/models/claudeLlm.ts   that adapter behind the ADK shim, in the ADK registry
 lib/models/ollamaLlm.ts   open-weight local adapter (Ollama, keyless)
 lib/tools/mcpToolFactory.ts  MCP client: remote tools → live ADK tools
 scripts/demo_mcp_server.ts   demo MCP server (library catalog, SSE)
@@ -312,7 +313,7 @@ accordingly — model optionality is a single YAML line per agent:
 | Model id | Provider | Adapter | Key | Native `web_search` |
 |---|---|---|---|---|
 | `gemini-*` | Google Gemini | ADK-native (`TracedGemini`) | `GOOGLE_GENAI_API_KEY` | ✅ grounding |
-| `claude-*` | Anthropic | `lib/models/claudeLlm.ts` | `ANTHROPIC_API_KEY` | ✅ server tool |
+| `claude-*` | Anthropic | `lib/models/claudeAdapter.ts` (Messages API; `ClaudeLlm` is its ADK shim) | `ANTHROPIC_API_KEY` | ✅ server tool |
 | `gpt-*`, o-series | OpenAI | `lib/models/gptLlm.ts` (Responses API) | `OPENAI_API_KEY` | ✅ web_search tool |
 | `grok-*` | xAI | `lib/models/grokLlm.ts` (Responses API) | `XAI_API_KEY` | ✅ Agent Tools search |
 | `kimi-*` | Moonshot AI (Kimi) | `lib/models/kimiLlm.ts` (chat completions) | `MOONSHOT_API_KEY` | ⚠ omitted + warning |
@@ -1136,9 +1137,10 @@ examples — including why binary data forces function tools over
 subagents, and how a tool signature can enforce an epistemic rule (the
 blind inventory).
 
-**Add a provider**: follow `claudeLlm.ts` (SDK-based, key-gated) or
-`ollamaLlm.ts` (fetch-based, keyless) — implement the ADK LLM
-interface, register it behind a model-id prefix.
+**Add a provider**: follow `claudeAdapter.ts` (SDK-based, key-gated, a
+`ModelAdapter` on the engine's model contract, registered through its ADK
+shim `claudeLlm.ts`) or `ollamaLlm.ts` (fetch-based, keyless, the ADK LLM
+interface) — register it behind a model-id prefix.
 
 **Point an agent at an MCP server**: set `mcp_server_url:` on a
 subagent. `scripts/demo_mcp_server.ts` is a complete server to copy —

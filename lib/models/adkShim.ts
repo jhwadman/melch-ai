@@ -10,7 +10,9 @@
  *   class between them: it maps the LlmRequest in and each ModelResponse out
  *   through lib/models/genaiMapping.ts, and does no translation of its own.
  *   The adapter tickets move one adapter at a time behind it, and ADK sees
- *   no change.
+ *   no change: ClaudeLlm (lib/models/claudeLlm.ts) is the shim around
+ *   ClaudeAdapter. A provider's ADK class may extend `toModelRequest` with
+ *   what its adapter reads on the ADK path only (ADR 0055).
  *
  * WHAT THE SHIM DOES ONCE, SO NO CONTRACT ADAPTER DOES IT (ADR 0053):
  *   - The turn's charge and the llm.request span. The call goes through
@@ -21,7 +23,7 @@
  *     failed call's payload). So the step budget, a stopped
  *     turn's refusal (STEP_LIMIT, DEADLINE_EXCEEDED, CANCELED, as the same
  *     LlmResponse), the token charge and the span's attributes are what
- *     ClaudeLlm, GptLlm and the chat-completions adapters produce. A refused
+ *     GptLlm and the chat-completions adapters produce. A refused
  *     call never reaches the adapter. The adapter decorates the open span
  *     with `setLlmSpanAttribute`, and never opens one of its own.
  *   - The abort signal. The request's `signal` aborts when the turn stops
