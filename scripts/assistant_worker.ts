@@ -13,7 +13,8 @@
  *   and writes the result (or the error) back to the store, where
  *   `task_get` reads it in a later conversation.
  *
- *   A job runs through lib/runtime/syndicateTurn.ts, the same runtime the
+ *   A job runs through lib/runtime/syndicateTurn.ts (on the runtime
+ *   MELCHIZEDEK_RUNTIME names, ADK by default), the same runtime the
  *   A2A server, the REPL and the observatory use, so it runs the exact agent
  *   the conversation would have called directly — with the same step cap —
  *   and the job timeout ABORTS the run (the model call in flight included)
@@ -32,12 +33,14 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 
 import { loadEnv } from '../lib/loadEnv.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { setLogLevel } from '../lib/runtime/logging.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import {
   PROVIDERS,
   providerForModel,
@@ -51,7 +54,7 @@ import { dbSchema } from '../lib/storage/schema.ts';
 import { hostname } from 'node:os';
 
 loadEnv(import.meta.url);
-setLogLevel(LogLevel.WARN);
+setLogLevel('warn');
 registerAvailableProviders();
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
@@ -128,7 +131,9 @@ async function runJob(job: TaskRecord): Promise<string> {
       appName: 'assistant-worker',
       userId: 'local-user',
       sessionId: randomUUID(),
-      sessionService: new InMemorySessionService(),
+      // A fresh in-process store per job, as the turn runner's signature
+      // names it (ADR 0080). The runtime follows MELCHIZEDEK_RUNTIME.
+      sessionService: asAdkSessionService(new InProcessSessionService()),
       compile: { log, onUnknownTool: (n) => log(`unknown tool '${n}' skipped`) },
       signal: current.signal,
       deadlineMs: JOB_TIMEOUT_MS,

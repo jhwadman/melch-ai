@@ -22,6 +22,11 @@
  * the handler cache, the rate-limiter counters. Sessions and memory are
  * durable when Supabase is configured. Run one replica, or put sticky
  * routing in front, until the task store is durable.
+ *
+ * Stores (ADR 0080): `storage` takes a session store and a memory service
+ * with either face, the engine's or ADK's. In-process sessions are the
+ * engine's InProcessSessionService. A `resolveModel` may still return an ADK
+ * model instance: its type is CompileOptions'.
  */
 
 import express from 'express';
@@ -35,8 +40,10 @@ import { DefaultRequestHandler, InMemoryTaskStore } from '@a2a-js/sdk/server';
 import { duplicateInterfacesForLegacy } from '@a2a-js/sdk/compat/v0_3';
 import type { TaskStore } from '@a2a-js/sdk/server';
 import { agentCardHandler, jsonRpcHandler, restHandler } from '@a2a-js/sdk/server/express';
-import { InMemorySessionService } from '@google/adk';
-import type { BaseLlm, BaseMemoryService, BaseSessionService } from '@google/adk';
+import type { CompileOptions } from '../compile.ts';
+import type { EitherSessionService } from '../runtime/adkSessionBridge.ts';
+import type { EitherMemoryService } from '../runtime/adkMemoryBridge.ts';
+import { InProcessSessionService } from '../runtime/sessions.ts';
 
 import { loadSyndicate, loadSyndicateFromRegistry } from '../loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
@@ -83,6 +90,9 @@ export function isValidAgentId(agentId: string): boolean {
   return /^[A-Za-z0-9_.:-]+$/.test(agentId) && !agentId.includes('..');
 }
 
+/** What a model resolver returns, as the compiler takes it. */
+type ResolvedModel = ReturnType<NonNullable<CompileOptions['resolveModel']>>;
+
 export interface A2AAppOptions {
   /** The syndicate served at /a2a/*: a YAML name or "registry:<id>". */
   defaultSyndicate: string;
@@ -98,8 +108,10 @@ export interface A2AAppOptions {
    * agent id (default: in-process).
    */
   storage?: {
-    sessionService: BaseSessionService;
-    memoryService?: BaseMemoryService;
+    /** The engine's SessionService or ADK's BaseSessionService (ADR 0080). */
+    sessionService: EitherSessionService;
+    /** The engine's MemoryService or ADK's BaseMemoryService. */
+    memoryService?: EitherMemoryService;
     taskStore?: (agentId: string) => TaskStore;
     /** Erase everything stored for a scope (DELETE /memory). Without it the route answers 501. */
     erase?: (scopeKey: string, options: { namespace?: string; includeNested?: boolean }) => Promise<EraseCounts>;
@@ -230,9 +242,11 @@ export interface A2AAppOptions {
   /**
    * Model resolution per request. Default: lib/models/registry.ts with the
    * caller's X-API-Key scoped to its X-Provider. Override to route through
-   * your own gateway or credential store.
+   * your own gateway or credential store. Returns what
+   * CompileOptions.resolveModel returns: a model id, or a model instance
+   * (an ADK BaseLlm while the ADK runtime ships).
    */
-  resolveModel?: (modelName: string | undefined, ctx: A2AContext) => string | BaseLlm | undefined;
+  resolveModel?: (modelName: string | undefined, ctx: A2AContext) => ResolvedModel;
   /** Bindings applied at every config load (e.g. current_date). */
   bindings?: () => Record<string, string>;
   log?: (message: string) => void;
@@ -433,8 +447,8 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     : loadSyndicate(options.defaultSyndicate, { bindings: bindings() });
 
   // ── Persistence ────────────────────────────────────────────────────────────
-  let durableSessions: BaseSessionService | undefined;
-  let memoryService: BaseMemoryService | undefined;
+  let durableSessions: EitherSessionService | undefined;
+  let memoryService: EitherMemoryService | undefined;
   let erase: NonNullable<A2AAppOptions['storage']>['erase'];
   let readSchemaVersion: (() => Promise<number | null>) | undefined;
   let checkHardening: (() => Promise<RlsHardeningStatus>) | undefined;
@@ -529,7 +543,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
    * even when Supabase is configured (the docs promise "nothing persists"),
    * and only `long-term` syndicates get the memory service.
    */
-  const internalSessions = new InMemorySessionService();
+  const internalSessions = new InProcessSessionService();
   // Long-term memory sends transcripts to its extraction and embedding
   // providers; say so once per syndicate when they are not the agents' own.
   const memoryFlowWarned = new Set<string>();
@@ -603,7 +617,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   // memory_retention_days has its namespace pruned when first loaded, then
   // daily. Keyed by namespace, so syndicates sharing one prune it once.
   const retentionTimers = new Map<string, NodeJS.Timeout>();
-  const scheduleRetention = (cfg: SyndicateYamlConfig, memory: BaseMemoryService | undefined) => {
+  const scheduleRetention = (cfg: SyndicateYamlConfig, memory: EitherMemoryService | undefined) => {
     const days = cfg.memory_retention_days;
     const namespace = cfg.memory_namespace;
     const prune = (memory as { pruneExpired?: (ns: string, d: number) => Promise<number | null> } | undefined)?.pruneExpired;

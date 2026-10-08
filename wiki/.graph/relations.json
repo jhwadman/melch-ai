@@ -1523,6 +1523,78 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decision 1: \"The executor reads a session through asSessionService and hands runSyndicateTurn and ingestTurnMemory the ADK faces from asAdkSessionService and asAdkMemoryService, built once per executor.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decisions 1, 3 and 4: createA2AApp's storage takes either face, in-process sessions are InProcessSessionService, and resolveModel returns the type CompileOptions.resolveModel returns.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/adkMemoryBridge.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decision 2: a service with ADK's face passes through unchanged; MemoryServiceForAdk wraps one with only MemoryService and forwards deleteUserMemory, pruneExpired and verifyEmbeddingDimensions when present.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/runtime/logging.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decision 5: \"The engine owns the log level, and ADK's logger follows it.\" Nothing is pushed until a surface sets a level.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
+      "to": "module:lib/compileAdk.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0080 Decision 5: \"lib/compileAdk.ts subscribes and sets ADK's logger to the same level.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0082 Decision 2-4: the graph names nodes as the ADK compile does (__START__, <node>__route), orders nodes and edges as ADK's Graph, keeps route keys as written, and validates with its own copy of the schema's and ADK's rules held by tests/workflowGraph.test.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0082 Context: \"ADR 0045 moves the workflow engine off ADK in stages, and gate G4 requires the workflow suite to pass under native\"; the start node is named __START__ because resuming an ADK-written workflow under native is a stop rule in ADR 0045.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/workflow-graph.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-graph.md describes buildWorkflowGraph's model (node kinds, edge routes, terminals), its two validation passes and its parity with compileWorkflow.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "module:lib/workflow/graph.ts",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "depends_on",
+      "evidence": "lib/workflow/graph.ts workflowConfigProblems repeats the schema's workflowProblems paths and messages (and imports its suggest helper); tests/workflowGraph.test.ts fails when the two differ.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "depends_on",
