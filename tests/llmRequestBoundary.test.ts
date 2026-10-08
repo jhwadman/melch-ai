@@ -66,6 +66,7 @@ const ALLOWED: Record<string, { reason: Reason; why: string }> = {
   // ── ADK-path provider suites (their contract twins assert the same bodies) ─
   'claudeCurrentApi.test.ts': { reason: 'ADK-path provider suite', why: 'ClaudeLlm per generation (ADR 0049); claudeAdapter.test.ts asserts the same bodies from ModelRequests.' },
   'claudeVision.test.ts': { reason: 'ADK-path provider suite', why: 'ClaudeLlm’s image blocks and span; claudeAdapter.test.ts covers blobs on the contract.' },
+  'tracedGeminiVertex.test.ts': { reason: 'ADK-path provider suite', why: 'TracedGemini drops includeServerSideToolInvocations on Vertex AI before ADK’s Gemini sees the request; the flag only exists on the ADK path.' },
   'reasoningKey.test.ts': { reason: 'ADK-path provider suite', why: 'the compiler’s reasoning: config through each ADK class (ADR 0047).' },
 };
 
