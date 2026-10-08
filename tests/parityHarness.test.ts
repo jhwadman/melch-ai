@@ -95,13 +95,15 @@ test('no provider ran: the run fails', () => {
   assert.match(renderReport(empty), /xai — XAI_API_KEY not set/);
 });
 
-test('MELCHIZEDEK_RUNTIME: adk by default, native recorded, anything else a usage error', async () => {
+test('MELCHIZEDEK_RUNTIME: adk by default, native runs every turn on native, anything else a usage error', async () => {
   assert.equal(requestedRuntime({}), 'adk');
   assert.equal(requestedRuntime({ MELCHIZEDEK_RUNTIME: 'NATIVE' }), 'native');
   assert.throws(() => requestedRuntime({ MELCHIZEDEK_RUNTIME: 'langgraph' }), UsageError);
-  const report = await runParity({ scripted: true, providers: ['xai'], runtime: 'native' });
-  assert.deepEqual(report.runtime, { requested: 'native', ran: 'adk' });
-  assert.match(renderReport(report), /MELCHIZEDEK_RUNTIME=native requested/);
+  const report = await runParity({ scripted: true, runtime: 'native' });
+  assert.deepEqual(report.runtime, { requested: 'native', ran: 'native' });
+  assert.match(renderReport(report), /^parity · scripted · runtime native · /);
+  for (const p of report.providers) for (const c of p.checks) assert.ok(c.pass, `native · ${p.provider} · ${c.id}: ${c.detail}`);
+  assert.equal(report.pass, true);
 });
 
 test('arguments: bad ids, a misrouted --model and a live --fault are usage errors', () => {

@@ -4,7 +4,10 @@
  * today's runtime. They are frozen copies of the rows production stores in
  * adk_sessions.events and adk_session_events, which nothing migrates: any
  * runtime that serves those conversations must pass this suite unchanged.
- * Scripted models, in-memory sessions, no network.
+ * Every resume runs on both runtimes (tests/helpers/runtime.ts): ADR 0045's
+ * stop rule keeps the default on adk while an ADK-written fixture fails to
+ * resume under native. The workflow fixture waits for WS4, named on its
+ * skipped native case. Scripted models, in-memory sessions, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -23,6 +26,7 @@ import { APP, FETCH_FILING, FILING, SEND_NOTE, THOUGHT_SIGNATURE, USER, scenario
 import { conversation, fixtureFiles, loadFixture, pendingWorkflowInput, seedSessions } from './helpers/sessionFixtures.ts';
 import type { SessionFixture } from './helpers/sessionFixtures.ts';
 import { scriptedResolver, sentTexts } from './helpers/scriptedLlm.ts';
+import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -34,6 +38,7 @@ async function resume(fixture: SessionFixture, message: MessagePart[]) {
   const models = s.models();
   const sessionService: BaseSessionService = await seedSessions(fixture);
   const result = await runSyndicateTurn({
+    ...runtimeOption(),
     config: s.config,
     parts: message,
     appName: APP,
@@ -107,7 +112,7 @@ test('06 thought signature: trimmed rows keep a replayable call, verbatim rows k
   assert.equal(answer(verbatim).thoughtSignature, THOUGHT_SIGNATURE);
 });
 
-test('08 elided result: trimmed rows keep a paired marker, verbatim rows the whole result, and the next turn reads either', async () => {
+forEachRuntime('08 elided result: trimmed rows keep a paired marker, verbatim rows the whole result, and the next turn reads either', async () => {
   const size = JSON.stringify({ result: FILING }).length;
   assert.ok(size > DEFAULT_MAX_STORED_PAYLOAD_CHARS, 'the result is long enough to be trimmed');
   for (const form of ['trimmed', 'verbatim'] as const) {
@@ -137,7 +142,7 @@ test('08 elided result: trimmed rows keep a paired marker, verbatim rows the who
   }
 });
 
-test('03 open approval: found in the stored events, and an approval resumes the turn', async () => {
+forEachRuntime('03 open approval: found in the stored events, and an approval resumes the turn', async () => {
   const f = loadFixture('03-open-approval');
   const events = conversation(f).events;
   const pending = pendingApproval(events);
@@ -157,7 +162,7 @@ test('03 open approval: found in the stored events, and an approval resumes the 
   assert.equal(models.boss!.calls, 1, 'the agent resumed its tool loop; it did not start over');
 });
 
-test('04 open question: found in the stored events, and an answer resumes the turn', async () => {
+forEachRuntime('04 open question: found in the stored events, and an answer resumes the turn', async () => {
   const f = loadFixture('04-open-question');
   const events = conversation(f).events;
   const question = pendingQuestion(events);
@@ -175,7 +180,7 @@ test('04 open question: found in the stored events, and an answer resumes the tu
   assert.equal(pendingQuestion(after!.events), undefined, 'answered');
 });
 
-test('05 workflow paused at ask_user: found in the stored events, and the next node sees the reply', async () => {
+forEachRuntime('05 workflow paused at ask_user: found in the stored events, and the next node sees the reply', async () => {
   const f = loadFixture('05-workflow-ask-user');
   const events = conversation(f).events;
   const input = pendingWorkflowInput(events);
@@ -192,9 +197,9 @@ test('05 workflow paused at ask_user: found in the stored events, and the next n
   assert.equal(models.publisher!.calls, 1);
   const after = await sessionService.getSession({ appName: APP, userId: USER, sessionId: scenario(f.fixture).sessionId });
   assert.equal(pendingWorkflowInput(after!.events), undefined, 'answered');
-});
+}, { notOn: { native: { reason: 'a workflow syndicate is refused on native (ADR 0073)', ticket: 'WS4' } } });
 
-test('a completed conversation reads back: the answering agent sees what was said', async () => {
+forEachRuntime('a completed conversation reads back: the answering agent sees what was said', async () => {
   // [fixture, the model that answers the next turn, what it must find in its history]
   const cases: Array<[SessionFixture, string, string[]]> = [
     [loadFixture('01-delegate'), 'boss', ['find the thing', 'Scout says: it is in the attic']],

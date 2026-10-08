@@ -18,7 +18,8 @@ import { FunctionTool, InMemorySessionService, LogLevel, setLogLevel } from '@go
 import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import type { ModelAdapter } from '../lib/models/contract.ts';
+import type { ModelAdapter, ModelResponse } from '../lib/models/contract.ts';
+import { adkShim } from '../lib/models/adkShim.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
 import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
@@ -322,6 +323,119 @@ test('parity: a DELEGATE syndicate delegates to its subagent and relays the answ
   });
   assert.equal(native.results[0]?.text, 'relayed: the thing is here');
   assert.deepEqual(native.results[0]?.answer?.delegations, ['Scout']);
+});
+
+test('a resolver may answer an id with a model under another id: the request goes out under that id on both runtimes, as ADK sends it', async () => {
+  // A gateway stand-in or a caller's alias: the YAML says scripted/boss, the
+  // resolver returns a model whose own id is provider-model-x. ADK's LlmAgent
+  // sends the request under the model's id, so the adapter (which chooses
+  // thinking, replay and pricing by it) must see that id on native too.
+  const seen: Record<string, string[]> = { adk: [], native: [] };
+  for (const runtime of ['adk', 'native'] as const) {
+    const boss = new ScriptedModel('provider-model-x', (req, n) => {
+      seen[runtime]!.push(req.model);
+      return n === 1 ? toolCall('Scout', { request: 'look' }, 'call-scout') : answer('done');
+    });
+    const scout = new ScriptedModel('provider-model-y', (req) => {
+      seen[runtime]!.push(req.model);
+      return answer('here');
+    });
+    const resolve = (id: string | undefined) => adkShim(id === 'scripted/scout' ? scout : boss);
+    const r = await runSyndicateTurn({
+      config: syndicate({ instruction: 'Delegate to Scout.' }, { subagents: [{ name: 'Scout', model: 'scripted/scout', instruction: 'Find.', description: 'Finds' }] }),
+      parts: [{ text: 'find it' }],
+      appName: APP,
+      userId: USER,
+      sessionId: `alias-${runtime}`,
+      sessionService: new InMemorySessionService(),
+      compile: { resolveModel: resolve, log: () => {} },
+      trace: false,
+      runtime,
+    });
+    assert.equal(r.status, 'completed', `${runtime}: ${r.error?.message}`);
+  }
+  assert.deepEqual(seen.adk, ['provider-model-x', 'provider-model-y', 'provider-model-x']);
+  assert.deepEqual(seen.native, seen.adk);
+});
+
+/** An adapter that breaks the contract by throwing: after yielding `before`, if any. */
+function throwingAdapter(model: string, error: Error, before: ModelResponse[] = []): ModelAdapter & { calls: number } {
+  const adapter = {
+    model,
+    provider: 'scripted',
+    calls: 0,
+    async *generate() {
+      adapter.calls += 1;
+      for (const response of before) yield response;
+      throw error;
+    },
+  };
+  return adapter;
+}
+
+test('parity: an adapter that throws ends the step on ADK’s error event (UNKNOWN_ERROR, or a JSON body’s code), never a thrown turn', async () => {
+  const cases: Array<[Error, string, string]> = [
+    [Object.assign(new Error('HTTP 400'), { status: 400 }), 'UNKNOWN_ERROR', 'HTTP 400'],
+    [new Error(JSON.stringify({ error: { code: 'QUOTA', message: 'over quota' } })), 'QUOTA', 'over quota'],
+  ];
+  for (const [error, code, message] of cases) {
+    const runs: Record<string, { result: SyndicateTurnResult; events: TurnEvent[] }> = {};
+    for (const runtime of ['adk', 'native'] as const) {
+      const sessionService = new InMemorySessionService();
+      const result = await runSyndicateTurn({
+        config: syndicate({}),
+        parts: [{ text: 'hello' }],
+        appName: APP,
+        userId: USER,
+        sessionId: 's1',
+        sessionService,
+        compile: { resolveModel: () => adkShim(throwingAdapter('scripted/boss', error)), log: () => {} },
+        trace: false,
+        runtime,
+      });
+      const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+      runs[runtime] = { result, events: JSON.parse(JSON.stringify(session?.events ?? [])) };
+    }
+    assert.equal(runs.native!.result.status, 'failed');
+    assert.deepEqual(runs.native!.result.error, { code, message });
+    assert.deepEqual(outcome(runs.native!.result), outcome(runs.adk!.result));
+    assert.deepEqual(comparable(runs.native!.events), comparable(runs.adk!.events), 'the stored events');
+    assert.equal(runs.native!.events.at(-1)?.errorCode, code);
+  }
+});
+
+test('parity: with a fallback_model, a thrown provider failure is answered by the fallback; a stream that produced first is not', async () => {
+  const fails = Object.assign(new Error('HTTP 503'), { status: 503 });
+  for (const [label, before, backupCalls] of [
+    ['before anything', [], 1],
+    ['after an answer', [answer('half an answer')], 0],
+  ] as const) {
+    const runs: Record<string, { result: SyndicateTurnResult; events: TurnEvent[] }> = {};
+    for (const runtime of ['adk', 'native'] as const) {
+      resetCircuits();
+      const primary = throwingAdapter('scripted/primary', fails, [...before]);
+      const backup = new ScriptedModel('scripted/backup', () => answer('from the backup'));
+      const sessionService = new InMemorySessionService();
+      const result = await runSyndicateTurn({
+        config: syndicate({ model: 'scripted/primary', fallback_model: 'scripted/backup' }),
+        parts: [{ text: 'hello' }],
+        appName: APP,
+        userId: USER,
+        sessionId: 's1',
+        sessionService,
+        compile: { resolveModel: (id) => adkShim(id === 'scripted/backup' ? backup : primary), log: () => {} },
+        trace: false,
+        runtime,
+      });
+      assert.equal(primary.calls, 1, `${runtime} ${label}`);
+      assert.equal(backup.calls, backupCalls, `${runtime} ${label}: calls to the fallback`);
+      const session = await sessionService.getSession({ appName: APP, userId: USER, sessionId: 's1' });
+      runs[runtime] = { result, events: JSON.parse(JSON.stringify(session?.events ?? [])) };
+    }
+    assert.deepEqual(outcome(runs.native!.result), outcome(runs.adk!.result), label);
+    assert.deepEqual(comparable(runs.native!.events), comparable(runs.adk!.events), `${label}: the stored events`);
+  }
+  resetCircuits();
 });
 
 registerTool(

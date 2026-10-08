@@ -35,6 +35,7 @@ import { projectTranscript, trimEventForStorage } from '../lib/session/transcrip
 import { SupabaseSessionService } from '../lib/session/supabaseSessionService.ts';
 import { PostgresSessionService } from '../lib/storage/postgres/sessionService.ts';
 import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -178,6 +179,16 @@ async function withProviders<T>(
 }
 
 const claude = () => new ClaudeLlm({ model: 'claude-sonnet-4-6', apiKey: FIXTURE_KEY });
+
+/**
+ * A resolver that returns an ADK model class which is neither the shim nor
+ * Gemini (StepSwitch here) is not run by the native runtime: it resolves the
+ * id through the registry instead (ADR 0073, decision 6). Open question in
+ * the WS2-12 PR; these cases run on ADK until it is decided.
+ */
+const ADK_MODEL_CLASS = {
+  notOn: { native: { reason: 'a resolver returning an ADK model class that is not a shim is resolved by id on native (ADR 0073)', ticket: 'WS2-12 open question 2' } },
+};
 
 /** One model per step, in order: a model switch between steps, as a fallback makes one. */
 class StepSwitch extends BaseLlm {
@@ -446,7 +457,7 @@ test('claude: without a thinking budget, a stored state is still replayed and no
 
 // ── A model switch between steps drops the state ─────────────────────────────
 
-test('model switch: Claude then a chat-completions model — the signed blocks never reach the other provider', async () => {
+forEachRuntime('model switch: Claude then a chat-completions model — the signed blocks never reach the other provider', async () => {
   const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
   await withProviders(
     [message([THINKING, { type: 'tool_use', id: 'toolu_01', name: 'Scout', input: { request: 'look' } }], 'tool_use')],
@@ -462,9 +473,9 @@ test('model switch: Claude then a chat-completions model — the signed blocks n
     },
     'Scout says: it is in the attic',
   );
-});
+}, ADK_MODEL_CLASS);
 
-test('model switch: another provider then Claude — Claude replays nothing foreign and runs the step without thinking', async () => {
+forEachRuntime('model switch: another provider then Claude — Claude replays nothing foreign and runs the step without thinking', async () => {
   const scout = new ScriptedLlm('scripted/scout', () => text('it is in the attic'));
   const gptLike = new ScriptedLlm('scripted/gpt', () => ({
     content: {
@@ -487,7 +498,7 @@ test('model switch: another provider then Claude — Claude replays nothing fore
     assert.ok(!JSON.stringify(body).includes('enc-openai-1'));
     assert.equal(body.thinking, undefined);
   });
-});
+}, ADK_MODEL_CLASS);
 
 test('other adapters ignore an anthropic state on the wire (Responses, chat-completions, Gemini)', async () => {
   const req = (model: string) =>

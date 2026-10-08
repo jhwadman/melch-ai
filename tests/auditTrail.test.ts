@@ -3,6 +3,9 @@
  * authentication, a task's outcome and an erasure each leave one event with
  * the caller, the source address and a scope HASH, never the scope key or
  * any conversation content. Offline: a scripted model, a stub storage.
+ *
+ * The cases that run a turn run on both runtimes, through
+ * MELCHIZEDEK_RUNTIME (tests/helpers/runtime.ts).
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -21,6 +24,7 @@ import type { A2AApp } from '../lib/a2a/app.ts';
 import { postgresAuditSink, scopeHashOf } from '../lib/observability/audit.ts';
 import type { AuditEvent } from '../lib/observability/audit.ts';
 import { ScriptedLlm, text } from './helpers/scriptedLlm.ts';
+import { forEachRuntime } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -60,7 +64,7 @@ after(async () => {
 
 const headers = { Authorization: `Bearer ${SECRET}`, 'X-User-Id': 'alice.smith', 'Content-Type': 'application/json' };
 
-test('a failed authentication is recorded as denied, with the source address', async () => {
+forEachRuntime('a failed authentication is recorded as denied, with the source address', async () => {
   events.length = 0;
   const res = await fetch(`${base}/.well-known/agent-card.json`, { headers: { Authorization: 'Bearer wrong' } });
   assert.equal(res.status, 401);
@@ -71,7 +75,7 @@ test('a failed authentication is recorded as denied, with the source address', a
   assert.equal(e.detail?.path, '/.well-known/agent-card.json');
 });
 
-test("a task's outcome is recorded with the caller and a scope hash, and no content", async () => {
+forEachRuntime("a task's outcome is recorded with the caller and a scope hash, and no content", async () => {
   events.length = 0;
   const res = await fetch(`${base}/a2a/jsonrpc`, {
     method: 'POST',
@@ -90,7 +94,7 @@ test("a task's outcome is recorded with the caller and a scope hash, and no cont
   assert.doesNotMatch(serialized, /alice\.smith|recipe|basil/, 'no scope key and no conversation content');
 });
 
-test('an erasure is recorded with its counts and a scope hash', async () => {
+forEachRuntime('an erasure is recorded with its counts and a scope hash', async () => {
   events.length = 0;
   const res = await fetch(`${base}/memory`, { method: 'DELETE', headers });
   assert.equal(res.status, 200);

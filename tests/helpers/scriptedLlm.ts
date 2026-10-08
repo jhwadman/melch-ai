@@ -16,6 +16,11 @@
  * (the boundary suite, tests/syndicateTurn.test.ts) still compares two
  * different paths.
  *
+ * On the native runtime the loop calls the ScriptedModel itself, with no
+ * LlmRequest behind its ModelRequest: the script then reads the LlmRequest
+ * that request maps to (modelRequestToLlmRequest), and the loop reads the
+ * script's responses through the contract, which is the native path.
+ *
  * `model` is the ScriptedModel: its `requests` are the ModelRequests the
  * shim handed it. `requests` here are the LlmRequests ADK sent.
  */
@@ -23,7 +28,7 @@
 import type { LlmRequest, LlmResponse } from '@google/adk';
 import type { ModelRequest, ModelResponse } from '../../lib/models/contract.ts';
 import { AdkShim } from '../../lib/models/adkShim.ts';
-import { llmResponseToModelResponse } from '../../lib/models/genaiMapping.ts';
+import { llmResponseToModelResponse, modelRequestToLlmRequest } from '../../lib/models/genaiMapping.ts';
 import type { ModelRequestOptions } from '../../lib/models/genaiMapping.ts';
 import { ScriptedModel } from './scriptedModel.ts';
 
@@ -45,7 +50,10 @@ export class ScriptedLlm extends AdkShim {
     const requests: LlmRequest[] = [];
     super(
       new ScriptedModel(model, async (request, call, signal) => {
-        const llmRequest = sources.get(request)!;
+        // Under ADK the shim mapped the request from an LlmRequest; on the
+        // native runtime the loop hands the adapter its ModelRequest
+        // directly, so the script reads the LlmRequest it maps to.
+        const llmRequest = sources.get(request) ?? modelRequestToLlmRequest(request);
         requests.push(llmRequest);
         const out = await script(llmRequest, call, signal);
         return (Array.isArray(out) ? out : [out]).map((response) => {

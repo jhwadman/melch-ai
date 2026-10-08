@@ -9,6 +9,10 @@
  * thought, and 35 KB of raw tool JSON, all indistinguishable from something
  * the human had typed. The session was shared; the conversation was not.
  *
+ * The last cases run a two-route conversation through runSyndicateTurn on
+ * both runtimes (tests/helpers/runtime.ts): the next route must read the
+ * previous route's answer the same way on each, and across them.
+ *
  * So the load-bearing assertion below is the boring one: a past agent turn
  * must come out as `role: "model"`. Everything else follows from it.
  */
@@ -25,6 +29,15 @@ import type { TurnEvent, TurnEventInit } from '../lib/runtime/events.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { SessionService } from '../lib/runtime/sessions.ts';
 import { fakeSupabase } from './helpers/fakeSupabase.ts';
+import { z } from 'zod';
+import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import type { ModelRequest } from '../lib/models/contract.ts';
+import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { registerTool } from '../lib/toolRegistry.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
+import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
+import { acrossRuntimes, forEachRuntime, runtimeOption } from './helpers/runtime.ts';
+import type { RuntimeName } from './helpers/runtime.ts';
 
 const user = (text: string): Event => ({ author: 'user', content: { role: 'user', parts: [{ text }] } } as Event);
 const agent = (author: string, parts: unknown[]): Event =>
@@ -365,4 +378,73 @@ test('the engine face replays the interrupted turn raw, as the ADK face does', a
   assert.equal(JSON.stringify(viaEngine.events), JSON.stringify(viaAdk.events));
   assert.ok(JSON.stringify(viaEngine.events).includes('load_memory'), 'the raw tail keeps its tool call');
   assert.equal(viaEngine.events[0]!.author, 'user');
+});
+
+// ── Through a turn, on both runtimes ─────────────────────────────────────────
+
+registerTool(
+  'transcript_quotes',
+  defineTool({ name: 'transcript_quotes', description: 'Quotes for a ticker.', schema: z.object({ ticker: z.string() }), execute: async () => 'x'.repeat(23_000) }),
+  { override: true },
+);
+
+const deskConfig = (): SyndicateYamlConfig =>
+  ({
+    syndicate_name: 'Desk',
+    orchestrator: { name: 'Router', model: 'scripted/router', instruction: 'Classify.' },
+    subagents: [
+      { name: 'Analyst', model: 'scripted/analyst', instruction: 'Analyse.', description: 'markets', tools: ['transcript_quotes'] },
+      { name: 'Conversationalist', model: 'scripted/chat', instruction: 'Talk.', description: 'small talk' },
+    ],
+    dispatch: { default_route: 'Conversationalist' },
+  }) as unknown as SyndicateYamlConfig;
+
+/** Two turns on one store: the Analyst answers with a tool, then the Conversationalist; each turn on `on(i)`. */
+async function deskConversation(on: (turn: number) => RuntimeName | undefined) {
+  const models = {
+    router: new ScriptedModel('scripted/router', (req) =>
+      answer(/neglecting/.test(requestTexts(req).at(-1) ?? '') ? '{"route":"Conversationalist","reason":"chat"}' : '{"route":"Analyst","reason":"a ticker"}'),
+    ),
+    analyst: new ScriptedModel('scripted/analyst', (req, n) =>
+      n === 1 ? toolCall('transcript_quotes', { ticker: 'MU' }, 'call-quotes') : answer(`MU: accumulate under $130 (${String(lastToolResult(req)?.result).length} bytes read)`),
+    ),
+    chat: new ScriptedModel('scripted/chat', () => answer('Noted.')),
+  };
+  const sessionService = new InMemorySessionService();
+  for (const [i, text] of ['Should I buy MU on Monday?', 'You are neglecting AI and security.'].entries()) {
+    const runtime = on(i);
+    const r = await runSyndicateTurn({
+      ...(runtime ? { runtime } : runtimeOption()),
+      config: deskConfig(),
+      parts: [{ text }],
+      appName: 'desk',
+      userId: 'u1',
+      sessionId: 'thread',
+      sessionService,
+      compile: { resolveModel: shimResolver(models), log: () => {} },
+      trace: false,
+    });
+    assert.equal(r.status, 'completed', r.error?.message);
+  }
+  return models.chat.requests[0] as ModelRequest;
+}
+
+/** The Conversationalist's request: every message, as role and the text it carries. */
+const seenByChat = (request: ModelRequest) => request.messages.map((m) => ({ role: m.role, parts: m.parts.map((p) => (p.type === 'text' ? p.text : p.type)) }));
+
+forEachRuntime('through a turn: the next route reads the previous route\'s answer as a model turn, without its tool traffic', async () => {
+  const request = await deskConversation(() => undefined);
+  const seen = seenByChat(request);
+  const answerTurn = seen.find((m) => m.parts.some((p) => /accumulate under \$130/.test(String(p))));
+  assert.ok(answerTurn, 'the Analyst\'s answer reaches the Conversationalist');
+  assert.equal(answerTurn.role, 'assistant');
+  assert.match(String(answerTurn.parts[0]), /^\[Analyst\] MU: accumulate under \$130 \(23000 bytes read\)/);
+  assert.ok(!JSON.stringify(request.messages).includes('x'.repeat(100)), 'no tool payload');
+  assert.ok(!seen.some((m) => m.parts.some((p) => p === 'toolCall' || p === 'toolResult')), 'no tool traffic');
+});
+
+acrossRuntimes('through a turn: a route on one runtime reads what a route on the other wrote, as on one runtime', async (writer, reader) => {
+  const reference = seenByChat(await deskConversation(() => 'adk'));
+  const crossed = seenByChat(await deskConversation((i) => (i === 0 ? writer : reader)));
+  assert.deepEqual(crossed, reference);
 });

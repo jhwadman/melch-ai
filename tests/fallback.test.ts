@@ -6,14 +6,15 @@
  * cooldown. A failure arrives either as a throw (Gemini) or as a yielded
  * error response carrying customMetadata['error.retryable'] (every other
  * adapter, lib/models/errorResponse.ts); both are held to the same rules.
- * Offline: scripted models.
+ * The turn cases run on both runtimes (tests/helpers/runtime.ts): the native
+ * model step reads a throw as FallbackLlm does. Offline: scripted models.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { BaseLlm, InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
-import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
+import type { LlmRequest, LlmResponse } from '@google/adk';
 
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { FallbackLlm, circuitOpen, isProviderFailure, resetCircuits } from '../lib/models/fallback.ts';
@@ -22,25 +23,32 @@ import { providerForModel } from '../lib/models/providerMap.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { answer } from './helpers/scriptedModel.ts';
+import { adkShim } from '../lib/models/adkShim.ts';
+import type { ModelAdapter } from '../lib/models/contract.ts';
+import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 
 setLogLevel(LogLevel.ERROR);
 
 const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
 
-/** Yields its parts, then throws: a stream that fails midway. */
-class MidstreamFailure extends BaseLlm {
-  calls = 0;
-  constructor(model: string) {
-    super({ model });
-  }
-  async *generateContentAsync(): AsyncGenerator<LlmResponse, void> {
-    this.calls += 1;
-    yield text('half an answer');
-    throw httpError(503);
-  }
-  connect(_r: LlmRequest): Promise<BaseLlmConnection> {
-    throw new Error('no live');
-  }
+/**
+ * Yields an answer, then throws: a stream that fails midway. An adapter
+ * behind the ADK shim, so both runtimes call it (an ADK model class that is
+ * not a shim is not run by the native runtime; see the WS2-12 PR).
+ */
+function midstreamFailure(model: string): BaseLlm & { calls: number } {
+  const adapter: ModelAdapter & { calls: number } = {
+    model,
+    provider: 'scripted',
+    calls: 0,
+    async *generate() {
+      adapter.calls += 1;
+      yield answer('half an answer');
+      throw httpError(503);
+    },
+  };
+  return Object.defineProperty(adkShim(adapter), 'calls', { get: () => adapter.calls }) as unknown as BaseLlm & { calls: number };
 }
 
 function config(): SyndicateYamlConfig {
@@ -51,6 +59,7 @@ function config(): SyndicateYamlConfig {
 }
 const turn = (models: Record<string, BaseLlm>) =>
   runSyndicateTurn({
+    ...runtimeOption(),
     config: config(),
     parts: [{ text: 'hello' }],
     appName: 'a',
@@ -75,7 +84,7 @@ test('isProviderFailure: 5xx, 429 and resets count; a 4xx and a cancellation do 
   assert.equal(isProviderFailure(Object.assign(new Error('stop'), { name: 'AbortError' })), false);
 });
 
-test('a provider-side failure is answered by the fallback model', async () => {
+forEachRuntime('a provider-side failure is answered by the fallback model', async () => {
   const primary = new ScriptedLlm('scripted/primary', () => {
     throw httpError(503);
   });
@@ -86,7 +95,7 @@ test('a provider-side failure is answered by the fallback model', async () => {
   assert.deepEqual([primary.calls, backup.calls], [1, 1]);
 });
 
-test("the request's own error (a 400) is not redirected to the fallback", async () => {
+forEachRuntime("the request's own error (a 400) is not redirected to the fallback", async () => {
   const primary = new ScriptedLlm('scripted/primary', () => {
     throw httpError(400);
   });
@@ -96,15 +105,15 @@ test("the request's own error (a 400) is not redirected to the fallback", async 
   assert.equal(backup.calls, 0);
 });
 
-test('a stream that already produced text is never replayed on the fallback', async () => {
-  const primary = new MidstreamFailure('scripted/primary');
+forEachRuntime('a stream that already produced text is never replayed on the fallback', async () => {
+  const primary = midstreamFailure('scripted/primary');
   const backup = new ScriptedLlm('scripted/backup', () => text('never'));
   const r = await turn({ primary, backup });
   assert.equal(r.status, 'failed');
   assert.equal(backup.calls, 0);
 });
 
-test('after MODEL_BREAKER_THRESHOLD failures the primary is skipped until the cooldown ends', async () => {
+forEachRuntime('after MODEL_BREAKER_THRESHOLD failures the primary is skipped until the cooldown ends', async () => {
   process.env.MODEL_BREAKER_THRESHOLD = '2';
   const primary = new ScriptedLlm('scripted/primary', () => {
     throw httpError(503);
@@ -132,7 +141,7 @@ test('schema: fallback_model is a model id on any agent', () => {
 const errorResponse = (status: number) => providerErrorResponse(httpError(status), 'SCRIPTED_ERROR');
 const PRIMARY_PROVIDER = providerForModel('scripted/primary');
 
-test('a retryable error response is answered by the fallback, and the breaker counts the failure', async () => {
+forEachRuntime('a retryable error response is answered by the fallback, and the breaker counts the failure', async () => {
   process.env.MODEL_BREAKER_THRESHOLD = '1';
   const primary = new ScriptedLlm('scripted/primary', () => errorResponse(503));
   const backup = new ScriptedLlm('scripted/backup', () => text('from the backup'));
@@ -144,7 +153,7 @@ test('a retryable error response is answered by the fallback, and the breaker co
   assert.equal(circuitOpen(PRIMARY_PROVIDER), true, 'the failure was recorded on the breaker');
 });
 
-test('a non-retryable error response is passed on, and is never recorded as a success', async () => {
+forEachRuntime('a non-retryable error response is passed on, and is never recorded as a success', async () => {
   process.env.MODEL_BREAKER_THRESHOLD = '2';
   const statuses = [503, 400, 503];
   const primary = new ScriptedLlm('scripted/primary', (_req, n) => errorResponse(statuses[n - 1]));
@@ -161,7 +170,7 @@ test('a non-retryable error response is passed on, and is never recorded as a su
   assert.equal(circuitOpen(PRIMARY_PROVIDER), true, 'the 400 did not reset the count: two failures opened it');
 });
 
-test('an error response after content is passed on, never replayed on the fallback', async () => {
+forEachRuntime('an error response after content is passed on, never replayed on the fallback', async () => {
   process.env.MODEL_BREAKER_THRESHOLD = '1';
   const partial = { content: { role: 'model', parts: [{ text: 'half an answer' }] }, partial: true } as LlmResponse;
   const primary = new ScriptedLlm('scripted/primary', () => [partial, errorResponse(503)]);

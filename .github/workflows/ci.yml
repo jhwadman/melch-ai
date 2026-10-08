@@ -30,7 +30,14 @@ jobs:
       - run: npm ci
       - name: typecheck
         run: npx tsc --noEmit
+      # The turn-level suites run every case on both runtimes in each run
+      # (tests/helpers/runtime.ts); the second run also puts every other
+      # suite on the native runtime by default (ADR 0045, G2).
       - name: offline test suite (no network, no keys)
+        run: npm test
+      - name: offline test suite with native as the default runtime
+        env:
+          MELCHIZEDEK_RUNTIME: native
         run: npm test
       - name: stored session shapes are unchanged
         run: npm run fixtures:sessions:check
@@ -103,6 +110,11 @@ jobs:
       - name: storage integration suite (creates and drops its own database)
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+        run: node --disable-warning=DEP0040 --experimental-strip-types --test tests/postgresStorage.test.ts
+      - name: storage integration suite with native as the default runtime
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+          MELCHIZEDEK_RUNTIME: native
         run: node --disable-warning=DEP0040 --experimental-strip-types --test tests/postgresStorage.test.ts
 
   audit:

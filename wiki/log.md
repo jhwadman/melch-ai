@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/compileNative.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0084-dual-runtime-suites-in-every-test-run.md —depends_on→ /decisions/0073-one-agent-spec-and-a-runtime-flag.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0084-dual-runtime-suites-in-every-test-run.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0084-dual-runtime-suites-in-every-test-run.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md —explains→ /decisions/0077-native-approvals-port-the-confirmation-processor.md
 
 by claude-code/claude-opus-5-5

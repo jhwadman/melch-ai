@@ -33,6 +33,15 @@
  *     response passes through it first, as ADK's reflect-and-retry model
  *     plugin sees it: a retry may stand in its place, or the step may end on
  *     the plugin's UNKNOWN_ERROR event (lib/runtime/native/selfCorrection.ts).
+ *   - A THROWN FAILURE. The contract forbids an adapter to throw, but a
+ *     leaf that does (an ADK-era model class) is read as ADK reads it. With
+ *     a `redirect`, a provider-side failure (errorDecision, lib/models/
+ *     errorResponse.ts) is handed to it as a retryable failed final, so the
+ *     fallback answers when nothing was produced yet (FallbackLlm). Any
+ *     other thrown Error ends the step on ADK's error event for it
+ *     (runAndHandleError): UNKNOWN_ERROR, or the code a JSON error message
+ *     names, with the message, key-shaped text scrubbed. A throw that is
+ *     not an Error, or one while the turn is stopping, is rethrown.
  *   - STORAGE. A final event is appended through the SessionService, which
  *     applies the store's own rules (trimming, state). A partial event is
  *     handed to the caller for streaming and stored nowhere.
@@ -48,6 +57,7 @@ import { randomUUID } from 'node:crypto';
 import type { LlmResponse } from '@google/adk';
 
 import type { FinalModelResponse, ModelAdapter, ModelError, ModelRequest, ModelResponse, ToolCallPart } from '../../models/contract.ts';
+import { errorDecision, errorText } from '../../models/errorResponse.ts';
 import { modelResponseToLlmResponse } from '../../models/genaiMapping.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import { traceLlmGeneration } from '../../observability/tracer.ts';
@@ -165,11 +175,27 @@ function makesEvent(response: LlmResponse): boolean {
   return !((!response.content || response.content.parts?.length === 0) && !response.errorCode && !response.interrupted && !usageOnly);
 }
 
+/** What ADK stores for a model call that threw: UNKNOWN_ERROR, or the code and message of a JSON error body. */
+function thrownModelError(err: Error): { code: string; message: string } {
+  let code = 'UNKNOWN_ERROR';
+  let message = err.message;
+  try {
+    const body = JSON.parse(err.message) as { error?: { code?: unknown; message?: unknown } } | null;
+    if (body?.error) {
+      code = String(body.error.code || 'UNKNOWN_ERROR');
+      if (typeof body.error.message === 'string' && body.error.message) message = body.error.message;
+    }
+  } catch {
+    // Not JSON: the message as it is.
+  }
+  return { code, message: errorText(message) };
+}
+
 /**
  * One model step for `agent`. Never throws for a failed call: the error is
- * on the result and on the stored event, as on the ADK runtime. Throws when
- * the request cannot be built (as ADK does) or when the adapter throws,
- * which the contract forbids.
+ * on the result and on the stored event, as on the ADK runtime, also when
+ * the adapter throws an Error, which the contract forbids. Throws when the
+ * request cannot be built (as ADK does).
  */
 export async function runModelStep(options: ModelStepOptions): Promise<ModelStepResult> {
   const { agent, session, sessions } = options;
@@ -198,69 +224,98 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
 
   // The tracer reads LlmResponses, as on the shim; the contract response each came from rides beside it.
   const sources = new WeakMap<LlmResponse, ModelResponse>();
+  // What the adapter itself threw, as opposed to the store or a callback.
+  let thrown: { error: unknown } | undefined;
   async function* inner(): AsyncGenerator<LlmResponse, void> {
-    for await (const response of adapter.generate(request)) {
-      const mapped = modelResponseToLlmResponse(response);
-      sources.set(mapped, response);
-      yield mapped;
+    try {
+      for await (const response of adapter.generate(request)) {
+        const mapped = modelResponseToLlmResponse(response);
+        sources.set(mapped, response);
+        yield mapped;
+      }
+    } catch (err) {
+      thrown = { error: err };
+      throw err;
     }
   }
 
   let produced = false;
-  for await (const traced of traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, inner())) {
-    if (signal?.aborted) return { ...result, stopped: stopOf() };
-    const source = sources.get(traced);
-    if (!source) {
-      // A refusal the tracer made in place of the call: the turn has stopped.
-      return { ...result, stopped: { code: String(traced.errorCode), message: String(traced.errorMessage ?? '') } };
+  try {
+    return await readResponses();
+  } catch (err) {
+    // An adapter that threw (see the header): FallbackLlm's catch.
+    if (thrown?.error !== err || signal?.aborted) throw err;
+    const decision = errorDecision(err);
+    if (options.redirect && decision.retryable) {
+      const error: ModelError = { code: 'PROVIDER_ERROR', message: errorText(err), retryable: true, ...(decision.status !== undefined ? { status: decision.status } : {}) };
+      const failed: FinalModelResponse = { partial: false, parts: [], finishReason: 'error', error };
+      if (options.redirect(failed, produced)) return { ...result, response: failed, redirected: error };
     }
-    // Leaving the loop closes this call (and its span) before a fallback's opens.
-    if (!source.partial && source.error && options.redirect?.(source, produced)) return { ...result, response: source, redirected: source.error };
-    produced = true;
-    // Self-correction sees the response as ADK's afterModelCallback does: it may stand a retry in its place, or end the step.
-    const corrected = options.correction?.afterModel(traced) ?? { response: traced, replaced: false };
-    if ('failed' in corrected) {
-      // ADK's runAndHandleError: a callback that threw ends the step on an error event of its own.
-      const { code, message } = corrected.failed;
-      const event = createTurnEvent({ invocationId: options.invocationId, author: agent.name, errorCode: code, errorMessage: message });
-      options.beforeAppend?.(event);
-      const stored = await sessions.append(session, event);
-      return { ...result, event: stored, ...(source.partial ? {} : { response: source }), error: { code, message, retryable: false } };
-    }
-    const llmResponse = corrected.response;
-    if (!makesEvent(llmResponse)) {
-      if (!source.partial) result.response = source;
-      continue;
-    }
-    const event = createTurnEvent({ ...base, ...next, actions: base.actions, ...(llmResponse as Partial<TurnEvent>) });
-    next = { id: newEventId(), timestamp: Date.now() };
-
-    if (source.partial) {
-      for (const part of source.parts) if (part.type === 'thinking') result.thinking += part.text;
-      options.onPartial?.(event);
-      continue;
-    }
-
-    const calls = getFunctionCalls(event);
-    const setModelResponse = calls.find((c) => c.name === SET_MODEL_RESPONSE);
-    if (event.content && setModelResponse) {
-      event.content.parts = [{ text: JSON.stringify(setModelResponse.args) }];
-      event.actions.skipSummarization = true;
-    } else if (calls.length > 0) {
-      for (const call of calls) if (!call.id) call.id = `${ADK_CALL_ID_PREFIX}${randomUUID()}`;
-      event.longRunningToolIds = [
-        ...new Set(calls.filter((c) => c.name && c.id && tools.has(c.name) && isLongRunning(tools.get(c.name))).map((c) => c.id as string)),
-      ];
-    }
+    if (!(err instanceof Error)) throw err;
+    // ADK's runAndHandleError: the step ends on an error event of its own.
+    const { code, message } = thrownModelError(err);
+    const event = createTurnEvent({ invocationId: options.invocationId, author: agent.name, errorCode: code, errorMessage: message });
     options.beforeAppend?.(event);
-
     const stored = await sessions.append(session, event);
-    result.event = stored;
-    result.response = source;
-    if (source.error && !corrected.replaced) result.error = source.error;
-    result.text = (stored.content?.parts ?? []).filter((p) => !p.thought && typeof p.text === 'string').map((p) => p.text).join('');
-    result.toolCalls = getFunctionCalls(stored).map((c) => ({ type: 'toolCall', id: c.id as string, name: c.name ?? '', args: c.args ?? {} }));
-    result.longRunningToolIds = [...(stored.longRunningToolIds ?? [])];
+    return { ...result, event: stored, error: { code, message, retryable: false } };
   }
-  return result;
+
+  async function readResponses(): Promise<ModelStepResult> {
+    for await (const traced of traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, inner())) {
+      if (signal?.aborted) return { ...result, stopped: stopOf() };
+      const source = sources.get(traced);
+      if (!source) {
+        // A refusal the tracer made in place of the call: the turn has stopped.
+        return { ...result, stopped: { code: String(traced.errorCode), message: String(traced.errorMessage ?? '') } };
+      }
+      // Leaving the loop closes this call (and its span) before a fallback's opens.
+      if (!source.partial && source.error && options.redirect?.(source, produced)) return { ...result, response: source, redirected: source.error };
+      produced = true;
+      // Self-correction sees the response as ADK's afterModelCallback does: it may stand a retry in its place, or end the step.
+      const corrected = options.correction?.afterModel(traced) ?? { response: traced, replaced: false };
+      if ('failed' in corrected) {
+        // ADK's runAndHandleError: a callback that threw ends the step on an error event of its own.
+        const { code, message } = corrected.failed;
+        const event = createTurnEvent({ invocationId: options.invocationId, author: agent.name, errorCode: code, errorMessage: message });
+        options.beforeAppend?.(event);
+        const stored = await sessions.append(session, event);
+        return { ...result, event: stored, ...(source.partial ? {} : { response: source }), error: { code, message, retryable: false } };
+      }
+      const llmResponse = corrected.response;
+      if (!makesEvent(llmResponse)) {
+        if (!source.partial) result.response = source;
+        continue;
+      }
+      const event = createTurnEvent({ ...base, ...next, actions: base.actions, ...(llmResponse as Partial<TurnEvent>) });
+      next = { id: newEventId(), timestamp: Date.now() };
+
+      if (source.partial) {
+        for (const part of source.parts) if (part.type === 'thinking') result.thinking += part.text;
+        options.onPartial?.(event);
+        continue;
+      }
+
+      const calls = getFunctionCalls(event);
+      const setModelResponse = calls.find((c) => c.name === SET_MODEL_RESPONSE);
+      if (event.content && setModelResponse) {
+        event.content.parts = [{ text: JSON.stringify(setModelResponse.args) }];
+        event.actions.skipSummarization = true;
+      } else if (calls.length > 0) {
+        for (const call of calls) if (!call.id) call.id = `${ADK_CALL_ID_PREFIX}${randomUUID()}`;
+        event.longRunningToolIds = [
+          ...new Set(calls.filter((c) => c.name && c.id && tools.has(c.name) && isLongRunning(tools.get(c.name))).map((c) => c.id as string)),
+        ];
+      }
+      options.beforeAppend?.(event);
+
+      const stored = await sessions.append(session, event);
+      result.event = stored;
+      result.response = source;
+      if (source.error && !corrected.replaced) result.error = source.error;
+      result.text = (stored.content?.parts ?? []).filter((p) => !p.thought && typeof p.text === 'string').map((p) => p.text).join('');
+      result.toolCalls = getFunctionCalls(stored).map((c) => ({ type: 'toolCall', id: c.id as string, name: c.name ?? '', args: c.args ?? {} }));
+      result.longRunningToolIds = [...(stored.longRunningToolIds ?? [])];
+    }
+    return result;
+  }
 }
