@@ -3,6 +3,30 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —depends_on→ /decisions/0051-own-tool-base-behind-an-adk-wrapper.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —constrains→ module:lib/tools/examples.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —constrains→ module:lib/a2a/remoteAgent.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —constrains→ module:lib/tools/mcpToolFactory.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —constrains→ module:lib/tools/adkTool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0062-server-side-tools-as-markers.md —constrains→ module:lib/models/schemaNormalize.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0061-json-mode-on-the-contract.md —supersedes→ /decisions/0048-engine-owned-model-contract.md
 
 by claude-code/claude-opus-5-5

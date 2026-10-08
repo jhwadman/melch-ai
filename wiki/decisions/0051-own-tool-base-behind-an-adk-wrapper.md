@@ -49,6 +49,8 @@ The native runtime has to run the same tools without ADK, and the ADK runtime ha
    - a record keeps its value schema, while a boolean `additionalProperties` is dropped as before.
 8. **Result capping is opt-in.** `capResult` and `MAX_RESULT_CHARS` (20,000, the limit the OpenAPI and MCP tools already use) are shared. A contract sets `maxResultChars` to cap its results, and no built-in tool sets it.
 
+> **Note (2026-10-08):** The server-side sentinels are own markers now, and MCP and remote agent tools own Tools, see [ADR 0062](/decisions/0062-server-side-tools-as-markers.md).
+
 > **Note (2026-10-07):** Item 6's exception is closed. `load_memory` is an own Tool and `preload_memory` an own InstructionTool, and the context gains `userContent` and `searchMemory`, see [ADR 0059](/decisions/0059-memory-on-the-engines-own-interfaces.md).
 
 ## Alternatives considered
