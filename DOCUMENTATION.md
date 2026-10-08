@@ -1253,21 +1253,28 @@ pinned call once and walks on. Any other message repeats the request and
 runs nothing. On the optional `adk` runtime `runSyndicateTurn` refuses
 such a workflow with `UnsupportedOnRuntimeError` before any model call,
 because ADK's resume starts the node afresh and never runs the pinned
-call. The schema refuses
-a gate on an agent a `map` node runs.
+call. Skill scripts (`skills.scripts: local`) on a node agent pause the
+same way, each `run_skill_script` call waiting for its approval, with the
+minimal script environment of ADR 0086; the `adk` runtime refuses them
+by name. The schema refuses a gate or skill scripts on an agent a `map`
+node runs.
 
-**As a subagent.** A DELEGATE syndicate's `yaml_reference` to a workflow
-syndicate runs the whole graph as the subagent tool, under the entry's
-name and description: the graph's last output is the tool's answer, and
-its events are kept in the subagent's own session, as for any subagent.
-A nested workflow may not have an `ask_user` node (a pause inside a tool
-call cannot reach the caller); it is refused by name. As a dispatch route
-or a workflow node, a workflow syndicate is still its orchestrator alone.
+**Nested.** A `yaml_reference` to a workflow syndicate runs the whole
+graph, under the entry's name and description, wherever it appears: as a
+DELEGATE subagent its last output is the tool's answer; as a plan-dispatch
+route it is the turn's answer, and the conversation keeps the message and
+that answer; as a node of another workflow it is the node's output. The
+graph's events are kept in the entry's own session, as for any subagent.
+A nested workflow may not have an `ask_user` node (a pause inside it
+cannot reach the caller); it is refused by name, as is a `map` over one.
+A workflow node that is a workflow syndicate runs on the native runtime
+only; the `adk` runtime refuses it by name before the session is touched.
 
-**Not yet.** Skill scripts (`skills.scripts: local`) and remote
-`a2a_agent_url` subagents are refused inside a workflow by the schema. An
-`ask_user` tool on a node agent is refused too: use an `ask_user` node. The records are [ADR 0030](./wiki/decisions/0030-workflow-graphs.md) and
-[ADR 0098](./wiki/decisions/0098-workflow-subagent-and-node-approvals.md);
+**Not yet.** Remote `a2a_agent_url` subagents are refused inside a
+workflow by the schema. An `ask_user` tool on a node agent is refused
+too: use an `ask_user` node. The records are [ADR 0030](./wiki/decisions/0030-workflow-graphs.md),
+[ADR 0098](./wiki/decisions/0098-workflow-subagent-and-node-approvals.md) and
+[ADR 0106](./wiki/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md);
 the turn is `lib/workflow/turn.ts`, on the engine's own scheduler
 ([ADR 0095](./wiki/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)),
 and `lib/workflow.ts` compiles the same graph onto ADK's `Workflow` for

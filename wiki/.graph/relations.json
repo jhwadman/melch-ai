@@ -2849,6 +2849,30 @@
       "evidence": "wiki/operations/native-loop-security.md F7: the walk's node-run ceiling, NODE_RUN_LIMIT (ADR 0105); native only, ADK has no ceiling.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0106 Context: ADR 0098 \"left open: a workflow syndicate as a plan-dispatch route or as a workflow node still compiled its orchestrator alone ... and skill scripts stayed refused inside a workflow\"; decision 7 resumes a script through ADR 0098 decision 6.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/overview/workflow-scheduler.md",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-scheduler.md \"As a route or a node\": a dispatch route walks on its child session on both runtimes, a workflow node on native via runWorkflowNode, each walk with its own node-run ceiling (ADR 0106).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0106 decision 7: \"The script environment of ADR 0086 applies unchanged\" to a skill script run on a workflow node.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

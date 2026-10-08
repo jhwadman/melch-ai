@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 869,
-    "edges": 3445,
+    "nodes": 872,
+    "edges": 3467,
     "byKind": {
-      "doc": 168,
+      "doc": 169,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 157,
+      "file": 159,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 742,
+      "links_to": 749,
       "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 843,
+      "imports": 845,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 855,
+      "derives_from": 865,
       "constrains": 199,
       "supersedes": 8,
-      "depends_on": 107,
-      "explains": 36,
+      "depends_on": 109,
+      "explains": 37,
       "mitigates": 3,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3090,
-      "inferred": 355
+      "extracted": 3109,
+      "inferred": 358
     },
     "isolated": 4
   },
@@ -1637,6 +1637,18 @@
       }
     },
     {
+      "id": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "kind": "doc",
+      "label": "ADR 0106: A workflow syndicate runs its whole graph as a dispatch route or a workflow node, on its own child session, and skill scripts pause a workflow node on native",
+      "source": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1297
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1921,7 +1933,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1797
+        "words": 1883
       }
     },
     {
@@ -1945,7 +1957,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4422
+        "words": 4729
       }
     },
     {
@@ -2017,7 +2029,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 1556
+        "words": 1593
       }
     },
     {
@@ -4690,6 +4702,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/workflowNested.test.ts",
+      "kind": "file",
+      "label": "workflowNested.test.ts",
+      "source": "tests/workflowNested.test.ts"
+    },
+    {
       "id": "file:tests/workflowNodeRunLimit.test.ts",
       "kind": "file",
       "label": "workflowNodeRunLimit.test.ts",
@@ -4722,6 +4740,12 @@
       "label": "workflowScheduler.test.ts",
       "source": "tests/workflowScheduler.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/workflowSkillScripts.test.ts",
+      "kind": "file",
+      "label": "workflowSkillScripts.test.ts",
+      "source": "tests/workflowSkillScripts.test.ts"
     },
     {
       "id": "file:tests/workflowSubagent.test.ts",
@@ -4894,7 +4918,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 627
+        "lines": 683
       }
     },
     {
@@ -4912,7 +4936,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 283
+        "lines": 288
       }
     },
     {
@@ -5695,7 +5719,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1209
+        "lines": 1291
       }
     },
     {
@@ -5830,7 +5854,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1012
+        "lines": 1013
       }
     },
     {
@@ -6307,7 +6331,7 @@
       "label": "lib/workflow.ts",
       "source": "lib/workflow.ts",
       "attrs": {
-        "lines": 230
+        "lines": 243
       }
     },
     {
@@ -6316,7 +6340,7 @@
       "label": "lib/workflow/agentNode.ts",
       "source": "lib/workflow/agentNode.ts",
       "attrs": {
-        "lines": 421
+        "lines": 428
       }
     },
     {
@@ -6325,7 +6349,7 @@
       "label": "lib/workflow/graph.ts",
       "source": "lib/workflow/graph.ts",
       "attrs": {
-        "lines": 552
+        "lines": 553
       }
     },
     {
@@ -6388,7 +6412,7 @@
       "label": "lib/workflow/turn.ts",
       "source": "lib/workflow/turn.ts",
       "attrs": {
-        "lines": 262
+        "lines": 362
       }
     },
     {
@@ -14492,6 +14516,104 @@
       "evidence": "/decisions/0105-workflow-node-run-ceiling.md:24"
     },
     {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "file:tests/workflowNested.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "file:tests/workflowSkillScripts.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "module:lib/workflow.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md frontmatter"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:51"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:47"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:31"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/decisions/0105-workflow-node-run-ceiling.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:46"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -18063,6 +18185,13 @@
     },
     {
       "from": "/overview/workflow-agent-node.md",
+      "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-agent-node.md:95"
+    },
+    {
+      "from": "/overview/workflow-agent-node.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18326,6 +18455,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/workflow-scheduler.md:91"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:195"
     },
     {
       "from": "/overview/workflow-scheduler.md",
@@ -18893,6 +19029,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/skill-harness.md:88"
+    },
+    {
+      "from": "/tools/skill-harness.md",
+      "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md:82"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -24286,6 +24429,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/compileAdk.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/compileNative.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26044,6 +26194,13 @@
     {
       "from": "module:lib/workflow.ts",
       "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow.ts"
+    },
+    {
+      "from": "module:lib/workflow.ts",
+      "to": "module:lib/runtime/runtimeFlag.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow.ts"
