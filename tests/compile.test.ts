@@ -361,3 +361,36 @@ test('context: and mode: task compile for the native loop, and the same spec bui
   // The same spec builds for ADK.
   assert.ok(compileAdk(task) instanceof LlmAgent);
 });
+
+test('a yaml_reference chain that reaches itself, or goes past 16 levels, is refused by name, never recursed until the stack gives out (WS5-5)', async () => {
+  const syndicateOf = (name: string, ref?: string): SyndicateYamlConfig =>
+    ({
+      syndicate_name: name,
+      orchestrator: { name: `${name}Boss`, model: 'scripted/boss', instruction: 'x' },
+      subagents: ref ? [{ name: `${name}Sub`, description: 'd', yaml_reference: ref }] : [],
+    }) as SyndicateYamlConfig;
+  const opts = (files: Record<string, SyndicateYamlConfig>) => ({ loadNested: (ref: string) => files[ref] as SyndicateYamlConfig, log: () => {} });
+
+  const self = syndicateOf('Self', 'self.yaml');
+  await assert.rejects(compileSpec(self, opts({ 'self.yaml': self })), /self\.yaml: a nested syndicate reaches itself \(self\.yaml → self\.yaml\)/);
+
+  const files = { 'a.yaml': syndicateOf('A', 'b.yaml'), 'b.yaml': syndicateOf('B', 'a.yaml') };
+  await assert.rejects(compileSpec(syndicateOf('Root', 'a.yaml'), opts(files)), /a\.yaml: a nested syndicate reaches itself \(a\.yaml → b\.yaml → a\.yaml\)/);
+  // A dispatch route, a single subagent entry, takes the same check.
+  await assert.rejects(compileSubagentSpec({ name: 'Route', description: 'd', yaml_reference: 'a.yaml' } as never, opts(files)), /reaches itself/);
+
+  const deep: Record<string, SyndicateYamlConfig> = {};
+  for (let i = 0; i < 20; i++) deep[`d${i}.yaml`] = syndicateOf(`D${i}`, i < 19 ? `d${i + 1}.yaml` : undefined);
+  await assert.rejects(compileSpec(syndicateOf('Root', 'd0.yaml'), opts(deep)), /nested syndicates go deeper than 16 levels/);
+
+  // A chain that ends compiles, and one syndicate referenced twice side by side is no cycle.
+  const twice = {
+    ...syndicateOf('Root'),
+    subagents: [
+      { name: 'One', description: 'd', yaml_reference: 'leaf.yaml' },
+      { name: 'Two', description: 'd', yaml_reference: 'leaf.yaml' },
+    ],
+  } as SyndicateYamlConfig;
+  const spec = await compileSpec(twice, opts({ 'leaf.yaml': syndicateOf('Leaf') }));
+  assert.equal(spec.tools.length, 2);
+});

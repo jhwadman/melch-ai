@@ -62,7 +62,9 @@
  *      nothing happens.
  *   2. The requests they answer: `adk_request_credential` calls this agent
  *      made, by id. An answer naming no such request is ignored, as ADK
- *      ignores it.
+ *      ignores it. So is an answer to a request an earlier grant already
+ *      bound (step 3): a replayed grant runs nothing, where ADK would run
+ *      the paused call again (WS5-5).
  *   3. The binding. ADK's answer carries the authorization response (a code
  *      or the redirect URL), which ADK exchanges in-process with the client
  *      secret its request event stored. Here the server's callback route has
@@ -71,8 +73,9 @@
  *      `{ credentialKey, granted: true }`, bound to the request by its
  *      credentialKey. An answer that does not bind is ignored.
  *   4. The paused calls the bound requests name (`function_call_id`, ADK's
- *      toolset requests aside) run again, from the latest event that made
- *      them, through the loop's own call path. The tool now reads its grant
+ *      toolset requests aside) run again, from the latest event this agent
+ *      authored that made them (ADK reads any author's; a call forged into
+ *      a user event never runs), through the loop's own call path. The tool now reads its grant
  *      through ctx.accessToken. The response is stored before the step
  *      builds its request. A later step finds the agent's own events last,
  *      so the call runs once.
@@ -273,6 +276,14 @@ export async function grantedCalls(agent: NativeAgent, scope: Scope): Promise<Gr
   const answers = new Map<string, unknown>();
   for (const r of getFunctionResponses(last)) if (r.name === REQUEST_CREDENTIAL_CALL && r.id) answers.set(r.id, r.response);
   if (answers.size === 0) return undefined;
+  // The answers earlier events gave the same requests: one that bound closed its request (below).
+  const earlier = new Map<string, unknown[]>();
+  for (const event of events) {
+    if (event === last) break;
+    for (const r of getFunctionResponses(event)) {
+      if (r.name === REQUEST_CREDENTIAL_CALL && r.id && answers.has(r.id)) earlier.set(r.id, [...(earlier.get(r.id) ?? []), r.response]);
+    }
+  }
 
   // The requests this agent made, by id.
   const requests = new Map<string, { config: Record<string, unknown>; args: Record<string, unknown> }>();
@@ -288,13 +299,17 @@ export async function grantedCalls(agent: NativeAgent, scope: Scope): Promise<Gr
   for (const [id, response] of answers) {
     const request = requests.get(id);
     if (!request || !bindsGrant(request.config, response)) continue;
+    // A request a grant already bound is closed (WS5-5): a replayed grant runs nothing, as a replayed approval runs nothing. ADK resumes it again.
+    if ((earlier.get(id) ?? []).some((before) => bindsGrant(request.config, before))) continue;
     const callId = request.args.function_call_id ?? request.args.functionCallId;
     if (typeof callId === 'string' && callId && !callId.startsWith(TOOLSET_AUTH_CREDENTIAL_ID_PREFIX)) resume.add(callId);
   }
   if (resume.size === 0) return undefined;
 
-  // As ADK: the latest event before the answer that made any of the calls, those calls only.
+  // As ADK: the latest event before the answer that made any of the calls, those calls only. Only one this agent authored (WS5-5):
+  // ADK takes any author's, so a call forged into a user event with the paused call's id would run with the forged arguments.
   for (let i = events.length - 2; i >= 0; i--) {
+    if (events[i]?.author !== agent.name) continue;
     const calls = getFunctionCalls(events[i] as TurnEvent);
     if (!calls.some((c) => c.id && resume.has(c.id))) continue;
     return { calls: calls.filter((c) => c.id && resume.has(c.id)), tools: await toolsOf(agent, scope) };

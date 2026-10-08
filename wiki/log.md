@@ -19,6 +19,50 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —constrains→ /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /operations/native-loop-security.md —explains→ /overview/native-loop.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /operations/native-loop-security.md —explains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —constrains→ module:lib/runtime/credentials.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —constrains→ module:lib/runtime/valueDepth.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —constrains→ module:lib/runtime/native/step.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0101-native-loop-security-gate.md —constrains→ module:lib/models/genaiMapping.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0100-gemini-row-asserted-on-the-engine-adapter.md —constrains→ module:lib/models/genaiMapping.ts
 
 by claude-code/claude-opus-5-5

@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 858,
-    "edges": 3277,
+    "nodes": 862,
+    "edges": 3333,
     "byKind": {
-      "doc": 164,
+      "doc": 166,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 152,
+      "file": 153,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 196,
+      "module": 197,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 683,
+      "links_to": 697,
       "requires_env": 170,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 808,
+      "imports": 810,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 804,
-      "constrains": 186,
+      "derives_from": 833,
+      "constrains": 194,
       "supersedes": 8,
-      "depends_on": 105,
-      "explains": 29,
+      "depends_on": 106,
+      "explains": 31,
       "mitigates": 2,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2945,
-      "inferred": 332
+      "extracted": 2990,
+      "inferred": 343
     },
     "isolated": 4
   },
@@ -1589,6 +1589,18 @@
       }
     },
     {
+      "id": "/decisions/0101-native-loop-security-gate.md",
+      "kind": "doc",
+      "label": "ADR 0101: the native loop's security gate, and where it departs from ADK to fail safe",
+      "source": "/decisions/0101-native-loop-security-gate.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 896
+      }
+    },
+    {
       "id": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "kind": "doc",
       "label": "ADR 0103: A map entry refuses retry and timeout, a node's retry spells exceptions and jitter, and native signs the reflection call on Gemini",
@@ -1753,7 +1765,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8015
+        "words": 8192
       }
     },
     {
@@ -1801,7 +1813,19 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1079
+        "words": 1253
+      }
+    },
+    {
+      "id": "/operations/native-loop-security.md",
+      "kind": "doc",
+      "label": "Native loop security",
+      "source": "/operations/native-loop-security.md",
+      "attrs": {
+        "type": "runbook",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 2924
       }
     },
     {
@@ -1861,7 +1885,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6526
+        "words": 6729
       }
     },
     {
@@ -1993,7 +2017,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2414
+        "words": 2448
       }
     },
     {
@@ -4343,6 +4367,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nativeFuzz.test.ts",
+      "kind": "file",
+      "label": "nativeFuzz.test.ts",
+      "source": "tests/nativeFuzz.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/nativeLedger.test.ts",
       "kind": "file",
       "label": "nativeLedger.test.ts",
@@ -4805,7 +4836,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 603
+        "lines": 627
       }
     },
     {
@@ -5138,7 +5169,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 993
+        "lines": 1064
       }
     },
     {
@@ -5435,7 +5466,7 @@
       "label": "lib/runtime/credentials.ts",
       "source": "lib/runtime/credentials.ts",
       "attrs": {
-        "lines": 102
+        "lines": 106
       }
     },
     {
@@ -5471,7 +5502,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 832
+        "lines": 849
       }
     },
     {
@@ -5507,7 +5538,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 304
+        "lines": 319
       }
     },
     {
@@ -5534,7 +5565,7 @@
       "label": "lib/runtime/native/step.ts",
       "source": "lib/runtime/native/step.ts",
       "attrs": {
-        "lines": 344
+        "lines": 346
       }
     },
     {
@@ -5616,6 +5647,15 @@
       "source": "lib/runtime/turnControl.ts",
       "attrs": {
         "lines": 165
+      }
+    },
+    {
+      "id": "module:lib/runtime/valueDepth.ts",
+      "kind": "module",
+      "label": "lib/runtime/valueDepth.ts",
+      "source": "lib/runtime/valueDepth.ts",
+      "attrs": {
+        "lines": 40
       }
     },
     {
@@ -13883,6 +13923,69 @@
       "evidence": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md:35"
     },
     {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "file:tests/nativeFuzz.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md frontmatter"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md frontmatter"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md frontmatter"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/credentials.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md frontmatter"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md frontmatter"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md frontmatter"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "module:lib/runtime/valueDepth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md frontmatter"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md:27"
+    },
+    {
+      "from": "/decisions/0101-native-loop-security-gate.md",
+      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0101-native-loop-security-gate.md:27"
+    },
+    {
       "from": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "to": "file:tests/geminiTurnParity.test.ts",
       "rel": "derives_from",
@@ -15599,6 +15702,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/runtime/valueDepth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "module:lib/tools/tool.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -15609,189 +15719,196 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:80"
+      "evidence": "/models/model-contract.md:81"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:50"
+      "evidence": "/models/model-contract.md:51"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:97"
+      "evidence": "/models/model-contract.md:98"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:34"
+      "evidence": "/models/model-contract.md:35"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:34"
+      "evidence": "/models/model-contract.md:35"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:105"
+      "evidence": "/models/model-contract.md:106"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:34"
+      "evidence": "/models/model-contract.md:35"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:210"
+      "evidence": "/models/model-contract.md:211"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:127"
+      "evidence": "/models/model-contract.md:128"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:204"
+      "evidence": "/models/model-contract.md:205"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:375"
+      "evidence": "/models/model-contract.md:383"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:287"
+      "evidence": "/models/model-contract.md:288"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0061-json-mode-on-the-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:104"
+      "evidence": "/models/model-contract.md:105"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0062-server-side-tools-as-markers.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:87"
+      "evidence": "/models/model-contract.md:88"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:178"
+      "evidence": "/models/model-contract.md:179"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:34"
+      "evidence": "/models/model-contract.md:35"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:372"
+      "evidence": "/models/model-contract.md:373"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:291"
+      "evidence": "/models/model-contract.md:292"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:178"
+      "evidence": "/models/model-contract.md:179"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0101-native-loop-security-gate.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:376"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:377"
+      "evidence": "/models/model-contract.md:385"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:305"
+      "evidence": "/models/model-contract.md:306"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:36"
+      "evidence": "/models/model-contract.md:37"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:264"
+      "evidence": "/models/model-contract.md:265"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/claude-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:194"
+      "evidence": "/models/model-contract.md:195"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:36"
+      "evidence": "/models/model-contract.md:37"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:260"
+      "evidence": "/models/model-contract.md:261"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:83"
+      "evidence": "/models/model-contract.md:84"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16243,6 +16360,13 @@
     },
     {
       "from": "/operations/failure-modes.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md frontmatter"
+    },
+    {
+      "from": "/operations/failure-modes.md",
       "to": "module:lib/config.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -16271,38 +16395,213 @@
     },
     {
       "from": "/operations/failure-modes.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md frontmatter"
+    },
+    {
+      "from": "/operations/failure-modes.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:56"
+      "evidence": "/operations/failure-modes.md:58"
+    },
+    {
+      "from": "/operations/failure-modes.md",
+      "to": "/operations/native-loop-security.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md:66"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/overview/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:36"
+      "evidence": "/operations/failure-modes.md:38"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:28"
+      "evidence": "/operations/failure-modes.md:30"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:64"
+      "evidence": "/operations/failure-modes.md:76"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:64"
+      "evidence": "/operations/failure-modes.md:76"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "file:tests/nativeFuzz.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/credentials.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/native/compaction.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/runtime/valueDepth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md frontmatter"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:135"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:34"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0088-native-parity-followups.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:101"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:34"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0101-native-loop-security-gate.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:34"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:65"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:34"
     },
     {
       "from": "/operations/parity-harness.md",
@@ -16733,6 +17032,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/nativeFuzz.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/nativeLedger.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -16769,6 +17075,13 @@
     {
       "from": "/overview/native-loop.md",
       "to": "file:tests/oauthConsent.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/compile.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md frontmatter"
@@ -16887,241 +17200,262 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/valueDepth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:163"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0028-approval-gates.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:228"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0031-ask-user.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:262"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0033-context-task-code.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:50"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0034-self-correction.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:189"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:141"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:43"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:99"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:224"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:45"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:45"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:250"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:43"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:45"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:189"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:317"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/overview/native-loop.md:230"
-    },
-    {
-      "from": "/overview/native-loop.md",
-      "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:169"
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:234"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0031-ask-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:268"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0033-context-task-code.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:53"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0034-self-correction.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:195"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:146"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:46"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:104"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:230"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:48"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:48"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:256"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:46"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:48"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:195"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:323"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:236"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:175"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:264"
+      "evidence": "/overview/native-loop.md:270"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:217"
+      "evidence": "/overview/native-loop.md:223"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0084-dual-runtime-suites-in-every-test-run.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:302"
+      "evidence": "/overview/native-loop.md:308"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:250"
+      "evidence": "/overview/native-loop.md:256"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:196"
+      "evidence": "/overview/native-loop.md:202"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:193"
+      "evidence": "/overview/native-loop.md:199"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:280"
+      "evidence": "/overview/native-loop.md:286"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:113"
+      "evidence": "/overview/native-loop.md:118"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0101-native-loop-security-gate.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:149"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:197"
+      "evidence": "/overview/native-loop.md:203"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:117"
+      "evidence": "/overview/native-loop.md:122"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:45"
+      "evidence": "/overview/native-loop.md:48"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:79"
+      "evidence": "/overview/native-loop.md:84"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/operations/native-loop-security.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:57"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:76"
+      "evidence": "/overview/native-loop.md:81"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:280"
+      "evidence": "/overview/native-loop.md:286"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:62"
+      "evidence": "/overview/native-loop.md:67"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:61"
+      "evidence": "/overview/native-loop.md:66"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -18284,6 +18618,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:65"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0101-native-loop-security-gate.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:70"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -21632,6 +21973,13 @@
       "evidence": "lib/models/genaiMapping.ts"
     },
     {
+      "from": "module:lib/models/genaiMapping.ts",
+      "to": "module:lib/runtime/valueDepth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/genaiMapping.ts"
+    },
+    {
       "from": "module:lib/models/gptAdapter.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -22656,6 +23004,13 @@
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/runtime/turnControl.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/valueDepth.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/agentLoop.ts"

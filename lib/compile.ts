@@ -440,6 +440,26 @@ const asTools = (tools: unknown[]): SpecTool[] => tools.map((tool) => ({ kind: '
  * cannot reach the caller (ADR 0028), so one that declares approval gates is
  * refused.
  */
+/** Where the yaml_reference chain a compile is inside is kept: an own symbol on the options, so a spread copy keeps it. */
+const NESTING = Symbol('melchizedek.compile.nesting');
+
+/** The deepest a yaml_reference chain may go: well past any syndicate the engine ships, short of the stack. */
+const MAX_NESTING_DEPTH = 16;
+
+/**
+ * The options a nested `ref` compiles with: `opts` and the chain of
+ * references above it. A reference already on the chain (a syndicate that
+ * reaches itself) or a chain past MAX_NESTING_DEPTH is refused by name (WS5-5,
+ * ADR 0101): the compile would otherwise recurse until the stack gave out,
+ * which took the process with it.
+ */
+function nestedOptions(ref: string, opts: CompileOptions): CompileOptions {
+  const chain = ((opts as { [NESTING]?: readonly string[] })[NESTING] ?? []) as readonly string[];
+  if (chain.includes(ref)) throw new Error(`${ref}: a nested syndicate reaches itself (${[...chain, ref].join(' → ')}); a yaml_reference chain must end.`);
+  if (chain.length >= MAX_NESTING_DEPTH) throw new Error(`${ref}: nested syndicates go deeper than ${MAX_NESTING_DEPTH} levels (${[...chain, ref].join(' → ')}).`);
+  return { ...opts, [NESTING]: [...chain, ref] } as CompileOptions;
+}
+
 function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlConfig {
   opts.log?.(`Loading nested syndicate: ${ref}`);
   const nested = (opts.loadNested ?? loadSyndicate)(ref);
@@ -501,7 +521,10 @@ export async function compileSubagentSpec(subCfg: SubagentYamlConfig, opts: Comp
     // (compileSpec) or a dispatch route (lib/runtime/syndicateTurn.ts).
     throw new Error(`'${subCfg.name}' is a remote A2A agent (a2a_agent_url) and has no local agent to compile.`);
   }
-  if (subCfg.yaml_reference) return compileSpec(loadNestedSyndicate(subCfg.yaml_reference, opts), opts, subCfg.name, subCfg.description);
+  if (subCfg.yaml_reference) {
+    const nestedOpts = nestedOptions(subCfg.yaml_reference, opts);
+    return compileSpec(loadNestedSyndicate(subCfg.yaml_reference, nestedOpts), nestedOpts, subCfg.name, subCfg.description);
+  }
 
   const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples, subCfg.mcp_tools), subCfg.require_approval, subCfg.name);
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
@@ -541,9 +564,10 @@ export async function compileSpec(
             return { kind: 'remote', name: subCfg.name, description: subCfg.description, url: subCfg.a2a_agent_url };
           }
           if (subCfg.yaml_reference) {
-            const nested = loadNestedSyndicate(subCfg.yaml_reference, opts);
-            if (isWorkflowSyndicate(nested)) return { kind: 'workflow', workflow: await compileWorkflowSpec(nested, opts, subCfg.name, subCfg.description, subCfg.yaml_reference) };
-            return { kind: 'agent', agent: await compileSpec(nested, opts, subCfg.name, subCfg.description) };
+            const nestedOpts = nestedOptions(subCfg.yaml_reference, opts);
+            const nested = loadNestedSyndicate(subCfg.yaml_reference, nestedOpts);
+            if (isWorkflowSyndicate(nested)) return { kind: 'workflow', workflow: await compileWorkflowSpec(nested, nestedOpts, subCfg.name, subCfg.description, subCfg.yaml_reference) };
+            return { kind: 'agent', agent: await compileSpec(nested, nestedOpts, subCfg.name, subCfg.description) };
           }
           return { kind: 'agent', agent: await compileSubagentSpec(subCfg, opts) };
         }),

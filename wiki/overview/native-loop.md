@@ -36,6 +36,9 @@ sources:
   - resource: tests/nativeQuestions.test.ts
   - resource: lib/runtime/native/compaction.ts
   - resource: tests/compaction.test.ts
+  - resource: lib/runtime/valueDepth.ts
+  - resource: lib/compile.ts
+  - resource: tests/nativeFuzz.test.ts
 ---
 
 # Native loop
@@ -50,6 +53,8 @@ Every piece matches the ADK runtime, so a session either runtime wrote is one th
 - `tests/execution.test.ts` does the same for `code_execution: gemini` and `mode: task` ([ADR 0033](/decisions/0033-context-task-code.md)): the same results, stored events and requests on both runtimes, and a task-mode node's events as ADK's workflow stores them.
 - `tests/nativeApprovals.test.ts` runs two-turn approval conversations the same way: a gated call opens the approval, the next message answers it. The stores must hold the same events and the gated tool must run as often. It also resumes an approval ADK stored (the session fixtures) on the loop.
 - `tests/nativeDelegate.test.ts` does the same for delegation: the boundary suite's delegation cases, a nested syndicate and the council example. Every session must hold the same events (the caller's, and each subagent's own), and every model must be sent the same requests.
+
+What a hostile model, tool, message or store can do to the loop, what stops it and the test that proves it is [native loop security](/operations/native-loop-security.md); `tests/nativeFuzz.test.ts` fuzzes the loop and runs the forged answers through `runSyndicateTurn` on both runtimes.
 
 ## The agent
 
@@ -104,7 +109,7 @@ A stopped turn makes no call and no event. When the run's signal has aborted bef
 
 ## The event
 
-Each response becomes ADK's event for it. The base event is created before the call with the run's id, the agent as author and the branch. Each response, mapped as the shim maps it, is merged into it, with a fresh id after the first. Then:
+Each response becomes ADK's event for it. The base event is created before the call with the run's id, the agent as author and the branch. Each response is first held to the contract (`contractModelResponse`, [the model contract](/models/model-contract.md#the-response)): a part the contract does not allow is dropped, and a call's name, id and arguments are coerced. Mapped as the shim maps it, it is merged into the base event, with a fresh id after the first. Then:
 
 - a tool call with no id gets `adk-<uuid>`;
 - a call to a long-running tool (`ask_user`) is listed in `longRunningToolIds`;
@@ -141,6 +146,7 @@ Each step, after any compaction the agent's `context:` calls for (see [Compactio
 1. **The model step.** With `fallback_model`, the step runs once per leaf adapter, by FallbackLlm's rules ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). A retryable failure counts against the primary's circuit. When nothing was produced before it, the failure is not stored, and the fallback answers the same request under its own model id. An open circuit goes straight to the fallback.
 2. **The calls.** The answer's calls run in parallel, each with its own state delta and actions, and their results are kept in call order:
    - a result that is not an object is wrapped `{ result }`, an array `{ results }`;
+   - a result nested deeper than 64 levels answers `{ error: TOO_DEEP_RESULT }` in its place, since every later reader of the session recurses through it (`lib/runtime/valueDepth.ts`, [ADR 0101](/decisions/0101-native-loop-security-gate.md)); ADK keeps it;
    - a call naming no declared tool answers `Function <name> is not found in the toolsDict.`;
    - a tool that throws answers `Error in tool '<name>': <message>`;
    - with tool retries on, those two answer with reflection guidance instead (see [Self-correction](#self-correction));
@@ -252,10 +258,10 @@ With `credentials` (the run's credential store, pinned to its app) each call's `
 Once the server's callback has stored the grant, `runSyndicateTurn` stores the person's next message as the request's answer, `{ credentialKey, granted: true }` (`credentialResponsePart`, `lib/runtime/credentials.ts`). `grantedCalls` in `lib/runtime/native/interrupts.ts` reads it before every step, ahead of the approval resume, as ADK's auth preprocessor runs ahead of request-confirmation:
 
 1. **The answers** are the `adk_request_credential` responses in the last event with content, which must be the user's.
-2. **The requests** are this agent's `adk_request_credential` calls with those ids. An answer naming none, or not granting the request's `credentialKey`, is ignored, as ADK ignores an answer that does not bind.
-3. **The run.** The calls the requests name (`function_call_id`) run again, from the latest event that made them, through the loop's own call path, and their response is stored before the step builds its request. The history keeps the call and its latest answer side by side, as ADK's content processor does, so the model reads the result and not the pending notice. A later step finds the agent's own events last, so the call runs once. A call that asks again pauses the run on its new request.
+2. **The requests** are this agent's `adk_request_credential` calls with those ids. An answer naming none, or not granting the request's `credentialKey`, is ignored, as ADK ignores an answer that does not bind. A request an earlier grant already bound is closed, so a replayed grant runs nothing, as a replayed approval runs nothing; ADK would run the call again ([ADR 0101](/decisions/0101-native-loop-security-gate.md)).
+3. **The run.** The calls the requests name (`function_call_id`) run again, from the latest event this agent authored that made them, through the loop's own call path, and their response is stored before the step builds its request. The history keeps the call and its latest answer side by side, as ADK's content processor does, so the model reads the result and not the pending notice. A later step finds the agent's own events last, so the call runs once. A call that asks again pauses the run on its new request.
 
-ADK's preprocessor differs in one place: its answer carries the authorization response, which it exchanges in-process with the client secret its request event stored. Here the callback route exchanged the code before the message arrived, so the answer carries no credential. On the ADK runtime an open credential request is refused before any model call (`UnsupportedOnRuntimeError`). A delegated subagent's loop gets the parent's credentials but no consent step.
+ADK's preprocessor differs in two places. It re-runs the call from the latest event of any author, so a call forged into a user event under the paused call's id would run with the forged arguments; the loop reads only the agent's own events ([ADR 0101](/decisions/0101-native-loop-security-gate.md)). And its answer carries the authorization response, which it exchanges in-process with the client secret its request event stored. Here the callback route exchanged the code before the message arrived, so the answer carries no credential. On the ADK runtime an open credential request is refused before any model call (`UnsupportedOnRuntimeError`). A delegated subagent's loop gets the parent's credentials but no consent step.
 
 ## Questions
 
@@ -269,7 +275,7 @@ A question opened on either runtime is answered on the other. `tests/questions.t
 
 ## Delegation
 
-A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`: named for the agent, described by its description, with one string parameter `request`, as ADK's `AgentTool` declares it. A `yaml_reference` subagent is the nested syndicate's orchestrator under the entry's name and description, listing its own subagent tools. `runCall` asks `subagentOf(tool)` before the generic path, and `runSubagent` (`lib/runtime/native/delegate.ts`) runs the call as `AgentTool.runAsync` runs it ([ADR 0074](/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md)):
+A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`: named for the agent, described by its description, with one string parameter `request`, as ADK's `AgentTool` declares it. A `yaml_reference` subagent is the nested syndicate's orchestrator under the entry's name and description, listing its own subagent tools. The compile refuses a `yaml_reference` chain that reaches itself, or that goes past 16 levels, by name and before any model call, on both runtimes ([ADR 0101](/decisions/0101-native-loop-security-gate.md)). `runCall` asks `subagentOf(tool)` before the generic path, and `runSubagent` (`lib/runtime/native/delegate.ts`) runs the call as `AgentTool.runAsync` runs it ([ADR 0074](/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md)):
 
 1. **The subagent's own session.** It is `{ appName: <subagent name>, userId, sessionId }` in the caller's store, not a branch of the caller's session. The first call creates it from the caller's state (the session's, then the call's writes, `temp:` keys dropped). Every later call, in this turn or another, continues it, so the subagent sees its earlier requests and answers.
 2. **The request as a message.** `{ role: 'user', parts: [{ text: request }] }` is stored as a user event under a fresh `e-<uuid>` invocation id. A turn already stopped answers `''`.
