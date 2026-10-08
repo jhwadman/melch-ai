@@ -491,6 +491,19 @@ from the same prefix table, gateway rule, BYOK scoping and endpoints as
 asks for `GeminiAdapter`. `resolveAdapterWithFallback` wraps an agent's
 model and `fallback_model` in a `FallbackAdapter`.
 
+`melchizedek-agents/model` is the model layer on its own, with no
+`@google/adk` in its import graph (ADR 0068): the contract's types,
+`ClaudeAdapter`, `GptAdapter`, `GrokAdapter`, `KimiAdapter`,
+`OllamaAdapter`, `GatewayAdapter`, `GeminiAdapter`, the
+`ChatCompletionsAdapter` base, `resolveAdapter`,
+`resolveAdapterWithFallback`, `FallbackAdapter` and the circuit breaker's
+helpers. A project that only calls models installs the package without ADK
+and imports from there. Its `resolveAdapter` gives a Gemini id
+`GeminiAdapter`; asking it for `adk` (`gemini: 'adk'` or
+`GEMINI_ADAPTER=adk`) throws and names `melchizedek-agents/models/registry`,
+whose `resolveAdapter` keeps the ADK default above. `AdkGeminiAdapter`, the
+ADK shims, `TracedGemini` and `resolveModel` are not in it.
+
 Every model request also emits an `llm.request` OpenTelemetry span
 (provider, model, input/output/thinking tokens, latency). Scripts print it
 as an `[OTEL_SPAN_JSON]` line; `melchizedek-chat` and the `syndicate:*`

@@ -912,6 +912,38 @@
       "evidence": "gemini-adapter.md, The request: \"The signal is request.signal alone ... its caller passes the turn's signal (ADR 0053)\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/model.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0068 Decision 1: \"A new entry, melchizedek-agents/model (lib/model.ts)\" exports the model layer, and its runtime import graph names no @google/adk (tests/packageSurface.test.ts).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0068 Decision 2-3: the routing moves to lib/models/adapterResolver.ts, which imports no ADK; without an AdkGeminiAdapter factory a Gemini id gets GeminiAdapter and asking for adk throws.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/tools/xaiSearchParams.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0068 Decision 4: \"xAI's search settings move to lib/tools/xaiSearchParams.ts, which imports nothing\", so GrokAdapter reaches no @google/adk.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "/decisions/0060-engine-owned-registry.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0068 Decision 2: registry.ts builds its resolveAdapter with the AdkGeminiAdapter factory, \"so its behaviour, ADR 0060's default included, is unchanged\"; the entry differs from ADR 0060 only for Gemini.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

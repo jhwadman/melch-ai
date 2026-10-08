@@ -140,7 +140,7 @@ On the engine's own [model contract](/models/model-contract.md), the same rules 
 
 ## The engine's own registry: resolveAdapter
 
-`resolveAdapter(modelId, { apiKey?, keyProvider?, endpoint?, gemini? })` in `lib/models/registry.ts` returns the [model contract](/models/model-contract.md)'s adapter for one id, for the native runtime ([ADR 0060](/decisions/0060-engine-owned-registry.md)). It reads the same prefix table and the same transport rule as `resolveModel`, through one routing step (`routeFor`), and each path has one table keyed by provider:
+`resolveAdapter(modelId, { apiKey?, keyProvider?, endpoint?, gemini? })` in `lib/models/registry.ts` returns the [model contract](/models/model-contract.md)'s adapter for one id, for the native runtime ([ADR 0060](/decisions/0060-engine-owned-registry.md)). It reads the same prefix table and the same transport rule as `resolveModel`, through one routing step (`routeFor`), and each path has one table keyed by provider. The routing step, the BYOK scoping and the contract table live in `lib/models/adapterResolver.ts`, which imports no ADK; `registry.ts` builds its `resolveAdapter` there with `adapterResolver(adkGemini)`, handing in the factory for `AdkGeminiAdapter`:
 
 | Prefix | `resolveModel` (ADK) | `resolveAdapter` (contract) |
 |---|---|---|
@@ -157,6 +157,14 @@ On the engine's own [model contract](/models/model-contract.md), the same rules 
 - **Gemini.** A Gemini id gets the temporary [wrapper over ADK's Gemini](/models/adk-gemini-adapter.md) (`AdkGeminiAdapter`) until gate G3 of [ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md). The engine's own [Gemini adapter](/models/gemini-adapter.md) (`GeminiAdapter`) is selected with `GEMINI_ADAPTER=engine` or the option `{ gemini: 'engine' }`, which wins over the variable. `GEMINI_ADAPTER` takes `adk` (the default) or `engine`; any other value fails a Gemini id's resolution and touches no other provider.
 - **Fallback.** `resolveAdapterWithFallback(modelId, fallbackId, options)` returns a `FallbackAdapter` around the two resolved adapters, or the primary alone when there is no fallback. The caller's key stays with the primary's provider. Nothing calls it yet: on the ADK path the compiler's pair is `FallbackLlm(shim(primary), shim(fallback))` ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)).
 - **The ADK path.** `registerAvailableProviders()` registers the providers' own exported classes (`ClaudeLlm`, `GptLlm`, `GrokLlm`, `KimiLlm`, `OllamaLlm`, `TracedGemini`, and `GatewayLlm` under a direct class's patterns), never a bare `adkShimClass` around an adapter, since `GptLlm` and the chat-completions shims keep the ledger's usage meaning in their `toLlmResponse` ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md), [ADR 0057](/decisions/0057-chat-completions-shims-keep-the-adk-shape.md)). `providerStatuses()` and the doctor read the environment as before.
+
+### Without ADK: melchizedek-agents/model
+
+`lib/model.ts` is the package entry `melchizedek-agents/model` ([ADR 0068](/decisions/0068-model-entry-without-adk.md)). It exports the contract's types, every contract adapter, `FallbackAdapter`, the circuit breaker's helpers, and the `resolveAdapter` and `resolveAdapterWithFallback` of `lib/models/adapterResolver.ts`, which has no ADK Gemini factory. Its runtime import graph names no `@google/adk`, and `tests/packageSurface.test.ts` proves it three ways: the static graph, a child process in which `@google/adk` cannot resolve that loads the entry and builds a Claude and an Ollama request (from source and from the build), and the built declarations. The same rows as the table above, with one difference:
+
+- **Gemini.** A Gemini id gets `GeminiAdapter`. Asking for `adk`, by `{ gemini: 'adk' }` or `GEMINI_ADAPTER=adk`, throws an error that names `melchizedek-agents/models/registry`. An unset `GEMINI_ADAPTER` means `engine` here and `adk` in the registry.
+
+GrokAdapter reads xAI's search settings (`XAI_WEB_SEARCH_*`, `XAI_X_SEARCH_*`, `XAI_COLLECTION_IDS`, `XAI_COLLECTIONS_MAX_RESULTS`) from `lib/tools/xaiSearchParams.ts`, which imports nothing; the ADK tool modules re-export those readers under their old names.
 
 `TracedGemini` lives in `lib/models/tracedGemini.ts`, which `registry.ts` re-exports: the registry builds `AdkGeminiAdapter`, which runs its calls through `TracedGemini`, so the class in `registry.ts` would be an import cycle.
 

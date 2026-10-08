@@ -78,18 +78,5 @@ export function isCollectionsSearchSentinel(tool: unknown): boolean {
   return nativeToolMarkerOf(tool) === 'collections_search';
 }
 
-/** Collection ids from XAI_COLLECTION_IDS (comma-separated, trimmed). */
-export function collectionIdsFromEnv(): string[] {
-  return (process.env.XAI_COLLECTION_IDS ?? '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
-}
-
-/** Optional retrieval cap from XAI_COLLECTIONS_MAX_RESULTS (positive int). */
-export function collectionsMaxResultsFromEnv(): number | undefined {
-  const raw = process.env.XAI_COLLECTIONS_MAX_RESULTS?.trim();
-  if (!raw) return undefined;
-  const n = Number(raw);
-  return Number.isInteger(n) && n > 0 ? n : undefined;
-}
+/** The XAI_COLLECTION* readers live in lib/tools/xaiSearchParams.ts (no @google/adk); re-exported here under their old names. */
+export { collectionIdsFromEnv, collectionsMaxResultsFromEnv } from './xaiSearchParams.ts';
