@@ -207,7 +207,7 @@
       "from": "/decisions/0049-claude-requests-by-model-generation.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "depends_on",
-      "evidence": "ADR 0049 §4: \"Rows not bound to the conversation replay as ADR 0046 says\"; on bound rows the same replay rides under drop_block, closing ADR 0046's named gap for resumed turns.",
+      "evidence": "ADR 0049 \u00a74: \"Rows not bound to the conversation replay as ADR 0046 says\"; on bound rows the same replay rides under drop_block, closing ADR 0046's named gap for resumed turns.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -215,7 +215,7 @@
       "from": "/decisions/0049-claude-requests-by-model-generation.md",
       "to": "module:lib/session/transcript.ts",
       "rel": "mitigates",
-      "evidence": "ADR 0049 §4 and Context: trimEventForStorage elides tool results over 2,000 characters and JSONB reorders keys, so a resumed turn differs from what the model saw; drop_block makes the API drop a changed block instead of failing, and \"The session stores do not change.\"",
+      "evidence": "ADR 0049 \u00a74 and Context: trimEventForStorage elides tool results over 2,000 characters and JSONB reorders keys, so a resumed turn differs from what the model saw; drop_block makes the API drop a changed block instead of failing, and \"The session stores do not change.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07"
     },
@@ -223,7 +223,7 @@
       "from": "/decisions/0049-claude-requests-by-model-generation.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "supersedes",
-      "evidence": "ADR 0049 §2: \"This supersedes ADR 0047's statement that the Claude adapter never reads the effort word: on the adaptive rows it is the only thing it reads.\"",
+      "evidence": "ADR 0049 \u00a72: \"This supersedes ADR 0047's statement that the Claude adapter never reads the effort word: on the adaptive rows it is the only thing it reads.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-07",
       "note": "In part: only how the Claude adapter reads the reasoning fields. ADR 0047's key, levels and compiler mapping stand."
@@ -354,7 +354,7 @@
       "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "to": "module:lib/tools/tool.ts",
       "rel": "constrains",
-      "evidence": "ADR 0051 §1 and §4: \"The module imports only a type from the model contract\" and \"tool.ts and toolContract.ts load nothing from @google/* at runtime\"; tests/toolContract.test.ts asserts it.",
+      "evidence": "ADR 0051 \u00a71 and \u00a74: \"The module imports only a type from the model contract\" and \"tool.ts and toolContract.ts load nothing from @google/* at runtime\"; tests/toolContract.test.ts asserts it.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -362,7 +362,7 @@
       "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "to": "module:lib/tools/adkTool.ts",
       "rel": "constrains",
-      "evidence": "ADR 0051 §4: \"lib/tools/adkTool.ts holds toFunctionTool(tool)\", the one place a Tool becomes an ADK FunctionTool, and §5: it keeps ADK's approval texts and long-running note so both runtimes store the same events.",
+      "evidence": "ADR 0051 \u00a74: \"lib/tools/adkTool.ts holds toFunctionTool(tool)\", the one place a Tool becomes an ADK FunctionTool, and \u00a75: it keeps ADK's approval texts and long-running note so both runtimes store the same events.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -370,7 +370,7 @@
       "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "to": "module:lib/tools/toolContract.ts",
       "rel": "constrains",
-      "evidence": "ADR 0051 §3: \"defineTool returns a Tool that is still a ToolContract\", whose execute validates the arguments before the handler runs; §4: toolContract.ts no longer exports toFunctionTool.",
+      "evidence": "ADR 0051 \u00a73: \"defineTool returns a Tool that is still a ToolContract\", whose execute validates the arguments before the handler runs; \u00a74: toolContract.ts no longer exports toFunctionTool.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -378,7 +378,7 @@
       "from": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "depends_on",
-      "evidence": "ADR 0051 §1: \"declaration() returns the model contract's ToolDeclaration\", the type ADR 0048 defines in lib/models/contract.ts.",
+      "evidence": "ADR 0051 \u00a71: \"declaration() returns the model contract's ToolDeclaration\", the type ADR 0048 defines in lib/models/contract.ts.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -538,7 +538,7 @@
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "module:lib/tools/memoryTools.ts",
       "rel": "constrains",
-      "evidence": "ADR 0059 §4: \"load_memory is a defineTool Tool with an instruction\", \"preload_memory is an InstructionTool\", and \"Their declaration, note, result and recalled block are ADK's, word for word.\"",
+      "evidence": "ADR 0059 \u00a74: \"load_memory is a defineTool Tool with an instruction\", \"preload_memory is an InstructionTool\", and \"Their declaration, note, result and recalled block are ADK's, word for word.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -546,7 +546,7 @@
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "module:lib/memory/supabaseMemoryService.ts",
       "rel": "constrains",
-      "evidence": "ADR 0059 §1: \"SupabaseVectorMemoryService implements MemoryService and BaseMemoryService\"; ADK's addSessionToMemory and searchMemory \"each hand their arguments to the engine's method and return its result.\"",
+      "evidence": "ADR 0059 \u00a71: \"SupabaseVectorMemoryService implements MemoryService and BaseMemoryService\"; ADK's addSessionToMemory and searchMemory \"each hand their arguments to the engine's method and return its result.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -554,7 +554,7 @@
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "module:lib/tools/tool.ts",
       "rel": "constrains",
-      "evidence": "ADR 0059 §2 and §3: ToolContext gains searchMemory, bound to \"the context's own <appName>/<userId> silo\", and userContent; a Tool may have instruction(ctx), and an InstructionTool has only a name and an instruction.",
+      "evidence": "ADR 0059 \u00a72 and \u00a73: ToolContext gains searchMemory, bound to \"the context's own <appName>/<userId> silo\", and userContent; a Tool may have instruction(ctx), and an InstructionTool has only a name and an instruction.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -562,7 +562,7 @@
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "module:lib/tools/adkTool.ts",
       "rel": "constrains",
-      "evidence": "ADR 0059 §3: on the ADK runtime lib/tools/adkTool.ts appends the instruction text in processLlmRequest, \"joined exactly as ADK's own appendInstructions joins it\" (a FunctionTool subclass, or toAdkInstructionTool for an InstructionTool).",
+      "evidence": "ADR 0059 \u00a73: on the ADK runtime lib/tools/adkTool.ts appends the instruction text in processLlmRequest, \"joined exactly as ADK's own appendInstructions joins it\" (a FunctionTool subclass, or toAdkInstructionTool for an InstructionTool).",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -570,7 +570,7 @@
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "module:lib/memory/namespace.ts",
       "rel": "constrains",
-      "evidence": "ADR 0059 §1: \"namespacedMemoryService pins the root namespace on search and ingest as it does on ADK's two methods\"; erase and retention pass through it unchanged.",
+      "evidence": "ADR 0059 \u00a71: \"namespacedMemoryService pins the root namespace on search and ingest as it does on ADK's two methods\"; erase and retention pass through it unchanged.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -578,7 +578,7 @@
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "/decisions/0052-sessions-and-events-on-own-interfaces.md",
       "rel": "depends_on",
-      "evidence": "ADR 0059 Context: \"ADR 0052 gave the engine its own MemoryService (lib/runtime/memoryService.ts)\", which §1 has the memory service implement.",
+      "evidence": "ADR 0059 Context: \"ADR 0052 gave the engine its own MemoryService (lib/runtime/memoryService.ts)\", which \u00a71 has the memory service implement.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -586,7 +586,7 @@
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "rel": "depends_on",
-      "evidence": "ADR 0059 Context: ADR 0051 \"made every registry tool the engine's own except the two memory tools\"; §4 builds load_memory with defineTool and §3 extends ADR 0051's Tool and ToolContext.",
+      "evidence": "ADR 0059 Context: ADR 0051 \"made every registry tool the engine's own except the two memory tools\"; \u00a74 builds load_memory with defineTool and \u00a73 extends ADR 0051's Tool and ToolContext.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -594,7 +594,7 @@
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "depends_on",
-      "evidence": "ADR 0059 §1 and §2 keep ADR 0020's silos: facts under <memory_namespace>/<scopeKey>, the root namespace pinned (ADR 0020 item 3), and a tool's search bound to its own silo.",
+      "evidence": "ADR 0059 \u00a71 and \u00a72 keep ADR 0020's silos: facts under <memory_namespace>/<scopeKey>, the root namespace pinned (ADR 0020 item 3), and a tool's search bound to its own silo.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -804,7 +804,7 @@
       "from": "/decisions/0062-server-side-tools-as-markers.md",
       "to": "module:lib/models/schemaNormalize.ts",
       "rel": "constrains",
-      "evidence": "ADR 0062 §2: \"Every reader detects the marker, never the class or the shape.\" nativeToolOf \"reads it first, then ADK's own markers\".",
+      "evidence": "ADR 0062 \u00a72: \"Every reader detects the marker, never the class or the shape.\" nativeToolOf \"reads it first, then ADK's own markers\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -812,7 +812,7 @@
       "from": "/decisions/0062-server-side-tools-as-markers.md",
       "to": "module:lib/tools/adkTool.ts",
       "rel": "constrains",
-      "evidence": "ADR 0062 §3: \"toAdkNativeTool(marker) returns the shared sentinel\" and \"toAdkTool() picks the wrapper for a Tool, a contract, an InstructionTool or a marker\".",
+      "evidence": "ADR 0062 \u00a73: \"toAdkNativeTool(marker) returns the shared sentinel\" and \"toAdkTool() picks the wrapper for a Tool, a contract, an InstructionTool or a marker\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -820,7 +820,7 @@
       "from": "/decisions/0062-server-side-tools-as-markers.md",
       "to": "module:lib/tools/mcpToolFactory.ts",
       "rel": "constrains",
-      "evidence": "ADR 0062 §5: \"MCP tools are own Tools.\" The parameters \"pass through Gemini's dialect once (mcpToolParameters), so the native and ADK runtimes declare the same schema.\"",
+      "evidence": "ADR 0062 \u00a75: \"MCP tools are own Tools.\" The parameters \"pass through Gemini's dialect once (mcpToolParameters), so the native and ADK runtimes declare the same schema.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -828,7 +828,7 @@
       "from": "/decisions/0062-server-side-tools-as-markers.md",
       "to": "module:lib/a2a/remoteAgent.ts",
       "rel": "constrains",
-      "evidence": "ADR 0062 §6: \"The remote agent tool is an own Tool (remoteAgentOwnTool)\" and remoteAgentTool \"still declares exactly what the hand-built one declared.\"",
+      "evidence": "ADR 0062 \u00a76: \"The remote agent tool is an own Tool (remoteAgentOwnTool)\" and remoteAgentTool \"still declares exactly what the hand-built one declared.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -836,7 +836,7 @@
       "from": "/decisions/0062-server-side-tools-as-markers.md",
       "to": "module:lib/tools/examples.ts",
       "rel": "constrains",
-      "evidence": "ADR 0062 §7: \"An agent's examples are an InstructionTool\" that \"writes ExampleTool's block for text examples word for word\".",
+      "evidence": "ADR 0062 \u00a77: \"An agent's examples are an InstructionTool\" that \"writes ExampleTool's block for text examples word for word\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -1134,7 +1134,7 @@
       "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "to": "module:lib/runtime/native/agentLoop.ts",
       "rel": "constrains",
-      "evidence": "ADR 0071 Decision 1: \"The loop ports handleFunctionCallList, mergeParallelFunctionResponseEvents, generateRequestConfirmationEvent … over TurnEvents.\"",
+      "evidence": "ADR 0071 Decision 1: \"The loop ports handleFunctionCallList, mergeParallelFunctionResponseEvents, generateRequestConfirmationEvent \u2026 over TurnEvents.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -1142,7 +1142,7 @@
       "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "to": "module:lib/runtime/native/step.ts",
       "rel": "constrains",
-      "evidence": "ADR 0071 Consequences: \"runModelStep takes model, beforeAppend and redirect, and its result carries tools … and redirected.\"",
+      "evidence": "ADR 0071 Consequences: \"runModelStep takes model, beforeAppend and redirect, and its result carries tools \u2026 and redirected.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -1150,7 +1150,7 @@
       "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "depends_on",
-      "evidence": "ADR 0071 Context: \"ADR 0066 gives the native runtime one model step that sends the ADK runtime's request and stores ADK's event. The loop around it is …\"",
+      "evidence": "ADR 0071 Context: \"ADR 0066 gives the native runtime one model step that sends the ADK runtime's request and stores ADK's event. The loop around it is \u2026\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -1174,7 +1174,7 @@
       "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/native/agentLoop.ts",
       "rel": "explains",
-      "evidence": "wiki/overview/native-loop.md \"The loop\": \"runAgentLoop(agent, ctx) is an async generator …\" and each step's calls, approval request, outputKey and end reasons.",
+      "evidence": "wiki/overview/native-loop.md \"The loop\": \"runAgentLoop(agent, ctx) is an async generator \u2026\" and each step's calls, approval request, outputKey and end reasons.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -1454,7 +1454,7 @@
       "from": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "depends_on",
-      "evidence": "ADR 0078 Decision 2: \"The loop stores the summary before the step\" — the hook sits in the native loop of ADR 0071.",
+      "evidence": "ADR 0078 Decision 2: \"The loop stores the summary before the step\" \u2014 the hook sits in the native loop of ADR 0071.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     },
@@ -2455,6 +2455,102 @@
       "to": "module:lib/runtime/runtimeFlag.ts",
       "rel": "constrains",
       "evidence": "ADR 0099 Decision 1: DEFAULT_RUNTIME stays adk through 0.19.x; 0.20.0 changes it only once G3 is signed and the stop rule holds.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0098 lifts ADR 0030 Decision 7's last refusals: a yaml_reference to a workflow runs the whole graph, and require_approval is allowed on a workflow node.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0098 Decision 3: the nested workflow call opens the child session runSubagent opens, as ADK's AgentTool does (ADR 0074).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0098 Decision 6: a resumed node runs or refuses the pinned call through the loop's approval resume (ADR 0077).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0098 Decision 3: a nested workflow call walks the graph with runNativeWorkflow (ADR 0095).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0098 Decision 6: workflowResume accepts an approval request at a direct child and the scheduler hands the node its prior interrupts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0098 Context: ADK is the specification where it runs a case; where it cannot resume a gated node, native's behaviour is recorded and ADK refuses.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0098 Decision 4: a pause inside a nested workflow cannot reach its caller (ADR 0028), so an ask_user node there is refused.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0098 Decisions 5-6: runAgentNode resolves an approval pause as interrupts and resumes the node's own run on the decision.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0098 Decision 3: workflowSubagentTool and runWorkflowSubagent run a nested workflow call as AgentTool runs a Workflow.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0098 Decision 1: compileSpec turns a delegated yaml_reference to a workflow into a SpecTool of kind workflow (compileWorkflowSpec).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0098 Decisions 5, 7, 8: the turn reads a waiting approval after a walk, repeats it on a non-decision, and refuses a gated workflow on ADK.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0098 Decision 9: require_approval is allowed on a workflow node, except on an agent a map node runs.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
     }

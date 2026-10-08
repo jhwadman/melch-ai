@@ -399,19 +399,19 @@ export function resumeInputsFromPlainText(content: TurnContent | undefined, even
 // ── What the native walk cannot resume yet ───────────────────────────────────
 
 /**
- * A pause the native walk cannot resume: one raised inside an agent node (an
- * `ask_user` tool call, an approval, a credential request) or inside a map
- * item. ADK resumes those inside the node (the agent's own history, the
- * ParallelWorker's item); the native agent node refuses to pause at all
- * (lib/workflow/agentNode.ts), so it cannot pick one up either. Resuming the
- * walk anyway would run the node again from its input and ask again, so the
- * resume refuses by name instead.
+ * A pause the native walk cannot resume: one raised inside an agent node
+ * other than an approval (an `ask_user` tool call, a credential request) or
+ * inside a map item. ADK resumes those inside the node (the agent's own
+ * history, the ParallelWorker's item); the native agent node pauses only on
+ * an approval (lib/workflow/agentNode.ts, ADR 0098), so it cannot pick the
+ * others up. Resuming the walk anyway would run the node again from its
+ * input and ask again, so the resume refuses by name instead.
  */
 export class UnsupportedWorkflowResumeError extends Error {
   /** The node path the pause was raised at. */
   readonly nodePath: string;
   constructor(nodePath: string, why: string) {
-    super(`Cannot resume the workflow on the native runtime: the pause at '${nodePath}' was raised ${why}, which only an ask_user node's pause supports here.`);
+    super(`Cannot resume the workflow on the native runtime: the pause at '${nodePath}' was raised ${why}, which only an ask_user node's pause or an agent node's approval supports here.`);
     this.name = 'UnsupportedWorkflowResumeError';
     this.nodePath = nodePath;
   }
@@ -419,8 +419,9 @@ export class UnsupportedWorkflowResumeError extends Error {
 
 /**
  * Throws UnsupportedWorkflowResumeError for the first interrupt in the run's
- * events that is not an ask_user node's input request at a direct child of
- * the workflow (the workflow's own record aside).
+ * events that is neither an ask_user node's input request nor an agent
+ * node's approval request at a direct child of the workflow (the workflow's
+ * own record aside).
  */
 export function assertResumable(runEvents: readonly StoredEvent[], workflowPath: string): void {
   for (const event of runEvents) {
@@ -428,8 +429,8 @@ export function assertResumable(runEvents: readonly StoredEvent[], workflowPath:
     const path = event.nodeInfo?.path ?? '';
     if (path === workflowPath) continue;
     if (directChildName(path, workflowPath) === undefined) throw new UnsupportedWorkflowResumeError(path || String(event.author ?? ''), 'inside a nested node (a map item)');
-    const asksForInput = partsOf(event).some((p) => p.functionCall?.name === INPUT_REQUEST);
-    if (!asksForInput) throw new UnsupportedWorkflowResumeError(path, 'inside an agent node');
+    const resumable = partsOf(event).some((p) => p.functionCall?.name === INPUT_REQUEST || p.functionCall?.name === APPROVAL_REQUEST);
+    if (!resumable) throw new UnsupportedWorkflowResumeError(path, 'inside an agent node');
   }
 }
 

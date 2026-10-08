@@ -25,7 +25,7 @@ sources:
 
 ## One node
 
-`runAgentNode(agent, run, context)` runs one node run and resolves with `{ output }`, or `{ error }` when it ended on a reported error with no output:
+`runAgentNode(agent, run, context)` runs one node run and resolves with `{ output }`, `{ error }` when it ended on a reported error with no output, or `{ interruptIds }` when it waits on approvals:
 
 | rule | what happens |
 |---|---|
@@ -35,7 +35,8 @@ sources:
 | the output | outside task mode, each stored model event with content and no function call carries `output`: its text without thought parts, parsed as JSON only when the agent has an output schema and the text parses; and `nodeInfo.messageAsOutput` (`eventOutput`, ADK's `maybeSetOutput`). The node's output is the last one an event carried. |
 | the stamp | every stored event gets `nodeInfo.path`, `nodeInfo.outputFor` when it carries an output, and the node's branch when it has none: ADK's `enrichEvent`, through `enrichNodeEvent`, the one port of it ([tool node](/overview/workflow-scheduler.md#tool-nodes)). The loop applies it through `nodeStamp`, after the outputKey and task hooks, and to a compaction event the node's agent stores before a step, which therefore carries the summary as its output outside task mode, as ADK's `maybeSetOutput` gives it. |
 | the instruction | the run carries ADK's workflow instruction scope (`workflowScope`): the node's input, and `predecessorOutputs`, the output each event of the invocation stored before the node ran, by node name (ADK's `collectPredecessorOutputs`). See [The instruction](#the-instruction). |
-| failure | an event with an error code is the node's reported error. A run that ends with one and no output returns it as `{ error: { code, message } }`; the scheduler fails the attempt with `NodeReportedError`, ADK's message, retries it as the node's `retry` allows, and, because the node's own event reported it, writes no node-error event of the workflow's, as ADK writes none. A run the turn stopped throws `NodeStoppedError`. A run that pauses on a person (an `ask_user` tool call, an approval) throws: a pause inside an agent node does not run on the native runtime yet. An `ask_user` node is another runner's ([the pause](/overview/workflow-scheduler.md#ask_user-nodes-the-pause)). |
+| failure | an event with an error code is the node's reported error. A run that ends with one and no output returns it as `{ error: { code, message } }`; the scheduler fails the attempt with `NodeReportedError`, ADK's message, retries it as the node's `retry` allows, and, because the node's own event reported it, writes no node-error event of the workflow's, as ADK writes none. A run the turn stopped throws `NodeStoppedError`. A run that pauses on an `ask_user` tool call throws. An `ask_user` node is another runner's ([the pause](/overview/workflow-scheduler.md#ask_user-nodes-the-pause)). |
+| approvals | a run that pauses on approval requests (a tool in the agent's `require_approval`) resolves with their ids as `interruptIds`: the node waits and the walk ends paused. The stamp records the node's input in `actions.agentState` on the request, as ADK's node runner does. See [Approvals](#approvals). |
 
 The node's path is `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>` for a map item, as the scheduler computes it.
 
@@ -81,9 +82,19 @@ The scheduler runs joins and maps itself; `lib/workflow/nodeEvents.ts` builds th
 
 Both are stamped through `enrichNodeEvent`.
 
+## Approvals
+
+A gate on a workflow node's agent ([ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)) pauses the node on ADK's `adk_request_confirmation` request, and the turn ends `input-required` with `result.approval`. The resumed walk reruns the node with `run.resumedInterruptIds`, the requests its prior run paused on:
+
+- every request has a decision among `run.resumeInputs` (a `{ confirmed }` answer, or the same as JSON under `response`; never plain text): the node stores no input turn and its run continues. The person's answer is still the latest user event, so the loop's approval resume ([native loop](/overview/native-loop.md#approvals)) runs or refuses the pinned call before the next model step, whose history starts at the node's input;
+- an earlier resume already continued the node (another node's approval was the one answered since): the output its run stored after the requests is the node's (`outputAfter`), and nothing runs;
+- some request has no decision: the node raises the open requests again on one event of the new run (`waitAgain`) and waits, so the next message's resume still finds the walk paused.
+
+ADK's `runLlmAgentAsNode` stores the input again on the rerun and starts the agent afresh, so the pinned call never runs there. `runSyndicateTurn` refuses a gated workflow on ADK.
+
 ## Not here yet
 
-- Interrupts inside a node (an `ask_user` tool call, an approval).
+- An `ask_user` tool call inside a node, and a pause inside a map item.
 
 ## Parity with ADK
 

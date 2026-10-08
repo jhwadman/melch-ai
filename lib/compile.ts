@@ -44,6 +44,7 @@ import { relative } from 'node:path';
 
 import { compileAdk } from './compileAdk.ts';
 import { isDispatchSyndicate } from './dispatch.ts';
+import { isWorkflowSyndicate, nodeKind } from './workflowConfig.ts';
 import { loadSyndicate, nestedLoader } from './loadSyndicate.ts';
 import type { ReasoningSetting, SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import { REASONING_OLDER_SPELLING } from './syndicateSchema.ts';
@@ -311,12 +312,35 @@ export function agentGates(agent: { require_approval?: string[]; skills?: Skills
  * period an ADK object that carries its own Tool or InstructionTool
  * (lib/tools/adkTool.ts), an MCP tool or the skills toolset, gated by
  * require_approval where the YAML says so. `agent` is a delegated subagent
- * (DELEGATE mode), `remote` a subagent served over A2A.
+ * (DELEGATE mode), `remote` a subagent served over A2A, `workflow` a
+ * `yaml_reference` to a workflow syndicate, whose whole graph is the tool
+ * (ADR 0098).
  */
 export type SpecTool =
   | { kind: 'tool'; tool: unknown }
   | { kind: 'agent'; agent: AgentSpec }
-  | { kind: 'remote'; name: string; description: string; url: string };
+  | { kind: 'remote'; name: string; description: string; url: string }
+  | { kind: 'workflow'; workflow: WorkflowSpec };
+
+/**
+ * A workflow syndicate, compiled for either runtime: lib/workflow.ts builds
+ * ADK's Workflow from it, lib/compileNative.ts the native walk's graph and
+ * agents. Nested as a subagent (a `yaml_reference` in DELEGATE mode), the
+ * graph runs under the entry's name and description, and that name is the
+ * root of every node path, as ADK names a Workflow's nodes after it.
+ */
+export interface WorkflowSpec {
+  /** The workflow's name: the syndicate's, or the subagent entry's when nested. */
+  name: string;
+  /** The tool's description when nested; '' at the root. */
+  description: string;
+  /** The syndicate, its `syndicate_name` set to `name`. */
+  config: SyndicateYamlConfig;
+  /** Every agent of the graph, the orchestrator first, as compileSubagentSpec builds it, with its YAML entry. */
+  agents: Array<{ yaml: SubagentYamlConfig; spec: AgentSpec }>;
+  /** The registry entry for a tool node's tool name, or undefined (CompileOptions.onUnknownTool applies). */
+  resolveTool: (name: string) => unknown;
+}
 
 /**
  * One YAML agent, compiled, for either runtime: what lib/compileAdk.ts
@@ -411,6 +435,61 @@ function specOf(
 const asTools = (tools: unknown[]): SpecTool[] => tools.map((tool) => ({ kind: 'tool', tool }));
 
 /**
+ * A nested `yaml_reference:` syndicate, loaded. A nested syndicate runs
+ * inside a tool call (or as a route whose own subagents do): a pause there
+ * cannot reach the caller (ADR 0028), so one that declares approval gates is
+ * refused.
+ */
+function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlConfig {
+  opts.log?.(`Loading nested syndicate: ${ref}`);
+  const nested = (opts.loadNested ?? loadSyndicate)(ref);
+  if (declaresApprovals(nested)) {
+    throw new Error(`${ref}: approval gates (require_approval) are not supported inside a nested syndicate.`);
+  }
+  return nested;
+}
+
+/**
+ * The spec of a workflow syndicate: every agent through compileSubagentSpec
+ * (the orchestrator first, as a node like any other), and the registry's
+ * lookup for its tool nodes. `name` and `description` name a nested one
+ * after its subagent entry (ADR 0098); `ref` is the file it came from.
+ *
+ * A nested workflow runs inside its caller's tool call, so a pause inside it
+ * could not reach the caller (ADR 0028, as for any nested syndicate): an
+ * `ask_user` node is refused by name here, on both runtimes.
+ */
+export async function compileWorkflowSpec(
+  config: SyndicateYamlConfig,
+  opts: CompileOptions = {},
+  name?: string,
+  description?: string,
+  ref?: string,
+): Promise<WorkflowSpec> {
+  if (!isWorkflowSyndicate(config)) throw new Error(`${config.syndicate_name}: no workflow block`);
+  if (name) {
+    const asking = Object.entries(config.workflow.nodes ?? {}).find(([, node]) => nodeKind(node) === 'ask_user');
+    if (asking) {
+      throw new Error(
+        `${ref ?? config.syndicate_name}: the ask_user node '${asking[0]}' pauses for a person, which a workflow nested as a subagent (${name}) cannot carry to its caller; run the workflow as its own syndicate, or remove the node.`,
+      );
+    }
+  }
+  const workflowName = name || config.syndicate_name;
+  const agents: WorkflowSpec['agents'] = [];
+  for (const yaml of [{ description: '', ...config.orchestrator } as SubagentYamlConfig, ...(config.subagents ?? [])]) {
+    agents.push({ yaml, spec: await compileSubagentSpec(yaml, opts) });
+  }
+  return {
+    name: workflowName,
+    description: description ?? '',
+    config: { ...config, syndicate_name: workflowName },
+    agents,
+    resolveTool: (tool) => resolveNamedTools([tool], opts.onUnknownTool)[0],
+  };
+}
+
+/**
  * The spec of ONE agent from a subagent entry. A `yaml_reference` entry is
  * the nested syndicate's whole graph under this entry's name and
  * description, so the parent sees one tool (or one route) either way.
@@ -422,16 +501,7 @@ export async function compileSubagentSpec(subCfg: SubagentYamlConfig, opts: Comp
     // (compileSpec) or a dispatch route (lib/runtime/syndicateTurn.ts).
     throw new Error(`'${subCfg.name}' is a remote A2A agent (a2a_agent_url) and has no local agent to compile.`);
   }
-  if (subCfg.yaml_reference) {
-    opts.log?.(`Loading nested syndicate: ${subCfg.yaml_reference}`);
-    const nested = (opts.loadNested ?? loadSyndicate)(subCfg.yaml_reference);
-    if (declaresApprovals(nested)) {
-      // A nested syndicate runs inside a tool call (or as a route whose
-      // own subagents do): a pause there cannot reach the caller (ADR 0028).
-      throw new Error(`${subCfg.yaml_reference}: approval gates (require_approval) are not supported inside a nested syndicate.`);
-    }
-    return compileSpec(nested, opts, subCfg.name, subCfg.description);
-  }
+  if (subCfg.yaml_reference) return compileSpec(loadNestedSyndicate(subCfg.yaml_reference, opts), opts, subCfg.name, subCfg.description);
 
   const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples, subCfg.mcp_tools), subCfg.require_approval, subCfg.name);
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
@@ -455,12 +525,13 @@ export async function compileSpec(
   // A registry definition carries its nested syndicates (ADR 0018 item 6).
   if (config.bundled_references && !opts.loadNested) opts = { ...opts, loadNested: nestedLoader(config) };
   // A graph has no orchestrator-with-tools shape to build: its agents are
-  // nodes (lib/workflow.ts). Nested as a yaml_reference, only its
-  // orchestrator runs, since ADK cannot yet make a Workflow a subagent.
+  // nodes (lib/workflow.ts). A delegated yaml_reference to one runs the whole
+  // graph as the tool (nestedWorkflowSpec, ADR 0098); as a dispatch route or
+  // a workflow node it is still its orchestrator alone.
   if (config.workflow && !overrideName) {
     throw new Error(`${config.syndicate_name}: a workflow syndicate is compiled with compileWorkflow (lib/workflow.ts), not compileGraph`);
   }
-  if (config.workflow) opts.log?.(`${config.syndicate_name}: nested as a subagent, so only its orchestrator runs (a Workflow cannot be a subagent yet)`);
+  if (config.workflow) opts.log?.(`${config.syndicate_name}: a dispatch route or a workflow node, so only its orchestrator runs (a delegated subagent runs the whole graph)`);
   const delegated: SpecTool[] = isDispatchSyndicate(config)
     ? []
     : await Promise.all(
@@ -468,6 +539,11 @@ export async function compileSpec(
           if (subCfg.a2a_agent_url) {
             opts.log?.(`Remote A2A agent: ${subCfg.name} → ${subCfg.a2a_agent_url}`);
             return { kind: 'remote', name: subCfg.name, description: subCfg.description, url: subCfg.a2a_agent_url };
+          }
+          if (subCfg.yaml_reference) {
+            const nested = loadNestedSyndicate(subCfg.yaml_reference, opts);
+            if (isWorkflowSyndicate(nested)) return { kind: 'workflow', workflow: await compileWorkflowSpec(nested, opts, subCfg.name, subCfg.description, subCfg.yaml_reference) };
+            return { kind: 'agent', agent: await compileSpec(nested, opts, subCfg.name, subCfg.description) };
           }
           return { kind: 'agent', agent: await compileSubagentSpec(subCfg, opts) };
         }),

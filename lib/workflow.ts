@@ -41,14 +41,29 @@
  *   the wiki), including a `map` node, which ADK would otherwise name after
  *   the agent it wraps.
  *
+ * ── As a subagent (ADR 0098) ─────────────────────────────────────────────
+ * A delegated `yaml_reference` to a workflow syndicate is the whole graph:
+ * `assembleWorkflow` builds its Workflow under the subagent entry's name
+ * and description, and lib/compileAdk.ts wraps it in ADK's AgentTool, whose
+ * answer is the graph's last event's text. A nested workflow with an
+ * `ask_user` node is refused by name (lib/compile.ts compileWorkflowSpec): a
+ * pause inside a tool call cannot reach the caller (ADR 0028). As a dispatch
+ * route or a workflow node, a workflow syndicate is still its orchestrator
+ * alone.
+ *
+ * ── Approval gates (ADR 0098) ────────────────────────────────────────────
+ * A tool in a node agent's `require_approval` pauses the node on ADK's
+ * `adk_request_confirmation`, and the walk with it. Only the native walk
+ * resumes it (lib/workflow/agentNode.ts): ADK's runLlmAgentAsNode reruns the
+ * node from its input and never runs the pinned call, so runSyndicateTurn
+ * refuses a gated workflow on ADK. The schema refuses a gate on an agent a
+ * map runs (an item cannot pause the walk).
+ *
  * ── Not in this version ───────────────────────────────────────────────────
- * Approval gates (`require_approval`, `skills.scripts: local`) and remote
- * `a2a_agent_url` subagents are refused inside a workflow by the schema: a
- * gated call pauses a node through ADK's interrupt path, whose resume is not
- * the one ADR 0028 built, and a remote agent is reachable only as a tool.
- * Both are open for a later record. A `Workflow` cannot yet be another
- * agent's subagent (an ADK limit), so `yaml_reference` to a workflow
- * syndicate compiles its orchestrator alone.
+ * Skill scripts (`skills.scripts: local`, an approval pause) and remote
+ * `a2a_agent_url` subagents are refused inside a workflow by the schema; a
+ * remote agent is reachable only as a tool. Both are open for a later
+ * record.
  */
 
 import {
@@ -63,10 +78,10 @@ import {
 } from '@google/adk';
 import type { BaseNode, BaseTool, EdgeItem, LlmAgent } from '@google/adk';
 
-import { compileSubagent } from './compile.ts';
-import type { CompileOptions } from './compile.ts';
-import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
-import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
+import { compileWorkflowSpec } from './compile.ts';
+import type { CompileOptions, WorkflowSpec } from './compile.ts';
+import { compileAdk } from './compileAdk.ts';
+import type { SyndicateYamlConfig } from './loadSyndicate.ts';
 import { DEFAULT_ROUTE_KEY, ROUTE_STEP_SUFFIX, START_NAME, isWorkflowSyndicate, nodeKind, nodeSettings, routeOf } from './workflowConfig.ts';
 export * from './workflowConfig.ts';
 
@@ -79,7 +94,7 @@ export interface CompiledWorkflow {
 }
 
 /**
- * Compile a workflow syndicate: every agent through `compileSubagent` (its
+ * Compile a workflow syndicate: every agent through `compileSubagentSpec` (its
  * tools, skills and MCP server as in any mode), the declared nodes, the
  * hidden route steps, and the edge chains, into one ADK `Workflow` named
  * after the syndicate. Throws on a name the schema let through, a tool that
@@ -91,22 +106,32 @@ export async function compileWorkflow(
   transformAgent: (agent: LlmAgent) => LlmAgent = (a) => a,
 ): Promise<CompiledWorkflow> {
   if (!isWorkflowSyndicate(config)) throw new Error(`${config.syndicate_name}: no workflow block`);
+  return assembleWorkflow(await compileWorkflowSpec(config, opts), opts, transformAgent);
+}
+
+/**
+ * ADK's Workflow from a compiled workflow spec, synchronously: each agent
+ * built by compileAdk with its node modifiers (retry, timeout) at
+ * construction, then the declared nodes, route steps and edges. A nested
+ * workflow (ADR 0098) is this Workflow under its subagent entry's name and
+ * description, which lib/compileAdk.ts wraps in ADK's AgentTool.
+ */
+export function assembleWorkflow(
+  spec: WorkflowSpec,
+  opts: CompileOptions = {},
+  transformAgent: (agent: LlmAgent) => LlmAgent = (a) => a,
+): CompiledWorkflow {
+  const config = spec.config;
+  if (!isWorkflowSyndicate(config)) throw new Error(`${config.syndicate_name}: no workflow block`);
   const wf = config.workflow;
   const nodeYaml = wf.nodes ?? {};
-  const agentConfigs = new Map<string, SubagentYamlConfig>();
-  agentConfigs.set(config.orchestrator.name, { description: '', ...config.orchestrator } as SubagentYamlConfig);
-  for (const sub of config.subagents ?? []) agentConfigs.set(sub.name, sub);
 
-  // Agents, with their node modifiers (retry, timeout) at construction.
-  const compileOpts: CompileOptions = {
-    ...opts,
-    nodeConfig: (name) => {
-      const settings = nodeSettings(nodeYaml[name]);
-      return Object.keys(settings).length ? settings : undefined;
-    },
-  };
+  // Agents, with their node modifiers (retry, timeout) at construction; not on a nested syndicate's orchestrator.
   const agents = new Map<string, LlmAgent>();
-  for (const [name, sub] of agentConfigs) agents.set(name, transformAgent(await compileSubagent(sub, compileOpts)));
+  for (const { yaml, spec: agentSpec } of spec.agents) {
+    const settings = yaml.yaml_reference ? {} : nodeSettings(nodeYaml[yaml.name]);
+    agents.set(yaml.name, transformAgent(compileAdk(agentSpec, opts, settings)));
+  }
 
   // Declared nodes.
   const nodes = new Map<string, BaseNode>(agents);
@@ -145,7 +170,7 @@ export async function compileWorkflow(
       Object.defineProperty(worker, 'name', { value: name, enumerable: true });
       nodes.set(name, worker);
     } else if (kind === 'tool') {
-      const [tool] = resolveNamedTools([entry.tool!], opts.onUnknownTool);
+      const tool = spec.resolveTool(entry.tool!);
       if (!tool) throw new Error(`workflow node '${name}': tool '${entry.tool}' is not registered`);
       nodes.set(name, new ToolNode(tool as BaseTool, { name, ...settings }));
     }
@@ -199,7 +224,8 @@ export async function compileWorkflow(
   });
 
   const workflow = new Workflow({
-    name: config.syndicate_name,
+    name: spec.name,
+    ...(spec.description ? { description: spec.description } : {}),
     edges,
     ...(wf.max_concurrency !== undefined ? { maxConcurrency: wf.max_concurrency } : {}),
   });

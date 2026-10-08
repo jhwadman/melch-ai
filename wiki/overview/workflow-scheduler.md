@@ -157,11 +157,11 @@ The scheduler takes `resume` and changes only how a node's first activation star
 
 - A prior run with an output or a route and no open interrupt is done. The node completes at once with them and emits `node_resumed` (`from: 'stored'`), not `node_start` and `node_end`. Nothing that stores events on `node_end` stores anything for it, as ADK writes nothing.
 - A paused prior run of a node that does not rerun on resume (`rerunsOnResume`: a tool node, a join, a route step) completes with its answers (`from: 'answers'`).
-- Any other node runs. A paused one runs on the input it recorded, not on the trigger's, with every answer in `run.resumeInputs`. A repeat activation in the same walk gets none. Neither shortcut counts as a run, so run ids and branches are ADK's.
+- Any other node runs. A paused one runs on the input it recorded, not on the trigger's, with every answer in `run.resumeInputs` and the interrupts its prior run paused on in `run.resumedInterruptIds`. A repeat activation in the same walk gets neither. Neither shortcut counts as a run, so run ids and branches are ADK's.
 
 An ask_user node rerun with an answer does not ask again. `runAskUserNode` writes the FunctionNode's output event and returns `{ reply, input }`: the last answer, and the input it asked about. The next node sees both. As on ADK, every answer reaches every ask_user node of the resumed walk, so a second one in a row takes the first answer.
 
-A pause raised inside an agent node (an OAuth consent) or inside a map item is refused with `UnsupportedWorkflowResumeError`, which names its path. ADK resumes those inside the node, and the native agent node does not pause. An `ask_user` tool call inside an agent is not a pause to ADK's rehydration, so the walk starts afresh on either runtime.
+An approval request raised by an agent node resumes too: the node continues its own run on the decision ([Workflow agent node](/overview/workflow-agent-node.md#approvals), [ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)). Any other pause raised inside an agent node (an OAuth consent), or one inside a map item, is refused with `UnsupportedWorkflowResumeError`, which names its path. ADK resumes those inside the node, and the native agent node pauses only on an approval. An `ask_user` tool call inside an agent is not a pause to ADK's rehydration, so the walk starts afresh on either runtime.
 
 `pendingWorkflowInput(events)` (`lib/runtime/questions.ts`, beside `pendingQuestion`) is the workflow question still open in a session. A text message, or a function response with its id, closes it, and a request in an event the user wrote is none.
 
@@ -177,7 +177,7 @@ A pause raised inside an agent node (an OAuth consent) or inside a map item is r
 | the start | `workflowResume` on the session, every turn: the message's text as the walk's input, every node's prior runs, the answers. With nothing paused every node runs fresh | the rehydration runs on every message |
 | the walk | `runWorkflowGraph` with `askUserNodeRunner`, `toolNodeRunner` and `agentNodeRuntime` chained, under the turn's signal; every event through the agent node runtime's queue | the Workflow's node runners |
 | a node that gave up | `nodeErrorEvent` stored on the walk's `node_error` (source `workflow`), on the same queue; the walk's error rethrown once every event is stored and yielded, and the turn fails `NODE_FAILED` | the workflow's node-error event, then the Runner throws |
-| a paused walk | `workflowPauseEvent` stored after every node's event, with the text as the recorded input; the turn ends `input-required` with `result.input` read from the request event | `recordInputForResume` |
+| a paused walk | `workflowPauseEvent` stored after every node's event, with the text as the recorded input; the turn ends `input-required` with `result.approval` when a gated call waits (`pendingApproval`, which trusts the pause record over node turns stored after the request), else with `result.input` read from the request event | `recordInputForResume` |
 | a stopped walk | `InvocationAbortedError`, or any failure once the signal fired, ends the stream quietly; the turn fails with its stop reason | the Runner ends an aborted run without an error |
 
 The generator yields every stored event in the order stored, but a node's input turn: ADK appends that turn straight to the session and its Runner never yields it, and the root span's output is read from what is yielded. A node agent's partial events (with `streaming: true`) are yielded as its loop yields them, never stored (`AgentNodeContext.onPartial`), so `onTextDelta` streams a node's text on both runtimes.
@@ -186,8 +186,14 @@ What the native turn refuses:
 
 - a tool node with an unregistered or long-running tool, before any model call, with ADK's compile-time message (`refuseUnrunnableNodes`, through `resolveToolNode`);
 - an `ask_user` tool on a workflow node's agent, by name, before any model call (`refuseOnNative`; the schema refuses it on both runtimes);
-- a session paused inside an agent node or a map item: `workflowResume` throws `UnsupportedWorkflowResumeError` after the message is stored, and the turn fails `RESUME_UNSUPPORTED` without walking afresh;
-- a pause raised inside an agent node during the walk, by `runAgentNode` (an approval gate and an `ask_user` tool are refused by the schema first; a node agent gets no OAuth consent step).
+- a session paused inside an agent node on anything but an approval, or inside a map item: `workflowResume` throws `UnsupportedWorkflowResumeError` after the message is stored, and the turn fails `RESUME_UNSUPPORTED` without walking afresh;
+- a pause raised inside an agent node during the walk other than an approval, by `runAgentNode` (an `ask_user` tool is refused by the schema first; a node agent gets no OAuth consent step).
+
+While a gated call waits, a message that is not its decision repeats the request: nothing is stored and nothing runs. On ADK, `runSyndicateTurn` refuses a gated workflow before any model call ([ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)).
+
+### As a subagent
+
+A DELEGATE syndicate's `yaml_reference` to a workflow syndicate is the whole graph as one subagent tool, named and described as the entry ([ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)). `compileSpec` builds its `WorkflowSpec` (`compileWorkflowSpec`, `lib/compile.ts`), the same spec `compileWorkflow` builds at the root. On ADK, `assembleWorkflow` builds the `Workflow` under the entry's name and ADK's `AgentTool` runs it. On native, `compileNative` lists a `workflowSubagentTool` (`lib/runtime/native/delegate.ts`) whose call opens the child session ADK's `AgentTool` opens and runs `runNativeWorkflow` on it with the call's request as the message. The answer is the last yielded event's text, and each event's state writes reach the caller's response. A node that gave up fails the call. A nested workflow with an `ask_user` node is refused by name on both runtimes: a pause inside a tool call cannot reach the caller. `tests/workflowSubagent.test.ts` holds both runtimes' caller and child sessions and requests equal.
 
 ### The spans
 
@@ -205,7 +211,7 @@ ADK also opens `execute_node_attempt` per attempt of a node with a retry config,
 
 ## What it does not do yet
 
-A pause inside an agent node (an approval, an OAuth consent) is refused by `runAgentNode`, a map item's interrupts are not carried, and a session paused on either is refused by `workflowResume`. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)).
+A pause inside an agent node other than an approval (an OAuth consent) is refused by `runAgentNode`, a map item's interrupts are not carried, and a session paused on either is refused by `workflowResume`. A pause inside a nested workflow is not carried to its caller. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)).
 
 ## Parity with ADK
 

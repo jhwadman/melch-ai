@@ -788,7 +788,8 @@ without a model call. ADK pins the call and its arguments, so an approval
 cannot run a different call.
 
 Gates are allowed on the orchestrator and on the subagents of a
-plan-dispatch syndicate, which run as the turn's own agent. A delegated
+plan-dispatch syndicate, which run as the turn's own agent, and on the
+agent nodes of a workflow on the native runtime (§6). A delegated
 subagent runs inside a tool call, where a pause cannot reach the caller, so a
 gate there is a load error, as is any gate inside a nested `yaml_reference`
 syndicate. Only function tools from the registry can be gated, not MCP tools
@@ -1224,17 +1225,35 @@ again (the attempt is recorded in `answer.nodeErrors`), and a node that
 gives up fails the turn with `NODE_FAILED` naming it. `max_steps` and
 the deadline cap the whole graph as they cap any turn.
 
-**Not yet.** Approval gates (`require_approval`, `skills.scripts: local`)
-and remote `a2a_agent_url` subagents are refused inside a workflow by
-the schema, and a workflow cannot be another syndicate's `yaml_reference`
-(ADK cannot yet make a `Workflow` a subagent; nested, only its
-orchestrator runs). An `ask_user` tool on a node agent is refused too:
-use an `ask_user` node. The record is [ADR 0030](./wiki/decisions/0030-workflow-graphs.md);
+**Approval gates.** A tool in a node agent's `require_approval` pauses
+that node, and the graph with it: the turn ends `input-required` with
+`result.approval`, as any approval does, and the next message, the
+person's decision, resumes the node's own run, which runs or refuses the
+pinned call once and walks on. Any other message repeats the request and
+runs nothing. Gates on workflow nodes run on the native runtime only: on
+ADK, `runSyndicateTurn` refuses such a workflow with
+`UnsupportedOnRuntimeError` before any model call, because ADK's resume
+starts the node afresh and never runs the pinned call. The schema refuses
+a gate on an agent a `map` node runs.
+
+**As a subagent.** A DELEGATE syndicate's `yaml_reference` to a workflow
+syndicate runs the whole graph as the subagent tool, under the entry's
+name and description: the graph's last output is the tool's answer, and
+its events are kept in the subagent's own session, as for any subagent.
+A nested workflow may not have an `ask_user` node (a pause inside a tool
+call cannot reach the caller); it is refused by name. As a dispatch route
+or a workflow node, a workflow syndicate is still its orchestrator alone.
+
+**Not yet.** Skill scripts (`skills.scripts: local`) and remote
+`a2a_agent_url` subagents are refused inside a workflow by the schema. An
+`ask_user` tool on a node agent is refused too: use an `ask_user` node. The records are [ADR 0030](./wiki/decisions/0030-workflow-graphs.md) and
+[ADR 0098](./wiki/decisions/0098-workflow-subagent-and-node-approvals.md);
 the contract is `lib/workflow.ts`, on ADK's `Workflow`, and on the native
 runtime `lib/workflow/turn.ts`, on the engine's own scheduler
 ([ADR 0095](./wiki/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)).
-On native, a conversation paused inside an agent node or a map item
-(which only ADK resumes) fails the next turn with `RESUME_UNSUPPORTED`.
+On native, a conversation paused inside an agent node on anything but an
+approval, or inside a map item (which only ADK resumes), fails the next
+turn with `RESUME_UNSUPPORTED`.
 
 ## 7. Extending the framework
 

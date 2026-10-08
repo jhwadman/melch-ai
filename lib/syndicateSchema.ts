@@ -714,11 +714,14 @@ function crossFieldProblems(raw: unknown): Problem[] {
     questionProblems(raw.orchestrator, ['orchestrator'], true);
   }
   const dispatching = isObj(raw.dispatch);
+  // A workflow's subagents are its nodes, not delegated tools: a gated call pauses its node, and
+  // the walk resumes it (ADR 0098). Skill scripts stay refused inside a workflow (workflowProblems).
+  const pausing = dispatching || isObj(raw.workflow);
 
   subs.forEach((sub, i) => {
     if (!isObj(sub)) return;
-    gateProblems(sub, ['subagents', i], dispatching);
-    skillProblems(sub, ['subagents', i], dispatching);
+    gateProblems(sub, ['subagents', i], pausing);
+    skillProblems(sub, ['subagents', i], pausing);
     questionProblems(sub, ['subagents', i], dispatching);
     const hasRef = typeof sub.yaml_reference === 'string';
     const hasRemote = typeof sub.a2a_agent_url === 'string';
@@ -890,8 +893,9 @@ function workflowProblems(raw: Record<string, unknown>, subs: unknown[]): Proble
   ];
   for (const [path, agent] of agents) {
     if (!isObj(agent)) continue;
-    if (Array.isArray(agent.require_approval) && agent.require_approval.length) {
-      out.push({ path: [...path, 'require_approval'], message: 'approval gates are not supported inside a workflow yet' });
+    // A map item cannot pause: the walk resumes a paused agent node, not an item of a map (ADR 0094, ADR 0098).
+    if (typeof agent.name === 'string' && mapped.has(agent.name) && Array.isArray(agent.require_approval) && agent.require_approval.length) {
+      out.push({ path: [...path, 'require_approval'], message: 'approval gates are not supported on an agent a map node runs: a map item cannot pause the walk' });
     }
     if (isObj(agent.skills) && agent.skills.scripts === 'local') {
       out.push({ path: [...path, 'skills', 'scripts'], message: 'skill scripts (an approval pause) are not supported inside a workflow yet' });

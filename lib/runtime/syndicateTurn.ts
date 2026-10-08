@@ -40,18 +40,16 @@ import type { BasePlugin } from '@google/adk';
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
 import { DEFAULT_MAX_STEPS } from '../config.ts';
-import { agentGates, compileGraph, compileSpec, compileSubagent, compileSubagentSpec } from '../compile.ts';
+import { agentGates, compileGraph, compileSpec, compileSubagent, compileSubagentSpec, compileWorkflowSpec, declaresApprovals } from '../compile.ts';
 import type { AgentSpec } from '../compile.ts';
-import { compileNative, nativeAdapterFor } from '../compileNative.ts';
+import { compileNative, compileNativeWorkflow, nativeAdapterFor } from '../compileNative.ts';
 import type { ModelAdapter } from '../models/contract.ts';
 import type { NativeAgent } from './native/request.ts';
 import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
 import { asSessionService } from './adkSessionBridge.ts';
-import { resolveTools } from '../toolRegistry.ts';
-import { buildWorkflowGraph } from '../workflow/graph.ts';
 import type { WorkflowGraph } from '../workflow/graph.ts';
 import { UnsupportedWorkflowResumeError } from '../workflow/resume.ts';
-import { refuseUnrunnableNodes, runNativeWorkflow } from '../workflow/turn.ts';
+import { runNativeWorkflow } from '../workflow/turn.ts';
 import { SelfCorrection } from './native/selfCorrection.ts';
 import { UnsupportedOnRuntimeError, chooseRuntime } from './runtimeFlag.ts';
 import type { RuntimeName } from './runtimeFlag.ts';
@@ -533,23 +531,15 @@ interface NativeWorkflowAgent {
 /**
  * A workflow syndicate for the native runtime: its graph, every agent
  * compiled for native from the same specs ADK's compileWorkflow builds its
- * agents from, one adapter lookup that knows every agent's models, and the
- * registry's lookup for tool nodes. A tool node ADK's compile refuses (an
- * unregistered or long-running tool) is refused here, before any model
- * call, with ADK's message.
+ * agents from (compileWorkflowSpec, then compileNativeWorkflow), one adapter
+ * lookup that knows every agent's models, and the registry's lookup for tool
+ * nodes. A tool node ADK's compile refuses (an unregistered or long-running
+ * tool) is refused here, before any model call, with ADK's message.
  */
-async function compileNativeWorkflow(config: SyndicateYamlConfig, opts: CompileOptions): Promise<NativeWorkflowAgent> {
-  const graph = buildWorkflowGraph(config);
-  const specs: AgentSpec[] = [];
-  const agents = new Map<string, NativeAgent>();
-  for (const sub of [{ description: '', ...config.orchestrator } as SubagentYamlConfig, ...(config.subagents ?? [])]) {
-    const spec = await compileSubagentSpec(sub, opts);
-    specs.push(spec);
-    agents.set(sub.name, compileNative(spec));
-  }
-  const resolveTool = (name: string): unknown => resolveTools([name], opts.onUnknownTool)[0];
-  refuseUnrunnableNodes(graph, resolveTool);
-  return { runtime: 'native-workflow', graph, agents, adapterFor: nativeAdapterFor(opts, specs), resolveTool };
+async function compileNativeWorkflowAgent(config: SyndicateYamlConfig, opts: CompileOptions): Promise<NativeWorkflowAgent> {
+  const spec = await compileWorkflowSpec(config, opts);
+  const { graph, agents, resolveTool } = compileNativeWorkflow(spec);
+  return { runtime: 'native-workflow', graph, agents, adapterFor: nativeAdapterFor(opts, spec.agents.map((a) => a.spec)), resolveTool };
 }
 
 async function runTurnInner(
@@ -570,6 +560,11 @@ async function runTurnInner(
   const native = runtime === 'native';
   // What native does not run yet fails here, before the session is touched.
   if (native) refuseOnNative(config, { isWorkflow: isWorkflowSyndicate(config), transformAgent: opts.transformAgent });
+  // ADK pauses a gated call in a workflow node, but its resume reruns the node from its input, so the
+  // pinned call never runs: approvals on workflow nodes run on native only (ADR 0098).
+  if (!native && isWorkflowSyndicate(config) && declaresApprovals(config)) {
+    throw new UnsupportedOnRuntimeError('an approval gate (require_approval) on a workflow node', 'adk', config.syndicate_name || 'syndicate');
+  }
   const nativeOf = (spec: AgentSpec): TurnAgent => ({ runtime: 'native', agent: compileNative(spec), adapterFor: nativeAdapterFor(compileOpts, spec) });
   /** The orchestrator (a DELEGATE root, or a dispatch classifier) for the turn's runtime. */
   const compileRoot = async (): Promise<TurnAgent> =>
@@ -970,8 +965,14 @@ async function runTurnInner(
     // unless its YAML says otherwise, so no projection is needed. An
     // `ask_user` node ends the turn input-required; the next message
     // resumes the graph where it waited.
+    // While a gated call waits, a message that is not its decision repeats the request: the walk cannot move past
+    // the waiting node, so nothing is stored and nothing runs, as the A2A server answers it (ADR 0098).
+    if (!decision && declaresApprovals(config)) {
+      const open = pendingApproval(existing?.events ?? []);
+      if (open) return pause(open);
+    }
     const workflowAgent: TurnAgent = native
-      ? await compileNativeWorkflow(config, compileOpts)
+      ? await compileNativeWorkflowAgent(config, compileOpts)
       : { runtime: 'adk', agent: (await compileWorkflow(config, compileOpts, transform)).workflow as unknown as LlmAgent };
     try {
       answer = await runAgent({
@@ -1000,6 +1001,12 @@ async function runTurnInner(
       result.failedStage = 'workflow';
       result.error = answer.error;
       return finish();
+    }
+    // A gated call paused its node, and the walk with it (ADR 0098): the next message answers it.
+    if (declaresApprovals(config)) {
+      const after = await sessionService.getSession({ appName, userId, sessionId });
+      const pending = pendingApproval(after?.events ?? []);
+      if (pending) return pause(pending);
     }
     if (answer.inputRequests.length) {
       const input = answer.inputRequests[answer.inputRequests.length - 1]!;

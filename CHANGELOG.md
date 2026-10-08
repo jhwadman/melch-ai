@@ -6,6 +6,24 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **A workflow syndicate can be a subagent, and a workflow node can carry
+  an approval gate (WS4-7, ADR 0098).** A DELEGATE syndicate's
+  `yaml_reference` to a `workflow:` syndicate now runs the whole graph as
+  the subagent tool, under the entry's name and description, on both
+  runtimes: the graph's last output is the tool's answer. Before, only the
+  nested syndicate's orchestrator ran. A nested workflow with an
+  `ask_user` node is now refused by name at compile time (its pause could
+  not reach the caller); as a dispatch route or a workflow node, a
+  workflow syndicate is still its orchestrator alone. `require_approval`
+  on a workflow node's agent now validates (except on an agent a `map`
+  node runs): on the native runtime the gated call pauses the node and the
+  turn ends `input-required` with `result.approval`, and the person's
+  decision runs or refuses the pinned call once and walks on; another
+  message repeats the request. On the ADK runtime a gated workflow throws
+  `UnsupportedOnRuntimeError` before any model call, because ADK's resume
+  restarts the node and never runs the call. `melchizedek-agents/compile`
+  adds the `workflow` kind to `SpecTool`, and exports
+  `compileWorkflowSpec` and the `WorkflowSpec` type.
 - **A Gemini agent on the native runtime is no longer shown the reflection
   tool (WS4-6b, ADR 0097).** With `retries.model_errors` on (the default),
   native declared `adk_handle_model_error` to every model. ADK's own Gemini

@@ -417,8 +417,9 @@ export function workflowConfigProblems(raw: Record<string, unknown>, subs: unkno
   ];
   for (const [path, agent] of agents) {
     if (!isObj(agent)) continue;
-    if (Array.isArray(agent.require_approval) && agent.require_approval.length) {
-      out.push({ path: [...path, 'require_approval'], message: 'approval gates are not supported inside a workflow yet' });
+    // A map item cannot pause: the walk resumes a paused agent node, not an item of a map (ADR 0094, ADR 0098).
+    if (typeof agent.name === 'string' && mapped.has(agent.name) && Array.isArray(agent.require_approval) && agent.require_approval.length) {
+      out.push({ path: [...path, 'require_approval'], message: 'approval gates are not supported on an agent a map node runs: a map item cannot pause the walk' });
     }
     if (isObj(agent.skills) && agent.skills.scripts === 'local') {
       out.push({ path: [...path, 'skills', 'scripts'], message: 'skill scripts (an approval pause) are not supported inside a workflow yet' });

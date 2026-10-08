@@ -8,19 +8,24 @@
  *   model resolved once and its generateContentConfig built for that model.
  *   This file adds what only ADK's LlmAgent takes: the model wrapped in a
  *   FallbackLlm for `fallback_model:`, each delegated subagent as an
- *   AgentTool (a remote one as its A2A tool), Gemini's code executor, the
+ *   AgentTool (a nested workflow's whole Workflow too; a remote one as its
+ *   A2A tool), Gemini's code executor, the
  *   context compactor, task mode and a workflow node's settings. Every field
  *   reaches LlmAgent as compileGraph and compileSubagent always passed it, so
  *   the ADK runtime runs the agent it ran before the split.
  *   lib/compileNative.ts builds the native loop's agent from the same spec.
  *
- * Imports from lib/compile.ts are types only, so the two modules load in
- * either order.
+ * Imports from lib/compile.ts are types only. A nested workflow's Workflow
+ * comes from lib/workflow.ts (assembleWorkflow, ADR 0098), which imports
+ * lib/compile.ts; every use of either is inside a function, so the modules
+ * load in any order.
  */
 
 import { AgentTool, BaseLlm, BuiltInCodeExecutor, LLMRegistry, LlmAgent, LlmSummarizer, LogLevel, TokenBasedContextCompactor, setLogLevel as setAdkLogLevel } from '@google/adk';
 
 import { remoteAgentTool } from './a2a/remoteAgent.ts';
+import { assembleWorkflow } from './workflow.ts';
+import type { BaseAgent } from '@google/adk';
 import type { AgentSpec, CompileOptions, ContextConfig } from './compile.ts';
 import { FallbackLlm } from './models/fallback.ts';
 import { resolveModel as resolveRegistryModel } from './models/registry.ts';
@@ -103,7 +108,7 @@ function withFallback(primary: unknown, fallbackId: string | undefined, opts: Co
   return new FallbackLlm(asLlm(primary), asLlm(resolve(fallbackId)), opts.log ?? ((m) => console.warn(m)));
 }
 
-/** The spec's tools as LlmAgent takes them: a delegated subagent as an AgentTool, a remote one as its A2A tool. */
+/** The spec's tools as LlmAgent takes them: a delegated subagent (a nested workflow's Workflow included) as an AgentTool, a remote one as its A2A tool. */
 function adkTools(spec: AgentSpec, opts: CompileOptions): unknown[] {
   return spec.tools.map((entry) => {
     switch (entry.kind) {
@@ -113,6 +118,9 @@ function adkTools(spec: AgentSpec, opts: CompileOptions): unknown[] {
         return new AgentTool({ agent: compileAdk(entry.agent, opts) });
       case 'remote':
         return remoteAgentTool({ name: entry.name, description: entry.description, url: entry.url });
+      case 'workflow':
+        // ADK's AgentTool runs any node its Runner takes, a Workflow included: the whole graph, its last event's text the answer (ADR 0098).
+        return new AgentTool({ agent: assembleWorkflow(entry.workflow, opts).workflow as unknown as BaseAgent });
     }
   });
 }

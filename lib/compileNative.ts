@@ -16,7 +16,8 @@
  * runs by shape during the dual period (ADR 0071). A delegated subagent
  * becomes a subagentTool holding its own NativeAgent, which the loop runs as
  * a child loop (lib/runtime/native/delegate.ts, ADR 0074), a nested
- * syndicate as its orchestrator's agent; a remote A2A subagent is the own
+ * syndicate as its orchestrator's agent, a nested workflow syndicate as a
+ * workflowSubagentTool whose call walks the whole graph (ADR 0098); a remote A2A subagent is the own
  * Tool the ADK runtime's FunctionTool wraps (lib/a2a/remoteAgent.ts).
  *
  * EVERY AGENT KEY COMPILES for the native loop: `context:` is handed to
@@ -41,16 +42,20 @@
 
 import { remoteAgentOwnTool } from './a2a/remoteAgent.ts';
 import { compileSpec, compileSubagentSpec } from './compile.ts';
-import type { AgentSpec, CompileOptions } from './compile.ts';
+import type { AgentSpec, CompileOptions, WorkflowSpec } from './compile.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import type { ModelAdapter } from './models/contract.ts';
 import { providerForModel, resolveAdapter } from './models/registry.ts';
-import { subagentTool } from './runtime/native/delegate.ts';
+import { subagentTool, workflowSubagentTool } from './runtime/native/delegate.ts';
+import type { WorkflowSubagent } from './runtime/native/delegate.ts';
 import { servedThroughShim } from './runtime/native/selfCorrection.ts';
 import type { NativeAgent } from './runtime/native/request.ts';
 import { unsupportedOnNative } from './runtime/runtimeFlag.ts';
 export { UnsupportedOnRuntimeError, unsupportedOnNative } from './runtime/runtimeFlag.ts';
 import { instructionToolOf, toolOf, toolsetOf } from './tools/tool.ts';
+import { buildWorkflowGraph } from './workflow/graph.ts';
+import type { WorkflowGraph } from './workflow/graph.ts';
+import { refuseUnrunnableNodes, runNativeWorkflow } from './workflow/turn.ts';
 
 /** A resolved tool as the loop holds it: the own Tool, InstructionTool or Toolset behind it, else the object itself. */
 function nativeTool(tool: unknown): unknown {
@@ -96,6 +101,7 @@ export function compileNative(spec: AgentSpec): NativeAgent {
   const tools: unknown[] = [];
   for (const entry of spec.tools) {
     if (entry.kind === 'agent') tools.push(subagentTool(compileNative(entry.agent)));
+    else if (entry.kind === 'workflow') tools.push(workflowSubagentTool(workflowSubagentOf(compileNativeWorkflow(entry.workflow))));
     else if (entry.kind === 'remote') tools.push(remoteAgentOwnTool({ name: entry.name, description: entry.description, url: entry.url }));
     else tools.push(nativeTool(entry.tool));
   }
@@ -142,6 +148,61 @@ export function wireModelOf(spec: Pick<AgentSpec, 'modelId' | 'resolvedModel'>):
 /** A syndicate's orchestrator for the native loop: compileSpec, then compileNative. */
 export async function compileNativeGraph(config: SyndicateYamlConfig, opts: CompileOptions = {}): Promise<NativeAgent> {
   return compileNative(await compileSpec(config, opts));
+}
+
+/** A workflow syndicate for the native walk (lib/workflow/turn.ts): its graph, every agent by YAML name, and the tool nodes' lookup. */
+export interface NativeWorkflow {
+  name: string;
+  description: string;
+  graph: WorkflowGraph;
+  agents: Map<string, NativeAgent>;
+  resolveTool: (name: string) => unknown;
+}
+
+/**
+ * A workflow spec for the native walk: the graph, every agent compiled for
+ * native from the same specs ADK's assembleWorkflow builds its agents from,
+ * and the registry's lookup for tool nodes. A tool node ADK's compile
+ * refuses (an unregistered or long-running tool) is refused here, before
+ * any model call, with ADK's message.
+ */
+export function compileNativeWorkflow(spec: WorkflowSpec): NativeWorkflow {
+  const graph = buildWorkflowGraph(spec.config);
+  const agents = new Map<string, NativeAgent>();
+  for (const { yaml, spec: agentSpec } of spec.agents) agents.set(yaml.name, compileNative(agentSpec));
+  refuseUnrunnableNodes(graph, spec.resolveTool);
+  return { name: spec.name, description: spec.description, graph, agents, resolveTool: spec.resolveTool };
+}
+
+/**
+ * A nested workflow as the delegated subagent the native loop calls (ADR
+ * 0098): one call walks the whole graph with runNativeWorkflow on the child
+ * session lib/runtime/native/delegate.ts opened, as ADK's AgentTool runs a
+ * Workflow on its own Runner.
+ */
+export function workflowSubagentOf(workflow: NativeWorkflow): WorkflowSubagent {
+  return {
+    name: workflow.name,
+    ...(workflow.description ? { description: workflow.description } : {}),
+    walk: (run) =>
+      runNativeWorkflow({
+        graph: workflow.graph,
+        agents: workflow.agents,
+        resolveTool: workflow.resolveTool,
+        sessions: run.sessions,
+        appName: run.appName,
+        userId: run.userId,
+        sessionId: run.sessionId,
+        userParts: run.userParts,
+        adapterFor: run.adapterFor,
+        selfCorrection: run.selfCorrection,
+        stream: false,
+        ...(run.signal ? { signal: run.signal } : {}),
+        ...(run.memory ? { memory: run.memory } : {}),
+        ...(run.log ? { log: run.log } : {}),
+        ...(run.credentials ? { credentials: run.credentials } : {}),
+      }),
+  };
 }
 
 /** One subagent entry (a dispatch route) for the native loop: compileSubagentSpec, then compileNative. */
@@ -202,7 +263,11 @@ export function nativeAdapterFor(opts: CompileOptions = {}, spec?: NativeModelSp
       refuseModelClass(resolved, id, s.name ?? 'the native runtime');
       known.set(id, resolved);
     }
-    for (const entry of s.tools ?? []) if (entry.kind === 'agent') learn(entry.agent);
+    for (const entry of s.tools ?? []) {
+      if (entry.kind === 'agent') learn(entry.agent);
+      // A nested workflow's agents run under the caller's lookup (ADR 0098).
+      else if (entry.kind === 'workflow') for (const node of entry.workflow.agents) learn(node.spec);
+    }
   };
   // A workflow's agents share one lookup: every node's spec is learned.
   for (const s of spec === undefined ? [] : Array.isArray(spec) ? spec : [spec as NativeModelSpec]) learn(s);

@@ -303,9 +303,11 @@ test('schema: the rules a graph must keep', () => {
   assert.match(problems(base({ edges: [['START', 'Lead']], nodes: { X: { join: true } } })), /declared but used in no edge/);
   assert.match(problems(base({ edges: [['START', 'Lead', 'X']], nodes: { X: { tool: 't', schema: {} } } })), /schema applies to ask_user/);
   assert.match(problems(base({ edges: [['START', 'Lead']], nodes: { 'Lead__route': { join: true } } })), /reserved/);
+  // An approval gate pauses its agent node (ADR 0098), but not an item of a map.
+  assert.equal(problems(base({ edges: [['START', 'Lead', 'Sub']] }, { orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'x', tools: ['web_extract'], require_approval: ['web_extract'] } })), '');
   assert.match(
-    problems(base({ edges: [['START', 'Lead', 'Sub']] }, { orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'x', tools: ['web_extract'], require_approval: ['web_extract'] } })),
-    /approval gates are not supported inside a workflow yet/,
+    problems(base({ edges: [['START', 'Lead', 'Each']], nodes: { Each: { map: 'Sub' } } }, { subagents: [{ name: 'Sub', description: 'd', model: 'gemini-3.5-flash-lite', instruction: 'y', tools: ['web_extract'], require_approval: ['web_extract'] }] })),
+    /subagents\[0\]\.require_approval — approval gates are not supported on an agent a map node runs: a map item cannot pause the walk/,
   );
   assert.match(
     problems(base({ edges: [['START', 'Lead', 'Sub']] }, { subagents: [{ name: 'Sub', description: 'd', a2a_agent_url: 'https://x.test' }] })),
