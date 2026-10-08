@@ -6,6 +6,30 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **New entry `melchizedek-agents/model`: the model layer without ADK
+  (ADR 0068).** A new path in the `exports` map, so the version is 0.19.0.
+  It exports the model contract's types, `ClaudeAdapter`, `GptAdapter`,
+  `GrokAdapter`, `ChatCompletionsAdapter`, `KimiAdapter`, `OllamaAdapter`,
+  `GatewayAdapter`, `GeminiAdapter`, `resolveAdapter`,
+  `resolveAdapterWithFallback`, `geminiAdapterSetting`, `FallbackAdapter`,
+  `isProviderError`, the circuit breaker's helpers (`breakerSettings`,
+  `circuitOpen`, `recordFailure`, `recordSuccess`, `resetCircuits`) and the
+  prefix table (`PROVIDERS`, `providerForModel`, `providerKeyPresent`), and
+  loads no `@google/adk`: install with `--legacy-peer-deps` to leave ADK out.
+  - Its `resolveAdapter` gives a Gemini id `GeminiAdapter`. Asking it for
+    `adk` (`gemini: 'adk'` or `GEMINI_ADAPTER=adk`) throws and names
+    `melchizedek-agents/models/registry`, whose `resolveAdapter` is
+    unchanged (`AdkGeminiAdapter` by default until gate G3).
+  - New module `melchizedek-agents/models/adapterResolver` (through
+    `./models/*`): `adapterResolver`, `routeFor`, `scopedKey`,
+    `normalizeProvider`, `geminiAdapterSetting` and the resolver types.
+    `models/registry` still exports `geminiAdapterChoice`,
+    `GeminiAdapterChoice` and `ResolveAdapterOptions`.
+  - New module `melchizedek-agents/tools/xaiSearchParams` holds
+    `xaiWebSearchParamsFromEnv`, `xSearchParamsFromEnv`,
+    `collectionIdsFromEnv` and `collectionsMaxResultsFromEnv`, which
+    `tools/webSearchTool`, `tools/xSearchTool` and
+    `tools/collectionsSearchTool` still re-export.
 - **The genai mapping exports two more readers (ADR 0066).**
   `melchizedek-agents/models/genaiMapping` adds `toolChoiceOf` (an agent's
   function-calling mode as a `ToolChoice`, and `VALIDATED` as strict tools)

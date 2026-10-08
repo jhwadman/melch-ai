@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —depends_on→ /decisions/0060-engine-owned-registry.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/tools/xaiSearchParams.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/models/adapterResolver.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0068-model-entry-without-adk.md —constrains→ module:lib/model.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | module:lib/tools/openapi/call.ts —depends_on→ /decisions/0036-redirects-under-the-ssrf-guard.md
 
 by claude-code/claude-opus-5-5

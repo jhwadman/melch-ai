@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 750,
-    "edges": 2293,
+    "nodes": 755,
+    "edges": 2330,
     "byKind": {
-      "doc": 128,
+      "doc": 129,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 120,
+      "file": 121,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 158,
+      "module": 161,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 458,
+      "links_to": 464,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 557,
+      "imports": 578,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 503,
-      "constrains": 90,
+      "derives_from": 509,
+      "constrains": 93,
       "supersedes": 6,
-      "depends_on": 26,
+      "depends_on": 27,
       "explains": 5,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2164,
-      "inferred": 129
+      "extracted": 2197,
+      "inferred": 133
     },
     "isolated": 4
   },
@@ -1204,6 +1204,18 @@
       }
     },
     {
+      "id": "/decisions/0068-model-entry-without-adk.md",
+      "kind": "doc",
+      "label": "ADR 0068: melchizedek-agents/model exports the model layer with no ADK, and its resolveAdapter gives Gemini the engine's adapter",
+      "source": "/decisions/0068-model-entry-without-adk.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 635
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1344,7 +1356,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 2406
+        "words": 2429
       }
     },
     {
@@ -1356,7 +1368,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7771
+        "words": 7792
       }
     },
     {
@@ -1368,7 +1380,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4619
+        "words": 4802
       }
     },
     {
@@ -2754,7 +2766,7 @@
       "id": "env:GEMINI_ADAPTER",
       "kind": "env",
       "label": "GEMINI_ADAPTER",
-      "source": "lib/models/registry.ts"
+      "source": "lib/models/adapterResolver.ts"
     },
     {
       "id": "env:GEMINI_API_KEY",
@@ -3175,13 +3187,13 @@
       "id": "env:XAI_COLLECTION_IDS",
       "kind": "env",
       "label": "XAI_COLLECTION_IDS",
-      "source": "lib/tools/collectionsSearchTool.ts"
+      "source": "lib/tools/xaiSearchParams.ts"
     },
     {
       "id": "env:XAI_COLLECTIONS_MAX_RESULTS",
       "kind": "env",
       "label": "XAI_COLLECTIONS_MAX_RESULTS",
-      "source": "lib/tools/collectionsSearchTool.ts"
+      "source": "lib/tools/xaiSearchParams.ts"
     },
     {
       "id": "env:XAI_TIMEOUT_MS",
@@ -3835,6 +3847,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/packageSurface.test.ts",
+      "kind": "file",
+      "label": "packageSurface.test.ts",
+      "source": "tests/packageSurface.test.ts"
+    },
+    {
       "id": "file:tests/parityHarness.test.ts",
       "kind": "file",
       "label": "parityHarness.test.ts",
@@ -4273,6 +4291,24 @@
       }
     },
     {
+      "id": "module:lib/model.ts",
+      "kind": "module",
+      "label": "lib/model.ts",
+      "source": "lib/model.ts",
+      "attrs": {
+        "lines": 56
+      }
+    },
+    {
+      "id": "module:lib/models/adapterResolver.ts",
+      "kind": "module",
+      "label": "lib/models/adapterResolver.ts",
+      "source": "lib/models/adapterResolver.ts",
+      "attrs": {
+        "lines": 218
+      }
+    },
+    {
       "id": "module:lib/models/adkGeminiAdapter.ts",
       "kind": "module",
       "label": "lib/models/adkGeminiAdapter.ts",
@@ -4467,7 +4503,7 @@
       "label": "lib/models/grokAdapter.ts",
       "source": "lib/models/grokAdapter.ts",
       "attrs": {
-        "lines": 160
+        "lines": 163
       }
     },
     {
@@ -4557,7 +4593,7 @@
       "label": "lib/models/registry.ts",
       "source": "lib/models/registry.ts",
       "attrs": {
-        "lines": 429
+        "lines": 342
       }
     },
     {
@@ -4935,7 +4971,7 @@
       "label": "lib/tools/collectionsSearchTool.ts",
       "source": "lib/tools/collectionsSearchTool.ts",
       "attrs": {
-        "lines": 96
+        "lines": 83
       }
     },
     {
@@ -5151,7 +5187,7 @@
       "label": "lib/tools/webSearchTool.ts",
       "source": "lib/tools/webSearchTool.ts",
       "attrs": {
-        "lines": 147
+        "lines": 98
       }
     },
     {
@@ -5161,6 +5197,15 @@
       "source": "lib/tools/wikiTools.ts",
       "attrs": {
         "lines": 840
+      }
+    },
+    {
+      "id": "module:lib/tools/xaiSearchParams.ts",
+      "kind": "module",
+      "label": "lib/tools/xaiSearchParams.ts",
+      "source": "lib/tools/xaiSearchParams.ts",
+      "attrs": {
+        "lines": 136
       }
     },
     {
@@ -5178,7 +5223,7 @@
       "label": "lib/tools/xSearchTool.ts",
       "source": "lib/tools/xSearchTool.ts",
       "attrs": {
-        "lines": 139
+        "lines": 86
       }
     },
     {
@@ -10441,6 +10486,69 @@
       "evidence": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md:26"
     },
     {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "file:package.json",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "file:tests/packageSurface.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/model.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "module:lib/tools/xaiSearchParams.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md:26"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md:26"
+    },
+    {
+      "from": "/decisions/0068-model-entry-without-adk.md",
+      "to": "/decisions/0060-engine-owned-registry.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0068-model-entry-without-adk.md:30"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -11758,6 +11866,13 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0068-model-entry-without-adk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:23"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -12010,6 +12125,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "/decisions/0068-model-entry-without-adk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:34"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -12182,6 +12304,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:20"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0068-model-entry-without-adk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:163"
     },
     {
       "from": "/models/provider-routing.md",
@@ -15901,6 +16030,195 @@
       "evidence": "lib/memory/supabaseMemoryService.ts"
     },
     {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/fallbackAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/gatewayAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/ollamaAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/model.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/model.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/fallbackAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/gatewayAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/ollamaAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "env:GEMINI_ADAPTER",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
       "from": "module:lib/models/adkGeminiAdapter.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -16700,21 +17018,7 @@
     },
     {
       "from": "module:lib/models/grokAdapter.ts",
-      "to": "module:lib/tools/collectionsSearchTool.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/grokAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/grokAdapter.ts",
-      "to": "module:lib/tools/webSearchTool.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/grokAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/grokAdapter.ts",
-      "to": "module:lib/tools/xSearchTool.ts",
+      "to": "module:lib/tools/xaiSearchParams.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/grokAdapter.ts"
@@ -16931,6 +17235,13 @@
     },
     {
       "from": "module:lib/models/registry.ts",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/registry.ts"
+    },
+    {
+      "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/adkGeminiAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -16939,13 +17250,6 @@
     {
       "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/capabilities.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/registry.ts"
-    },
-    {
-      "from": "module:lib/models/registry.ts",
-      "to": "module:lib/models/claudeAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
@@ -16987,28 +17291,7 @@
     },
     {
       "from": "module:lib/models/registry.ts",
-      "to": "module:lib/models/gatewayAdapter.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/registry.ts"
-    },
-    {
-      "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/gatewayLlm.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/registry.ts"
-    },
-    {
-      "from": "module:lib/models/registry.ts",
-      "to": "module:lib/models/geminiAdapter.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/registry.ts"
-    },
-    {
-      "from": "module:lib/models/registry.ts",
-      "to": "module:lib/models/gptAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
@@ -17022,13 +17305,6 @@
     },
     {
       "from": "module:lib/models/registry.ts",
-      "to": "module:lib/models/grokAdapter.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/registry.ts"
-    },
-    {
-      "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/grokLlm.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -17036,21 +17312,7 @@
     },
     {
       "from": "module:lib/models/registry.ts",
-      "to": "module:lib/models/kimiAdapter.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/registry.ts"
-    },
-    {
-      "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/kimiLlm.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/registry.ts"
-    },
-    {
-      "from": "module:lib/models/registry.ts",
-      "to": "module:lib/models/ollamaAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
@@ -17073,13 +17335,6 @@
       "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/tracedGemini.ts",
       "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/registry.ts"
-    },
-    {
-      "from": "module:lib/models/registry.ts",
-      "to": "env:GEMINI_ADAPTER",
-      "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
     },
@@ -18177,15 +18432,8 @@
     },
     {
       "from": "module:lib/tools/collectionsSearchTool.ts",
-      "to": "env:XAI_COLLECTION_IDS",
-      "rel": "requires_env",
-      "tier": "extracted",
-      "evidence": "lib/tools/collectionsSearchTool.ts"
-    },
-    {
-      "from": "module:lib/tools/collectionsSearchTool.ts",
-      "to": "env:XAI_COLLECTIONS_MAX_RESULTS",
-      "rel": "requires_env",
+      "to": "module:lib/tools/xaiSearchParams.ts",
+      "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/collectionsSearchTool.ts"
     },
@@ -18687,6 +18935,13 @@
       "evidence": "lib/tools/webSearchTool.ts"
     },
     {
+      "from": "module:lib/tools/webSearchTool.ts",
+      "to": "module:lib/tools/xaiSearchParams.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/webSearchTool.ts"
+    },
+    {
       "from": "module:lib/tools/wikiTools.ts",
       "to": "module:lib/config.ts",
       "rel": "imports",
@@ -18778,6 +19033,20 @@
       "evidence": "lib/tools/wikiTools.ts"
     },
     {
+      "from": "module:lib/tools/xaiSearchParams.ts",
+      "to": "env:XAI_COLLECTION_IDS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/xaiSearchParams.ts"
+    },
+    {
+      "from": "module:lib/tools/xaiSearchParams.ts",
+      "to": "env:XAI_COLLECTIONS_MAX_RESULTS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/xaiSearchParams.ts"
+    },
+    {
       "from": "module:lib/tools/xApiSearchTool.ts",
       "to": "module:lib/tools/adkTool.ts",
       "rel": "imports",
@@ -18836,6 +19105,13 @@
     {
       "from": "module:lib/tools/xSearchTool.ts",
       "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/xSearchTool.ts"
+    },
+    {
+      "from": "module:lib/tools/xSearchTool.ts",
+      "to": "module:lib/tools/xaiSearchParams.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/xSearchTool.ts"
