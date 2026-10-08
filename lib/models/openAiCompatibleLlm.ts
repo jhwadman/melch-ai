@@ -50,6 +50,7 @@ import {
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 import { toLowercaseJsonSchema, toStrictJsonSchema, toolDeclarationFor } from './schemaNormalize.ts';
 import { fetchWithRetry, isRetryableStatus } from './retry.ts';
+import { errorDecision, errorText, statusDecision, withRetryVerdict } from './errorResponse.ts';
 import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
 
 // ── OpenAI-compatible wire types (the subset these providers implement) ──────
@@ -537,8 +538,9 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
         usageMetadata,
       );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      yield this.unreachable(msg);
+      // The adapter's own wording, plus whether another model may succeed:
+      // a reset after the retries is retryable, a refused connection is not.
+      yield withRetryVerdict(this.unreachable(errorText(err)), errorDecision(err));
     }
   }
 
@@ -852,11 +854,13 @@ export abstract class OpenAiCompatibleLlm extends BaseLlm {
  * llm.payload.response) can tell a rate limit from a bad request without
  * parsing the message. Applied in the base so a subclass's httpError
  * override (Ollama's hint, the gateway's GATEWAY_HTTP_ERROR) keeps its
- * errorCode and wording and still gets the fields.
+ * errorCode and wording and still gets the fields. The same verdict rides
+ * in customMetadata ('error.retryable', 'error.status'), where FallbackLlm
+ * reads it (lib/models/errorResponse.ts).
  */
 export function withHttpStatus(resp: LlmResponse, status: number): LlmResponse {
   setLlmSpanAttribute('llm.http_status', status);
-  return { ...resp, status, retryable: isRetryableStatus(status) } as LlmResponse;
+  return { ...withRetryVerdict(resp, statusDecision(status)), status, retryable: isRetryableStatus(status) } as LlmResponse;
 }
 
 /** OpenAI-style usage → GenAI usageMetadata (undefined when absent). */

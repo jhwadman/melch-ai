@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 671,
-    "edges": 1613,
+    "nodes": 670,
+    "edges": 1614,
     "byKind": {
       "doc": 104,
       "provider": 6,
       "env": 102,
       "model": 8,
       "tool": 34,
-      "file": 97,
+      "file": 96,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -33,19 +33,19 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 378,
+      "imports": 382,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 316,
+      "derives_from": 314,
+      "constrains": 16,
       "supersedes": 2,
-      "constrains": 17,
       "depends_on": 7,
       "explains": 2,
       "mitigates": 1
     },
     "byTier": {
-      "extracted": 1584,
-      "inferred": 29
+      "extracted": 1586,
+      "inferred": 28
     },
     "isolated": 4
   },
@@ -935,7 +935,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 338
+        "words": 435
       }
     },
     {
@@ -1091,7 +1091,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 5847
+        "words": 4607
       }
     },
     {
@@ -1103,7 +1103,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3813
+        "words": 3876
       }
     },
     {
@@ -3372,12 +3372,6 @@
       "source": "tests/fixtures/sessions/generate.ts"
     },
     {
-      "id": "file:tests/genaiMapping.test.ts",
-      "kind": "file",
-      "label": "genaiMapping.test.ts",
-      "source": "tests/genaiMapping.test.ts"
-    },
-    {
       "id": "file:tests/governance.test.ts",
       "kind": "file",
       "label": "governance.test.ts",
@@ -3828,7 +3822,7 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 671
+        "lines": 673
       }
     },
     {
@@ -3859,12 +3853,21 @@
       }
     },
     {
+      "id": "module:lib/models/errorResponse.ts",
+      "kind": "module",
+      "label": "lib/models/errorResponse.ts",
+      "source": "lib/models/errorResponse.ts",
+      "attrs": {
+        "lines": 84
+      }
+    },
+    {
       "id": "module:lib/models/fallback.ts",
       "kind": "module",
       "label": "lib/models/fallback.ts",
       "source": "lib/models/fallback.ts",
       "attrs": {
-        "lines": 87
+        "lines": 122
       }
     },
     {
@@ -3895,21 +3898,12 @@
       }
     },
     {
-      "id": "module:lib/models/genaiMapping.ts",
-      "kind": "module",
-      "label": "lib/models/genaiMapping.ts",
-      "source": "lib/models/genaiMapping.ts",
-      "attrs": {
-        "lines": 655
-      }
-    },
-    {
       "id": "module:lib/models/gptLlm.ts",
       "kind": "module",
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 827
+        "lines": 826
       }
     },
     {
@@ -3945,7 +3939,7 @@
       "label": "lib/models/openAiCompatibleLlm.ts",
       "source": "lib/models/openAiCompatibleLlm.ts",
       "attrs": {
-        "lines": 902
+        "lines": 906
       }
     },
     {
@@ -3981,7 +3975,7 @@
       "label": "lib/models/retry.ts",
       "source": "lib/models/retry.ts",
       "attrs": {
-        "lines": 364
+        "lines": 365
       }
     },
     {
@@ -8936,13 +8930,6 @@
     },
     {
       "from": "/models/model-contract.md",
-      "to": "file:tests/genaiMapping.test.ts",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/models/model-contract.md frontmatter"
-    },
-    {
-      "from": "/models/model-contract.md",
       "to": "file:tests/modelContract.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -8958,13 +8945,6 @@
     {
       "from": "/models/model-contract.md",
       "to": "module:lib/models/contract.ts",
-      "rel": "derives_from",
-      "tier": "extracted",
-      "evidence": "/models/model-contract.md frontmatter"
-    },
-    {
-      "from": "/models/model-contract.md",
-      "to": "module:lib/models/genaiMapping.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/models/model-contract.md frontmatter"
@@ -8988,56 +8968,56 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:71"
+      "evidence": "/models/model-contract.md:69"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:41"
+      "evidence": "/models/model-contract.md:39"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:88"
+      "evidence": "/models/model-contract.md:86"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:25"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:25"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:95"
+      "evidence": "/models/model-contract.md:93"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:25"
+      "evidence": "/models/model-contract.md:23"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:27"
+      "evidence": "/models/model-contract.md:25"
     },
     {
       "from": "/models/provider-routing.md",
@@ -12387,6 +12367,13 @@
     },
     {
       "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/providerState.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -12533,8 +12520,29 @@
       "evidence": "lib/models/endpoints.ts"
     },
     {
+      "from": "module:lib/models/errorResponse.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/errorResponse.ts"
+    },
+    {
+      "from": "module:lib/models/errorResponse.ts",
+      "to": "module:lib/observability/redact.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/errorResponse.ts"
+    },
+    {
       "from": "module:lib/models/fallback.ts",
       "to": "module:lib/models/circuitBreaker.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/fallback.ts"
+    },
+    {
+      "from": "module:lib/models/fallback.ts",
+      "to": "module:lib/models/errorResponse.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/fallback.ts"
@@ -12548,7 +12556,7 @@
     },
     {
       "from": "module:lib/models/fallback.ts",
-      "to": "module:lib/models/retry.ts",
+      "to": "module:lib/runtime/turnControl.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/fallback.ts"
@@ -12610,22 +12618,15 @@
       "evidence": "lib/models/gatewayLlm.ts"
     },
     {
-      "from": "module:lib/models/genaiMapping.ts",
-      "to": "module:lib/models/contract.ts",
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/endpoints.ts",
       "rel": "imports",
       "tier": "extracted",
-      "evidence": "lib/models/genaiMapping.ts"
-    },
-    {
-      "from": "module:lib/models/genaiMapping.ts",
-      "to": "module:lib/models/schemaNormalize.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/genaiMapping.ts"
+      "evidence": "lib/models/gptLlm.ts"
     },
     {
       "from": "module:lib/models/gptLlm.ts",
-      "to": "module:lib/models/endpoints.ts",
+      "to": "module:lib/models/errorResponse.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gptLlm.ts"
@@ -12769,6 +12770,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/models/ollamaLlm.ts"
+    },
+    {
+      "from": "module:lib/models/openAiCompatibleLlm.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/openAiCompatibleLlm.ts"
     },
     {
       "from": "module:lib/models/openAiCompatibleLlm.ts",

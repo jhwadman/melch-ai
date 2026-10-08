@@ -158,6 +158,25 @@ the starter pack and the templates), not the repo's full history.
   exports `appendRelation(wikiRoot, record)`, which returns `false` for a
   duplicate, and `saveRelations` writes records in the order given instead of
   sorting them.
+- **Fix: `fallback_model:` answers for Claude, GPT, Grok, Kimi, Ollama and
+  gateway primaries (ADR 0044).** In 0.18.0 `FallbackLlm` saw a failure only when
+  the primary threw, which only Gemini does. The other adapters yield an
+  error response, so their fallback never answered, and the failed call was
+  recorded as a success, which reset the provider's circuit breaker. Their
+  error responses now carry `customMetadata['error.retryable']` (and
+  `'error.status'` when the failure had an HTTP status), set from
+  `lib/models/retry.ts`'s classification, and `FallbackLlm` reads them: a
+  retryable error before any output is counted on the breaker and answered
+  by the fallback, a non-retryable one is passed on, and only a call that
+  produced content counts as a success. Error codes and messages are
+  unchanged, except that key-shaped text is now removed from the message.
+  A failure GPT or Grok report inside an open stream (`response.failed`)
+  carries no verdict and is still passed on. The retry policy now counts
+  HTTP 529, Anthropic's "overloaded", as retryable, so an overloaded Claude
+  primary is answered by its fallback. New
+  module `melchizedek-agents/models/errorResponse`: `providerErrorResponse`,
+  `withRetryVerdict`, `isRetryableErrorResponse`, `errorDecision`,
+  `statusDecision`, `errorText`, `ERROR_RETRYABLE_KEY`, `ERROR_STATUS_KEY`.
 
 ## 0.18.0 — 2026-10-06
 

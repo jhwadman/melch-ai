@@ -74,6 +74,7 @@ import { toLowercaseJsonSchema, toolDeclarationFor } from './schemaNormalize.ts'
 import { claudeClientSpec, endpointFromEnv, endpointLabel, instantiateClient, nativeSearchOn, platformModel, SdkMissingError } from './endpoints.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
 import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
+import { providerErrorResponse } from './errorResponse.ts';
 import { adaptiveThinking, claudeGeneration, claudeUrlImagesOn, THINKING_BINDING_BETA } from './claudeModels.ts';
 
 // ── Type aliases to avoid @anthropic-ai/sdk import errors when not installed ─
@@ -569,8 +570,9 @@ export class ClaudeLlm extends BaseLlm {
         yield this.finalResponse(response, /*includeText=*/ true);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      yield { errorCode: 'ANTHROPIC_ERROR', errorMessage: msg };
+      // The retry policy's verdict rides on the response, so a fallback_model
+      // answers a provider-side failure (ADR 0044, lib/models/errorResponse.ts).
+      yield providerErrorResponse(err, 'ANTHROPIC_ERROR');
     }
   }
 
