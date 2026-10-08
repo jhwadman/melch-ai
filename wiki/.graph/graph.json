@@ -5,26 +5,26 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 693,
-    "edges": 1752,
+    "nodes": 698,
+    "edges": 1803,
     "byKind": {
-      "doc": 110,
+      "doc": 111,
       "provider": 6,
       "env": 103,
       "model": 8,
       "tool": 34,
-      "file": 103,
+      "file": 105,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 138,
+      "module": 140,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 292,
-      "requires_env": 162,
+      "links_to": 308,
+      "requires_env": 165,
       "routes_to": 8,
       "defined_in": 76,
       "documents": 56,
@@ -33,19 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 423,
+      "imports": 439,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 349,
-      "constrains": 33,
+      "derives_from": 358,
+      "constrains": 39,
       "supersedes": 2,
       "depends_on": 9,
       "explains": 2,
-      "mitigates": 1
+      "mitigates": 1,
+      "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1705,
-      "inferred": 47
+      "extracted": 1749,
+      "inferred": 54
     },
     "isolated": 4
   },
@@ -539,7 +540,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 738
+        "words": 802
       }
     },
     {
@@ -1043,7 +1044,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 739
+        "words": 816
       }
     },
     {
@@ -1131,6 +1132,18 @@
       }
     },
     {
+      "id": "/models/adk-gemini-adapter.md",
+      "kind": "doc",
+      "label": "Gemini wrapper over ADK",
+      "source": "/models/adk-gemini-adapter.md",
+      "attrs": {
+        "type": "model-provider",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1283
+      }
+    },
+    {
       "id": "/models/adk-shim.md",
       "kind": "doc",
       "label": "ADK shim",
@@ -1139,7 +1152,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 697
+        "words": 707
       }
     },
     {
@@ -1151,7 +1164,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1674
+        "words": 1722
       }
     },
     {
@@ -1163,7 +1176,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 6009
+        "words": 6644
       }
     },
     {
@@ -1175,7 +1188,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3939
+        "words": 4007
       }
     },
     {
@@ -2556,7 +2569,8 @@
       "id": "env:GOOGLE_API_KEY",
       "kind": "env",
       "label": "GOOGLE_API_KEY",
-      "source": "lib/models/geminiAdapter.ts"
+      "source": "lib/models/geminiAdapter.ts",
+      "attrs": {}
     },
     {
       "id": "env:GOOGLE_CLOUD_LOCATION",
@@ -3396,6 +3410,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/adkGeminiAdapter.test.ts",
+      "kind": "file",
+      "label": "adkGeminiAdapter.test.ts",
+      "source": "tests/adkGeminiAdapter.test.ts"
+    },
+    {
       "id": "file:tests/adkShim.test.ts",
       "kind": "file",
       "label": "adkShim.test.ts",
@@ -3623,6 +3643,12 @@
       "kind": "file",
       "label": "taskLimiter.test.ts",
       "source": "tests/taskLimiter.test.ts"
+    },
+    {
+      "id": "file:tests/telemetryLedger.test.ts",
+      "kind": "file",
+      "label": "telemetryLedger.test.ts",
+      "source": "tests/telemetryLedger.test.ts"
     },
     {
       "id": "file:tests/toolContract.test.ts",
@@ -3922,12 +3948,21 @@
       }
     },
     {
+      "id": "module:lib/models/adkGeminiAdapter.ts",
+      "kind": "module",
+      "label": "lib/models/adkGeminiAdapter.ts",
+      "source": "lib/models/adkGeminiAdapter.ts",
+      "attrs": {
+        "lines": 410
+      }
+    },
+    {
       "id": "module:lib/models/adkShim.ts",
       "kind": "module",
       "label": "lib/models/adkShim.ts",
       "source": "lib/models/adkShim.ts",
       "attrs": {
-        "lines": 142
+        "lines": 137
       }
     },
     {
@@ -3954,7 +3989,7 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 673
+        "lines": 678
       }
     },
     {
@@ -4035,7 +4070,16 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 733
+        "lines": 735
+      }
+    },
+    {
+      "id": "module:lib/models/geminiState.ts",
+      "kind": "module",
+      "label": "lib/models/geminiState.ts",
+      "source": "lib/models/geminiState.ts",
+      "attrs": {
+        "lines": 21
       }
     },
     {
@@ -4044,7 +4088,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 663
+        "lines": 941
       }
     },
     {
@@ -4053,7 +4097,7 @@
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 826
+        "lines": 831
       }
     },
     {
@@ -4089,7 +4133,7 @@
       "label": "lib/models/openAiCompatibleLlm.ts",
       "source": "lib/models/openAiCompatibleLlm.ts",
       "attrs": {
-        "lines": 906
+        "lines": 911
       }
     },
     {
@@ -4125,7 +4169,7 @@
       "label": "lib/models/registry.ts",
       "source": "lib/models/registry.ts",
       "attrs": {
-        "lines": 386
+        "lines": 396
       }
     },
     {
@@ -4233,7 +4277,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 800
+        "lines": 832
       }
     },
     {
@@ -7096,6 +7140,13 @@
       "evidence": "/decisions/0009-observability-ledger.md:42"
     },
     {
+      "from": "/decisions/0009-observability-ledger.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0009-observability-ledger.md:44"
+    },
+    {
       "from": "/decisions/0010-calibrated-judgment-loop.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
@@ -8822,7 +8873,7 @@
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:53"
+      "evidence": "/decisions/0053-adapter-caller-charges-and-traces.md:55"
     },
     {
       "from": "/memory/architecture.md",
@@ -9371,6 +9422,111 @@
       "evidence": "/meta/wiki-system.md:34"
     },
     {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "file:tests/adkGeminiAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "file:tests/telemetryLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "module:lib/models/adkGeminiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "module:lib/models/registry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:32"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:26"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:59"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:24"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:48"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:48"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/models/gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:26"
+    },
+    {
+      "from": "/models/adk-gemini-adapter.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/adk-gemini-adapter.md:36"
+    },
+    {
       "from": "/models/adk-shim.md",
       "to": "file:tests/adkShim.test.ts",
       "rel": "derives_from",
@@ -9424,7 +9580,7 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/adk-shim.md:28"
+      "evidence": "/models/adk-shim.md:32"
     },
     {
       "from": "/models/adk-shim.md",
@@ -9463,66 +9619,80 @@
     },
     {
       "from": "/models/gemini-adapter.md",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md frontmatter"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
       "to": "/decisions/0023-bring-your-own-endpoint.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:32"
+      "evidence": "/models/gemini-adapter.md:33"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:20"
+      "evidence": "/models/gemini-adapter.md:21"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:72"
+      "evidence": "/models/gemini-adapter.md:73"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:50"
+      "evidence": "/models/gemini-adapter.md:51"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:20"
+      "evidence": "/models/gemini-adapter.md:21"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:101"
+      "evidence": "/models/gemini-adapter.md:102"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/models/adk-gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:23"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:101"
+      "evidence": "/models/gemini-adapter.md:102"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:24"
+      "evidence": "/models/gemini-adapter.md:25"
     },
     {
       "from": "/models/gemini-adapter.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/gemini-adapter.md:22"
+      "evidence": "/models/gemini-adapter.md:23"
     },
     {
       "from": "/models/model-contract.md",
@@ -9575,6 +9745,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md frontmatter"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "module:lib/models/genaiMapping.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -9606,91 +9783,98 @@
       "to": "/decisions/0019-multi-model-parity-matrix.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:74"
+      "evidence": "/models/model-contract.md:75"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:44"
+      "evidence": "/models/model-contract.md:45"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:91"
+      "evidence": "/models/model-contract.md:92"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:28"
+      "evidence": "/models/model-contract.md:29"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:28"
+      "evidence": "/models/model-contract.md:29"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:98"
+      "evidence": "/models/model-contract.md:99"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0048-engine-owned-model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:28"
+      "evidence": "/models/model-contract.md:29"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:203"
+      "evidence": "/models/model-contract.md:204"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:120"
+      "evidence": "/models/model-contract.md:121"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:356"
+      "evidence": "/models/model-contract.md:360"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/models/adk-gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:289"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:30"
+      "evidence": "/models/model-contract.md:31"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:30"
+      "evidence": "/models/model-contract.md:31"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:77"
+      "evidence": "/models/model-contract.md:78"
     },
     {
       "from": "/models/provider-routing.md",
@@ -9743,6 +9927,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:141"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -9768,6 +9959,34 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:133"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:141"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/adk-gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:141"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/adk-shim.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:141"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/gemini-adapter.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:141"
     },
     {
       "from": "/models/provider-routing.md",
@@ -13060,6 +13279,83 @@
       "evidence": "lib/memory/supabaseMemoryService.ts"
     },
     {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/models/retry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "env:GEMINI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "env:GOOGLE_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/adkGeminiAdapter.ts",
+      "to": "env:GOOGLE_GENAI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/models/adkGeminiAdapter.ts"
+    },
+    {
       "from": "module:lib/models/adkShim.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -13139,6 +13435,13 @@
     {
       "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/genaiMapping.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"
@@ -13404,6 +13707,13 @@
     },
     {
       "from": "module:lib/models/geminiAdapter.ts",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/geminiAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/geminiAdapter.ts",
       "to": "module:lib/models/providerState.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -13474,6 +13784,20 @@
     },
     {
       "from": "module:lib/models/genaiMapping.ts",
+      "to": "module:lib/models/geminiState.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/genaiMapping.ts"
+    },
+    {
+      "from": "module:lib/models/genaiMapping.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/genaiMapping.ts"
+    },
+    {
+      "from": "module:lib/models/genaiMapping.ts",
       "to": "module:lib/models/schemaNormalize.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -13489,6 +13813,13 @@
     {
       "from": "module:lib/models/gptLlm.ts",
       "to": "module:lib/models/errorResponse.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gptLlm.ts"
+    },
+    {
+      "from": "module:lib/models/gptLlm.ts",
+      "to": "module:lib/models/genaiMapping.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/gptLlm.ts"
@@ -13642,6 +13973,13 @@
     },
     {
       "from": "module:lib/models/openAiCompatibleLlm.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/openAiCompatibleLlm.ts"
+    },
+    {
+      "from": "module:lib/models/openAiCompatibleLlm.ts",
       "to": "module:lib/models/providerState.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -13748,6 +14086,13 @@
     {
       "from": "module:lib/models/registry.ts",
       "to": "module:lib/models/gatewayLlm.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/registry.ts"
+    },
+    {
+      "from": "module:lib/models/registry.ts",
+      "to": "module:lib/models/genaiMapping.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/registry.ts"
@@ -14003,6 +14348,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/observability/supabaseSpanExporter.ts"
+    },
+    {
+      "from": "module:lib/observability/tracer.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/observability/tracer.ts"
     },
     {
       "from": "module:lib/observability/tracer.ts",

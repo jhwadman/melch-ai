@@ -75,17 +75,19 @@ import type {
 } from './contract.ts';
 import { endpointFromEnv, endpointProblems, platformModel } from './endpoints.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
+import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
 import { currentTurnStart, providerStateOf } from './providerState.ts';
 import { classifyError, errorStatus, retryUntilFirstYield } from './retry.ts';
 import { reasoningConfig } from './reasoning.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
 
-/** The provider id this adapter reports and writes its state under. */
-export const GEMINI_PROVIDER = 'gemini';
-
-/** The providerState kind for a Gemini thought signature (ADR 0046). */
-export const THOUGHT_SIGNATURE_KIND = 'thought_signature';
+/**
+ * The provider id this adapter reports and writes its state under, and the
+ * providerState kind for a Gemini thought signature (ADR 0046). Defined once
+ * in lib/models/geminiState.ts, so the genai mapping spells them the same.
+ */
+export { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND };
 
 /**
  * The prefix of a call id the engine made (this adapter, or ADK before it).

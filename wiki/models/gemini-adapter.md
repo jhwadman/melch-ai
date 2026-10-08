@@ -13,13 +13,14 @@ sources:
   - resource: lib/models/geminiAdapter.ts
   - resource: tests/geminiAdapter.test.ts
   - resource: lib/models/contract.ts
+  - resource: lib/models/geminiState.ts
 ---
 
 # Gemini adapter
 
 `GeminiAdapter` in `lib/models/geminiAdapter.ts` is Gemini as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)). It calls `@google/genai` itself: `models.generateContent`, or `models.generateContentStream` when the request streams. ADK's `Gemini` class plays no part in it. It is the native runtime's Gemini ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
 
-Nothing registers it. Every Gemini id is still served by `TracedGemini`, ADK's `Gemini` wrapped in `lib/models/registry.ts`, as [provider routing](/models/provider-routing.md) describes. The registry ticket wires this adapter in.
+Nothing registers it. Every Gemini id is still served by `TracedGemini`, ADK's `Gemini` wrapped in `lib/models/registry.ts`, as [provider routing](/models/provider-routing.md) describes. The registry ticket wires this adapter in. Until it passes the live run at gate G3, Gemini on the contract is [the wrapper over ADK's Gemini](/models/adk-gemini-adapter.md).
 
 The field-by-field mapping is the Gemini table of the [model contract](/models/model-contract.md). This page records how the adapter reaches Gemini, the choices it makes inside that table, and what the offline tests cannot confirm.
 
@@ -69,7 +70,7 @@ The contract's Gemini table holds, with these choices inside it:
 
 ## Thought signatures
 
-The adapter writes a part's `thoughtSignature` as `providerState: { provider: 'gemini', kind: 'thought_signature', model, payload }` ([ADR 0046](/decisions/0046-provider-reasoning-state-on-the-part.md)), on the output part it arrived on. `model` is the request's model id.
+The adapter writes a part's `thoughtSignature` as `providerState: { provider: 'gemini', kind: 'thought_signature', model, payload }` ([ADR 0046](/decisions/0046-provider-reasoning-state-on-the-part.md)), on the output part it arrived on. `model` is the request's model id. The provider and kind are defined once, in `lib/models/geminiState.ts`, which the genai mapping reads too; this module still exports both.
 
 - **A signature on a part the final does not carry moves forward.** On a thought part, a code-execution part or a server-side invocation, it goes to the next output part. A trailing signature with no part after it stays with the last part, if that part has none of its own.
 - **An empty text part carrying a signature** closes the text before it. That is how a streamed answer's signature usually arrives.
@@ -98,7 +99,7 @@ Every call ends with exactly one final, and a failure is that final with `error`
 
 ## Telemetry
 
-The adapter sets attributes on the active span: `llm.retries`, `llm.http_status`, `llm.finish_reason`, `llm.web_search.native` and `llm.capability.dropped`. It opens no span of its own and does not charge the turn's step budget. Both stay with the caller ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)): on the ADK path, the [ADK shim](/models/adk-shim.md), through `traceLlmGeneration`.
+The adapter sets attributes on the active span: `llm.retries`, `llm.http_status`, `llm.finish_reason`, `llm.web_search.native` and `llm.capability.dropped`. It opens no span of its own and does not charge the turn's step budget. Both stay with the caller ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)): on the ADK path, the [ADK shim](/models/adk-shim.md), through `traceLlmGeneration`. The [wrapper over ADK's Gemini](/models/adk-gemini-adapter.md) keeps the same rule.
 
 ## What the offline tests assert
 

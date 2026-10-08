@@ -16,7 +16,9 @@
  *   - The turn's charge and the llm.request span. The call goes through
  *     `traceLlmGeneration` (lib/observability/tracer.ts) exactly as every
  *     ADK-path adapter's call does, with the adapter's `provider`, the
- *     shim's model id and the LlmRequest. So the step budget, a stopped
+ *     shim's model id and the request, here the ModelRequest the shim hands
+ *     the adapter (an ADK-path adapter maps its LlmRequest to one for a
+ *     failed call's payload). So the step budget, a stopped
  *     turn's refusal (STEP_LIMIT, DEADLINE_EXCEEDED, CANCELED, as the same
  *     LlmResponse), the token charge and the span's attributes are what
  *     ClaudeLlm, GptLlm and the chat-completions adapters produce. A refused
@@ -41,7 +43,7 @@
 import { BaseLlm } from '@google/adk';
 import type { BaseLlmConnection, BaseLlmType, LlmRequest, LlmResponse } from '@google/adk';
 
-import type { ModelAdapter } from './contract.ts';
+import type { ModelAdapter, ModelRequest } from './contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from './genaiMapping.ts';
 import { traceLlmGeneration } from '../observability/tracer.ts';
 import { currentTurnSignal } from '../runtime/turnControl.ts';
@@ -82,24 +84,17 @@ export class AdkShim extends BaseLlm {
     stream = false,
     abortSignal?: AbortSignal,
   ): AsyncGenerator<LlmResponse, void> {
-    yield* traceLlmGeneration(
-      { provider: this.adapter.provider, model: this.model, llmRequest },
-      this.generateInner(llmRequest, stream, abortSignal),
-    );
-  }
-
-  /** Runs inside the span: the adapter's setLlmSpanAttribute calls land on it. */
-  private async *generateInner(
-    llmRequest: LlmRequest,
-    stream: boolean,
-    abortSignal: AbortSignal | undefined,
-  ): AsyncGenerator<LlmResponse, void> {
     const signal = eitherSignal(abortSignal, currentTurnSignal(), llmRequest.config?.abortSignal);
     const request = llmRequestToModelRequest(llmRequest, {
       model: this.model,
       stream,
       ...(signal ? { signal } : {}),
     });
+    yield* traceLlmGeneration({ provider: this.adapter.provider, model: this.model, request }, this.generateInner(request));
+  }
+
+  /** Runs inside the span: the adapter's setLlmSpanAttribute calls land on it. */
+  private async *generateInner(request: ModelRequest): AsyncGenerator<LlmResponse, void> {
     for await (const response of this.adapter.generate(request)) {
       yield modelResponseToLlmResponse(response);
     }

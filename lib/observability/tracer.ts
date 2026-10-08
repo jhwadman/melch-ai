@@ -18,6 +18,7 @@ import core from '@opentelemetry/core';
 const { ExportResultCode } = core;
 
 import type { Event, LlmResponse } from '@google/adk';
+import type { ModelRequest } from '../models/contract.ts';
 
 import {
   SupabaseSpanExporter,
@@ -630,11 +631,24 @@ export interface LlmCallMeta {
   /** The model id as declared in the agent YAML (e.g. 'ollama/qwen3:8b'). */
   model: string;
   /**
-   * The full LlmRequest, attached to the span ONLY when the call errors.
-   * ADK's own call_llm payload capture is lost on error — the consumer stops
-   * pulling after the error event, so that span's end() (not in a finally)
-   * never runs and the exporter never sees it. This span always ends, so an
-   * errored call keeps its request + error body in adk_payloads regardless.
+   * The request as the engine's model contract holds it (lib/models/
+   * contract.ts), attached to the span as `llm.payload.request`, without its
+   * abort signal, ONLY when the call errors. ADK's own call_llm payload
+   * capture is lost on error — the consumer stops pulling after the error
+   * event, so that span's end() (not in a finally) never runs and the
+   * exporter never sees it. This span always ends, so an errored call keeps
+   * its request + error body in adk_payloads regardless.
+   *
+   * The caller of a contract adapter (the ADK shim) passes the ModelRequest
+   * it hands the adapter. An ADK adapter passes a function that maps its
+   * LlmRequest (llmRequestToModelRequest, lib/models/genaiMapping.ts), so
+   * the mapping runs only for a failed call. A mapping that throws records
+   * no request.
+   */
+  request?: ModelRequest | (() => ModelRequest);
+  /**
+   * @deprecated Pass `request`. Recorded as given, when `request` is absent,
+   * for an adapter written before the model contract.
    */
   llmRequest?: unknown;
 }
@@ -654,6 +668,19 @@ function safePayloadJson(value: unknown): string {
   return json.length > ERROR_PAYLOAD_MAX_CHARS
     ? json.slice(0, ERROR_PAYLOAD_MAX_CHARS)
     : json;
+}
+
+/** What `llm.payload.request` records for a failed call: the ModelRequest less its signal, else the older `llmRequest`. */
+function payloadRequest(meta: LlmCallMeta): unknown {
+  if (meta.request === undefined) return meta.llmRequest;
+  let request: ModelRequest;
+  try {
+    request = typeof meta.request === 'function' ? meta.request() : meta.request;
+  } catch {
+    return undefined;
+  }
+  const { signal: _signal, ...recorded } = request;
+  return recorded;
 }
 
 /**
@@ -677,7 +704,11 @@ function refineErrorCode(code: string, message: string): string {
  * model, input/output/thinking token counts, latency, and a truncated
  * thinking summary as a span event. Adapters call this around their own
  * generator; TracedGemini (lib/models/registry.ts) does the same for Gemini,
- * so per-request telemetry is uniform across the fleet.
+ * so per-request telemetry is uniform across the fleet, and the ADK shim
+ * (lib/models/adkShim.ts) does it for an adapter on the model contract,
+ * which opens no span of its own (ADR 0053). The request it records is a
+ * ModelRequest: the one the shim hands its adapter, or an ADK adapter's
+ * LlmRequest mapped to one when the call fails.
  *
  * Adapters can decorate the active llm.request span with extra attributes
  * (e.g. llm.web_search.native) via setLlmSpanAttribute below.
@@ -775,8 +806,9 @@ export async function* traceLlmGeneration(
       span.setAttribute('llm.error_message', errorMessage.slice(0, ERROR_MESSAGE_MAX_CHARS));
       // Make this span a payload candidate (see supabaseSpanExporter's
       // isPayloadSpan): the request as sent and the error as received.
-      if (meta.llmRequest !== undefined) {
-        span.setAttribute('llm.payload.request', safePayloadJson(meta.llmRequest));
+      const request = payloadRequest(meta);
+      if (request !== undefined) {
+        span.setAttribute('llm.payload.request', safePayloadJson(request));
       }
       span.setAttribute('llm.payload.response', safePayloadJson(errorResponse ?? { errorCode, errorMessage }));
     }
