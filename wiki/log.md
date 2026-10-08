@@ -23,6 +23,22 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0052-sessions-and-events-on-own-interfaces.md —constrains→ module:lib/storage/postgres/sessionService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0052-sessions-and-events-on-own-interfaces.md —constrains→ module:lib/session/supabaseSessionService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0052-sessions-and-events-on-own-interfaces.md —depends_on→ /decisions/0048-engine-owned-model-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/runtime/events.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/models/genaiMapping.ts
 
 by claude-code/claude-opus-5-5
