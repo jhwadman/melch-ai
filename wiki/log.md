@@ -3,6 +3,38 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md —constrains→ module:lib/workflow/agentNode.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /overview/workflow-agent-node.md —explains→ /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md —constrains→ module:lib/workflow/scheduler.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md —constrains→ module:lib/workflow/nodeEvents.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md —constrains→ module:lib/runtime/native/request.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md —depends_on→ /decisions/0090-workflow-agent-node-on-the-native-loop.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/workflow-scheduler.md —explains→ /decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md
 
 by claude-code/claude-opus-5-5

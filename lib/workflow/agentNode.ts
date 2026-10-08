@@ -33,7 +33,13 @@
  *      port in lib/workflow/toolNode.ts, enrichNodeEvent). The loop
  *      calls the stamp before it stores each event (`nodeStamp`), after the
  *      outputKey and task hooks, the order ADK applies them in.
- *   6. FAILURE. An event carrying an error code is the node's reported
+ *   6. THE INSTRUCTION SCOPE. The run carries ADK's workflow instruction
+ *      scope (`workflowScope`): the node's input, and the output every event
+ *      of the invocation stored before the node ran, by node name
+ *      (predecessorOutputs, ADK's collectPredecessorOutputs). The request
+ *      fills `{x.field}` and `<x.field from Node>` from it
+ *      (lib/runtime/native/request.ts, injectSessionState).
+ *   7. FAILURE. An event carrying an error code is the node's reported
  *      error; a run that ends with one and no output throws
  *      NodeReportedError with ADK's message, which stops the walk as ADK's
  *      does. A run the turn stopped throws. A run that pauses on a person
@@ -41,23 +47,23 @@
  *
  * `agentNodeRuntime` puts it together for the scheduler: a `runNode` for
  * agent nodes and map items, and an `onEvent` that stores the event ADK
- * stores for each route step (lib/workflow/route.ts), so a session the
- * native walk writes holds what ADK's holds, in the same order.
+ * stores for each route step (lib/workflow/route.ts), join and map
+ * (lib/workflow/nodeEvents.ts), so a session the native walk writes holds
+ * what ADK's holds, in the same order.
  *
- * NOT HERE: workflow placeholders in an instruction (`{input.field}`,
- * `<field from Node>`; the native request leaves them as written), the
- * events ADK stores for a join or a map node itself, interrupts inside a
- * node (an ask_user tool call, an approval), tool nodes
- * (lib/workflow/toolNode.ts) and ask_user nodes (lib/workflow/pause.ts). It
- * imports nothing from ADK.
+ * NOT HERE: interrupts inside a node (an ask_user tool call, an approval),
+ * tool nodes (lib/workflow/toolNode.ts) and ask_user nodes
+ * (lib/workflow/pause.ts). It imports nothing from ADK.
  */
 
 import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
 import type { TurnContent, TurnEvent } from '../runtime/events.ts';
 import { runAgentLoop } from '../runtime/native/agentLoop.ts';
 import type { AgentLoopContext, AgentLoopEnd } from '../runtime/native/agentLoop.ts';
-import type { NativeAgent } from '../runtime/native/request.ts';
+import { predecessorOutputs } from '../runtime/native/request.ts';
+import type { NativeAgent, WorkflowInstructionScope } from '../runtime/native/request.ts';
 import type { Session, SessionService } from '../runtime/sessions.ts';
+import { joinNodeEvent, mapNodeEvent } from './nodeEvents.ts';
 import { routeStepEvent } from './route.ts';
 import { enrichNodeEvent } from './toolNode.ts';
 import type { NodeResult, NodeRun, NodeRunner, SchedulerEvent } from './scheduler.ts';
@@ -156,7 +162,7 @@ function nodeStamp(agent: NativeAgent, run: Pick<NodeRun, 'path' | 'branch'>, in
 // ── One node ─────────────────────────────────────────────────────────────────
 
 /** The loop options a node run takes from its caller; the node sets the rest. */
-export type AgentNodeLoopOptions = Omit<AgentLoopContext, 'session' | 'sessions' | 'invocationId' | 'userContent' | 'branch' | 'signal' | 'taskNode' | 'nodeStamp'>;
+export type AgentNodeLoopOptions = Omit<AgentLoopContext, 'session' | 'sessions' | 'invocationId' | 'userContent' | 'branch' | 'signal' | 'taskNode' | 'nodeStamp' | 'workflowScope'>;
 
 export interface AgentNodeContext {
   session: Session;
@@ -169,7 +175,7 @@ export interface AgentNodeContext {
   loop?: AgentNodeLoopOptions;
   /** Each event as it is stored, in order. */
   onEvent?: (event: TurnEvent) => void;
-  /** Stores the node's user turn; default `sessions.append`. agentNodeRuntime passes its queue. */
+  /** Stores the node's user turn; default `sessions.append`. agentNodeRuntime passes its queue. Called synchronously, before the run's first await. */
   appendInput?: (event: TurnEvent) => Promise<TurnEvent>;
 }
 
@@ -188,6 +194,8 @@ export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input
     const stored = await (ctx.appendInput ?? ((e: TurnEvent) => sessions.append(session, e)))(userEvent);
     ctx.onEvent?.(stored);
   }
+  // ADK's withWorkflowInstructionScope: the input, and the outputs stored before the node runs.
+  const workflowScope: WorkflowInstructionScope = { input: run.input, outputsByNode: predecessorOutputs(session.events, invocationId) };
   const state: NodeStampState = { output: undefined };
   const loop = runAgentLoop(nodeAgent, {
     ...(ctx.loop ?? {}),
@@ -199,6 +207,7 @@ export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input
     signal: run.signal,
     taskNode: taskMode,
     nodeStamp: nodeStamp(agent, run, invocationId, state),
+    workflowScope,
   });
   let end: AgentLoopEnd;
   for (;;) {
@@ -234,7 +243,7 @@ export interface AgentNodeRuntimeOptions extends Omit<AgentNodeContext, 'appendI
 export interface AgentNodeRuntime {
   /** The scheduler's runNode: agent nodes and map items run here; every other run goes to `next`. */
   runNode: NodeRunner;
-  /** The scheduler's onEvent: stores the event ADK stores for each route step. */
+  /** The scheduler's onEvent: stores the event ADK stores for each route step, join and map. */
   onEvent: (event: SchedulerEvent) => void;
   /**
    * Stores an event another runner of the chain made (a tool node's, through
@@ -277,15 +286,22 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
     ...(options.userContent ? { userContent: options.userContent } : {}),
     ...(options.loop ? { loop: options.loop } : {}),
     ...(options.onEvent ? { onEvent: options.onEvent } : {}),
-    appendInput: (event) => enqueue(event),
+    // An event queued before the input that failed to store stops the node before its agent runs.
+    appendInput: async (event) => {
+      const stored = await enqueue(event);
+      if (failure) throw failure.error;
+      return stored;
+    },
   };
   const agentNamed = (name: string): NativeAgent => {
     const agent = agents.get(name);
     if (!agent) throw new Error(`workflow: '${name}' is not a compiled agent of this syndicate`);
     return agent;
   };
+  // A node's user turn is queued as the node starts, in the same synchronous pass, as ADK's runLlmAgentAsNode appends it
+  // straight to the session; so it lands after every event queued before it (a route step's, a predecessor's) and
+  // before the events other runners hand over in that pass (`store`, below).
   const runNode: NodeRunner = async (run) => {
-    await tail;
     if (failure) throw failure.error;
     const target = run.target;
     if (target.kind === 'agent') return runAgentNode(agentNamed(target.name), run, ctx);
@@ -294,13 +310,18 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
     throw new Error(`agentNodeRunner runs agent nodes and map items only; ${target.name} is a ${target.kind} run`);
   };
   const onEvent = (event: SchedulerEvent): void => {
-    if (event.type !== 'node_end' || event.kind !== 'route') return;
-    enqueue(routeStepEvent({ name: event.node, path: event.path, branch: event.branch, invocationId, output: event.output, route: event.route }), options.onEvent).catch(() => {}); // surfaced by runNode and settled()
+    if (event.type !== 'node_end') return;
+    const run = { name: event.node, path: event.path, branch: event.branch, invocationId, output: event.output };
+    // The events ADK stores for the nodes the scheduler runs itself: a route step's, a join's, a map's.
+    const stored = event.kind === 'route' ? routeStepEvent({ ...run, route: event.route }) : event.kind === 'join' ? joinNodeEvent(run) : event.kind === 'map' ? mapNodeEvent(run) : undefined;
+    if (stored) enqueue(stored, options.onEvent).catch(() => {}); // surfaced by runNode and settled()
   };
   return {
     runNode,
     onEvent,
-    store: (event) => enqueue(event, options.onEvent),
+    // ADK's Runner stores what a node yields a few ticks after it is yielded, behind the user turns of nodes started in
+    // the same pass: queued one microtask later, which is still before the walk starts the node's successors.
+    store: (event) => Promise.resolve().then(() => enqueue(event, options.onEvent)),
     async settled() {
       await tail;
       if (failure) throw failure.error;

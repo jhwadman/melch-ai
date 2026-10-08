@@ -73,7 +73,7 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
 1. **Config.** The agent's `generateContentConfig`. The output schema joins it when the agent lists no tools, or when the model takes a schema beside tools (Gemini 2 and later on Vertex AI), and never in `mode: task`, where it is `finish_task`'s parameters. A config holding `tools`, `systemInstruction` or `responseSchema` is refused, as `LlmAgent` refuses it.
 2. **System prompt.** Each piece is joined to the last by a blank line:
    - the identity lines, unless the agent may transfer to no one (an output schema rules transfer out);
-   - the root agent's global instruction, then the agent's instruction. A string has its `{key}` placeholders filled from session state: `{key?}` is optional, a placeholder naming no state key stays as written, and a required key that is absent fails the request;
+   - the root agent's global instruction, then the agent's instruction. A string has its `{key}` placeholders filled from session state: `{key?}` is optional, a placeholder naming no state key stays as written, and a required key that is absent fails the request. In a workflow node's run, the request's `workflowScope` (the node's input and the outputs stored so far) also fills `{x.field}` and `<x.field from Node>` as ADK's workflow instruction scope does ([Workflow agent node](/overview/workflow-agent-node.md#the-instruction));
    - the `set_model_response` line, when an output schema sits beside tools on a model that cannot take both;
    - each tool's `instruction(ctx)` text, in the agent's tool order: the examples block, `preload_memory`'s facts, `load_memory`'s note. The skills index is already part of the instruction.
 3. **History.** `projectHistory` (`lib/runtime/native/history.ts`) projects the session's events as ADK's content processor does, then the [genai mapping](/models/model-contract.md) turns them into messages:
@@ -179,7 +179,7 @@ An agent with `context: { compact_after_tokens, keep_recent_events?, summary_mod
    - `isCompacted: true`, `startTime` and `endTime` (the first and last summarized events' times), and `compactedContent`;
    - the run's isolation scope.
 
-   The loop stores it and yields it before the step, so the step's request already reads `[Previous Context Summary]:` in place of the events up to `endTime`. The full history stays stored. A turn that stopped during the summary stores nothing. The event is not the run's `lastEvent`.
+   The loop stores it and yields it before the step, so the step's request already reads `[Previous Context Summary]:` in place of the events up to `endTime`. The full history stays stored. A turn that stopped during the summary stores nothing. The event is not the run's `lastEvent`. In a workflow node's run, the event passes through `nodeStamp` before it is stored, as ADK's node runner stamps it; the outputKey, task and temp-state hooks never see it.
 
 `tests/compaction.test.ts` runs ADR 0033's cases on both runtimes and requires the same stored events and the same request to every adapter: directly on the loop, and through `runSyndicateTurn` with `runtime: 'native'`. It continues a session compacted on one runtime on the other, and compares the ledger rows of a compacting turn.
 
