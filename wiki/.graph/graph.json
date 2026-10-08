@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 715,
-    "edges": 1982,
+    "edges": 1983,
     "byKind": {
       "doc": 117,
       "provider": 6,
@@ -33,7 +33,7 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 478,
+      "imports": 479,
       "reads_table": 28,
       "runs": 67,
       "derives_from": 414,
@@ -45,7 +45,7 @@
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1901,
+      "extracted": 1902,
       "inferred": 81
     },
     "isolated": 4
@@ -1056,7 +1056,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1001
+        "words": 1027
       }
     },
     {
@@ -4113,7 +4113,7 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 101
+        "lines": 115
       }
     },
     {
@@ -14477,6 +14477,13 @@
     {
       "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/claudeModels.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeLlm.ts"
+    },
+    {
+      "from": "module:lib/models/claudeLlm.ts",
+      "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"

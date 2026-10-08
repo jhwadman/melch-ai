@@ -35,11 +35,12 @@
  */
 
 import { LLMRegistry } from '@google/adk';
-import type { LlmRequest } from '@google/adk';
+import type { LlmRequest, LlmResponse } from '@google/adk';
 
 import { AdkShim } from './adkShim.ts';
 import { ClaudeAdapter, anthropicTools } from './claudeAdapter.ts';
 import type { ClaudeModelRequest } from './claudeAdapter.ts';
+import type { ModelResponse } from './contract.ts';
 import { claudeReasoningFromConfig } from './claudeModels.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
 import { llmRequestToModelRequest } from './genaiMapping.ts';
@@ -80,6 +81,19 @@ export class ClaudeLlm extends AdkShim {
       ...super.toModelRequest(llmRequest, options),
       claudeReasoning: claudeReasoningFromConfig((llmRequest.config ?? {}) as Record<string, unknown>),
     };
+  }
+
+  /**
+   * The shim's mapping without groundingMetadata, as the ADK path has always
+   * sent Claude's answers: the A2A server shows "Web sources" for Gemini only
+   * until the owner turns them on for every provider at once (GptLlm does
+   * the same, ADR 0056). The adapter's grounding stays on the ModelResponse.
+   */
+  protected override toLlmResponse(response: ModelResponse): LlmResponse {
+    const mapped = super.toLlmResponse(response);
+    if (response.partial) return mapped;
+    const { groundingMetadata: _dropped, ...out } = mapped;
+    return out;
   }
 }
 
