@@ -45,8 +45,11 @@
  *   3. An approval request ends the run: the response is NOT stored; in its
  *      place the event ADK stores, a call to `adk_request_confirmation`
  *      (args: the original call and the confirmation; an `adk-` id listed in
- *      longRunningToolIds), carrying the response's actions. Resuming it is
- *      WS2-7b.
+ *      longRunningToolIds), carrying the response's actions. The answer
+ *      resumes it: before each step, lib/runtime/native/interrupts.ts runs
+ *      the pinned call the latest user message approves or refuses, as ADK's
+ *      request-confirmation processor does, and its response is stored
+ *      before the request is built.
  *   4. The agent's outputKey is written into each final event's stateDelta
  *      before it is stored (ADK's maybeSaveOutputToState, case for case).
  *      The `temp:` keys of every event stored are kept for the rest of the
@@ -56,7 +59,7 @@
  *      isFinalResponse), the turn stopped the step, or the step stored
  *      nothing. A model call that waits on a person (ask_user) is final: its
  *      model event lists the call in longRunningToolIds, and the run ends
- *      with no response to it, the call pending. Resuming it is WS2-7a.
+ *      with no response to it, the call pending. Resuming it is WS2-7b.
  *
  * DELEGATION: a call to a subagent tool runs the subagent as its own child
  * loop, as ADK's AgentTool runs it (lib/runtime/native/delegate.ts, ADR 0074).
@@ -73,7 +76,7 @@
  * and is not the run's `lastEvent`.
  *
  * NOT HERE (later tickets): transfer_to_agent (no compiled syndicate sets
- * subAgents), resuming an approval or a question (WS2-7a/7b), and an auth request a tool raises
+ * subAgents), resuming a question (WS2-7b), and an auth request a tool raises
  * (no own tool can). The run's spans (agent.invoke, model.call,
  * tool.execute) are lib/runtime/native/telemetry.ts.
  *
@@ -99,10 +102,11 @@ import { currentTurnSignal } from '../turnControl.ts';
 import { compactBeforeStep } from './compaction.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
 import { runSubagent, subagentOf } from './delegate.ts';
+import { approvedCalls } from './interrupts.ts';
 import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
 import type { CallCorrection } from './selfCorrection.ts';
-import { runModelStep, stopOf } from './step.ts';
+import { eitherSignal, runModelStep, stopOf } from './step.ts';
 import { createRunTempState, withStateOverlay } from './tempState.ts';
 import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
 import { traceAgentInvocation, traceModelCall, traceToolCall } from './telemetry.ts';
@@ -262,7 +266,7 @@ interface CallScope {
   selfCorrection?: SelfCorrection;
 }
 
-function callContext(scope: CallScope, functionCallId: string | undefined): CallContext {
+function callContext(scope: CallScope, functionCallId: string | undefined, confirmation?: ToolConfirmation): CallContext {
   const { agent, ctx, stateBase } = scope;
   const session = ctx.session;
   const actions = createEventActions() as ToolActions & TurnEventActions;
@@ -291,9 +295,9 @@ function callContext(scope: CallScope, functionCallId: string | undefined): Call
       if (!functionCallId) throw new Error('functionCallId is not set.');
       (actions.requestedToolConfirmations as Record<string, unknown>)[functionCallId] = { hint: hint ?? '', confirmed: false, payload };
     },
-    // Resuming an approval is WS2-7b: a call here is always the first.
-    confirmation: undefined,
-    toolConfirmation: undefined,
+    // The person's answer, when this call is the pinned call an approval resumes (interrupts.ts).
+    confirmation,
+    toolConfirmation: confirmation,
     signal: scope.signal,
     abortSignal: scope.signal,
     ...(ctx.userContent ? { userContent: ctx.userContent } : {}),
@@ -351,8 +355,14 @@ async function runOwnTool(tool: Tool, args: Record<string, unknown>, context: Ca
   }
 }
 
-async function runCall(scope: CallScope, call: TurnFunctionCall, tools: Map<string, unknown>, correction?: CallCorrection): Promise<CallOutcome> {
-  const context = callContext(scope, call.id || undefined);
+async function runCall(
+  scope: CallScope,
+  call: TurnFunctionCall,
+  tools: Map<string, unknown>,
+  correction?: CallCorrection,
+  confirmation?: ToolConfirmation,
+): Promise<CallOutcome> {
+  const context = callContext(scope, call.id || undefined, confirmation);
   const name = call.name ?? '';
   const tool = name && tools.has(name) ? tools.get(name) : undefined;
   const callable = isTool(tool) || isAdkShaped(tool);
@@ -393,14 +403,24 @@ async function runCall(scope: CallScope, call: TurnFunctionCall, tools: Map<stri
   return { part: { functionResponse: { id: context.functionCallId, name: toolName, response: answer } }, actions: context.actions };
 }
 
-/** The step's calls run, in parallel, as the one response event ADK stores for them (not yet stored); undefined when none answered. */
-async function runCalls(scope: CallScope, modelEvent: TurnEvent, tools: Map<string, unknown>): Promise<TurnEvent | undefined> {
-  const calls = getFunctionCalls(modelEvent);
+/**
+ * The calls run, in parallel, as the one response event ADK stores for them
+ * (not yet stored); undefined when none answered. `confirmations` holds the
+ * person's answer for a pinned call an approval resumes, by call id.
+ */
+async function runCalls(
+  scope: CallScope,
+  calls: TurnFunctionCall[],
+  tools: Map<string, unknown>,
+  confirmations?: ReadonlyMap<string, ToolConfirmation>,
+): Promise<TurnEvent | undefined> {
   const order = scope.selfCorrection?.forCalls(scope.ctx.invocationId, calls.length);
   const outcomes = (
     await Promise.all(
       calls.map((call, i) =>
-        traceToolCall(call, tools.get(call.name ?? ''), () => runCall(scope, call, tools, order?.call(i))).finally(() => order?.release(i)),
+        traceToolCall(call, tools.get(call.name ?? ''), () =>
+          runCall(scope, call, tools, order?.call(i), call.id ? confirmations?.get(call.id) : undefined),
+        ).finally(() => order?.release(i)),
       ),
     )
   ).filter((o): o is NonNullable<CallOutcome> => !!o);
@@ -459,6 +479,28 @@ function confirmationEvent(scope: CallScope, modelEvent: TurnEvent, response: Tu
     actions: response.actions,
     longRunningToolIds: parts.map((p) => p.functionCall?.id as string),
   });
+}
+
+/**
+ * ADK's request-confirmation processor, before a step: the pinned calls the
+ * latest user message approves or refuses run with the answer in their
+ * context, and their response is returned to be stored (interrupts.ts). Undefined when
+ * there is none; 'stopped' when the turn stopped while they ran (nothing is
+ * stored). Throws IntentMismatchError when an answer does not bind.
+ */
+async function resumeApprovals(
+  agent: NativeAgent,
+  ctx: AgentLoopContext,
+  stateBase: Readonly<Record<string, unknown>>,
+  selfCorrection: SelfCorrection,
+): Promise<TurnEvent | 'stopped' | undefined> {
+  const signal = eitherSignal(ctx.signal, currentTurnSignal());
+  const scope: CallScope = { agent, ctx, stateBase, selfCorrection, ...(signal ? { signal } : {}) };
+  const approved = await approvedCalls(agent, ctx, (id) => callContext(scope, id));
+  if (!approved) return undefined;
+  const response = await runCalls(scope, approved.calls, approved.tools, approved.confirmations);
+  if (signal?.aborted) return 'stopped';
+  return response;
 }
 
 // ── The model step, with partials and the fallback ───────────────────────────
@@ -573,6 +615,14 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
   const correction = selfCorrection.forModel(agent.name, ctx.invocationId);
 
   for (;;) {
+    // Interrupts hook (WS2-7a, interrupts.ts): an answered approval runs its pinned call before the step, as ADK's request-confirmation processor does; it runs
+    // first, then compaction (ADK inserts its compactor before the contents processor), both before the step budget.
+    const resumed = await resumeApprovals(agent, ctx, withStateOverlay(session.state, runTemp.values()), selfCorrection);
+    if (resumed === 'stopped') return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
+    if (resumed) {
+      lastEvent = await store(resumed);
+      yield lastEvent;
+    }
     // Compaction hook (WS2-9, lib/runtime/native/compaction.ts): with `context:`, the summary is stored before the step reads the history,
     // before the step budget, as ADK's request processors run before its call count.
     const compacted = await compactBeforeStep(agent, {
@@ -605,7 +655,7 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
     const hadCalls = getFunctionCalls(modelEvent).length > 0;
     if (hadCalls) {
       const scope: CallScope = { agent, ctx, stateBase: withStateOverlay(session.state, runTemp.values()), selfCorrection, ...(step.request.signal ? { signal: step.request.signal } : {}) };
-      const response = await runCalls(scope, modelEvent, step.tools);
+      const response = await runCalls(scope, getFunctionCalls(modelEvent), step.tools);
       // As ADK: a turn that stopped while the calls ran (a long subagent run, say) stores no response.
       if (scope.signal?.aborted) return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
       if (response) {

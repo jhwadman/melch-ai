@@ -1491,6 +1491,38 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0077 Decision 1: \"lib/runtime/native/interrupts.ts (approvedCalls) does what the processor does, check for check\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0077 Decision 2: \"agentLoop.ts calls resumeApprovals at the top of each step, outside the model.call span\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0077 Context: the native loop resumes the approval gate ADR 0028 defines, bound to the pinned call by id, name and arguments.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"Approvals\": the answers, the gates, the binding and the run of an answered approval.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0082-workflow-graph-mirrors-the-adk-compile.md",
       "to": "module:lib/workflow/graph.ts",
       "rel": "constrains",
