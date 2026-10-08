@@ -1177,6 +1177,46 @@
       "evidence": "wiki/overview/native-loop.md \"The loop\": \"runAgentLoop(agent, ctx) is an async generator …\" and each step's calls, approval request, outputKey and end reasons.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0076 Context: \"The native loop (ADR 0071) opened none of them\"; the spans wrap runAgentLoop, its steps and its calls.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0076 Decision 3: \"A failed step carries no payload: its llm.request carries the failed call's, as on the ADK runtime\" (the llm.request payload of ADR 0053).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0076 Decision 2: \"The tracer and the exporter read both naming schemes. lib/observability/lineage.ts names them: agentOfSpanName, isToolSpanName and isModelCallSpan\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0076 Decision 3: \"isPayloadSpan takes a model.call only when it carries one.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"The spans\": agent.invoke, model.call and tool.execute, the three hooks, and what each span carries.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

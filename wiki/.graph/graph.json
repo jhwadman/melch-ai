@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 760,
-    "edges": 2381,
+    "nodes": 763,
+    "edges": 2410,
     "byKind": {
-      "doc": 131,
+      "doc": 132,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 123,
+      "file": 124,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 17,
-      "module": 162,
+      "module": 163,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 478,
+      "links_to": 484,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 76,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 589,
+      "imports": 599,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 522,
-      "constrains": 100,
+      "derives_from": 530,
+      "constrains": 102,
       "supersedes": 6,
-      "depends_on": 32,
-      "explains": 6,
+      "depends_on": 34,
+      "explains": 7,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2235,
-      "inferred": 146
+      "extracted": 2259,
+      "inferred": 151
     },
     "isolated": 4
   },
@@ -1240,6 +1240,18 @@
       }
     },
     {
+      "id": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "kind": "doc",
+      "label": "ADR 0076: The native loop opens its own agent, model-call and tool spans, and the ledger reads both runtimes' names",
+      "source": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 843
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1500,7 +1512,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1768
+        "words": 2183
       }
     },
     {
@@ -3864,6 +3876,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nativeLedger.test.ts",
+      "kind": "file",
+      "label": "nativeLedger.test.ts",
+      "source": "tests/nativeLedger.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/nativeLoop.test.ts",
       "kind": "file",
       "label": "nativeLoop.test.ts",
@@ -4712,7 +4731,7 @@
       "label": "lib/observability/lineage.ts",
       "source": "lib/observability/lineage.ts",
       "attrs": {
-        "lines": 107
+        "lines": 144
       }
     },
     {
@@ -4748,7 +4767,7 @@
       "label": "lib/observability/supabaseSpanExporter.ts",
       "source": "lib/observability/supabaseSpanExporter.ts",
       "attrs": {
-        "lines": 596
+        "lines": 604
       }
     },
     {
@@ -4757,7 +4776,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 832
+        "lines": 838
       }
     },
     {
@@ -4820,7 +4839,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 557
+        "lines": 565
       }
     },
     {
@@ -4848,6 +4867,15 @@
       "source": "lib/runtime/native/step.ts",
       "attrs": {
         "lines": 238
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/telemetry.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/telemetry.ts",
+      "source": "lib/runtime/native/telemetry.ts",
+      "attrs": {
+        "lines": 228
       }
     },
     {
@@ -10701,6 +10729,83 @@
       "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md:24"
     },
     {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "file:tests/nativeLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md frontmatter"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md frontmatter"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md frontmatter"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md frontmatter"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md frontmatter"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md frontmatter"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0009-observability-ledger.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:26"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:32"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:29"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:32"
+    },
+    {
+      "from": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md:32"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -13257,6 +13362,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/nativeLedger.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/nativeLoop.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -13299,73 +13411,87 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:124"
+      "evidence": "/overview/native-loop.md:127"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:105"
+      "evidence": "/overview/native-loop.md:108"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:23"
+      "evidence": "/overview/native-loop.md:25"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:69"
+      "evidence": "/overview/native-loop.md:72"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:25"
+      "evidence": "/overview/native-loop.md:27"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:25"
+      "evidence": "/overview/native-loop.md:27"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:135"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:82"
+      "evidence": "/overview/native-loop.md:85"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:25"
+      "evidence": "/overview/native-loop.md:27"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:51"
+      "evidence": "/overview/native-loop.md:54"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:36"
+      "evidence": "/overview/native-loop.md:39"
     },
     {
       "from": "/protocols/a2a.md",
@@ -18066,6 +18192,13 @@
     },
     {
       "from": "module:lib/runtime/native/agentLoop.ts",
+      "to": "module:lib/runtime/native/telemetry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/agentLoop.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/agentLoop.ts",
       "to": "module:lib/tools/tool.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -18224,6 +18357,69 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/step.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/observability/lineage.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/observability/supabaseSpanExporter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/telemetry.ts",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/telemetry.ts"
     },
     {
       "from": "module:lib/runtime/questions.ts",

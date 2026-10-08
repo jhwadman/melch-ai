@@ -1,7 +1,7 @@
 import { trace, context, defaultTextMapGetter, ROOT_CONTEXT } from '@opentelemetry/api';
 import type { Context, SpanContext } from '@opentelemetry/api';
 import { createRequire } from 'node:module';
-import { TELEMETRY_SCHEMA_VERSION, engineVersion } from './lineage.ts';
+import { ADK_SPAN_SCOPE, RUNTIME_SPAN_SCOPE, TELEMETRY_SCHEMA_VERSION, agentOfSpanName, engineVersion, isModelCallSpan, isToolSpanName } from './lineage.ts';
 import { FilteringSpanExporter, otlpContentMode } from './otlpFilter.ts';
 import { telemetryRedactor } from './redact.ts';
 import { chargeLlmCall, chargeTokens } from '../runtime/turnControl.ts';
@@ -90,10 +90,12 @@ export function onSpanEnd(
 
 // ADK's own spans (scope "gcp.vertex.agent": invocation, invoke_agent,
 // call_llm, execute_tool) carry the FULL model request and response as
-// attributes. They reach the in-process listeners — that is how per-agent
-// attribution and the observatory work — but are not printed unless asked:
-// on a server they would put every prompt into the log stream.
-const ADK_SCOPE = 'gcp.vertex.agent';
+// attributes, and so does the native loop's model.call (scope
+// "melchizedek.runtime": agent.invoke, model.call, tool.execute). They reach
+// the in-process listeners — that is how per-agent attribution and the
+// observatory work — but are not printed unless asked: on a server they would
+// put every prompt into the log stream.
+const QUIET_SCOPES = new Set([ADK_SPAN_SCOPE, RUNTIME_SPAN_SCOPE]);
 const PRINT_ALL_SPANS = process.env.OTEL_CONSOLE_ALL_SPANS === 'true';
 // OTEL_CONSOLE_SPANS=false silences the [OTEL_SPAN_JSON] lines entirely.
 // The in-process listeners below still fire and the Supabase sink still
@@ -119,7 +121,7 @@ class JsonConsoleExporter implements SpanExporter {
         }
       }
       if (!printConsoleSpans()) continue;
-      if (!PRINT_ALL_SPANS && spanScopeName(span) === ADK_SCOPE) continue;
+      if (!PRINT_ALL_SPANS && QUIET_SCOPES.has(spanScopeName(span))) continue;
       // Create a clean JSON representation of the span
       const jsonSpan = {
         traceId: span.spanContext().traceId,
@@ -155,6 +157,8 @@ class JsonConsoleExporter implements SpanExporter {
 // ── Span lineage (per-agent attribution) ─────────────────────────────────────
 // ADK wraps every agent turn in an `invoke_agent <name>` span and every model
 // call in a `call_llm` child of it; our llm.request span is a child of THAT.
+// The native loop does the same as `agent.invoke <name>` and `model.call`
+// (lib/runtime/native/telemetry.ts); lineage.ts reads both schemes.
 // A span cannot read its parent's name through the OTEL API, so a processor
 // records each span's name and parent at start, and llm.request walks up the
 // chain to find the agent it belongs to. This is what fills the `agent`
@@ -211,10 +215,11 @@ class SpanLineageProcessor {
     const parent: string | undefined =
       span.parentSpanContext?.spanId ?? span.parentSpanId ?? undefined;
     spanLineage.set(ctx.spanId, { name: span.name, parent });
-    // ADK's call_llm span (the one carrying the full request/response
-    // payloads) learns its agent the same way llm.request does, so a
-    // payload row can be attributed without re-walking the tree later.
-    if (span.name === 'call_llm') {
+    // The model-call span (ADK's call_llm, the loop's model.call: the one
+    // carrying the full request/response payloads) learns its agent the same
+    // way llm.request does, so a payload row can be attributed without
+    // re-walking the tree later.
+    if (isModelCallSpan(span.name, spanScopeName(span)) && !span.attributes?.['llm.agent']) {
       const agent = agentForSpan(parent);
       if (agent) span.setAttribute('llm.agent', agent);
     }
@@ -234,7 +239,7 @@ class SpanLineageProcessor {
       s.llmCalls += 1;
       const model = span.attributes['llm.model'];
       if (typeof model === 'string' && model) s.models.add(model);
-    } else if (span.name.startsWith('execute_tool ')) {
+    } else if (isToolSpanName(span.name)) {
       statsFor(traceId).toolMs += spanDurationMs(span);
     }
   }
@@ -242,13 +247,14 @@ class SpanLineageProcessor {
   forceFlush(): Promise<void> { return Promise.resolve(); }
 }
 
-/** Name of the nearest enclosing ADK `invoke_agent` span, or null. */
+/** Name of the agent of the nearest enclosing agent span (ADK's `invoke_agent`, the loop's `agent.invoke`), or null. */
 export function agentForSpan(spanId: string | undefined): string | null {
   let cursor = spanId;
   for (let depth = 0; cursor && depth < 12; depth++) {
     const entry = spanLineage.get(cursor);
     if (!entry) return null;
-    if (entry.name.startsWith('invoke_agent ')) return entry.name.slice('invoke_agent '.length);
+    const agent = agentOfSpanName(entry.name);
+    if (agent !== null) return agent;
     cursor = entry.parent;
   }
   return null;

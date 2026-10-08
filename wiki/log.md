@@ -3,6 +3,26 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/telemetry.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0076-native-loop-spans-feed-the-same-ledger.md —constrains→ module:lib/observability/supabaseSpanExporter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0076-native-loop-spans-feed-the-same-ledger.md —constrains→ module:lib/observability/lineage.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0076-native-loop-spans-feed-the-same-ledger.md —depends_on→ /decisions/0053-adapter-caller-charges-and-traces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0076-native-loop-spans-feed-the-same-ledger.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/agentLoop.ts
 
 by claude-code/claude-opus-5-5

@@ -56,7 +56,8 @@
  * approval or a question (WS2-7a/7b), ADK's reflect-and-retry plugins
  * (WS2-8: here a throwing tool answers its error at once, as ADK does with
  * `retries.tool_errors: 0`), compaction (WS2-9), the runtime flag (WS2-10),
- * tool spans (WS2-11), and an auth request a tool raises (no own tool can).
+ * and an auth request a tool raises (no own tool can). The run's spans
+ * (agent.invoke, model.call, tool.execute) are lib/runtime/native/telemetry.ts.
  *
  * ADK stays out of this file: an ADK tool an agent still lists during the
  * dual period (a registry FunctionTool, the skills toolset's tools) is run
@@ -80,6 +81,7 @@ import { ADK_CALL_ID_PREFIX } from './history.ts';
 import type { NativeAgent } from './request.ts';
 import { runModelStep } from './step.ts';
 import type { ModelStepOptions, ModelStepResult, StepStop } from './step.ts';
+import { traceAgentInvocation, traceModelCall, traceToolCall } from './telemetry.ts';
 
 // ── The loop's surface ───────────────────────────────────────────────────────
 
@@ -352,7 +354,7 @@ async function runCall(scope: CallScope, call: TurnFunctionCall, tools: Map<stri
 /** The step's calls run, in parallel, as the one response event ADK stores for them (not yet stored); undefined when none answered. */
 async function runCalls(scope: CallScope, modelEvent: TurnEvent, tools: Map<string, unknown>): Promise<TurnEvent | undefined> {
   const calls = getFunctionCalls(modelEvent);
-  const outcomes = (await Promise.all(calls.map((call) => runCall(scope, call, tools)))).filter((o): o is NonNullable<CallOutcome> => !!o);
+  const outcomes = (await Promise.all(calls.map((call) => traceToolCall(call, tools.get(call.name ?? ''), () => runCall(scope, call, tools))))).filter((o): o is NonNullable<CallOutcome> => !!o);
   if (outcomes.length === 0) return undefined;
   const base = { invocationId: scope.ctx.invocationId, author: scope.agent.name };
   const contentOf = (parts: TurnPart[]): TurnContent => ({ role: 'user', parts });
@@ -499,7 +501,12 @@ async function* modelStep(
  * Throws where the ADK runtime throws: a request that cannot be built, an
  * adapter or a store that throws.
  */
-export async function* runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGenerator<TurnEvent, AgentLoopEnd> {
+export function runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGenerator<TurnEvent, AgentLoopEnd> {
+  // Telemetry hook (WS2-11, lib/runtime/native/telemetry.ts): the run is an agent.invoke span.
+  return traceAgentInvocation(agent, ctx, () => agentLoop(agent, ctx));
+}
+
+async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGenerator<TurnEvent, AgentLoopEnd> {
   const { session, sessions } = ctx;
   const store = async (event: TurnEvent): Promise<TurnEvent> => {
     saveOutput(agent, event);
@@ -513,7 +520,8 @@ export async function* runAgentLoop(agent: NativeAgent, ctx: AgentLoopContext): 
       return { reason: 'stopped', steps, lastEvent, stop: { code: 'STEP_LIMIT', message: `Max number of llm calls limit of ${MAX_LLM_CALLS} exceeded` } };
     }
     steps += 1;
-    const step = yield* modelStep(agent, ctx, { ...ctx, agent, beforeAppend: (event) => saveOutput(agent, event) });
+    // Telemetry hook: each step is a model.call span.
+    const step = yield* traceModelCall(agent, ctx, (traced) => modelStep(agent, traced, { ...traced, agent, beforeAppend: (event) => saveOutput(agent, event) }));
     if (step.stopped) return { reason: 'stopped', steps, lastEvent, stop: step.stopped };
     const modelEvent = step.event;
     if (!modelEvent) return { reason: 'empty', steps, lastEvent };
