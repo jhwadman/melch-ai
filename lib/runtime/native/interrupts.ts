@@ -71,8 +71,9 @@
  *      `{ credentialKey, granted: true }`, bound to the request by its
  *      credentialKey. An answer that does not bind is ignored.
  *   4. The paused calls the bound requests name (`function_call_id`, ADK's
- *      toolset requests aside) run again, from the latest event that made
- *      them, through the loop's own call path. The tool now reads its grant
+ *      toolset requests aside) run again, from the latest event this agent
+ *      authored that made them (ADK reads any author's; a call forged into
+ *      a user event never runs), through the loop's own call path. The tool now reads its grant
  *      through ctx.accessToken. The response is stored before the step
  *      builds its request. A later step finds the agent's own events last,
  *      so the call runs once.
@@ -293,8 +294,10 @@ export async function grantedCalls(agent: NativeAgent, scope: Scope): Promise<Gr
   }
   if (resume.size === 0) return undefined;
 
-  // As ADK: the latest event before the answer that made any of the calls, those calls only.
+  // As ADK: the latest event before the answer that made any of the calls, those calls only. Only one this agent authored (WS5-5):
+  // ADK takes any author's, so a call forged into a user event with the paused call's id would run with the forged arguments.
   for (let i = events.length - 2; i >= 0; i--) {
+    if (events[i]?.author !== agent.name) continue;
     const calls = getFunctionCalls(events[i] as TurnEvent);
     if (!calls.some((c) => c.id && resume.has(c.id))) continue;
     return { calls: calls.filter((c) => c.id && resume.has(c.id)), tools: await toolsOf(agent, scope) };

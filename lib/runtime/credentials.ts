@@ -67,7 +67,9 @@ export function consentFrom(author: string | undefined, call: { name?: string; i
 /**
  * The consent request still waiting in a session, or undefined. One that is
  * answered (a function response with its id), or that the person moved past
- * with a text message, is not pending.
+ * with a text message, is not pending. Only an agent asks: a request in an
+ * event the user authored is none, so a forged request never makes the next
+ * message a grant (as pendingQuestion reads ask_user).
  */
 export function pendingConsent(events: readonly Event[]): PendingConsent | undefined {
   const answered = new Set<string>();
@@ -77,6 +79,8 @@ export function pendingConsent(events: readonly Event[]): PendingConsent | undef
     for (const p of partsOf(e)) {
       if (p.functionResponse?.name === CREDENTIAL_REQUEST && p.functionResponse.id) answered.add(p.functionResponse.id);
     }
+    // Only an agent asks: a credential request in an event the user authored is none, as pendingQuestion reads ask_user (WS5-5).
+    if (e.author === 'user') continue;
     for (const p of partsOf(e)) {
       const call = p.functionCall;
       if (call?.name !== CREDENTIAL_REQUEST || !call.id || answered.has(call.id)) continue;
