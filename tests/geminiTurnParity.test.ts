@@ -168,7 +168,7 @@ const SERVER_SIDE = ['googleSearch', 'urlContext', 'codeExecution', 'googleSearc
 
 /**
  * A run's request bodies as compared: ids and times out, the schemas in one
- * dialect. Under the engine's GeminiAdapter two more differences are read
+ * dialect, the tools in one order. Under the engine's GeminiAdapter two more differences are read
  * out, each a deliberate choice that changes nothing Gemini does (ADR 0100):
  *   - the system instruction's role: ADK's Gemini sends `role: 'user'` on
  *     it, the engine none; Gemini reads neither;
@@ -177,11 +177,17 @@ const SERVER_SIDE = ['googleSearch', 'urlContext', 'codeExecution', 'googleSearc
  *     declarations (ADR 0065), the one place it changes a response.
  */
 function sameRequests(bodies: any[], gemini: NativeGemini): unknown {
-  const read = gemini === 'adk' ? bodies : bodies.map((body) => {
+  // The tools in one order: ADK's code executor puts codeExecution first, the
+  // native request after the function declarations; Gemini reads them as a set.
+  const ordered = bodies.map((body) =>
+    body.tools ? { ...body, tools: [...body.tools].sort((a: object, b: object) => JSON.stringify(a).localeCompare(JSON.stringify(b))) } : body,
+  );
+  const read = gemini === 'adk' ? ordered : ordered.map((body) => {
     const { systemInstruction, toolConfig, ...rest } = body;
     const serverSide = (body.tools ?? []).some((t: object) => SERVER_SIDE.some((k) => k in t));
+    const functions = (body.tools ?? []).some((t: any) => t.functionDeclarations?.length);
     const { includeServerSideToolInvocations, ...config } = toolConfig ?? {};
-    const keptConfig = serverSide && includeServerSideToolInvocations !== undefined ? { ...config, includeServerSideToolInvocations } : config;
+    const keptConfig = serverSide && functions && includeServerSideToolInvocations !== undefined ? { ...config, includeServerSideToolInvocations } : config;
     const { role: _role, ...instruction } = systemInstruction ?? {};
     return {
       ...rest,
@@ -307,6 +313,46 @@ async function workflowNodeParity(gemini: NativeGemini): Promise<void> {
   }
   assert.deepEqual(sameRequests(native.bodies, gemini), sameRequests(adk.bodies, gemini), 'native sends what ADK sends');
   assert.deepEqual(comparable(native.events), comparable(adk.events), 'native stores what ADK stores');
+}
+
+// ── Code execution (ADR 0065, ADR 0100) ──────────────────────────────────────
+
+const CODE = { executableCode: { language: 'PYTHON', code: 'print(6 * 7)' }, thoughtSignature: 'Y29kZS1zaWc=' };
+const CODE_RESULT = { codeExecutionResult: { outcome: 'OUTCOME_OK', output: '42\n' } };
+
+/** Every code execution part a run's stored events hold. */
+const codePartsOf = (events: TurnEvent[]): any[] =>
+  events.flatMap((e) => (e.content?.parts ?? []).filter((p: any) => p.executableCode || p.codeExecutionResult));
+
+for (const gemini of NATIVE_GEMINI) {
+  test(`code execution: the code and its result are stored as Gemini sent them, as on ADK (native Gemini: ${gemini})`, async () => {
+    const script: Script = () => [CODE, CODE_RESULT, { text: 'The product is 42.' }];
+    const { adk, native } = await bothRuntimes(solo({ tools: [], code_execution: 'gemini' }), script, gemini);
+    for (const side of [adk, native]) {
+      assert.equal(side.status, 'completed', side.error);
+      assert.deepEqual(codePartsOf(side.events), [CODE, CODE_RESULT], 'both parts stored whole, the signature with the code');
+    }
+    assert.deepEqual(sameRequests(native.bodies, gemini), sameRequests(adk.bodies, gemini), 'native sends what ADK sends');
+    assert.deepEqual(comparable(native.events), comparable(adk.events), 'native stores what ADK stores');
+  });
+
+  test(`code execution beside a function tool: the parts are stored, and replayed before the signed call on the next step, as on ADK (native Gemini: ${gemini})`, async () => {
+    const script: Script = (_body, n) =>
+      n === 1
+        ? [CODE, CODE_RESULT, { functionCall: { name: 'gemini_parity_lookup', args: { key: 'friday' } }, thoughtSignature: SIGNATURE }]
+        : [{ text: 'The office is closed next Friday.' }];
+    const { adk, native } = await bothRuntimes(solo({ code_execution: 'gemini' }), script, gemini);
+    for (const side of [adk, native]) {
+      assert.equal(side.status, 'completed', side.error);
+      assert.equal(side.bodies.length, 2);
+      assert.deepEqual(codePartsOf(side.events), [CODE, CODE_RESULT]);
+      const model = side.bodies[1].contents.find((c: any) => c.role === 'model');
+      assert.deepEqual(model.parts.slice(0, 2), [CODE, CODE_RESULT], 'the code and its result go back before the call');
+      assert.equal(model.parts[2]?.thoughtSignature, SIGNATURE);
+    }
+    assert.deepEqual(sameRequests(native.bodies, gemini), sameRequests(adk.bodies, gemini), 'native sends what ADK sends');
+    assert.deepEqual(comparable(native.events), comparable(adk.events), 'native stores what ADK stores');
+  });
 }
 
 test('declaresReflectionTool: a Gemini adapter stands for ADK\'s Gemini unless a caller handed it over behind the shim', () => {

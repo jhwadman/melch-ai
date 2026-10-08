@@ -86,7 +86,14 @@ import type {
 } from './contract.ts';
 import { endpointFromEnv, endpointProblems, platformModel } from './endpoints.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
-import { GEMINI_PROVIDER, MINTED_CALL_ID_PREFIX, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
+import {
+  CARRIED_PARTS_KIND,
+  GEMINI_PROVIDER,
+  GENAI_PART_KIND,
+  MINTED_CALL_ID_PREFIX,
+  THOUGHT_SIGNATURE_KIND,
+  isCarriedWirePart,
+} from './geminiState.ts';
 import { currentTurnStart, providerStateOf } from './providerState.ts';
 import type { ProviderState } from './providerState.ts';
 import { classifyError, errorStatus, retryUntilFirstYield } from './retry.ts';
@@ -109,9 +116,11 @@ export const ENGINE_CALL_ID_PREFIX = 'adk-';
 /**
  * The providerState kind for Gemini parts the contract has no type for
  * (code execution and server-side tool invocations), carried whole on the
- * next output part (ADR 0065). The payload is a `CarriedParts`.
+ * next output part (ADR 0065). The payload is a `CarriedParts`. Defined in
+ * lib/models/geminiState.ts, so the genai mapping writes them back out as
+ * the parts they were when an event is stored (ADR 0100).
  */
-export const CARRIED_PARTS_KIND = 'carried_parts';
+export { CARRIED_PARTS_KIND };
 
 /** The payload of a `carried_parts` state. */
 export interface CarriedParts {
@@ -435,6 +444,16 @@ function assistantToWire(message: AssistantMessage, replay: boolean, model: stri
       carried = signature ?? carried;
       continue;
     }
+    // A carried part read back from a stored event (the mapping's genai_part):
+    // itself, verbatim, within its turn; outside it, nothing (ADR 0065, ADR 0100).
+    const stored = storedCarriedPart(part);
+    if (stored) {
+      if (!replay) continue;
+      if (carried && !stored.thoughtSignature) stored.thoughtSignature = carried;
+      carried = undefined;
+      out.push(stored);
+      continue;
+    }
     const before = replay ? carriedPartsOf(part, model) : [];
     if (before.length && carried) {
       if (!before[0].thoughtSignature) before[0].thoughtSignature = carried;
@@ -480,6 +499,16 @@ function carriedPartsOf(part: unknown, model: string): WirePart[] {
     const { thoughtSignature, ...rest } = raw as WirePart;
     return own && typeof thoughtSignature === 'string' && thoughtSignature ? { ...rest, thoughtSignature } : { ...rest };
   });
+}
+
+/**
+ * A copy of the code execution or server-side invocation part a stored
+ * event held, as the genai mapping reads it back (`genai_part` state on its
+ * text projection), or undefined for any other part.
+ */
+function storedCarriedPart(part: unknown): WirePart | undefined {
+  const payload = providerStateOf(part, GEMINI_PROVIDER, GENAI_PART_KIND)?.payload;
+  return isPlainObject(payload) && isCarriedWirePart(payload) ? ({ ...payload } as WirePart) : undefined;
 }
 
 /**
@@ -573,7 +602,7 @@ function finishReasonOf(reason: string | undefined): FinishReason {
  * turn: code execution, and a server-side tool invocation.
  */
 function isCarried(part: WirePart): boolean {
-  return part.executableCode !== undefined || part.codeExecutionResult !== undefined || part.toolCall !== undefined || part.toolResponse !== undefined;
+  return isCarriedWirePart(part);
 }
 
 /**

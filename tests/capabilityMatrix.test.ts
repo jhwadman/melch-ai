@@ -54,6 +54,7 @@ import {
 import type { AdapterRow } from './helpers/capabilityInputs.ts';
 import type { Message, ModelRequest } from '../lib/models/contract.ts';
 import { CARRIED_PARTS_KIND } from '../lib/models/geminiAdapter.ts';
+import { contentToMessage, modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
 import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from '../lib/models/geminiState.ts';
 import { nativeToolOf } from '../lib/models/schemaNormalize.ts';
 import { WEB_SEARCH } from '../lib/tools/webSearchTool.ts';
@@ -387,6 +388,23 @@ const GEMINI_CHECKS: Record<Capability, () => Promise<Observed>> = {
       geminiRequest({ nativeTools: ['code_execution'], messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }, assistant] }),
     );
     assert.deepEqual(sameTurn.body.contents[1].parts, [{ ...CODE, thoughtSignature: 'dGhvdWdodA==' }, CODE_RESULT, { text: 'The product is 42.' }]);
+    // Stored, the parts are what Gemini sent, as ADK stores them (ADR 0100); read back from the store, they replay the same.
+    const stored = modelResponseToLlmResponse(ran.final).content!;
+    assert.deepEqual(stored.parts, [{ ...CODE, thoughtSignature: 'dGhvdWdodA==' }, CODE_RESULT, { text: 'The product is 42.' }]);
+    const fromStore = await geminiExchange(
+      geminiRequest({ nativeTools: ['code_execution'], messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }, contentToMessage(stored)] }),
+    );
+    assert.deepEqual(fromStore.body.contents[1].parts, sameTurn.body.contents[1].parts, 'the stored parts replay as the carried ones do');
+    const storedNextTurn = await geminiExchange(
+      geminiRequest({
+        messages: [
+          { role: 'user', parts: [{ type: 'text', text: 'hello' }] },
+          contentToMessage(stored),
+          { role: 'user', parts: [{ type: 'text', text: 'thanks' }] },
+        ],
+      }),
+    );
+    assert.deepEqual(storedNextTurn.body.contents[1].parts, [{ text: 'The product is 42.' }], 'stored ones too stay within their turn');
     const nextTurn = await geminiExchange(
       geminiRequest({
         messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }, assistant, { role: 'user', parts: [{ type: 'text', text: 'thanks' }] }],

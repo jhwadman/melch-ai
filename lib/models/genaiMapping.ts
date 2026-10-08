@@ -187,7 +187,7 @@ import type {
   Usage,
 } from './contract.ts';
 import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, errorText, withRetryVerdict } from './errorResponse.ts';
-import { GEMINI_PROVIDER, MINTED_CALL_ID_PREFIX, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
+import { CARRIED_PARTS_KIND, GEMINI_PROVIDER, GENAI_PART_KIND, MINTED_CALL_ID_PREFIX, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
 import { reasoningConfig } from './reasoning.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './schemaNormalize.ts';
 
@@ -198,8 +198,8 @@ import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './s
  * lib/models/geminiState.ts, so the Gemini adapter spells them the same.
  */
 export { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND };
-/** providerState kind for a genai part the contract cannot hold exactly; the payload is the part. */
-export const GENAI_PART_KIND = 'genai_part';
+/** providerState kind for a genai part the contract cannot hold exactly; the payload is the part (defined in lib/models/geminiState.ts). */
+export { GENAI_PART_KIND };
 /** The prefix of an id the mapping made for a call or result that had none (defined in lib/models/geminiState.ts). */
 export { MINTED_CALL_ID_PREFIX };
 
@@ -514,9 +514,36 @@ export function partToGenai(part: Part): GenaiPart {
   return out as GenaiPart;
 }
 
+/**
+ * Contract parts as genai parts. A part the Gemini adapter wrote with
+ * `carried_parts` state (code execution, server-side invocations, ADR 0065)
+ * becomes the genai parts it carries, verbatim, then itself with its own
+ * signature as `thoughtSignature`. An empty text part that only carried them
+ * is left out unless it has a signature. So a stored event holds the parts as
+ * Gemini sent them, as ADK's Gemini stores them (ADR 0100).
+ */
+export function partsToGenai(parts: readonly Part[]): GenaiPart[] {
+  const out: GenaiPart[] = [];
+  for (const part of parts) {
+    const state = part.providerState;
+    if (state?.provider !== GEMINI_PROVIDER || state.kind !== CARRIED_PARTS_KIND || !isObject(state.payload)) {
+      out.push(partToGenai(part));
+      continue;
+    }
+    const { before, signature } = state.payload as { before?: unknown; signature?: unknown };
+    if (Array.isArray(before)) for (const carried of before) if (isObject(carried)) out.push({ ...carried } as GenaiPart);
+    const { providerState: _carried, ...bare } = part;
+    const own = typeof signature === 'string' && signature ? signature : undefined;
+    if (bare.type === 'text' && !bare.text && !own) continue;
+    const genai = partToGenai(bare as Part);
+    out.push(own ? ({ ...genai, thoughtSignature: own } as GenaiPart) : genai);
+  }
+  return out;
+}
+
 /** One contract message as a genai content. */
 export function messageToContent(message: Message): Content {
-  return { role: GENAI_ROLE[message.role], parts: (message.parts as Part[]).map(partToGenai) };
+  return { role: GENAI_ROLE[message.role], parts: partsToGenai(message.parts as Part[]) };
 }
 
 /** The inverse of contentsToMessages; the system instruction comes back as a string. */
@@ -723,7 +750,7 @@ function finishReasonOfCode(code: string | undefined): FinishReason | undefined 
 
 /** A ModelResponse as the LlmResponse ADK expects from a model (see the header). */
 export function modelResponseToLlmResponse(response: ModelResponse): LlmResponse {
-  const parts = (response.parts as Part[]).map(partToGenai);
+  const parts = partsToGenai(response.parts as Part[]);
   if (response.partial) return { content: { role: 'model', parts }, partial: true };
   const finishReason = finishReasonOfCode(response.error?.code) ?? FINISH_REASONS[response.finishReason];
   const groundingMetadata = response.grounding ? groundingToMetadata(response.grounding) : undefined;

@@ -80,6 +80,10 @@ test("the live check's grounding and code cases pass on both runtimes when Gemin
   assert.equal(lines.length, 4);
   assert.ok(lines.every((l) => l.startsWith('pass')), lines.join('\n'));
   assert.ok(lines.some((l) => /grounding\s+native .*grounded/.test(l)));
+  // The code and its result are stored as Gemini sent them, on both runtimes (ADR 0100).
+  for (const runtime of ['adk', 'native']) {
+    assert.ok(lines.some((l) => new RegExp(`code\\s+${runtime} .*2 code parts stored`).test(l)), `code parts stored on ${runtime}`);
+  }
   assert.ok(!printed.join('\n').includes(KEY), 'the key is never printed');
 });
 

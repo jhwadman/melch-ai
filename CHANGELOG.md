@@ -12,7 +12,12 @@ the starter pack and the templates), not the repo's full history.
   real `@google/genai` client, as every other column is; `npm run doctor --
   --matrix` says so. On the native runtime a Gemini agent's stored events no
   longer carry `turnComplete`, as the ADK runtime's never have; nothing reads
-  the field. `scripts/gemini_engine_check.ts` is the live check gate G3 runs:
+  the field. A Gemini answer that ran code through the engine's adapter
+  (`GEMINI_ADAPTER=engine`, or `GeminiAdapter` behind the shim) now stores
+  the `executableCode` and `codeExecutionResult` parts as ADK's Gemini stores
+  them, where the session held none before; `partsToGenai` in
+  `melchizedek-agents/models/genaiMapping` is the mapping that writes them
+  out. `scripts/gemini_engine_check.ts` is the live check gate G3 runs:
   grounding, code execution, a function tool beside server-side tools, and a
   two-turn session, with `GeminiAdapter` on both runtimes. Defaults are
   unchanged: Gemini on native still goes through ADK's Gemini unless

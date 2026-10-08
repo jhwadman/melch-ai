@@ -3,6 +3,10 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0100-gemini-row-asserted-on-the-engine-adapter.md —constrains→ module:lib/models/genaiMapping.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0100-gemini-row-asserted-on-the-engine-adapter.md —depends_on→ /decisions/0065-gemini-carried-parts-and-server-side-invocations.md
 
 by claude-code/claude-opus-5-5

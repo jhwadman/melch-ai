@@ -51,8 +51,8 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
 | `imports` | extracted | A imports B | 808 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 793 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 674 | a resolved markdown link between documents |
+| `derives_from` | extracted | A derives from B | 795 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 675 | a resolved markdown link between documents |
 | `requires_env` | extracted | A requires B | 170 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |
@@ -65,7 +65,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
-| `constrains` | inferred | A constrains B | 182 | a decision or doctrine limits what the target may do |
+| `constrains` | inferred | A constrains B | 183 | a decision or doctrine limits what the target may do |
 | `depends_on` | inferred | A depends on B | 105 | the first cannot do its job unless the second holds |
 | `explains` | inferred | A explains B | 29 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 8 | replaces an earlier decision or document |

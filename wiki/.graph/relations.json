@@ -2625,6 +2625,14 @@
       "evidence": "ADR 0100 Decision 2 keeps ADR 0065's rule: includeServerSideToolInvocations only beside native tools and function declarations, on the Gemini API.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0100 Decision 4: partsToGenai writes carried_parts state back out as the executableCode and codeExecutionResult parts Gemini sent, then the part with its own signature, so a stored event holds them as ADK stores them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
