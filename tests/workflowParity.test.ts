@@ -17,12 +17,16 @@
  *   4. A compaction event a node agent stores carries the node stamp
  *      (enrichNodeEvent), and outside task mode the summary as its output,
  *      as ADK's node runner and maybeSetOutput write it.
+ *   5. Through the native turn (WS4-6, ADR 0095): a node that gives up
+ *      stores the node-error event ADK's workflow writes, and a node that
+ *      reported its own error stores none.
  *
  * Parity cases run one workflow syndicate on ADK (runSyndicateTurn, runtime
- * adk) and on the scheduler with agentNodeRuntime, with the same scripted
- * models (tests/helpers/workflowParity.ts), and compare the stored events
- * (ids and times aside), every model's requests, the routes, the output and
- * the progress lines. No network.
+ * adk), on the scheduler with agentNodeRuntime driven by hand, and through
+ * the native turn (runSyndicateTurn, runtime native), with the same
+ * scripted models (tests/helpers/workflowParity.ts), and compare the stored
+ * events (ids and times aside), every model's requests, the routes, the
+ * output and the progress lines. No network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -41,8 +45,8 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
 import { mapNodeEvent, nodeOutputContent } from '../lib/workflow/nodeEvents.ts';
 import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
-import { answer, requestTexts, toolCall } from './helpers/scriptedModel.ts';
-import { agent, bothAgree, workflowConfig } from './helpers/workflowParity.ts';
+import { answer, failure, requestTexts, toolCall } from './helpers/scriptedModel.ts';
+import { agent, bothAgree, comparable, onAdk, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
 
 setLogLevel(LogLevel.ERROR);
 
@@ -461,4 +465,38 @@ test('a join whose predecessor waits on a person does not start and stores no ev
   assert.equal(native.models.last!.calls, 0);
   assert.ok(!native.events.some((e) => e.author === 'J'), 'no join event');
   assert.ok(native.events.some((e) => e.author === 'Graph' && (e.longRunningToolIds?.length ?? 0) > 0), "the workflow's pause record");
+});
+
+// ── 5. Node errors through the turn (WS4-6, ADR 0095) ───────────────────────
+
+test('a node that gives up: the native turn stores the node-error event ADK writes, and fails as ADK does', async () => {
+  registerTool('parity_lookup', defineTool({ name: 'parity_lookup', description: 'Look up.', schema: z.object({ q: z.string() }), execute: async ({ q }) => `found ${q}` }), { override: true });
+  // A tool node whose input is not JSON throws ADK's TypeError: a thrown error, reported once by the workflow.
+  const cfg = workflowConfig({ edges: [['START', 'Triage', 'Lookup', 'Reader']], nodes: { Lookup: { tool: 'parity_lookup' } } }, [agent('Reader')]);
+  const scripts = { triage: () => answer('not json'), reader: () => answer('never') };
+  const adk = await onAdk(cfg, scripts, 'go');
+  const turn = await onNativeTurn(cfg, scripts, 'go');
+  assert.equal(adk.status, 'failed');
+  assert.equal(turn.status, 'failed');
+  assert.equal(turn.error, adk.error);
+  assert.deepEqual(comparable(turn.events), comparable(adk.events), 'the stored events, the node-error event included');
+  const reported = turn.events.at(-1) as { isNodeError?: boolean; errorType?: string; author?: string };
+  assert.deepEqual([reported.isNodeError, reported.errorType, reported.author], [true, 'TypeError', 'Lookup']);
+});
+
+test("an agent node that reports errors: each attempt's event, retried, then given up, and no node-error event of the workflow's, as on ADK", async () => {
+  const retry = { retry: { max_attempts: 2, initial_delay: 0.01, max_delay: 0.02 } };
+  const cfg = workflowConfig({ edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: retry } }, [agent('Fixer')]);
+  const flaky = { triage: () => answer('bug'), fixer: (_r: Req, n: number) => (n === 1 ? failure({ code: '503', message: 'overloaded' }) : answer('fixed')) };
+  const { turn } = await bothAgree(cfg, flaky, 'go');
+  assert.equal(turn.status, 'completed');
+  assert.equal(turn.events.filter((e) => e.errorCode === '503').length, 1);
+
+  const down = { triage: () => answer('bug'), fixer: () => failure({ code: '500', message: 'down' }) };
+  const adk = await onAdk(cfg, down, 'go');
+  const native = await onNativeTurn(cfg, down, 'go');
+  assert.equal(native.status, 'failed');
+  assert.equal(native.error, adk.error);
+  assert.deepEqual(comparable(native.events), comparable(adk.events), "two attempts' error events, and nothing of the workflow's");
+  assert.ok(!native.events.some((e) => (e as { isNodeError?: boolean }).isNodeError));
 });

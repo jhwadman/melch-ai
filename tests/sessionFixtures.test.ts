@@ -6,8 +6,9 @@
  * runtime that serves those conversations must pass this suite unchanged.
  * Every resume runs on both runtimes (tests/helpers/runtime.ts): ADR 0045's
  * stop rule keeps the default on adk while an ADK-written fixture fails to
- * resume under native. The workflow fixture waits for WS4, named on its
- * skipped native case. Scripted models, in-memory sessions, no network.
+ * resume under native. The workflow fixture resumes under native through
+ * the engine's scheduler (ADR 0095). Scripted models, in-memory sessions,
+ * no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -197,7 +198,7 @@ forEachRuntime('05 workflow paused at ask_user: found in the stored events, and 
   assert.equal(models.publisher!.calls, 1);
   const after = await sessionService.getSession({ appName: APP, userId: USER, sessionId: scenario(f.fixture).sessionId });
   assert.equal(pendingWorkflowInput(after!.events), undefined, 'answered');
-}, { notOn: { native: { reason: 'a workflow syndicate is refused on native (ADR 0073)', ticket: 'WS4' } } });
+});
 
 forEachRuntime('a completed conversation reads back: the answering agent sees what was said', async () => {
   // [fixture, the model that answers the next turn, what it must find in its history]

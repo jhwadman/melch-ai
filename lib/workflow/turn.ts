@@ -1,0 +1,261 @@
+/**
+ * lib/workflow/turn.ts — one turn of a workflow syndicate on the native
+ * runtime: the message stored, the graph walked by the engine's scheduler,
+ * and every event the walk stores yielded in the order it was stored, the
+ * node inputs aside, as ADK's Runner yields them (ADR 0095).
+ *
+ * WHY this file exists:
+ *   runSyndicateTurn (lib/runtime/syndicateTurn.ts) runs a workflow on ADK
+ *   by handing ADK's Workflow to its Runner and draining the events the
+ *   Runner yields (drainAgentStream). On the native runtime it hands this
+ *   generator to the same drain, under the same root span, so the progress
+ *   lines, onProgress calls, node errors, the paused input and the ledger
+ *   rows come out of one reader on both runtimes. Everything a node does is
+ *   the WS4 modules': the scheduler (scheduler.ts), agent nodes on the
+ *   native loop (agentNode.ts), tool nodes (toolNode.ts), ask_user nodes and
+ *   the workflow's pause record (pause.ts), and the resume rebuilt from the
+ *   session (resume.ts). This file wires them for one turn, as ADK's Runner
+ *   and Workflow wire theirs:
+ *
+ *   1. THE MESSAGE. Stored as the user's event under a new `e-` invocation
+ *      id, before the walk, as the Runner stores it (runNativeAgent does the
+ *      same for one agent). A turn whose signal aborted first stores nothing.
+ *   2. THE START. workflowResume rebuilds every node's prior runs and the
+ *      answers from the session, as ADK's rehydration does on every message:
+ *      with nothing paused every node runs fresh. The walk's input is the
+ *      message's text, not its content, as ADK hands its root workflow, and
+ *      that text is what the workflow's pause record keeps. A pause only ADK
+ *      can resume (UnsupportedWorkflowResumeError) fails the turn; it never
+ *      walks afresh and asks the person again.
+ *   3. THE WALK. runWorkflowGraph with the runners chained (ask_user, tool,
+ *      then agentNodeRuntime for agent nodes and map items), under the
+ *      turn's signal. Every event a runner stores goes through the agent
+ *      node runtime's one queue, in walk order: node inputs, the agents'
+ *      events, tool and ask_user events, route steps, joins and maps, and
+ *      the node-error event ADK writes for a node that gave up
+ *      (nodeErrorEvent, on the scheduler's `workflow` node_error). A node's
+ *      input turn is stored and not yielded, as ADK's Runner never yields
+ *      it; a node agent's partial (streamed) event is yielded and not
+ *      stored, as the Runner yields it.
+ *   4. THE END. A paused walk stores the workflow's own record
+ *      (workflowPauseEvent) after every node's event. A walk the turn
+ *      stopped (InvocationAbortedError, or any failure once the signal
+ *      fired) ends quietly, as ADK's Runner ends an aborted run: the turn
+ *      runner reads the stop reason from its control. A node that gave up
+ *      rethrows its error once every event is stored and yielded, as ADK's
+ *      Runner throws it.
+ *   5. THE SPANS. `workflow.invoke <name>` around the walk, `node.execute
+ *      <name>` around each node run (the scheduler's traceNode hook), and
+ *      `tool.execute <name>` around a tool node's call
+ *      (lib/runtime/native/telemetry.ts). An agent node's `agent.invoke`
+ *      opens inside its node's span, so each model call is attributed to
+ *      its node's agent in the ledger.
+ *
+ * WHAT IT REFUSES before any model call: refuseUnrunnableNodes throws, for
+ * a tool node, ADK's compile-time refusals (an unregistered tool, a
+ * long-running one). A pause raised inside an agent node is refused by
+ * runAgentNode by name.
+ *
+ * It imports nothing from ADK: the caller passes the tool lookup (the
+ * registry builds ADK's tools) and the store as the engine's interface.
+ * The message, the answers and every stored event are data the walk
+ * carries, never instructions this module acts on.
+ */
+
+import { randomUUID } from 'node:crypto';
+
+import type { ModelAdapter } from '../models/contract.ts';
+import { createTurnEvent } from '../runtime/events.ts';
+import type { TurnContent, TurnEvent } from '../runtime/events.ts';
+import type { MemoryService } from '../runtime/memoryService.ts';
+import type { NativeAgent } from '../runtime/native/request.ts';
+import type { SelfCorrection } from '../runtime/native/selfCorrection.ts';
+import { traceNodeExecution, traceToolNodeCall, traceWorkflowInvocation } from '../runtime/native/telemetry.ts';
+import type { SessionService } from '../runtime/sessions.ts';
+import type { CredentialStore } from '../tools/auth.ts';
+import { agentNodeRuntime } from './agentNode.ts';
+import type { WorkflowGraph } from './graph.ts';
+import { askUserNodeRunner, workflowPauseEvent } from './pause.ts';
+import { workflowResume } from './resume.ts';
+import { InvocationAbortedError, nodeErrorEvent, runWorkflowGraph } from './scheduler.ts';
+import type { SchedulerEvent, WorkflowRun } from './scheduler.ts';
+import { resolveToolNode, toolNodeRunner } from './toolNode.ts';
+
+export interface NativeWorkflowParams {
+  graph: WorkflowGraph;
+  /** Every agent of the syndicate compiled for native, by YAML name. */
+  agents: ReadonlyMap<string, NativeAgent>;
+  /** The leaf adapter for a model id, for every node agent. */
+  adapterFor: (model: string) => ModelAdapter;
+  /** The registry entry for a tool node's tool name, or undefined. */
+  resolveTool: (name: string) => unknown;
+  sessions: SessionService;
+  appName: string;
+  userId: string;
+  sessionId: string;
+  /** The message's parts. */
+  userParts: unknown[];
+  /** The turn's signal: a cancel, the deadline or max_steps stops the walk. */
+  signal?: AbortSignal;
+  /** Stream text as partial events (the node agents' loops). */
+  stream?: boolean;
+  memory?: Pick<MemoryService, 'search'>;
+  log?: (message: string) => void;
+  selfCorrection?: SelfCorrection;
+  /** The run's tool credentials, pinned to its app (ADR 0072). */
+  credentials?: Pick<CredentialStore, 'get'>;
+}
+
+/** How the walk ended. */
+export interface NativeWorkflowEnd {
+  /** The walk's result; absent when the turn stopped it. */
+  run?: WorkflowRun;
+  /** The turn stopped the walk (cancel, deadline, max_steps): the caller reads why from its control. */
+  stopped?: boolean;
+}
+
+/**
+ * Throws, before any model call, what ADK's compileWorkflow throws for a
+ * tool node: an unregistered tool, or a long-running one (ADR 0091).
+ */
+export function refuseUnrunnableNodes(graph: WorkflowGraph, resolveTool: (name: string) => unknown): void {
+  for (const node of graph.nodes.values()) if (node.kind === 'tool') resolveToolNode(node, { resolveTool });
+}
+
+const isAborted = (error: unknown): boolean => error instanceof InvocationAbortedError || (error as { name?: unknown } | null)?.name === 'InvocationAbortedError';
+
+/**
+ * Runs one turn of the workflow: stores the message, walks the graph (a
+ * resume when the session holds a paused walk), and yields every event the
+ * walk stores, in the order stored, but the node inputs (ADK's Runner
+ * yields none of them). Returns how the walk ended, or
+ * undefined when the signal fired before the message was stored. Throws
+ * the error a node gave up with (after its events), ADK's message for a
+ * reply that answers nothing, and UnsupportedWorkflowResumeError.
+ */
+export async function* runNativeWorkflow(params: NativeWorkflowParams): AsyncGenerator<TurnEvent, NativeWorkflowEnd | undefined> {
+  const { graph, sessions, appName, userId, sessionId, signal } = params;
+  const session = await sessions.get({ appName, userId, sessionId });
+  if (!session) throw new Error(`Session not found: ${sessionId} (appName=${appName}, userId=${userId})`);
+  if (signal?.aborted) return undefined;
+  if (params.userParts.length === 0) throw new Error('No parts in the newMessage.');
+
+  // 1. The message, as the Runner stores it.
+  const invocationId = `e-${randomUUID()}`;
+  const userContent = { role: 'user', parts: params.userParts } as TurnContent;
+  await sessions.append(session, createTurnEvent({ invocationId, author: 'user', content: userContent }));
+  if (signal?.aborted) return { stopped: true };
+
+  // 2. The start: the message's text as the input, and every node's prior runs.
+  const start = workflowResume({ events: session.events, invocationId, userContent, workflowPath: graph.name });
+
+  // 3. The walk, its events handed on in the order they are stored.
+  const queue: TurnEvent[] = [];
+  let wake: (() => void) | undefined;
+  const runtime = agentNodeRuntime({
+    agents: params.agents,
+    session,
+    sessions,
+    invocationId,
+    userContent,
+    loop: {
+      adapterFor: params.adapterFor,
+      stream: params.stream ?? false,
+      ...(params.memory ? { memory: params.memory } : {}),
+      ...(params.log ? { log: params.log } : {}),
+      ...(params.selfCorrection ? { selfCorrection: params.selfCorrection } : {}),
+      ...(params.credentials ? { credentials: params.credentials } : {}),
+    },
+    onEvent: (event) => {
+      // A node's input turn is appended straight to the session, as ADK's runLlmAgentAsNode appends it: stored, never yielded.
+      if (event.author === 'user') return;
+      queue.push(event);
+      wake?.();
+    },
+    // A node agent's streamed text, yielded as ADK's Runner yields its partial events.
+    onPartial: (event) => {
+      queue.push(event);
+      wake?.();
+    },
+  });
+  // Every event handed over is queued a microtask later (agentNodeRuntime.store); `stored` waits for all of them.
+  const handed = new Set<Promise<unknown>>();
+  const store = (event: TurnEvent): void => {
+    const queued = runtime.store(event).catch(() => {}); // a store error surfaces from settled()
+    handed.add(queued);
+    void queued.finally(() => handed.delete(queued));
+  };
+  const stored = async (): Promise<void> => {
+    while (handed.size > 0) await Promise.all([...handed]);
+    await runtime.settled();
+  };
+  const runNode = askUserNodeRunner(
+    { invocationId, onEvent: store },
+    toolNodeRunner(
+      {
+        invocationId,
+        appName,
+        userId,
+        sessionId,
+        userContent,
+        resolveTool: params.resolveTool,
+        state: () => session.state,
+        ...(params.memory ? { memory: params.memory } : {}),
+        ...(params.credentials ? { credentials: params.credentials } : {}),
+        onEvent: store,
+        traceCall: traceToolNodeCall,
+      },
+      runtime.runNode,
+    ),
+  );
+  const onEvent = (event: SchedulerEvent): void => {
+    runtime.onEvent(event);
+    // ADK's reportNodeError: the workflow's own event for a node that gave up.
+    if (event.type === 'node_error' && event.source === 'workflow') store(nodeErrorEvent(event, invocationId));
+  };
+
+  let end: NativeWorkflowEnd | undefined;
+  let failure: { error: unknown } | undefined;
+  let finished = false;
+  const walk = traceWorkflowInvocation({ name: graph.name, path: graph.name }, { sessionId, invocationId }, async () => {
+    try {
+      const run = await runWorkflowGraph(graph, {
+        input: start.input,
+        resume: start.resume,
+        runNode,
+        onEvent,
+        traceNode: traceNodeExecution,
+        ...(signal ? { signal } : {}),
+      });
+      // 4. A paused walk: the workflow's own record, after every node's event.
+      if (run.interruptIds.length > 0) store(workflowPauseEvent({ name: graph.name, invocationId, input: start.input, interruptIds: run.interruptIds }));
+      await stored();
+      return run;
+    } catch (error) {
+      await stored().catch(() => {});
+      throw error;
+    }
+  }).then(
+    (run) => {
+      end = { run };
+    },
+    (error: unknown) => {
+      // ADK's Runner ends an aborted run without an error; the turn's control holds why.
+      if (isAborted(error) || signal?.aborted) end = { stopped: true };
+      else failure = { error };
+    },
+  ).finally(() => {
+    finished = true;
+    wake?.();
+  });
+
+  for (;;) {
+    while (queue.length > 0) yield queue.shift()!;
+    if (finished) break;
+    await new Promise<void>((resolve) => (wake = resolve));
+    wake = undefined;
+  }
+  await walk;
+  if (failure) throw failure.error;
+  return end;
+}

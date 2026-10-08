@@ -106,7 +106,7 @@ forEachRuntime('mode: task — a workflow node works with its tools, then its fi
   const r = await runSyndicateTurn({ ...runtimeOption(), config, parts: [{ text: 'go' }], appName: 'a', userId: 'u', sessionId: 's', sessionService: new InMemorySessionService(), compile: { resolveModel: scriptedResolver({ lead, extractor, booker }) }, trace: false });
   assert.equal(r.status, 'completed', r.error?.message);
   assert.deepEqual(JSON.parse(r.text.replace(/^booked /, '')), { city: 'Lyon', nights: 2 });
-}, { notOn: { native: { reason: 'a workflow syndicate is refused on native (ADR 0073)', ticket: 'WS4' } } });
+});
 
 test('code_execution: gemini compiles to Gemini\'s server-side executor', async () => {
   const config = validateSyndicateConfig(
@@ -331,35 +331,4 @@ test("native: a task-mode node ends on finish_task's answer, which carries the o
   const nativeNode = JSON.parse(JSON.stringify((await sessions.get({ appName: 'x', userId: 'u', sessionId: 's' }))!.events.filter((e) => e.author === 'Extractor'))) as TurnEvent[];
   assert.deepEqual(nodeFields(nativeNode), nodeFields(adkNode));
   assert.deepEqual(nativeNode.at(-1)?.actions.stateDelta, { trip: { city: 'Lyon', nights: 2 } });
-});
-
-test('native: the mode: task workflow case is refused as a workflow (WS4), never as task mode', async () => {
-  const config = validateSyndicateConfig(
-    {
-      syndicate_name: 'Desk',
-      orchestrator: { name: 'Lead', model: 'scripted/lead', instruction: 'Pass it on.' },
-      subagents: [
-        { name: 'Extractor', description: 'extracts', model: 'scripted/extractor', instruction: 'Extract.', mode: 'task', outputSchema: TRIP },
-        { name: 'Booker', description: 'books', model: 'scripted/booker', instruction: 'Book.' },
-      ],
-      workflow: { edges: [['START', 'Lead', 'Extractor', 'Booker']] },
-    },
-    't',
-  ) as SyndicateYamlConfig;
-  const lead = new ScriptedModel('scripted/lead', () => answer('x'));
-  const refused = await runSyndicateTurn({
-    config,
-    parts: [{ text: 'go' }],
-    appName: 'x',
-    userId: 'u',
-    sessionId: 's',
-    sessionService: new InMemorySessionService(),
-    compile: { resolveModel: shimResolver({ lead }) },
-    trace: false,
-    runtime: 'native',
-  }).catch((e: unknown) => e);
-  assert.ok(refused instanceof UnsupportedOnRuntimeError, String(refused));
-  assert.match((refused as Error).message, /workflow/);
-  assert.doesNotMatch((refused as Error).message, /task mode/);
-  assert.equal(lead.calls, 0);
 });

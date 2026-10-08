@@ -21,11 +21,11 @@ sources:
 
 # Workflow agent node
 
-`lib/workflow/agentNode.ts` runs an agent of a `workflow:` syndicate as a node of the [workflow scheduler](/overview/workflow-scheduler.md), on the [native loop](/overview/native-loop.md). It is ADK 2.2's `runLlmAgentAsNode` and the part of its node runner that stamps events, rule for rule, so a session the native walk writes holds the events ADK's holds. `lib/workflow/route.ts` holds the route rule both runtimes use. Why the node is a loop hook, and why the route step stores an event, is [ADR 0090](/decisions/0090-workflow-agent-node-on-the-native-loop.md). How the instruction placeholders, the join and map events and a node's compaction match ADK is [ADR 0093](/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md). The turn runner does not run a workflow on native yet (WS4-6); the native refusal of [ADR 0073](/decisions/0073-one-agent-spec-and-a-runtime-flag.md) stands.
+`lib/workflow/agentNode.ts` runs an agent of a `workflow:` syndicate as a node of the [workflow scheduler](/overview/workflow-scheduler.md), on the [native loop](/overview/native-loop.md). It is ADK 2.2's `runLlmAgentAsNode` and the part of its node runner that stamps events, rule for rule, so a session the native walk writes holds the events ADK's holds. `lib/workflow/route.ts` holds the route rule both runtimes use. Why the node is a loop hook, and why the route step stores an event, is [ADR 0090](/decisions/0090-workflow-agent-node-on-the-native-loop.md). How the instruction placeholders, the join and map events and a node's compaction match ADK is [ADR 0093](/decisions/0093-workflow-parity-placeholders-join-map-events-compaction.md). On the native runtime the turn runner chains it with the tool and ask_user runners for every workflow turn ([the native turn](/overview/workflow-scheduler.md#the-native-turn), [ADR 0095](/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md)).
 
 ## One node
 
-`runAgentNode(agent, run, context)` runs one node run and resolves with `{ output }`:
+`runAgentNode(agent, run, context)` runs one node run and resolves with `{ output }`, or `{ error }` when it ended on a reported error with no output:
 
 | rule | what happens |
 |---|---|
@@ -35,20 +35,20 @@ sources:
 | the output | outside task mode, each stored model event with content and no function call carries `output`: its text without thought parts, parsed as JSON only when the agent has an output schema and the text parses; and `nodeInfo.messageAsOutput` (`eventOutput`, ADK's `maybeSetOutput`). The node's output is the last one an event carried. |
 | the stamp | every stored event gets `nodeInfo.path`, `nodeInfo.outputFor` when it carries an output, and the node's branch when it has none: ADK's `enrichEvent`, through `enrichNodeEvent`, the one port of it ([tool node](/overview/workflow-scheduler.md#tool-nodes)). The loop applies it through `nodeStamp`, after the outputKey and task hooks, and to a compaction event the node's agent stores before a step, which therefore carries the summary as its output outside task mode, as ADK's `maybeSetOutput` gives it. |
 | the instruction | the run carries ADK's workflow instruction scope (`workflowScope`): the node's input, and `predecessorOutputs`, the output each event of the invocation stored before the node ran, by node name (ADK's `collectPredecessorOutputs`). See [The instruction](#the-instruction). |
-| failure | an event with an error code is the node's reported error. A run that ends with one and no output throws `NodeReportedError` with ADK's message. A run the turn stopped throws `NodeStoppedError`. A run that pauses on a person (an `ask_user` tool call, an approval) throws: a pause inside an agent node does not run on the native runtime yet. An `ask_user` node is another runner's ([the pause](/overview/workflow-scheduler.md#ask_user-nodes-the-pause)). |
+| failure | an event with an error code is the node's reported error. A run that ends with one and no output returns it as `{ error: { code, message } }`; the scheduler fails the attempt with `NodeReportedError`, ADK's message, retries it as the node's `retry` allows, and, because the node's own event reported it, writes no node-error event of the workflow's, as ADK writes none. A run the turn stopped throws `NodeStoppedError`. A run that pauses on a person (an `ask_user` tool call, an approval) throws: a pause inside an agent node does not run on the native runtime yet. An `ask_user` node is another runner's ([the pause](/overview/workflow-scheduler.md#ask_user-nodes-the-pause)). |
 
 The node's path is `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>` for a map item, as the scheduler computes it.
 
 ## The runner the scheduler takes
 
-`agentNodeRuntime({ agents, session, sessions, invocationId, userContent, loop, onEvent, next })` returns:
+`agentNodeRuntime({ agents, session, sessions, invocationId, userContent, loop, onEvent, onPartial, next })` returns:
 
-- `runNode`: runs agent nodes and map items; every other run goes to `next`, so it chains with `toolNodeRunner(context, next)` and, later, the ask_user runner;
+- `runNode`: runs agent nodes and map items; every other run goes to `next`, so it chains with `toolNodeRunner(context, next)` and `askUserNodeRunner(context, next)`;
 - `onEvent`: the scheduler's event hook; on the `node_end` of a route step, a join or a map it stores the event ADK stores for that node;
 - `store(event)`: stores another runner's event on the same queue; the tool node runner's `onEvent` passes its event here;
 - `settled()`: resolves once every queued event is stored.
 
-A node's user turn and the events of route steps, joins and maps are stored through one queue, in the order the walk reaches them, so each lands before its successor's input, as on ADK. A node's user turn is queued as the node starts, as ADK's `runLlmAgentAsNode` appends it straight to the session; an event another runner hands to `store` (a tool node's, an ask_user request) is queued a microtask later, as ADK's Runner stores what a node yields behind the turns of nodes started in the same pass, and still before the walk starts that node's successors. Under concurrent fan-out the events of the branches land in ADK's order whenever their finish times are apart; finishes in the same instant race on both runtimes. `onEvent` (the option) receives every stored event in order; fed through `drainAgentStream`, they print the progress lines ADK's do, which name declared nodes only, never the root or a route step.
+A node's user turn and the events of route steps, joins and maps are stored through one queue, in the order the walk reaches them, so each lands before its successor's input, as on ADK. A node's user turn is queued as the node starts, as ADK's `runLlmAgentAsNode` appends it straight to the session; an event another runner hands to `store` (a tool node's, an ask_user request) is queued a microtask later, as ADK's Runner stores what a node yields behind the turns of nodes started in the same pass, and still before the walk starts that node's successors. Under concurrent fan-out the events of the branches land in ADK's order whenever their finish times are apart; finishes in the same instant race on both runtimes. `onEvent` (the option) receives every stored event in order; fed through `drainAgentStream`, they print the progress lines ADK's do, which name declared nodes only, never the root or a route step. `onPartial` receives each partial event a node agent's loop yields with streaming on; it is never stored.
 
 ## Route derivation
 

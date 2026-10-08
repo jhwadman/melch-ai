@@ -6,6 +6,22 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Workflow syndicates run on the native runtime (WS4-6, ADR 0095).**
+  A `workflow:` syndicate no longer throws `UnsupportedOnRuntimeError` on
+  `runtime: 'native'` (or `MELCHIZEDEK_RUNTIME=native`): the engine's own
+  scheduler walks the graph, and `runSyndicateTurn` returns the same
+  result, stored events, progress lines, `answer.nodeErrors`, text deltas
+  and ledger rows as on ADK. An `ask_user` node pauses the turn
+  `input-required` with `result.input`, and the next message resumes it,
+  also in a session ADK paused. Two new outcomes on native: a session
+  paused inside an agent node or a map item (which only ADK resumes) fails
+  the turn with error code `RESUME_UNSUPPORTED` instead of starting the
+  graph again, and an `ask_user` tool on a workflow node's agent in a
+  config that skipped validation throws `UnsupportedOnRuntimeError`
+  before any model call (the schema refuses it on both runtimes). A
+  native workflow turn traces `workflow.invoke`, `node.execute` and
+  `tool.execute` spans, so each model call's ledger row names its node's
+  agent. ADK turns are unchanged.
 - **A Gemini `MALFORMED_FUNCTION_CALL` from a contract adapter is
   retried (WS2-15, ADR 0088).** `modelResponseToLlmResponse`
   (`melchizedek-agents/models/genaiMapping`) now sets `finishReason` to an
