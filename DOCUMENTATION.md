@@ -170,8 +170,10 @@ treat any remote MCP server as an untrusted tool vendor whose results
 are data, never instructions.
 
 **OpenAPI tools** turn any HTTP API with an OpenAPI 3 spec into an
-agent's tools, with no tool code (`lib/tools/openapiTools.ts`, on ADK's
-`OpenAPIToolset`; [ADR 0032](./wiki/decisions/0032-openapi-tools.md)):
+agent's tools, with no tool code (`lib/tools/openapiTools.ts`, on the
+engine's own parser and caller in `lib/tools/openapi/`;
+[ADR 0032](./wiki/decisions/0032-openapi-tools.md),
+[ADR 0067](./wiki/decisions/0067-openapi-calls-on-the-engines-own-caller.md)):
 
 ```yaml
 orchestrator:
@@ -200,7 +202,10 @@ may name. A refused or unset variable fails the compile, and a static token is a
 never stored in session state. Every server must be http(s) and pass the
 SSRF guard: its literal rules when the agent compiles, the full check with
 DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for
-local development. A response over 20,000 characters is cut and says so; a
+local development. Redirects are followed one hop at a time, each hop held
+to the guard, and a hop to another origin carries no credential. A
+credential's value never appears in an error the model reads. Only OpenAPI
+3.x specs are read. A response over 20,000 characters is cut and says so; a
 network failure comes back to the model as an error. Specs are files, never
 URLs: save the spec beside the YAML and review it like code (trim it to the
 operations the agent needs, and write each `summary` for the model). Worked

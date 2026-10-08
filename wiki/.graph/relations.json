@@ -994,6 +994,55 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/tools/openapi/call.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0067 Decision 1: \"The request is RestApiTool's (ADK 2.2), rule for rule (buildRequest in lib/tools/openapi/call.ts).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0067 Context: \"ADR 0063 gave the engine its own OpenAPI parser, but each call still went through ADK's RestApiTool, built from the parse.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0067 Decision 2: \"withRedirectGuard and its wrapper on globalThis.fetch are removed\"; Consequences: \"ADR 0036's policy is unchanged. Only its mechanism ... is retired.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08",
+      "note": "Supersedes the mechanism (the global fetch wrapper), not the redirect policy."
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0067 Decision 3: \"An operation is an own Tool (buildOpenApiOwnTools), and the ADK runtime runs it through toFunctionTool.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0067 Decision 3: \"gateTools gates it with requireApprovalOn, as it gates every registry tool.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "module:lib/tools/openapi/call.ts",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "depends_on",
+      "evidence": "lib/tools/openapi/call.ts header: \"REDIRECTS one hop at a time (lib/net/redirects.ts): a hop on the same origin gets the server's own check; a hop to another origin must pass the full guard\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0068-model-entry-without-adk.md",
       "to": "module:lib/model.ts",
       "rel": "constrains",
