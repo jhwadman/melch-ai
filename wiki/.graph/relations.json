@@ -880,6 +880,38 @@
       "evidence": "lib/tools/openapi/parse.ts header: \"The native runtime owns its tools (ADR 0051), so it owns this step too.\" Each operation carries a ToolDeclaration.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0065 Decision 1-4: carried parts ride whole as providerState kind carried_parts on the next output part and replay before it within the current turn; includeServerSideToolInvocations only beside function declarations on the Gemini API; PLACEHOLDER_THOUGHT_SIGNATURE off by default.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0065 Decision 1: the carried parts are written as providerState { provider: gemini, kind: carried_parts } on the next output part, under ADR 0046's convention.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
+      "to": "module:lib/compile.ts",
+      "rel": "explains",
+      "evidence": "ADR 0065 Context: the ADK path sends includeServerSideToolInvocations on every Gemini agent (lib/compile.ts), and @google/genai 2.25 throws for it on a Vertex AI client; Consequences: a Gemini agent on Vertex AI fails there inside the SDK.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "gemini-adapter.md, The request: \"The signal is request.signal alone ... its caller passes the turn's signal (ADR 0053)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

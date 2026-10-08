@@ -1,11 +1,15 @@
 /**
  * tests/geminiAdapter.test.ts — the Gemini adapter on @google/genai directly,
- * behind the engine's model contract (lib/models/geminiAdapter.ts, WS3-1a).
+ * behind the engine's model contract (lib/models/geminiAdapter.ts, WS3-1a
+ * and WS3-1b).
  *
  * Most tests drive the adapter against a fake client injected through
  * `clientFactory` and assert the request object it builds and the contract
- * responses it yields. The last group runs the real GoogleGenAI client over a
- * stubbed fetch, so the JSON that would reach the Gemini API is asserted too.
+ * responses it yields. The tests named "on the wire" run the real GoogleGenAI
+ * client over a stubbed fetch, so the JSON that would reach the Gemini API is
+ * asserted too. The last group covers Gemini's own features: grounding with
+ * spans, urlContext, code execution carried and replayed, server-side
+ * invocations, id stripping, the request's abort, placeholder signatures.
  *
  * Offline: no provider is called, and every key is an obvious fixture.
  */
@@ -16,7 +20,15 @@ import assert from 'node:assert/strict';
 import { GoogleGenAI } from '@google/genai';
 import type { GenerateContentParameters, GenerateContentResponse, GoogleGenAIOptions } from '@google/genai';
 
-import { GeminiAdapter, THOUGHT_SIGNATURE_KIND } from '../lib/models/geminiAdapter.ts';
+import {
+  CARRIED_PARTS_KIND,
+  GeminiAdapter,
+  PLACEHOLDER_SIGNATURES_BY_DEFAULT,
+  PLACEHOLDER_THOUGHT_SIGNATURE,
+  THOUGHT_SIGNATURE_KIND,
+} from '../lib/models/geminiAdapter.ts';
+import { MINTED_CALL_ID_PREFIX } from '../lib/models/geminiState.ts';
+import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
 import type { GeminiAdapterOptions, GeminiClient } from '../lib/models/geminiAdapter.ts';
 import type {
   AssistantMessage,
@@ -862,4 +874,328 @@ test("on the wire (real SDK): genai's ApiError becomes GEMINI_ERROR with its sta
       assert.equal(final.error?.retryable, false);
     },
   );
+});
+
+// ── Gemini's own features (WS3-1b) ───────────────────────────────────────────
+
+const json = (body: object): Response => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+const engineAdapter = (options: Partial<GeminiAdapterOptions> = {}) =>
+  new GeminiAdapter({ model: MODEL, apiKey: KEY, endpoint: { platform: 'direct' }, clientFactory: realClient, ...options });
+const carried = (before: object[], signature?: string, model = MODEL) => ({
+  provider: 'gemini',
+  kind: CARRIED_PARTS_KIND,
+  model,
+  payload: { before, ...(signature ? { signature } : {}) },
+});
+
+const CODE = { executableCode: { language: 'PYTHON', code: 'print(6 * 7)' } };
+const RESULT = { codeExecutionResult: { outcome: 'OUTCOME_OK', output: '42\n' } };
+
+test('on the wire (real SDK): grounding becomes spanned citations and queries, urlContext cites the pages it read', async () => {
+  // "Café" is 5 bytes in UTF-8 and 4 UTF-16 units: the spans are converted.
+  const answer = 'Café Nord opens at 9. It rains today.';
+  await withFetch(
+    () =>
+      json(
+        candidate([{ text: answer }], 'STOP', {
+          groundingMetadata: {
+            webSearchQueries: ['cafe nord hours', 'weather today'],
+            groundingChunks: [
+              { web: { uri: 'https://example.org/nord', title: 'example.org' } },
+              { web: { uri: 'https://example.com/weather', title: 'example.com' } },
+              { web: { uri: 'https://example.net/unused' } },
+            ],
+            groundingSupports: [
+              { segment: { endIndex: 22, text: 'Café Nord opens at 9.' }, groundingChunkIndices: [0] },
+              // Offsets that miss the text: the text's place in the answer is the span.
+              { segment: { startIndex: 3, endIndex: 9, partIndex: 1, text: 'It rains today.' }, groundingChunkIndices: [1, 1] },
+              // A segment not in the answer has no span.
+              { segment: { text: 'Not in the answer.' }, groundingChunkIndices: [2] },
+            ],
+          },
+          urlContextMetadata: {
+            urlMetadata: [
+              { retrievedUrl: 'https://example.org/menu', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' },
+              { retrievedUrl: 'https://example.org/paywalled', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_PAYWALL' },
+            ],
+          },
+        }),
+      ),
+    async (seen) => {
+      const { final } = await run(engineAdapter(), {
+        messages: [user('When does Café Nord open? See https://example.org/menu')],
+        nativeTools: ['web_search', 'url_context'],
+      });
+      assert.deepEqual(seen[0].body.tools, [{ googleSearch: {} }, { urlContext: {} }]);
+      assert.equal(seen[0].body.toolConfig, undefined, 'no function declarations: no server-side invocations asked for');
+      assert.deepEqual(final.grounding, {
+        citations: [
+          { url: 'https://example.org/nord', title: 'example.org', start: 0, end: 21 },
+          { url: 'https://example.com/weather', title: 'example.com', start: 22, end: 37 },
+          { url: 'https://example.net/unused' },
+          { url: 'https://example.org/menu' },
+        ],
+        searchQueries: [
+          { tool: 'web_search', query: 'cafe nord hours' },
+          { tool: 'web_search', query: 'weather today' },
+        ],
+      });
+      assert.equal(answer.slice(0, 21), 'Café Nord opens at 9.');
+    },
+  );
+});
+
+test('on the wire (real SDK): native tools beside function declarations ask for server-side invocations, on the Gemini API only', async () => {
+  await withFetch(
+    () => json(candidate([{ text: 'ok' }])),
+    async (seen) => {
+      const a = engineAdapter();
+      await run(a, { messages: [user('hi')], tools: [LOOKUP], nativeTools: ['google_search', 'code_execution'], toolChoice: 'auto' });
+      await run(a, { messages: [user('hi')], tools: [LOOKUP] });
+      await run(a, { messages: [user('hi')], tools: [LOOKUP], nativeTools: ['x_search'] });
+      assert.deepEqual(seen[0].body.tools.slice(1), [{ googleSearch: {} }, { codeExecution: {} }]);
+      assert.deepEqual(seen[0].body.toolConfig, { functionCallingConfig: { mode: 'AUTO' }, includeServerSideToolInvocations: true });
+      assert.equal(seen[1].body.toolConfig, undefined, 'function declarations alone: the provider default');
+      assert.equal(seen[2].body.toolConfig, undefined, 'a dropped native tool is not a native tool sent');
+    },
+  );
+
+  // Vertex AI: the SDK refuses the flag, so the adapter never sends it there.
+  const vertex = new FakeClient({ response: candidate([{ text: 'ok' }]) });
+  await run(adapter(vertex, { endpoint: { platform: 'vertex', project: 'acme', location: 'global' } }), {
+    messages: [user('hi')],
+    tools: [LOOKUP],
+    nativeTools: ['url_context'],
+  });
+  assert.deepEqual(vertex.requests[0].config?.tools?.slice(1), [{ urlContext: {} }]);
+  assert.equal(vertex.requests[0].config?.toolConfig, undefined);
+  await withFetch(
+    () => json(candidate([{ text: 'ok' }])),
+    async (seen) => {
+      const sdk = new GoogleGenAI({ vertexai: true, project: 'acme', location: 'global' });
+      await assert.rejects(
+        sdk.models.generateContent({ model: MODEL, contents: 'hi', config: { toolConfig: { includeServerSideToolInvocations: true } } }),
+        /only supported in Gemini Developer API mode/,
+      );
+      assert.equal(seen.length, 0);
+    },
+  );
+});
+
+test('on the wire (real SDK): code execution and its result ride on the next part, replayed within the turn, never after it', async () => {
+  const replies = [
+    // Step 1: a thought, the code and its result, text, and a call.
+    candidate([
+      { text: 'Compute it first.', thought: true, thoughtSignature: 'dGhvdWdodA==' },
+      CODE,
+      RESULT,
+      { text: 'The product is 42.' },
+      { functionCall: { name: 'lookup', args: { q: '42' } }, thoughtSignature: 'Y2FsbA==' },
+    ]),
+    // Step 2: the answer.
+    candidate([{ text: '42 is the answer.' }]),
+    // Next turn.
+    candidate([{ text: 'You are welcome.' }]),
+  ];
+  await withFetch(
+    () => json(replies.shift()!),
+    async (seen) => {
+      const a = engineAdapter();
+      const messages: Message[] = [user('What is 6 times 7, and look it up.')];
+      const step1 = await run(a, { messages, tools: [LOOKUP], nativeTools: ['code_execution'], reasoning: 'low' });
+      assert.deepEqual(step1.final.parts, [
+        // The thought's signature goes on the next part Gemini sent, the code.
+        { type: 'text', text: 'The product is 42.', providerState: carried([{ ...CODE, thoughtSignature: 'dGhvdWdodA==' }, RESULT]) },
+        {
+          type: 'toolCall',
+          id: 'adk-1-0-lookup',
+          name: 'lookup',
+          args: { q: '42' },
+          providerState: { provider: 'gemini', kind: THOUGHT_SIGNATURE_KIND, model: MODEL, payload: 'Y2FsbA==' },
+        },
+      ]);
+      assert.equal(step1.final.finishReason, 'tool_call');
+
+      messages.push({ role: 'assistant', parts: step1.final.parts });
+      messages.push({ role: 'tool', parts: [{ type: 'toolResult', id: 'adk-1-0-lookup', name: 'lookup', result: { fact: 'answer' } }] });
+      await run(a, { messages, tools: [LOOKUP], nativeTools: ['code_execution'] });
+      assert.deepEqual(seen[1].body.contents[1], {
+        role: 'model',
+        parts: [
+          { ...CODE, thoughtSignature: 'dGhvdWdodA==' },
+          RESULT,
+          { text: 'The product is 42.' },
+          { functionCall: { name: 'lookup', args: { q: '42' } }, thoughtSignature: 'Y2FsbA==' },
+        ],
+      });
+      assert.deepEqual(seen[1].body.contents[2], { role: 'user', parts: [{ functionResponse: { name: 'lookup', response: { fact: 'answer' } } }] });
+
+      messages.push({ role: 'assistant', parts: [{ type: 'text', text: '42 is the answer.' }] });
+      messages.push(user('Thanks.'));
+      await run(a, { messages, tools: [LOOKUP], nativeTools: ['code_execution'] });
+      const nextTurn = JSON.stringify(seen[2].body.contents);
+      for (const absent of ['executableCode', 'codeExecutionResult', 'thoughtSignature', 'providerState']) {
+        assert.ok(!nextTurn.includes(absent), `${absent} from an earlier turn is not sent`);
+      }
+      assert.deepEqual(seen[2].body.contents[1].parts, [{ text: 'The product is 42.' }, { functionCall: { name: 'lookup', args: { q: '42' } } }]);
+    },
+  );
+});
+
+test('carried parts: streamed text splits around them, server-side invocations ride too, and a trailing run gets an empty part', async () => {
+  const toolCall = { toolCall: { id: 'srv-1', toolType: 'GOOGLE_SEARCH_WEB', args: { queries: ['vix'] } } };
+  const toolResponse = { toolResponse: { id: 'srv-1', toolType: 'GOOGLE_SEARCH_WEB', response: { ok: true } } };
+  const fake = new FakeClient({
+    chunks: [candidate([{ text: 'Let me ' }], ''), candidate([{ text: 'check. ' }, toolCall, toolResponse], ''), candidate([{ text: 'It is 22.' }])],
+  });
+  const { partials, final } = await run(adapter(fake), { messages: [user('vix?')], stream: true, nativeTools: ['web_search'] });
+  assert.deepEqual(
+    partials.map((p) => p.parts),
+    [[{ type: 'text', text: 'Let me ' }], [{ type: 'text', text: 'check. ' }], [{ type: 'text', text: 'It is 22.' }]],
+    'carried parts are not streamed',
+  );
+  assert.deepEqual(final.parts, [
+    { type: 'text', text: 'Let me check. ' },
+    { type: 'text', text: 'It is 22.', providerState: carried([toolCall, toolResponse]) },
+  ]);
+
+  const trailing = new FakeClient({ response: candidate([{ text: 'Running it.' }, CODE, { ...RESULT, thoughtSignature: 'cmVzdWx0' }]) });
+  const after = await run(adapter(trailing), { messages: [user('run it')], nativeTools: ['code_execution'] });
+  assert.deepEqual(after.final.parts, [
+    { type: 'text', text: 'Running it.' },
+    { type: 'text', text: '', providerState: carried([CODE, { ...RESULT, thoughtSignature: 'cmVzdWx0' }]) },
+  ]);
+  assert.equal(after.final.error, undefined);
+
+  // Replayed, the empty part sends only what it carries.
+  const replay = new FakeClient({ response: candidate([{ text: 'ok' }]) });
+  await run(adapter(replay), { messages: [user('run it'), { role: 'assistant', parts: after.final.parts }] });
+  assert.deepEqual((replay.requests[0].contents as any[])[1].parts, [{ text: 'Running it.' }, CODE, { ...RESULT, thoughtSignature: 'cmVzdWx0' }]);
+
+  // Only code, cut short: still no answer.
+  const cut = new FakeClient({ response: candidate([CODE], 'MAX_TOKENS') });
+  const short = await run(adapter(cut), { messages: [user('run it')], nativeTools: ['code_execution'] });
+  assert.equal(short.final.error?.code, 'MAX_TOKENS');
+});
+
+test("carried parts and their signature: another Gemini model's go back unsigned", async () => {
+  const fake = new FakeClient({ response: candidate([{ text: 'ok' }]) });
+  const assistant: AssistantMessage = {
+    role: 'assistant',
+    parts: [
+      { type: 'text', text: 'Pro computed.', providerState: carried([{ ...CODE, thoughtSignature: 'cHJv' }, RESULT], 'cHJvLXRleHQ=', 'gemini-3-pro') },
+      { type: 'text', text: 'Flash computed.', providerState: carried([CODE, RESULT], 'Zmxhc2g=') },
+    ],
+  };
+  await run(adapter(fake), { messages: [user('compute'), assistant] });
+  assert.deepEqual((fake.requests[0].contents as any[])[1].parts, [
+    CODE,
+    RESULT,
+    { text: 'Pro computed.' },
+    CODE,
+    RESULT,
+    { text: 'Flash computed.', thoughtSignature: 'Zmxhc2g=' },
+  ]);
+});
+
+test("on the wire (real SDK): ids the engine or the genai mapping made never reach Gemini; Gemini's own go back", async () => {
+  await withFetch(
+    () => json(candidate([{ text: 'ok' }])),
+    async (seen) => {
+      const assistant: AssistantMessage = {
+        role: 'assistant',
+        parts: [
+          { type: 'toolCall', id: `${MINTED_CALL_ID_PREFIX}1-0`, name: 'lookup', args: { q: 'a' } },
+          { type: 'toolCall', id: 'adk-1-1-lookup', name: 'lookup', args: { q: 'b' } },
+          { type: 'toolCall', id: 'fc-gemini-7', name: 'lookup', args: { q: 'c' } },
+        ],
+      };
+      const tool: ToolMessage = {
+        role: 'tool',
+        parts: [
+          { type: 'toolResult', id: `${MINTED_CALL_ID_PREFIX}1-0`, name: 'lookup', result: { r: 1 } },
+          { type: 'toolResult', id: 'adk-1-1-lookup', name: 'lookup', result: { r: 2 } },
+          { type: 'toolResult', id: 'fc-gemini-7', name: 'lookup', result: { r: 3 } },
+        ],
+      };
+      await run(engineAdapter(), { messages: [user('look up a, b and c'), assistant, tool], tools: [LOOKUP] });
+      const raw = JSON.stringify(seen[0].body);
+      assert.ok(!raw.includes(MINTED_CALL_ID_PREFIX), 'a minted id is never sent');
+      assert.ok(!raw.includes('adk-1-1-lookup'), "the engine's id is never sent");
+      assert.deepEqual(seen[0].body.contents[1].parts.map((p: any) => p.functionCall.id), [undefined, undefined, 'fc-gemini-7']);
+      assert.deepEqual(seen[0].body.contents[2].parts.map((p: any) => p.functionResponse.id), [undefined, undefined, 'fc-gemini-7']);
+    },
+  );
+});
+
+test("on the wire (real SDK): the abort comes from the request alone, never from the turn's own signal", async () => {
+  const control = createTurnControl();
+  control.stop('canceled');
+  let fetchSignal: AbortSignal | null | undefined;
+  await withFetch(
+    (init) => {
+      fetchSignal = init.signal;
+      return json(candidate([{ text: 'still answered' }]));
+    },
+    async (seen) => {
+      const { final } = await runWithTurnControl(control, () => run(engineAdapter(), { messages: [user('hi')] }));
+      assert.equal(seen.length, 1, 'a stopped turn does not stop a request that carries no signal');
+      assert.equal(fetchSignal?.aborted ?? false, false);
+      assert.equal(final.error, undefined);
+      assert.deepEqual(final.parts, [{ type: 'text', text: 'still answered' }]);
+
+      const controller = new AbortController();
+      controller.abort();
+      const turn = createTurnControl();
+      const aborted = await runWithTurnControl(turn, () => run(engineAdapter(), { messages: [user('hi')], signal: controller.signal }));
+      turn.dispose();
+      assert.equal(seen.length, 1, "the request's aborted signal ends the call before it is sent");
+      assert.equal(aborted.final.error?.code, 'GEMINI_ERROR');
+    },
+  );
+  control.dispose();
+});
+
+test('placeholder signatures: off by default; on, the first unsigned call of each current-turn step gets one', async () => {
+  const unsigned: AssistantMessage = {
+    role: 'assistant',
+    parts: [
+      { type: 'text', text: 'Claude called these.' },
+      { type: 'toolCall', id: 'toolu_1', name: 'lookup', args: { q: 'a' } },
+      { type: 'toolCall', id: 'toolu_2', name: 'lookup', args: { q: 'b' } },
+    ],
+  };
+  const results: ToolMessage = {
+    role: 'tool',
+    parts: [
+      { type: 'toolResult', id: 'toolu_1', name: 'lookup', result: {} },
+      { type: 'toolResult', id: 'toolu_2', name: 'lookup', result: {} },
+    ],
+  };
+  const signed: AssistantMessage = {
+    role: 'assistant',
+    parts: [{ type: 'toolCall', id: 'fc-3', name: 'lookup', args: { q: 'c' }, providerState: { provider: 'gemini', kind: THOUGHT_SIGNATURE_KIND, model: MODEL, payload: 'b3du' } }],
+  };
+  const signedResult: ToolMessage = { role: 'tool', parts: [{ type: 'toolResult', id: 'fc-3', name: 'lookup', result: {} }] };
+  const earlier: Message[] = [user('earlier'), unsigned, results, { role: 'assistant', parts: [{ type: 'text', text: 'done' }] }];
+  const messages: Message[] = [...earlier, user('now'), unsigned, results, signed, signedResult];
+
+  await withFetch(
+    () => json(candidate([{ text: 'ok' }])),
+    async (seen) => {
+      await run(engineAdapter(), { messages, tools: [LOOKUP] });
+      assert.ok(!JSON.stringify(seen[0].body).includes(PLACEHOLDER_THOUGHT_SIGNATURE), 'off by default');
+
+      await run(engineAdapter({ placeholderSignatures: true }), { messages, tools: [LOOKUP] });
+      const contents = seen[1].body.contents;
+      assert.equal(contents[1].parts[1].thoughtSignature, undefined, 'an earlier turn is not touched');
+      assert.deepEqual(contents[5].parts, [
+        { text: 'Claude called these.' },
+        { functionCall: { id: 'toolu_1', name: 'lookup', args: { q: 'a' } }, thoughtSignature: PLACEHOLDER_THOUGHT_SIGNATURE },
+        { functionCall: { id: 'toolu_2', name: 'lookup', args: { q: 'b' } } },
+      ]);
+      assert.deepEqual(contents[7].parts, [{ functionCall: { id: 'fc-3', name: 'lookup', args: { q: 'c' } }, thoughtSignature: 'b3du' }], 'a real signature stays');
+    },
+  );
+  assert.equal(PLACEHOLDER_SIGNATURES_BY_DEFAULT, false);
 });
