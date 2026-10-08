@@ -97,7 +97,8 @@ const FIXTURES: Array<[string, Record<string, unknown>]> = [
   ['tool node', raw({ edges: [['START', 'Triage', 'Lookup', 'Reader']], nodes: { Lookup: { tool: 'workflow_test_lookup' } } }, [agent('Reader')])],
   ['ask_user pause', raw({ edges: [['START', 'Triage', 'Confirm', 'Publisher']], nodes: { Confirm: { ask_user: 'Publish?' } } }, [agent('Publisher')])],
   ['retry on a node', raw({ edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { retry: { max_attempts: 3, initial_delay: 0.01, max_delay: 0.02 } } } }, [agent('Fixer')])],
-  ['schema base', raw({ edges: [['START', 'Lead', 'Sub']] }, [agent('Sub')], agent('Lead'))],
+  ['a node that gives up', raw({ edges: [['START', 'Triage', 'Fixer']], nodes: { Fixer: { retry: { max_attempts: 1 } } } }, [agent('Fixer')])],
+  ['schema base',raw({ edges: [['START', 'Lead', 'Sub']] }, [agent('Sub')], agent('Lead'))],
   [
     'a tool node routes; integer and boolean keys; fan-out on a route',
     raw(
