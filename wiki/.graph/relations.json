@@ -2097,6 +2097,62 @@
       "evidence": "wiki/overview/workflow-scheduler.md section \"Retries, timeouts and node errors\" describes the loop, reported errors, giving up, abort and deadline, and map items as ADR 0089 decides them.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0092 Decision 1, 2, 4, 5: runAskUserNode writes ADK's adk_request_input event key for key (random interrupt id, payload and agentState.input the node input, response_schema through the genaiSchemaToJsonSchema port), workflowPauseEvent is ADK's recordInputForResume for the workflow node, and askUserNodeRunner chains through next; tests/workflowPause.test.ts holds it to ADK.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0092 Decision 3: NodeResult.interruptIds makes a node wait (node_waiting, no output, no successor, not restarted in the walk), a reported error with an interrupt is not a failure, and WorkflowRun.interruptIds ends a paused walk with no output, as ADK's handleCompletion and finalize.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0092 Context: \"ADR 0087 left agent, tool and ask_user nodes to a runner the caller passes the scheduler, and left interrupts to WS4-4a.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0092 Decision 1 and 5: the request event is stamped with enrichNodeEvent, and askUserNodeRunner chains as ADR 0091 decision 5 set out.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0092 Context: \"Gate G4 of ADR 0045 needs the same pause without ADK, and the stored events are what the resume (WS4-4b) rebuilds the node states from.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0092 Context: an ask_user node (ADR 0030) pauses the workflow on a person; the turn ends input-required with the question in result.input.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/workflow-scheduler.md, section Ask_user nodes: the pause: askUserNodeRunner's context, the request event's fields, the schema port, the waiting node, workflowPauseEvent, result.input, and the parity suite.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

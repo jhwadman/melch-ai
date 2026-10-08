@@ -5,25 +5,25 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 833,
-    "edges": 2989,
+    "nodes": 836,
+    "edges": 3011,
     "byKind": {
-      "doc": 154,
+      "doc": 155,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 142,
+      "file": 143,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 191,
+      "module": 192,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 616,
+      "links_to": 620,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,21 +33,21 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 751,
+      "imports": 756,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 712,
-      "constrains": 151,
+      "derives_from": 718,
+      "constrains": 153,
       "supersedes": 7,
-      "depends_on": 76,
-      "explains": 24,
+      "depends_on": 80,
+      "explains": 25,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2728,
-      "inferred": 261
+      "extracted": 2743,
+      "inferred": 268
     },
     "isolated": 4
   },
@@ -1481,6 +1481,18 @@
       }
     },
     {
+      "id": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "kind": "doc",
+      "label": "ADR 0092: A workflow ask_user node returns its interrupt to the walk, which waits as ADK's Workflow waits, and the caller stores the workflow's own record",
+      "source": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1027
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1753,7 +1765,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 845
+        "words": 865
       }
     },
     {
@@ -1777,7 +1789,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1802
+        "words": 2337
       }
     },
     {
@@ -4455,6 +4467,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/workflowPause.test.ts",
+      "kind": "file",
+      "label": "workflowPause.test.ts",
+      "source": "tests/workflowPause.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/workflowScheduler.test.ts",
       "kind": "file",
       "label": "workflowScheduler.test.ts",
@@ -6030,7 +6049,7 @@
       "label": "lib/workflow/agentNode.ts",
       "source": "lib/workflow/agentNode.ts",
       "attrs": {
-        "lines": 309
+        "lines": 310
       }
     },
     {
@@ -6040,6 +6059,15 @@
       "source": "lib/workflow/graph.ts",
       "attrs": {
         "lines": 542
+      }
+    },
+    {
+      "id": "module:lib/workflow/pause.ts",
+      "kind": "module",
+      "label": "lib/workflow/pause.ts",
+      "source": "lib/workflow/pause.ts",
+      "attrs": {
+        "lines": 204
       }
     },
     {
@@ -6057,7 +6085,7 @@
       "label": "lib/workflow/scheduler.ts",
       "source": "lib/workflow/scheduler.ts",
       "attrs": {
-        "lines": 803
+        "lines": 863
       }
     },
     {
@@ -12901,6 +12929,55 @@
       "evidence": "/decisions/0091-workflow-tool-node-writes-adks-event.md:24"
     },
     {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "file:tests/workflowPause.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md frontmatter"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "/decisions/0030-workflow-graphs.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md:24"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md:24"
+    },
+    {
+      "from": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -16052,6 +16129,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "file:tests/workflowPause.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "file:tests/workflowScheduler.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -16080,6 +16164,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "module:lib/workflow/scheduler.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -16097,42 +16188,49 @@
       "to": "/decisions/0073-one-agent-spec-and-a-runtime-flag.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:23"
+      "evidence": "/overview/workflow-scheduler.md:25"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:23"
+      "evidence": "/overview/workflow-scheduler.md:25"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:23"
+      "evidence": "/overview/workflow-scheduler.md:25"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:83"
+      "evidence": "/overview/workflow-scheduler.md:86"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:111"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:23"
+      "evidence": "/overview/workflow-scheduler.md:25"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-graph.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:23"
+      "evidence": "/overview/workflow-scheduler.md:25"
     },
     {
       "from": "/protocols/a2a.md",
@@ -23588,6 +23686,41 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/graph.ts"
+    },
+    {
+      "from": "module:lib/workflow/pause.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/pause.ts"
+    },
+    {
+      "from": "module:lib/workflow/pause.ts",
+      "to": "module:lib/workflow/graph.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/pause.ts"
+    },
+    {
+      "from": "module:lib/workflow/pause.ts",
+      "to": "module:lib/workflow/scheduler.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/pause.ts"
+    },
+    {
+      "from": "module:lib/workflow/pause.ts",
+      "to": "module:lib/workflow/toolNode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/pause.ts"
+    },
+    {
+      "from": "module:lib/workflow/pause.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/pause.ts"
     },
     {
       "from": "module:lib/workflow/route.ts",
