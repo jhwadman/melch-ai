@@ -1,8 +1,9 @@
 /**
  * tests/postgresStorage.test.ts — the direct-Postgres adapter against a REAL
  * Postgres with pgvector (ADR 0021): migrations, sessions under concurrent
- * appends, memory on the shared store, owner-scoped A2A tasks, erase, and a
- * full ADK turn persisted and resumed.
+ * appends, memory on the shared store, owner-scoped A2A tasks, erase, a
+ * full ADK turn persisted and resumed, and the ADK runtime and the engine's
+ * session interface on the same rows (ADR 0058).
  *
  * Runs only when TEST_DATABASE_URL points at a Postgres server where the
  * connecting role may create databases, e.g.
@@ -23,6 +24,7 @@ import { ServerCallContext } from '@a2a-js/sdk/server';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import type { PostgresStorage } from '../lib/storage/postgres/index.ts';
 import { persistedDelta } from '../lib/storage/postgres/sessionService.ts';
+import { createTurnEvent } from '../lib/runtime/events.ts';
 import type { Embedder, MemoryExtractor } from '../lib/memory/providers.ts';
 import { namespacedMemoryService } from '../lib/memory/namespace.ts';
 import type { MemoryService } from '../lib/runtime/memoryService.ts';
@@ -183,6 +185,100 @@ test('a full ADK turn persists to Postgres and the next turn resumes it', { skip
     `turns.ns:${userId}:${session.id}`,
   ]);
   assert.equal(stored.rows[0].n, 4, 'two user messages and two answers');
+});
+
+test('sessions (done-when): the ADK runtime and the engine’s interface read and write the same rows', { skip }, async () => {
+  const s = storage.sessionService;
+  const userId = `both-${randomUUID()}`;
+  const key = { appName: 'both.ns', userId, sessionId: 'conv' };
+  const model = new ScriptedLlm('scripted-both', (_req, n) => text(n === 1 ? 'Noted: green tea.' : 'Green tea, and oolong too.'));
+  const agent = new LlmAgent({ name: 'Desk', model, instruction: 'Answer briefly.' });
+  const adkTurn = async (message: string) => {
+    const runner = new Runner({ appName: key.appName, agent, sessionService: s });
+    let answer = '';
+    for await (const ev of runner.runAsync({ userId, sessionId: key.sessionId, newMessage: { role: 'user', parts: [{ text: message }] } })) {
+      for (const p of ev.content?.parts ?? []) if (p.text && !ev.partial) answer = p.text;
+    }
+    return answer;
+  };
+
+  await s.create({ ...key, state: { kept: true, 'temp:scratch': 1 } });
+  assert.equal(await adkTurn('I like green tea.'), 'Noted: green tea.');
+
+  // The engine reads what the ADK runtime wrote, and writes beside it.
+  const read = (await s.get(key))!;
+  assert.deepEqual(read.events.map((e) => e.author), ['user', 'Desk']);
+  assert.deepEqual(read.state, { kept: true });
+  const said = createTurnEvent({
+    invocationId: 'e-native',
+    author: 'user',
+    timestamp: read.events.at(-1)!.timestamp + 1,
+    content: { role: 'user', parts: [{ text: 'Also: oolong.' }] },
+    actions: { stateDelta: { tea: 'oolong', 'temp:t': 1 } },
+  });
+  await s.append(read, said);
+
+  // The ADK runtime's next turn is sent the engine's event.
+  assert.equal(await adkTurn('What do I like?'), 'Green tea, and oolong too.');
+  const sent = sentTexts(model.requests[1]!);
+  for (const t of ['I like green tea.', 'Noted: green tea.', 'Also: oolong.', 'What do I like?']) assert.ok(sent.includes(t), t);
+
+  const id = `both.ns:${userId}:conv`;
+  const rows = await pool.query('SELECT event FROM adk_session_events WHERE session_id = $1 ORDER BY seq', [id]);
+  assert.deepEqual(rows.rows.map((r) => r.event.author), ['user', 'Desk', 'user', 'user', 'Desk'], 'one row per event, from both runtimes');
+  const viaEngine = (await s.get(key))!;
+  const viaAdk = (await s.getSession(key))!;
+  assert.equal(JSON.stringify(viaEngine.events), JSON.stringify(rows.rows.map((r) => r.event)), 'the engine reads the rows as stored');
+  assert.equal(JSON.stringify(viaAdk.events), JSON.stringify(viaEngine.events), 'so does the ADK runtime');
+  const session = (await pool.query('SELECT state, last_update_time FROM adk_sessions WHERE id = $1', [id])).rows[0];
+  assert.deepEqual(session.state, { kept: true, tea: 'oolong' });
+  assert.equal(Number(session.last_update_time), rows.rows.at(-1)!.event.timestamp, 'the last update is the last event’s timestamp');
+});
+
+test('sessions: the engine’s interface keeps one meaning on Postgres', { skip }, async () => {
+  const s = storage.sessionService;
+  const key = { appName: 'meaning.ns', userId: 'u1', sessionId: 'c1' };
+  const ev = (id: string, timestamp: number, text = id) =>
+    createTurnEvent({ id, timestamp, invocationId: 'i', author: 'user', content: { role: 'user', parts: [{ text }] } });
+
+  const created = await s.create({ ...key, state: { kept: 1, 'temp:x': 2 } });
+  assert.deepEqual(created.state, { kept: 1 });
+  for (const [id, ts] of [['e1', 10], ['e2', 20], ['e3', 30]] as const) await s.append(created, ev(id, ts));
+  assert.equal((await s.append(created, { ...ev('p', 40), partial: true })).partial, true);
+
+  // A second create keeps the conversation, on either face.
+  assert.deepEqual((await s.create({ ...key, state: { other: true } })).events.map((e) => e.id), ['e1', 'e2', 'e3']);
+  assert.deepEqual((await s.createSession({ ...key })).events.map((e) => e.id), ['e1', 'e2', 'e3']);
+
+  // Reads: strictly after, then the newest N; a count below one asks for nothing.
+  const ids = async (options: object) => (await s.get(key, options))!.events.map((e) => e.id);
+  assert.deepEqual(await ids({ afterTimestamp: 20 }), ['e3']);
+  assert.deepEqual(await ids({ afterTimestamp: 5, numRecentEvents: 2 }), ['e2', 'e3']);
+  assert.deepEqual(await ids({ numRecentEvents: -1 }), ['e1', 'e2', 'e3']);
+  assert.equal((await s.get(key))!.lastUpdateTime, 30);
+
+  // The same id replaces its row in place.
+  await s.append(created, ev('e2', 35, 'edited'));
+  const rows = await pool.query("SELECT seq, event->>'id' AS id, ts FROM adk_session_events WHERE session_id = 'meaning.ns:u1:c1' ORDER BY seq");
+  assert.deepEqual(rows.rows.map((r) => [r.seq, r.id, r.ts]), [[1, 'e1', 10], [2, 'e2', 35], [3, 'e3', 30]]);
+  const back = (await s.get(key))!;
+  assert.equal((back.events[1]!.content!.parts![0] as { text: string }).text, 'edited');
+  assert.deepEqual(back.events.map((e) => e.id), created.events.map((e) => e.id), 'the store and the caller’s session agree');
+
+  // A list without a user id lists every user's sessions of the app, in the order created.
+  await s.create({ appName: 'meaning.ns', userId: 'u:2', sessionId: 'c2' });
+  await s.create({ appName: 'meaning.other', userId: 'u1', sessionId: 'c9' });
+  const all = await s.list({ appName: 'meaning.ns' });
+  assert.deepEqual(all.sessions.map((x) => [x.userId, x.id]), [['u1', 'c1'], ['u:2', 'c2']]);
+  assert.deepEqual({ page: all.page, limit: all.limit, totalItems: all.totalItems, totalPages: all.totalPages }, { page: 1, limit: 2, totalItems: 2, totalPages: 1 });
+  assert.deepEqual((await s.list({ appName: 'meaning.ns', userId: 'u:2' })).sessions.map((x) => x.id), ['c2']);
+  const newest = await s.list({ appName: 'meaning.ns', order: 'desc', limit: 1, page: 1 });
+  assert.deepEqual(newest.sessions.map((x) => x.id), ['c2'], 'c2 was created after c1’s last event (35)');
+  assert.equal(newest.totalPages, 2);
+  assert.deepEqual((await s.list({ appName: 'nobody' })).totalPages, 1);
+
+  await s.delete(key);
+  assert.equal(await s.get(key), undefined);
 });
 
 test('memory: facts are stored, deduplicated, recalled and superseded on the Postgres store', { skip }, async () => {

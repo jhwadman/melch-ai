@@ -36,6 +36,32 @@ the starter pack and the templates), not the repo's full history.
   module loads nothing from `@google/adk`. Import it from
   `melchizedek-agents`, which still exports it, or from the new subpath.
   The `exports` map is unchanged.
+- **The session services serve both runtimes from the same rows, and
+  change behaviour in five places (ADR 0058).** `SupabaseSessionService`,
+  `PostgresSessionService` and `ProjectedSessionService` also implement
+  the engine's own `SessionService` (`create`, `get`, `list`, `delete`,
+  `append`) beside ADK's `BaseSessionService`, and
+  `ProjectedSessionService` accepts a store with either interface. The
+  import paths are unchanged. Through ADK's methods, to match that
+  interface:
+  - `listSessions` without a `userId` lists every user's sessions of the
+    app on the Supabase service too, as it already did on Postgres and as
+    ADK's contract says. Before, it filtered on a user named `undefined`.
+    Nothing in the engine calls it; check your own callers.
+  - `createSession` for an id that exists returns the conversation on the
+    Supabase service, as on Postgres, instead of resetting it to no events.
+    A create drops `temp:` keys from the initial state.
+  - `lastUpdateTime` and `last_update_time` are the appended event's
+    timestamp, as in ADK's own store, instead of the clock at append.
+  - On Postgres, appending an event whose id the session already holds
+    replaces that event's row instead of adding a second one.
+  - A listing with no `order` comes back in creation order, and one with
+    an `order` breaks ties by id, on both services. A `numRecentEvents`
+    below one is ignored.
+
+  No schema change. The bridge between the two interfaces
+  (`lib/runtime/adkSessionBridge.ts`) is internal and not in the exports
+  map.
 - **The engine's own event, session and memory interfaces (ADR 0052).**
   Internal modules for the native runtime, not in the exports map, so
   nothing a consumer imports changes: `lib/runtime/events.ts` (`TurnEvent`,
