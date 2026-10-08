@@ -479,6 +479,62 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/gptLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0056 Decision 2: \"GptLlm overrides it, and GrokLlm inherits the override\": on a final, candidatesTokenCount is the contract's outputTokens, reasoning included; the server-side calls go on customMetadata; groundingMetadata is left off. tests/responsesAdapter.test.ts asserts the turn's counts against a bare shim.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0056 Decision 1: \"AdkShim maps each response through a protected toLlmResponse(response), which is modelResponseToLlmResponse and runs inside the llm.request span, so the tracer reads its result.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0056 Decision 4: \"ADR 0053 is refined, not replaced. The caller still charges and traces, once per leaf adapter. Only its consequence on the output count does not apply to GptLlm and GrokLlm.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "constrains",
+      "evidence": "/models/responses-adapters.md, Reasoning across a tool loop: the ids that reason send store: false and include reasoning.encrypted_content (ADR 0050); each run of reasoning items rides on the part after it and is replayed before it within the current turn, for this provider and model only.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0050-responses-reasoning-replay-without-storage.md",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "constrains",
+      "evidence": "grokAdapter.ts replaysReasoning(): \"grok-4.5, grok-4.6 and grok-4.7 carry their reasoning across a tool loop (ADR 0050)\"; /models/responses-adapters.md lists the same ids under Reasoning across a tool loop.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0048-engine-owned-model-contract.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0048 Decision 4: \"A failure is a final with error set, never a throw.\" /models/responses-adapters.md, Failures: \"Every call ends with exactly one final, and a failure is that final with error set, never a throw.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Decision 1: \"An adapter on the contract never charges the turn and never opens llm.request.\" /models/responses-adapters.md, Telemetry: \"The adapters open no span and charge no turn (ADR 0053); the shim does both.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
       "from": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "to": "module:lib/tools/memoryTools.ts",
       "rel": "constrains",
