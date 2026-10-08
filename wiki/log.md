@@ -19,6 +19,74 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/models/adkShim.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0044-fallback-model-and-circuit-breaker.md —constrains→ module:lib/models/adkShim.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/models/fallbackAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/models/geminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0053-adapter-caller-charges-and-traces.md —constrains→ module:lib/models/adkShim.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0052-sessions-and-events-on-own-interfaces.md —constrains→ module:lib/storage/postgres/sessionService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0052-sessions-and-events-on-own-interfaces.md —constrains→ module:lib/session/supabaseSessionService.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0052-sessions-and-events-on-own-interfaces.md —depends_on→ /decisions/0048-engine-owned-model-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/runtime/events.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0045-own-runtime-behind-the-seam.md —constrains→ module:lib/models/genaiMapping.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/genaiMapping.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/genaiMapping.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0047-provider-neutral-reasoning-key.md —constrains→ module:lib/models/geminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0046-provider-reasoning-state-on-the-part.md —constrains→ module:lib/models/geminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0048-engine-owned-model-contract.md —constrains→ module:lib/models/geminiAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0044-fallback-model-and-circuit-breaker.md —constrains→ module:lib/models/fallback.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-07] relate | /decisions/0044-fallback-model-and-circuit-breaker.md —constrains→ module:lib/models/errorResponse.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0049-claude-requests-by-model-generation.md —mitigates→ module:lib/session/transcript.ts
 
 by claude-code/claude-opus-5-5

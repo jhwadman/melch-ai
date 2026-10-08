@@ -1,0 +1,111 @@
+/**
+ * tests/helpers/scriptedModel.ts — a deterministic model adapter on the
+ * engine's own contract (lib/models/contract.ts), for offline tests. It is
+ * the contract twin of ScriptedLlm (./scriptedLlm.ts): behind the ADK shim
+ * (lib/models/adkShim.ts) it runs a turn under ADK, charged and traced the
+ * way every adapter is.
+ *
+ * A script is a function from (request, call number, signal) to the
+ * responses of that call; it may be async and may await the request's
+ * signal to model a hung provider. The model yields what the script says,
+ * as it says it: a test of the contract's rules writes them in its script.
+ */
+
+import type {
+  FinalModelResponse,
+  ModelAdapter,
+  ModelError,
+  ModelRequest,
+  ModelResponse,
+  OutputPart,
+  PartialModelResponse,
+  ToolResultPart,
+  Usage,
+} from '../../lib/models/contract.ts';
+import { adkShim } from '../../lib/models/adkShim.ts';
+import type { AdkShim } from '../../lib/models/adkShim.ts';
+
+export type ModelScript = (
+  request: ModelRequest,
+  call: number,
+  signal?: AbortSignal,
+) => ModelResponse | ModelResponse[] | Promise<ModelResponse | ModelResponse[]>;
+
+export class ScriptedModel implements ModelAdapter {
+  calls = 0;
+  readonly requests: ModelRequest[] = [];
+  readonly provider: string;
+  readonly model: string;
+  private readonly script: ModelScript;
+
+  constructor(model: string, script: ModelScript, provider = 'scripted') {
+    this.model = model;
+    this.provider = provider;
+    this.script = script;
+  }
+
+  async *generate(request: ModelRequest): AsyncGenerator<ModelResponse, void> {
+    this.calls += 1;
+    this.requests.push(request);
+    const out = await this.script(request, this.calls, request.signal);
+    for (const response of Array.isArray(out) ? out : [out]) yield response;
+  }
+}
+
+/** A final answer carrying plain text. */
+export function answer(text: string, usage?: Usage): FinalModelResponse {
+  return { partial: false, parts: [{ type: 'text', text }], finishReason: 'stop', ...(usage ? { usage } : {}) };
+}
+
+/** A final that calls one tool. */
+export function toolCall(name: string, args: Record<string, unknown>, id = `call-${name}-${Math.random().toString(36).slice(2, 8)}`): FinalModelResponse {
+  return { partial: false, parts: [{ type: 'toolCall', id, name, args }], finishReason: 'tool_call' };
+}
+
+/** A streamed answer: text partials as the model writes them, then the final with the whole text. */
+export function streamedAnswer(...chunks: string[]): ModelResponse[] {
+  return [...chunks.map((text): PartialModelResponse => ({ partial: true, parts: [{ type: 'text', text }] })), answer(chunks.join(''))];
+}
+
+/** A failed call: a final with `error` set, holding whatever was produced before it failed. */
+export function failure(error: Partial<ModelError> & Pick<ModelError, 'code'>, parts: OutputPart[] = []): FinalModelResponse {
+  return { partial: false, parts, finishReason: 'error', error: { message: 'the call failed', retryable: false, ...error } };
+}
+
+/** Waits until the signal aborts, then ends the call as rule 4 says: a final, never retryable. */
+export function untilAborted(signal: AbortSignal | undefined, code = 'SCRIPTED_ERROR'): Promise<FinalModelResponse> {
+  return new Promise((resolve) => {
+    const done = () => resolve(failure({ code, message: 'The operation was aborted.', retryable: false }));
+    if (!signal) return; // never settles: the test's deadline must stop it
+    if (signal.aborted) done();
+    else signal.addEventListener('abort', done, { once: true });
+  });
+}
+
+/** Text of every text part the model was sent, system prompt aside, for history asserts. */
+export function requestTexts(request: ModelRequest): string[] {
+  return request.messages.flatMap((m) => m.parts.flatMap((p) => (p.type === 'text' && p.text ? [p.text] : [])));
+}
+
+/** The last tool result in the request's history, if any. */
+export function lastToolResult(request: ModelRequest): ToolResultPart | undefined {
+  for (const message of [...request.messages].reverse()) {
+    if (message.role !== 'tool') continue;
+    const result = message.parts.at(-1);
+    if (result) return result;
+  }
+  return undefined;
+}
+
+/**
+ * A model resolver for compile options: each YAML model id `scripted/<key>`
+ * gets the ScriptedModel registered under <key>, behind the ADK shim.
+ */
+export function shimResolver(models: Record<string, ScriptedModel>) {
+  return (id: string | undefined): AdkShim => {
+    const key = (id ?? '').replace(/^scripted\//, '');
+    const m = models[key];
+    if (!m) throw new Error(`no scripted model '${id}'`);
+    return adkShim(m);
+  };
+}

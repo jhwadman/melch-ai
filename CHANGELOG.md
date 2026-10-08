@@ -12,6 +12,20 @@ the starter pack and the templates), not the repo's full history.
   module loads nothing from `@google/adk`. Import it from
   `melchizedek-agents`, which still exports it, or from the new subpath.
   The `exports` map is unchanged.
+- **The engine's own event, session and memory interfaces (ADR 0052).**
+  Internal modules for the native runtime, not in the exports map, so
+  nothing a consumer imports changes: `lib/runtime/events.ts` (`TurnEvent`,
+  the stored ADK Event JSON typed, with a parse that keeps every field and
+  ADK's `isFinal`), `lib/runtime/sessions.ts` (`SessionService` and an
+  in-process store) and `lib/runtime/memoryService.ts` (`MemoryService`).
+  Stored sessions and the session services are unchanged.
+- **The skills say what `reasoning:` does on each Claude generation (ADR 0049).**
+  `melchizedek-models`, `melchizedek-author`, their briefs, `DOCUMENTATION.md`
+  and `syndicateSchema.yaml` say that later Claude models take `reasoning:` as
+  adaptive thinking at an effort, with `none` as the model's off switch, or
+  `low` effort on Opus 5 and 5.5, Fable and Mythos. The 1,024 floor holds on
+  Claude 4.6 and earlier only, and the non-streaming limit on a
+  `budget_tokens` above about 19,000 holds on every Claude model.
 - **Tools are the engine's own (ADR 0051).** New module
   `melchizedek-agents/tools/tool`:
   - `Tool`: `name`, `declaration()` (the model contract's
@@ -95,8 +109,7 @@ the starter pack and the templates), not the repo's full history.
   budget as `low`.
 - **The shipped skills teach `reasoning:`.** `melchizedek-author` and
   `melchizedek-models` (and their briefs) set reasoning with `reasoning:`, show
-  what each level becomes per provider (and the newer Claude models on which
-  to leave it unset until the adapter maps it to their effort setting), and
+  what each level becomes per provider and per Claude model generation, and
   describe `generateContentConfig.thinkingConfig` and `reasoningEffort` as the
   older spelling that still loads. The author skill's `assets/minimal.yaml` sets it.
 - `lib/compile.ts` exports `reasoningConfig`, `withReasoning` and
@@ -137,6 +150,23 @@ the starter pack and the templates), not the repo's full history.
   depth, and the strict form reaches every nested object. Nothing calls
   them yet; `toolDeclarationFor`, `toLowercaseJsonSchema` and
   `toStrictJsonSchema` are unchanged.
+- **genai `Content` maps to and from the model contract (ADR 0048).** New
+  module `melchizedek-agents/models/genaiMapping`: `contentsToMessages` and
+  `messagesToContents`, `contentToMessage` and `messageToContent`,
+  `partToGenai`, `llmRequestToModelRequest`, `modelResponseToLlmResponse`,
+  `reasoningOf`, `systemText`, `usageToMetadata`, `usageFromMetadata` and
+  `isMintedCallId`, the constants `GEMINI_PROVIDER`,
+  `THOUGHT_SIGNATURE_KIND`, `GENAI_PART_KIND` and `MINTED_CALL_ID_PREFIX`,
+  and the types `ContractHistory`, `GenaiHistory` and
+  `ModelRequestOptions`. A stored event's
+  content round-trips to the same JSON: a Gemini `thoughtSignature` becomes
+  `providerState` of kind `thought_signature`, a call without an id gets a
+  `genai-noid-` id that is left off again on the way back, and a part the
+  contract cannot hold (Gemini code execution, ADK's confirmation request)
+  rides whole as `providerState` of kind `genai_part`. A failed final keeps
+  its retry verdict as `customMetadata['error.retryable']` and
+  `['error.status']`, which is what `FallbackLlm` reads. Nothing calls it yet;
+  no adapter or stored shape changes.
 - **Thinking with tool use works on GPT and Grok (ADR 0050).** On
   reasoning ids (o-series, `gpt-5*`, `grok-4.5`, `grok-4.7`), the Responses
   adapters write each run of encrypted reasoning items on the part after it
@@ -171,6 +201,17 @@ the starter pack and the templates), not the repo's full history.
   tripped on one path is skipped on the other. `models/fallback` still
   exports `circuitOpen` and `resetCircuits`, and `FallbackLlm` behaves as
   before.
+- **Any adapter on the model contract runs under ADK (ADR 0053).** New module
+  `melchizedek-agents/models/adkShim`: `AdkShim`, an ADK `BaseLlm` that
+  wraps one `ModelAdapter` and maps ADK's request and responses through
+  `models/genaiMapping`; `adkShim(adapter, model?)`; `adkShimClass(supportedModels,
+  createAdapter)`, a class ADK's `LLMRegistry` can register; and the types
+  `AdkShimOptions` and `ModelAdapterFactory`. The shim charges each call
+  against the turn's `max_steps`, refuses a call on a spent or stopped turn
+  with the same response the ADK-path adapters give, hands the adapter the
+  turn's abort signal, and opens the `llm.request` span, so an adapter on
+  the contract does none of these itself. `connect()` is refused. Nothing
+  registers it yet; no adapter or stored shape changes.
 - **An elided tool result's size is stored the same on every server.**
   `trimEventForStorage` writes it with en-US digit grouping (`2,563 chars
   dropped before storage — …`), where it followed the server's locale
@@ -189,6 +230,38 @@ the starter pack and the templates), not the repo's full history.
   exports `appendRelation(wikiRoot, record)`, which returns `false` for a
   duplicate, and `saveRelations` writes records in the order given instead of
   sorting them.
+- **Fix: `fallback_model:` answers for Claude, GPT, Grok, Kimi, Ollama and
+  gateway primaries (ADR 0044).** In 0.18.0 `FallbackLlm` saw a failure only when
+  the primary threw, which only Gemini does. The other adapters yield an
+  error response, so their fallback never answered, and the failed call was
+  recorded as a success, which reset the provider's circuit breaker. Their
+  error responses now carry `customMetadata['error.retryable']` (and
+  `'error.status'` when the failure had an HTTP status), set from
+  `lib/models/retry.ts`'s classification, and `FallbackLlm` reads them: a
+  retryable error before any output is counted on the breaker and answered
+  by the fallback, a non-retryable one is passed on, and only a call that
+  produced content counts as a success. Error codes and messages are
+  unchanged, except that key-shaped text is now removed from the message.
+  A failure GPT or Grok report inside an open stream (`response.failed`)
+  carries no verdict and is still passed on. The retry policy now counts
+  HTTP 529, Anthropic's "overloaded", as retryable, so an overloaded Claude
+  primary is answered by its fallback. New
+  module `melchizedek-agents/models/errorResponse`: `providerErrorResponse`,
+  `withRetryVerdict`, `isRetryableErrorResponse`, `errorDecision`,
+  `statusDecision`, `errorText`, `ERROR_RETRYABLE_KEY`, `ERROR_STATUS_KEY`.
+- **A Gemini adapter on the model contract, not yet wired.** New module
+  `melchizedek-agents/models/geminiAdapter`: `GeminiAdapter` implements
+  `ModelAdapter` (ADR 0048) on `@google/genai` directly, with no ADK, on the
+  Gemini API or Vertex AI (`lib/models/endpoints.ts`). Schemas go as
+  lowercase JSON Schema (`parametersJsonSchema`, `responseJsonSchema`).
+  `reasoning:` maps through `reasoningConfig`. Thought signatures ride on
+  the part as `providerState` and are replayed within the turn. Every
+  failure is a final response. A `clientFactory` option takes an injected
+  client. Nothing registers the adapter yet: Gemini ids are still served by
+  `TracedGemini`, unchanged. `REASONING_BUDGETS` and `reasoningConfig` move
+  to the new module `melchizedek-agents/models/reasoning`, so the adapter
+  maps `reasoning:` without importing the compiler or ADK;
+  `melchizedek-agents/compile` still exports both.
 
 ## 0.18.0 — 2026-10-06
 

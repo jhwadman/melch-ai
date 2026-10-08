@@ -302,13 +302,19 @@ orchestrator:
   # The compiler sends each provider the field it reads:
   #   gemini-3 and later    → thinkingConfig.thinkingLevel
   #                           (none = MINIMAL, then LOW, MEDIUM, HIGH)
-  #   gemini-2.x, claude-*  → thinkingConfig.thinkingBudget
+  #   gemini-2.x, claude-* 4.6 and earlier
+  #                         → thinkingConfig.thinkingBudget
   #                           (none 0, low 2048, medium 8192, high 16384)
+  #   later claude-*        → reasoningEffort, sent as adaptive thinking at
+  #                           that effort; none is the model's off switch,
+  #                           or low effort on Opus 5 and 5.5, Fable and
+  #                           Mythos (ADR 0049)
   #   gpt-*/o*, grok-*, kimi-*, ollama/*, a gateway
   #                         → reasoningEffort (an effort word; where the
   #                           provider lacks one, its nearest setting above)
-  # A budget is sent as-is to Gemini and Claude, and as the smallest level
-  # that covers it everywhere else. Unset, each provider keeps its default.
+  # A budget is sent as-is to Gemini and to Claude 4.6 and earlier, and as
+  # the smallest level that covers it everywhere else. Unset, each provider
+  # keeps its default.
   # Cannot be combined with generateContentConfig.thinkingConfig or
   # generateContentConfig.reasoningEffort, its older spelling.
   reasoning: medium
@@ -369,7 +375,8 @@ orchestrator:
 
     # ── Thinking config: the older spelling of `reasoning:` ─
     # Provider-specific: Gemini and Claude read thinkingConfig, the
-    # chat-completions and Responses providers read reasoningEffort.
+    # chat-completions and Responses providers read reasoningEffort, and
+    # later Claude models read reasoningEffort first (ADR 0049).
     # Still accepted, but not together with `reasoning:` (a load error).
     # includeThoughts (stream Gemini's thinking trace) has no `reasoning:`
     # form yet.
