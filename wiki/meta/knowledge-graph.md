@@ -28,10 +28,10 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `module` | `module:<name>` | 129 | one source module |
-| `doc` | `/dir/doc.md` | 104 | a concept document in the bundle — identity is its bundle path |
-| `env` | `env:<name>` | 102 | an environment variable the code reads |
-| `file` | `file:<name>` | 96 | a repo file that is not a source module (DDL, config, prose) |
+| `module` | `module:<name>` | 131 | one source module |
+| `doc` | `/dir/doc.md` | 105 | a concept document in the bundle — identity is its bundle path |
+| `env` | `env:<name>` | 103 | an environment variable the code reads |
+| `file` | `file:<name>` | 97 | a repo file that is not a source module (DDL, config, prose) |
 | `agent` | `agent:<name>` | 89 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 47 | an npm script entrypoint |
 | `tool` | `tool:<name>` | 34 | a tool an agent may declare by name |
@@ -50,10 +50,10 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `imports` | extracted | A imports B | 382 | a static import edge between source files |
-| `derives_from` | extracted | A derives from B | 314 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 252 | a resolved markdown link between documents |
-| `requires_env` | extracted | A requires B | 159 | this environment variable must be set for the node to work |
+| `imports` | extracted | A imports B | 392 | a static import edge between source files |
+| `derives_from` | extracted | A derives from B | 317 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 259 | a resolved markdown link between documents |
+| `requires_env` | extracted | A requires B | 162 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |
 | `defined_in` | extracted | A is defined in B | 76 | where the thing is declared in source |
@@ -65,7 +65,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
-| `constrains` | inferred | A constrains B | 16 | a decision or doctrine limits what the target may do |
+| `constrains` | inferred | A constrains B | 19 | a decision or doctrine limits what the target may do |
 | `depends_on` | inferred | A depends on B | 7 | the first cannot do its job unless the second holds |
 | `supersedes` | inferred | A supersedes B | 2 | replaces an earlier decision or document |
 | `explains` | inferred | A explains B | 2 | the document is where the target’s rationale is written down |

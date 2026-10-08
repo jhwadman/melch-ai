@@ -162,6 +162,19 @@ the starter pack and the templates), not the repo's full history.
   module `melchizedek-agents/models/errorResponse`: `providerErrorResponse`,
   `withRetryVerdict`, `isRetryableErrorResponse`, `errorDecision`,
   `statusDecision`, `errorText`, `ERROR_RETRYABLE_KEY`, `ERROR_STATUS_KEY`.
+- **A Gemini adapter on the model contract, not yet wired.** New module
+  `melchizedek-agents/models/geminiAdapter`: `GeminiAdapter` implements
+  `ModelAdapter` (ADR 0048) on `@google/genai` directly, with no ADK, on the
+  Gemini API or Vertex AI (`lib/models/endpoints.ts`). Schemas go as
+  lowercase JSON Schema (`parametersJsonSchema`, `responseJsonSchema`).
+  `reasoning:` maps through `reasoningConfig`. Thought signatures ride on
+  the part as `providerState` and are replayed within the turn. Every
+  failure is a final response. A `clientFactory` option takes an injected
+  client. Nothing registers the adapter yet: Gemini ids are still served by
+  `TracedGemini`, unchanged. `REASONING_BUDGETS` and `reasoningConfig` move
+  to the new module `melchizedek-agents/models/reasoning`, so the adapter
+  maps `reasoning:` without importing the compiler or ADK;
+  `melchizedek-agents/compile` still exports both.
 
 ## 0.18.0 — 2026-10-06
 
