@@ -17,11 +17,12 @@
  *
  * WHAT NATIVE REFUSES, before any model call, with a message naming the
  * feature and the runtime (UnsupportedOnRuntimeError): a workflow syndicate
- * (where `mode: task` nodes live), a caller's ADK agent transform, and a
- * message that answers a question (WS2-7b). An answer to an approval
- * resumes on native (lib/runtime/native/interrupts.ts), `context:` compacts
- * on native (lib/runtime/native/compaction.ts), and `mode: task` runs on
- * native (lib/runtime/native/taskMode.ts).
+ * (where `mode: task` nodes live), and a caller's ADK agent transform. An
+ * answer to an approval resumes on native (lib/runtime/native/interrupts.ts),
+ * an answer to a question resumes the agent that asked
+ * (lib/runtime/questions.ts, ADR 0079), `context:` compacts on native
+ * (lib/runtime/native/compaction.ts), and `mode: task` runs on native
+ * (lib/runtime/native/taskMode.ts).
  * Later tickets lift each.
  */
 

@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Native loop
-description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final, a subagent tool running the subagent as its own child loop, and with `context:` compacting the history before a step as ADK does. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, how a subagent runs, what a stopped or paused run records, how an answered approval resumes, and what the loop returns. runSyndicateTurn runs a turn on it under MELCHIZEDEK_RUNTIME=native or the turn's runtime option, with agents compileNative builds from the same AgentSpec as ADK's, and refuses what it does not run yet before any model call."
+description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final, a subagent tool running the subagent as its own child loop, and with `context:` compacting the history before a step as ADK does. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, how a subagent runs, what a stopped or paused run records, how an answered approval or question resumes, and what the loop returns. runSyndicateTurn runs a turn on it under MELCHIZEDEK_RUNTIME=native or the turn's runtime option, with agents compileNative builds from the same AgentSpec as ADK's, and refuses what it does not run yet before any model call."
 tags:
   - runtime
   - models
@@ -30,6 +30,8 @@ sources:
   - resource: tests/execution.test.ts
   - resource: lib/runtime/native/interrupts.ts
   - resource: tests/nativeApprovals.test.ts
+  - resource: lib/runtime/questions.ts
+  - resource: tests/nativeQuestions.test.ts
   - resource: lib/runtime/native/compaction.ts
   - resource: tests/compaction.test.ts
 ---
@@ -86,7 +88,7 @@ An ADK tool that carries an own Tool is read as that Tool. An ADK `AgentTool` fa
    - self-correction's reflection tool, `adk_handle_model_error`, comes last when the step has a `correction` (see [Self-correction](#self-correction)).
 5. **The rest.** Tool choice, the output schema or JSON mode, reasoning and sampling, each read by the shim mapping's own reader. `stream` is `false` unless the caller streams, and `signal` is the turn's.
 
-Not done by the step: resuming an input request (WS2-7b), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), and an ADK tool's own request edits beyond its declaration.
+Not done by the step: resuming a node tool that paused on an input request (workflows, WS4), `transfer_to_agent` (compiled syndicates delegate through tools, WS2-6), and an ADK tool's own request edits beyond its declaration.
 
 ## The call
 
@@ -235,6 +237,14 @@ A tool listed in an agent's `require_approval` does not run when called ([ADR 00
 
 An approval opened on either runtime resumes on the other. A plain-text "yes" is not an answer (ADK's `plainTextToolConfirmation`, which no surface turns on).
 
+## Questions
+
+An `ask_user` call ([ADR 0031](/decisions/0031-ask-user.md)) is a long-running call: the tool returns nothing, the model event lists the call in `longRunningToolIds`, and the run ends `paused` with the call's id in `pending` and no response stored. While it is open, `runSyndicateTurn` stores the person's next plain-text message as the call's function response, `{ result: <text> }` (`questionAnswerPart`, `lib/runtime/questions.ts`), and runs the agent that asked: the orchestrator, or in plan-dispatch the route, its interrupted turn replayed raw.
+
+The loop needs no resume of its own for it ([ADR 0079](/decisions/0079-native-questions-resume-through-the-history.md)). The first step's history holds the call and the answer side by side (the answer is moved next to its call, as ADK's content processor moves it), so the model reads the answer as the call's result and the agent continues its tool loop. ADK's request-input processor, which runs between the request-confirmation processor and compaction, re-runs only a node tool (a workflow run as a tool) paused on an `adk_request_input` call; it returns before doing anything for an agent that lists no node tool, and no native agent lists one. When workflows run natively, that resume belongs in `interrupts.ts`, in the same place in the order.
+
+A question opened on either runtime is answered on the other. `tests/questions.test.ts` and `tests/questionsA2a.test.ts` run every conversation on ADK, on native, and with the runtime switched between the question and the answer, and require the same results and stored events; `tests/nativeQuestions.test.ts` runs the conversation directly on `runAgentLoop`, and answers the question session fixture 04 holds, which ADK stored.
+
 ## Delegation
 
 A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`: named for the agent, described by its description, with one string parameter `request`, as ADK's `AgentTool` declares it. A `yaml_reference` subagent is the nested syndicate's orchestrator under the entry's name and description, listing its own subagent tools. `runCall` asks `subagentOf(tool)` before the generic path, and `runSubagent` (`lib/runtime/native/delegate.ts`) runs the call as `AgentTool.runAsync` runs it ([ADR 0074](/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md)):
@@ -247,7 +257,7 @@ A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`
 
 Calls to subagents in one step run one after another, in call order, as ADK runs them. A pause inside a subagent (an `ask_user` call, an approval request) cannot reach the caller ([ADR 0028](/decisions/0028-approval-gates.md)): the child run ends paused, the call answers `''`, and the gated tool never runs. The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run from either runtime.
 
-Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), resuming a question (WS2-7b), and an auth request a tool raises.
+Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently (WS6), a pause inside a subagent reaching the caller (WS6-2a), and an auth request a tool raises.
 
 A `temp:` key a tool writes is visible to the rest of the run, as ADK's live session state makes it: the next step's instruction placeholders, its toolsets, and the next step's calls read it. The loop reads each event's `temp:` keys just before the store drops them, and lays them over the session's state when it builds a request or a call's context (`lib/runtime/native/tempState.ts`). They are never written into the session object, since a store that saves the whole session would keep them.
 
@@ -271,9 +281,9 @@ What native does not run yet fails before any model call, with an `UnsupportedOn
 |---|---|---|
 | a `workflow:` syndicate | `refuseOnNative` | the workflow engine (WS4) |
 | a caller's `transformAgent` (it transforms ADK agents) | `refuseOnNative` | none planned |
-| a message that answers a question | `runSyndicateTurn` | WS2-7b |
 
-A turn that paused on either runtime (an approval request, an `ask_user` call) stored ADK's own events. An approval resumes on either runtime (see [Approvals](#approvals)); a question resumes on `adk` until WS2-7b.
+A turn that paused on either runtime (an approval request, an `ask_user` call) stored ADK's own events, and resumes on either runtime: an approval as [Approvals](#approvals) describes, a question as [Questions](#questions) describes.
+
 ## The spans
 
 A native run writes the same ledger rows as an ADK run ([ADR 0076](/decisions/0076-native-loop-spans-feed-the-same-ledger.md)). The ledger reads a turn's spans, and ADK opens three that it depends on, so the loop opens the same three under its own names, in scope `melchizedek.runtime` (`lib/runtime/native/telemetry.ts`):
