@@ -40,6 +40,12 @@ import { ClaudeLlm } from '../lib/models/claudeLlm.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { isDispatchSyndicate } from '../lib/dispatch.ts';
 import { compileWorkflow, isWorkflowSyndicate } from '../lib/workflow.ts';
+import { adkReferences, canonical } from './helpers/adkReference.ts';
+
+// ADK's side of the one-spec-two-runtimes case (its LlmAgent's first request under ADK's Runner) is
+// recorded (tests/fixtures/adk-reference/compile); it runs only under ADK_REFERENCE=live|record. The
+// static ADK import serves the compile-structure cases, whose subject is ADK's agent graph itself.
+const reference = adkReferences('compile');
 
 const agentDirectory = join(process.cwd(), 'config', 'agents');
 const agentFiles = readdirSync(agentDirectory, { recursive: true })
@@ -251,19 +257,24 @@ test('one AgentSpec compiles on both paths, and the two agents send the same fir
     });
     return { grader, backup: new ScriptedModel('scripted/backup', () => answer('{"verdict":"backup"}')) };
   };
-  const adkModels = modelsFor('adk');
   const nativeModels = modelsFor('native');
   const message = { role: 'user', parts: [{ text: 'grade alpha' }] };
+  const strip = ({ signal: _signal, ...rest }: ModelRequest) => rest;
 
-  // ADK: the spec's LlmAgent under ADK's Runner.
-  const adkOpts = { resolveModel: shimResolver(adkModels), log: () => {} };
-  const adkSpec = await compileSpec(splitFixture(), adkOpts);
-  const adkAgent = compileAdk(adkSpec, adkOpts);
-  assert.ok(adkAgent instanceof LlmAgent);
-  const adkSessions = new InMemorySessionService();
-  await adkSessions.createSession({ appName: 'split', userId: 'u1', sessionId: 's1' });
-  const runner = new Runner({ agent: adkAgent, appName: 'split', sessionService: adkSessions });
-  for await (const _ of runner.runAsync({ userId: 'u1', sessionId: 's1', newMessage: message as any }));
+  // ADK: the spec's LlmAgent under ADK's Runner (recorded: its first request, signal aside, and the backup's calls).
+  const adk = await reference('one-spec-first-request', async () => {
+    const adkModels = modelsFor('adk');
+    const adkOpts = { resolveModel: shimResolver(adkModels), log: () => {} };
+    const adkSpec = await compileSpec(splitFixture(), adkOpts);
+    const adkAgent = compileAdk(adkSpec, adkOpts);
+    assert.ok(adkAgent instanceof LlmAgent);
+    const adkSessions = new InMemorySessionService();
+    await adkSessions.createSession({ appName: 'split', userId: 'u1', sessionId: 's1' });
+    const runner = new Runner({ agent: adkAgent, appName: 'split', sessionService: adkSessions });
+    for await (const _ of runner.runAsync({ userId: 'u1', sessionId: 's1', newMessage: message as any }));
+    const first = requests.adk?.[0];
+    return JSON.parse(JSON.stringify({ first: first && strip(first), backupCalls: adkModels.backup.calls })) as { first?: Omit<ModelRequest, 'signal'>; backupCalls: number };
+  });
 
   // Native: the same fixture's spec as the loop's NativeAgent.
   const nativeOpts = { resolveModel: shimResolver(nativeModels), log: () => {} };
@@ -290,14 +301,14 @@ test('one AgentSpec compiles on both paths, and the two agents send the same fir
   });
   control.dispose();
 
-  const strip = ({ signal: _signal, ...rest }: ModelRequest) => rest;
-  const adkFirst = requests.adk?.[0];
+  const adkFirst = adk.first;
   const nativeFirst = requests.native?.[0];
   assert.ok(adkFirst && nativeFirst, 'both runtimes called the model');
-  assert.deepStrictEqual(strip(nativeFirst), strip(adkFirst));
+  // In the recording's canonical form (adkReference.ts), so any ids line up.
+  assert.deepStrictEqual(canonical({ first: strip(nativeFirst), backupCalls: nativeModels.backup.calls }).first, adkFirst);
   assert.deepStrictEqual(nativeFirst.tools?.map((t) => t.name), ['compile_split_lookup', 'load_memory', 'load_skill', 'load_skill_resource', 'set_model_response']);
   assert.match(nativeFirst.system ?? '', /Be fair\.[\s\S]*<available_skills>[\s\S]*<EXAMPLES>/);
-  assert.strictEqual(adkModels.backup.calls + nativeModels.backup.calls, 0);
+  assert.strictEqual(adk.backupCalls + nativeModels.backup.calls, 0);
 });
 
 test('native adapters follow the resolver: a shim’s own adapter, and a BYOK key an ADK instance carries', () => {

@@ -7,30 +7,45 @@
  * walks the graph with the engine's scheduler on the child session
  * (lib/runtime/native/delegate.ts, lib/compileNative.ts). Every case runs on
  * both runtimes, and the parity case holds the native sessions and requests
- * to ADK's. Scripted models, in-memory sessions, no network.
+ * to ADK's: ADK's side recorded in tests/fixtures/adk-reference/workflowsubagent
+ * (tests/helpers/adkReference.ts), run live only under ADK_REFERENCE=live|record.
+ * Scripted models, in-memory sessions, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 
 import { compileSpec } from '../lib/compile.ts';
 import { compileNative } from '../lib/compileNative.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import { workflowSubagentOf } from '../lib/runtime/native/delegate.ts';
+import { chooseRuntime } from '../lib/runtime/runtimeFlag.ts';
+import type { RuntimeName } from '../lib/runtime/runtimeFlag.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
-import { forEachRuntime, runtimeOption } from './helpers/runtime.ts';
+import { adkReferences } from './helpers/adkReference.ts';
+import { forEachRuntime, runtimeOption, testRuntime } from './helpers/runtime.ts';
 import { ScriptedModel, answer, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
 import { virtualClock } from './helpers/virtualClock.ts';
-import { comparable } from './helpers/workflowParity.ts';
+import { comparable, requestsOf } from './helpers/workflowParity.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of the parity case is recorded (tests/fixtures/adk-reference/workflowsubagent).
+const reference = adkReferences('workflowSubagent');
+
+/** ADK's own in-memory store for a turn on the adk runtime (quiet); the engine's otherwise, as a consumer without ADK holds it. */
+async function sessionServiceFor(runtime: RuntimeName) {
+  if (runtime !== 'adk') return asAdkSessionService(new InProcessSessionService());
+  const { InMemorySessionService, LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+  return new InMemorySessionService();
+}
 
 /** The clock a slow script waits on: a finish order is the scripts' timeline, never a race of real timers (tests/helpers/virtualClock.ts). */
 const clock = virtualClock();
@@ -89,7 +104,7 @@ interface Run {
 
 async function runDesk(nested: SyndicateYamlConfig = pipeline(), runtime?: 'adk' | 'native'): Promise<Run> {
   const models = Object.fromEntries(Object.entries(scripts()).map(([key, script]) => [key, new ScriptedModel(`scripted/${key}`, script)]));
-  const sessionService = new InMemorySessionService();
+  const sessionService = await sessionServiceFor(chooseRuntime(runtime ?? testRuntime()));
   const result = await runSyndicateTurn({
     ...(runtime ? { runtime } : runtimeOption()),
     config: caller(),
@@ -120,15 +135,23 @@ forEachRuntime('a delegated yaml_reference to a workflow syndicate runs the whol
 });
 
 test('the nested workflow stores the same sessions and sends the same requests on both runtimes', async () => {
-  const adk = await runDesk(pipeline(), 'adk');
+  const adk = await reference('nested-workflow-sessions-and-requests', async () => {
+    const run = await runDesk(pipeline(), 'adk');
+    return {
+      status: run.result.status,
+      text: run.result.text,
+      childEvents: run.childEvents,
+      callerEvents: run.callerEvents,
+      requests: Object.fromEntries(Object.entries(run.models).map(([key, m]) => [key, requestsOf(m)])),
+    };
+  });
   const native = await runDesk(pipeline(), 'native');
-  assert.equal(native.result.status, adk.result.status);
-  assert.equal(native.result.text, adk.result.text);
+  assert.equal(native.result.status, adk.status);
+  assert.equal(native.result.text, adk.text);
   assert.deepEqual(comparable(native.childEvents), comparable(adk.childEvents), 'the child session');
   assert.deepEqual(comparable(native.callerEvents), comparable(adk.callerEvents), 'the caller session');
-  for (const key of Object.keys(adk.models)) {
-    const strip = (m: ScriptedModel) => m.requests.map(({ signal: _s, ...r }) => r);
-    assert.deepEqual(strip(native.models[key]!), strip(adk.models[key]!), `the requests ${key} received`);
+  for (const key of Object.keys(adk.requests)) {
+    assert.deepEqual(requestsOf(native.models[key]!), adk.requests[key], `the requests ${key} received`);
   }
 });
 

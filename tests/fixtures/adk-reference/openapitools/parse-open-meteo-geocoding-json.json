@@ -1,0 +1,65 @@
+{
+  "suite": "openapiTools",
+  "case": "parse-open-meteo-geocoding-json",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "name": "find_place",
+      "operationId": "findPlace",
+      "method": "get",
+      "path": "/search",
+      "baseUrl": "https://geocoding-api.open-meteo.com/v1",
+      "parameters": [
+        {
+          "name": "name",
+          "originalName": "name",
+          "location": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "count",
+          "originalName": "count",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "language",
+          "originalName": "language",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "find_place",
+        "description": "Find a place by name. Returns matching places with their latitude, longitude, country and timezone; the first result is the most likely.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "count": {
+              "type": "integer"
+            },
+            "language": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "suite": "nativeLoop",
+  "case": "fallback-400",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "failed",
+        "error": {
+          "code": "SCRIPTED_ERROR",
+          "message": "HTTP 400"
+        }
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "find the thing"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Main",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "errorCode": "SCRIPTED_ERROR",
+        "errorMessage": "HTTP 400",
+        "turnComplete": true,
+        "customMetadata": {
+          "error.retryable": false,
+          "error.status": 400
+        }
+      }
+    ],
+    "calls": {
+      "primary": 1,
+      "backup": 0
+    },
+    "deltas": [
+      []
+    ]
+  }
+}

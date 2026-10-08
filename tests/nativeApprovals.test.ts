@@ -18,8 +18,6 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FunctionTool, InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
-import type { BaseSessionService, Event } from '@google/adk';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { z } from 'zod';
 
@@ -49,8 +47,17 @@ import { APP as FIXTURE_APP, SEND_NOTE, USER as FIXTURE_USER, scenario, sentNote
 import { conversation, loadFixture, seedSessions } from './helpers/sessionFixtures.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of each parity case is recorded (tests/fixtures/adk-reference/nativeapprovals); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('nativeApprovals');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
+
+/** Stored events as pendingApproval reads them. */
+type Stored = Parameters<typeof pendingApproval>[0];
 
 const APP = 'native-approvals';
 const USER = 'u1';
@@ -59,10 +66,10 @@ const SESSION = 's1';
 const sent: string[] = [];
 registerTool(
   'native_approval_send',
-  new FunctionTool({
+  defineTool({
     name: 'native_approval_send',
     description: 'Send a note.',
-    parameters: z.object({ to: z.string() }),
+    schema: z.object({ to: z.string() }),
     execute: async ({ to }) => {
       sent.push(to);
       return `sent to ${to}`;
@@ -78,10 +85,10 @@ registerTool(
 let wipes = 0;
 registerTool(
   'native_approval_wipe',
-  new FunctionTool({
+  defineTool({
     name: 'native_approval_wipe',
     description: 'Wipe a disk.',
-    parameters: z.object({ disk: z.string() }),
+    schema: z.object({ disk: z.string() }),
     execute: async () => {
       wipes += 1;
       throw new Error('the disk is busy');
@@ -129,11 +136,12 @@ interface Conversation {
   tamper?: (events: TurnEvent[]) => void;
 }
 
-/** A store holding `events`, as a store hands a session back. */
-async function adkStoreOf(events: TurnEvent[]): Promise<InMemorySessionService> {
+/** ADK's store holding `events`, as a store hands a session back (live only). */
+async function adkStoreOf(events: TurnEvent[]) {
+  const { InMemorySessionService } = await import('@google/adk');
   const service = new InMemorySessionService();
   const session = await service.createSession({ appName: APP, userId: USER, sessionId: SESSION });
-  for (const event of structuredClone(events)) await service.appendEvent({ session, event: event as unknown as Event });
+  for (const event of structuredClone(events)) await service.appendEvent({ session, event: event as any });
   return service;
 }
 
@@ -146,16 +154,21 @@ async function nativeStoreOf(events: TurnEvent[]): Promise<{ sessions: InProcess
 
 const json = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
+/** ADK's run as recorded: each turn's status, what the second turn threw (name and message), the stored events, each model's call count. */
 interface AdkRun {
-  results: SyndicateTurnResult[];
+  results: Array<Pick<SyndicateTurnResult, 'status'>>;
   /** What the second turn threw, if it threw (ADK throws its IntentMismatchError out of the turn). */
-  thrown?: unknown;
+  thrown?: { name: string; message: string };
   events: TurnEvent[];
-  models: Record<string, ScriptedModel>;
+  calls: Record<string, number>;
 }
 
-async function runOnAdk(c: Conversation, sessionService: BaseSessionService = new InMemorySessionService(), models = build(c.scripts)): Promise<AdkRun> {
-  const turn = (service: BaseSessionService, parts: any[]) =>
+/** ADK's side, live: the conversation through runSyndicateTurn on the adk runtime. */
+async function runOnAdk(c: Conversation): Promise<AdkRun> {
+  const models = build(c.scripts);
+  const { InMemorySessionService } = await import('@google/adk');
+  const sessionService = new InMemorySessionService();
+  const turn = (service: InstanceType<typeof InMemorySessionService>, parts: any[]) =>
     runSyndicateTurn({
       config: c.config,
       parts,
@@ -165,10 +178,12 @@ async function runOnAdk(c: Conversation, sessionService: BaseSessionService = ne
       sessionService: service,
       compile: { resolveModel: shimResolver(models), log: () => {} },
       trace: false,
+      // The reference is ADK's: pinned, now that native is the default (ADR 0102).
+      runtime: 'adk',
     });
   const results = [await turn(sessionService, c.first ?? [{ text: 'tell ops' }])];
   const opened = json((await sessionService.getSession({ appName: APP, userId: USER, sessionId: SESSION }))?.events ?? []) as unknown as TurnEvent[];
-  const pending = pendingApproval(opened as unknown as Event[]);
+  const pending = pendingApproval(opened as unknown as Stored);
   assert.ok(pending, 'ADK opened an approval');
   c.tamper?.(opened);
   const resumed = await adkStoreOf(opened);
@@ -179,7 +194,12 @@ async function runOnAdk(c: Conversation, sessionService: BaseSessionService = ne
     thrown = e;
   }
   const events = json((await resumed.getSession({ appName: APP, userId: USER, sessionId: SESSION }))?.events ?? []) as unknown as TurnEvent[];
-  return { results, events, models, ...(thrown ? { thrown } : {}) };
+  return {
+    results: results.map((r) => ({ status: r.status })),
+    events,
+    calls: Object.fromEntries(Object.entries(models).map(([key, m]) => [key, m.calls])),
+    ...(thrown ? { thrown: { name: (thrown as Error).name, message: (thrown as Error).message } } : {}),
+  };
 }
 
 interface NativeRun {
@@ -244,7 +264,7 @@ async function runNative(c: Conversation, adk: AdkRun): Promise<NativeRun> {
   const opening = await nativeStoreOf([]);
   const one = await nativeTurn(agent, c.config, models, opening, first);
   const opened = json((await opening.sessions.get({ appName: APP, userId: USER, sessionId: SESSION }))?.events ?? []);
-  const pending = pendingApproval(opened as unknown as Event[]);
+  const pending = pendingApproval(opened as unknown as Stored);
   assert.ok(pending, 'the loop opened an approval');
   c.tamper?.(opened);
   const resumed = await nativeStoreOf(opened);
@@ -269,21 +289,36 @@ function comparable(events: TurnEvent[]): unknown {
   );
 }
 
-/** Runs both ways; the stores must hold the same events, and each model must be called as often. */
-async function assertParity(c: Conversation): Promise<{ adk: AdkRun; native: NativeRun; sentOnAdk: string[]; sentNatively: string[] }> {
-  sent.length = 0;
+/**
+ * Takes ADK's side of case `name` (recorded, or live: with what its tools
+ * did, the notes sent and the disks wiped), runs it on the native loop; the
+ * stores must hold the same events, each model must be called as often, and
+ * each tool must have run as often.
+ */
+async function assertParity(
+  name: string,
+  c: Conversation,
+): Promise<{ adk: AdkRun & { sent: string[]; wipes: number }; native: NativeRun; sentOnAdk: string[]; sentNatively: string[]; wipesNatively: number }> {
   resetCircuits();
-  const adk = await runOnAdk(c);
-  const sentOnAdk = [...sent];
+  const adk = await reference(name, async () => {
+    sent.length = 0;
+    wipes = 0;
+    const run = await runOnAdk(c);
+    return { ...run, sent: [...sent], wipes };
+  });
+  const sentOnAdk = adk.sent;
   sent.length = 0;
+  wipes = 0;
   resetCircuits();
   const native = await runNative(c, adk);
   const sentNatively = [...sent];
+  const wipesNatively = wipes;
   resetCircuits();
   assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events');
-  for (const key of Object.keys(c.scripts)) assert.equal(native.models[key]?.calls, adk.models[key]?.calls, `calls to ${key}`);
+  for (const key of Object.keys(c.scripts)) assert.equal(native.models[key]?.calls, adk.calls[key], `calls to ${key}`);
   assert.deepEqual(sentNatively, sentOnAdk, 'the gated tool ran as often');
-  return { adk, native, sentOnAdk, sentNatively };
+  assert.equal(wipesNatively, adk.wipes, 'the throwing gated tool ran as often');
+  return { adk, native, sentOnAdk, sentNatively, wipesNatively };
 }
 
 const gated = () => syndicate({ tools: ['native_approval_send'], require_approval: ['native_approval_send'] });
@@ -293,7 +328,7 @@ const sendThenSay: ModelScript = (req, n) =>
 // ── Parity ───────────────────────────────────────────────────────────────────
 
 test('approve: the pinned call runs once, its response is stored before the next step, and the run ends final', async () => {
-  const { adk, native, sentNatively } = await assertParity({ config: gated(), scripts: { boss: sendThenSay }, answer: (p) => [approvalResponsePart(p.id, true)] });
+  const { adk, native, sentNatively } = await assertParity('approve', { config: gated(), scripts: { boss: sendThenSay }, answer: (p) => [approvalResponsePart(p.id, true)] });
   assert.equal(adk.results[1]?.status, 'completed');
   assert.deepEqual(sentNatively, ['ops@acme.test']);
   assert.deepEqual(native.ends.map((e) => e.reason), ['paused', 'final']);
@@ -304,7 +339,7 @@ test('approve: the pinned call runs once, its response is stored before the next
 });
 
 test('refuse: the pinned call never runs, and the model reads ADK’s refusal', async () => {
-  const { native, sentNatively } = await assertParity({ config: gated(), scripts: { boss: sendThenSay }, answer: (p) => [approvalResponsePart(p.id, false)] });
+  const { native, sentNatively } = await assertParity('refuse', { config: gated(), scripts: { boss: sendThenSay }, answer: (p) => [approvalResponsePart(p.id, false)] });
   assert.deepEqual(sentNatively, []);
   const refusal = native.events.find((e) => e.author === 'Boss' && e.content?.parts?.some((p) => p.functionResponse?.id === 'call-send-1'));
   assert.deepEqual(refusal?.content?.parts?.[0]?.functionResponse?.response, { error: 'This tool call is rejected.' });
@@ -312,7 +347,7 @@ test('refuse: the pinned call never runs, and the model reads ADK’s refusal', 
 });
 
 test('an answer as JSON under `response` reads as the same confirmation', async () => {
-  const { sentNatively } = await assertParity({
+  const { sentNatively } = await assertParity('answer-as-json', {
     config: gated(),
     scripts: { boss: sendThenSay },
     answer: (p) => [{ functionResponse: { id: p.id, name: APPROVAL_REQUEST, response: { response: JSON.stringify({ confirmed: true }) } } }],
@@ -329,18 +364,18 @@ test('pinned arguments changed in the store: refused on both runtimes, nothing r
       }
     }
   };
-  const { adk, native, sentNatively } = await assertParity({ config: gated(), scripts: { boss: sendThenSay }, answer: (p) => [approvalResponsePart(p.id, true)], tamper });
+  const { adk, native, sentNatively } = await assertParity('pinned-args-changed', { config: gated(), scripts: { boss: sendThenSay }, answer: (p) => [approvalResponsePart(p.id, true)], tamper });
   assert.deepEqual(sentNatively, []);
   assert.ok(native.thrown instanceof IntentMismatchError, 'the loop refuses the answer');
   assert.equal(native.thrown.reason, 'arguments_mismatch');
   assert.match(native.thrown.message, /^Tool confirmation rejected for function call 'call-send-1': arguments_mismatch\.$/);
-  assert.equal((adk.thrown as Error | undefined)?.name, 'IntentMismatchError', 'ADK throws its refusal out of the turn');
-  assert.equal((adk.thrown as Error).message, native.thrown.message, 'the same refusal text as ADK’s');
+  assert.equal(adk.thrown?.name, 'IntentMismatchError', 'ADK throws its refusal out of the turn');
+  assert.equal(adk.thrown?.message, native.thrown.message, 'the same refusal text as ADK’s');
   assert.equal(native.events.at(-1)?.author, 'user', 'nothing stored after the answer');
 });
 
 test('a parallel batch with one gated call: the approval replaces the batch’s response, and only the pinned call runs on resume', async () => {
-  const { native, sentNatively } = await assertParity({
+  const { native, sentNatively } = await assertParity('parallel-batch', {
     config: syndicate({ tools: ['native_approval_send', 'native_approval_lookup'], require_approval: ['native_approval_send'] }),
     scripts: {
       boss: (req, n): ModelResponse =>
@@ -365,13 +400,12 @@ test('a parallel batch with one gated call: the approval replaces the batch’s 
 });
 
 test('a confirmed call that throws: self-correction counts a first failure, the pause counted nothing', async () => {
-  wipes = 0;
-  const { native } = await assertParity({
+  const { adk, native, wipesNatively } = await assertParity('confirmed-call-throws', {
     config: syndicate({ tools: ['native_approval_wipe'], require_approval: ['native_approval_wipe'] }),
     scripts: { boss: (_req, n) => (n === 1 ? toolCall('native_approval_wipe', { disk: 'd1' }, 'call-wipe-1') : answer('it is busy')) },
     answer: (p) => [approvalResponsePart(p.id, true)],
   });
-  assert.equal(wipes, 2, 'once per runtime');
+  assert.deepEqual([adk.wipes, wipesNatively], [1, 1], 'once per runtime');
   const failed = native.events.find((e) => e.author === 'Boss' && e.content?.parts?.some((p) => p.functionResponse?.id === 'call-wipe-1'));
   const response = failed?.content?.parts?.[0]?.functionResponse?.response as Record<string, unknown>;
   assert.equal(response.retry_count, 1);
@@ -379,7 +413,7 @@ test('a confirmed call that throws: self-correction counts a first failure, the 
 });
 
 test('telemetry: the confirmed call is a tool.execute span under the resumed run’s agent span', async () => {
-  const { native } = await assertParity({ config: gated(), scripts: { boss: sendThenSay }, answer: (p) => [approvalResponsePart(p.id, true)] });
+  const { native } = await assertParity('telemetry', { config: gated(), scripts: { boss: sendThenSay }, answer: (p) => [approvalResponsePart(p.id, true)] });
   const spans = native.spans[1] ?? [];
   const byId = new Map(spans.map((s) => [s.spanContext().spanId, s]));
   const tool = spans.filter((s) => s.name === 'tool.execute native_approval_send');
@@ -440,23 +474,29 @@ test('fixture 03: an approval ADK stored resumes on the native loop, runs the pi
   };
   const message = [approvalResponsePart(pending.id, true)];
 
-  // ADK resumes it.
-  sentNotes.length = 0;
-  const adkModels = build({ boss: script });
-  const adkStore = await seedSessions(f);
-  const adkResult = await runSyndicateTurn({
-    config: s.config,
-    parts: message,
-    appName: FIXTURE_APP,
-    userId: FIXTURE_USER,
-    sessionId: s.sessionId,
-    sessionService: adkStore,
-    compile: { resolveModel: shimResolver(adkModels), log: () => {} },
-    trace: false,
+  // ADK resumes it (recorded, or live).
+  const adk = await reference('fixture-03-resume', async () => {
+    sentNotes.length = 0;
+    const adkModels = build({ boss: script });
+    const adkStore = await seedSessions(f);
+    const result = await runSyndicateTurn({
+      config: s.config,
+      parts: message,
+      appName: FIXTURE_APP,
+      userId: FIXTURE_USER,
+      sessionId: s.sessionId,
+      sessionService: adkStore,
+      compile: { resolveModel: shimResolver(adkModels), log: () => {} },
+      trace: false,
+      // The reference is ADK's: pinned, now that native is the default (ADR 0102).
+      runtime: 'adk',
+    });
+    const events = json((await adkStore.getSession({ appName: FIXTURE_APP, userId: FIXTURE_USER, sessionId: s.sessionId }))?.events ?? []) as unknown as TurnEvent[];
+    return { status: result.status, ...(result.error ? { error: result.error.message } : {}), sent: [...sentNotes], events };
   });
-  assert.equal(adkResult.status, 'completed', adkResult.error?.message);
-  assert.deepEqual(sentNotes, ['ops@acme.test']);
-  const adkEvents = json((await adkStore.getSession({ appName: FIXTURE_APP, userId: FIXTURE_USER, sessionId: s.sessionId }))?.events ?? []) as unknown as TurnEvent[];
+  assert.equal(adk.status, 'completed', adk.error);
+  assert.deepEqual(adk.sent, ['ops@acme.test']);
+  const adkEvents = adk.events;
 
   // The native loop resumes the same stored session.
   sentNotes.length = 0;

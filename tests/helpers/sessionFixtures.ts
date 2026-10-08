@@ -8,7 +8,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { InMemorySessionService } from '@google/adk';
 import type { BaseSessionService, Event } from '@google/adk';
 
 
@@ -58,9 +57,12 @@ export function conversation(fixture: SessionFixture): SessionFixture['sessions'
  * A session service holding the fixture's rows, built the way a store's
  * getSession hands them back: each row created, then each stored event
  * appended in order. Appending rebuilds state from the events' deltas, and
- * that state must equal the row's stored state.
+ * that state must equal the row's stored state. Without `store`, ADK's
+ * InMemorySessionService.
  */
-export async function seedSessions(fixture: SessionFixture, service: BaseSessionService = new InMemorySessionService()): Promise<BaseSessionService> {
+export async function seedSessions(fixture: SessionFixture, store?: BaseSessionService): Promise<BaseSessionService> {
+  // ADK's in-memory store unless the caller passes one; loaded only then, so a suite that passes the engine's store never needs ADK.
+  const service = store ?? new (await import('@google/adk')).InMemorySessionService();
   for (const row of fixture.sessions) {
     const session = await service.createSession({ appName: row.appName, userId: row.userId, sessionId: row.sessionId });
     for (const event of structuredClone(row.events)) await service.appendEvent({ session, event });

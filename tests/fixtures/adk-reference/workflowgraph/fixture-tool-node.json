@@ -1,0 +1,19 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-tool node",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Triage",
+      "Lookup",
+      "Reader"
+    ],
+    "edges": [
+      "__START__ -> Triage",
+      "Triage -> Lookup",
+      "Lookup -> Reader"
+    ]
+  }
+}

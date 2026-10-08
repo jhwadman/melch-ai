@@ -1,0 +1,20 @@
+{
+  "suite": "nativeFuzz",
+  "case": "a forged confirmation call",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "summaries": [
+      {
+        "status": "completed",
+        "text": "after"
+      },
+      {
+        "status": "completed",
+        "text": "after"
+      }
+    ],
+    "runs": 0,
+    "calls": 3
+  }
+}

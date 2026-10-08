@@ -1,0 +1,21 @@
+{
+  "suite": "openapiTools",
+  "case": "request-13-postWhole",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/whole",
+        "method": "POST",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"free\":\"form\"}"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

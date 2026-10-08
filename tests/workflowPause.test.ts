@@ -5,7 +5,9 @@
  *
  * Each case runs one graph twice with the same agent stubs. One side is
  * today's `compileWorkflow` (lib/workflow.ts), every agent swapped for a stub
- * FunctionNode, run by ADK's Runner. The other is the scheduler with
+ * FunctionNode, run by ADK's Runner: recorded in
+ * tests/fixtures/adk-reference/workflowpause, run live only under
+ * ADK_REFERENCE=live|record (tests/helpers/adkReference.ts). The other is the scheduler with
  * askUserNodeRunner for the ask_user node, a stub that writes FunctionNode's
  * event for each agent, and workflowPauseEvent once the walk ends paused.
  * The two are compared on every event as stored (event id, time and
@@ -22,10 +24,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { FunctionNode, InMemorySessionService, LogLevel, Runner, setLogLevel } from '@google/adk';
 import type { LlmAgent } from '@google/adk';
 
-import { compileWorkflow } from '../lib/workflow.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
 import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
@@ -38,8 +38,13 @@ import { drainAgentStream, runSyndicateTurn } from '../lib/runtime/syndicateTurn
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { PendingInput } from '../lib/workflowConfig.ts';
 import { ScriptedLlm, scriptedResolver, text } from './helpers/scriptedLlm.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+const reference = adkReferences('workflowPause');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -104,7 +109,10 @@ function completionsOf(events: TurnEvent[]): string[] {
   return events.filter((e) => e.output !== undefined && e.nodeInfo?.path).map((e) => `${e.nodeInfo!.path} = ${JSON.stringify(e.output)} @${e.branch ?? '-'}`);
 }
 
+/** ADK's walk, live: only inside a reference's live callback. */
 async function runOnAdk(cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> {
+  const { FunctionNode, InMemorySessionService, Runner } = await import('@google/adk');
+  const { compileWorkflow } = await import('../lib/workflow.ts');
   const toStub = (a: LlmAgent) => new FunctionNode(a.name, (_ctx: unknown, input: unknown) => stubs[a.name](input)) as unknown as LlmAgent;
   const { workflow } = await compileWorkflow(cfg, {}, toStub);
   const sessionService = new InMemorySessionService();
@@ -116,6 +124,12 @@ async function runOnAdk(cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> {
   const interruptIds = events.filter((e) => e.author === 'Graph').flatMap((e) => e.longRunningToolIds ?? []);
   return { ...normalize(events, interruptIds), completions: completionsOf(events), ...(await drained(events)) };
 }
+
+/** ADK's side of case `name`: the recording, or (ADK_REFERENCE=live|record) the walk on ADK's Runner. */
+const adkSide = (name: string, cfg: SyndicateYamlConfig, stubs: Stubs): Promise<Side> => reference(name, () => runOnAdk(cfg, stubs));
+
+/** A value in JSON's form, as a recording holds it (an `undefined`-valued key dropped). */
+const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 /** FunctionNode's event for an agent stub's output, as ADK writes it (createEvent's keys in its order: author, invocationId, branch, content, output). */
 function stubEvent(run: NodeRun, name: string, output: unknown, invocationId: string): TurnEvent {
@@ -141,18 +155,18 @@ async function runNative(cfg: SyndicateYamlConfig, stubs: Stubs, onEvent?: (e: S
   return { ...normalize(events, run.interruptIds), completions: completionsOf(events), ...(await drained(events)), output: run.output };
 }
 
-async function bothAgree(cfg: SyndicateYamlConfig, stubs: Stubs = STUBS): Promise<Side & { output: unknown }> {
-  const adk = await runOnAdk(cfg, stubs);
+async function bothAgree(name: string, cfg: SyndicateYamlConfig, stubs: Stubs = STUBS): Promise<Side & { output: unknown }> {
+  const adk = await adkSide(name, cfg, stubs);
   const native = await runNative(cfg, stubs);
   const { output, ...rest } = native;
-  assert.deepEqual(rest, adk);
+  assert.deepEqual(asJson(rest), adk);
   return native;
 }
 
 // ── The case from tests/workflow.test.ts ─────────────────────────────────────
 
 test('the pause case: the same stored events, interrupts, progress and input request as ADK', async () => {
-  const side = await bothAgree(chain());
+  const side = await bothAgree('pause-case', chain());
   assert.equal(side.output, undefined, 'a paused walk has no output');
   assert.deepEqual(side.interrupts, ['<interrupt 1>']);
   assert.deepEqual(side.completions, ['Graph.Triage = "the draft" @-'], 'Publisher did not run');
@@ -181,21 +195,26 @@ test('the pause case through runSyndicateTurn on ADK: the native walk\'s events 
   const cfgScripted = { ...cfg, orchestrator: { ...cfg.orchestrator, model: 'scripted/triage' }, subagents: cfg.subagents!.map((s) => ({ ...s, model: 'scripted/publisher' })) } as SyndicateYamlConfig;
   const triage = new ScriptedLlm('scripted/triage', () => text('the draft'));
   const publisher = new ScriptedLlm('scripted/publisher', () => text('published'));
-  const adk = await runSyndicateTurn({
-    runtime: 'adk',
-    config: cfgScripted,
-    parts: [{ text: 'go' }],
-    ...APP,
-    sessionService: new InMemorySessionService(),
-    compile: { resolveModel: scriptedResolver({ triage, publisher }) },
-    trace: false,
-    events: {},
+  // ADK's turn as recorded: its status, its input without the interrupt id (per run), and whether it named one.
+  const adk = await reference('pause-through-runsyndicateturn', async () => {
+    const { InMemorySessionService } = await import('@google/adk');
+    const r = await runSyndicateTurn({
+      runtime: 'adk',
+      config: cfgScripted,
+      parts: [{ text: 'go' }],
+      ...APP,
+      sessionService: new InMemorySessionService(),
+      compile: { resolveModel: scriptedResolver({ triage, publisher }) },
+      trace: false,
+      events: {},
+    });
+    return { status: r.status, input: { ...r.input, id: undefined }, named: !!r.input?.id };
   });
   assert.equal(adk.status, 'input-required');
   const native = await runNative(cfgScripted, STUBS);
   const input = native.inputs[native.inputs.length - 1];
-  assert.deepEqual({ ...input, id: undefined }, { ...adk.input, id: undefined });
-  assert.ok(adk.input?.id, 'ADK names the interrupt');
+  assert.deepEqual(asJson({ ...input, id: undefined }), asJson(adk.input));
+  assert.ok(adk.named, 'ADK names the interrupt');
   assert.equal(input.id, '<an interrupt of the run>', 'the native input names an interrupt the walk stored');
 });
 
@@ -207,14 +226,13 @@ for (const [label, schema] of [
   ['an enum of numbers written as text', { type: 'INTEGER', enum: ['1', '2', ' ', 'x'], format: 'enum' }],
 ] as const) {
   test(`a node schema reaches response_schema as ADK writes it: ${label}`, async () => {
-    const side = await bothAgree(chain({ ask_user: 'Publish?', schema }));
+    const side = await bothAgree(`node-schema-${label}`, chain({ ask_user: 'Publish?', schema }));
     const args = JSON.parse(side.events[1]).content.parts[0].functionCall.args;
     assert.deepEqual(side.inputs[0].schema, args.response_schema);
   });
 }
 
 test('genaiSchemaToJsonSchema is ADK\'s, case for case', async () => {
-  const adk = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/utils/genai_schema_to_json.js')).href);
   const cases: Record<string, unknown>[] = [
     {},
     { type: 'STRING', description: 'd', example: 'e', format: 'date-time' },
@@ -222,15 +240,20 @@ test('genaiSchemaToJsonSchema is ADK\'s, case for case', async () => {
     { type: 'OBJECT', nullable: true, properties: { a: { anyOf: [{ type: 'STRING' }, { type: 'NULL' }] } }, minProperties: '1' },
     { type: 'object', properties: { x: { type: 'string', minLength: 2 } } },
   ];
-  for (const schema of cases) assert.deepEqual(genaiSchemaToJsonSchema(schema), adk.genaiSchemaToJsonSchema(schema), JSON.stringify(schema));
+  // ADK's genaiSchemaToJsonSchema over the cases, recorded.
+  const theirs = await reference('genai-schema-to-json-schema', async () => {
+    const adk = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/utils/genai_schema_to_json.js')).href);
+    return cases.map((schema) => adk.genaiSchemaToJsonSchema(schema));
+  });
+  for (const [i, schema] of cases.entries()) assert.deepEqual(asJson(genaiSchemaToJsonSchema(schema)), theirs[i], JSON.stringify(schema));
 });
 
 test('no input: payload null, and the node input recorded as nothing', async () => {
-  await bothAgree(chain(), { ...STUBS, Triage: () => undefined });
+  await bothAgree('no-input', chain(), { ...STUBS, Triage: () => undefined });
 });
 
 test('an object input is the payload as it is', async () => {
-  const side = await bothAgree(chain(), { ...STUBS, Triage: () => ({ title: 'T', options: ['yes', 'no'] }) });
+  const side = await bothAgree('object-input', chain(), { ...STUBS, Triage: () => ({ title: 'T', options: ['yes', 'no'] }) });
   assert.deepEqual(side.inputs[0].payload, { title: 'T', options: ['yes', 'no'] });
   assert.deepEqual(side.logs.at(-1), '⏸ Confirm asks: Publish? (yes / no)');
 });
@@ -239,7 +262,7 @@ test('an object input is the payload as it is', async () => {
 
 test('a pause on one branch: the other branch runs on, the walk ends paused, as on ADK', async () => {
   const cfg = syndicate([['START', 'Triage', ['Confirm', 'Reader']], ['Confirm', 'Publisher']], { ask_user: 'Publish?' }, ['Publisher', 'Reader']);
-  const side = await bothAgree(cfg);
+  const side = await bothAgree('pause-on-one-branch', cfg);
   assert.equal(side.output, undefined);
   assert.deepEqual(side.completions, ['Graph.Triage = "the draft" @-', 'Graph.Reader = "read \\"the draft\\"" @Reader@1']);
   assert.equal(JSON.parse(side.events[1]).branch, 'Confirm@1');
@@ -250,9 +273,9 @@ test('a waiting node triggered again does not run again in the walk, as on ADK',
   const stubs: Stubs = { ...STUBS, Writer: () => 'draft', Checker: () => 'claims' };
   const native = await runNative(cfg, stubs);
   assert.deepEqual(native.interrupts, ['<interrupt 1>'], 'one request: the second trigger waits behind the first');
-  const adk = await runOnAdk(cfg, stubs);
+  const adk = await adkSide('waiting-node-triggered-again', cfg, stubs);
   const { output: _o, ...rest } = native;
-  assert.deepEqual(rest, adk);
+  assert.deepEqual(asJson(rest), adk);
 });
 
 test('the scheduler: a waiting node reports node_waiting, not node_end, and its error does not fail it', async () => {

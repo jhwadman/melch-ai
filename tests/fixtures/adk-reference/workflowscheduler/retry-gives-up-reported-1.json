@@ -1,0 +1,20 @@
+{
+  "suite": "workflowScheduler",
+  "case": "retry-gives-up-reported-1",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Fixer <- \"Triage(go)\""
+    ],
+    "completions": [
+      "R.Triage = \"Triage(go)\" @-"
+    ],
+    "nodeErrors": [
+      "R.Fixer@- Fixer [500] down"
+    ],
+    "errorEvents": [],
+    "error": "NodeReportedError: Node 'Fixer' failed: 500: down"
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "suite": "nativeStep",
+  "case": "include-contents-none",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      {
+        "request": {
+          "model": "scripted/boss",
+          "system": "You are an agent. Your internal name is \"Intake\".\n\nRead the document.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "doc one"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        "responses": [
+          {
+            "partial": false,
+            "parts": [
+              {
+                "type": "text",
+                "text": "read 1"
+              }
+            ],
+            "finishReason": "stop"
+          }
+        ]
+      },
+      {
+        "request": {
+          "model": "scripted/boss",
+          "system": "You are an agent. Your internal name is \"Intake\".\n\nRead the document.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "doc two"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        "responses": [
+          {
+            "partial": false,
+            "parts": [
+              {
+                "type": "text",
+                "text": "read 2"
+              }
+            ],
+            "finishReason": "stop"
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "doc one"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Intake",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "read 1"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "doc two"
+            }
+          ]
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "Intake",
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "read 2"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ]
+  }
+}

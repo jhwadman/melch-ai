@@ -1,0 +1,170 @@
+{
+  "suite": "workflowResume",
+  "case": "unwrap-and-node-names",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "unwrapped": [
+      {
+        "value": "yes"
+      },
+      {
+        "value": {
+          "a": 1
+        }
+      },
+      {
+        "value": "[1"
+      },
+      {
+        "value": 3
+      },
+      {
+        "value": {
+          "result": "x",
+          "other": 1
+        }
+      },
+      {
+        "value": {
+          "a": 1
+        }
+      },
+      {
+        "value": "bare"
+      },
+      {
+        "value": null
+      },
+      {
+        "value": "yes"
+      },
+      {
+        "value": "{\"a\":1}"
+      },
+      {
+        "value": "[1"
+      },
+      {
+        "value": 3
+      },
+      {
+        "value": {
+          "result": "x",
+          "other": 1
+        }
+      },
+      {
+        "value": {
+          "a": 1
+        }
+      },
+      {
+        "value": "bare"
+      },
+      {
+        "value": null
+      },
+      {
+        "value": "yes"
+      },
+      {
+        "value": "{\"a\":1}"
+      },
+      {
+        "value": "[1"
+      },
+      {
+        "value": 3
+      },
+      {
+        "value": {
+          "result": "x",
+          "other": 1
+        }
+      },
+      {
+        "value": {
+          "a": 1
+        }
+      },
+      {
+        "value": "bare"
+      },
+      {
+        "value": null
+      },
+      {
+        "value": "yes"
+      },
+      {
+        "value": "{\"a\":1}"
+      },
+      {
+        "value": "[1"
+      },
+      {
+        "value": 3
+      },
+      {
+        "value": {
+          "result": "x",
+          "other": 1
+        }
+      },
+      {
+        "value": {
+          "a": 1
+        }
+      },
+      {
+        "value": "bare"
+      },
+      {
+        "value": null
+      },
+      {
+        "value": "yes"
+      },
+      {
+        "value": {
+          "a": 1
+        }
+      },
+      {
+        "value": "[1"
+      },
+      {
+        "value": 3
+      },
+      {
+        "value": {
+          "result": "x",
+          "other": 1
+        }
+      },
+      {
+        "value": {
+          "a": 1
+        }
+      },
+      {
+        "value": "bare"
+      },
+      {
+        "value": null
+      }
+    ],
+    "names": [
+      "A",
+      "A",
+      "G",
+      "Agent",
+      "b",
+      "",
+      "x",
+      "",
+      "B"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "suite": "skillHarnessParity",
+  "case": "loader-parity",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "extra-field": "{\"frontmatter\":{\"name\":\"extra-field\",\"description\":\"Carries a field the standard does not name.\",\"metadata\":{},\"version\":2},\"instructions\":\"Extra body.\",\"resources\":{\"references\":{},\"assets\":{},\"scripts\":{}}}",
+    "nested-one": "{\"frontmatter\":{\"name\":\"nested-one\",\"description\":\"A skill one directory down, inside a group.\",\"allowed-tools\":\"harness_parity_lookup\",\"metadata\":{\"adk_additional_tools\":[\"harness_parity_other\"]},\"allowedTools\":\"harness_parity_lookup\"},\"instructions\":\"Nested body.\",\"resources\":{\"references\":{},\"assets\":{},\"scripts\":{}}}",
+    "kit": "{\"frontmatter\":{\"name\":\"kit\",\"description\":\"A kit of every resource kind, for the harness parity suite: <tags> & \\\"quotes\\\".\",\"license\":\"MIT\",\"allowed-tools\":\"harness_parity_lookup, harness_parity_other\",\"metadata\":{\"owner\":\"tests\"},\"allowedTools\":\"harness_parity_lookup, harness_parity_other\"},\"instructions\":\"# Kit\\n\\nBody line one.\\n\\n--- a rule inside the body ---\\n\\nBody after the rule.\",\"resources\":{\"references\":{\"a.md\":\"Reference A.\\n\",\"sub/b.md\":\"Reference B, nested.\\n\"},\"assets\":{\"logo.png\":{\"buffer\":\"iVBORw0KGgoAAAAN//7D\"},\"template.yaml\":\"key: value\\n\"},\"scripts\":{\"fail.sh\":{\"src\":\"#!/usr/bin/env bash\\nexit 3\\n\"},\"hello.js\":{\"src\":\"console.log('hello from js', JSON.stringify(process.argv.slice(2)));\\n\"},\"notes.txt\":{\"src\":\"not a runnable script\\n\"},\"writes.sh\":{\"src\":\"#!/usr/bin/env bash\\necho \\\"wrote a file\\\"\\nprintf 'output body' > out.txt\\necho \\\"warn\\\" 1>&2\\n\"}}}}"
+  }
+}

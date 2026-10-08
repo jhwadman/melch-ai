@@ -1,0 +1,12 @@
+{
+  "suite": "events",
+  "case": "create-event-json",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    "{\"id\":\"abcdEFG1\",\"timestamp\":1767225600000,\"invocationId\":\"\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[]}",
+    "{\"author\":\"user\",\"invocationId\":\"e-1\",\"content\":{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},\"id\":\"abcdEFG2\",\"timestamp\":2,\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[]}",
+    "{\"invocationId\":\"e-1\",\"author\":\"Analyst\",\"id\":\"abcdEFG3\",\"timestamp\":3,\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"x\"}]},\"turnComplete\":true,\"usageMetadata\":{\"promptTokenCount\":4},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[]}",
+    "{\"id\":\"abcdEFG4\",\"timestamp\":4,\"actions\":{\"stateDelta\":{\"k\":1},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{},\"skipSummarization\":true},\"longRunningToolIds\":[\"c1\"],\"branch\":\"Boss.Scout\",\"invocationId\":\"\"}"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "suite": "openapiTools",
+  "case": "answer-1",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "result": [
+      1,
+      2
+    ]
+  }
+}

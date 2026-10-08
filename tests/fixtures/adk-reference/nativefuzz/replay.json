@@ -1,0 +1,25 @@
+{
+  "suite": "nativeFuzz",
+  "case": "replay",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "summaries": [
+      {
+        "status": "input-required",
+        "text": "Approval needed: Boss wants to run fuzz_turn_send({\"to\":\"ops\"})."
+      },
+      {
+        "status": "completed",
+        "text": "done"
+      },
+      {
+        "status": "failed",
+        "code": "NO_PENDING_APPROVAL",
+        "text": ""
+      }
+    ],
+    "runs": 1,
+    "calls": 2
+  }
+}

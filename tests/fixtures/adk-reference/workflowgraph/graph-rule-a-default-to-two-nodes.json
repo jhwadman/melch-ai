@@ -1,0 +1,9 @@
+{
+  "suite": "workflowGraph",
+  "case": "graph-rule-a default to two nodes",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "message": "Graph validation failed. Multiple DEFAULT_ROUTE edges found from node Triage__route to Fixer and Other"
+  }
+}

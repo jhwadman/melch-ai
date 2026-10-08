@@ -1,0 +1,22 @@
+{
+  "suite": "workflowScheduler",
+  "case": "timeout-fails",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Fixer <- \"Triage(go)\""
+    ],
+    "completions": [
+      "T.Triage = \"Triage(go)\" @-"
+    ],
+    "nodeErrors": [
+      "T.Fixer@- Fixer [UNKNOWN_ERROR] Node 'Fixer' timed out after 0.1 seconds. (NodeTimeoutError after 1)"
+    ],
+    "errorEvents": [
+      "{\"author\":\"Fixer\",\"nodeInfo\":{\"path\":\"T.Fixer\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"isNodeError\":true,\"errorType\":\"NodeTimeoutError\",\"errorCode\":\"UNKNOWN_ERROR\",\"errorMessage\":\"Node 'Fixer' timed out after 0.1 seconds.\",\"attemptCount\":1}"
+    ],
+    "error": "NodeTimeoutError: Node 'Fixer' timed out after 0.1 seconds."
+  }
+}

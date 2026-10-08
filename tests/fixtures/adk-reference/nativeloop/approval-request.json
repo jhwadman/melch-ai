@@ -1,0 +1,116 @@
+{
+  "suite": "nativeLoop",
+  "case": "approval-request",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "input-required"
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "tell ops"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Boss",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "native_loop_send",
+                "args": {
+                  "to": "ops@acme.test"
+                },
+                "id": "call-send-1"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Boss",
+        "content": {
+          "parts": [
+            {
+              "functionCall": {
+                "name": "adk_request_confirmation",
+                "args": {
+                  "originalFunctionCall": {
+                    "name": "native_loop_send",
+                    "args": {
+                      "to": "ops@acme.test"
+                    },
+                    "id": "call-send-1"
+                  },
+                  "toolConfirmation": {
+                    "hint": "Please approve or reject the tool call native_loop_send() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+                    "confirmed": false
+                  }
+                },
+                "id": "adk-00000000-0000-4000-8000-000000000002"
+              }
+            }
+          ],
+          "role": "user"
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {
+            "call-send-1": {
+              "hint": "Please approve or reject the tool call native_loop_send() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+              "confirmed": false
+            }
+          },
+          "skipSummarization": true
+        },
+        "longRunningToolIds": [
+          "adk-00000000-0000-4000-8000-000000000002"
+        ],
+        "id": "ev000003",
+        "timestamp": 1767225602000
+      }
+    ],
+    "calls": {
+      "boss": 1
+    },
+    "deltas": [
+      []
+    ]
+  }
+}

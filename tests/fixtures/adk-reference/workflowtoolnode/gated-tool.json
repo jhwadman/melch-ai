@@ -1,0 +1,32 @@
+{
+  "suite": "workflowToolNode",
+  "case": "gated-tool",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "side": {
+      "events": [
+        "{\"author\":\"Triage\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"{}\"}]},\"output\":{},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Triage\",\"outputFor\":[\"Graph.Triage\"]}}",
+        "{\"author\":\"Lookup\",\"content\":{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"id\":\"Graph.Lookup:1\",\"name\":\"tool_node_gated\",\"response\":{\"error\":\"This tool call requires confirmation, please approve or reject.\"}}}]},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{\"Graph.Lookup:1\":{\"hint\":\"Please approve or reject the tool call tool_node_gated() by responding with a FunctionResponse with an expected ToolConfirmation payload.\",\"confirmed\":false}},\"skipSummarization\":true},\"longRunningToolIds\":[],\"output\":{\"error\":\"This tool call requires confirmation, please approve or reject.\"},\"nodeInfo\":{\"path\":\"Graph.Lookup\",\"outputFor\":[\"Graph.Lookup\"]}}",
+        "{\"author\":\"Reader\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"read {\\\"error\\\":\\\"This tool call requires confirmation, please approve or reject.\\\"}\"}]},\"output\":\"read {\\\"error\\\":\\\"This tool call requires confirmation, please approve or reject.\\\"}\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Reader\",\"outputFor\":[\"Graph.Reader\"]}}"
+      ],
+      "completions": [
+        "Graph.Triage = {} @-",
+        "Graph.Lookup = {\"error\":\"This tool call requires confirmation, please approve or reject.\"} @-",
+        "Graph.Reader = \"read {\\\"error\\\":\\\"This tool call requires confirmation, please approve or reject.\\\"}\" @-"
+      ],
+      "output": "read {\"error\":\"This tool call requires confirmation, please approve or reject.\"}",
+      "logs": [
+        "⇢ Node: Triage",
+        "⇢ Node: Lookup",
+        "← Result: tool_node_gated — 75 chars",
+        "⇢ Node: Reader"
+      ],
+      "progress": [
+        "Running node: Triage",
+        "Running node: Lookup",
+        "Running node: Reader"
+      ]
+    }
+  }
+}

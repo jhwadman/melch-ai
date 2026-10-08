@@ -1,0 +1,28 @@
+{
+  "suite": "workflowToolNode",
+  "case": "input-mapping-no output, as no arguments",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "side": {
+      "events": [
+        "{\"author\":\"Lookup\",\"content\":{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"id\":\"Graph.Lookup:1\",\"name\":\"tool_node_lookup\",\"response\":{\"result\":\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received undefined\"}}}]},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"output\":{\"result\":\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received undefined\"},\"nodeInfo\":{\"path\":\"Graph.Lookup\",\"outputFor\":[\"Graph.Lookup\"]}}",
+        "{\"author\":\"Reader\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"read {\\\"result\\\":\\\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received undefined\\\"}\"}]},\"output\":\"read {\\\"result\\\":\\\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received undefined\\\"}\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Reader\",\"outputFor\":[\"Graph.Reader\"]}}"
+      ],
+      "completions": [
+        "Graph.Lookup = {\"result\":\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received undefined\"} @-",
+        "Graph.Reader = \"read {\\\"result\\\":\\\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received undefined\\\"}\" @-"
+      ],
+      "output": "read {\"result\":\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received undefined\"}",
+      "logs": [
+        "⇢ Node: Lookup",
+        "← Result: tool_node_lookup — 113 chars",
+        "⇢ Node: Reader"
+      ],
+      "progress": [
+        "Running node: Lookup",
+        "Running node: Reader"
+      ]
+    }
+  }
+}

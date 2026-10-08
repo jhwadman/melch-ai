@@ -1,0 +1,21 @@
+{
+  "suite": "workflowScheduler",
+  "case": "routing-feature",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Feature <- {\"route\":\"feature\",\"text\":\"x\"}",
+      "Num <- {\"route\":\"feature\",\"text\":\"x\"}"
+    ],
+    "completions": [
+      "Routed.Triage = {\"route\":\"feature\",\"text\":\"x\"} @-",
+      "Routed.Triage__route = {\"route\":\"feature\",\"text\":\"x\"} @-",
+      "Routed.Num = \"Num({\\\"route\\\":\\\"feature\\\",\\\"text\\\":\\\"x\\\"})\" @Num@1"
+    ],
+    "output": "Num({\"route\":\"feature\",\"text\":\"x\"})",
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

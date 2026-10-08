@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { Context, FunctionTool, LongRunningFunctionTool, ToolConfirmation } from '@google/adk';
+import { Context, FunctionTool, ToolConfirmation } from '@google/adk';
 
 import { requireApprovalOn } from '../lib/compile.ts';
 import { contractToolDeclaration, toolDeclarationFor } from '../lib/models/schemaNormalize.ts';
@@ -59,6 +59,11 @@ import {
 } from '../lib/tools/toolContract.ts';
 import type { ToolContract } from '../lib/tools/toolContract.ts';
 import { askUserTool } from '../lib/runtime/questions.ts';
+import { adkReferences } from './helpers/adkReference.ts';
+
+// ADK's long-running note, the reference for LONG_RUNNING_NOTE, is recorded
+// (tests/fixtures/adk-reference/toolcontract); ADK's LongRunningFunctionTool runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('toolContract');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -278,8 +283,11 @@ test("a long-running Tool declares ADK's note and stays pending on the ADK runti
   assert.ok(!isLongRunning(LOOKUP));
   assert.equal(wait.declaration().description, `Waits.${LONG_RUNNING_NOTE}`);
   // The note is ADK's own, word for word.
-  const adkOwn = new LongRunningFunctionTool({ name: 'wait_for_it', description: 'Waits.', execute: async () => null });
-  assert.equal(wait.declaration().description, adkOwn._getDeclaration().description);
+  const adkOwn = await reference('long-running-note', async () => {
+    const { LongRunningFunctionTool } = await import('@google/adk');
+    return { description: new LongRunningFunctionTool({ name: 'wait_for_it', description: 'Waits.', execute: async () => null })._getDeclaration().description };
+  });
+  assert.equal(wait.declaration().description, adkOwn.description);
 
   const adkTool = toFunctionTool(wait);
   assert.equal(adkTool.isLongRunning, true);

@@ -1,0 +1,206 @@
+{
+  "suite": "toolBaseRest",
+  "case": "example-tool-block-1",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "model": "gemini-2.5-flash",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "<EXAMPLES>\nBegin few-shot\nThe following are examples of user queries and model responses using the available tools.\n\nEXAMPLE 1:\nBegin example\n[user]\nWhat is 2+2?\n[model]\n4\nEnd example\n\nEnd few-shot\n<EXAMPLES>"
+      }
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base.\n\n<EXAMPLES>\nBegin few-shot\nThe following are examples of user queries and model responses using the available tools.\n\nEXAMPLE 1:\nBegin example\n[user]\nWhat is 2+2?\n[model]\n4\nEnd example\n\nEnd few-shot\n<EXAMPLES>"
+      }
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "<EXAMPLES>\nBegin few-shot\nThe following are examples of user queries and model responses using the available tools.\n\nEXAMPLE 1:\nBegin example\n[user]\nWhat is 2+2?\n[model]\n4\nEnd example\n\nEnd few-shot\n<EXAMPLES>"
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base.\n\n<EXAMPLES>\nBegin few-shot\nThe following are examples of user queries and model responses using the available tools.\n\nEXAMPLE 1:\nBegin example\n[user]\nWhat is 2+2?\n[model]\n4\nEnd example\n\nEnd few-shot\n<EXAMPLES>"
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    },
+    {
+      "model": "gpt-5-mini",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "<EXAMPLES>\nBegin few-shot\nThe following are examples of user queries and model responses using the available tools.\n\nEXAMPLE 1:\nBegin example\n[user]\nWhat is 2+2?\n[model]\n4\nEnd example\n\nEnd few-shot\n<EXAMPLES>"
+      }
+    },
+    {
+      "model": "gpt-5-mini",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "gpt-5-mini",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "gpt-5-mini",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {}
+    },
+    {
+      "model": "gpt-5-mini",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base.\n\n<EXAMPLES>\nBegin few-shot\nThe following are examples of user queries and model responses using the available tools.\n\nEXAMPLE 1:\nBegin example\n[user]\nWhat is 2+2?\n[model]\n4\nEnd example\n\nEnd few-shot\n<EXAMPLES>"
+      }
+    },
+    {
+      "model": "gpt-5-mini",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    },
+    {
+      "model": "gpt-5-mini",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    },
+    {
+      "model": "gpt-5-mini",
+      "contents": [],
+      "liveConnectConfig": {},
+      "toolsDict": {},
+      "config": {
+        "systemInstruction": "Base."
+      }
+    }
+  ]
+}

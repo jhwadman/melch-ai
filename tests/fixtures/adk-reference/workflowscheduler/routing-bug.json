@@ -1,0 +1,18 @@
+{
+  "suite": "workflowScheduler",
+  "case": "routing-bug",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Bug <- {\"route\":\"bug\",\"text\":\"x\"}"
+    ],
+    "completions": [
+      "Routed.Triage = {\"route\":\"bug\",\"text\":\"x\"} @-",
+      "Routed.Triage__route = {\"route\":\"bug\",\"text\":\"x\"} @-"
+    ],
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

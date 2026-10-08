@@ -1,0 +1,353 @@
+{
+  "suite": "nativeStep",
+  "case": "tools-and-output-schema",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      {
+        "request": {
+          "model": "scripted/boss",
+          "system": "Look the key up, then grade.\n\nTo output the final result, you must call the \"set_model_response\" function with the appropriate values. Do not output anything else.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "grade alpha"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "native_step_lookup",
+              "description": "Look a key up.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "description": "What to look up."
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "key"
+                ]
+              }
+            },
+            {
+              "name": "load_memory",
+              "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "The query to load the memory for."
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            },
+            {
+              "name": "set_model_response",
+              "description": "Call this tool to submit your final response conforming to the output schema. Use this tool only when you have collected all the information and are ready to return the final answer.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "verdict"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "nativeTools": [
+            "web_search"
+          ],
+          "stream": false
+        },
+        "responses": [
+          {
+            "partial": false,
+            "parts": [
+              {
+                "type": "toolCall",
+                "id": "call-lookup-1",
+                "name": "native_step_lookup",
+                "args": {
+                  "key": "alpha"
+                }
+              }
+            ],
+            "finishReason": "tool_call"
+          }
+        ]
+      },
+      {
+        "request": {
+          "model": "scripted/boss",
+          "system": "Look the key up, then grade.\n\nTo output the final result, you must call the \"set_model_response\" function with the appropriate values. Do not output anything else.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "grade alpha"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "toolCall",
+                  "id": "call-lookup-1",
+                  "name": "native_step_lookup",
+                  "args": {
+                    "key": "alpha"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "parts": [
+                {
+                  "type": "toolResult",
+                  "id": "call-lookup-1",
+                  "name": "native_step_lookup",
+                  "result": "found alpha"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "native_step_lookup",
+              "description": "Look a key up.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "description": "What to look up."
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "key"
+                ]
+              }
+            },
+            {
+              "name": "load_memory",
+              "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "The query to load the memory for."
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            },
+            {
+              "name": "set_model_response",
+              "description": "Call this tool to submit your final response conforming to the output schema. Use this tool only when you have collected all the information and are ready to return the final answer.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "verdict"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "nativeTools": [
+            "web_search"
+          ],
+          "stream": false
+        },
+        "responses": [
+          {
+            "partial": false,
+            "parts": [
+              {
+                "type": "toolCall",
+                "id": "call-smr-1",
+                "name": "set_model_response",
+                "args": {
+                  "verdict": "pass",
+                  "score": 3
+                }
+              }
+            ],
+            "finishReason": "tool_call",
+            "usage": {
+              "inputTokens": 40,
+              "outputTokens": 9,
+              "thinkingTokens": 2
+            }
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "grade alpha"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Grader",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "native_step_lookup",
+                "args": {
+                  "key": "alpha"
+                },
+                "id": "call-lookup-1"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Grader",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-lookup-1",
+                "name": "native_step_lookup",
+                "response": {
+                  "result": "found alpha"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Grader",
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {},
+          "skipSummarization": true
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "{\"verdict\":\"pass\",\"score\":3}"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "usageMetadata": {
+          "promptTokenCount": 40,
+          "candidatesTokenCount": 7,
+          "thoughtsTokenCount": 2,
+          "totalTokenCount": 49
+        },
+        "turnComplete": true
+      }
+    ]
+  }
+}

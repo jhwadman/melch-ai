@@ -1,0 +1,227 @@
+{
+  "suite": "remoteAgent",
+  "case": "remote-conversation-all-adk",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed",
+        "text": "relay: oracle heard: first question",
+        "delegations": [
+          "Oracle"
+        ]
+      },
+      {
+        "status": "completed",
+        "text": "relay: oracle heard: first question | oracle heard: first question | second question",
+        "delegations": [
+          "Oracle"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "Oracle",
+                "args": {
+                  "request": "first question"
+                },
+                "id": "call-oracle-1"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-oracle-1",
+                "name": "Oracle",
+                "response": {
+                  "result": "oracle heard: first question"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "relay: oracle heard: first question"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "again"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "Oracle",
+                "args": {
+                  "request": "second question"
+                },
+                "id": "call-oracle-3"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-oracle-3",
+                "name": "Oracle",
+                "response": {
+                  "result": "oracle heard: first question | oracle heard: first question | second question"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "relay: oracle heard: first question | oracle heard: first question | second question"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "calls": 4
+  }
+}

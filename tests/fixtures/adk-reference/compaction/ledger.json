@@ -1,0 +1,244 @@
+{
+  "suite": "compaction",
+  "case": "ledger",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "userEvent": {
+      "invocationId": "e-00000000-0000-4000-8000-000000000001",
+      "author": "user",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "content": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "question 4"
+          }
+        ]
+      },
+      "id": "ev000001",
+      "longRunningToolIds": [],
+      "timestamp": 1767225600000
+    },
+    "llmCalls": 2,
+    "adk_turns": [
+      {
+        "ts": "<ts>",
+        "trace_id": "<trace>",
+        "span_id": "<span>",
+        "session_id": "s1",
+        "user_id": "u1",
+        "task_id": null,
+        "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+        "surface": null,
+        "surface_guild": null,
+        "surface_channel": null,
+        "surface_user": null,
+        "syndicate": "compaction",
+        "stage": "delegate",
+        "agent": "Chat",
+        "route": null,
+        "route_reason": null,
+        "route_fell_back": null,
+        "route_via_override": null,
+        "relay_fallback": false,
+        "input": "question 4",
+        "output": "SUMMARY 1: the person asked about trains.answer 4",
+        "error_code": null,
+        "error_message": null,
+        "input_tokens": 1600,
+        "output_tokens": 5,
+        "thinking_tokens": 0,
+        "latency_ms": "<ms>",
+        "model_ms": "<ms>",
+        "tool_ms": "<ms>",
+        "llm_calls": 2,
+        "tool_calls": 0,
+        "models": [
+          "scripted/chat",
+          "scripted/sum"
+        ],
+        "tool_events": [],
+        "config_hash": null,
+        "engine_version": "<engine>",
+        "eval_run": null,
+        "eval_suite": null,
+        "eval_case": null,
+        "eval_variant": null,
+        "eval_trial": null,
+        "attributes": {
+          "syndicate.bindings": "{}",
+          "syndicate.input": "[{\"text\":\"question 4\"}]",
+          "session.id": "s1",
+          "gen_ai.conversation.id": "s1",
+          "user.id": "u1",
+          "syndicate.stage": "delegate",
+          "engine.version": "<engine>",
+          "telemetry.schema_version": 2,
+          "syndicate.name": "compaction",
+          "syndicate.tokens.input": 1600,
+          "syndicate.tokens.output": 5,
+          "syndicate.tokens.thinking": 0,
+          "syndicate.output": "SUMMARY 1: the person asked about trains.answer 4",
+          "adk.invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "syndicate.agent": "Chat",
+          "syndicate.latency.model_ms": "<ms>",
+          "syndicate.latency.tool_ms": "<ms>",
+          "syndicate.llm_calls": 2,
+          "syndicate.models": "scripted/chat,scripted/sum",
+          "syndicate.relay_fallback": false
+        },
+        "schema_version": 2
+      }
+    ],
+    "adk_telemetry": [
+      {
+        "ts": "<ts>",
+        "trace_id": "<trace>",
+        "span_id": "<span>",
+        "span_name": "llm.request",
+        "syndicate": null,
+        "agent": "Chat",
+        "provider": "scripted",
+        "model": "scripted/sum",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0,
+        "latency_ms": "<ms>",
+        "session_id": "s1",
+        "user_id": "u1",
+        "task_id": null,
+        "invocation_id": null,
+        "schema_version": 2,
+        "span": {
+          "traceId": "<trace>",
+          "spanId": "<span>",
+          "name": "llm.request",
+          "durationMs": "<ms>",
+          "attributes": {
+            "llm.provider": "scripted",
+            "llm.model": "scripted/sum",
+            "gen_ai.system": "scripted",
+            "gen_ai.request.model": "scripted/sum",
+            "llm.agent": "Chat",
+            "gen_ai.agent.name": "Chat",
+            "session.id": "s1",
+            "gen_ai.conversation.id": "s1",
+            "user.id": "u1",
+            "llm.tokens.input": 0,
+            "llm.tokens.output": 0,
+            "llm.tokens.thinking": 0,
+            "gen_ai.usage.input_tokens": 0,
+            "gen_ai.usage.output_tokens": 0
+          },
+          "events": [],
+          "status": {
+            "code": 0
+          }
+        }
+      },
+      {
+        "ts": "<ts>",
+        "trace_id": "<trace>",
+        "span_id": "<span>",
+        "span_name": "llm.request",
+        "syndicate": null,
+        "agent": "Chat",
+        "provider": "scripted",
+        "model": "scripted/chat",
+        "input_tokens": 1600,
+        "output_tokens": 5,
+        "thinking_tokens": 0,
+        "latency_ms": "<ms>",
+        "session_id": "s1",
+        "user_id": "u1",
+        "task_id": null,
+        "invocation_id": null,
+        "schema_version": 2,
+        "span": {
+          "traceId": "<trace>",
+          "spanId": "<span>",
+          "name": "llm.request",
+          "durationMs": "<ms>",
+          "attributes": {
+            "llm.provider": "scripted",
+            "llm.model": "scripted/chat",
+            "gen_ai.system": "scripted",
+            "gen_ai.request.model": "scripted/chat",
+            "llm.agent": "Chat",
+            "gen_ai.agent.name": "Chat",
+            "session.id": "s1",
+            "gen_ai.conversation.id": "s1",
+            "user.id": "u1",
+            "llm.tokens.input": 1600,
+            "llm.tokens.output": 5,
+            "llm.tokens.thinking": 0,
+            "gen_ai.usage.input_tokens": 1600,
+            "gen_ai.usage.output_tokens": 5
+          },
+          "events": [],
+          "status": {
+            "code": 0
+          }
+        }
+      },
+      {
+        "ts": "<ts>",
+        "trace_id": "<trace>",
+        "span_id": "<span>",
+        "span_name": "Syndicate Execution: compaction",
+        "syndicate": "compaction",
+        "agent": "Chat",
+        "provider": null,
+        "model": null,
+        "input_tokens": 1600,
+        "output_tokens": 5,
+        "thinking_tokens": 0,
+        "latency_ms": "<ms>",
+        "session_id": "s1",
+        "user_id": "u1",
+        "task_id": null,
+        "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+        "schema_version": 2,
+        "span": {
+          "traceId": "<trace>",
+          "spanId": "<span>",
+          "name": "Syndicate Execution: compaction",
+          "durationMs": "<ms>",
+          "attributes": {
+            "syndicate.bindings": "{}",
+            "syndicate.input": "[{\"text\":\"question 4\"}]",
+            "session.id": "s1",
+            "gen_ai.conversation.id": "s1",
+            "user.id": "u1",
+            "syndicate.stage": "delegate",
+            "engine.version": "<engine>",
+            "telemetry.schema_version": 2,
+            "syndicate.name": "compaction",
+            "syndicate.tokens.input": 1600,
+            "syndicate.tokens.output": 5,
+            "syndicate.tokens.thinking": 0,
+            "syndicate.output": "SUMMARY 1: the person asked about trains.answer 4",
+            "adk.invocation_id": "e-00000000-0000-4000-8000-000000000001",
+            "syndicate.agent": "Chat",
+            "syndicate.latency.model_ms": "<ms>",
+            "syndicate.latency.tool_ms": "<ms>",
+            "syndicate.llm_calls": 2,
+            "syndicate.models": "scripted/chat,scripted/sum",
+            "syndicate.relay_fallback": false
+          },
+          "events": [],
+          "status": {
+            "code": 0
+          }
+        }
+      }
+    ],
+    "payloads": 1
+  }
+}

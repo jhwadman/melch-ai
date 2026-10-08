@@ -1,0 +1,289 @@
+{
+  "suite": "nativeLedger",
+  "case": "fallback-model",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "invocationId": "e-00000000-0000-4000-8000-000000000001",
+    "ledger": {
+      "adk_turns": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "surface": null,
+          "surface_guild": null,
+          "surface_channel": null,
+          "surface_user": null,
+          "syndicate": "native-ledger",
+          "stage": "delegate",
+          "agent": "Solo",
+          "route": null,
+          "route_reason": null,
+          "route_fell_back": null,
+          "route_via_override": null,
+          "relay_fallback": false,
+          "input": "find the thing",
+          "output": "from the backup",
+          "error_code": null,
+          "error_message": null,
+          "input_tokens": 5,
+          "output_tokens": 2,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "model_ms": "<ms>",
+          "tool_ms": "<ms>",
+          "llm_calls": 2,
+          "tool_calls": 0,
+          "models": [
+            "scripted/backup",
+            "scripted/primary"
+          ],
+          "tool_events": [],
+          "config_hash": null,
+          "engine_version": "<engine>",
+          "eval_run": null,
+          "eval_suite": null,
+          "eval_case": null,
+          "eval_variant": null,
+          "eval_trial": null,
+          "attributes": {
+            "syndicate.bindings": "{}",
+            "syndicate.input": "[{\"text\":\"find the thing\"}]",
+            "session.id": "s1",
+            "gen_ai.conversation.id": "s1",
+            "user.id": "u1",
+            "syndicate.stage": "delegate",
+            "engine.version": "<engine>",
+            "telemetry.schema_version": 2,
+            "syndicate.name": "native-ledger",
+            "syndicate.tokens.input": 5,
+            "syndicate.tokens.output": 2,
+            "syndicate.tokens.thinking": 0,
+            "syndicate.output": "from the backup",
+            "adk.invocation_id": "e-00000000-0000-4000-8000-000000000001",
+            "syndicate.agent": "Solo",
+            "syndicate.latency.model_ms": "<ms>",
+            "syndicate.latency.tool_ms": "<ms>",
+            "syndicate.llm_calls": 2,
+            "syndicate.models": "scripted/backup,scripted/primary",
+            "syndicate.relay_fallback": false
+          },
+          "schema_version": 2
+        }
+      ],
+      "adk_telemetry": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Solo",
+          "provider": "scripted",
+          "model": "scripted/primary",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": null,
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/primary",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/primary",
+              "llm.agent": "Solo",
+              "gen_ai.agent.name": "Solo",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.error_code": "SCRIPTED_ERROR",
+              "llm.error_message": "HTTP 503",
+              "llm.tokens.input": 0,
+              "llm.tokens.output": 0,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 0,
+              "gen_ai.usage.output_tokens": 0
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "llm.request",
+          "syndicate": null,
+          "agent": "Solo",
+          "provider": "scripted",
+          "model": "scripted/backup",
+          "input_tokens": 5,
+          "output_tokens": 2,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": null,
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "llm.request",
+            "durationMs": "<ms>",
+            "attributes": {
+              "llm.provider": "scripted",
+              "llm.model": "scripted/backup",
+              "gen_ai.system": "scripted",
+              "gen_ai.request.model": "scripted/backup",
+              "llm.agent": "Solo",
+              "gen_ai.agent.name": "Solo",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "llm.tokens.input": 5,
+              "llm.tokens.output": 2,
+              "llm.tokens.thinking": 0,
+              "gen_ai.usage.input_tokens": 5,
+              "gen_ai.usage.output_tokens": 2
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "span_name": "Syndicate Execution: native-ledger",
+          "syndicate": "native-ledger",
+          "agent": "Solo",
+          "provider": null,
+          "model": null,
+          "input_tokens": 5,
+          "output_tokens": 2,
+          "thinking_tokens": 0,
+          "latency_ms": "<ms>",
+          "session_id": "s1",
+          "user_id": "u1",
+          "task_id": null,
+          "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "schema_version": 2,
+          "span": {
+            "traceId": "<trace>",
+            "spanId": "<span>",
+            "name": "Syndicate Execution: native-ledger",
+            "durationMs": "<ms>",
+            "attributes": {
+              "syndicate.bindings": "{}",
+              "syndicate.input": "[{\"text\":\"find the thing\"}]",
+              "session.id": "s1",
+              "gen_ai.conversation.id": "s1",
+              "user.id": "u1",
+              "syndicate.stage": "delegate",
+              "engine.version": "<engine>",
+              "telemetry.schema_version": 2,
+              "syndicate.name": "native-ledger",
+              "syndicate.tokens.input": 5,
+              "syndicate.tokens.output": 2,
+              "syndicate.tokens.thinking": 0,
+              "syndicate.output": "from the backup",
+              "adk.invocation_id": "e-00000000-0000-4000-8000-000000000001",
+              "syndicate.agent": "Solo",
+              "syndicate.latency.model_ms": "<ms>",
+              "syndicate.latency.tool_ms": "<ms>",
+              "syndicate.llm_calls": 2,
+              "syndicate.models": "scripted/backup,scripted/primary",
+              "syndicate.relay_fallback": false
+            },
+            "events": [],
+            "status": {
+              "code": 0
+            }
+          }
+        }
+      ],
+      "adk_payloads": [
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "agent": "Solo",
+          "provider": "scripted",
+          "model": "scripted/primary",
+          "reason": "all",
+          "request": {
+            "model": "scripted/primary",
+            "system": "You are an agent. Your internal name is \"Solo\".\n\nAnswer briefly.",
+            "messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "find the thing"
+                  }
+                ]
+              }
+            ],
+            "stream": false
+          },
+          "response": {
+            "errorCode": "SCRIPTED_ERROR",
+            "errorMessage": "HTTP 503",
+            "turnComplete": true,
+            "customMetadata": {
+              "error.retryable": true,
+              "error.status": 503
+            }
+          },
+          "request_chars": 202,
+          "response_chars": 137,
+          "expires_at": "<expires>",
+          "schema_version": 2
+        },
+        {
+          "ts": "<ts>",
+          "trace_id": "<trace>",
+          "span_id": "<span>",
+          "session_id": "s1",
+          "invocation_id": "e-00000000-0000-4000-8000-000000000001",
+          "agent": "Solo",
+          "provider": "<step>",
+          "model": "scripted/primary",
+          "reason": "all",
+          "request": "<step>",
+          "response": "<step>",
+          "request_chars": "<step>",
+          "response_chars": "<step>",
+          "expires_at": "<expires>",
+          "schema_version": 2
+        }
+      ],
+      "steps": [
+        false,
+        true
+      ]
+    }
+  }
+}

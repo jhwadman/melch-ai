@@ -24,13 +24,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-  InMemorySessionService as AdkInMemorySessionService,
-  createEvent as adkCreateEvent,
-  getFunctionCalls as adkGetFunctionCalls,
-  getFunctionResponses as adkGetFunctionResponses,
-  isFinalResponse as adkIsFinalResponse,
-} from '@google/adk';
 import type { Event as AdkEvent, Session as AdkSession } from '@google/adk';
 
 import {
@@ -71,6 +64,10 @@ import { SKIP_SIGNATURE } from '../lib/session/transcript.ts';
 import { FIXTURE_DIR, fixtureFiles, loadFixture } from './helpers/sessionFixtures.ts';
 import type { SessionFixture } from './helpers/sessionFixtures.ts';
 import { ROOT, importGraph, runtimeImportsOf } from './helpers/importGraph.ts';
+import { adkReferences, canonical } from './helpers/adkReference.ts';
+
+// ADK's answers are recorded (tests/fixtures/adk-reference/events); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('events');
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -103,7 +100,11 @@ function everyStoredEvent(): Array<{ where: string; event: TurnEvent }> {
 
 /** The same JSON as ADK's types see it. TurnEvent is wider than ADK's Event (a string where genai has an enum), so the cast goes through unknown. */
 const asAdk = (event: TurnEvent): AdkEvent => event as unknown as AdkEvent;
-const adkEventFrom = (init: TurnEventInit): AdkEvent => adkCreateEvent(structuredClone(init) as unknown as Parameters<typeof adkCreateEvent>[0]);
+/** ADK's createEvent over a copy of `init` (live side only: it loads ADK). */
+async function adkEventFrom(init: TurnEventInit): Promise<AdkEvent> {
+  const { createEvent } = await import('@google/adk');
+  return createEvent(structuredClone(init) as unknown as Parameters<typeof createEvent>[0]);
+}
 
 // ── The stored shape ─────────────────────────────────────────────────────────
 
@@ -221,7 +222,8 @@ test('a TurnEvent is what ADK stores: ADK events and sessions are assignable to 
   // Compile-time: `npx tsc --noEmit` refuses these if the shapes drift apart.
   const adkEvents: AdkEvent[] = loadFixture('06-thought-signature', 'verbatim').sessions[0]!.events;
   const asTurnEvents: TurnEvent[] = adkEvents;
-  const adk = new AdkInMemorySessionService();
+  const { InMemorySessionService } = await import('@google/adk');
+  const adk = new InMemorySessionService();
   const created: AdkSession = await adk.createSession({ appName: 'a', userId: 'u', sessionId: 's' });
   const asSession: Session = created;
   assert.equal(asTurnEvents.length, 4);
@@ -230,15 +232,26 @@ test('a TurnEvent is what ADK stores: ADK events and sessions are assignable to 
 
 // ── Reading events as ADK does ───────────────────────────────────────────────
 
-test('getFunctionCalls, getFunctionResponses and isFinal answer as ADK does on every fixture event', () => {
+test('getFunctionCalls, getFunctionResponses and isFinal answer as ADK does on every fixture event', async () => {
+  const stored = everyStoredEvent();
+  // ADK's answers on every stored event; ours in the same shape, through the same canonical form.
+  const theirs = await reference('fixture-event-answers', async () => {
+    const adk = await import('@google/adk');
+    return stored.map(({ where, event }) => {
+      const adkEvent = asAdk(structuredClone(event));
+      return { where, calls: adk.getFunctionCalls(adkEvent), responses: adk.getFunctionResponses(adkEvent), final: adk.isFinalResponse(adkEvent) };
+    });
+  });
+  const ours = canonical(stored.map(({ where, event }) => ({ where, calls: getFunctionCalls(event), responses: getFunctionResponses(event), final: isFinal(event) })));
+  assert.equal(theirs.length, ours.length, 'one recorded answer per stored event');
   let finals = 0;
   let calls = 0;
   let responses = 0;
-  for (const { where, event } of everyStoredEvent()) {
-    const adkEvent = asAdk(structuredClone(event));
-    assert.deepEqual(getFunctionCalls(event), adkGetFunctionCalls(adkEvent), `${where}: calls`);
-    assert.deepEqual(getFunctionResponses(event), adkGetFunctionResponses(adkEvent), `${where}: responses`);
-    assert.equal(isFinal(event), adkIsFinalResponse(adkEvent), `${where}: final`);
+  for (const [i, { where, event }] of stored.entries()) {
+    assert.equal(theirs[i]!.where, where);
+    assert.deepEqual(ours[i]!.calls, theirs[i]!.calls, `${where}: calls`);
+    assert.deepEqual(ours[i]!.responses, theirs[i]!.responses, `${where}: responses`);
+    assert.equal(ours[i]!.final, theirs[i]!.final, `${where}: final`);
     finals += isFinal(event) ? 1 : 0;
     calls += getFunctionCalls(event).length;
     responses += getFunctionResponses(event).length;
@@ -256,7 +269,7 @@ test('the helpers return the parts’ own call and response objects, in order', 
   assert.deepEqual(getFunctionCalls(createTurnEvent()), []);
 });
 
-test('isFinal matches ADK on every way an event can end, or not end, a run', () => {
+test('isFinal matches ADK on every way an event can end, or not end, a run', async () => {
   const call = { functionCall: { name: 'lookup', args: {}, id: 'c1' } };
   const response = { functionResponse: { name: 'lookup', id: 'c1', response: { result: 'ok' } } };
   const cases: Array<[string, TurnEventInit, boolean]> = [
@@ -273,27 +286,40 @@ test('isFinal matches ADK on every way an event can end, or not end, a run', () 
     ['a code result followed by text', { content: { role: 'model', parts: [{ codeExecutionResult: { output: '2' } }, { text: 'it is 2' }] } }, true],
     ['a partial that skips summarization', { partial: true, actions: { skipSummarization: true } }, true],
   ];
-  for (const [label, init, expected] of cases) {
+  const adkFinal = await reference('is-final-cases', async () => {
+    const { isFinalResponse } = await import('@google/adk');
+    const out: Array<{ label: string; final: boolean }> = [];
+    for (const [label, init] of cases) out.push({ label, final: isFinalResponse(await adkEventFrom(init)) });
+    return out;
+  });
+  assert.deepEqual(adkFinal.map((c) => c.label), cases.map(([label]) => label), 'one recorded answer per case');
+  for (const [i, [label, init, expected]] of cases.entries()) {
     const event = createTurnEvent({ id: 'evfixed1', timestamp: 1, ...init });
     assert.equal(isFinal(event), expected, label);
-    assert.equal(adkIsFinalResponse(adkEventFrom(init)), expected, `${label} (ADK)`);
+    assert.equal(adkFinal[i]!.final, expected, `${label} (ADK)`);
   }
   assert.equal(hasTrailingCodeExecutionResult(createTurnEvent({ content: { parts: [] } })), false);
 });
 
 // ── Making events as ADK does ────────────────────────────────────────────────
 
-test('createTurnEvent builds the JSON ADK’s createEvent builds, key order included', () => {
+test('createTurnEvent builds the JSON ADK’s createEvent builds, key order included', async () => {
   const inits: TurnEventInit[] = [
     { id: 'abcdEFG1', timestamp: 1767225600000 },
     { author: 'user', invocationId: 'e-1', content: { role: 'user', parts: [{ text: 'hi' }] }, id: 'abcdEFG2', timestamp: 2 },
     { invocationId: 'e-1', author: 'Analyst', id: 'abcdEFG3', timestamp: 3, content: { role: 'model', parts: [{ text: 'x' }] }, turnComplete: true, usageMetadata: { promptTokenCount: 4 } },
     { id: 'abcdEFG4', timestamp: 4, actions: { stateDelta: { k: 1 }, skipSummarization: true }, longRunningToolIds: ['c1'], branch: 'Boss.Scout' },
   ];
-  for (const init of inits) {
+  // ADK's events as JSON text, so the recording keeps their key order.
+  const theirs = await reference('create-event-json', async () => {
+    const out: string[] = [];
+    for (const init of inits) out.push(JSON.stringify(await adkEventFrom(init)));
+    return out;
+  });
+  assert.equal(theirs.length, inits.length);
+  for (const [i, init] of inits.entries()) {
     const ours = createTurnEvent(structuredClone(init));
-    const theirs = adkEventFrom(init);
-    assert.equal(JSON.stringify(ours), JSON.stringify(theirs));
+    assert.equal(JSON.stringify(ours), theirs[i]);
   }
   const fresh = createTurnEvent();
   assert.match(fresh.id, /^[A-Za-z0-9]{8}$/);
@@ -402,11 +428,16 @@ test('applyEvent applies state as ADK’s base service does, and never changes t
   assert.deepEqual(stored[0]!.actions.stateDelta, { draft: 'v1' }, 'the stored event loses its temp: keys');
   assert.equal(stored[1], given[1], 'an event with nothing to drop is stored as given');
 
-  const adk = new AdkInMemorySessionService();
-  const theirs = await adk.createSession({ appName: 'app', userId: 'user', sessionId: 'conv' });
-  for (const e of structuredClone(sequence)) await adk.appendEvent({ session: theirs, event: asAdk(e) });
-  assert.equal(JSON.stringify(ours.events), JSON.stringify(theirs.events), 'the same events, in the same order and shape');
-  assert.deepEqual({ ...ours.state }, { ...theirs.state });
+  // ADK's base service over the same sequence: its events as JSON text (order and shape), its state.
+  const theirs = await reference('apply-event-state', async () => {
+    const { InMemorySessionService } = await import('@google/adk');
+    const adk = new InMemorySessionService();
+    const session = await adk.createSession({ appName: 'app', userId: 'user', sessionId: 'conv' });
+    for (const e of structuredClone(sequence)) await adk.appendEvent({ session, event: asAdk(e) });
+    return { events: JSON.stringify(session.events), state: { ...session.state } };
+  });
+  assert.equal(JSON.stringify(ours.events), theirs.events, 'the same events, in the same order and shape');
+  assert.deepEqual({ ...ours.state }, theirs.state);
   assert.deepEqual(ours.state, { draft: 'v2', count: 1, replaced: true });
   assert.equal(ours.lastUpdateTime, 40);
   assert.deepEqual(ours.events.map((e) => e.id), ['e1', 'e2'], 'the same id replaces its event in place');

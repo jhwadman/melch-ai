@@ -1,0 +1,53 @@
+{
+  "suite": "workflowParity",
+  "case": "placeholders-with-a-scope",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "text": "Write on cats for kids."
+    },
+    {
+      "text": "3 {\"a\":1} |null|"
+    },
+    {
+      "text": "{input.missing} /  / cats / cats"
+    },
+    {
+      "text": "{input.missing?} then {input.missing?}: the first spelling stays"
+    },
+    {
+      "text": "{input.missing} then {input.missing}"
+    },
+    {
+      "text": "cats kids cats"
+    },
+    {
+      "text": "dogs [1,2] dogs dogs"
+    },
+    {
+      "text": "<input.topic from Writer> <input.n from Counter> <input.x from Nope> <input.topic from Planner"
+    },
+    {
+      "text": "<input.topic fromPlanner> <input.topic from  > <1x.topic from Planner> <input..topic from Planner>"
+    },
+    {
+      "text": "dogs <a.b.c from Planner> <input.topic from Planner2>"
+    },
+    {
+      "text": "{ <input.topic from Planner> }dogs } overlap"
+    },
+    {
+      "text": "calm Ada  cats dogs"
+    },
+    {
+      "text": "{ \"a\": 1 } {not valid} {a:b:c} { {"
+    },
+    {
+      "text": "no placeholders at all"
+    },
+    {
+      "text": "<dogs> <> < > <input."
+    }
+  ]
+}

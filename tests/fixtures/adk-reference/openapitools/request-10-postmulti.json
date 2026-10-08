@@ -1,0 +1,19 @@
+{
+  "suite": "openapiTools",
+  "case": "request-10-postMulti",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/multi",
+        "method": "POST",
+        "headers": {},
+        "body": "[[\"a\",\"x\"],[\"n\",\"2\"]]"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

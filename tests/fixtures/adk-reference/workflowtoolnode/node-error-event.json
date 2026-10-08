@@ -1,0 +1,9 @@
+{
+  "suite": "workflowToolNode",
+  "case": "node-error-event",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    "{\"author\":\"Lookup\",\"nodeInfo\":{\"path\":\"Graph.Lookup\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"isNodeError\":true,\"errorType\":\"TypeError\",\"errorCode\":\"UNKNOWN_ERROR\",\"errorMessage\":\"The input to ToolNode must be an object of tool arguments or null, but got string.\",\"attemptCount\":1}"
+  ]
+}

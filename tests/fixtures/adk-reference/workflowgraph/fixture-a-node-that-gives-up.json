@@ -1,0 +1,17 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-a node that gives up",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Triage",
+      "Fixer"
+    ],
+    "edges": [
+      "__START__ -> Triage",
+      "Triage -> Fixer"
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "suite": "workflowToolNode",
+  "case": "input-mapping-arguments the schema refuses",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "side": {
+      "events": [
+        "{\"author\":\"Triage\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"{\\\"q\\\":5}\"}]},\"output\":{\"q\":5},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Triage\",\"outputFor\":[\"Graph.Triage\"]}}",
+        "{\"author\":\"Lookup\",\"content\":{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"id\":\"Graph.Lookup:1\",\"name\":\"tool_node_lookup\",\"response\":{\"result\":\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received number\"}}}]},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"output\":{\"result\":\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received number\"},\"nodeInfo\":{\"path\":\"Graph.Lookup\",\"outputFor\":[\"Graph.Lookup\"]}}",
+        "{\"author\":\"Reader\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"read {\\\"result\\\":\\\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received number\\\"}\"}]},\"output\":\"read {\\\"result\\\":\\\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received number\\\"}\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Reader\",\"outputFor\":[\"Graph.Reader\"]}}"
+      ],
+      "completions": [
+        "Graph.Triage = {\"q\":5} @-",
+        "Graph.Lookup = {\"result\":\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received number\"} @-",
+        "Graph.Reader = \"read {\\\"result\\\":\\\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received number\\\"}\" @-"
+      ],
+      "output": "read {\"result\":\"Error: invalid arguments for tool_node_lookup: q: Invalid input: expected string, received number\"}",
+      "logs": [
+        "⇢ Node: Triage",
+        "⇢ Node: Lookup",
+        "← Result: tool_node_lookup — 110 chars",
+        "⇢ Node: Reader"
+      ],
+      "progress": [
+        "Running node: Triage",
+        "Running node: Lookup",
+        "Running node: Reader"
+      ]
+    }
+  }
+}

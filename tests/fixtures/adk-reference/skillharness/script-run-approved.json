@@ -1,0 +1,442 @@
+{
+  "suite": "skillHarness",
+  "case": "script-run-approved",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "input-required",
+        "text": "Approval needed: Harness wants to run run_skill_script({\"skill_name\":\"release-notes\",\"script_path\":\"scripts/version.sh\",\"args\":{\"tag\":\"beta\"}}).",
+        "error": null,
+        "approval": {
+          "tool": "run_skill_script",
+          "args": {
+            "skill_name": "release-notes",
+            "script_path": "scripts/version.sh",
+            "args": {
+              "tag": "beta"
+            }
+          }
+        }
+      },
+      {
+        "status": "completed",
+        "text": "got {\"stdout\":\"version=9.9.9 args=--tag beta\\n\",\"stderr\":\"\",\"outputFiles\":[],\"outputDirectory\":\"<output-dir>\"}",
+        "error": null,
+        "approval": null
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "release notes"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "run_skill_script",
+                "args": {
+                  "skill_name": "release-notes",
+                  "script_path": "scripts/version.sh",
+                  "args": {
+                    "tag": "beta"
+                  }
+                },
+                "id": "call-run"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "content": {
+          "parts": [
+            {
+              "functionCall": {
+                "name": "adk_request_confirmation",
+                "args": {
+                  "originalFunctionCall": {
+                    "name": "run_skill_script",
+                    "args": {
+                      "skill_name": "release-notes",
+                      "script_path": "scripts/version.sh",
+                      "args": {
+                        "tag": "beta"
+                      }
+                    },
+                    "id": "call-run"
+                  },
+                  "toolConfirmation": {
+                    "hint": "Approval is required before a skill script runs on this machine. The agent asks to run release-notes: scripts/version.sh {\"tag\":\"beta\"}.",
+                    "confirmed": false,
+                    "payload": {
+                      "skill_name": "release-notes",
+                      "script_path": "scripts/version.sh",
+                      "args": {
+                        "tag": "beta"
+                      }
+                    }
+                  }
+                },
+                "id": "adk-00000000-0000-4000-8000-000000000002"
+              }
+            }
+          ],
+          "role": "user"
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {
+            "call-run": {
+              "hint": "Approval is required before a skill script runs on this machine. The agent asks to run release-notes: scripts/version.sh {\"tag\":\"beta\"}.",
+              "confirmed": false,
+              "payload": {
+                "skill_name": "release-notes",
+                "script_path": "scripts/version.sh",
+                "args": {
+                  "tag": "beta"
+                }
+              }
+            }
+          },
+          "skipSummarization": true
+        },
+        "longRunningToolIds": [
+          "adk-00000000-0000-4000-8000-000000000002"
+        ],
+        "id": "ev000003",
+        "timestamp": 1767225602000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000003",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "adk-00000000-0000-4000-8000-000000000002",
+                "name": "adk_request_confirmation",
+                "response": {
+                  "confirmed": true
+                }
+              }
+            }
+          ]
+        },
+        "id": "ev000004",
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000003",
+        "author": "Harness",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-run",
+                "name": "run_skill_script",
+                "response": {
+                  "stdout": "version=9.9.9 args=--tag beta\n",
+                  "stderr": "",
+                  "outputFiles": [],
+                  "outputDirectory": "<output-dir>"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000005",
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000003",
+        "author": "Harness",
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "got {\"stdout\":\"version=9.9.9 args=--tag beta\\n\",\"stderr\":\"\",\"outputFiles\":[],\"outputDirectory\":\"<output-dir>\"}"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "models": {
+      "boss": {
+        "calls": 2,
+        "sent": [
+          {
+            "system": "You are an agent. Your internal name is \"Harness\".\n\nFollow skills.\n\nSkills are installed procedures, one directory each: a SKILL.md with the procedure, and optionally references/, assets/ and scripts/. The index below lists every installed skill by name and description; it is complete, so never call a tool to list skills.\n\nload_skill(name) returns a skill's full SKILL.md and the names of the files it ships. load_skill_resource(skill_name, path) returns one of those files (\"references/x.md\", \"assets/x.yaml\", \"scripts/x.sh\").\n\nrun_skill_script(skill_name, script_path, args) runs a script from a skill's scripts/ directory on this machine. Every run waits for the user's approval before it executes; when a run is refused, say so and do not retry it.\n\n<available_skills>\n  <skill>\n    <name>greeting</name>\n    <description>Greet a person by name in the team's house manner. Use when the user asks for a greeting or a welcome message.</description>\n  </skill>\n  <skill>\n    <name>release-notes</name>\n    <description>Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.</description>\n  </skill>\n</available_skills>",
+            "tools": [
+              {
+                "name": "load_skill",
+                "description": "Read one installed skill in full: its SKILL.md procedure, its frontmatter, and the names of the files it ships. Read a skill before you follow it.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "The skill's name, exactly as the index lists it."
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ]
+                }
+              },
+              {
+                "name": "load_skill_resource",
+                "description": "Loads a resource file (from references/, assets/, or scripts/) from within a skill.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "skill_name": {
+                      "type": "string",
+                      "description": "The name of the skill."
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "The relative path to the resource (e.g., 'references/my_doc.md', 'assets/template.txt', or 'scripts/setup.sh')."
+                    }
+                  },
+                  "required": [
+                    "skill_name",
+                    "path"
+                  ]
+                }
+              },
+              {
+                "name": "run_skill_script",
+                "description": "Executes a script from a skill's scripts/ directory.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "skill_name": {
+                      "type": "string",
+                      "description": "The name of the skill."
+                    },
+                    "script_path": {
+                      "type": "string",
+                      "description": "The relative path to the script (e.g., 'scripts/setup.js')."
+                    },
+                    "args": {
+                      "type": "object",
+                      "description": "Optional arguments to pass to the script as key-value pairs."
+                    }
+                  },
+                  "required": [
+                    "skill_name",
+                    "script_path"
+                  ]
+                }
+              },
+              {
+                "name": "adk_handle_model_error",
+                "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "release notes"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "system": "You are an agent. Your internal name is \"Harness\".\n\nFollow skills.\n\nSkills are installed procedures, one directory each: a SKILL.md with the procedure, and optionally references/, assets/ and scripts/. The index below lists every installed skill by name and description; it is complete, so never call a tool to list skills.\n\nload_skill(name) returns a skill's full SKILL.md and the names of the files it ships. load_skill_resource(skill_name, path) returns one of those files (\"references/x.md\", \"assets/x.yaml\", \"scripts/x.sh\").\n\nrun_skill_script(skill_name, script_path, args) runs a script from a skill's scripts/ directory on this machine. Every run waits for the user's approval before it executes; when a run is refused, say so and do not retry it.\n\n<available_skills>\n  <skill>\n    <name>greeting</name>\n    <description>Greet a person by name in the team's house manner. Use when the user asks for a greeting or a welcome message.</description>\n  </skill>\n  <skill>\n    <name>release-notes</name>\n    <description>Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.</description>\n  </skill>\n</available_skills>",
+            "tools": [
+              {
+                "name": "load_skill",
+                "description": "Read one installed skill in full: its SKILL.md procedure, its frontmatter, and the names of the files it ships. Read a skill before you follow it.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "The skill's name, exactly as the index lists it."
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ]
+                }
+              },
+              {
+                "name": "load_skill_resource",
+                "description": "Loads a resource file (from references/, assets/, or scripts/) from within a skill.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "skill_name": {
+                      "type": "string",
+                      "description": "The name of the skill."
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "The relative path to the resource (e.g., 'references/my_doc.md', 'assets/template.txt', or 'scripts/setup.sh')."
+                    }
+                  },
+                  "required": [
+                    "skill_name",
+                    "path"
+                  ]
+                }
+              },
+              {
+                "name": "run_skill_script",
+                "description": "Executes a script from a skill's scripts/ directory.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "skill_name": {
+                      "type": "string",
+                      "description": "The name of the skill."
+                    },
+                    "script_path": {
+                      "type": "string",
+                      "description": "The relative path to the script (e.g., 'scripts/setup.js')."
+                    },
+                    "args": {
+                      "type": "object",
+                      "description": "Optional arguments to pass to the script as key-value pairs."
+                    }
+                  },
+                  "required": [
+                    "skill_name",
+                    "script_path"
+                  ]
+                }
+              },
+              {
+                "name": "adk_handle_model_error",
+                "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "release notes"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "toolCall",
+                    "id": "call-run",
+                    "name": "run_skill_script",
+                    "args": {
+                      "skill_name": "release-notes",
+                      "script_path": "scripts/version.sh",
+                      "args": {
+                        "tag": "beta"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "toolResult",
+                    "id": "call-run",
+                    "name": "run_skill_script",
+                    "result": {
+                      "stdout": "version=9.9.9 args=--tag beta\n",
+                      "stderr": "",
+                      "outputFiles": [],
+                      "outputDirectory": "<output-dir>"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

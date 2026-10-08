@@ -1,0 +1,56 @@
+{
+  "suite": "events",
+  "case": "is-final-cases",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "label": "plain text",
+      "final": true
+    },
+    {
+      "label": "no content (a workflow pause marker)",
+      "final": true
+    },
+    {
+      "label": "a streaming fragment",
+      "final": false
+    },
+    {
+      "label": "a tool call",
+      "final": false
+    },
+    {
+      "label": "a tool response",
+      "final": false
+    },
+    {
+      "label": "a response that skips summarization",
+      "final": true
+    },
+    {
+      "label": "a call that waits for a person",
+      "final": true
+    },
+    {
+      "label": "a tool asking for auth",
+      "final": true
+    },
+    {
+      "label": "an empty auth request",
+      "final": false
+    },
+    {
+      "label": "a trailing code execution result",
+      "final": false
+    },
+    {
+      "label": "a code result followed by text",
+      "final": true
+    },
+    {
+      "label": "a partial that skips summarization",
+      "final": true
+    }
+  ]
+}

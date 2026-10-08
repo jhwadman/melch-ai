@@ -1,0 +1,20 @@
+{
+  "suite": "workflowScheduler",
+  "case": "map-empty-list",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Splitter <- \"go\"",
+      "Summary <- []"
+    ],
+    "completions": [
+      "Mapped.Splitter = [] @-",
+      "Mapped.Fan = [] @-",
+      "Mapped.Summary = [] @-"
+    ],
+    "output": [],
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-a tool node routes; integer and boolean keys; fan-out on a route",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Triage",
+      "Lookup",
+      "Lookup__route",
+      "Fixer",
+      "Other",
+      "Reader"
+    ],
+    "edges": [
+      "__START__ -> Triage",
+      "Triage -> Lookup",
+      "Lookup -> Lookup__route",
+      "Lookup__route -> Fixer [1]",
+      "Lookup__route -> Other [1]",
+      "Lookup__route -> Reader [true]"
+    ]
+  }
+}

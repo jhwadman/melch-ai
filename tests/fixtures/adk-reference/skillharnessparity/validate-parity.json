@@ -1,0 +1,18 @@
+{
+  "suite": "skillHarnessParity",
+  "case": "validate-parity",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "extra-field": [
+      "Unknown frontmatter fields: [version]"
+    ],
+    "kit": [],
+    "mismatch": [
+      "Skill name 'other-name' does not match directory name 'mismatch'."
+    ],
+    "nofm": [
+      "SKILL.md must start with YAML frontmatter (---)"
+    ]
+  }
+}

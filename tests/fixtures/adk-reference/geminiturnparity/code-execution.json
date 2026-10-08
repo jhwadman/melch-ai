@@ -1,0 +1,103 @@
+{
+  "suite": "geminiTurnParity",
+  "case": "code-execution",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "bodies": [
+      {
+        "contents": [
+          {
+            "parts": [
+              {
+                "text": "Announce that the office is closed next Friday."
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "systemInstruction": {
+          "parts": [
+            {
+              "text": "You are an agent. Your internal name is \"Boss\".\n\nHelp."
+            }
+          ],
+          "role": "user"
+        },
+        "tools": [
+          {
+            "codeExecution": {}
+          }
+        ],
+        "toolConfig": {
+          "includeServerSideToolInvocations": true
+        },
+        "generationConfig": {}
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Announce that the office is closed next Friday."
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Boss",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "executableCode": {
+                "language": "PYTHON",
+                "code": "print(6 * 7)"
+              },
+              "thoughtSignature": "Y29kZS1zaWc="
+            },
+            {
+              "codeExecutionResult": {
+                "outcome": "OUTCOME_OK",
+                "output": "42\n"
+              }
+            },
+            {
+              "text": "The product is 42."
+            }
+          ]
+        },
+        "usageMetadata": {
+          "promptTokenCount": 10,
+          "candidatesTokenCount": 5,
+          "totalTokenCount": 15
+        },
+        "finishReason": "STOP"
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "suite": "openapiTools",
+  "case": "request-5-search",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/search?fixed=1",
+        "method": "GET",
+        "headers": {
+          "authorization": "Bearer tok"
+        }
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

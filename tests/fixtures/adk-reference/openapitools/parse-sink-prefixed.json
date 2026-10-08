@@ -1,0 +1,690 @@
+{
+  "suite": "openapiTools",
+  "case": "parse-sink-prefixed",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "name": "zoo_list_pets",
+      "operationId": "listPets",
+      "method": "get",
+      "path": "/pets",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "authScheme": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "parameters": [
+        {
+          "name": "limit",
+          "originalName": "limit",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        {
+          "name": "param_class",
+          "originalName": "class",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "page_token",
+          "originalName": "pageToken",
+          "location": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "x_trace",
+          "originalName": "X-Trace",
+          "location": "header",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "zoo_list_pets",
+        "description": "List all the pets",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "param_class": {
+              "type": "string"
+            },
+            "page_token": {
+              "type": "string"
+            },
+            "x_trace": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "page_token"
+          ]
+        }
+      }
+    },
+    {
+      "name": "zoo_create_pet",
+      "operationId": "createPet",
+      "method": "post",
+      "path": "/pets",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "parameters": [
+        {
+          "name": "x_trace",
+          "originalName": "X-Trace",
+          "location": "header",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "name",
+          "originalName": "name",
+          "location": "body",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 40,
+            "format": "uuid",
+            "default": "x",
+            "example": "Rex",
+            "description": "The pet's name"
+          }
+        },
+        {
+          "name": "tags",
+          "originalName": "tags",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "a",
+                "b"
+              ]
+            }
+          }
+        },
+        {
+          "name": "owner",
+          "originalName": "owner",
+          "location": "body",
+          "required": false,
+          "schema": {}
+        },
+        {
+          "name": "nickname",
+          "originalName": "nickname",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        {
+          "name": "kind",
+          "originalName": "kind",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        {
+          "name": "weird",
+          "originalName": "weird",
+          "location": "body",
+          "required": false,
+          "schema": {}
+        },
+        {
+          "name": "extra",
+          "originalName": "extra",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "meta",
+          "originalName": "meta",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": "object"
+          }
+        },
+        {
+          "name": "choice",
+          "originalName": "choice",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "either",
+          "originalName": "either",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tuple",
+          "originalName": "tuple",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": "array",
+            "items": [
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        {
+          "name": "born",
+          "originalName": "born",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "example": "2024-01-01T00:00:00.000Z"
+          }
+        },
+        {
+          "name": "max_items_snake",
+          "originalName": "max_items_snake",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": "array",
+            "max_items": 3,
+            "MinItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "declaration": {
+        "name": "zoo_create_pet",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "x_trace": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 40,
+              "example": "Rex",
+              "description": "The pet's name"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "a",
+                  "b"
+                ]
+              }
+            },
+            "owner": {
+              "type": "object",
+              "properties": {
+                "dummy_DO_NOT_GENERATE": {
+                  "type": "string"
+                }
+              }
+            },
+            "nickname": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "type": "type_unspecified"
+            },
+            "weird": {
+              "type": "object",
+              "properties": {
+                "dummy_DO_NOT_GENERATE": {
+                  "type": "string"
+                }
+              }
+            },
+            "extra": {
+              "type": "object",
+              "properties": {
+                "dummy_DO_NOT_GENERATE": {
+                  "type": "string"
+                }
+              }
+            },
+            "meta": {
+              "type": "object",
+              "properties": {
+                "dummy_DO_NOT_GENERATE": {
+                  "type": "string"
+                }
+              }
+            },
+            "choice": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "object",
+              "properties": {
+                "dummy_DO_NOT_GENERATE": {
+                  "type": "string"
+                }
+              }
+            },
+            "either": {
+              "type": "object",
+              "properties": {
+                "dummy_DO_NOT_GENERATE": {
+                  "type": "string"
+                }
+              }
+            },
+            "tuple": {
+              "type": "array",
+              "items": [
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "born": {
+              "type": "string",
+              "example": "2024-01-01T00:00:00.000Z"
+            },
+            "max_items_snake": {
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      }
+    },
+    {
+      "name": "zoo_pets_pet_id_get",
+      "operationId": "pets_pet_id_get",
+      "method": "get",
+      "path": "/pets/{petId}",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "authScheme": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "parameters": [
+        {
+          "name": "pet_id",
+          "originalName": "petId",
+          "location": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "zoo_pets_pet_id_get",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pet_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "pet_id"
+          ]
+        }
+      }
+    },
+    {
+      "name": "zoo_get_http_status_for_pet",
+      "operationId": "getHTTPStatusForPet",
+      "method": "put",
+      "path": "/pets/{petId}",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "authScheme": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "parameters": [
+        {
+          "name": "pet_id",
+          "originalName": "petId",
+          "location": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "pet_id_1",
+          "originalName": "pet_id",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "body",
+          "originalName": "array",
+          "location": "body",
+          "required": true,
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      ],
+      "declaration": {
+        "name": "zoo_get_http_status_for_pet",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pet_id": {
+              "type": "string"
+            },
+            "pet_id_1": {
+              "type": "string"
+            },
+            "body": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          },
+          "required": [
+            "pet_id",
+            "body"
+          ]
+        }
+      }
+    },
+    {
+      "name": "zoo_delete_pet",
+      "operationId": "deletePet",
+      "method": "delete",
+      "path": "/pets/{petId}",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "authScheme": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "parameters": [],
+      "declaration": {
+        "name": "zoo_delete_pet",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "dummy_DO_NOT_GENERATE": {
+              "type": "string"
+            }
+          },
+          "required": []
+        }
+      }
+    },
+    {
+      "name": "zoo_patch_pet",
+      "operationId": "patchPet",
+      "method": "patch",
+      "path": "/pets/{petId}",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "authScheme": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "parameters": [
+        {
+          "name": "body",
+          "originalName": "body",
+          "location": "body",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "zoo_patch_pet",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "body"
+          ]
+        }
+      }
+    },
+    {
+      "name": "zoo_make_thing",
+      "operationId": "makeThing",
+      "method": "post",
+      "path": "/things",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "authScheme": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "parameters": [
+        {
+          "name": "body",
+          "originalName": "",
+          "location": "body",
+          "required": true,
+          "schema": {
+            "type": "object"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "zoo_make_thing",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "object",
+              "properties": {
+                "dummy_DO_NOT_GENERATE": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": [
+            "body"
+          ]
+        }
+      }
+    },
+    {
+      "name": "zoo_param_import",
+      "operationId": "import",
+      "method": "head",
+      "path": "/things",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "authScheme": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "parameters": [
+        {
+          "name": "param_in",
+          "originalName": "in",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "a_b",
+          "originalName": "a.b",
+          "location": "query",
+          "required": false,
+          "schema": {
+            "type": "number"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "zoo_param_import",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "param_in": {
+              "type": "boolean"
+            },
+            "a_b": {
+              "type": "number"
+            }
+          },
+          "required": []
+        }
+      }
+    },
+    {
+      "name": "zoo_plant_a_very_long_operation_id_that_goes_on_and_on_past_",
+      "operationId": "plantAVeryLongOperationIdThatGoesOnAndOnPastTheSixtyCharacterLimitOfAToolName",
+      "method": "post",
+      "path": "/trees",
+      "baseUrl": "https://eu.api.example.com/v1",
+      "authScheme": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Key"
+      },
+      "parameters": [
+        {
+          "name": "label",
+          "originalName": "label",
+          "location": "body",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "child",
+          "originalName": "child",
+          "location": "body",
+          "required": false,
+          "schema": {}
+        }
+      ],
+      "declaration": {
+        "name": "zoo_plant_a_very_long_operation_id_that_goes_on_and_on_past_",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "child": {
+              "type": "object",
+              "properties": {
+                "dummy_DO_NOT_GENERATE": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": []
+        }
+      }
+    }
+  ]
+}

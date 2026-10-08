@@ -1,0 +1,11 @@
+{
+  "suite": "workflowResume",
+  "case": "refused-replies",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    "The reply carries interrupt id 'nope', which does not match any interrupt this run raised. Still waiting: '00000000-0000-4000-8000-000000000001'. A reply must use the id from the 'adk_request_input' function call it answers. Nothing was resolved, so any waiting interrupt can still be answered.",
+    "Interrupt '00000000-0000-4000-8000-000000000001' has already been answered, so this reply resolves nothing. Sending it again does not change the earlier answer, and it would otherwise be served as a new message, restarting the node that asked. This run has no interrupt waiting for an answer.",
+    "The reply to interrupt 'k' does not match the responseSchema it declared: Invalid input: expected boolean, received string at 'ok'. A structured reply must either match that schema, or wrap a bare value as {result: <value>}; a plain-text reply is accepted as-is and is not checked. The interrupt is still waiting, so you can answer it again."
+  ]
+}

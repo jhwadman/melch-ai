@@ -21,6 +21,11 @@
  *   3. THE PORT. Each function of resume.ts against ADK's own
  *      (workflow/utils/rehydration_utils.js) on the same events.
  *
+ * ADK's side of every comparison (its stored events, its requests, its
+ * rehydration functions' outputs) is recorded in
+ * tests/fixtures/adk-reference/workflowresume (tests/helpers/adkReference.ts);
+ * ADK runs it live only under ADK_REFERENCE=live|record.
+ *
  * No network, no provider calls. No timers: nothing here races.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -31,7 +36,6 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { FunctionNode, InMemorySessionService, LogLevel, Runner, setLogLevel } from '@google/adk';
 import type { Event, LlmAgent } from '@google/adk';
 
 import { compileNativeSubagent } from '../lib/compileNative.ts';
@@ -72,8 +76,15 @@ import { APP, USER, scenario } from './fixtures/sessions/scenarios.ts';
 import { conversation, loadFixture, pendingWorkflowInput as helperPendingWorkflowInput, seedSessions } from './helpers/sessionFixtures.ts';
 import type { SessionFixture } from './helpers/sessionFixtures.ts';
 import { ScriptedModel, answer, requestTexts, shimResolver } from './helpers/scriptedModel.ts';
+import { requestsOf } from './helpers/workflowParity.ts';
+import { adkReferences, canonical, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of each comparison is recorded (tests/fixtures/adk-reference/workflowresume); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('workflowResume');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURE = '05-workflow-ask-user';
@@ -187,8 +198,8 @@ async function seedNative(f: SessionFixture): Promise<{ sessions: InProcessSessi
   return { sessions, session };
 }
 
-/** ADK's resume of a session holding `events`: the events it stores after them, and the turn's result. */
-async function adkResume(events: readonly StoredEvent[], text: string) {
+/** ADK's resume of a session holding `events`, live: the events it stores after them, and the turn's result. Only inside a reference. */
+async function liveAdkResume(events: readonly StoredEvent[], text: string) {
   const s = scenario(FIXTURE);
   const models = fixtureModels();
   const sessionService = await seedSessions({ ...loadFixture(FIXTURE), sessions: [{ ...conversation(loadFixture(FIXTURE)), events: json(events) as unknown as Event[] }] });
@@ -207,28 +218,50 @@ async function adkResume(events: readonly StoredEvent[], text: string) {
   return { result, models, stored: json(after!.events.slice(events.length)) as unknown as TurnEvent[] };
 }
 
+/**
+ * ADK's resume of a session holding `events`, as recorded: the turn's
+ * status, error and text, the requests each model received, the calls each
+ * took, and the session (`before`, the events it was seeded with, then
+ * `stored`, those ADK stored after them). The seeded events are recorded
+ * with ADK's, so the ids the reference renumbers stay one set (an
+ * interrupt id in ADK's events is the one in `before`).
+ */
+async function adkResume(name: string, events: readonly StoredEvent[], text: string) {
+  const r = await reference(name, async () => {
+    const { result, models, stored } = await liveAdkResume(events, text);
+    return {
+      status: result.status,
+      ...(result.error ? { error: result.error.message } : {}),
+      text: result.text,
+      requests: Object.fromEntries(Object.entries(models).map(([key, m]) => [key, requestsOf(m)])),
+      calls: Object.fromEntries(Object.entries(models).map(([key, m]) => [key, m.calls])),
+      session: [...json(events), ...stored] as unknown as TurnEvent[],
+    };
+  });
+  return { ...r, before: r.session.slice(0, events.length) as StoredEvent[], stored: r.session.slice(events.length) };
+}
+
 test('fixture 05, written by ADK, resumes on the scheduler: ADK\'s stored events, and the next node sees the reply and the draft', async () => {
   const f = loadFixture(FIXTURE);
   const stored = conversation(f).events as unknown as StoredEvent[];
-  const adk = await adkResume(stored, 'yes');
-  assert.equal(adk.result.status, 'completed', adk.result.error?.message);
+  const adk = await adkResume('fixture-05-resume', stored, 'yes');
+  assert.equal(adk.status, 'completed', adk.error);
 
   const s = scenario(FIXTURE);
   const models = fixtureModels();
   const { sessions, session } = await seedNative(f);
   const native = await nativeTurn(s.config, models, sessions, session, 'yes', true);
 
-  assert.deepEqual(sorted(comparable(native.stored, stored)), sorted(comparable(adk.stored, stored)), 'the events stored after the reply');
+  assert.deepEqual(sorted(comparable(native.stored, stored)), sorted(comparable(adk.stored, adk.before)), 'the events stored after the reply');
   // The walk's events in ADK's key order too (the message is the caller's to store, WS4-6).
-  assert.deepEqual(comparable(native.stored.slice(1), stored), comparable(adk.stored.slice(1), stored), 'in ADK\'s key order too');
+  assert.deepEqual(comparable(native.stored.slice(1), stored), comparable(adk.stored.slice(1), adk.before), 'in ADK\'s key order too');
   assert.equal(models.triage!.calls, 0, 'Triage completed from its stored output');
   assert.equal(models.publisher!.calls, 1);
   assert.deepEqual(models.publisher!.requests.map(requestTexts), [['{"reply":"yes","input":"the draft"}']], 'Publisher sees the reply and the draft');
-  const strip = (m: ScriptedModel) => m.requests.map(({ signal: _s, ...r }) => r);
-  assert.deepEqual(strip(models.publisher!), strip(adk.models.publisher!), 'the request Publisher received, as on ADK');
+  assert.deepEqual(requestsOf(models.publisher!), adk.requests.publisher, 'the request Publisher received, as on ADK');
   assert.deepEqual(native.run.interruptIds, []);
   assert.equal(native.run.output, 'published {"reply":"yes","input":"the draft"}');
-  assert.equal(native.run.output, adk.result.text);
+  assert.equal(native.run.output, adk.text);
   assert.deepEqual(native.run.order, ['Triage', 'Confirm', 'Publisher']);
   assert.deepEqual(
     native.walk.map((e) => `${e.type} ${'node' in e ? e.node : ''}`),
@@ -250,16 +283,16 @@ test('a pause the scheduler opened stores the fixture\'s events, and resumes on 
   assert.deepEqual({ ...pending, id: '-' }, { id: '-', node: 'Confirm', message: 'Publish?', payload: 'the draft' });
 
   // On ADK: the stored shape is all ADK needs.
-  const adk = await adkResume(paused.stored, 'yes');
-  assert.equal(adk.result.status, 'completed', adk.result.error?.message);
-  assert.equal(adk.result.text, 'published {"reply":"yes","input":"the draft"}');
-  assert.equal(adk.models.triage!.calls, 0);
+  const adk = await adkResume('scheduler-pause-resumed-on-adk', paused.stored, 'yes');
+  assert.equal(adk.status, 'completed', adk.error);
+  assert.equal(adk.text, 'published {"reply":"yes","input":"the draft"}');
+  assert.equal(adk.calls.triage, 0);
 
   // On the scheduler, from its own session: the same events ADK stored.
   const models = fixtureModels();
   const resumed = await nativeTurn(s.config, models, sessions, session, 'yes', true);
-  assert.deepEqual(sorted(comparable(resumed.stored, paused.stored)), sorted(comparable(adk.stored, paused.stored)));
-  assert.equal(resumed.run.output, adk.result.text);
+  assert.deepEqual(sorted(comparable(resumed.stored, paused.stored)), sorted(comparable(adk.stored, adk.before)));
+  assert.equal(resumed.run.output, adk.text);
   assert.equal(models.triage!.calls, 0);
 });
 
@@ -271,18 +304,23 @@ test('after a resume, a node\'s workflow placeholders read what ADK\'s read: the
   const cfg = { ...s.config, subagents: s.config.subagents!.map((sub) => ({ ...sub, instruction: 'Publish {x.reply}: <x.input from Confirm> / <x.draft from Triage>.' })) } as SyndicateYamlConfig;
   const stored = conversation(f).events as unknown as StoredEvent[];
 
-  const adkModels = fixtureModels();
-  const sessionService = await seedSessions(f);
-  const adk = await runSyndicateTurn({ runtime: 'adk', config: cfg, parts: [{ text: 'yes' }], appName: APP, userId: USER, sessionId: s.sessionId, sessionService, compile: { resolveModel: shimResolver(adkModels), log: () => {} }, trace: false });
-  assert.equal(adk.status, 'completed', adk.error?.message);
-  const adkStored = json((await sessionService.getSession({ appName: APP, userId: USER, sessionId: s.sessionId }))!.events.slice(stored.length)) as unknown as TurnEvent[];
+  // ADK's side, recorded: the turn's status, its session (the fixture's events, then ADK's), the requests Publisher received.
+  const adk = await reference('placeholders-after-resume', async () => {
+    const adkModels = fixtureModels();
+    const sessionService = await seedSessions(f);
+    const r = await runSyndicateTurn({ runtime: 'adk', config: cfg, parts: [{ text: 'yes' }], appName: APP, userId: USER, sessionId: s.sessionId, sessionService, compile: { resolveModel: shimResolver(adkModels), log: () => {} }, trace: false });
+    const session = json((await sessionService.getSession({ appName: APP, userId: USER, sessionId: s.sessionId }))!.events) as unknown as TurnEvent[];
+    return { status: r.status, ...(r.error ? { error: r.error.message } : {}), session, publisher: requestsOf(adkModels.publisher!) };
+  });
+  assert.equal(adk.status, 'completed', adk.error);
+  const adkBefore = adk.session.slice(0, stored.length) as StoredEvent[];
+  const adkStored = adk.session.slice(stored.length);
 
   const models = fixtureModels();
   const { sessions, session } = await seedNative(f);
   const native = await nativeTurn(cfg, models, sessions, session, 'yes', true);
-  assert.deepEqual(sorted(comparable(native.stored, stored)), sorted(comparable(adkStored, stored)));
-  const strip = (m: ScriptedModel) => m.requests.map(({ signal: _s, ...r }) => r);
-  assert.deepEqual(strip(models.publisher!), strip(adkModels.publisher!), 'the same instruction, filled the same way');
+  assert.deepEqual(sorted(comparable(native.stored, stored)), sorted(comparable(adkStored, adkBefore)));
+  assert.deepEqual(requestsOf(models.publisher!), adk.publisher, 'the same instruction, filled the same way');
   assert.match(JSON.stringify(models.publisher!.requests[0]), /Publish yes: the draft \/ <x\.draft from Triage>\./);
 });
 
@@ -330,8 +368,16 @@ function stubEvent(run: NodeRun, name: string, output: unknown, invocationId: st
 
 type Message = { role: 'user'; parts: Array<Record<string, unknown>> };
 
-/** ADK: the pause, then the answer, on one session. Each turn's yielded events. */
-async function adkTurns(cfg: SyndicateYamlConfig, stubs: Stubs, messages: Message[]): Promise<{ turns: TurnEvent[][]; errors: Array<string | undefined>; stored: TurnEvent[]; calls: string[] }> {
+interface AdkTurns {
+  turns: TurnEvent[][];
+  errors: Array<string | undefined>;
+  stored: TurnEvent[];
+  calls: string[];
+}
+
+/** ADK, live: the pause, then the answer, on one session. Each turn's yielded events. Only inside a reference. */
+async function liveAdkTurns(cfg: SyndicateYamlConfig, stubs: Stubs, messages: Message[]): Promise<AdkTurns> {
+  const { FunctionNode, InMemorySessionService, Runner } = await import('@google/adk');
   const calls: string[] = [];
   const toStub = (a: LlmAgent) =>
     new FunctionNode(a.name, (_ctx: unknown, input: unknown) => {
@@ -357,6 +403,12 @@ async function adkTurns(cfg: SyndicateYamlConfig, stubs: Stubs, messages: Messag
   }
   const stored = json((await sessionService.getSession({ ...STUB_APP }))!.events) as unknown as TurnEvent[];
   return { turns, errors, stored, calls };
+}
+
+/** ADK's turns of case `name`: recorded, or (ADK_REFERENCE=live|record) run on ADK's Runner. A turn that did not fail records no error (JSON's null read back as undefined). */
+async function adkTurns(name: string, cfg: SyndicateYamlConfig, stubs: Stubs, messages: Message[]): Promise<AdkTurns> {
+  const r = await reference(name, () => liveAdkTurns(cfg, stubs, messages));
+  return { ...r, errors: r.errors.map((e) => e ?? undefined) };
 }
 
 /**
@@ -401,9 +453,9 @@ async function nativeTurnOnEvents(cfg: SyndicateYamlConfig, stubs: Stubs, histor
  * from ADK's stored events and from the scheduler's own pause. All three
  * answers write the same events and call the same stubs.
  */
-async function resumesAlike(cfg: SyndicateYamlConfig, stubs: Stubs, answer: Message) {
+async function resumesAlike(name: string, cfg: SyndicateYamlConfig, stubs: Stubs, answer: Message) {
   const go: Message = { role: 'user', parts: [{ text: 'go' }] };
-  const adk = await adkTurns(cfg, stubs, [go, answer]);
+  const adk = await adkTurns(name, cfg, stubs, [go, answer]);
   const [firstAdk, secondAdk] = adk.turns as [TurnEvent[], TurnEvent[]];
   const adkPaused = adk.stored.slice(0, adk.stored.length - secondAdk.length - 1);
 
@@ -429,7 +481,7 @@ async function resumesAlike(cfg: SyndicateYamlConfig, stubs: Stubs, answer: Mess
 const chain = () => syndicate([['START', 'Triage', 'Confirm', 'Publisher']], { Confirm: { ask_user: 'Publish?' } }, ['Publisher']);
 
 test('the chain: a plain-text answer reruns Confirm on its input and Publisher runs, as on ADK', async () => {
-  const { native } = await resumesAlike(chain(), STUBS, { role: 'user', parts: [{ text: 'yes' }] });
+  const { native } = await resumesAlike('chain-plain-text-answer', chain(), STUBS, { role: 'user', parts: [{ text: 'yes' }] });
   assert.deepEqual(native.calls, ['Publisher'], 'Triage did not run again');
   assert.equal(native.run.output, 'published {"reply":"yes","input":"the draft"}');
 });
@@ -437,18 +489,23 @@ test('the chain: a plain-text answer reruns Confirm on its input and Publisher r
 test('an answer as a function response with the interrupt id: unwrapped from { result }, as on ADK', async () => {
   const cfg = chain();
   const go: Message = { role: 'user', parts: [{ text: 'go' }] };
-  const calls: string[] = [];
-  const toStub = (a: LlmAgent) => new FunctionNode(a.name, (_c: unknown, input: unknown) => (calls.push(a.name), STUBS[a.name]!(input))) as unknown as LlmAgent;
-  const { workflow } = await compileWorkflow(cfg, {}, toStub);
-  const sessionService = new InMemorySessionService();
-  await sessionService.createSession({ ...STUB_APP });
-  const runner = new Runner({ agent: workflow as any, appName: STUB_APP.appName, sessionService });
-  for await (const _ of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: go as any }));
-  const paused = json((await sessionService.getSession({ ...STUB_APP }))!.events) as unknown as TurnEvent[];
-  const raised = paused.flatMap((e) => e.longRunningToolIds ?? [])[0]!;
-  const reply: Message = { role: 'user', parts: [{ functionResponse: { id: raised, name: 'adk_request_input', response: { result: 'yes' } } }] };
-  const adkSecond: TurnEvent[] = [];
-  for await (const ev of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: reply as any })) adkSecond.push(json(ev) as unknown as TurnEvent);
+  const replyTo = (raised: string): Message => ({ role: 'user', parts: [{ functionResponse: { id: raised, name: 'adk_request_input', response: { result: 'yes' } } }] });
+  // ADK's side, recorded: the paused session, and the events ADK yields for the answer.
+  const { paused, adkSecond } = await reference('function-response-answer', async () => {
+    const { FunctionNode, InMemorySessionService, Runner } = await import('@google/adk');
+    const toStub = (a: LlmAgent) => new FunctionNode(a.name, (_c: unknown, input: unknown) => STUBS[a.name]!(input)) as unknown as LlmAgent;
+    const { workflow } = await compileWorkflow(cfg, {}, toStub);
+    const sessionService = new InMemorySessionService();
+    await sessionService.createSession({ ...STUB_APP });
+    const runner = new Runner({ agent: workflow as any, appName: STUB_APP.appName, sessionService });
+    for await (const _ of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: go as any }));
+    const paused = json((await sessionService.getSession({ ...STUB_APP }))!.events) as unknown as TurnEvent[];
+    const raised = paused.flatMap((e) => e.longRunningToolIds ?? [])[0]!;
+    const adkSecond: TurnEvent[] = [];
+    for await (const ev of runner.runAsync({ userId: 'u', sessionId: 's', newMessage: replyTo(raised) as any })) adkSecond.push(json(ev) as unknown as TurnEvent);
+    return { paused, adkSecond };
+  });
+  const reply = replyTo(paused.flatMap((e) => e.longRunningToolIds ?? [])[0]!);
 
   const native = await nativeTurnOnEvents(cfg, STUBS, paused, reply);
   assert.deepEqual(comparable(native.events, paused), comparable(adkSecond, paused));
@@ -458,7 +515,7 @@ test('an answer as a function response with the interrupt id: unwrapped from { r
 
 test('a pause on one branch of a fan-out: the finished branch is not rerun, the paused one resumes on its branch, and two terminal outputs fail it, as on ADK', async () => {
   const cfg = syndicate([['START', 'Triage', ['Confirm', 'Reader']], ['Confirm', 'Publisher']], { Confirm: { ask_user: 'Publish?' } }, ['Publisher', 'Reader']);
-  const { native } = await resumesAlike(cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
+  const { native } = await resumesAlike('fan-out-branch-pause', cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
   assert.deepEqual(native.calls, ['Publisher']);
   assert.equal(native.error, 'Workflow Graph: multiple terminal nodes produced output (2). A workflow must have at most one terminal output.', 'Reader\'s stored output counts as a terminal output, as on ADK');
   assert.equal(native.events[0]!.branch, 'Confirm@1', 'Confirm answers on the branch it asked on');
@@ -471,7 +528,7 @@ test('a join after the paused node: the finished predecessor feeds the join from
     { Confirm: { ask_user: 'Publish?' }, Both: { join: true } },
     ['Publisher', 'Reader'],
   );
-  const { native } = await resumesAlike(cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
+  const { native } = await resumesAlike('join-after-paused-node', cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
   assert.deepEqual(native.calls, ['Publisher']);
   assert.deepEqual(JSON.parse(String(native.run.output).replace(/^published /, '')), { Confirm: { reply: 'yes', input: 'the draft' }, Reader: 'read "the draft"' });
 });
@@ -482,20 +539,20 @@ test('a map on the finished branch: completed from its stored list, no map event
     { Confirm: { ask_user: 'Publish?' }, Fan: { map: 'Reader' }, Both: { join: true } },
     ['Publisher', 'Reader'],
   );
-  const { native } = await resumesAlike(cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
+  const { native } = await resumesAlike('map-on-finished-branch', cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
   assert.deepEqual(native.calls, ['Publisher'], 'no map item ran again');
   assert.deepEqual(JSON.parse(String(native.run.output).replace(/^published /, '')), { Confirm: { reply: 'yes', input: 'the draft' }, Fan: ['read "the draft"'] });
 });
 
 test('two ask_user nodes in a row: the second takes the first answer without asking, as ADK\'s compiled handler does', async () => {
   const cfg = syndicate([['START', 'Triage', 'Confirm', 'Again', 'Publisher']], { Confirm: { ask_user: 'Publish?' }, Again: { ask_user: 'Sure?' } }, ['Publisher']);
-  const { native } = await resumesAlike(cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
+  const { native } = await resumesAlike('two-ask-user-nodes', cfg, STUBS, { role: 'user', parts: [{ text: 'yes' }] });
   assert.deepEqual(native.run.interruptIds, [], 'ADK asks once: every answer reaches every ask_user node of the resumed walk');
   assert.deepEqual(JSON.parse(String(native.run.output).replace(/^published /, '')), { reply: 'yes', input: { reply: 'yes', input: 'the draft' } });
 });
 
 test('a session with nothing paused: every node runs fresh, the new message the input', async () => {
-  const first = await adkTurns(syndicate([['START', 'Triage', 'Publisher']], {}, ['Publisher']), STUBS, [{ role: 'user', parts: [{ text: 'go' }] }]);
+  const first = await adkTurns('nothing-paused-first-turn', syndicate([['START', 'Triage', 'Publisher']], {}, ['Publisher']), STUBS, [{ role: 'user', parts: [{ text: 'go' }] }]);
   const plain = syndicate([['START', 'Triage', 'Publisher']], {}, ['Publisher']);
   const again = await nativeTurnOnEvents(plain, STUBS, first.stored, { role: 'user', parts: [{ text: 'again' }] });
   assert.deepEqual(again.calls, ['Triage', 'Publisher']);
@@ -503,7 +560,7 @@ test('a session with nothing paused: every node runs fresh, the new message the 
 });
 
 test('a reply to an interrupt the run never raised is refused with ADK\'s message, and resolves nothing', async () => {
-  const first = await adkTurns(chain(), STUBS, [{ role: 'user', parts: [{ text: 'go' }] }]);
+  const first = await adkTurns('forged-reply-first-turn', chain(), STUBS, [{ role: 'user', parts: [{ text: 'go' }] }]);
   const forged = { role: 'user' as const, parts: [{ functionResponse: { id: 'not-raised', name: 'adk_request_input', response: { result: 'yes' } } }] };
   await assert.rejects(nativeTurnOnEvents(chain(), STUBS, first.stored, forged), /The reply carries interrupt id 'not-raised', which does not match any interrupt this run raised\. Still waiting: '/);
 });
@@ -565,6 +622,7 @@ test('rerunsOnResume is ADK\'s per kind: agents, ask_user and maps rerun; tools,
 
 // ── 3. The port, against ADK's own functions ─────────────────────────────────
 
+/** ADK's own rehydration functions. Live only (inside a reference). */
 const adkRehydration = async () => import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/workflow/utils/rehydration_utils.js')).href);
 
 /** Event lists that exercise every branch the port reads. */
@@ -603,22 +661,65 @@ function eventCases(): Array<[string, StoredEvent[], string]> {
   ];
 }
 
+/**
+ * A value of the port's as a reference holds it: a Map as its entries, a Set
+ * as its members, in JSON's form, then the reference's canonical form
+ * (tests/helpers/adkReference.ts), which the recorded ADK value is in. Equal
+ * values stay equal; ids the canonical form renumbers are renumbered alike.
+ */
+const plain = (v: unknown): unknown =>
+  v instanceof Map
+    ? { map: [...v].map(([k, x]) => [k, plain(x)]) }
+    : v instanceof Set
+      ? { set: [...v].map(plain) }
+      : Array.isArray(v)
+        ? v.map(plain)
+        : v && typeof v === 'object'
+          ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plain(x)]))
+          : v;
+const asRecorded = <T>(v: T): unknown => canonical(plain(v));
+
+const PARENTS = [undefined, 'G', 'Workflow Fixture'];
+
+/** What the four functions return for one event case: the run's events, the runs and states under each parent, the answers, and whether each run under G fast-forwards. */
+function rehydrated(
+  fns: Pick<typeof import('../lib/workflow/resume.ts'), 'eventsForCurrentRun' | 'reconstructNodeRuns' | 'reconstructNodeStates' | 'resolvedInterruptResponses' | 'isFastForwardable'>,
+  events: StoredEvent[],
+  invocationId: string,
+) {
+  // The runs whose fast-forward is asked are the port's own, as the comparison has always handed both sides the same run.
+  const ownRuns = [...reconstructNodeRuns(eventsForCurrentRun(events, invocationId), 'G').values()].flat();
+  const runEvents = eventsForCurrentRun(events, invocationId);
+  return {
+    current: fns.eventsForCurrentRun(events, invocationId),
+    parents: PARENTS.map((parent) => ({ runs: fns.reconstructNodeRuns(runEvents, parent), states: fns.reconstructNodeStates(runEvents, parent) })),
+    answers: fns.resolvedInterruptResponses(runEvents),
+    fastForward: ownRuns.map((run) => fns.isFastForwardable(run)),
+  };
+}
+
 test('eventsForCurrentRun, reconstructNodeRuns, reconstructNodeStates and resolvedInterruptResponses are ADK\'s, case for case', async () => {
-  const adk = await adkRehydration();
-  for (const [label, events, invocationId] of eventCases()) {
-    assert.deepEqual(eventsForCurrentRun(events, invocationId), adk.eventsForCurrentRun(events, invocationId), `${label}: the run's events`);
-    const runEvents = eventsForCurrentRun(events, invocationId);
-    for (const parent of [undefined, 'G', 'Workflow Fixture']) {
-      assert.deepEqual(reconstructNodeRuns(runEvents, parent), adk.reconstructNodeRuns(runEvents, parent), `${label}: runs under ${parent}`);
-      assert.deepEqual(reconstructNodeStates(runEvents, parent), adk.reconstructNodeStates(runEvents, parent), `${label}: states under ${parent}`);
-    }
-    assert.deepEqual(resolvedInterruptResponses(runEvents), adk.resolvedInterruptResponses(runEvents), `${label}: the answers`);
-    for (const runs of reconstructNodeRuns(runEvents, 'G').values()) for (const run of runs) assert.equal(isFastForwardable(run), adk.isFastForwardable(run), label);
-  }
+  const cases = eventCases();
+  const port = { eventsForCurrentRun, reconstructNodeRuns, reconstructNodeStates, resolvedInterruptResponses, isFastForwardable };
+  const theirs = (await reference('rehydration-functions', async () => {
+    const adk = await adkRehydration();
+    return plain(cases.map(([, events, invocationId]) => rehydrated(adk, events, invocationId)));
+  })) as Array<ReturnType<typeof rehydrated>>;
+  const ours = asRecorded(cases.map(([, events, invocationId]) => rehydrated(port, events, invocationId))) as Array<ReturnType<typeof rehydrated>>;
+  assert.equal(theirs.length, cases.length);
+  cases.forEach(([label], i) => {
+    const [o, t] = [ours[i]!, theirs[i]!];
+    assert.deepEqual(o.current, t.current, `${label}: the run's events`);
+    PARENTS.forEach((parent, k) => {
+      assert.deepEqual(o.parents[k]!.runs, t.parents[k]!.runs, `${label}: runs under ${parent}`);
+      assert.deepEqual(o.parents[k]!.states, t.parents[k]!.states, `${label}: states under ${parent}`);
+    });
+    assert.deepEqual(o.answers, t.answers, `${label}: the answers`);
+    assert.deepEqual(o.fastForward, t.fastForward, label);
+  });
 });
 
 test('a refused reply throws ADK\'s message: an unknown id, an id answered before, a structured reply the schema refuses', async () => {
-  const adk = await adkRehydration();
   const fixture = conversation(loadFixture(FIXTURE)).events as unknown as StoredEvent[];
   const id = fixture.flatMap((e) => e.longRunningToolIds ?? [])[0]!;
   const reply = (rid: string, response: Record<string, unknown>, invocationId = 'e-2'): StoredEvent => ({ author: 'user', invocationId, actions: {}, content: { role: 'user', parts: [{ functionResponse: { id: rid, name: 'adk_request_input', response } }] } });
@@ -634,24 +735,41 @@ test('a refused reply throws ADK\'s message: an unknown id, an id answered befor
     [...fixture, reply(id, { result: 'x' }, 'e-2'), reply(id, { result: 'y' }, 'e-3')],
     [schemaReq, reply('k', { ok: 'not a boolean' })],
   ];
-  for (const events of cases) {
-    let theirs = '';
-    try {
-      adk.resolvedInterruptResponses(events);
-    } catch (e) {
-      theirs = (e as Error).message;
-    }
-    assert.ok(theirs, 'ADK refuses it');
-    assert.throws(() => resolvedInterruptResponses(events), { message: theirs });
-  }
+  /** What each case throws (its message), or '' when it does not throw. */
+  const refusals = (resolve: (events: StoredEvent[]) => unknown): string[] =>
+    cases.map((events) => {
+      try {
+        resolve(events);
+        return '';
+      } catch (e) {
+        return (e as Error).message;
+      }
+    });
+  const theirs = await reference('refused-replies', async () => {
+    const adk = await adkRehydration();
+    return refusals((events) => adk.resolvedInterruptResponses(events));
+  });
+  const ours = asRecorded(refusals((events) => resolvedInterruptResponses(events))) as string[];
+  cases.forEach((_, i) => {
+    assert.ok(theirs[i], 'ADK refuses it');
+    assert.equal(ours[i], theirs[i], `case ${i + 1}: the same message`);
+  });
 });
 
 test('unwrapResponse and nodeNameFromPath are ADK\'s', async () => {
-  const adk = await adkRehydration();
   const schemas = [undefined, { type: 'string' }, { type: ['null', 'string'] }, { anyOf: [{ type: 'number' }, { type: 'string' }] }, { type: 'object' }];
   const responses = [{ result: 'yes' }, { result: '{"a":1}' }, { result: '[1' }, { result: 3 }, { result: 'x', other: 1 }, { a: 1 }, 'bare', null];
-  for (const schema of schemas) for (const response of responses) assert.deepEqual(unwrapResponse(response, schema), adk.unwrapResponse(response, schema), JSON.stringify([response, schema]));
-  for (const p of ['G.A', 'G.A@2', 'G', 'G.M.Agent@0', 'a/b@1', '', 'x@', '.', 'G.A.B@3@4']) assert.equal(nodeNameFromPath(p), adk.nodeNameFromPath(p), p);
+  const paths = ['G.A', 'G.A@2', 'G', 'G.M.Agent@0', 'a/b@1', '', 'x@', '.', 'G.A.B@3@4'];
+  const pairs = schemas.flatMap((schema) => responses.map((response) => [response, schema] as const));
+  /** Each unwrapped response (as { value }, so undefined survives JSON as no key), and each path's node name. */
+  const outputs = (fns: { unwrapResponse: (r: unknown, s?: unknown) => unknown; nodeNameFromPath: (p: string) => string }) => ({
+    unwrapped: pairs.map(([response, schema]) => ({ value: fns.unwrapResponse(response, schema) })),
+    names: paths.map((p) => fns.nodeNameFromPath(p)),
+  });
+  const theirs = await reference('unwrap-and-node-names', async () => outputs(await adkRehydration()));
+  const ours = asRecorded(outputs({ unwrapResponse, nodeNameFromPath })) as typeof theirs;
+  pairs.forEach((pair, i) => assert.deepEqual(ours.unwrapped[i], theirs.unwrapped[i], JSON.stringify(pair)));
+  paths.forEach((p, i) => assert.equal(ours.names[i], theirs.names[i], p));
 });
 
 test('the plain-text answer goes to the one open interrupt, and to none when several or none are open', () => {

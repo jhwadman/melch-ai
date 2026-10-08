@@ -1,0 +1,11 @@
+{
+  "suite": "compaction",
+  "case": "summary-fails",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "rejected": "LLM failed to return a valid summary.",
+    "chatCalls": 3,
+    "compacted": false
+  }
+}

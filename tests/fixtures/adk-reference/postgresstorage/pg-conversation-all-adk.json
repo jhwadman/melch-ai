@@ -1,0 +1,375 @@
+{
+  "suite": "postgresStorage",
+  "case": "pg-conversation-all-adk",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "texts": [
+      "Noted: green tea.",
+      "You said: Noted: green tea.",
+      "You said: Noted: green tea."
+    ],
+    "events": [
+      {
+        "id": "ev000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "I like tea."
+            }
+          ]
+        },
+        "timestamp": 1767225600000,
+        "invocationId": "<inv>",
+        "longRunningToolIds": []
+      },
+      {
+        "id": "ev000001",
+        "author": "Desk",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "id": "call-tea",
+                "args": {
+                  "key": "tea"
+                },
+                "name": "pg_runtime_lookup"
+              }
+            }
+          ]
+        },
+        "timestamp": 1767225600000,
+        "finishReason": "STOP",
+        "invocationId": "<inv>",
+        "turnComplete": true,
+        "longRunningToolIds": []
+      },
+      {
+        "id": "ev000001",
+        "author": "Desk",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-tea",
+                "name": "pg_runtime_lookup",
+                "response": {
+                  "result": "green tea"
+                }
+              }
+            }
+          ]
+        },
+        "timestamp": 1767225600000,
+        "invocationId": "<inv>",
+        "longRunningToolIds": []
+      },
+      {
+        "id": "ev000001",
+        "author": "Desk",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Noted: green tea."
+            }
+          ]
+        },
+        "timestamp": 1767225600000,
+        "finishReason": "STOP",
+        "invocationId": "<inv>",
+        "turnComplete": true,
+        "longRunningToolIds": []
+      },
+      {
+        "id": "ev000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "What do I like?"
+            }
+          ]
+        },
+        "timestamp": 1767225600000,
+        "invocationId": "<inv>",
+        "longRunningToolIds": []
+      },
+      {
+        "id": "ev000001",
+        "author": "Desk",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "You said: Noted: green tea."
+            }
+          ]
+        },
+        "timestamp": 1767225600000,
+        "finishReason": "STOP",
+        "invocationId": "<inv>",
+        "turnComplete": true,
+        "longRunningToolIds": []
+      },
+      {
+        "id": "ev000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "And again?"
+            }
+          ]
+        },
+        "timestamp": 1767225600000,
+        "invocationId": "<inv>",
+        "longRunningToolIds": []
+      },
+      {
+        "id": "ev000001",
+        "author": "Desk",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "You said: Noted: green tea."
+            }
+          ]
+        },
+        "timestamp": 1767225600000,
+        "finishReason": "STOP",
+        "invocationId": "<inv>",
+        "turnComplete": true,
+        "longRunningToolIds": []
+      }
+    ],
+    "history": [
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "I like tea."
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "I like tea."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "call-tea",
+              "name": "pg_runtime_lookup",
+              "args": {
+                "key": "tea"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "call-tea",
+              "name": "pg_runtime_lookup",
+              "result": "green tea"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "I like tea."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "call-tea",
+              "name": "pg_runtime_lookup",
+              "args": {
+                "key": "tea"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "call-tea",
+              "name": "pg_runtime_lookup",
+              "result": "green tea"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "Noted: green tea."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "What do I like?"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "I like tea."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "call-tea",
+              "name": "pg_runtime_lookup",
+              "args": {
+                "key": "tea"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "call-tea",
+              "name": "pg_runtime_lookup",
+              "result": "green tea"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "Noted: green tea."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "What do I like?"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "You said: Noted: green tea."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "And again?"
+            }
+          ]
+        }
+      ]
+    ]
+  }
+}

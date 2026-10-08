@@ -1,0 +1,20 @@
+{
+  "suite": "nativeFuzz",
+  "case": "a question answer",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "summaries": [
+      {
+        "status": "completed",
+        "text": "fine"
+      },
+      {
+        "threw": "Error",
+        "message": "No function call event found for function responses ids: never-asked"
+      }
+    ],
+    "runs": 0,
+    "calls": 1
+  }
+}

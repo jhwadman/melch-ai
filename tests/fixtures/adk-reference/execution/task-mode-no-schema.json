@@ -1,0 +1,234 @@
+{
+  "suite": "execution",
+  "case": "task-mode-no-schema",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed",
+        "text": "ok",
+        "usage": {
+          "llmCalls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        }
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "finish_task",
+                "args": {
+                  "result": "did it"
+                },
+                "id": "c1"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "c1",
+                "name": "finish_task",
+                "response": {
+                  "result": "Task completed."
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Extractor",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "ok"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "requests": {
+      "extractor": [
+        {
+          "model": "extractor",
+          "system": "You are an agent. Your internal name is \"Extractor\".\n\nExtract.\n\nDo NOT call `finish_task` prematurely. Use your available tools to fully complete every aspect of the task first. If the task is unclear, ask the user for clarification before proceeding. Once the task is fully complete, call `finish_task` by itself with no accompanying text output.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "go"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "finish_task",
+              "description": "Signal that this agent has completed its delegated task. Call this when you have finished your delegated task.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "result": {
+                    "type": "string",
+                    "description": "A brief summary of what the agent accomplished."
+                  }
+                },
+                "required": [
+                  "result"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "extractor",
+          "system": "You are an agent. Your internal name is \"Extractor\".\n\nExtract.\n\nDo NOT call `finish_task` prematurely. Use your available tools to fully complete every aspect of the task first. If the task is unclear, ask the user for clarification before proceeding. Once the task is fully complete, call `finish_task` by itself with no accompanying text output.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "go"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "toolCall",
+                  "id": "c1",
+                  "name": "finish_task",
+                  "args": {
+                    "result": "did it"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "parts": [
+                {
+                  "type": "toolResult",
+                  "id": "c1",
+                  "name": "finish_task",
+                  "result": "Task completed."
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "finish_task",
+              "description": "Signal that this agent has completed its delegated task. Call this when you have finished your delegated task.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "result": {
+                    "type": "string",
+                    "description": "A brief summary of what the agent accomplished."
+                  }
+                },
+                "required": [
+                  "result"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ]
+    }
+  }
+}

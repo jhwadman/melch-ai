@@ -1,0 +1,206 @@
+{
+  "suite": "workflowApprovals",
+  "case": "gated-node-pausing-turn",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "invocationId": "e-00000000-0000-4000-8000-000000000001",
+      "author": "user",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "content": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "tell ops"
+          }
+        ]
+      },
+      "id": "ev000001",
+      "longRunningToolIds": [],
+      "timestamp": 1767225600000
+    },
+    {
+      "author": "user",
+      "invocationId": "e-00000000-0000-4000-8000-000000000001",
+      "content": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "tell ops"
+          }
+        ]
+      },
+      "id": "ev000002",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "longRunningToolIds": [],
+      "timestamp": 1767225601000
+    },
+    {
+      "invocationId": "e-00000000-0000-4000-8000-000000000001",
+      "author": "Plan",
+      "id": "ev000003",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "longRunningToolIds": [],
+      "timestamp": 1767225602000,
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "plan(tell ops)"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "turnComplete": true,
+      "output": "plan(tell ops)",
+      "nodeInfo": {
+        "messageAsOutput": true,
+        "path": "Graph.Plan",
+        "outputFor": [
+          "Graph.Plan"
+        ]
+      }
+    },
+    {
+      "author": "user",
+      "invocationId": "e-00000000-0000-4000-8000-000000000001",
+      "content": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "plan(tell ops)"
+          }
+        ]
+      },
+      "id": "ev000004",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "longRunningToolIds": [],
+      "timestamp": 1767225603000
+    },
+    {
+      "invocationId": "e-00000000-0000-4000-8000-000000000001",
+      "author": "Send",
+      "id": "ev000005",
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "longRunningToolIds": [],
+      "timestamp": 1767225604000,
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "workflow_approval_send",
+              "args": {
+                "to": "ops@acme.test"
+              },
+              "id": "call-send-1"
+            }
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "turnComplete": true,
+      "nodeInfo": {
+        "path": "Graph.Send"
+      }
+    },
+    {
+      "invocationId": "e-00000000-0000-4000-8000-000000000001",
+      "author": "Send",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "adk_request_confirmation",
+              "args": {
+                "originalFunctionCall": {
+                  "name": "workflow_approval_send",
+                  "args": {
+                    "to": "ops@acme.test"
+                  },
+                  "id": "call-send-1"
+                },
+                "toolConfirmation": {
+                  "hint": "Please approve or reject the tool call workflow_approval_send() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+                  "confirmed": false
+                }
+              },
+              "id": "adk-00000000-0000-4000-8000-000000000002"
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {
+          "call-send-1": {
+            "hint": "Please approve or reject the tool call workflow_approval_send() by responding with a FunctionResponse with an expected ToolConfirmation payload.",
+            "confirmed": false
+          }
+        },
+        "skipSummarization": true,
+        "agentState": {
+          "input": "plan(tell ops)"
+        }
+      },
+      "longRunningToolIds": [
+        "adk-00000000-0000-4000-8000-000000000002"
+      ],
+      "id": "ev000006",
+      "timestamp": 1767225605000,
+      "nodeInfo": {
+        "path": "Graph.Send"
+      }
+    },
+    {
+      "author": "Graph",
+      "invocationId": "e-00000000-0000-4000-8000-000000000001",
+      "longRunningToolIds": [
+        "adk-00000000-0000-4000-8000-000000000002"
+      ],
+      "actions": {
+        "stateDelta": {},
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {},
+        "agentState": {
+          "input": "tell ops"
+        }
+      },
+      "id": "ev000007",
+      "timestamp": 1767225606000,
+      "nodeInfo": {
+        "path": "Graph"
+      }
+    }
+  ]
+}

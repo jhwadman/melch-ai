@@ -1,0 +1,28 @@
+{
+  "suite": "workflowScheduler",
+  "case": "join-waits-for-every-predecessor",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Lead <- \"go\"",
+      "A <- \"Lead(go)\"",
+      "B <- \"Lead(go)\"",
+      "C <- \"Lead(go)\"",
+      "Echo <- \"B(Lead(go))\"",
+      "Echo <- \"A(Lead(go))\"",
+      "After <- {\"A\":\"A(Lead(go))\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"}"
+    ],
+    "completions": [
+      "FanIn.Lead = \"Lead(go)\" @-",
+      "FanIn.B = \"B(Lead(go))\" @B@1",
+      "FanIn.C = \"C(Lead(go))\" @C@1",
+      "FanIn.A = \"A(Lead(go))\" @A@1",
+      "FanIn.All = {\"A\":\"A(Lead(go))\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"} @-",
+      "FanIn.After = \"After({\\\"A\\\":\\\"A(Lead(go))\\\",\\\"B\\\":\\\"B(Lead(go))\\\",\\\"C\\\":\\\"C(Lead(go))\\\"})\" @-"
+    ],
+    "output": "After({\"A\":\"A(Lead(go))\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"})",
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

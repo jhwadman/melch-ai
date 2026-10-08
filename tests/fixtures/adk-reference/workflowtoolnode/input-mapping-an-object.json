@@ -1,0 +1,32 @@
+{
+  "suite": "workflowToolNode",
+  "case": "input-mapping-an object",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "side": {
+      "events": [
+        "{\"author\":\"Triage\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"{\\\"q\\\":\\\"obj\\\"}\"}]},\"output\":{\"q\":\"obj\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Triage\",\"outputFor\":[\"Graph.Triage\"]}}",
+        "{\"author\":\"Lookup\",\"content\":{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"id\":\"Graph.Lookup:1\",\"name\":\"tool_node_lookup\",\"response\":{\"result\":\"found obj\"}}}]},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"output\":{\"result\":\"found obj\"},\"nodeInfo\":{\"path\":\"Graph.Lookup\",\"outputFor\":[\"Graph.Lookup\"]}}",
+        "{\"author\":\"Reader\",\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"read {\\\"result\\\":\\\"found obj\\\"}\"}]},\"output\":\"read {\\\"result\\\":\\\"found obj\\\"}\",\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"nodeInfo\":{\"path\":\"Graph.Reader\",\"outputFor\":[\"Graph.Reader\"]}}"
+      ],
+      "completions": [
+        "Graph.Triage = {\"q\":\"obj\"} @-",
+        "Graph.Lookup = {\"result\":\"found obj\"} @-",
+        "Graph.Reader = \"read {\\\"result\\\":\\\"found obj\\\"}\" @-"
+      ],
+      "output": "read {\"result\":\"found obj\"}",
+      "logs": [
+        "⇢ Node: Triage",
+        "⇢ Node: Lookup",
+        "← Result: tool_node_lookup — 22 chars",
+        "⇢ Node: Reader"
+      ],
+      "progress": [
+        "Running node: Triage",
+        "Running node: Lookup",
+        "Running node: Reader"
+      ]
+    }
+  }
+}

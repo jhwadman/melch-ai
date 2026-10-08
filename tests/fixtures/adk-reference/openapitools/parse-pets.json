@@ -1,0 +1,149 @@
+{
+  "suite": "openapiTools",
+  "case": "parse-pets",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "name": "list_pets",
+      "operationId": "listPets",
+      "method": "get",
+      "path": "/pets",
+      "baseUrl": "https://pets.example.com",
+      "parameters": [],
+      "declaration": {
+        "name": "list_pets",
+        "description": "List the pets",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "dummy_DO_NOT_GENERATE": {
+              "type": "string"
+            }
+          },
+          "required": []
+        }
+      }
+    },
+    {
+      "name": "create_pet",
+      "operationId": "createPet",
+      "method": "post",
+      "path": "/pets",
+      "baseUrl": "https://pets.example.com",
+      "parameters": [
+        {
+          "name": "name",
+          "originalName": "name",
+          "location": "body",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "create_pet",
+        "description": "Add a pet",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      }
+    },
+    {
+      "name": "get_pet",
+      "operationId": "getPet",
+      "method": "get",
+      "path": "/pets/{petId}",
+      "baseUrl": "https://pets.example.com",
+      "parameters": [
+        {
+          "name": "pet_id",
+          "originalName": "petId",
+          "location": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "get_pet",
+        "description": "One pet",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pet_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "pet_id"
+          ]
+        }
+      }
+    },
+    {
+      "name": "delete_pet",
+      "operationId": "deletePet",
+      "method": "delete",
+      "path": "/pets/{petId}",
+      "baseUrl": "https://pets.example.com",
+      "parameters": [
+        {
+          "name": "pet_id",
+          "originalName": "petId",
+          "location": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "declaration": {
+        "name": "delete_pet",
+        "description": "",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pet_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "pet_id"
+          ]
+        }
+      }
+    },
+    {
+      "name": "get_big",
+      "operationId": "getBig",
+      "method": "get",
+      "path": "/big",
+      "baseUrl": "https://pets.example.com",
+      "parameters": [],
+      "declaration": {
+        "name": "get_big",
+        "description": "A large response",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "dummy_DO_NOT_GENERATE": {
+              "type": "string"
+            }
+          },
+          "required": []
+        }
+      }
+    }
+  ]
+}

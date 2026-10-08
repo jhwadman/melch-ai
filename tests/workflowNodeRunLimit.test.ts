@@ -15,7 +15,6 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LogLevel, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
 import { DEFAULT_MAX_STEPS } from '../lib/config.ts';
@@ -27,9 +26,16 @@ import { MIN_NODE_RUNS, NODE_RUNS_PER_STEP, NODE_RUN_LIMIT, NodeRunLimitError, n
 import type { SchedulerEvent } from '../lib/workflow/scheduler.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { answer } from './helpers/scriptedModel.ts';
-import { agent, comparable, onAdk, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
+import { agent, adkSide, comparable, onAdk, onNativeTurn, workflowConfig } from './helpers/workflowParity.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of the parity case is recorded (tests/fixtures/adk-reference/workflownoderunlimit); ADK runs only under
+// ADK_REFERENCE=live|record, and in the last case, whose subject is the adk runtime itself (WS5-2b deletes it with ADK).
+const reference = adkReferences('workflowNodeRunLimit');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 // ── The ceiling on the scheduler ─────────────────────────────────────────────
 
@@ -147,7 +153,7 @@ test('native: a tool node looping on its route step fails the turn NODE_RUN_LIMI
 });
 
 test('a bounded tool-node loop under the ceiling completes, and stores the same events on both runtimes', async () => {
-  const adk = await onAdk(POLLING, scriptsUntil(10), 'go');
+  const adk = await adkSide(reference, 'bounded-tool-node-loop', POLLING, scriptsUntil(10), 'go');
   const native = await onNativeTurn(POLLING, scriptsUntil(10), 'go');
   assert.equal(native.status, 'completed');
   assert.equal(adk.status, 'completed');
@@ -162,6 +168,8 @@ test('native only: a loop longer than the ceiling fails on native and runs to it
   assert.equal(native.status, 'failed');
   assert.match(native.error ?? '', /limit of 100 node runs/);
   polls = 0;
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
   const adk = await onAdk(POLLING, scriptsUntil(60), 'go');
   assert.equal(adk.status, 'completed');
   assert.equal(adk.output, 'finished');

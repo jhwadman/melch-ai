@@ -1,0 +1,22 @@
+{
+  "suite": "workflowScheduler",
+  "case": "retry-reports-once",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Fixer <- \"Triage(go)\"",
+      "Fixer <- \"Triage(go)\""
+    ],
+    "completions": [
+      "R.Triage = \"Triage(go)\" @-",
+      "R.Fixer = \"fixed\" @-"
+    ],
+    "output": "fixed",
+    "nodeErrors": [
+      "R.Fixer@- Fixer [503] overloaded"
+    ],
+    "errorEvents": []
+  }
+}

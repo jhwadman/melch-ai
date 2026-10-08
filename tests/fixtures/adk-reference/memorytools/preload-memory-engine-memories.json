@@ -1,0 +1,7 @@
+{
+  "suite": "memoryTools",
+  "case": "preload-memory-engine-memories",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": "The following content is from your previous conversations with the user.\nThey may be useful for answering the user's current query.\n<PAST_CONVERSATIONS>\nTime: 2026-10-01T00:00:00.000Z\nmemory_service: [PREFERENCE | date: 2026-10-01 | source: user | status: active | keys: tea] The user prefers green tea.\n</PAST_CONVERSATIONS>\n"
+}

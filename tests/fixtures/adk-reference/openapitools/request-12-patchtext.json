@@ -1,0 +1,21 @@
+{
+  "suite": "openapiTools",
+  "case": "request-12-patchText",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/text",
+        "method": "PATCH",
+        "headers": {
+          "content-type": "text/plain"
+        },
+        "body": "42"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

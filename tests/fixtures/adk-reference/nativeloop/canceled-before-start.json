@@ -1,0 +1,24 @@
+{
+  "suite": "nativeLoop",
+  "case": "canceled-before-start",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "canceled",
+        "error": {
+          "code": "CANCELED",
+          "message": "The task was canceled."
+        }
+      }
+    ],
+    "events": [],
+    "calls": {
+      "boss": 0
+    },
+    "deltas": [
+      []
+    ]
+  }
+}

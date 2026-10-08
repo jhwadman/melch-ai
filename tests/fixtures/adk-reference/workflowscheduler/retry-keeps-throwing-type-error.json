@@ -1,0 +1,24 @@
+{
+  "suite": "workflowScheduler",
+  "case": "retry-keeps-throwing-type-error",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Fixer <- \"Triage(go)\"",
+      "Fixer <- \"Triage(go)\"",
+      "Fixer <- \"Triage(go)\""
+    ],
+    "completions": [
+      "R.Triage = \"Triage(go)\" @-"
+    ],
+    "nodeErrors": [
+      "R.Fixer@- Fixer [UNKNOWN_ERROR] bad (TypeError after 3)"
+    ],
+    "errorEvents": [
+      "{\"author\":\"Fixer\",\"nodeInfo\":{\"path\":\"R.Fixer\"},\"actions\":{\"stateDelta\":{},\"artifactDelta\":{},\"requestedAuthConfigs\":{},\"requestedToolConfirmations\":{}},\"longRunningToolIds\":[],\"isNodeError\":true,\"errorType\":\"TypeError\",\"errorCode\":\"UNKNOWN_ERROR\",\"errorMessage\":\"bad\",\"attemptCount\":3}"
+    ],
+    "error": "TypeError: bad"
+  }
+}

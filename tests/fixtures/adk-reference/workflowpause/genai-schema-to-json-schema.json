@@ -1,0 +1,52 @@
+{
+  "suite": "workflowPause",
+  "case": "genai-schema-to-json-schema",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {},
+    {
+      "description": "d",
+      "format": "date-time",
+      "type": "string"
+    },
+    {
+      "items": {
+        "enum": [
+          1.5,
+          "a"
+        ],
+        "type": "number"
+      },
+      "minItems": 1,
+      "maxItems": 3,
+      "type": "array"
+    },
+    {
+      "properties": {
+        "a": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "minProperties": 1,
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    {
+      "properties": {
+        "x": {
+          "minLength": 2
+        }
+      }
+    }
+  ]
+}

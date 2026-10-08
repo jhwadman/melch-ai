@@ -1,0 +1,9 @@
+{
+  "suite": "workflowGraph",
+  "case": "graph-rule-an unconditional cycle",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "message": "Graph validation failed. Unconditional cycle detected: Lead -> Sub -> Lead. An unconditional cycle has no exit and would loop forever; break it with at least one conditional (routed) edge so a node can leave the cycle by not emitting that route. (A routed cycle can still loop if a node keeps emitting the route — bounding that is the node's responsibility, not this validator's.)"
+  }
+}

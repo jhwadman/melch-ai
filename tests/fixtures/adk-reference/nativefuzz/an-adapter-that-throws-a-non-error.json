@@ -1,0 +1,22 @@
+{
+  "suite": "nativeFuzz",
+  "case": "an adapter that throws a non-Error",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "summaries": [
+      {
+        "threwValue": {
+          "code": "not-an-error"
+        }
+      },
+      {
+        "threwValue": {
+          "code": "not-an-error"
+        }
+      }
+    ],
+    "runs": 0,
+    "calls": 2
+  }
+}

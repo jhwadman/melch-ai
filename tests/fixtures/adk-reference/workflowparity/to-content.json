@@ -1,0 +1,139 @@
+{
+  "suite": "workflowParity",
+  "case": "to-content",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "x"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "a"
+          },
+          {
+            "text": "b"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "[]"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "[1]"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "a"
+          },
+          {
+            "text": "b"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "[\"a\",null]"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "t",
+            "extra": 1
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "{\"k\":1}"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "3"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "true"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "c"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "f"
+            }
+          }
+        ]
+      }
+    },
+    {},
+    {}
+  ]
+}

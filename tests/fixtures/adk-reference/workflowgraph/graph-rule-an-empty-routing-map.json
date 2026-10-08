@@ -1,0 +1,9 @@
+{
+  "suite": "workflowGraph",
+  "case": "graph-rule-an empty routing map",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "message": "Routing map must not be empty. Provide at least one route -> node mapping."
+  }
+}

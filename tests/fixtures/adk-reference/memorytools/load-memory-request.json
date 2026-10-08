@@ -1,0 +1,286 @@
+{
+  "suite": "memoryTools",
+  "case": "load-memory-request",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "label": "memory=true system=undefined declared=false",
+      "seen": {
+        "config": {
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "load_memory",
+                  "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "query": {
+                        "type": "STRING",
+                        "description": "The query to load the memory for."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": "You have memory. You can use it to answer questions. If any questions need\nyou to look up the memory, you should call load_memory function with a query."
+        },
+        "callable": [
+          "load_memory"
+        ]
+      }
+    },
+    {
+      "label": "memory=true system=undefined declared=true",
+      "seen": {
+        "config": {
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "other",
+                  "description": "x"
+                },
+                {
+                  "name": "load_memory",
+                  "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "query": {
+                        "type": "STRING",
+                        "description": "The query to load the memory for."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "systemInstruction": "You have memory. You can use it to answer questions. If any questions need\nyou to look up the memory, you should call load_memory function with a query."
+        },
+        "callable": [
+          "load_memory"
+        ]
+      }
+    },
+    {
+      "label": "memory=true system=Answer from memory. declared=false",
+      "seen": {
+        "config": {
+          "systemInstruction": "Answer from memory.\n\nYou have memory. You can use it to answer questions. If any questions need\nyou to look up the memory, you should call load_memory function with a query.",
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "load_memory",
+                  "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "query": {
+                        "type": "STRING",
+                        "description": "The query to load the memory for."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "callable": [
+          "load_memory"
+        ]
+      }
+    },
+    {
+      "label": "memory=true system=Answer from memory. declared=true",
+      "seen": {
+        "config": {
+          "systemInstruction": "Answer from memory.\n\nYou have memory. You can use it to answer questions. If any questions need\nyou to look up the memory, you should call load_memory function with a query.",
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "other",
+                  "description": "x"
+                },
+                {
+                  "name": "load_memory",
+                  "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "query": {
+                        "type": "STRING",
+                        "description": "The query to load the memory for."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "callable": [
+          "load_memory"
+        ]
+      }
+    },
+    {
+      "label": "memory=false system=undefined declared=false",
+      "seen": {
+        "config": {
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "load_memory",
+                  "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "query": {
+                        "type": "STRING",
+                        "description": "The query to load the memory for."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "callable": [
+          "load_memory"
+        ]
+      }
+    },
+    {
+      "label": "memory=false system=undefined declared=true",
+      "seen": {
+        "config": {
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "other",
+                  "description": "x"
+                },
+                {
+                  "name": "load_memory",
+                  "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "query": {
+                        "type": "STRING",
+                        "description": "The query to load the memory for."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "callable": [
+          "load_memory"
+        ]
+      }
+    },
+    {
+      "label": "memory=false system=Answer from memory. declared=false",
+      "seen": {
+        "config": {
+          "systemInstruction": "Answer from memory.",
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "load_memory",
+                  "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "query": {
+                        "type": "STRING",
+                        "description": "The query to load the memory for."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "callable": [
+          "load_memory"
+        ]
+      }
+    },
+    {
+      "label": "memory=false system=Answer from memory. declared=true",
+      "seen": {
+        "config": {
+          "systemInstruction": "Answer from memory.",
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "other",
+                  "description": "x"
+                },
+                {
+                  "name": "load_memory",
+                  "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "query": {
+                        "type": "STRING",
+                        "description": "The query to load the memory for."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "callable": [
+          "load_memory"
+        ]
+      }
+    }
+  ]
+}

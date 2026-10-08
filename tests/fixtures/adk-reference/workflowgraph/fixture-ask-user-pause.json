@@ -1,0 +1,19 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-ask_user pause",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Triage",
+      "Confirm",
+      "Publisher"
+    ],
+    "edges": [
+      "__START__ -> Triage",
+      "Triage -> Confirm",
+      "Confirm -> Publisher"
+    ]
+  }
+}

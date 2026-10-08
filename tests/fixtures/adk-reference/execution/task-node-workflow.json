@@ -1,0 +1,291 @@
+{
+  "suite": "execution",
+  "case": "task-node-workflow",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "before": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Lead",
+        "id": "ev000003",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "two nights in Lyon please"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "two nights in Lyon please",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Desk.Lead",
+          "outputFor": [
+            "Desk.Lead"
+          ]
+        }
+      }
+    ],
+    "node": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Extractor",
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "finish_task",
+                "args": {
+                  "city": "Lyon"
+                },
+                "id": "c1"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "nodeInfo": {
+          "path": "Desk.Extractor"
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Extractor",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "c1",
+                "name": "finish_task",
+                "response": {
+                  "error": "Invoking `finish_task()` failed due to missing required parameters: nights. You could retry calling this tool, but it is IMPORTANT for you to provide all the mandatory parameters with correct types."
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000005",
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000,
+        "nodeInfo": {
+          "path": "Desk.Extractor"
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Extractor",
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "finish_task",
+                "args": {
+                  "city": "Lyon",
+                  "nights": 2
+                },
+                "id": "c2"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "nodeInfo": {
+          "path": "Desk.Extractor"
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Extractor",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "c2",
+                "name": "finish_task",
+                "response": {
+                  "result": "Task completed."
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {
+            "trip": {
+              "city": "Lyon",
+              "nights": 2
+            }
+          },
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000007",
+        "longRunningToolIds": [],
+        "timestamp": 1767225606000,
+        "output": {
+          "city": "Lyon",
+          "nights": 2
+        },
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Desk.Extractor",
+          "outputFor": [
+            "Desk.Extractor"
+          ]
+        }
+      }
+    ],
+    "firstRequest": {
+      "model": "scripted/extractor",
+      "system": "Extract.\n\nDo NOT call `finish_task` prematurely. Use your available tools to fully complete every aspect of the task first. If the task is unclear, ask the user for clarification before proceeding. Once the task is fully complete, call `finish_task` by itself with no accompanying text output.",
+      "messages": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "go"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "go"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "For context:"
+            },
+            {
+              "type": "text",
+              "text": "[Lead] said: two nights in Lyon please"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "name": "finish_task",
+          "description": "Signal that this agent has completed its delegated task. Call this when you have finished your delegated task. Pass the required output data in the parameters.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "nights": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "city",
+              "nights"
+            ]
+          }
+        },
+        {
+          "name": "adk_handle_model_error",
+          "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+          "parameters": {
+            "type": "object",
+            "properties": {}
+          }
+        }
+      ],
+      "stream": false
+    }
+  }
+}

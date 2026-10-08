@@ -1,0 +1,36 @@
+{
+  "suite": "memoryTools",
+  "case": "load-memory-call",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "result": {
+      "memories": [
+        {
+          "content": "[PREFERENCE | date: 2026-10-01 | source: user | status: active | keys: tea] The user prefers green tea.",
+          "author": "memory_service",
+          "timestamp": "2026-10-01T09:00:00.000Z"
+        },
+        {
+          "content": "part one part two"
+        },
+        {
+          "content": "",
+          "author": "memory_service",
+          "timestamp": "2026-09-30T08:00:00.000Z"
+        },
+        {
+          "content": "",
+          "author": "someone"
+        }
+      ]
+    },
+    "searches": [
+      {
+        "appName": "desk",
+        "userId": "scope-a",
+        "query": "tea"
+      }
+    ]
+  }
+}

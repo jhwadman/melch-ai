@@ -1,0 +1,264 @@
+{
+  "suite": "workflowParity",
+  "case": "agent-node-reports-errors-given-up",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "failed",
+    "error": "Node 'Fixer' failed: 500: down",
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Triage",
+        "id": "ev000003",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "bug"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "bug",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Triage",
+          "outputFor": [
+            "Graph.Triage"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "bug"
+            }
+          ]
+        },
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Fixer",
+        "id": "ev000005",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000,
+        "errorCode": "500",
+        "errorMessage": "down",
+        "turnComplete": true,
+        "customMetadata": {
+          "error.retryable": false
+        },
+        "nodeInfo": {
+          "path": "Graph.Fixer"
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "bug"
+            }
+          ]
+        },
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Fixer",
+        "id": "ev000007",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225606000,
+        "errorCode": "500",
+        "errorMessage": "down",
+        "turnComplete": true,
+        "customMetadata": {
+          "error.retryable": false
+        },
+        "nodeInfo": {
+          "path": "Graph.Fixer"
+        }
+      }
+    ],
+    "progress": [
+      "Running node: Triage",
+      "Running node: Fixer"
+    ],
+    "routes": {},
+    "requests": {
+      "triage": [
+        {
+          "model": "scripted/triage",
+          "system": "You are an agent. Your internal name is \"Triage\".\n\nThe description about you is \"Triage\"\n\nTriage.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "go"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "fixer": [
+        {
+          "model": "scripted/fixer",
+          "system": "You are an agent. Your internal name is \"Fixer\".\n\nThe description about you is \"Fixer\"\n\nFixer.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "bug"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "scripted/fixer",
+          "system": "You are an agent. Your internal name is \"Fixer\".\n\nThe description about you is \"Fixer\"\n\nFixer.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "bug"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ]
+    },
+    "calls": {
+      "triage": 1,
+      "fixer": 2
+    }
+  }
+}

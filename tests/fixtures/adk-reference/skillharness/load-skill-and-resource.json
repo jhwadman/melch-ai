@@ -1,0 +1,720 @@
+{
+  "suite": "skillHarness",
+  "case": "load-skill-and-resource",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed",
+        "text": "done {\"error\":\"Skill 'nope' not found. Installed: greeting, release-notes.\",\"error_code\":\"SKILL_NOT_FOUND\"}",
+        "error": null,
+        "approval": null
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "release notes please"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "load_skill",
+                "args": {
+                  "name": "release-notes"
+                },
+                "id": "call-load"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-load",
+                "name": "load_skill",
+                "response": {
+                  "skill_name": "release-notes",
+                  "frontmatter": {
+                    "name": "release-notes",
+                    "description": "Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.",
+                    "allowed-tools": "harness_test_lookup",
+                    "metadata": {
+                      "adk_additional_tools": [
+                        "harness_test_lookup"
+                      ]
+                    },
+                    "allowedTools": "harness_test_lookup"
+                  },
+                  "instructions": "# Release notes\n\n1. Read `references/style.md` for the house style.\n2. Run `scripts/version.sh` to learn the current version.\n3. Draft the notes from the changelog section for that version, in the house style.\n4. Start from `assets/template.md`.",
+                  "files": [
+                    "assets/template.md",
+                    "references/style.md",
+                    "scripts/version.sh"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {
+            "_adk_activated_skill_Harness": [
+              "release-notes"
+            ]
+          },
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "load_skill_resource",
+                "args": {
+                  "skill_name": "release-notes",
+                  "path": "references/style.md"
+                },
+                "id": "call-res"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-res",
+                "name": "load_skill_resource",
+                "response": {
+                  "skill_name": "release-notes",
+                  "path": "references/style.md",
+                  "content": "House style: one sentence per change, past tense, no adjectives.\n"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000005",
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "load_skill",
+                "args": {
+                  "name": "nope"
+                },
+                "id": "call-nope"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-nope",
+                "name": "load_skill",
+                "response": {
+                  "error": "Skill 'nope' not found. Installed: greeting, release-notes.",
+                  "error_code": "SKILL_NOT_FOUND"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000007",
+        "longRunningToolIds": [],
+        "timestamp": 1767225606000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Harness",
+        "id": "ev000008",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225607000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "done {\"error\":\"Skill 'nope' not found. Installed: greeting, release-notes.\",\"error_code\":\"SKILL_NOT_FOUND\"}"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "models": {
+      "boss": {
+        "calls": 4,
+        "sent": [
+          {
+            "system": "You are an agent. Your internal name is \"Harness\".\n\nFollow skills.\n\nSkills are installed procedures, one directory each: a SKILL.md with the procedure, and optionally references/, assets/ and scripts/. The index below lists every installed skill by name and description; it is complete, so never call a tool to list skills.\n\nload_skill(name) returns a skill's full SKILL.md and the names of the files it ships. load_skill_resource(skill_name, path) returns one of those files (\"references/x.md\", \"assets/x.yaml\", \"scripts/x.sh\").\n\nScripts in a skill's scripts/ directory cannot run here; when a procedure says to run one, give the user the exact command instead.\n\n<available_skills>\n  <skill>\n    <name>greeting</name>\n    <description>Greet a person by name in the team's house manner. Use when the user asks for a greeting or a welcome message.</description>\n  </skill>\n  <skill>\n    <name>release-notes</name>\n    <description>Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.</description>\n  </skill>\n</available_skills>",
+            "tools": [
+              {
+                "name": "load_skill",
+                "description": "Read one installed skill in full: its SKILL.md procedure, its frontmatter, and the names of the files it ships. Read a skill before you follow it.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "The skill's name, exactly as the index lists it."
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ]
+                }
+              },
+              {
+                "name": "load_skill_resource",
+                "description": "Loads a resource file (from references/, assets/, or scripts/) from within a skill.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "skill_name": {
+                      "type": "string",
+                      "description": "The name of the skill."
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "The relative path to the resource (e.g., 'references/my_doc.md', 'assets/template.txt', or 'scripts/setup.sh')."
+                    }
+                  },
+                  "required": [
+                    "skill_name",
+                    "path"
+                  ]
+                }
+              },
+              {
+                "name": "adk_handle_model_error",
+                "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "release notes please"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "system": "You are an agent. Your internal name is \"Harness\".\n\nFollow skills.\n\nSkills are installed procedures, one directory each: a SKILL.md with the procedure, and optionally references/, assets/ and scripts/. The index below lists every installed skill by name and description; it is complete, so never call a tool to list skills.\n\nload_skill(name) returns a skill's full SKILL.md and the names of the files it ships. load_skill_resource(skill_name, path) returns one of those files (\"references/x.md\", \"assets/x.yaml\", \"scripts/x.sh\").\n\nScripts in a skill's scripts/ directory cannot run here; when a procedure says to run one, give the user the exact command instead.\n\n<available_skills>\n  <skill>\n    <name>greeting</name>\n    <description>Greet a person by name in the team's house manner. Use when the user asks for a greeting or a welcome message.</description>\n  </skill>\n  <skill>\n    <name>release-notes</name>\n    <description>Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.</description>\n  </skill>\n</available_skills>",
+            "tools": [
+              {
+                "name": "load_skill",
+                "description": "Read one installed skill in full: its SKILL.md procedure, its frontmatter, and the names of the files it ships. Read a skill before you follow it.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "The skill's name, exactly as the index lists it."
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ]
+                }
+              },
+              {
+                "name": "load_skill_resource",
+                "description": "Loads a resource file (from references/, assets/, or scripts/) from within a skill.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "skill_name": {
+                      "type": "string",
+                      "description": "The name of the skill."
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "The relative path to the resource (e.g., 'references/my_doc.md', 'assets/template.txt', or 'scripts/setup.sh')."
+                    }
+                  },
+                  "required": [
+                    "skill_name",
+                    "path"
+                  ]
+                }
+              },
+              {
+                "name": "adk_handle_model_error",
+                "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "release notes please"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "toolCall",
+                    "id": "call-load",
+                    "name": "load_skill",
+                    "args": {
+                      "name": "release-notes"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "toolResult",
+                    "id": "call-load",
+                    "name": "load_skill",
+                    "result": {
+                      "skill_name": "release-notes",
+                      "frontmatter": {
+                        "name": "release-notes",
+                        "description": "Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.",
+                        "allowed-tools": "harness_test_lookup",
+                        "metadata": {
+                          "adk_additional_tools": [
+                            "harness_test_lookup"
+                          ]
+                        },
+                        "allowedTools": "harness_test_lookup"
+                      },
+                      "instructions": "# Release notes\n\n1. Read `references/style.md` for the house style.\n2. Run `scripts/version.sh` to learn the current version.\n3. Draft the notes from the changelog section for that version, in the house style.\n4. Start from `assets/template.md`.",
+                      "files": [
+                        "assets/template.md",
+                        "references/style.md",
+                        "scripts/version.sh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "system": "You are an agent. Your internal name is \"Harness\".\n\nFollow skills.\n\nSkills are installed procedures, one directory each: a SKILL.md with the procedure, and optionally references/, assets/ and scripts/. The index below lists every installed skill by name and description; it is complete, so never call a tool to list skills.\n\nload_skill(name) returns a skill's full SKILL.md and the names of the files it ships. load_skill_resource(skill_name, path) returns one of those files (\"references/x.md\", \"assets/x.yaml\", \"scripts/x.sh\").\n\nScripts in a skill's scripts/ directory cannot run here; when a procedure says to run one, give the user the exact command instead.\n\n<available_skills>\n  <skill>\n    <name>greeting</name>\n    <description>Greet a person by name in the team's house manner. Use when the user asks for a greeting or a welcome message.</description>\n  </skill>\n  <skill>\n    <name>release-notes</name>\n    <description>Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.</description>\n  </skill>\n</available_skills>",
+            "tools": [
+              {
+                "name": "load_skill",
+                "description": "Read one installed skill in full: its SKILL.md procedure, its frontmatter, and the names of the files it ships. Read a skill before you follow it.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "The skill's name, exactly as the index lists it."
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ]
+                }
+              },
+              {
+                "name": "load_skill_resource",
+                "description": "Loads a resource file (from references/, assets/, or scripts/) from within a skill.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "skill_name": {
+                      "type": "string",
+                      "description": "The name of the skill."
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "The relative path to the resource (e.g., 'references/my_doc.md', 'assets/template.txt', or 'scripts/setup.sh')."
+                    }
+                  },
+                  "required": [
+                    "skill_name",
+                    "path"
+                  ]
+                }
+              },
+              {
+                "name": "adk_handle_model_error",
+                "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "release notes please"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "toolCall",
+                    "id": "call-load",
+                    "name": "load_skill",
+                    "args": {
+                      "name": "release-notes"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "toolResult",
+                    "id": "call-load",
+                    "name": "load_skill",
+                    "result": {
+                      "skill_name": "release-notes",
+                      "frontmatter": {
+                        "name": "release-notes",
+                        "description": "Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.",
+                        "allowed-tools": "harness_test_lookup",
+                        "metadata": {
+                          "adk_additional_tools": [
+                            "harness_test_lookup"
+                          ]
+                        },
+                        "allowedTools": "harness_test_lookup"
+                      },
+                      "instructions": "# Release notes\n\n1. Read `references/style.md` for the house style.\n2. Run `scripts/version.sh` to learn the current version.\n3. Draft the notes from the changelog section for that version, in the house style.\n4. Start from `assets/template.md`.",
+                      "files": [
+                        "assets/template.md",
+                        "references/style.md",
+                        "scripts/version.sh"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "toolCall",
+                    "id": "call-res",
+                    "name": "load_skill_resource",
+                    "args": {
+                      "skill_name": "release-notes",
+                      "path": "references/style.md"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "toolResult",
+                    "id": "call-res",
+                    "name": "load_skill_resource",
+                    "result": {
+                      "skill_name": "release-notes",
+                      "path": "references/style.md",
+                      "content": "House style: one sentence per change, past tense, no adjectives.\n"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "system": "You are an agent. Your internal name is \"Harness\".\n\nFollow skills.\n\nSkills are installed procedures, one directory each: a SKILL.md with the procedure, and optionally references/, assets/ and scripts/. The index below lists every installed skill by name and description; it is complete, so never call a tool to list skills.\n\nload_skill(name) returns a skill's full SKILL.md and the names of the files it ships. load_skill_resource(skill_name, path) returns one of those files (\"references/x.md\", \"assets/x.yaml\", \"scripts/x.sh\").\n\nScripts in a skill's scripts/ directory cannot run here; when a procedure says to run one, give the user the exact command instead.\n\n<available_skills>\n  <skill>\n    <name>greeting</name>\n    <description>Greet a person by name in the team's house manner. Use when the user asks for a greeting or a welcome message.</description>\n  </skill>\n  <skill>\n    <name>release-notes</name>\n    <description>Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.</description>\n  </skill>\n</available_skills>",
+            "tools": [
+              {
+                "name": "load_skill",
+                "description": "Read one installed skill in full: its SKILL.md procedure, its frontmatter, and the names of the files it ships. Read a skill before you follow it.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "The skill's name, exactly as the index lists it."
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ]
+                }
+              },
+              {
+                "name": "load_skill_resource",
+                "description": "Loads a resource file (from references/, assets/, or scripts/) from within a skill.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "skill_name": {
+                      "type": "string",
+                      "description": "The name of the skill."
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "The relative path to the resource (e.g., 'references/my_doc.md', 'assets/template.txt', or 'scripts/setup.sh')."
+                    }
+                  },
+                  "required": [
+                    "skill_name",
+                    "path"
+                  ]
+                }
+              },
+              {
+                "name": "adk_handle_model_error",
+                "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "release notes please"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "toolCall",
+                    "id": "call-load",
+                    "name": "load_skill",
+                    "args": {
+                      "name": "release-notes"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "toolResult",
+                    "id": "call-load",
+                    "name": "load_skill",
+                    "result": {
+                      "skill_name": "release-notes",
+                      "frontmatter": {
+                        "name": "release-notes",
+                        "description": "Write release notes for a version from its changelog section. Use when the user asks for release notes, a release announcement, or a changelog summary.",
+                        "allowed-tools": "harness_test_lookup",
+                        "metadata": {
+                          "adk_additional_tools": [
+                            "harness_test_lookup"
+                          ]
+                        },
+                        "allowedTools": "harness_test_lookup"
+                      },
+                      "instructions": "# Release notes\n\n1. Read `references/style.md` for the house style.\n2. Run `scripts/version.sh` to learn the current version.\n3. Draft the notes from the changelog section for that version, in the house style.\n4. Start from `assets/template.md`.",
+                      "files": [
+                        "assets/template.md",
+                        "references/style.md",
+                        "scripts/version.sh"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "toolCall",
+                    "id": "call-res",
+                    "name": "load_skill_resource",
+                    "args": {
+                      "skill_name": "release-notes",
+                      "path": "references/style.md"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "toolResult",
+                    "id": "call-res",
+                    "name": "load_skill_resource",
+                    "result": {
+                      "skill_name": "release-notes",
+                      "path": "references/style.md",
+                      "content": "House style: one sentence per change, past tense, no adjectives.\n"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "toolCall",
+                    "id": "call-nope",
+                    "name": "load_skill",
+                    "args": {
+                      "name": "nope"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "toolResult",
+                    "id": "call-nope",
+                    "name": "load_skill",
+                    "result": {
+                      "error": "Skill 'nope' not found. Installed: greeting, release-notes.",
+                      "error_code": "SKILL_NOT_FOUND"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

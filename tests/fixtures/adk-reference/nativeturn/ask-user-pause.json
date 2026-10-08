@@ -1,0 +1,172 @@
+{
+  "suite": "nativeTurn",
+  "case": "ask-user-pause",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "outcomes": [
+      {
+        "status": "input-required",
+        "text": "Which year?",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        },
+        "relayFallback": false,
+        "input": {
+          "node": "Solo",
+          "message": "Which year?"
+        },
+        "resumedSession": false,
+        "tools": []
+      },
+      {
+        "status": "completed",
+        "text": "in 1999",
+        "usage": {
+          "llmCalls": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "thinkingTokens": 0
+        },
+        "relayFallback": false,
+        "resumedSession": true,
+        "tools": []
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "find the thing"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [
+          "call-ask"
+        ],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "ask_user",
+                "args": {
+                  "question": "Which year?"
+                },
+                "id": "call-ask"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {},
+          "skipSummarization": true
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "call-ask",
+                "name": "ask_user",
+                "response": {
+                  "result": "1999"
+                }
+              }
+            }
+          ]
+        },
+        "id": "ev000004",
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000002",
+        "author": "Solo",
+        "id": "ev000005",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "in 1999"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "calls": {
+      "boss": 2
+    },
+    "systems": {
+      "boss": [
+        "You are an agent. Your internal name is \"Solo\".\n\nAsk when unsure.",
+        "You are an agent. Your internal name is \"Solo\".\n\nAsk when unsure."
+      ]
+    },
+    "deltas": [
+      [],
+      []
+    ],
+    "sent": []
+  }
+}

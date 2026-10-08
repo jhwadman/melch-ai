@@ -1,0 +1,165 @@
+{
+  "suite": "nativeLoop",
+  "case": "reflect-reset-call-order",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed"
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "find the thing"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "native_loop_maybe",
+                "args": {
+                  "fail": true
+                },
+                "id": "c-1"
+              }
+            },
+            {
+              "functionCall": {
+                "name": "native_loop_maybe",
+                "args": {
+                  "fail": false
+                },
+                "id": "c-2"
+              }
+            },
+            {
+              "functionCall": {
+                "name": "native_loop_maybe",
+                "args": {
+                  "fail": true
+                },
+                "id": "c-3"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "c-1",
+                "name": "native_loop_maybe",
+                "response": {
+                  "response_type": "ERROR_HANDLED_BY_REFLECT_AND_RETRY_PLUGIN",
+                  "error_type": "Error",
+                  "error_details": "Error in tool 'native_loop_maybe': asked to fail",
+                  "retry_count": 1,
+                  "reflection_guidance": "The call to tool `native_loop_maybe` failed.\n\n**Error Details:**\n```\nError: Error in tool 'native_loop_maybe': asked to fail\n```\n\n**Tool Arguments Used:**\n```json\n{\n  \"fail\": true\n}\n```\n\n**Reflection Guidance:**\nThis is retry attempt **1 of 3**. Analyze the error and the arguments you provided. Do not repeat the exact same call. Consider the following before your next attempt:\n\n1.  **Invalid Parameters**: Does the error suggest that one or more arguments are incorrect, badly formatted, or missing? Review the tool's schema and your arguments.\n2.  **State or Preconditions**: Did a previous step fail or not produce the necessary state/resource for this tool to succeed?\n3.  **Alternative Approach**: Is this the right tool for the job? Could another tool or a different sequence of steps achieve the goal?\n4.  **Simplify the Task**: Can you break the problem down into smaller, simpler steps?\n5.  **Wrong Function Name**: Does the error indicates the tool is not found? Please check again and only use available tools.\n\nFormulate a new plan based on your analysis and try a corrected or different approach."
+                }
+              }
+            },
+            {
+              "functionResponse": {
+                "id": "c-2",
+                "name": "native_loop_maybe",
+                "response": {
+                  "result": "fine"
+                }
+              }
+            },
+            {
+              "functionResponse": {
+                "id": "c-3",
+                "name": "native_loop_maybe",
+                "response": {
+                  "response_type": "ERROR_HANDLED_BY_REFLECT_AND_RETRY_PLUGIN",
+                  "error_type": "Error",
+                  "error_details": "Error in tool 'native_loop_maybe': asked to fail",
+                  "retry_count": 1,
+                  "reflection_guidance": "The call to tool `native_loop_maybe` failed.\n\n**Error Details:**\n```\nError: Error in tool 'native_loop_maybe': asked to fail\n```\n\n**Tool Arguments Used:**\n```json\n{\n  \"fail\": true\n}\n```\n\n**Reflection Guidance:**\nThis is retry attempt **1 of 3**. Analyze the error and the arguments you provided. Do not repeat the exact same call. Consider the following before your next attempt:\n\n1.  **Invalid Parameters**: Does the error suggest that one or more arguments are incorrect, badly formatted, or missing? Review the tool's schema and your arguments.\n2.  **State or Preconditions**: Did a previous step fail or not produce the necessary state/resource for this tool to succeed?\n3.  **Alternative Approach**: Is this the right tool for the job? Could another tool or a different sequence of steps achieve the goal?\n4.  **Simplify the Task**: Can you break the problem down into smaller, simpler steps?\n5.  **Wrong Function Name**: Does the error indicates the tool is not found? Please check again and only use available tools.\n\nFormulate a new plan based on your analysis and try a corrected or different approach."
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "timestamp": 1767225602000,
+        "id": "ev000003",
+        "longRunningToolIds": []
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Solo",
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "done"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "calls": {
+      "boss": 2
+    },
+    "deltas": [
+      []
+    ]
+  }
+}

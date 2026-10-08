@@ -1,0 +1,42 @@
+{
+  "suite": "skillHarnessParity",
+  "case": "validate-edge",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "UPPER": [
+      "Invalid YAML in frontmatter: [\n  {\n    \"origin\": \"string\",\n    \"code\": \"invalid_format\",\n    \"format\": \"regex\",\n    \"pattern\": \"/^([a-z0-9]+(-[a-z0-9]+)*|[a-z0-9]+(_[a-z0-9]+)*)$/\",\n    \"path\": [\n      \"name\"\n    ],\n    \"message\": \"name must be lowercase kebab-case (a-z, 0-9, hyphens) or snake_case (a-z, 0-9, underscores), with no leading, trailing, or consecutive delimiters. Mixing hyphens and underscores is not allowed.\"\n  }\n]"
+    ],
+    "bad-meta": [
+      "Invalid YAML in frontmatter: [\n  {\n    \"code\": \"custom\",\n    \"path\": [\n      \"metadata\"\n    ],\n    \"message\": \"adk_additional_tools must be a list of strings\"\n  }\n]"
+    ],
+    "bad-yaml": [
+      "Invalid YAML in frontmatter: unexpected end of the stream within a flow collection (4:1)\n\n 1 | \n 2 | name: bad-yaml\n 3 | description: [unclosed\n 4 | \n-----^"
+    ],
+    "camel": [],
+    "empty-body": [],
+    "folded": [
+      "Unknown frontmatter fields: [extra]"
+    ],
+    "list-fm": [
+      "Invalid YAML in frontmatter: SKILL.md frontmatter must be a YAML mapping"
+    ],
+    "long-desc": [
+      "Invalid YAML in frontmatter: [\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_big\",\n    \"maximum\": 1024,\n    \"inclusive\": true,\n    \"path\": [\n      \"description\"\n    ],\n    \"message\": \"Too big: expected string to have <=1024 characters\"\n  }\n]"
+    ],
+    "mixed-delim_x": [
+      "Invalid YAML in frontmatter: [\n  {\n    \"origin\": \"string\",\n    \"code\": \"invalid_format\",\n    \"format\": \"regex\",\n    \"pattern\": \"/^([a-z0-9]+(-[a-z0-9]+)*|[a-z0-9]+(_[a-z0-9]+)*)$/\",\n    \"path\": [\n      \"name\"\n    ],\n    \"message\": \"name must be lowercase kebab-case (a-z, 0-9, hyphens) or snake_case (a-z, 0-9, underscores), with no leading, trailing, or consecutive delimiters. Mixing hyphens and underscores is not allowed.\"\n  }\n]"
+    ],
+    "no-desc": [
+      "Invalid YAML in frontmatter: [\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"description\"\n    ],\n    \"message\": \"Invalid input: expected string, received undefined\"\n  }\n]"
+    ],
+    "num-name": [
+      "Invalid YAML in frontmatter: [\n  {\n    \"expected\": \"string\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"name\"\n    ],\n    \"message\": \"Invalid input: expected string, received number\"\n  }\n]"
+    ],
+    "quoted": [],
+    "snake_case_ok": [],
+    "unclosed": [
+      "SKILL.md frontmatter not properly closed with ---"
+    ]
+  }
+}

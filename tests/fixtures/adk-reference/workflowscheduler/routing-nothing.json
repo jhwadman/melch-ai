@@ -1,0 +1,18 @@
+{
+  "suite": "workflowScheduler",
+  "case": "routing-nothing",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Triage <- \"go\"",
+      "Other <- {\"route\":\"nothing\",\"text\":\"x\"}"
+    ],
+    "completions": [
+      "Routed.Triage = {\"route\":\"nothing\",\"text\":\"x\"} @-",
+      "Routed.Triage__route = {\"route\":\"nothing\",\"text\":\"x\"} @-"
+    ],
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

@@ -1,0 +1,577 @@
+{
+  "suite": "syndicateTurn",
+  "case": "cross-conversation-all-adk",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "completed",
+        "text": "Scout says: found it (search value of attic)",
+        "llmCalls": 4,
+        "delegations": [
+          "Scout"
+        ],
+        "toolCalls": [
+          {
+            "agent": "Boss",
+            "name": "cross_runtime_lookup",
+            "args": {
+              "key": "attic"
+            }
+          },
+          {
+            "agent": "Boss",
+            "name": "Scout",
+            "args": {
+              "request": "search value of attic"
+            }
+          }
+        ],
+        "relayFallback": false
+      },
+      {
+        "status": "completed",
+        "text": "turn 4: I remember Scout says: found it (search value of attic)",
+        "llmCalls": 1,
+        "delegations": [],
+        "toolCalls": [],
+        "relayFallback": false
+      },
+      {
+        "status": "completed",
+        "text": "turn 5: I remember Scout says: found it (search value of attic)",
+        "llmCalls": 1,
+        "delegations": [],
+        "toolCalls": [],
+        "relayFallback": false
+      }
+    ],
+    "events": [
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "find the thing"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "cross_runtime_lookup",
+                "args": {
+                  "key": "attic"
+                },
+                "id": "ev000001"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "ev000001",
+                "name": "cross_runtime_lookup",
+                "response": {
+                  "result": "value of attic"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "functionCall": {
+                "name": "Scout",
+                "args": {
+                  "request": "search value of attic"
+                },
+                "id": "ev000001"
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "id": "ev000001",
+                "name": "Scout",
+                "response": {
+                  "result": "found it (search value of attic)"
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Scout says: found it (search value of attic)"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "what did Scout say?"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "turn 4: I remember Scout says: found it (search value of attic)"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "and now?"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "invocationId": "<inv>",
+        "author": "Boss",
+        "id": "ev000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "turn 5: I remember Scout says: found it (search value of attic)"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true
+      }
+    ],
+    "bossCalls": 5,
+    "bossRequests": [
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "find the thing"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "find the thing"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "ev000001",
+              "name": "cross_runtime_lookup",
+              "args": {
+                "key": "attic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "ev000001",
+              "name": "cross_runtime_lookup",
+              "result": "value of attic"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "find the thing"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "ev000001",
+              "name": "cross_runtime_lookup",
+              "args": {
+                "key": "attic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "ev000001",
+              "name": "cross_runtime_lookup",
+              "result": "value of attic"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "ev000001",
+              "name": "Scout",
+              "args": {
+                "request": "search value of attic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "ev000001",
+              "name": "Scout",
+              "result": "found it (search value of attic)"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "find the thing"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "ev000001",
+              "name": "cross_runtime_lookup",
+              "args": {
+                "key": "attic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "ev000001",
+              "name": "cross_runtime_lookup",
+              "result": "value of attic"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "ev000001",
+              "name": "Scout",
+              "args": {
+                "request": "search value of attic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "ev000001",
+              "name": "Scout",
+              "result": "found it (search value of attic)"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "Scout says: found it (search value of attic)"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "what did Scout say?"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "find the thing"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "ev000001",
+              "name": "cross_runtime_lookup",
+              "args": {
+                "key": "attic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "ev000001",
+              "name": "cross_runtime_lookup",
+              "result": "value of attic"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "toolCall",
+              "id": "ev000001",
+              "name": "Scout",
+              "args": {
+                "request": "search value of attic"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "parts": [
+            {
+              "type": "toolResult",
+              "id": "ev000001",
+              "name": "Scout",
+              "result": "found it (search value of attic)"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "Scout says: found it (search value of attic)"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "what did Scout say?"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "turn 4: I remember Scout says: found it (search value of attic)"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "type": "text",
+              "text": "and now?"
+            }
+          ]
+        }
+      ]
+    ]
+  }
+}

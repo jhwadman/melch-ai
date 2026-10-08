@@ -1,0 +1,9 @@
+{
+  "suite": "workflowGraph",
+  "case": "graph-rule-a duplicate unconditional edge",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "message": "Graph validation failed. Duplicate edge found: from=Lead, to=Sub. The same pair is already connected unconditionally, so the target would be triggered twice."
+  }
+}

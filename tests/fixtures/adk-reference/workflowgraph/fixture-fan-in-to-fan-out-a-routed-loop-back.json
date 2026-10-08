@@ -1,0 +1,28 @@
+{
+  "suite": "workflowGraph",
+  "case": "fixture-fan-in to fan-out, a routed loop back",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "nodes": [
+      "__START__",
+      "Triage",
+      "Other",
+      "Fixer",
+      "Reader",
+      "Reader__route",
+      "Done"
+    ],
+    "edges": [
+      "__START__ -> Triage",
+      "__START__ -> Other",
+      "Triage -> Fixer",
+      "Triage -> Reader",
+      "Other -> Fixer",
+      "Other -> Reader",
+      "Reader -> Reader__route",
+      "Reader__route -> Triage [again]",
+      "Reader__route -> Done [default]"
+    ]
+  }
+}

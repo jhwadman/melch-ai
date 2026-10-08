@@ -40,6 +40,11 @@ import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, lastToolResult, requestTexts, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import { acrossRuntimes, forEachRuntime, runtimeOption } from './helpers/runtime.ts';
 import type { RuntimeName } from './helpers/runtime.ts';
+import { adkReferences, canonical } from './helpers/adkReference.ts';
+
+// The all-ADK conversation the runSyndicateTurn cases are held to is recorded
+// (tests/fixtures/adk-reference/postgresstorage, against a real Postgres); it runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('postgresStorage');
 
 setLogLevel(LogLevel.ERROR);
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -240,17 +245,22 @@ async function pgConversation(on: (turn: number) => RuntimeName | undefined) {
   return { texts, events, history: desk.requests.map((r) => r.messages) };
 }
 
+/** All three turns on ADK: the reference both cases below are held to, recorded once. */
+let allAdk: ReturnType<typeof pgConversation> | undefined;
+const adkConversation = () => (allAdk ??= reference('pg-conversation-all-adk', () => pgConversation(() => 'adk')));
+
 forEachRuntime('a conversation through runSyndicateTurn persists to Postgres and the next turn resumes it from the rows', async () => {
-  const run = await pgConversation(() => undefined);
+  // In the reference's canonical form (adkReference.ts): JSON, its rows' ids and times fixed.
+  const run = canonical(await pgConversation(() => undefined));
   assert.deepEqual(run.texts, ['Noted: green tea.', 'You said: Noted: green tea.', 'You said: Noted: green tea.']);
   assert.equal(run.events.length, 8, 'per turn: the message and the answer, and the first turn\'s call and result');
-  const reference = await pgConversation(() => 'adk');
+  const reference = await adkConversation();
   assert.deepEqual(run.events, reference.events, 'the rows match what the ADK runtime stores');
 }, { skip });
 
 acrossRuntimes('a conversation written on one runtime resumes on the other from the Postgres rows alone', async (writer, reader) => {
-  const reference = await pgConversation(() => 'adk');
-  const run = await pgConversation((i) => (i === 0 ? writer : reader));
+  const reference = await adkConversation();
+  const run = canonical(await pgConversation((i) => (i === 0 ? writer : reader)));
   assert.deepEqual(run.texts, reference.texts);
   assert.deepEqual(run.events, reference.events, 'the rows');
   assert.deepEqual(run.history, reference.history, 'every request carried the same history');

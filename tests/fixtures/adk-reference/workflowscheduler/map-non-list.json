@@ -1,0 +1,24 @@
+{
+  "suite": "workflowScheduler",
+  "case": "map-non-list",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Splitter <- \"go\"",
+      "Worker <- \"solo\"",
+      "Summary <- [\"w:solo\"]"
+    ],
+    "completions": [
+      "Mapped.Splitter = \"solo\" @-",
+      "Mapped.Fan.Worker@0 = \"w:solo\" @Worker@0",
+      "Mapped.Fan = [\"w:solo\"] @-",
+      "Mapped.Summary = [\"w:solo\"] @-"
+    ],
+    "output": [
+      "w:solo"
+    ],
+    "nodeErrors": [],
+    "errorEvents": []
+  }
+}

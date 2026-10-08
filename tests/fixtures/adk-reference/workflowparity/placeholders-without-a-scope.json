@@ -1,0 +1,53 @@
+{
+  "suite": "workflowParity",
+  "case": "placeholders-without-a-scope",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "text": "Write on {input.topic} for {input.who}."
+    },
+    {
+      "text": "{input.n} {input.obj} {input.empty}|{input.nil}|"
+    },
+    {
+      "text": "{input.missing} / {input.gone?} / {any.topic} / {input.topic?}"
+    },
+    {
+      "text": "{input.missing?} then {input.missing}: the first spelling stays"
+    },
+    {
+      "text": "{input.missing} then {input.missing?}"
+    },
+    {
+      "text": "{{input.topic}} {{{input.who}}} {input.topic }"
+    },
+    {
+      "text": "<input.topic from Planner> <x.list from Planner> <input.topic   from   Planner  > < input.topic from Planner>"
+    },
+    {
+      "text": "<input.topic from Writer> <input.n from Counter> <input.x from Nope> <input.topic from Planner"
+    },
+    {
+      "text": "<input.topic fromPlanner> <input.topic from  > <1x.topic from Planner> <input..topic from Planner>"
+    },
+    {
+      "text": "<input.topic\tfrom\nPlanner> <a.b.c from Planner> <input.topic from Planner2>"
+    },
+    {
+      "text": "{ <input.topic from Planner> } overlap"
+    },
+    {
+      "text": "calm Ada  {input.topic} <input.topic from Planner>"
+    },
+    {
+      "text": "{ \"a\": 1 } {not valid} {a:b:c} { {"
+    },
+    {
+      "text": "no placeholders at all"
+    },
+    {
+      "text": "<<input.topic from Planner>> <> < > <input."
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "suite": "workflowAgentNode",
+  "case": "model-fails",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "failed",
+    "error": "Node 'Triage' failed: SCRIPTED_DOWN: the model is down",
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Triage",
+        "id": "ev000003",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000,
+        "errorCode": "SCRIPTED_DOWN",
+        "errorMessage": "the model is down",
+        "turnComplete": true,
+        "customMetadata": {
+          "error.retryable": false
+        },
+        "nodeInfo": {
+          "path": "Graph.Triage"
+        }
+      }
+    ],
+    "progress": [
+      "Running node: Triage"
+    ],
+    "routes": {},
+    "requests": {
+      "triage": [
+        {
+          "model": "scripted/triage",
+          "system": "You are an agent. Your internal name is \"Triage\".\n\nThe description about you is \"Triage\"\n\nTriage.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "go"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "fixer": [],
+      "other": []
+    },
+    "calls": {
+      "triage": 1,
+      "fixer": 0,
+      "other": 0
+    }
+  }
+}

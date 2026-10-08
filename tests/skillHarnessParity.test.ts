@@ -9,9 +9,11 @@
  * declarations in both scripts modes, the tools activation unlocked, and the
  * result of every call in a table of good and bad arguments, with each
  * approval answer. Here the engine's harness must give the same, key order
- * included (a stored event is JSON). Then ADK's own loader, still a dev
- * dependency, is read live against the engine's loader, and the parser's
- * bounds are checked. Offline: no model is called.
+ * included (a stored event is JSON). Then ADK's own loader and validator
+ * are held against the engine's: what ADK's returned for each shelf is
+ * recorded (tests/fixtures/adk-reference/skillharnessparity) and read live
+ * only under ADK_REFERENCE=live|record (tests/helpers/adkReference.ts).
+ * Last, the parser's bounds are checked. Offline: no model is called.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -20,7 +22,6 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FunctionTool, LogLevel, loadAllSkillsInDir as adkLoadAllSkillsInDir, setLogLevel, validateSkillDir as adkValidateSkillDir } from '@google/adk';
 import { z } from 'zod';
 
 import { contractToolDeclaration } from '../lib/models/schemaNormalize.ts';
@@ -31,15 +32,21 @@ import { SKILL_LIMITS, loadAllSkillsInDir, validateSkillDir } from '../lib/tools
 import { ListSkillsTool } from '../lib/tools/skills/tools.ts';
 import { createToolContext } from '../lib/tools/tool.ts';
 import type { Tool } from '../lib/tools/tool.ts';
+import { defineTool } from '../lib/tools/toolContract.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+const reference = adkReferences('skillHarnessParity');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const ROOT = process.cwd();
 const DIRS: Record<string, string> = { fixtures: join(ROOT, 'tests/fixtures/skills'), parity: join(ROOT, 'tests/fixtures/skills-parity') };
 const BEFORE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/skillHarness.adk.json'), 'utf-8'));
 
-const lookup = new FunctionTool({ name: 'harness_parity_lookup', description: 'Look up.', parameters: z.object({ key: z.string() }), execute: async () => 'x' });
-const other = new FunctionTool({ name: 'harness_parity_other', description: 'Other.', parameters: z.object({}), execute: async () => 'y' });
+const lookup = defineTool({ name: 'harness_parity_lookup', description: 'Look up.', schema: z.object({ key: z.string() }), execute: async () => 'x' });
+const other = defineTool({ name: 'harness_parity_other', description: 'Other.', schema: z.object({}), execute: async () => 'y' });
 
 /** As the capture normalized: the output directory is minted per toolset, a Buffer is its base64. */
 function norm(value: unknown): unknown {
@@ -206,14 +213,24 @@ function edgeShelf(): string {
   return base;
 }
 
+/** The shelves read against ADK, by a stable name: the two fixture shelves and the edge-case one (a fresh temp dir per run). */
+const shelvesWith = (edge: string): Array<[string, string]> => [['parity', DIRS.parity!], ['fixtures', DIRS.fixtures!], ['edge', edge]];
+
+/** A problem's text with the shelf's own path out: the edge shelf is a temp dir minted per run. */
+const onShelf = (problem: string, shelf: string): string => problem.split(shelf).join('<shelf>');
+
 test('ADK\'s loader and the engine\'s load the same skills to the same JSON from an edge-case shelf', async () => {
   const base = edgeShelf();
   try {
-    for (const shelf of [DIRS.parity!, DIRS.fixtures!, base]) {
-      const adk = (await adkLoadAllSkillsInDir(shelf)) as Record<string, unknown>;
+    for (const [label, shelf] of shelvesWith(base)) {
+      // ADK's loader: each skill it loaded, as normalized JSON (key order included).
+      const adk = await reference(`loader-${label}`, async () => {
+        const skills = (await (await import('@google/adk')).loadAllSkillsInDir(shelf)) as Record<string, unknown>;
+        return Object.fromEntries(Object.entries(skills).map(([name, skill]) => [name, JSON.stringify(norm(skill))]));
+      });
       const own = await loadAllSkillsInDir(shelf);
       assert.deepEqual(sorted(Object.keys(own)), sorted(Object.keys(adk)), `${shelf}: the same skills load`);
-      for (const name of Object.keys(adk)) assert.equal(JSON.stringify(norm(own[name])), JSON.stringify(norm(adk[name])), `${shelf} · ${name}`);
+      for (const name of Object.keys(adk)) assert.equal(JSON.stringify(norm(own[name])), adk[name], `${shelf} · ${name}`);
     }
   } finally {
     rmSync(base, { recursive: true, force: true });
@@ -222,18 +239,26 @@ test('ADK\'s loader and the engine\'s load the same skills to the same JSON from
 
 test('validateSkillDir finds a problem exactly where ADK\'s does, with ADK\'s words for the structural ones', async () => {
   const base = edgeShelf();
+  const dirsOf = (shelf: string) => readdirSync(shelf, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name !== 'group').map((e) => e.name).sort();
   try {
-    for (const shelf of [DIRS.parity!, base]) {
-      for (const entry of readdirSync(shelf, { withFileTypes: true })) {
-        if (!entry.isDirectory() || entry.name === 'group') continue;
-        const adk = await adkValidateSkillDir(join(shelf, entry.name));
-        const own = await validateSkillDir(join(shelf, entry.name));
-        assert.equal(own.length > 0, adk.length > 0, `${entry.name}: a problem on both or neither`);
+    for (const [label, shelf] of shelvesWith(base).filter(([l]) => l !== 'fixtures')) {
+      // ADK's validator: the problems it found in each skill directory, the shelf's path out.
+      const problems = await reference(`validate-${label}`, async () => {
+        const { validateSkillDir: adkValidateSkillDir } = await import('@google/adk');
+        const out: Record<string, string[]> = {};
+        for (const name of dirsOf(shelf)) out[name] = (await adkValidateSkillDir(join(shelf, name))).map((p) => onShelf(p, shelf));
+        return out;
+      });
+      assert.deepEqual(Object.keys(problems), dirsOf(shelf), `${label}: ADK read every skill directory`);
+      for (const name of dirsOf(shelf)) {
+        const adk = problems[name]!;
+        const own = (await validateSkillDir(join(shelf, name))).map((p) => onShelf(p, shelf));
+        assert.equal(own.length > 0, adk.length > 0, `${name}: a problem on both or neither`);
         // A field ADK's zod schema refuses, or YAML its js-yaml cannot parse, is reported in the engine's own
         // words (ADR 0083); every other text is ADK's.
         const ownWords = (p: string) => p.startsWith('Invalid YAML in frontmatter:') && !p.endsWith('must be a YAML mapping');
         if (!adk.some(ownWords)) {
-          assert.deepEqual(own.map((p) => p.split('\n')[0]), adk.map((p) => p.split('\n')[0]), entry.name);
+          assert.deepEqual(own.map((p) => p.split('\n')[0]), adk.map((p) => p.split('\n')[0]), name);
         }
       }
     }

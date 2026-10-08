@@ -1,0 +1,29 @@
+{
+  "suite": "workflowScheduler",
+  "case": "max-concurrency-retrying",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "calls": [
+      "Lead <- \"go\"",
+      "A <- \"Lead(go)\"",
+      "B <- \"Lead(go)\"",
+      "A <- \"Lead(go)\"",
+      "C <- \"Lead(go)\"",
+      "Tail <- {\"A\":\"a\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"}"
+    ],
+    "completions": [
+      "B.Lead = \"Lead(go)\" @-",
+      "B.A = \"a\" @A@1",
+      "B.C = \"C(Lead(go))\" @C@1",
+      "B.B = \"B(Lead(go))\" @B@1",
+      "B.All = {\"A\":\"a\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"} @-",
+      "B.Tail = \"Tail({\\\"A\\\":\\\"a\\\",\\\"B\\\":\\\"B(Lead(go))\\\",\\\"C\\\":\\\"C(Lead(go))\\\"})\" @-"
+    ],
+    "output": "Tail({\"A\":\"a\",\"B\":\"B(Lead(go))\",\"C\":\"C(Lead(go))\"})",
+    "nodeErrors": [
+      "B.A@A@1 A [429] slow down"
+    ],
+    "errorEvents": []
+  }
+}

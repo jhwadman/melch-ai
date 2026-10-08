@@ -1,0 +1,343 @@
+{
+  "suite": "workflowParity",
+  "case": "compaction-outside-task-mode",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Lead",
+        "id": "ev000003",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "lead says hi"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "usageMetadata": {
+          "promptTokenCount": 1000,
+          "candidatesTokenCount": 5,
+          "totalTokenCount": 1005
+        },
+        "turnComplete": true,
+        "output": "lead says hi",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Lead",
+          "outputFor": [
+            "Graph.Lead"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "lead says hi"
+            }
+          ]
+        },
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "author": "system",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "SUMMARY"
+            }
+          ]
+        },
+        "startTime": 1767225600000,
+        "endTime": 1767225602000,
+        "compactedContent": "SUMMARY",
+        "id": "ev000005",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000,
+        "isCompacted": true,
+        "output": "SUMMARY",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Worker",
+          "outputFor": [
+            "Graph.Worker"
+          ]
+        }
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Worker",
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "w lead says hi"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "w lead says hi",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Worker",
+          "outputFor": [
+            "Graph.Worker"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "w lead says hi"
+            }
+          ]
+        },
+        "id": "ev000007",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225606000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Last",
+        "id": "ev000008",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225607000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "l w lead says hi"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "l w lead says hi",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Last",
+          "outputFor": [
+            "Graph.Last"
+          ]
+        }
+      }
+    ],
+    "progress": [
+      "Running node: Lead",
+      "Running node: system",
+      "Running node: Worker",
+      "Running node: Last"
+    ],
+    "routes": {},
+    "output": "l w lead says hi",
+    "requests": {
+      "lead": [
+        {
+          "model": "scripted/lead",
+          "system": "You are an agent. Your internal name is \"Lead\".\n\nThe description about you is \"Lead\"\n\nLead.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "go"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "worker": [
+        {
+          "model": "scripted/worker",
+          "system": "You are an agent. Your internal name is \"Worker\".\n\nThe description about you is \"Worker\"\n\nWorker.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "lead says hi"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "last": [
+        {
+          "model": "scripted/last",
+          "system": "You are an agent. Your internal name is \"Last\".\n\nThe description about you is \"Last\"\n\nLast.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "w lead says hi"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "sum": [
+        {
+          "model": "scripted/sum",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "The following is a conversation history between a user and an AI agent. Please summarize the conversation, focusing on key information and decisions made, as well as any unresolved questions or tasks. The summary should be concise and capture the essence of the interaction.\n\n[Event 1 - Author: user]\ngo\n\n[Event 2 - Author: user]\ngo\n\n[Event 3 - Author: Lead]\nlead says hi\n\n"
+                }
+              ]
+            }
+          ],
+          "stream": false
+        }
+      ]
+    },
+    "calls": {
+      "lead": 1,
+      "worker": 1,
+      "last": 1,
+      "sum": 1
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "suite": "nativeDelegate",
+  "case": "orchestrator-model-error",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "results": [
+      {
+        "status": "failed",
+        "text": "",
+        "relayFallback": false,
+        "error": {
+          "code": "429",
+          "message": "rate limited"
+        }
+      }
+    ],
+    "sessions": {
+      "native-delegate": [
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "user",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "find the thing"
+              }
+            ]
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000
+        },
+        {
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "author": "Boss",
+          "id": "ev000002",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "longRunningToolIds": [],
+          "timestamp": 1767225601000,
+          "errorCode": "429",
+          "errorMessage": "rate limited",
+          "turnComplete": true,
+          "customMetadata": {
+            "error.retryable": false
+          }
+        }
+      ]
+    },
+    "requests": {
+      "boss": [
+        {
+          "model": "scripted/boss",
+          "system": "You are an agent. Your internal name is \"Boss\".\n\nDelegate to Scout.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "find the thing"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "Scout",
+              "description": "Finds things",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "request": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "request"
+                ]
+              }
+            },
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "scout": []
+    },
+    "calls": {
+      "boss": 1,
+      "scout": 0
+    }
+  }
+}

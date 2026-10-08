@@ -1,0 +1,9 @@
+{
+  "suite": "workflowGraph",
+  "case": "graph-rule-one node routed by two chains",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "message": "Graph validation failed. Duplicate edge found: from=Triage, to=Triage__route. The same pair is already connected unconditionally, so the target would be triggered twice."
+  }
+}

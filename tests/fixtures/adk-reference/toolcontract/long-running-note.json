@@ -1,0 +1,9 @@
+{
+  "suite": "toolContract",
+  "case": "long-running-note",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "description": "Waits.\n\nNOTE: This is a long-running operation. Do not call this tool again if it has already returned some intermediate or pending status."
+  }
+}

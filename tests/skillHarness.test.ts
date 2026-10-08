@@ -5,6 +5,12 @@
  * after the skill is loaded, a script run that waits for approval and then
  * runs on the local executor, and the schema's placement rules. Scripted
  * models, in-memory sessions, fixture skills under tests/fixtures/skills.
+ *
+ * The parity cases hold native to ADK's side, recorded
+ * (tests/fixtures/adk-reference/skillharness, tests/helpers/adkReference.ts)
+ * and run live only under ADK_REFERENCE=live|record. The cases on the ADK
+ * path (ScriptedLlm, compileGraph, a FunctionTool in the registry) and a
+ * conversation with a turn on ADK still load ADK.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -31,6 +37,11 @@ import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { ModelRequest } from '../lib/models/contract.ts';
 import type { TurnEvent } from '../lib/runtime/events.ts';
 import type { SyndicateTurnResult } from '../lib/runtime/syndicateTurn.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
+import { InProcessSessionService } from '../lib/runtime/sessions.ts';
+import { adkReferences, canonical } from './helpers/adkReference.ts';
+
+const reference = adkReferences('skillHarness');
 
 setLogLevel(LogLevel.ERROR);
 
@@ -225,7 +236,9 @@ interface Turn {
 
 async function converse(runtime: 'adk' | 'native', config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, turns: Turn[]) {
   const models = Object.fromEntries(Object.entries(scripts).map(([k, s]) => [k, new ScriptedModel(`scripted/${k}`, s)]));
-  const sessionService = new InMemorySessionService();
+  // ADK's own in-memory store when a turn runs on ADK; the engine's on native, as a consumer without ADK holds it (ADR 0102).
+  const onAdk = runtime === 'adk' || turns.some((t) => t.runtime === 'adk');
+  const sessionService = onAdk ? new InMemorySessionService() : asAdkSessionService(new InProcessSessionService());
   const results: SyndicateTurnResult[] = [];
   for (const t of turns) {
     results.push(
@@ -264,26 +277,41 @@ function comparable(events: TurnEvent[]): unknown {
 const outcome = (r: SyndicateTurnResult) =>
   withoutOutputDir({ status: r.status, text: r.text, error: r.error?.message ?? null, approval: r.approval ? { tool: r.approval.tool, args: r.approval.args } : null });
 
-async function assertParity(config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, turns: Turn[] = [{}]) {
-  const adk = await converse('adk', config, scripts, turns);
+/**
+ * A conversation as the parity cases compare it, and as a recording holds it:
+ * the results, the stored events, each model's calls and what it was sent;
+ * in canonical form, so ids minted per run are numbered alike on both sides.
+ */
+const compared = (run: Awaited<ReturnType<typeof converse>>) =>
+  canonical({
+    results: run.results.map(outcome),
+    events: withoutOutputDir(run.events) as TurnEvent[],
+    models: Object.fromEntries(
+      Object.entries(run.models).map(([key, m]) => [
+        key,
+        { calls: m.calls, sent: withoutOutputDir(m.requests.map((r) => ({ system: r.system, tools: r.tools, messages: r.messages }))) },
+      ]),
+    ),
+  });
+
+async function assertParity(name: string, config: SyndicateYamlConfig, scripts: Record<string, ModelScript>, turns: Turn[] = [{}]) {
+  // ADK's side, recorded; live it runs pinned to the adk runtime.
+  const adk = await reference(name, async () => compared(await converse('adk', config, scripts, turns)));
   const native = await converse('native', config, scripts, turns);
-  assert.deepEqual(native.results.map(outcome), adk.results.map(outcome), 'the results');
-  assert.deepEqual(comparable(native.events), comparable(adk.events), 'the stored events');
+  const ours = compared(native);
+  assert.deepEqual(ours.results, adk.results, 'the results');
+  assert.deepEqual(comparable(ours.events), comparable(adk.events), 'the stored events');
   for (const key of Object.keys(scripts)) {
-    assert.equal(native.models[key]?.calls, adk.models[key]?.calls, `calls to ${key}`);
-    assert.deepEqual(
-      withoutOutputDir(native.models[key]?.requests.map((r) => ({ system: r.system, tools: r.tools, messages: r.messages }))),
-      withoutOutputDir(adk.models[key]?.requests.map((r) => ({ system: r.system, tools: r.tools, messages: r.messages }))),
-      `what ${key} was sent`,
-    );
+    assert.equal(ours.models[key]?.calls, adk.models[key]?.calls, `calls to ${key}`);
+    assert.deepEqual(ours.models[key]?.sent, adk.models[key]?.sent, `what ${key} was sent`);
   }
-  return { adk, native };
+  return { native };
 }
 
 const resultText = (req: ModelRequest) => JSON.stringify(lastToolResult(req)?.result ?? null);
 
 test('parity: load_skill and load_skill_resource answer and store the same on native as on ADK', async () => {
-  const { native } = await assertParity(nativeSyndicate({}), {
+  const { native } = await assertParity('load-skill-and-resource', nativeSyndicate({}), {
     boss: (req, n) =>
       n === 1
         ? toolCall('load_skill', { name: 'release-notes' }, 'call-load')
@@ -300,7 +328,7 @@ test('parity: load_skill and load_skill_resource answer and store the same on na
 });
 
 test('parity: allowed-tools unlocks the permitted tool after the load, on native as on ADK', async () => {
-  const { native } = await assertParity(nativeSyndicate({ tools: ['harness_test_lookup'] }), {
+  const { native } = await assertParity('allowed-tools-unlock', nativeSyndicate({ tools: ['harness_test_lookup'] }), {
     boss: (req, n) => (n === 1 ? toolCall('load_skill', { name: 'release-notes' }, 'call-load') : n === 2 ? toolCall('harness_test_lookup', { key: 'k' }, 'call-look') : answer(`got ${resultText(req)}`)),
   });
   const names = (i: number) => native.models.boss!.requests[i]!.tools?.map((t) => t.name) ?? [];
@@ -313,7 +341,7 @@ test('parity: a script run pauses for approval and runs, or is refused, on nativ
   const script: ModelScript = (req, n) =>
     n === 1 ? toolCall('run_skill_script', { skill_name: 'release-notes', script_path: 'scripts/version.sh', args: { tag: 'beta' } }, 'call-run') : answer(`got ${resultText(req)}`);
   for (const approved of [true, false]) {
-    const { native } = await assertParity(nativeSyndicate({ scripts: 'local' }), { boss: script }, [
+    const { native } = await assertParity(approved ? 'script-run-approved' : 'script-run-refused', nativeSyndicate({ scripts: 'local' }), { boss: script }, [
       { parts: [{ text: 'release notes' }] },
       { answer: (r) => [approvalResponsePart(r.approval!.id, approved)] },
     ]);
@@ -339,7 +367,7 @@ test('a script approval opened on one runtime resumes on the other', async () =>
 });
 
 test('parity: a binary resource reaches the next request as inline data on both runtimes', async () => {
-  const { native } = await assertParity(nativeSyndicate({}, PARITY), {
+  const { native } = await assertParity('binary-resource', nativeSyndicate({}, PARITY), {
     boss: (_req, n) => (n === 1 ? toolCall('load_skill_resource', { skill_name: 'kit', path: 'assets/logo.png' }, 'call-bin') : answer('seen')),
   });
   const logo = readFileSync(join(PARITY, 'kit', 'assets', 'logo.png')).toString('base64');
@@ -351,7 +379,7 @@ test('parity: a binary resource reaches the next request as inline data on both 
 
 test('the harness.yaml example runs under runtime native with a scripted model, storing what ADK stores', async () => {
   const config = loadSyndicate(join(process.cwd(), 'config', 'agents', 'examples', 'harness.yaml'), { bindings: { skills_dir: FIXTURES } });
-  const { native } = await assertParity(config, {
+  const { native } = await assertParity('harness-example', config, {
     'gemini-3.8-flash': (req, n) =>
       n === 1
         ? toolCall('load_skill', { name: 'release-notes' }, 'call-load')

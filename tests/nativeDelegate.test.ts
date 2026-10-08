@@ -18,8 +18,8 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { AgentTool, FunctionTool, InMemorySessionService, LlmAgent, LogLevel, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
 import { compileNativeGraph } from '../lib/compileNative.ts';
@@ -42,8 +42,14 @@ import { toolOf } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, failure, lastToolResult, requestTexts, shimResolver, toolCall, untilAborted } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+// ADK's side of each parity case is recorded (tests/fixtures/adk-reference/nativedelegate); ADK runs only under ADK_REFERENCE=live|record.
+const reference = adkReferences('nativeDelegate');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 const APP = 'native-delegate';
 const USER = 'u1';
@@ -66,10 +72,10 @@ registerTool(
 const sent: string[] = [];
 registerTool(
   'native_delegate_send',
-  new FunctionTool({
+  defineTool({
     name: 'native_delegate_send',
     description: 'Send a note.',
-    parameters: z.object({ to: z.string() }),
+    schema: z.object({ to: z.string() }),
     execute: async ({ to }) => {
       sent.push(to);
       return `sent to ${to}`;
@@ -111,18 +117,24 @@ interface Turn {
 interface Run {
   /** Each session's events, by app name: the caller's under APP, each subagent's under its own name. */
   sessions: Record<string, TurnEvent[]>;
-  models: Record<string, ScriptedModel>;
+}
+
+/** ADK's run as recorded: each turn's result (what the cases read of it), the sessions, and the requests each model was sent and its call count. */
+interface AdkRun extends Run {
+  results: Array<Pick<SyndicateTurnResult, 'status' | 'text' | 'relayFallback' | 'error'>>;
+  requests: Record<string, unknown[]>;
+  calls: Record<string, number>;
 }
 
 const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
-async function runOnAdk(config: SyndicateYamlConfig, nested: Nested, scripts: Models, turns: Turn[]): Promise<Run & { results: SyndicateTurnResult[] }> {
+async function runOnAdk(config: SyndicateYamlConfig, nested: Nested, scripts: Models, turns: Turn[]): Promise<AdkRun> {
   const models = build(scripts);
+  const { InMemorySessionService } = await import('@google/adk');
   const sessionService = new InMemorySessionService();
-  const results: SyndicateTurnResult[] = [];
+  const results: AdkRun['results'] = [];
   for (const turn of turns) {
-    results.push(
-      await runSyndicateTurn({
+    const result = await runSyndicateTurn({
         config,
         parts: turn.parts ?? [{ text: 'find the thing' }],
         appName: APP,
@@ -133,15 +145,24 @@ async function runOnAdk(config: SyndicateYamlConfig, nested: Nested, scripts: Mo
         trace: false,
         ...(turn.signal ? { signal: turn.signal() } : {}),
         ...(turn.deadlineMs ? { deadlineMs: turn.deadlineMs } : {}),
-      }),
-    );
+        // The reference is ADK's: pinned, now that native is the default (ADR 0102).
+        runtime: 'adk',
+      });
+    results.push({
+      status: result.status,
+      text: result.text,
+      relayFallback: result.relayFallback,
+      ...(result.error ? { error: { code: result.error.code, message: result.error.message } } : {}),
+    });
   }
   const sessions: Record<string, TurnEvent[]> = {};
   for (const app of [APP, ...agentNames(config, nested)]) {
     const s = await sessionService.getSession({ appName: app, userId: USER, sessionId: 's1' });
     if (s) sessions[app] = plain(s.events) as unknown as TurnEvent[];
   }
-  return { results, sessions, models };
+  const requests = Object.fromEntries(Object.entries(models).map(([key, m]) => [key, m.requests.map(requestOf)]));
+  const calls = Object.fromEntries(Object.entries(models).map(([key, m]) => [key, m.calls]));
+  return { results, sessions, requests, calls };
 }
 
 /**
@@ -149,7 +170,7 @@ async function runOnAdk(config: SyndicateYamlConfig, nested: Nested, scripts: Mo
  * stored it, then runAgentLoop under a turn control built as
  * runSyndicateTurn builds it, drained as the turn runner drains it.
  */
-async function runNative(config: SyndicateYamlConfig, nested: Nested, scripts: Models, turns: Turn[], adk: Run): Promise<Run & { ends: AgentLoopEnd[] }> {
+async function runNative(config: SyndicateYamlConfig, nested: Nested, scripts: Models, turns: Turn[], adk: Run): Promise<Run & { ends: AgentLoopEnd[]; models: Record<string, ScriptedModel> }> {
   const models = build(scripts);
   const agent = await nativeGraphOf(config, nested);
   const store = new InProcessSessionService();
@@ -233,20 +254,32 @@ const requestOf = ({ signal: _s, ...rest }: ModelRequest) => plain(rest);
 
 const noRetries = { retries: { model_errors: 0, tool_errors: 0 } };
 
-/** Runs both ways and asserts every session holds the same events, and every model was sent the same requests. */
-async function assertParity(given: SyndicateYamlConfig, scripts: Models, turns: Turn[] = [{}], nested: Nested = {}) {
+/** A compared request as its SHA-256 (JSON): what a long run's recording holds, its history growing with every call. */
+const digestOf = (request: unknown): string => `sha256:${createHash('sha256').update(JSON.stringify(request)).digest('hex')}`;
+
+/**
+ * Takes ADK's side of case `name` (recorded, or live), runs it natively, and
+ * asserts every session holds the same events, and every model was sent the
+ * same requests. `digests` compares each request by its digest, for a case
+ * whose recorded requests would otherwise run to hundreds of kilobytes.
+ */
+async function assertParity(name: string, given: SyndicateYamlConfig, scripts: Models, turns: Turn[] = [{}], nested: Nested = {}, digests = false) {
   // Retries at their defaults: both runtimes run the caller with self-correction and each subagent without it (ADR 0075).
   const config = given;
   resetCircuits();
-  const adk = await runOnAdk(config, nested, scripts, turns);
+  const adk = await reference(name, async () => {
+    const run = await runOnAdk(config, nested, scripts, turns);
+    return digests ? { ...run, requests: Object.fromEntries(Object.entries(run.requests).map(([key, rs]) => [key, rs.map(digestOf)])) } : run;
+  });
   resetCircuits();
   const native = await runNative(config, nested, scripts, turns, adk);
   resetCircuits();
   assert.deepEqual(Object.keys(native.sessions), Object.keys(adk.sessions), 'the sessions kept');
   assert.deepEqual(comparable(native.sessions), comparable(adk.sessions), 'the stored events');
   for (const key of Object.keys(scripts)) {
-    assert.equal(native.models[key]?.calls, adk.models[key]?.calls, `calls to ${key}`);
-    assert.deepEqual(native.models[key]?.requests.map(requestOf), adk.models[key]?.requests.map(requestOf), `requests to ${key}`);
+    assert.equal(native.models[key]?.calls, adk.calls[key], `calls to ${key}`);
+    const sent = native.models[key]?.requests.map(requestOf);
+    assert.deepEqual(digests ? sent?.map(digestOf) : sent, adk.requests[key], `requests to ${key}`);
   }
   return { adk, native };
 }
@@ -265,7 +298,7 @@ const relay: ModelScript = (req, n) => (n === 1 ? toolCall('Scout', { request: '
 // ── The boundary suite's delegation cases ────────────────────────────────────
 
 test('boundary: the subagent receives the request argument, runs in its own session, and the relay ships', async () => {
-  const { adk, native } = await assertParity(delegateConfig(), { boss: relay, scout: () => answer('it is in the attic') });
+  const { adk, native } = await assertParity('relay-ships', delegateConfig(), { boss: relay, scout: () => answer('it is in the attic') });
   assert.equal(adk.results[0]?.text, 'Scout says: it is in the attic');
   assert.deepEqual(native.ends.map((e) => e.reason), ['final']);
   assert.deepEqual(requestTexts(native.models.scout?.requests[0] as ModelRequest), ['look in the attic']);
@@ -280,7 +313,7 @@ test('boundary: the subagent receives the request argument, runs in its own sess
 });
 
 test('boundary: a relay that returns no text stores the same events (the fallback stays in the turn runner)', async () => {
-  const { adk } = await assertParity(delegateConfig(), {
+  const { adk } = await assertParity('relay-fallback', delegateConfig(), {
     boss: (_r, n) => (n === 1 ? toolCall('Scout', { request: 'go' }, 'call-scout-1') : answer('')),
     scout: () => answer('the full specialist report'),
   });
@@ -288,7 +321,7 @@ test('boundary: a relay that returns no text stores the same events (the fallbac
 });
 
 test('boundary: max_steps caps model calls across the whole turn, subagents included', async () => {
-  const { adk, native } = await assertParity(delegateConfig({ max_steps: 5 }), {
+  const { adk, native } = await assertParity('max-steps-5', delegateConfig({ max_steps: 5 }), {
     boss: (_r, n) => toolCall('Scout', { request: 'again' }, `call-scout-${n}`),
     scout: () => answer('still nothing'),
   });
@@ -298,10 +331,10 @@ test('boundary: max_steps caps model calls across the whole turn, subagents incl
 });
 
 test('boundary: without max_steps, the turn stops at 50 model calls on both runtimes', async () => {
-  const { native } = await assertParity(delegateConfig(), {
+  const { native } = await assertParity('default-step-limit-50', delegateConfig(), {
     boss: (_r, n) => toolCall('Scout', { request: 'again' }, `call-scout-${n}`),
     scout: () => answer('still nothing'),
-  });
+  }, [{}], {}, true);
   assert.equal((native.models.boss?.calls ?? 0) + (native.models.scout?.calls ?? 0), 50);
 });
 
@@ -311,7 +344,7 @@ test('boundary: cancel stops the orchestrator’s call in flight', async () => {
     setTimeout(() => c.abort(), 30);
     return c.signal;
   };
-  const { native } = await assertParity(delegateConfig(), { boss: (_r, _n, s) => untilAborted(s), scout: () => answer('x') }, [{ signal }]);
+  const { native } = await assertParity('cancel-orchestrator', delegateConfig(), { boss: (_r, _n, s) => untilAborted(s), scout: () => answer('x') }, [{ signal }]);
   assert.equal(native.ends[0]?.stop?.code, 'CANCELED');
 });
 
@@ -322,6 +355,7 @@ test('boundary: cancel inside the subagent’s call stops the turn, with the sam
     return c.signal;
   };
   const { adk, native } = await assertParity(
+    'cancel-in-subagent',
     delegateConfig(),
     { boss: (_r, n) => (n === 1 ? toolCall('Scout', { request: 'wait' }, 'call-scout-1') : answer('never')), scout: (_r, _n, s) => untilAborted(s) },
     [{ signal }],
@@ -332,6 +366,7 @@ test('boundary: cancel inside the subagent’s call stops the turn, with the sam
 
 test('boundary: a deadline inside the subagent’s call fails the turn on both runtimes', async () => {
   const { adk } = await assertParity(
+    'deadline-in-subagent',
     delegateConfig(),
     { boss: (_r, n) => (n === 1 ? toolCall('Scout', { request: 'wait' }, 'call-scout-1') : answer('never')), scout: (_r, _n, s) => untilAborted(s) },
     [{ deadlineMs: 40 }],
@@ -340,14 +375,14 @@ test('boundary: a deadline inside the subagent’s call fails the turn on both r
 });
 
 test('boundary: a model error in the orchestrator is stored as the failure', async () => {
-  const { native } = await assertParity(delegateConfig(), { boss: () => failure({ code: '429', message: 'rate limited' }), scout: () => answer('x') });
+  const { native } = await assertParity('orchestrator-model-error', delegateConfig(), { boss: () => failure({ code: '429', message: 'rate limited' }), scout: () => answer('x') });
   assert.equal(native.ends[0]?.reason, 'error');
 });
 
 // ── The subagent's run ───────────────────────────────────────────────────────
 
 test('parity: a model error in the subagent answers the call with an empty text', async () => {
-  const { native } = await assertParity(delegateConfig(noRetries), {
+  const { native } = await assertParity('subagent-model-error', delegateConfig(noRetries), {
     boss: relay,
     scout: () => failure({ code: '500', message: 'upstream broke' }),
   });
@@ -357,6 +392,7 @@ test('parity: a model error in the subagent answers the call with an empty text'
 
 test('parity: a second delegation, in a later turn, continues the subagent’s own session', async () => {
   const { native } = await assertParity(
+    'second-delegation-later-turn',
     delegateConfig(),
     {
       boss: (req, n) => (n % 2 === 1 ? toolCall('Scout', { request: `question ${n}` }, `call-scout-${n}`) : answer(String(lastToolResult(req)?.result))),
@@ -373,7 +409,7 @@ test('parity: the subagent starts from the caller’s state, and its state write
     { ...noRetries, orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Delegate to Scout.', tools: ['native_delegate_lookup'] } } as Partial<SyndicateYamlConfig>,
     { instruction: 'Answer. Seen alpha: {seen_alpha?}.', outputKey: 'scout_answer', tools: ['native_delegate_lookup'] },
   );
-  const { native } = await assertParity(config, {
+  const { native } = await assertParity('state-in-and-out', config, {
     boss: (req, n) =>
       n === 1
         ? toolCall('native_delegate_lookup', { key: 'alpha' }, 'call-lookup-1')
@@ -389,16 +425,16 @@ test('parity: the subagent starts from the caller’s state, and its state write
 
 test('parity: an output schema’s answer is parsed, and an answer that does not parse fails the call', async () => {
   const schema = { type: 'object', properties: { verdict: { type: 'string' } }, required: ['verdict'] };
-  const parsed = await assertParity(delegateConfig(noRetries, { outputSchema: schema }), { boss: relay, scout: () => answer('{"verdict":"pass"}') });
+  const parsed = await assertParity('output-schema-parsed', delegateConfig(noRetries, { outputSchema: schema }), { boss: relay, scout: () => answer('{"verdict":"pass"}') });
   assert.deepEqual(parsed.native.sessions[APP]?.[2]?.content?.parts?.[0]?.functionResponse?.response, { verdict: 'pass' });
-  const broken = await assertParity(delegateConfig(noRetries, { outputSchema: schema }), { boss: relay, scout: () => answer('not json') });
+  const broken = await assertParity('output-schema-not-json', delegateConfig(noRetries, { outputSchema: schema }), { boss: relay, scout: () => answer('not json') });
   assert.ok('error' in (broken.native.sessions[APP]?.[2]?.content?.parts?.[0]?.functionResponse?.response ?? {}));
 });
 
 test('parity: a pause inside a subagent stays refused: the gated tool never runs and the call answers an empty text', async () => {
   // Not a valid YAML (ADR 0028 refuses a gate on a delegated subagent at load): built here to show both runtimes swallow it alike.
   sent.length = 0;
-  const { native } = await assertParity(delegateConfig(noRetries, { tools: ['native_delegate_send'], require_approval: ['native_delegate_send'] }), {
+  const { native } = await assertParity('pause-approval-refused', delegateConfig(noRetries, { tools: ['native_delegate_send'], require_approval: ['native_delegate_send'] }), {
     boss: relay,
     scout: () => toolCall('native_delegate_send', { to: 'ops@acme.test' }, 'call-send-1'),
   });
@@ -407,7 +443,7 @@ test('parity: a pause inside a subagent stays refused: the gated tool never runs
   assert.deepEqual(native.sessions[APP]?.[2]?.content?.parts?.[0]?.functionResponse?.response, { result: '' });
   assert.equal(native.ends[0]?.reason, 'final', 'the caller does not pause');
 
-  const asked = await assertParity(delegateConfig(noRetries, { tools: ['ask_user'] }), {
+  const asked = await assertParity('pause-ask-user-refused', delegateConfig(noRetries, { tools: ['ask_user'] }), {
     boss: relay,
     scout: () => toolCall('ask_user', { question: 'Which attic?' }, 'call-ask-1'),
   });
@@ -429,6 +465,7 @@ test('parity: a nested syndicate (yaml_reference) runs its own delegation, each 
     subagents: [{ name: 'Team', description: 'A team that finds things', yaml_reference: 'team.yaml' }],
   } as SyndicateYamlConfig;
   const { native } = await assertParity(
+    'nested-syndicate',
     config,
     {
       boss: (req, n) => (n === 1 ? toolCall('Team', { request: 'find the key' }, 'call-team-1') : answer(`Team: ${String(lastToolResult(req)?.result)}`)),
@@ -454,6 +491,7 @@ function council(): SyndicateYamlConfig {
 test('council: the Moderator consults the Advocate, then the Skeptic, and both runtimes store the same events', async () => {
   const claim = 'We should rewrite the billing service in Rust.';
   const { native } = await assertParity(
+    'council-sequential-steps',
     council(),
     {
       moderator: (req, n) =>
@@ -475,6 +513,7 @@ test('council: two delegations in one step run one after another, in call order,
   const claim = 'Four-day weeks raise output.';
   const order: string[] = [];
   const { native } = await assertParity(
+    'council-two-in-one-step',
     council(),
     {
       moderator: (_r, n) =>
@@ -501,7 +540,8 @@ test('council: two delegations in one step run one after another, in call order,
     },
     [{ parts: [{ text: claim }] }],
   );
-  assert.deepEqual(order.slice(3), ['advocate:start', 'advocate:end', 'skeptic'], 'the native run, sequential');
+  // The native run's entries are the last three (ADK's run, when it runs live, pushed the first three).
+  assert.deepEqual(order.slice(-3), ['advocate:start', 'advocate:end', 'skeptic'], 'the native run, sequential');
   const responses = native.sessions[APP]?.[2]?.content?.parts?.map((p) => [p.functionResponse?.name, p.functionResponse?.response]);
   assert.deepEqual(responses, [
     ['Advocate', { result: '1. Rested people.' }],
@@ -522,6 +562,8 @@ test('subagentTool declares the request argument ADK’s AgentTool declares, and
 });
 
 test('an ADK AgentTool listed on a native agent fails the run with a message, not an error answer', async () => {
+  // ADK-subject (WS5-2b deletes it with ADK): the only case here that needs @google/adk installed.
+  const { AgentTool, LlmAgent } = await import('@google/adk');
   const adkTool = new AgentTool({ agent: new LlmAgent({ name: 'Scout', description: 'Finds things', model: 'scripted/scout', instruction: 'x' }) });
   assert.throws(() => subagentOf(adkTool), /an ADK AgentTool cannot run on the native loop; list subagentTool/);
   const store = new InProcessSessionService();

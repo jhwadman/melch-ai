@@ -1,0 +1,21 @@
+{
+  "suite": "openapiTools",
+  "case": "request-8-postVnd",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "sent": [
+      {
+        "url": "https://api.example.com/v1/vnd",
+        "method": "POST",
+        "headers": {
+          "content-type": "application/vnd.api+json"
+        },
+        "body": "[1,2]"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

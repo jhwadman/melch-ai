@@ -1,0 +1,154 @@
+{
+  "suite": "workflowResume",
+  "case": "nothing-paused-first-turn",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "turns": [
+      [
+        {
+          "author": "Triage",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "the draft"
+              }
+            ]
+          },
+          "output": "the draft",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000001",
+          "longRunningToolIds": [],
+          "timestamp": 1767225600000,
+          "nodeInfo": {
+            "path": "Graph.Triage",
+            "outputFor": [
+              "Graph.Triage"
+            ]
+          }
+        },
+        {
+          "author": "Publisher",
+          "invocationId": "e-00000000-0000-4000-8000-000000000001",
+          "content": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "published \"the draft\""
+              }
+            ]
+          },
+          "output": "published \"the draft\"",
+          "actions": {
+            "stateDelta": {},
+            "artifactDelta": {},
+            "requestedAuthConfigs": {},
+            "requestedToolConfirmations": {}
+          },
+          "id": "ev000002",
+          "longRunningToolIds": [],
+          "timestamp": 1767225601000,
+          "nodeInfo": {
+            "path": "Graph.Publisher",
+            "outputFor": [
+              "Graph.Publisher"
+            ]
+          }
+        }
+      ]
+    ],
+    "errors": [
+      null
+    ],
+    "stored": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000003",
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000
+      },
+      {
+        "author": "Triage",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "the draft"
+            }
+          ]
+        },
+        "output": "the draft",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000,
+        "nodeInfo": {
+          "path": "Graph.Triage",
+          "outputFor": [
+            "Graph.Triage"
+          ]
+        }
+      },
+      {
+        "author": "Publisher",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "published \"the draft\""
+            }
+          ]
+        },
+        "output": "published \"the draft\"",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "id": "ev000002",
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000,
+        "nodeInfo": {
+          "path": "Graph.Publisher",
+          "outputFor": [
+            "Graph.Publisher"
+          ]
+        }
+      }
+    ],
+    "calls": [
+      "Triage",
+      "Publisher"
+    ]
+  }
+}

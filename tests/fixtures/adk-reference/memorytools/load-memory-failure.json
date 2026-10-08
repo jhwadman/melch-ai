@@ -1,0 +1,10 @@
+{
+  "suite": "memoryTools",
+  "case": "load-memory-failure",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "rejected": true,
+    "message": "Memory service is not initialized."
+  }
+}

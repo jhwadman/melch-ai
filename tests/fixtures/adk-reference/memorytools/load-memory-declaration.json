@@ -1,0 +1,25 @@
+{
+  "suite": "memoryTools",
+  "case": "load-memory-declaration",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "gemini": "{\"name\":\"load_memory\",\"description\":\"Loads the memory for the current user.\\n\\nNOTE: Currently this tool only uses text part from the memory.\",\"parameters\":{\"type\":\"OBJECT\",\"properties\":{\"query\":{\"type\":\"STRING\",\"description\":\"The query to load the memory for.\"}},\"required\":[\"query\"]}}",
+    "contract": {
+      "name": "load_memory",
+      "description": "Loads the memory for the current user.\n\nNOTE: Currently this tool only uses text part from the memory.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The query to load the memory for."
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    }
+  }
+}

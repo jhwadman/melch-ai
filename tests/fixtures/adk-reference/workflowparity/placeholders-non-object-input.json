@@ -1,0 +1,26 @@
+{
+  "suite": "workflowParity",
+  "case": "placeholders-non-object-input",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": [
+    {
+      "text": "{input.topic} {input.length}  {input.parts}"
+    },
+    {
+      "text": "{input.topic} {input.length}  {input.parts}"
+    },
+    {
+      "text": "{input.topic} {input.length}  {input.parts}"
+    },
+    {
+      "text": "{input.topic} {input.length}  {input.parts}"
+    },
+    {
+      "text": "{input.topic} 2  {input.parts}"
+    },
+    {
+      "text": "{input.topic} {input.length} user [{\"text\":\"x\"}]"
+    }
+  ]
+}

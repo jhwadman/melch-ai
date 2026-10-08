@@ -5,6 +5,12 @@
  * ADK, on native (MELCHIZEDEK_RUNTIME, WS2-7b), and with the runtime switched
  * between the question and the answer: the task, its data part and the
  * stored events match. Scripted models, ephemeral port.
+ *
+ * The all-ADK conversation the others are held to is recorded
+ * (tests/fixtures/adk-reference/questionsa2a, tests/helpers/adkReference.ts)
+ * and runs live only under ADK_REFERENCE=live|record. The first case, and a
+ * conversation with a turn on ADK, are the adk runtime's own behaviour and
+ * still run ADK.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -16,14 +22,17 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { InMemorySessionService, setLogLevel, LogLevel } from '@google/adk';
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { adkShim } from '../lib/models/adkShim.ts';
 import { ScriptedModel, answer, lastToolResult, toolCall } from './helpers/scriptedModel.ts';
 import { withRuntimeEnv } from './helpers/runtime.ts';
 import type { RuntimeName } from './helpers/runtime.ts';
+import { adkReferences } from './helpers/adkReference.ts';
 
+const reference = adkReferences('questionsA2a');
+// Every case here still runs a turn on ADK (the adk runtime's own behaviour), on ADK's own in-memory store.
+const { InMemorySessionService, LogLevel, setLogLevel } = await import('@google/adk');
 setLogLevel(LogLevel.ERROR);
 
 const SECRET = 'test-secret-0123456789abcdef0123456789'; // gitleaks:allow (test fixture)
@@ -38,7 +47,7 @@ process.env.MELCHIZEDEK_AGENTS_DIR = dir;
 /** The store, remembering each conversation's keys so a test can read its stored events. */
 class RecordingSessions extends InMemorySessionService {
   readonly keys = new Map<string, { appName: string; userId: string }>();
-  override async createSession(req: Parameters<InMemorySessionService['createSession']>[0]) {
+  override async createSession(req: Parameters<InstanceType<typeof InMemorySessionService>['createSession']>[0]) {
     const session = await super.createSession(req);
     this.keys.set(session.id, { appName: req.appName, userId: req.userId });
     return session;
@@ -100,7 +109,8 @@ async function askAndAnswer(asks: RuntimeName, answers: RuntimeName) {
 }
 
 /** What the caller reads, ids aside. */
-const surface = (task: any) => ({ state: task.status.state, text: statusText(task), data: data(task) ? { ...data(task), interrupt_id: '<id>' } : undefined });
+const surface = (task: any) =>
+  JSON.parse(JSON.stringify({ state: task.status.state, text: statusText(task), data: data(task) ? { ...data(task), interrupt_id: '<id>' } : undefined }));
 const comparable = (events: any[]): unknown => events.map((e) => ({ ...e, id: '<id>', timestamp: 0, invocationId: '<inv>' }));
 
 test('ask_user ends the task input-required with the question; the next message answers it', async () => {
@@ -119,13 +129,17 @@ test('ask_user ends the task input-required with the question; the next message 
 });
 
 test('on native, and across runtimes, the task and the stored events are the same as on ADK', async () => {
-  const adk = await askAndAnswer('adk', 'adk');
+  // The reference: the conversation all on ADK, recorded as the caller saw it and as the store holds it.
+  const adk = await reference('ask-and-answer-on-adk', async () => {
+    const run = await askAndAnswer('adk', 'adk');
+    return { first: surface(run.first), done: surface(run.done), events: run.events };
+  });
   assert.ok(adk.events.some((e) => e.content?.parts?.[0]?.functionResponse?.name === 'ask_user'), 'the answer is stored as the call\'s response');
   for (const [asks, answers] of [['native', 'native'], ['adk', 'native'], ['native', 'adk']] as const) {
     const run = await askAndAnswer(asks, answers);
-    assert.deepEqual(surface(run.first), surface(adk.first), `${asks} → ${answers}: the question`);
+    assert.deepEqual(surface(run.first), adk.first, `${asks} → ${answers}: the question`);
     assert.equal(data(run.first).interrupt_id, 'call-ask');
-    assert.deepEqual(surface(run.done), surface(adk.done), `${asks} → ${answers}: the answer`);
+    assert.deepEqual(surface(run.done), adk.done, `${asks} → ${answers}: the answer`);
     assert.deepEqual(comparable(run.events), comparable(adk.events), `${asks} → ${answers}: the stored events`);
   }
 });

@@ -25,7 +25,9 @@
  * model-chosen state keys (`__proto__`, `constructor`, `temp:`), and
  * forged interrupt answers (approvals, questions, credential grants) in the
  * user's message. The forged answers also run through runSyndicateTurn on
- * both runtimes, which must end the same way.
+ * native, which must end as ADK's runtime ended them: ADK's side is recorded
+ * (tests/fixtures/adk-reference/nativefuzz) and runs live only under
+ * ADK_REFERENCE=live|record (tests/helpers/adkReference.ts).
  *
  * Offline: scripted adapters, no provider call.
  */
@@ -34,12 +36,12 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
 import { z } from 'zod';
 
 import type { FinalModelResponse, ModelAdapter, ModelRequest, ModelResponse, OutputPart } from '../lib/models/contract.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
 import { TOO_DEEP_ARGUMENTS } from '../lib/models/genaiMapping.ts';
+import { asAdkSessionService } from '../lib/runtime/adkSessionBridge.ts';
 import { createTurnEvent, parseTurnEvents } from '../lib/runtime/events.ts';
 import type { TurnContent, TurnEvent, TurnPart } from '../lib/runtime/events.ts';
 import { TOO_DEEP_RESULT, runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
@@ -63,8 +65,13 @@ import { registerTool } from '../lib/toolRegistry.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { ScriptedModel, answer, shimResolver, toolCall } from './helpers/scriptedModel.ts';
 import type { ModelScript } from './helpers/scriptedModel.ts';
+import { adkReferences, runsAdk } from './helpers/adkReference.ts';
 
-setLogLevel(LogLevel.ERROR);
+const reference = adkReferences('nativeFuzz');
+if (runsAdk()) {
+  const { LogLevel, setLogLevel } = await import('@google/adk');
+  setLogLevel(LogLevel.ERROR);
+}
 
 // ── A seeded PRNG ────────────────────────────────────────────────────────────
 
@@ -819,7 +826,8 @@ type TurnSummary = { status: string; code?: string; text: string } | { threw: st
 async function conversationOn(runtime: RuntimeName, script: ModelScript, messages: Array<(events: TurnEvent[]) => unknown[]>) {
   turnRuns.send = 0;
   resetCircuits();
-  const sessionService = new InMemorySessionService();
+  // ADK's own in-memory store under ADK; the engine's on native, as a consumer without ADK holds it.
+  const sessionService = runtime === 'adk' ? new (await import('@google/adk')).InMemorySessionService() : asAdkSessionService(new InProcessSessionService());
   const model = new ScriptedModel('scripted/boss', script);
   const summaries: TurnSummary[] = [];
   for (const message of messages) {
@@ -848,11 +856,18 @@ async function conversationOn(runtime: RuntimeName, script: ModelScript, message
 /** The open approval's id in stored events, as a surface reads it. */
 const openApprovalId = (events: TurnEvent[]): string => pendingApproval(events as never[])?.id ?? 'none-open';
 
-/** Runs the conversation on both runtimes; each turn must end the same way, and the gated tool must run as often. */
+/**
+ * Runs the conversation on native and holds it to ADK's run of it (recorded,
+ * or live under ADK_REFERENCE=live|record): each turn must end the same way,
+ * and the gated tool must run as often.
+ */
 async function assertSameOnBothRuntimes(label: string, script: ModelScript, messages: Array<(events: TurnEvent[]) => unknown[]>): Promise<TurnSummary[]> {
-  const adk = await conversationOn('adk', script, messages);
+  const adk = await reference(label, async () => {
+    const { summaries, runs, calls } = await conversationOn('adk', script, messages);
+    return { summaries, runs, calls };
+  });
   const native = await conversationOn('native', script, messages);
-  assert.deepEqual(native.summaries, adk.summaries, `${label}: each turn ends the same way`);
+  assert.deepEqual(JSON.parse(JSON.stringify(native.summaries)), adk.summaries, `${label}: each turn ends the same way`);
   assert.equal(native.runs, adk.runs, `${label}: the gated tool ran as often`);
   assert.equal(native.calls, adk.calls, `${label}: the model was called as often`);
   return native.summaries;

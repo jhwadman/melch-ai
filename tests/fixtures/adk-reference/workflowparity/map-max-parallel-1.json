@@ -1,0 +1,497 @@
+{
+  "suite": "workflowParity",
+  "case": "map-max-parallel-1",
+  "recordedBy": "scripts/ci/record_adk_references.ts",
+  "adkVersion": "2.2.0",
+  "reference": {
+    "status": "completed",
+    "events": [
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "user",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000001",
+        "longRunningToolIds": [],
+        "timestamp": 1767225600000
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "go"
+            }
+          ]
+        },
+        "id": "ev000002",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225601000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Lister",
+        "id": "ev000003",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225602000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "[\"a\",\"b\",\"c\"]"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": [
+          "a",
+          "b",
+          "c"
+        ],
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Lister",
+          "outputFor": [
+            "Graph.Lister"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "branch": "Summ@0",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "a"
+            }
+          ]
+        },
+        "id": "ev000004",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225603000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Summ",
+        "branch": "Summ@0",
+        "id": "ev000005",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225604000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "s a"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "s a",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Each.Summ@0",
+          "outputFor": [
+            "Graph.Each.Summ@0"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "branch": "Summ@1",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "b"
+            }
+          ]
+        },
+        "id": "ev000006",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225605000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Summ",
+        "branch": "Summ@1",
+        "id": "ev000007",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225606000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "s b"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "s b",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Each.Summ@1",
+          "outputFor": [
+            "Graph.Each.Summ@1"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "branch": "Summ@2",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "c"
+            }
+          ]
+        },
+        "id": "ev000008",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225607000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Summ",
+        "branch": "Summ@2",
+        "id": "ev000009",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225608000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "s c"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "s c",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Each.Summ@2",
+          "outputFor": [
+            "Graph.Each.Summ@2"
+          ]
+        }
+      },
+      {
+        "author": "Each",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "s a"
+            },
+            {
+              "text": "s b"
+            },
+            {
+              "text": "s c"
+            }
+          ]
+        },
+        "output": [
+          "s a",
+          "s b",
+          "s c"
+        ],
+        "id": "ev000010",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225609000,
+        "nodeInfo": {
+          "path": "Graph.Each",
+          "outputFor": [
+            "Graph.Each"
+          ]
+        }
+      },
+      {
+        "author": "user",
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "content": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "[\"s a\",\"s b\",\"s c\"]"
+            }
+          ]
+        },
+        "id": "ev000011",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225610000
+      },
+      {
+        "invocationId": "e-00000000-0000-4000-8000-000000000001",
+        "author": "Merge",
+        "id": "ev000012",
+        "actions": {
+          "stateDelta": {},
+          "artifactDelta": {},
+          "requestedAuthConfigs": {},
+          "requestedToolConfirmations": {}
+        },
+        "longRunningToolIds": [],
+        "timestamp": 1767225611000,
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "m [\"s a\",\"s b\",\"s c\"]"
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "turnComplete": true,
+        "output": "m [\"s a\",\"s b\",\"s c\"]",
+        "nodeInfo": {
+          "messageAsOutput": true,
+          "path": "Graph.Merge",
+          "outputFor": [
+            "Graph.Merge"
+          ]
+        }
+      }
+    ],
+    "progress": [
+      "Running node: Lister",
+      "Running node: Summ",
+      "Running node: Each",
+      "Running node: Merge"
+    ],
+    "routes": {},
+    "output": "m [\"s a\",\"s b\",\"s c\"]",
+    "requests": {
+      "lister": [
+        {
+          "model": "scripted/lister",
+          "system": "Lister.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "go"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "outputSchema": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stream": false
+        }
+      ],
+      "summ": [
+        {
+          "model": "scripted/summ",
+          "system": "You are an agent. Your internal name is \"Summ\".\n\nThe description about you is \"Summ\"\n\nSumm.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "a"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "scripted/summ",
+          "system": "You are an agent. Your internal name is \"Summ\".\n\nThe description about you is \"Summ\"\n\nSumm.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "b"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        },
+        {
+          "model": "scripted/summ",
+          "system": "You are an agent. Your internal name is \"Summ\".\n\nThe description about you is \"Summ\"\n\nSumm.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "c"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ],
+      "merge": [
+        {
+          "model": "scripted/merge",
+          "system": "You are an agent. Your internal name is \"Merge\".\n\nThe description about you is \"Merge\"\n\nMerge.",
+          "messages": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "[\"s a\",\"s b\",\"s c\"]"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "adk_handle_model_error",
+              "description": "A tool that triggers reflection. Reserved for internal framework use only. Do not call directly.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ],
+          "stream": false
+        }
+      ]
+    },
+    "calls": {
+      "lister": 1,
+      "summ": 3,
+      "merge": 1
+    }
+  }
+}
