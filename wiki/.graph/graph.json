@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 844,
-    "edges": 3121,
+    "nodes": 846,
+    "edges": 3134,
     "byKind": {
-      "doc": 158,
+      "doc": 159,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 145,
+      "file": 146,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 640,
+      "links_to": 644,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -36,18 +36,18 @@
       "imports": 789,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 750,
-      "constrains": 165,
+      "derives_from": 755,
+      "constrains": 168,
       "supersedes": 7,
-      "depends_on": 90,
+      "depends_on": 91,
       "explains": 28,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2828,
-      "inferred": 293
+      "extracted": 2837,
+      "inferred": 297
     },
     "isolated": 4
   },
@@ -1529,6 +1529,18 @@
       }
     },
     {
+      "id": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "kind": "doc",
+      "label": "ADR 0096: Ollama structured output sends the schema as json_schema",
+      "source": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 720
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1645,7 +1657,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1321
+        "words": 1360
       }
     },
     {
@@ -1681,7 +1693,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7940
+        "words": 7965
       }
     },
     {
@@ -1693,7 +1705,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4802
+        "words": 4808
       }
     },
     {
@@ -4087,6 +4099,12 @@
       "source": "tests/contractToolDeclarations.test.ts"
     },
     {
+      "id": "file:tests/doctor.test.ts",
+      "kind": "file",
+      "label": "doctor.test.ts",
+      "source": "tests/doctor.test.ts"
+    },
+    {
       "id": "file:tests/events.test.ts",
       "kind": "file",
       "label": "events.test.ts",
@@ -4886,7 +4904,7 @@
       "label": "lib/models/chatCompletionsAdapter.ts",
       "source": "lib/models/chatCompletionsAdapter.ts",
       "attrs": {
-        "lines": 976
+        "lines": 970
       }
     },
     {
@@ -13330,6 +13348,55 @@
       "evidence": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md:33"
     },
     {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "file:tests/chatCompletionsAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0096-ollama-structured-output-sends-json-schema.md frontmatter"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "file:tests/doctor.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0096-ollama-structured-output-sends-json-schema.md frontmatter"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0096-ollama-structured-output-sends-json-schema.md frontmatter"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0096-ollama-structured-output-sends-json-schema.md frontmatter"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "module:lib/models/ollamaAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0096-ollama-structured-output-sends-json-schema.md frontmatter"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0096-ollama-structured-output-sends-json-schema.md:25"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "/decisions/0061-json-mode-on-the-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0096-ollama-structured-output-sends-json-schema.md:34"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -14451,6 +14518,13 @@
     },
     {
       "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:44"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -15001,6 +15075,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/model-contract.md:372"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:291"
     },
     {
       "from": "/models/model-contract.md",

@@ -446,12 +446,48 @@ test('the history: text, tool calls, one tool message per result in the genai en
   ]);
 });
 
-test('structured output: strict json_schema on Kimi and the gateway, JSON mode on Ollama', async () => {
+test('structured output: strict json_schema on Kimi, the gateway and Ollama (ADR 0096)', async () => {
   const strict = { type: 'json_schema', json_schema: { name: 'response', strict: true, schema: { ...SCHEMA, required: ['verdict', 'score'], additionalProperties: false } } };
   assert.deepEqual((await bodyOf(kimi(), req('kimi-k3', { outputSchema: SCHEMA }))).response_format, strict);
   assert.deepEqual((await bodyOf(gateway(), req('claude-sonnet-4-6', { outputSchema: SCHEMA }), GATEWAY_ENV)).response_format, strict);
-  assert.deepEqual((await bodyOf(ollama(), req('ollama/qwen3:8b', { outputSchema: SCHEMA }))).response_format, { type: 'json_object' });
+  assert.deepEqual((await bodyOf(ollama(), req('ollama/qwen3:8b', { outputSchema: SCHEMA }))).response_format, strict);
   assert.ok(!('response_format' in (await bodyOf(kimi(), req('kimi-k3')))));
+  assert.ok(!('response_format' in (await bodyOf(ollama(), req('ollama/qwen3:8b')))));
+});
+
+test('Ollama structured output: the schema normalised, a schema beats JSON mode, tools travel beside it, the retry keeps it', async () => {
+  // Nested objects and an enum, normalised as on Kimi and the gateway.
+  const nested = {
+    type: 'object',
+    properties: {
+      verdict: { type: 'string', enum: ['pass', 'fail'] },
+      detail: { type: 'object', properties: { reason: { type: 'string' } } },
+    },
+    required: ['verdict'],
+  };
+  const ollamaFormat = (await bodyOf(ollama(), req('ollama/qwen3:8b', { outputSchema: nested }))).response_format;
+  const kimiFormat = (await bodyOf(kimi(), req('kimi-k3', { outputSchema: nested }))).response_format;
+  assert.deepEqual(ollamaFormat, kimiFormat);
+  assert.equal(ollamaFormat.type, 'json_schema');
+  assert.deepEqual(ollamaFormat.json_schema.schema.properties.verdict.enum, ['pass', 'fail']);
+  assert.equal(ollamaFormat.json_schema.schema.additionalProperties, false);
+
+  // A schema says more than JSON mode and wins.
+  assert.equal((await bodyOf(ollama(), req('ollama/qwen3:8b', { outputSchema: SCHEMA, outputFormat: 'json' }))).response_format.type, 'json_schema');
+
+  // Tools beside a schema: both are sent, the tools unchanged.
+  const both = await bodyOf(ollama(), req('ollama/qwen3:8b', { tools: [SCOUT], outputSchema: SCHEMA }));
+  assert.deepEqual(both.tools, [{ type: 'function', function: { name: 'Scout', description: 'Finds things', parameters: SCOUT.parameters } }]);
+  assert.equal(both.response_format.type, 'json_schema');
+  assert.deepEqual(both.response_format.json_schema.schema.required, ['verdict', 'score']);
+
+  // The retry without thinking sends the same schema.
+  const lost = json(completion({ content: '', reasoning: 'thinking...' }, 'length', { prompt_tokens: 10, completion_tokens: 90, total_tokens: 100 }));
+  const answered = json(completion({ content: '{"verdict":"ok","score":1}' }));
+  const { sent } = await run(ollama('ollama/qwen3.5:9b'), req('ollama/qwen3.5:9b', { reasoning: 'low', outputSchema: SCHEMA }), [lost, answered]);
+  assert.equal(sent.length, 2);
+  assert.deepEqual(sent[1].body.response_format, sent[0].body.response_format);
+  assert.equal(sent[0].body.response_format.type, 'json_schema');
 });
 
 test("JSON mode (outputFormat 'json', ADR 0061): json_object on Ollama, Kimi and the gateway; a schema says more and wins", async () => {

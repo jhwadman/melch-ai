@@ -252,7 +252,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
   ollama: {
     delegation: ok(),
     memory_tools: ok(),
-    structured_output: degraded('JSON mode only (json_object): the output is JSON but the schema is not enforced'),
+    structured_output: ok('test', 'json_schema, enforced by grammar-constrained decoding from Ollama 0.5.0 (an older server ignores it); not enforced on Ollama Cloud (ADR 0096)'),
     thinking_with_tools: degraded(CHAT_THINKING_NOTE),
     streaming: ok(),
     vision: ok('test', 'needs a vision model, e.g. ollama/qwen3-vl:8b'),

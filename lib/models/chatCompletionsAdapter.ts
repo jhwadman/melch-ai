@@ -392,11 +392,6 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
     return 'direct';
   }
 
-  /** Whether the endpoint takes response_format json_schema (strict); else JSON mode. */
-  protected supportsJsonSchemaFormat(): boolean {
-    return true;
-  }
-
   /**
    * Whether the endpoint honours stream_options.include_usage. Without it an
    * SSE call reports no token counts at all.
@@ -820,16 +815,15 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
   }
 
   /**
-   * Structured output: a strict json_schema response_format where the
-   * endpoint takes it, else JSON mode (the schema is then not enforced).
+   * Structured output: a strict json_schema response_format, the schema in
+   * its strict form, on every chat-completions provider (Ollama from 0.5.0
+   * enforces it with grammar-constrained decoding, ADR 0096).
    * `outputFormat: 'json'` without a schema is JSON mode (ADR 0061); each
    * of Ollama, Kimi and the gateway takes it.
    */
   #responseFormat(request: ChatCompletionsRequest): Record<string, unknown> {
     if (request.outputSchema) {
-      return this.supportsJsonSchemaFormat()
-        ? { response_format: { type: 'json_schema', json_schema: { name: 'response', strict: true, schema: toStrictJsonSchema(request.outputSchema) } } }
-        : { response_format: { type: 'json_object' } };
+      return { response_format: { type: 'json_schema', json_schema: { name: 'response', strict: true, schema: toStrictJsonSchema(request.outputSchema) } } };
     }
     return request.outputFormat === 'json' ? { response_format: { type: 'json_object' } } : {};
   }

@@ -2353,6 +2353,38 @@
       "evidence": "wiki/overview/workflow-scheduler.md, section The native turn: the steps, the stops, what it refuses, and the walk's spans.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "module:lib/models/ollamaAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0096 Decision 1 and 4: an output schema on an ollama/ model goes as strict json_schema, and Ollama 0.5.0 is the documented minimum, with no version probe and no json_object fallback.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0096 Decision 1: ChatCompletionsAdapter sends response_format json_schema with toStrictJsonSchema(outputSchema) on every chat-completions provider; the supportsJsonSchemaFormat switch is gone.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0096 Decision 5: the capability matrix marks Ollama's structured output supported, enforced from 0.5.0 and not on Ollama Cloud.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0096-ollama-structured-output-sends-json-schema.md",
+      "to": "/decisions/0061-json-mode-on-the-contract.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0096 Decision 2: JSON mode without a schema stays json_object (ADR 0061), and a schema beside outputFormat: 'json' still wins.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

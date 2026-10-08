@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0096-ollama-structured-output-sends-json-schema.md —depends_on→ /decisions/0061-json-mode-on-the-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0096-ollama-structured-output-sends-json-schema.md —constrains→ module:lib/models/capabilities.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0096-ollama-structured-output-sends-json-schema.md —constrains→ module:lib/models/chatCompletionsAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0096-ollama-structured-output-sends-json-schema.md —constrains→ module:lib/models/ollamaAdapter.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/workflow-scheduler.md —explains→ module:lib/workflow/turn.ts
 
 by claude-code/claude-opus-5-5

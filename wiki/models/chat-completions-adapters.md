@@ -8,7 +8,7 @@ tags:
   - contracts
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-07
+  at: 2026-10-08
 sources:
   - resource: lib/models/chatCompletionsAdapter.ts
   - resource: lib/models/ollamaAdapter.ts
@@ -41,7 +41,7 @@ The reasoning field comes from the request's `reasoning`, mapped with `reasoning
 - **Kimi K3:** `reasoning_effort`, `none` sent as `low`, `medium` as `high`, a budget as the level that covers it, and `DEFAULT_KIMI_REASONING_EFFORT` when the request has none.
 - **Kimi K2.x:** `thinking: { type: 'disabled' }` for `none`, and nothing otherwise; K2.7 Code (and its highspeed variant) sends nothing for `none` too, since it cannot switch thinking off and Moonshot refuses `disabled` for it.
 
-Structured output is `response_format`: a schema goes as strict `json_schema` on Kimi and the gateway and as `json_object` on Ollama, whose endpoint takes no schema. `outputFormat: 'json'` without a schema is JSON mode, `json_object`, on all three ([ADR 0061](/decisions/0061-json-mode-on-the-contract.md)). The retry without thinking keeps it.
+Structured output is `response_format`: a schema goes as strict `json_schema`, in its strict form (`toStrictJsonSchema`), on all three. Ollama enforces it with grammar-constrained decoding from 0.5.0 and ignores `strict`; an older server ignores the schema and answers in free text, so 0.5.0 is the minimum for structured output, and Ollama Cloud accepts the schema without enforcing it ([ADR 0096](/decisions/0096-ollama-structured-output-sends-json-schema.md)). Tools travel beside a schema. `outputFormat: 'json'` without a schema is JSON mode, `json_object`, on all three ([ADR 0061](/decisions/0061-json-mode-on-the-contract.md)). The retry without thinking keeps it.
 
 ## The response
 

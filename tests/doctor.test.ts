@@ -219,6 +219,8 @@ test('capability gaps: each agent row names what its path cannot fully do (ADR 0
         '    description: looks at pictures',
         '    model: ollama/qwen3:8b',
         '    instruction: x',
+        '    reasoning: low',
+        '    tools: [load_memory]',
         '    outputSchema:',
         '      type: OBJECT',
         '      properties:',
@@ -242,10 +244,11 @@ test('capability gaps: each agent row names what its path cannot fully do (ADR 0
       // Claude delegating while thinking: signed thinking is replayed on the
       // tool loop (ADR 0046), so the path has no gap.
       assert.deepEqual(byAgent.Lead.gaps, []);
-      // Ollama's JSON mode does not enforce the schema.
+      // Ollama enforces the schema (json_schema, ADR 0096), so structured
+      // output is no gap; a thinking model with tools re-reasons each step.
       assert.deepEqual(
         byAgent.Looker.gaps.map((g) => `${g.capability}:${g.support}`),
-        ['structured_output:degraded'],
+        ['thinking_with_tools:degraded'],
       );
       // A local model has no native search: the sentinel is dropped.
       assert.deepEqual(
@@ -258,9 +261,9 @@ test('capability gaps: each agent row names what its path cannot fully do (ADR 0
       assert.equal(s.verdict.state, 'ready');
 
       const text = renderDoctor(result);
-      assert.doesNotMatch(text, /thinking with tool use/);
       assert.match(text, /native web search unsupported on ollama/);
-      assert.match(text, /structured output \(outputSchema\) degraded on ollama/);
+      assert.doesNotMatch(text, /structured output \(outputSchema\)/);
+      assert.match(text, /degraded on ollama/);
     });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
