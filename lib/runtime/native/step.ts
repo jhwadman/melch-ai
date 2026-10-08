@@ -145,7 +145,8 @@ function eitherSignal(...candidates: Array<AbortSignal | undefined>): AbortSigna
 }
 
 /** The turn's stop, as the turn runner reports it; a cancel when the signal aborted outside a turn. */
-function stopOf(): StepStop {
+/** The turn's stop, as a step reports it. */
+export function stopOf(): StepStop {
   const reason = currentTurnControl()?.stopReason ?? 'canceled';
   return { code: stopCode(reason), message: stopMessage(reason, currentTurnControl()) };
 }

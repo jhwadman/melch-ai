@@ -16,7 +16,15 @@
 import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 
-export type AuditEventName = 'auth.failure' | 'task.end' | 'memory.erase';
+export type AuditEventName =
+  | 'auth.failure'
+  | 'task.end'
+  | 'memory.erase'
+  /** A tool credential stored, refreshed, revoked or erased (ADR 0072): provider and app, never a token. */
+  | 'credential.put'
+  | 'credential.refresh'
+  | 'credential.revoke'
+  | 'credential.erase';
 
 export interface AuditEvent {
   event: AuditEventName;

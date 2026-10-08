@@ -46,7 +46,7 @@
  * WHAT IT DOES NOT DO (later tickets): resume an approval or an input
  * request (ADK's confirmation and input processors run tools before the
  * request; WS2-7), compact the history (WS2-9), add transfer_to_agent
- * (compiled syndicates never set subAgents; delegation is WS2-6), task mode
+ * (compiled syndicates never set subAgents; they delegate through subagent tools, delegate.ts), task mode
  * and finish_task (WS3-5), workflow placeholders and artifacts in an
  * instruction (no runtime has an artifact service), and an ADK tool's own
  * processLlmRequest side effects beyond its declaration (an own Tool says

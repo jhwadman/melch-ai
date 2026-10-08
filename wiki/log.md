@@ -23,6 +23,50 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —depends_on→ /decisions/0028-approval-gates.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ module:lib/storage/postgres/credentialStore.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —depends_on→ /decisions/0020-memory-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —depends_on→ /decisions/0059-memory-on-the-engines-own-interfaces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ module:lib/tools/tool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ table:melchizedek_tool_credentials
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/agentLoop.ts
 
 by claude-code/claude-opus-5-5

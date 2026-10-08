@@ -56,6 +56,8 @@ The memory record model is sound: dated, source-attributed facts, corrections th
 
 > **Note (2026-10-02):** The last two are built: `memory_extraction_model` overrides the deployment's extraction model per syndicate, and `memory_retention_days` (which requires the syndicate's own `memory_namespace`) has the server delete that namespace's older facts when it loads the syndicate and daily after, through `melchizedek_prune_memory` (migration `0008_memory_retention.sql`). Every item of this decision is now implemented, see [ADR 0021](/decisions/0021-postgres-first-storage.md).
 
+> **Note (2026-10-08):** Item 7's erase also removes the third-party tokens held for the scope's tools (migration `0013_tool_credentials.sql`, store `credentials`), see [ADR 0072](/decisions/0072-tool-credentials-sealed-per-user.md).
+
 ## Alternatives considered
 
 - **The syndicate name alone as the namespace.** Rejected: a rename orphans memory, and two different syndicates with the same name in one database collide.

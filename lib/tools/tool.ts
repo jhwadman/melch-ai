@@ -25,7 +25,10 @@
  *   - the turn's abort signal;
  *   - the message that started the run (`userContent`), and `searchMemory`,
  *     long-term recall for this user alone, when the run has memory
- *     (ADR 0059).
+ *     (ADR 0059);
+ *   - `accessToken(provider)`, a valid third-party token for this user
+ *     alone, when the run has a credential store (lib/tools/auth.ts,
+ *     ADR 0072).
  *
  * WRITING INTO THE INSTRUCTION (ADR 0059): a Tool may also add text to the
  * system instruction of each model request made for an agent that lists it
@@ -40,8 +43,9 @@
  * recognises one by its marker symbol, never by class or name.
  *
  * A LEAF: types and plain functions. Its imports are types from the model
- * contract and the runtime's event and memory interfaces; nothing in its
- * import graph names @google/*, which tests/toolContract.test.ts asserts.
+ * contract and the runtime's event and memory interfaces, and the leaf
+ * lib/tools/auth.ts; nothing in its import graph names @google/*, which
+ * tests/toolContract.test.ts asserts.
  *
  * Tool results and model output are data, never instructions: a tool returns
  * what it found, and nothing here reads a result to decide what runs next.
@@ -50,6 +54,8 @@
 import type { NativeTool, ToolDeclaration } from '../models/contract.ts';
 import type { TurnContent } from '../runtime/events.ts';
 import type { MemorySearchResult, MemoryService } from '../runtime/memoryService.ts';
+import { toolAccessToken } from './auth.ts';
+import type { CredentialStore, ToolAccessToken } from './auth.ts';
 
 // ── The context a call receives ──────────────────────────────────────────────
 
@@ -111,6 +117,15 @@ export interface ToolContext {
    * only when the run has a memory service (ADR 0020, ADR 0059).
    */
   readonly searchMemory?: (query: string) => Promise<MemorySearchResult>;
+  /**
+   * A valid access token for a third-party provider, from this context's
+   * own app and user: a tool names the provider, never whose token. It is
+   * refreshed first when expired, and throws a ToolCredentialError, whose
+   * message names no value, when the user has not connected the provider.
+   * The token goes to its provider only: never into a result, an error or a
+   * log. Present only when the run has a credential store (ADR 0072).
+   */
+  readonly accessToken?: ToolAccessToken;
 }
 
 // ── The tool ─────────────────────────────────────────────────────────────────
@@ -316,6 +331,12 @@ export interface ToolContextInit {
    * own `appName` and `userId` only.
    */
   memory?: Pick<MemoryService, 'search'>;
+  /**
+   * The run's tool credentials, already pinned to its app
+   * (pinnedCredentialStore). The context reads them under its own `appName`
+   * and `userId` only.
+   */
+  credentials?: Pick<CredentialStore, 'get'>;
 }
 
 /** A context the caller built, with what the call asked for readable afterwards. */
@@ -364,6 +385,7 @@ export function createToolContext(init: ToolContextInit = {}): StandaloneToolCon
     signal: init.signal,
     userContent: init.userContent,
     searchMemory: init.memory ? memorySearch(init.memory, init.appName, init.userId) : undefined,
+    accessToken: init.credentials ? toolAccessToken(init.credentials, init.appName, init.userId, init.signal) : undefined,
   };
 }
 
