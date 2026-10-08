@@ -33,6 +33,92 @@ the starter pack and the templates), not the repo's full history.
   the same tools as ADK; a model on any other provider, or a Gemini adapter
   a resolver returns behind `adkShim`, is still told of the tool, as on ADK.
   ADK turns are unchanged.
+
+## 0.19.0 — 2026-10-08
+
+The native runtime ships in this release as an opt-in: set
+`MELCHIZEDEK_RUNTIME=native` or pass `runtime: 'native'` to `runSyndicateTurn`.
+`adk` stays the default (ADR 0099). The `@google/adk` peer dependency is
+unchanged.
+
+### Breaking — read before upgrading
+
+- **Breaking: a skill script no longer inherits the server's environment
+  (ADR 0086).** An approved `run_skill_script` starts from PATH,
+  HOME/USERPROFILE, TMPDIR/TEMP/TMP, LANG, LC_*, TZ, the user's name and
+  the Windows essentials, and nothing else: provider keys, `DATABASE_URL`
+  and the server's bearer secrets no longer reach it. A script that relied
+  on an inherited variable must now name it in the agent's YAML, under the
+  new `skills.env` (names only), or under `skills.secret_env` when the
+  name looks like a secret (KEY, TOKEN, SECRET, PASSWORD, AUTH, DATABASE,
+  …), which `skills.env` refuses. Both need `scripts: local`. A script's
+  stdout and stderr are each cut at 20,000 characters, ending with
+  `[stdout truncated: N more characters not shown (the limit is 20000)]`.
+  The same on both runtimes. `LocalScriptExecutor` takes `envNames`,
+  `sourceEnv` and `maxOutputChars`; `lib/tools/skills/env.ts` is new. The
+  `exports` map is unchanged.
+- **Breaking for subclasses of `OpenAiCompatibleLlm`: the chat-completions
+  adapters move onto the model contract (ADR 0057).** New modules under
+  `melchizedek-agents/models/`:
+  - `chatCompletionsAdapter`: `ChatCompletionsAdapter`, the base that turns a
+    `ModelRequest` into a chat-completions body and a completion (JSON or
+    SSE) into contract responses; `ChatCompletionsRequest` and
+    `OlderSpelling`; `chatUsage` and `sumUsage` (usage in the contract's
+    meaning); `splitThinkBlocks`, `ThinkStreamSplitter`,
+    `REASONING_CONTENT_KIND` and `ENGINE_CALL_ID_PREFIX`.
+  - `ollamaAdapter` (`OllamaAdapter`), `kimiAdapter` (`KimiAdapter`, and
+    `isKimiK3`, `wantsReasoningReplay`, `MOONSHOT_BASE_URL`, which
+    `models/kimiLlm` still exports) and `gatewayAdapter` (`GatewayAdapter`).
+
+  `OpenAiCompatibleLlm` is now an `AdkShim` whose constructor takes the
+  adapter, and its protected hooks (`endpointUrl`, `headers`,
+  `wireModelName`, `extraBodyFields`, `httpError`, `noAnswerError` and the
+  rest) move to `ChatCompletionsAdapter`, on contract types. A provider of
+  your own subclasses `ChatCompletionsAdapter` and runs under ADK as
+  `adkShim(adapter)` or as an `OpenAiCompatibleLlm` subclass. `OllamaLlm`,
+  `KimiLlm` and `GatewayLlm` keep their constructors, ids, error codes and
+  wording, and the shape of what they yield: usage counts the reasoning in
+  `candidatesTokenCount` as before, so the ledger's counts are unchanged.
+  `models/openAiCompatibleLlm` adds `olderSpellingOf` and
+  `chatUsageMetadata`. `AdkShim` gains a protected `toModelRequest` seam
+  beside `toLlmResponse` (ADR 0056); the chat shims override both.
+
+  What reaches the provider changes only where the contract maps a field
+  the old classes ignored or spelled as written:
+  - `stopSequences` are sent as `stop`.
+  - A function-calling mode is honoured: `NONE` sends no tools; the gateway
+    sends `ANY` as `tool_choice: required` or the named tool, and Kimi and
+    Ollama weaken it to auto (`llm.tool_choice.weakened` on the span).
+  - The older spelling's reasoning follows ADR 0047's mapping, as
+    `reasoning:` already did: `thinkingConfig.thinkingBudget` alone now
+    travels as its level (`0` is `none`), `reasoningEffort: medium` on
+    `kimi-k3` is sent as `high`, and `minimal` as each model's `none`.
+    A word that is no level (`max`, `xhigh`) is still sent as written.
+  - A tool call stored without an id is sent with one, matched to its
+    result, where the result's `tool_call_id` was empty.
+  - The no-answer hints name `reasoning: none` (the older spelling too).
+  - Every error a chat shim yields carries its retry verdict
+    (`customMetadata['error.retryable']`, `false` where there was none) and
+    `turnComplete`. A call cut off by a cancelled turn is never retryable,
+    even when its last status was a 503, so no fallback answers a
+    cancellation.
+- **Breaking for subclasses of `GptLlm`: the vendor hooks move to
+  `GptAdapter` (ADR 0056).** `providerId()`, `baseURL()`, `apiKeyFromEnv()`,
+  `missingKeyMessage()`, `clientOptions()`, `reasoningParam()`,
+  `replaysReasoning()` and `endpoint()` are overridden on a `GptAdapter`
+  subclass now, as `GrokAdapter` does, and a `GptLlm` subclass returns it
+  from `protected static createAdapter(options)`. Code that only constructs
+  or registers `GptLlm` and `GrokLlm`, or imports their exported functions,
+  is unaffected.
+- **Breaking for one import path: `toFunctionTool` moves to
+  `melchizedek-agents/tools/adkTool` (ADR 0051).**
+  `melchizedek-agents/tools/toolContract` no longer exports it, so that
+  module loads nothing from `@google/adk`. Import it from
+  `melchizedek-agents`, which still exports it, or from the new subpath.
+  The `exports` map is unchanged.
+
+### Changes
+
 - **Workflow syndicates run on the native runtime (WS4-6, ADR 0095).**
   A `workflow:` syndicate no longer throws `UnsupportedOnRuntimeError` on
   `runtime: 'native'` (or `MELCHIZEDEK_RUNTIME=native`): the engine's own
@@ -79,7 +165,6 @@ the starter pack and the templates), not the repo's full history.
   `pendingQuestion` ignores an `ask_user` call in an event the user
   authored. A message that forges one no longer turns the next message
   into its answer, on either runtime.
-
 - **The native runtime sends a request, and reads a thrown failure, as
   ADK does (WS2-12, ADR 0084).** On `runtime: 'native'` (or
   `MELCHIZEDEK_RUNTIME=native`) a request goes out under the resolved
@@ -92,20 +177,6 @@ the starter pack and the templates), not the repo's full history.
   turn-level test suites run on both runtimes. `npm run parity` now runs
   its turns on the runtime `MELCHIZEDEK_RUNTIME` names. The `exports` map
   is unchanged.
-- **Breaking: a skill script no longer inherits the server's environment
-  (ADR 0086).** An approved `run_skill_script` starts from PATH,
-  HOME/USERPROFILE, TMPDIR/TEMP/TMP, LANG, LC_*, TZ, the user's name and
-  the Windows essentials, and nothing else: provider keys, `DATABASE_URL`
-  and the server's bearer secrets no longer reach it. A script that relied
-  on an inherited variable must now name it in the agent's YAML, under the
-  new `skills.env` (names only), or under `skills.secret_env` when the
-  name looks like a secret (KEY, TOKEN, SECRET, PASSWORD, AUTH, DATABASE,
-  …), which `skills.env` refuses. Both need `scripts: local`. A script's
-  stdout and stderr are each cut at 20,000 characters, ending with
-  `[stdout truncated: N more characters not shown (the limit is 20000)]`.
-  The same on both runtimes. `LocalScriptExecutor` takes `envNames`,
-  `sourceEnv` and `maxOutputChars`; `lib/tools/skills/env.ts` is new. The
-  `exports` map is unchanged.
 - **The skills harness no longer builds on ADK (ADR 0083).** An agent's
   `skills:` block loads, reads and runs skills through the engine's own
   modules (`lib/tools/skills/`), the same on `runtime: 'adk'` and
@@ -237,7 +308,6 @@ the starter pack and the templates), not the repo's full history.
   - The audit trail gains `credential.put`, `credential.refresh`,
     `credential.revoke` and `credential.erase` (`AuditEventName`), with the
     provider and app and never a token.
-
 - **The ledger reads the native loop's spans (ADR 0076).** The native loop
   (not yet selectable, WS2-10) opens `agent.invoke <name>`, `model.call` and
   `tool.execute <name>` spans in scope `melchizedek.runtime`, and a native
@@ -371,7 +441,6 @@ the starter pack and the templates), not the repo's full history.
   server-side name is no longer treated as that tool. An MCP tool's nested
   schemas no longer carry `default`, `propertyNames`, `$schema` or a boolean
   `additionalProperties`. `propertyNames` was refused by the Gemini API.
-
 - **The engine parses OpenAPI specs itself (ADR 0063).** A new module,
   `melchizedek-agents/tools/openapi/parse` (through the existing
   `./tools/*` pattern), exports `parseOpenApiSpec` and
@@ -413,59 +482,6 @@ the starter pack and the templates), not the repo's full history.
   quadratically on a long run of slashes (CodeQL js/polynomial-redos).
   They now share `trimTrailingSlashes` (new module
   `melchizedek-agents/models/urls`). Results are unchanged.
-- **Breaking for subclasses of `OpenAiCompatibleLlm`: the chat-completions
-  adapters move onto the model contract (ADR 0057).** New modules under
-  `melchizedek-agents/models/`:
-  - `chatCompletionsAdapter`: `ChatCompletionsAdapter`, the base that turns a
-    `ModelRequest` into a chat-completions body and a completion (JSON or
-    SSE) into contract responses; `ChatCompletionsRequest` and
-    `OlderSpelling`; `chatUsage` and `sumUsage` (usage in the contract's
-    meaning); `splitThinkBlocks`, `ThinkStreamSplitter`,
-    `REASONING_CONTENT_KIND` and `ENGINE_CALL_ID_PREFIX`.
-  - `ollamaAdapter` (`OllamaAdapter`), `kimiAdapter` (`KimiAdapter`, and
-    `isKimiK3`, `wantsReasoningReplay`, `MOONSHOT_BASE_URL`, which
-    `models/kimiLlm` still exports) and `gatewayAdapter` (`GatewayAdapter`).
-
-  `OpenAiCompatibleLlm` is now an `AdkShim` whose constructor takes the
-  adapter, and its protected hooks (`endpointUrl`, `headers`,
-  `wireModelName`, `extraBodyFields`, `httpError`, `noAnswerError` and the
-  rest) move to `ChatCompletionsAdapter`, on contract types. A provider of
-  your own subclasses `ChatCompletionsAdapter` and runs under ADK as
-  `adkShim(adapter)` or as an `OpenAiCompatibleLlm` subclass. `OllamaLlm`,
-  `KimiLlm` and `GatewayLlm` keep their constructors, ids, error codes and
-  wording, and the shape of what they yield: usage counts the reasoning in
-  `candidatesTokenCount` as before, so the ledger's counts are unchanged.
-  `models/openAiCompatibleLlm` adds `olderSpellingOf` and
-  `chatUsageMetadata`. `AdkShim` gains a protected `toModelRequest` seam
-  beside `toLlmResponse` (ADR 0056); the chat shims override both.
-
-  What reaches the provider changes only where the contract maps a field
-  the old classes ignored or spelled as written:
-  - `stopSequences` are sent as `stop`.
-  - A function-calling mode is honoured: `NONE` sends no tools; the gateway
-    sends `ANY` as `tool_choice: required` or the named tool, and Kimi and
-    Ollama weaken it to auto (`llm.tool_choice.weakened` on the span).
-  - The older spelling's reasoning follows ADR 0047's mapping, as
-    `reasoning:` already did: `thinkingConfig.thinkingBudget` alone now
-    travels as its level (`0` is `none`), `reasoningEffort: medium` on
-    `kimi-k3` is sent as `high`, and `minimal` as each model's `none`.
-    A word that is no level (`max`, `xhigh`) is still sent as written.
-  - A tool call stored without an id is sent with one, matched to its
-    result, where the result's `tool_call_id` was empty.
-  - The no-answer hints name `reasoning: none` (the older spelling too).
-  - Every error a chat shim yields carries its retry verdict
-    (`customMetadata['error.retryable']`, `false` where there was none) and
-    `turnComplete`. A call cut off by a cancelled turn is never retryable,
-    even when its last status was a 503, so no fallback answers a
-    cancellation.
-- **Breaking for subclasses of `GptLlm`: the vendor hooks move to
-  `GptAdapter` (ADR 0056).** `providerId()`, `baseURL()`, `apiKeyFromEnv()`,
-  `missingKeyMessage()`, `clientOptions()`, `reasoningParam()`,
-  `replaysReasoning()` and `endpoint()` are overridden on a `GptAdapter`
-  subclass now, as `GrokAdapter` does, and a `GptLlm` subclass returns it
-  from `protected static createAdapter(options)`. Code that only constructs
-  or registers `GptLlm` and `GrokLlm`, or imports their exported functions,
-  is unaffected.
 - **Fix: a message could stall the server in the memory search.**
   `stripHarnessBlocks` (run on every memory query and extraction
   transcript) matched an unclosed `[System Context:` marker with a pattern
@@ -517,12 +533,6 @@ the starter pack and the templates), not the repo's full history.
   `melchizedek-agents/models/claudeModels` adds `ClaudeReasoning`,
   `claudeReasoningOf`, `claudeReasoningFromConfig` and
   `adaptiveThinkingFor`. The `exports` map is unchanged.
-- **Breaking for one import path: `toFunctionTool` moves to
-  `melchizedek-agents/tools/adkTool` (ADR 0051).**
-  `melchizedek-agents/tools/toolContract` no longer exports it, so that
-  module loads nothing from `@google/adk`. Import it from
-  `melchizedek-agents`, which still exports it, or from the new subpath.
-  The `exports` map is unchanged.
 - **The session services serve both runtimes from the same rows, and
   change behaviour in five places (ADR 0058).** `SupabaseSessionService`,
   `PostgresSessionService` and `ProjectedSessionService` also implement
