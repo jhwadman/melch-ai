@@ -6,6 +6,17 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **JSON mode without a schema is on the model contract (ADR 0061).**
+  `ModelRequest` (`melchizedek-agents/models/contract`) gains
+  `outputFormat?: 'json'`. An agent with
+  `generateContentConfig.responseMimeType: "application/json"` and no
+  schema sends its provider's JSON mode again on GPT and Grok
+  (`text.format: { type: 'json_object' }`, as before they moved onto the
+  contract), and keeps it on Kimi, Ollama, the gateway and Gemini, on the
+  ADK runtime and on the contract. Claude, whose Messages API has no JSON
+  mode, sends nothing for it, as before. `OlderSpelling.jsonMode`
+  (`models/chatCompletionsAdapter`, new in this release) is removed:
+  the chat-completions adapters read `outputFormat` instead.
 - **The engine's own registry (ADR 0060).** `melchizedek-agents/models/registry`
   adds `resolveAdapter(modelId, { apiKey, keyProvider, endpoint, gemini })`,
   which returns any model id's `ModelAdapter` on the engine's contract from

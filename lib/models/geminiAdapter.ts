@@ -15,6 +15,8 @@
  *   - Schemas go as written, lowercase JSON Schema, in `parametersJsonSchema`
  *     and `responseJsonSchema`. Nothing converts them to Gemini's uppercase
  *     Schema dialect.
+ *   - `outputFormat: 'json'` without a schema is `responseMimeType:
+ *     'application/json'` alone, Gemini's JSON mode (ADR 0061).
  *   - `reasoning` maps through lib/compile.ts's reasoningConfig (ADR 0047),
  *     for this adapter's model, with `includeThoughts` unless it is `none`.
  *   - A thought signature (ADR 0046) is written as providerState on the
@@ -315,6 +317,9 @@ function buildRequest(request: ModelRequest, model: string, wireModel: string, s
   if (request.outputSchema) {
     config.responseMimeType = 'application/json';
     config.responseJsonSchema = request.outputSchema;
+  } else if (request.outputFormat === 'json') {
+    // JSON mode: the MIME type alone (ADR 0061).
+    config.responseMimeType = 'application/json';
   }
 
   if (request.reasoning !== undefined) {

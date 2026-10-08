@@ -5,10 +5,10 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 727,
-    "edges": 2084,
+    "nodes": 728,
+    "edges": 2110,
     "byKind": {
-      "doc": 120,
+      "doc": 121,
       "provider": 6,
       "env": 104,
       "model": 8,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 397,
+      "links_to": 406,
       "requires_env": 166,
       "routes_to": 8,
       "defined_in": 76,
@@ -36,17 +36,17 @@
       "imports": 511,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 439,
-      "constrains": 70,
-      "supersedes": 2,
+      "derives_from": 449,
+      "constrains": 75,
+      "supersedes": 4,
       "depends_on": 15,
       "explains": 3,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 1992,
-      "inferred": 92
+      "extracted": 2011,
+      "inferred": 99
     },
     "isolated": 4
   },
@@ -1120,6 +1120,18 @@
       }
     },
     {
+      "id": "/decisions/0061-json-mode-on-the-contract.md",
+      "kind": "doc",
+      "label": "ADR 0061: JSON mode without a schema is a contract field, outputFormat: 'json'",
+      "source": "/decisions/0061-json-mode-on-the-contract.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 792
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1212,7 +1224,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1300
+        "words": 1309
       }
     },
     {
@@ -1224,7 +1236,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1107
+        "words": 1102
       }
     },
     {
@@ -1236,7 +1248,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1153
+        "words": 1203
       }
     },
     {
@@ -1248,7 +1260,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1620
+        "words": 1644
       }
     },
     {
@@ -1260,7 +1272,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1739
+        "words": 1753
       }
     },
     {
@@ -1272,7 +1284,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7522
+        "words": 7667
       }
     },
     {
@@ -1296,7 +1308,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1732
+        "words": 1748
       }
     },
     {
@@ -3635,7 +3647,8 @@
       "id": "file:tests/genaiMapping.test.ts",
       "kind": "file",
       "label": "genaiMapping.test.ts",
-      "source": "tests/genaiMapping.test.ts"
+      "source": "tests/genaiMapping.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/governance.test.ts",
@@ -4150,7 +4163,7 @@
       "label": "lib/models/chatCompletionsAdapter.ts",
       "source": "lib/models/chatCompletionsAdapter.ts",
       "attrs": {
-        "lines": 970
+        "lines": 966
       }
     },
     {
@@ -4168,7 +4181,7 @@
       "label": "lib/models/claudeAdapter.ts",
       "source": "lib/models/claudeAdapter.ts",
       "attrs": {
-        "lines": 753
+        "lines": 756
       }
     },
     {
@@ -4195,7 +4208,7 @@
       "label": "lib/models/contract.ts",
       "source": "lib/models/contract.ts",
       "attrs": {
-        "lines": 471
+        "lines": 479
       }
     },
     {
@@ -4267,7 +4280,7 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 735
+        "lines": 740
       }
     },
     {
@@ -4285,7 +4298,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 941
+        "lines": 950
       }
     },
     {
@@ -4294,7 +4307,7 @@
       "label": "lib/models/gptAdapter.ts",
       "source": "lib/models/gptAdapter.ts",
       "attrs": {
-        "lines": 914
+        "lines": 917
       }
     },
     {
@@ -4366,7 +4379,7 @@
       "label": "lib/models/openAiCompatibleLlm.ts",
       "source": "lib/models/openAiCompatibleLlm.ts",
       "attrs": {
-        "lines": 189
+        "lines": 186
       }
     },
     {
@@ -9614,6 +9627,104 @@
       "evidence": "/decisions/0060-engine-owned-registry.md:40"
     },
     {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "file:tests/chatCompletionsAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "file:tests/genaiMapping.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "file:tests/responsesAdapter.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "module:lib/models/openAiCompatibleLlm.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md frontmatter"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md:30"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md:32"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md:33"
+    },
+    {
+      "from": "/decisions/0061-json-mode-on-the-contract.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0061-json-mode-on-the-contract.md:30"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -10584,14 +10695,14 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chat-completions-adapters.md:48"
+      "evidence": "/models/chat-completions-adapters.md:50"
     },
     {
       "from": "/models/chat-completions-adapters.md",
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chat-completions-adapters.md:47"
+      "evidence": "/models/chat-completions-adapters.md:49"
     },
     {
       "from": "/models/chat-completions-adapters.md",
@@ -10612,28 +10723,35 @@
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chat-completions-adapters.md:59"
+      "evidence": "/models/chat-completions-adapters.md:61"
     },
     {
       "from": "/models/chat-completions-adapters.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chat-completions-adapters.md:59"
+      "evidence": "/models/chat-completions-adapters.md:61"
     },
     {
       "from": "/models/chat-completions-adapters.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chat-completions-adapters.md:59"
+      "evidence": "/models/chat-completions-adapters.md:61"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0061-json-mode-on-the-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:44"
     },
     {
       "from": "/models/chat-completions-adapters.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chat-completions-adapters.md:59"
+      "evidence": "/models/chat-completions-adapters.md:61"
     },
     {
       "from": "/models/chat-completions-adapters.md",
@@ -10756,6 +10874,13 @@
     },
     {
       "from": "/models/claude-adapter.md",
+      "to": "/decisions/0061-json-mode-on-the-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:54"
+    },
+    {
+      "from": "/models/claude-adapter.md",
       "to": "/models/adk-shim.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -10851,6 +10976,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/gemini-adapter.md:23"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0061-json-mode-on-the-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:48"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -11039,7 +11171,7 @@
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:104"
+      "evidence": "/models/model-contract.md:105"
     },
     {
       "from": "/models/model-contract.md",
@@ -11053,49 +11185,56 @@
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:208"
+      "evidence": "/models/model-contract.md:210"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:126"
+      "evidence": "/models/model-contract.md:127"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:202"
+      "evidence": "/models/model-contract.md:204"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0056-responses-usage-meaning-on-the-adk-path.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:369"
+      "evidence": "/models/model-contract.md:375"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/decisions/0057-chat-completions-shims-keep-the-adk-shape.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:282"
+      "evidence": "/models/model-contract.md:287"
+    },
+    {
+      "from": "/models/model-contract.md",
+      "to": "/decisions/0061-json-mode-on-the-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:104"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:371"
+      "evidence": "/models/model-contract.md:377"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/adk-gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:300"
+      "evidence": "/models/model-contract.md:305"
     },
     {
       "from": "/models/model-contract.md",
@@ -11109,14 +11248,14 @@
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:260"
+      "evidence": "/models/model-contract.md:264"
     },
     {
       "from": "/models/model-contract.md",
       "to": "/models/claude-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:192"
+      "evidence": "/models/model-contract.md:194"
     },
     {
       "from": "/models/model-contract.md",
@@ -11130,7 +11269,7 @@
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/model-contract.md:256"
+      "evidence": "/models/model-contract.md:260"
     },
     {
       "from": "/models/model-contract.md",
@@ -11439,6 +11578,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/responses-adapters.md:97"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/decisions/0061-json-mode-on-the-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:55"
     },
     {
       "from": "/models/responses-adapters.md",

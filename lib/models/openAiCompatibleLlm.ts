@@ -16,8 +16,8 @@
  * was before the adapters moved onto the contract.
  *   - The request: an agent's older generateContentConfig spelling that the
  *     contract leaves out rides beside it (olderSpellingOf): an effort word
- *     that is no contract level (Kimi K3's `max`), and JSON mode without a
- *     schema.
+ *     that is no contract level (Kimi K3's `max`). JSON mode without a
+ *     schema is the contract's `outputFormat` (ADR 0061).
  *   - The response: the final keeps the shape these classes always yielded,
  *     which the ledger and FallbackLlm read. usageMetadata counts the
  *     reasoning inside candidatesTokenCount, as the provider's
@@ -55,18 +55,15 @@ const CONTRACT_EFFORT_WORDS: ReadonlySet<string> = new Set(['none', 'minimal', '
 /**
  * What a generateContentConfig asks of a chat-completions provider that the
  * contract has no field for, or undefined when it asks nothing more:
- *   - `reasoningEffort` when it is a word no ReasoningSetting carries
- *     (`max`, `xhigh`), sent as written;
- *   - JSON mode: `responseMimeType: application/json` with no schema.
+ * `reasoningEffort` when it is a word no ReasoningSetting carries (`max`,
+ * `xhigh`), sent as written. JSON mode without a schema is no longer here:
+ * the genai mapping reads it as `outputFormat: 'json'` (ADR 0061).
  */
 export function olderSpellingOf(config: GenerateContentConfig | undefined): OlderSpelling | undefined {
   const cfg = (config ?? {}) as Record<string, unknown>;
   const out: OlderSpelling = {};
   const effort = cfg.reasoningEffort;
   if (typeof effort === 'string' && !CONTRACT_EFFORT_WORDS.has(effort)) out.reasoningEffort = effort;
-  const schema = cfg.responseJsonSchema ?? cfg.responseSchema;
-  const hasSchema = !!schema && typeof schema === 'object';
-  if (cfg.responseMimeType === 'application/json' && !hasSchema) out.jsonMode = true;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
