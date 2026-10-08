@@ -10,16 +10,23 @@
  *   5.5 and Sonnet 5.5. Thinking can be turned off three different ways, or
  *   not at all. Thinking blocks are bound to the conversation on the newest
  *   models. One request shape for every `claude-*` id no longer exists, so
- *   the Claude adapter (lib/models/claudeLlm.ts) asks this table which shape
+ *   the Claude adapter (lib/models/claudeAdapter.ts) asks this table which shape
  *   a model takes.
  *
  * An id the table does not know, a newer model's, gets the newest row
  * (`CURRENT`): adaptive thinking, no forced tool use, blocks bound to the
  * conversation. Every id that reads as Claude 4.6 or earlier gets the
  * budget row.
+ *
+ * How hard a request asks Claude to think reaches the table as one
+ * `ClaudeReasoning`: from the contract's `reasoning` (claudeReasoningOf),
+ * or, on the ADK path, from the agent's generateContentConfig as ADR 0049
+ * reads it (claudeReasoningFromConfig, ADR 0055).
  */
 
+import type { ReasoningSetting } from './contract.ts';
 import type { Platform } from './endpoints.ts';
+import { REASONING_BUDGETS } from './reasoning.ts';
 
 export interface ClaudeGeneration {
   /** The row's name, for docs, spans and tests. */
@@ -169,6 +176,45 @@ export function requestedEffort(cfg: Record<string, any>): 'none' | ClaudeEffort
   return budget <= 2048 ? 'low' : budget <= 8192 ? 'medium' : 'high';
 }
 
+/**
+ * How hard one request asks Claude to think, in the terms the generation
+ * table reads. The budget rows read `budget` alone; the adaptive rows read
+ * `effort`, and take the max_tokens floor from `budget` when it is above 0.
+ */
+export interface ClaudeReasoning {
+  /** The effort word, or `none`. Undefined: the model's own default. */
+  effort?: 'none' | ClaudeEffort;
+  /** A thinking budget in tokens: the budget rows' budget, and the adaptive rows' max_tokens floor. */
+  budget?: number;
+}
+
+/**
+ * The contract's ReasoningSetting (ADR 0047) as ClaudeReasoning: a level is
+ * its effort word with ADR 0047's budget for it, so the budget rows think
+ * with that budget; `{ budget_tokens: n }` is the level covering n, with n
+ * as the budget; `none` and a budget of 0 are `none`.
+ */
+export function claudeReasoningOf(setting: ReasoningSetting | undefined): ClaudeReasoning {
+  if (setting === undefined) return {};
+  if (typeof setting === 'string') return { effort: setting, budget: REASONING_BUDGETS[setting] };
+  const n = setting.budget_tokens;
+  if (!(n > 0)) return { effort: 'none', budget: 0 };
+  return { effort: n <= REASONING_BUDGETS.low ? 'low' : n <= REASONING_BUDGETS.medium ? 'medium' : 'high', budget: n };
+}
+
+/**
+ * The older spelling in an agent's generateContentConfig, read as ADR 0049
+ * reads it: the effort word first (`xhigh` and `max` pass through,
+ * `minimal` is `low`), else the thinking budget rounded up to a level; and
+ * the thinking budget as given, which is all the budget rows read. The ADK
+ * path's ClaudeLlm hands the adapter this (ADR 0055).
+ */
+export function claudeReasoningFromConfig(cfg: Record<string, any>): ClaudeReasoning {
+  const effort = requestedEffort(cfg);
+  const budget = cfg.thinkingConfig?.thinkingBudget;
+  return { ...(effort !== undefined ? { effort } : {}), ...(typeof budget === 'number' ? { budget } : {}) };
+}
+
 /** The beta that lets a request set `thinking.block_binding`. */
 export const THINKING_BINDING_BETA = 'thinking-binding-controls-2026-08-01';
 
@@ -201,9 +247,14 @@ export interface AdaptiveThinkingPlan {
  * API instead of failing the request.
  */
 export function adaptiveThinking(gen: ClaudeGeneration, cfg: Record<string, any>): AdaptiveThinkingPlan {
-  const level = requestedEffort(cfg);
+  return adaptiveThinkingFor(gen, claudeReasoningFromConfig(cfg));
+}
+
+/** adaptiveThinking for a ClaudeReasoning, from either path. */
+export function adaptiveThinkingFor(gen: ClaudeGeneration, reasoning: ClaudeReasoning): AdaptiveThinkingPlan {
+  const level = reasoning.effort;
   const on = (effort: ClaudeEffort | undefined): AdaptiveThinkingPlan => {
-    const budget = cfg.thinkingConfig?.thinkingBudget;
+    const budget = reasoning.budget;
     // With no effort sent the model thinks at its own default, which is at most `high`.
     const thinkingTokens = typeof budget === 'number' && budget > 0 ? budget : EFFORT_BUDGET[effort ?? 'high'];
     return {

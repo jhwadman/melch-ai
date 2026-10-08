@@ -597,6 +597,62 @@
       "evidence": "ADR 0059 §1 and §2 keep ADR 0020's silos: facts under <memory_namespace>/<scopeKey>, the root namespace pinned (ADR 0020 item 3), and a tool's search bound to its own silo.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0055 Decision 4: \"ClaudeAdapter reads it in place of reasoning when it is set (ClaudeModelRequest). The native runtime never sets it.\" Decision 5: \"A tool_result's content is the JSON of the result in the shape ADK stores it\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/claudeLlm.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0055 Decision 2: \"ClaudeLlm is a subclass of AdkShim around it, keeping its name, its options (model, apiKey, endpoint), its static supportedModels, registerClaudeLlm() and buildAnthropicTools().\" Decision 4: \"ClaudeLlm adds claudeReasoningFromConfig(config), ADR 0049's reading\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "module:lib/models/adkShim.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0055 Decision 3: \"AdkShim maps the LlmRequest through a protected toModelRequest(llmRequest, options). A provider's ADK class may override it to add what its adapter reads on the ADK path only. It never removes or rewrites a contract field.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0053 Decision 1: \"An adapter on the contract never charges the turn and never opens llm.request.\" /models/claude-adapter.md, Telemetry: \"The adapter sets attributes on the active span and opens none\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0049-claude-requests-by-model-generation.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0049 Decision 1: \"claudeGeneration(model) in lib/models/claudeModels.ts returns the request surface a model id takes.\" claudeAdapter.ts #build reads claudeGeneration and adaptiveThinkingFor; /models/claude-adapter.md: \"The request surface per model generation is ADR 0049's table\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0046 Placement: \"Claude puts each run of signed blocks on the part that follows it in the response and, on replay, emits them immediately before that part\". claudeAdapter.ts finalOf writes providerState kind thinking_blocks on the next part; #build replays it within the current turn.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0055-claude-adapter-keeps-the-adk-request.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0055 Context: the older spelling differs from \"ReasoningSetting ... (ADR 0047)\" and Alternatives: \"A provider-options bag on the request. ADR 0048 rejected it\"; Decision 1: \"ClaudeAdapter implements ModelAdapter ... on the contract's Anthropic table\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }
