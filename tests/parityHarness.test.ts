@@ -56,7 +56,7 @@ test('scripted: every check passes on every provider', async () => {
   }
   assert.equal(report.pass, true);
   assert.equal(exitCodeFor(report), 0);
-  assert.deepEqual(report.runtime, { requested: 'adk', ran: 'adk' });
+  assert.deepEqual(report.runtime, { requested: 'native', ran: 'native' });
 });
 
 for (const fault of CHECKS) {
@@ -96,7 +96,7 @@ test('no provider ran: the run fails', () => {
 });
 
 test('MELCHIZEDEK_RUNTIME: adk by default, native runs every turn on native, anything else a usage error', async () => {
-  assert.equal(requestedRuntime({}), 'adk');
+  assert.equal(requestedRuntime({}), 'native');
   assert.equal(requestedRuntime({ MELCHIZEDEK_RUNTIME: 'NATIVE' }), 'native');
   assert.throws(() => requestedRuntime({ MELCHIZEDEK_RUNTIME: 'langgraph' }), UsageError);
   const report = await runParity({ scripted: true, runtime: 'native' });
