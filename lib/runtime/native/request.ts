@@ -21,7 +21,9 @@
  *        unless the agent may transfer to no one (an output schema rules
  *        transfer out);
  *      - the root agent's globalInstruction, then the agent's instruction,
- *        each with `{state_key}` placeholders filled from session state;
+ *        each with `{state_key}` placeholders filled from session state,
+ *        and, in a workflow node's run, `{input.field}` and
+ *        `<input.field from Node>` filled from its workflow scope;
  *      - with an output schema beside tools on a model that cannot take
  *        both, the line asking for set_model_response;
  *      - then, at each tool's place in the agent's list, the text its
@@ -51,7 +53,7 @@
  * request (ADK's confirmation and input processors run tools before the
  * request; WS2-7), add transfer_to_agent
  * (compiled syndicates never set subAgents; they delegate through subagent tools, delegate.ts),
- * workflow placeholders and artifacts in an
+ * artifacts in an
  * instruction (no runtime has an artifact service), and an ADK tool's own
  * processLlmRequest side effects beyond its declaration (an own Tool says
  * what it writes through `instruction`).
@@ -69,7 +71,7 @@ import { contentsToMessages, reasoningOf, samplingOf, systemText, toolChoiceOf }
 import { providerForModel } from '../../models/providerMap.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from '../../models/schemaNormalize.ts';
 import type { MemoryService } from '../memoryService.ts';
-import type { TurnContent } from '../events.ts';
+import type { TurnContent, TurnEvent } from '../events.ts';
 import type { Session } from '../sessions.ts';
 import { createToolContext, instructionToolOf, isTool, toolOf } from '../../tools/tool.ts';
 import type { InstructionTool, Tool, ToolContext } from '../../tools/tool.ts';
@@ -160,6 +162,12 @@ export interface RequestContext {
    * (lib/runtime/native/selfCorrection.ts).
    */
   extraTools?: readonly unknown[];
+  /**
+   * A workflow agent node's run: the node's input and the outputs stored so
+   * far, which fill the instruction's workflow placeholders as ADK's
+   * workflowInstructionScope does (lib/workflow/agentNode.ts).
+   */
+  workflowScope?: WorkflowInstructionScope;
 }
 
 /** A request, and the client-side tools it declares by name (what the loop runs and checks for long-running calls). */
@@ -285,6 +293,100 @@ function placeholders(template: string): Array<{ raw: string; index: number }> {
   return found;
 }
 
+// ── Workflow placeholders (ADK 2.2's workflowInstructionScope) ───────────────
+
+/**
+ * What ADK's runLlmAgentAsNode puts in a node agent's invocation context
+ * (`withWorkflowInstructionScope`): the node's input, and the output each
+ * node of the invocation stored so far, by node name, the last one winning.
+ * Its instruction then fills `{<any>.<field>}` from the input and
+ * `<<any>.<field> from <Node>>` from that node's output.
+ */
+export interface WorkflowInstructionScope {
+  readonly input: unknown;
+  readonly outputsByNode: Readonly<Record<string, unknown>>;
+}
+
+const isWordChar = (c: string | undefined): boolean => c !== undefined && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c === '_');
+const isIdentStart = (c: string | undefined): boolean => c !== undefined && c !== '' && isWordChar(c) && !(c >= '0' && c <= '9');
+const isSpace = (c: string | undefined): boolean => c !== undefined && c !== '' && /\s/.test(c);
+
+/** ADK's WORKFLOW_FIELD_KEY, `^[A-Za-z_]\w*\.[A-Za-z_]\w*$`, without a pattern: two identifiers joined by one dot. */
+function isWorkflowFieldKey(key: string): boolean {
+  const dot = key.indexOf('.');
+  return dot > 0 && isIdentifier(key.slice(0, dot)) && isIdentifier(key.slice(dot + 1));
+}
+
+/** The identifier `[A-Za-z_]\w*` starting at `i`, and where it ends; undefined when none starts there. */
+function identAt(s: string, i: number): { name: string; end: number } | undefined {
+  if (!isIdentStart(s[i])) return undefined;
+  let end = i + 1;
+  while (isWordChar(s[end])) end++;
+  return { name: s.slice(i, end), end };
+}
+
+function skipSpaces(s: string, i: number): number {
+  while (isSpace(s[i])) i++;
+  return i;
+}
+
+/**
+ * Every `<x.field from Node>` placeholder, as ADK's SOURCE_NODE_PLACEHOLDER,
+ * `/<\s*[A-Za-z_]\w*\.([A-Za-z_]\w*)\s+from\s+([A-Za-z_]\w*)\s*>/g`, finds
+ * them. Each token of that pattern is determined by the next character, so
+ * a hand parser takes the same matches; an attempt from a `<` cannot pass
+ * the next `<`, so the scan is linear.
+ */
+function sourcePlaceholders(template: string): Array<{ raw: string; index: number; field: string; node: string }> {
+  const found: Array<{ raw: string; index: number; field: string; node: string }> = [];
+  let open = template.indexOf('<');
+  while (open >= 0) {
+    const match = sourcePlaceholderAt(template, open);
+    if (match) found.push(match);
+    open = template.indexOf('<', match ? match.index + match.raw.length : open + 1);
+  }
+  return found;
+}
+
+function sourcePlaceholderAt(s: string, open: number): { raw: string; index: number; field: string; node: string } | undefined {
+  const head = identAt(s, skipSpaces(s, open + 1));
+  if (!head || s[head.end] !== '.') return undefined;
+  const field = identAt(s, head.end + 1);
+  if (!field || !isSpace(s[field.end])) return undefined;
+  const from = skipSpaces(s, field.end);
+  if (s.slice(from, from + 4) !== 'from' || !isSpace(s[from + 4])) return undefined;
+  const node = identAt(s, skipSpaces(s, from + 4));
+  if (!node) return undefined;
+  const close = skipSpaces(s, node.end);
+  if (s[close] !== '>') return undefined;
+  return { raw: s.slice(open, close + 1), index: open, field: field.name, node: node.name };
+}
+
+/** ADK's resolveSourceNode: the field of the named node's object output, else the placeholder as written. */
+function resolveSourceNode(raw: string, field: string, node: string, scope: WorkflowInstructionScope): string {
+  const out = (scope.outputsByNode as Record<string, unknown>)[node];
+  if (out && typeof out === 'object' && field in out) return formatValue((out as Record<string, unknown>)[field]);
+  return raw;
+}
+
+/**
+ * ADK's collectPredecessorOutputs: the output every event of the invocation
+ * carries, keyed by the last segment of its node path without the run
+ * suffix (`Graph.Fan.Agent@2` is `Agent`), the later event winning.
+ */
+export function predecessorOutputs(events: readonly TurnEvent[], invocationId: string): Record<string, unknown> {
+  const outputs: Record<string, unknown> = {};
+  for (const event of events) {
+    if (event.invocationId !== invocationId || event.output === undefined) continue;
+    const path = event.nodeInfo?.path;
+    if (!path) continue;
+    const leaf = path.slice(path.lastIndexOf('.') + 1);
+    const at = leaf.indexOf('@');
+    outputs[at >= 0 ? leaf.slice(0, at) : leaf] = event.output;
+  }
+  return outputs;
+}
+
 function stripBraces(raw: string): string {
   let start = 0;
   let end = raw.length;
@@ -314,32 +416,59 @@ function formatValue(value: unknown): string {
  * (`{ "a": 1 }` in an example) stays as it is. `{artifact.x}` fails: no
  * runtime of this engine has an artifact service. Own keys only: a key such
  * as `constructor` is absent unless the state holds it.
+ *
+ * With a workflow `scope` (a workflow agent node's run), ADK 2.2's two
+ * workflow placeholders are filled too, as its injectSessionState fills
+ * them: `{x.field}` (any identifier before the dot) from the node's input
+ * when it is an object holding `field`, `''` when optional and absent, else
+ * left as written (the key's first spelling); and `<x.field from Node>`
+ * from that node's stored object output, else left as written.
  */
-export function injectSessionState(template: string, state: Readonly<Record<string, unknown>>): string {
+export function injectSessionState(template: string, state: Readonly<Record<string, unknown>>, scope?: WorkflowInstructionScope): string {
+  const sources = scope ? sourcePlaceholders(template).map((m) => ({ raw: m.raw, index: m.index, text: resolveSourceNode(m.raw, m.field, m.node, scope) })) : [];
   const matches = placeholders(template);
-  if (matches.length === 0) return template;
+  if (matches.length === 0 && sources.length === 0) return template;
   const parsed = matches.map((m) => {
     let key = stripBraces(m.raw);
     const optional = key.endsWith('?');
     if (optional) key = key.slice(0, -1);
-    return { ...m, key, optional, valid: key.startsWith(ARTIFACT_PREFIX) || isStateName(key) };
+    return { ...m, key, optional, valid: key.startsWith(ARTIFACT_PREFIX) || isStateName(key) || (!!scope && isWorkflowFieldKey(key)) };
   });
-  const required = new Map<string, boolean>();
-  for (const p of parsed) if (p.valid) required.set(p.key, (required.get(p.key) ?? false) || !p.optional);
-  const values = new Map<string, string>();
-  for (const [key, isRequired] of required) {
-    if (key.startsWith(ARTIFACT_PREFIX)) throw new Error('Artifact service is not initialized.');
-    if (Object.hasOwn(state, key)) values.set(key, formatValue(state[key]));
-    else if (!isRequired) values.set(key, '');
-    else throw new Error(`Context variable not found: \`${key}\`.`);
+  const unique = new Map<string, { required: boolean; raw: string }>();
+  for (const p of parsed) {
+    if (!p.valid) continue;
+    const seen = unique.get(p.key);
+    if (seen) seen.required ||= !p.optional;
+    else unique.set(p.key, { required: !p.optional, raw: p.raw });
   }
+  const values = new Map<string, string>();
+  for (const [key, { required, raw }] of unique) values.set(key, resolveKey(key, required, raw, state, scope));
+  // ADK's merge: both kinds in template order, each replaced in turn.
+  const all = [...parsed.map((p) => ({ raw: p.raw, index: p.index, text: p.valid ? (values.get(p.key) as string) : p.raw })), ...sources].sort((a, b) => a.index - b.index);
   let out = '';
   let last = 0;
-  for (const p of parsed) {
-    out += template.slice(last, p.index) + (p.valid ? (values.get(p.key) as string) : p.raw);
+  for (const p of all) {
+    out += template.slice(last, p.index) + p.text;
     last = p.index + p.raw.length;
   }
   return out + template.slice(last);
+}
+
+/** ADK's resolveKey for one placeholder key: an artifact (refused), a state key, or a workflow field. */
+function resolveKey(key: string, required: boolean, raw: string, state: Readonly<Record<string, unknown>>, scope: WorkflowInstructionScope | undefined): string {
+  if (key.startsWith(ARTIFACT_PREFIX)) throw new Error('Artifact service is not initialized.');
+  if (isStateName(key)) {
+    if (Object.hasOwn(state, key)) return formatValue(state[key]);
+    if (!required) return '';
+    throw new Error(`Context variable not found: \`${key}\`.`);
+  }
+  if (scope && isWorkflowFieldKey(key)) {
+    const field = key.slice(key.indexOf('.') + 1);
+    const input = scope.input;
+    if (input && typeof input === 'object' && field in input) return formatValue((input as Record<string, unknown>)[field]);
+    if (!required) return '';
+  }
+  return raw;
 }
 
 // ── Building the request ─────────────────────────────────────────────────────
@@ -359,9 +488,10 @@ function appendInstructions(system: string | undefined, texts: string[]): string
 async function resolveInstruction(
   instruction: NativeAgent['instruction'],
   ctx: InstructionContext,
+  scope?: WorkflowInstructionScope,
 ): Promise<string> {
   if (typeof instruction === 'function') return instruction(ctx);
-  return injectSessionState(instruction ?? '', ctx.state);
+  return injectSessionState(instruction ?? '', ctx.state, scope);
 }
 
 /** A toolset (the skills harness, an MCP toolset): something that yields tools, and is not one. */
@@ -443,8 +573,8 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
     system = appendInstructions(system, identity);
   }
   const globalInstruction = (ctx.root ?? agent).globalInstruction;
-  if (globalInstruction) system = appendInstructions(system, [await resolveInstruction(globalInstruction, instructionCtx)]);
-  if (agent.instruction) system = appendInstructions(system, [await resolveInstruction(agent.instruction, instructionCtx)]);
+  if (globalInstruction) system = appendInstructions(system, [await resolveInstruction(globalInstruction, instructionCtx, ctx.workflowScope)]);
+  if (agent.instruction) system = appendInstructions(system, [await resolveInstruction(agent.instruction, instructionCtx, ctx.workflowScope)]);
   if (schemaWithTools) system = appendInstructions(system, [SET_MODEL_RESPONSE_INSTRUCTION]);
 
   // 3. The history, and Gemini code execution's parts in it.

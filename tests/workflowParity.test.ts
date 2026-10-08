@@ -1,0 +1,164 @@
+/**
+ * tests/workflowParity.test.ts — the workflow parity gaps closed before
+ * native workflows go live (WS4-6a, ADR 0093), each against ADK.
+ *
+ *   1. Workflow placeholders in a node agent's instruction (`{x.field}`,
+ *      `<x.field from Node>`) are filled on native as ADK 2.2's
+ *      injectSessionState fills them with its workflowInstructionScope.
+ *
+ * Parity cases run one workflow syndicate on ADK (runSyndicateTurn, runtime
+ * adk) and on the scheduler with agentNodeRuntime, with the same scripted
+ * models (tests/helpers/workflowParity.ts), and compare the stored events
+ * (ids and times aside), every model's requests, the routes, the output and
+ * the progress lines. No network.
+ */
+process.env.OTEL_CONSOLE_SPANS = 'false';
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { LogLevel, setLogLevel } from '@google/adk';
+
+import { createTurnEvent } from '../lib/runtime/events.ts';
+import { injectSessionState, predecessorOutputs } from '../lib/runtime/native/request.ts';
+import type { WorkflowInstructionScope } from '../lib/runtime/native/request.ts';
+import { answer, requestTexts, toolCall } from './helpers/scriptedModel.ts';
+import { agent, bothAgree, workflowConfig } from './helpers/workflowParity.ts';
+
+setLogLevel(LogLevel.ERROR);
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+// ── 1. Workflow placeholders ─────────────────────────────────────────────────
+
+/** ADK's own injectSessionState, called with a context shaped like the one runLlmAgentAsNode builds. */
+async function adkInject(template: string, state: Record<string, unknown>, scope?: WorkflowInstructionScope): Promise<string> {
+  const { injectSessionState: adk } = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/agents/instructions.js')).href);
+  return adk(template, { invocationContext: { session: { state }, ...(scope ? { workflowInstructionScope: scope } : {}) } });
+}
+
+const SCOPE: WorkflowInstructionScope = {
+  input: { topic: 'cats', who: 'kids', n: 3, obj: { a: 1 }, empty: '', nil: null },
+  outputsByNode: { Planner: { topic: 'dogs', list: [1, 2] }, Writer: 'plain text', Counter: 7 },
+};
+const STATE = { mood: 'calm', 'user:name': 'Ada' };
+
+const TEMPLATES = [
+  'Write on {input.topic} for {input.who}.',
+  '{input.n} {input.obj} {input.empty}|{input.nil}|',
+  '{input.missing} / {input.gone?} / {any.topic} / {input.topic?}',
+  '{input.missing?} then {input.missing}: the first spelling stays',
+  '{input.missing} then {input.missing?}',
+  '{{input.topic}} {{{input.who}}} {input.topic }',
+  '<input.topic from Planner> <x.list from Planner> <input.topic   from   Planner  > < input.topic from Planner>',
+  '<input.topic from Writer> <input.n from Counter> <input.x from Nope> <input.topic from Planner',
+  '<input.topic fromPlanner> <input.topic from  > <1x.topic from Planner> <input..topic from Planner>',
+  '<input.topic\tfrom\nPlanner> <a.b.c from Planner> <input.topic from Planner2>',
+  '{ <input.topic from Planner> } overlap',
+  '{mood} {user:name} {missing_state?} {input.topic} <input.topic from Planner>',
+  '{ "a": 1 } {not valid} {a:b:c} { {',
+  'no placeholders at all',
+  '<<input.topic from Planner>> <> < > <input.',
+];
+
+test("workflow placeholders: the same text as ADK's injectSessionState, with and without a scope", async () => {
+  for (const template of TEMPLATES) {
+    assert.equal(injectSessionState(template, STATE, SCOPE), await adkInject(template, STATE, SCOPE), `with a scope: ${template}`);
+  }
+  for (const template of TEMPLATES) {
+    // Without a scope a workflow key is not a key at all; a thrown error is compared as its message.
+    let ours: string | Error;
+    let theirs: string | Error;
+    try {
+      ours = injectSessionState(template, STATE);
+    } catch (e) {
+      ours = e as Error;
+    }
+    try {
+      theirs = await adkInject(template, STATE);
+    } catch (e) {
+      theirs = e as Error;
+    }
+    assert.deepEqual(String(ours), String(theirs), `without a scope: ${template}`);
+  }
+  assert.equal(injectSessionState('{input.topic} <input.topic from Planner>', {}), '{input.topic} <input.topic from Planner>', 'outside a workflow node both stay as written');
+});
+
+test('workflow placeholders: a non-object input fills nothing, an array input reads its own keys, as on ADK', async () => {
+  for (const input of ['cats', 3, null, undefined, ['a', 'b'], { role: 'user', parts: [{ text: 'x' }] }]) {
+    const scope = { input, outputsByNode: {} };
+    const template = '{input.topic} {input.length} {input.role?} {input.parts}';
+    assert.equal(injectSessionState(template, {}, scope), await adkInject(template, {}, scope), JSON.stringify(input));
+  }
+});
+
+test('workflow placeholders scan in linear time (no backtracking pattern on the instruction)', () => {
+  const scope = { input: { a: 1 }, outputsByNode: { N: { a: 1 } } };
+  const hostile = [
+    '<'.repeat(100_000),
+    `<${' '.repeat(100_000)}`,
+    `<a.b${' '.repeat(100_000)}fro`,
+    `<a.b from${' '.repeat(100_000)}`,
+    `<a.b from N${' '.repeat(100_000)}`,
+    '<a.b from N'.repeat(20_000),
+    `<${'a'.repeat(100_000)}`,
+    '{'.repeat(100_000),
+    '{a.'.repeat(50_000),
+  ];
+  for (const template of hostile) {
+    const started = performance.now();
+    injectSessionState(template, {}, scope);
+    assert.ok(performance.now() - started < 1000, `${template.slice(0, 12)}… took ${performance.now() - started} ms`);
+  }
+});
+
+test("predecessorOutputs is ADK's collectPredecessorOutputs: this invocation's stamped outputs by node name, the last winning", () => {
+  const ev = (invocationId: string, path: string | undefined, output: unknown) => ({ ...createTurnEvent({ author: 'x', invocationId }), ...(path ? { nodeInfo: { path } } : {}), output });
+  const events = [
+    ev('e-1', 'Graph.Planner', { topic: 'a' }),
+    ev('e-1', 'Graph.Each.Summ@0', 's0'),
+    ev('e-1', 'Graph.Each.Summ@1', 's1'),
+    ev('e-1', 'Graph.Each', ['s0', 's1']),
+    ev('e-0', 'Graph.Old', 'earlier turn'),
+    ev('e-1', undefined, 'no path'),
+    ev('e-1', 'Graph.Planner', { topic: 'b' }),
+    { ...createTurnEvent({ author: 'x', invocationId: 'e-1' }), nodeInfo: { path: 'Graph.Silent' } },
+  ];
+  assert.deepEqual(predecessorOutputs(events, 'e-1'), { Planner: { topic: 'b' }, Summ: 's1', Each: ['s0', 's1'] });
+});
+
+const PLACEHOLDER_CHAIN = workflowConfig(
+  { edges: [['START', 'Planner', 'Writer', 'Editor']] },
+  [
+    agent('Writer', { instruction: 'Write on {input.topic} for {input.who?}; {input.missing} / {input.gone?} <input.topic from Planner> <x.y from Nope> {mood?}' }),
+    agent('Editor', { instruction: 'Edit <input.topic from Planner> and <input.z from Writer> {input.topic}' }),
+  ],
+  agent('Planner', { outputSchema: { type: 'OBJECT', properties: { topic: { type: 'STRING' }, who: { type: 'STRING' } } } }),
+);
+
+test('a chain fills each node agent\'s placeholders from its input and the stored outputs, as on ADK', async () => {
+  const scripts = { planner: () => answer('{"topic":"cats","who":"kids"}'), writer: () => answer('{"z":1}'), editor: () => answer('done') };
+  const { native } = await bothAgree(PLACEHOLDER_CHAIN, scripts, 'go', { mood: 'calm' });
+  const system = (key: string) => native.models[key]!.requests[0]!.system ?? '';
+  assert.match(system('writer'), /Write on cats for kids; \{input\.missing\} \/  cats <x\.y from Nope> calm$/);
+  assert.match(system('editor'), /Edit cats and <input\.z from Writer> \{input\.topic\}$/, "the Writer's text output is not an object: its fields stay as written");
+});
+
+test('a task-mode node fills its placeholders, and the node after it reads its finish_task output, as on ADK', async () => {
+  const cfg = workflowConfig(
+    { edges: [['START', 'Lead', 'Extractor', 'Booker']] },
+    [
+      agent('Extractor', { mode: 'task', instruction: 'Extract for {input.who?}.', outputSchema: { type: 'OBJECT', properties: { city: { type: 'STRING' } }, required: ['city'] } }),
+      agent('Booker', { instruction: 'Book {input.city} (<input.city from Extractor>).' }),
+    ],
+    agent('Lead', { outputSchema: { type: 'OBJECT', properties: { who: { type: 'STRING' } } } }),
+  );
+  const scripts = {
+    lead: () => answer('{"who":"Ada"}'),
+    extractor: (_r: unknown, n: number) => (n === 1 ? toolCall('finish_task', { city: 'Lyon' }, 'c1') : answer('never')),
+    booker: (req: Parameters<typeof requestTexts>[0]) => answer(`booked ${requestTexts(req).at(-1)}`),
+  };
+  const { native } = await bothAgree(cfg, scripts as any, 'go');
+  assert.match(native.models.booker!.requests[0]!.system ?? '', /Book Lyon \(Lyon\)\.$/);
+});

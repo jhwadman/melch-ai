@@ -33,7 +33,13 @@
  *      port in lib/workflow/toolNode.ts, enrichNodeEvent). The loop
  *      calls the stamp before it stores each event (`nodeStamp`), after the
  *      outputKey and task hooks, the order ADK applies them in.
- *   6. FAILURE. An event carrying an error code is the node's reported
+ *   6. THE INSTRUCTION SCOPE. The run carries ADK's workflow instruction
+ *      scope (`workflowScope`): the node's input, and the output every event
+ *      of the invocation stored before the node ran, by node name
+ *      (predecessorOutputs, ADK's collectPredecessorOutputs). The request
+ *      fills `{x.field}` and `<x.field from Node>` from it
+ *      (lib/runtime/native/request.ts, injectSessionState).
+ *   7. FAILURE. An event carrying an error code is the node's reported
  *      error; a run that ends with one and no output throws
  *      NodeReportedError with ADK's message, which stops the walk as ADK's
  *      does. A run the turn stopped throws. A run that pauses on a person
@@ -44,9 +50,7 @@
  * stores for each route step (lib/workflow/route.ts), so a session the
  * native walk writes holds what ADK's holds, in the same order.
  *
- * NOT HERE: workflow placeholders in an instruction (`{input.field}`,
- * `<field from Node>`; the native request leaves them as written), the
- * events ADK stores for a join or a map node itself, interrupts inside a
+ * NOT HERE: the events ADK stores for a join or a map node itself, interrupts inside a
  * node (WS4-4a), tool and ask_user nodes (WS4-5, WS4-4a). It imports
  * nothing from ADK.
  */
@@ -55,7 +59,8 @@ import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
 import type { TurnContent, TurnEvent } from '../runtime/events.ts';
 import { runAgentLoop } from '../runtime/native/agentLoop.ts';
 import type { AgentLoopContext, AgentLoopEnd } from '../runtime/native/agentLoop.ts';
-import type { NativeAgent } from '../runtime/native/request.ts';
+import { predecessorOutputs } from '../runtime/native/request.ts';
+import type { NativeAgent, WorkflowInstructionScope } from '../runtime/native/request.ts';
 import type { Session, SessionService } from '../runtime/sessions.ts';
 import { routeStepEvent } from './route.ts';
 import { enrichNodeEvent } from './toolNode.ts';
@@ -155,7 +160,7 @@ function nodeStamp(agent: NativeAgent, run: Pick<NodeRun, 'path' | 'branch'>, in
 // ── One node ─────────────────────────────────────────────────────────────────
 
 /** The loop options a node run takes from its caller; the node sets the rest. */
-export type AgentNodeLoopOptions = Omit<AgentLoopContext, 'session' | 'sessions' | 'invocationId' | 'userContent' | 'branch' | 'signal' | 'taskNode' | 'nodeStamp'>;
+export type AgentNodeLoopOptions = Omit<AgentLoopContext, 'session' | 'sessions' | 'invocationId' | 'userContent' | 'branch' | 'signal' | 'taskNode' | 'nodeStamp' | 'workflowScope'>;
 
 export interface AgentNodeContext {
   session: Session;
@@ -187,6 +192,8 @@ export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input
     const stored = await (ctx.appendInput ?? ((e: TurnEvent) => sessions.append(session, e)))(userEvent);
     ctx.onEvent?.(stored);
   }
+  // ADK's withWorkflowInstructionScope: the input, and the outputs stored before the node runs.
+  const workflowScope: WorkflowInstructionScope = { input: run.input, outputsByNode: predecessorOutputs(session.events, invocationId) };
   const state: NodeStampState = { output: undefined };
   const loop = runAgentLoop(nodeAgent, {
     ...(ctx.loop ?? {}),
@@ -198,6 +205,7 @@ export async function runAgentNode(agent: NativeAgent, run: Pick<NodeRun, 'input
     signal: run.signal,
     taskNode: taskMode,
     nodeStamp: nodeStamp(agent, run, invocationId, state),
+    workflowScope,
   });
   let end: AgentLoopEnd;
   for (;;) {
