@@ -14,12 +14,15 @@ process.env.OTEL_CONSOLE_SPANS = 'false';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FunctionTool, InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
+import { BaseLlm, FunctionTool, InMemorySessionService, LogLevel, setLogLevel } from '@google/adk';
+import type { BaseLlmConnection, LlmResponse } from '@google/adk';
 import { z } from 'zod';
 
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import type { ModelAdapter, ModelResponse } from '../lib/models/contract.ts';
 import { adkShim } from '../lib/models/adkShim.ts';
+import { TracedGemini } from '../lib/models/registry.ts';
+import { unrunnableModelClass } from '../lib/compileNative.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
 import { flushTracing, onSpanEnd } from '../lib/observability/tracer.ts';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
@@ -523,6 +526,66 @@ test('native refuses a workflow and a transform at compile time, naming the feat
   assert.equal(on.status, 'completed');
   const off = await run(syndicate({}, { retries: { tool_errors: 0, model_errors: 0 } }), { sessionId: 'off' });
   assert.equal(off.status, 'completed');
+});
+
+/** An ADK model class with no contract adapter behind it: neither a shim nor ADK's Gemini. */
+class CustomAdkModel extends BaseLlm {
+  calls = 0;
+  constructor() {
+    super({ model: 'scripted/custom' });
+  }
+  async *generateContentAsync(): AsyncGenerator<LlmResponse, void> {
+    this.calls++;
+    yield { content: { role: 'model', parts: [{ text: 'custom' }] }, turnComplete: true };
+  }
+  async connect(): Promise<BaseLlmConnection> {
+    throw new Error('no live connections');
+  }
+}
+
+test('a resolver returning an ADK model class with no adapter behind it is refused on native before any model call, and runs on ADK (ADR 0088)', async () => {
+  const boss = new ScriptedModel('scripted/boss', () => answer('never'));
+  const scout = new ScriptedModel('scripted/scout', () => answer('never'));
+  const custom = new CustomAdkModel();
+  const shims = shimResolver({ boss, scout });
+  const resolveModel = (id: string | undefined) => (id === 'scripted/custom' ? custom : shims(id));
+  const run = (config: SyndicateYamlConfig, runtime: 'adk' | 'native' = 'native') =>
+    runSyndicateTurn({
+      config,
+      parts: [{ text: 'go' }],
+      appName: APP,
+      userId: USER,
+      sessionId: `custom-${runtime}`,
+      sessionService: new InMemorySessionService(),
+      compile: { resolveModel },
+      trace: false,
+      runtime,
+    });
+  const refused = (id: string, where: string) => (e: unknown) =>
+    e instanceof UnsupportedOnRuntimeError &&
+    e.runtime === 'native' &&
+    e.message.startsWith(`${where}: the ADK model class CustomAdkModel that resolveModel returned for '${id}'`) &&
+    /adkShim\(adapter\) from melchizedek-agents\/models\/adkShim/.test(e.message);
+
+  // The agent's own model, a delegated subagent's, its fallback and its summary model.
+  await assert.rejects(run(syndicate({ model: 'scripted/custom' })), refused('scripted/custom', 'Solo'));
+  const delegating = syndicate({}, { subagents: [{ name: 'Helper', model: 'scripted/custom', instruction: 'Help.', description: 'helps' }] });
+  await assert.rejects(run(delegating), refused('scripted/custom', 'Helper'));
+  await assert.rejects(run(syndicate({ fallback_model: 'scripted/custom' })), refused('scripted/custom', 'Solo'));
+  await assert.rejects(run(syndicate({ context: { compact_after_tokens: 1000, summary_model: 'scripted/custom' } })), refused('scripted/custom', 'Solo'));
+  assert.equal(boss.calls + scout.calls + custom.calls, 0, 'no model was called');
+
+  // ADK runs the class itself.
+  const onAdk = await run(syndicate({ model: 'scripted/custom' }), 'adk');
+  assert.equal(onAdk.status, 'completed', onAdk.error?.message);
+  assert.equal(onAdk.text, 'custom');
+
+  // What native does run: an id, a contract adapter, a shim, ADK's Gemini (its key reaches the registry's adapter).
+  assert.equal(unrunnableModelClass('scripted/boss'), undefined);
+  assert.equal(unrunnableModelClass(boss), undefined);
+  assert.equal(unrunnableModelClass(adkShim(boss)), undefined);
+  assert.equal(unrunnableModelClass(new TracedGemini({ model: 'gemini-3.8-flash', apiKey: 'fixture-not-a-key' })), undefined);
+  assert.equal(unrunnableModelClass(custom), 'CustomAdkModel');
 });
 
 test('an unknown runtime name is a configuration error', async () => {
