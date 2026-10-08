@@ -3,6 +3,18 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0099-native-default-moves-to-0-20-0.md —constrains→ module:lib/runtime/runtimeFlag.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0099-native-default-moves-to-0-20-0.md —depends_on→ /decisions/0097-reflection-tool-declared-where-adk-declares-it.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0099-native-default-moves-to-0-20-0.md —depends_on→ /decisions/0045-own-runtime-behind-the-seam.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0097-reflection-tool-declared-where-adk-declares-it.md —explains→ /decisions/0065-gemini-carried-parts-and-server-side-invocations.md
 
 by claude-code/claude-opus-5-5

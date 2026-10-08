@@ -5,15 +5,15 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 848,
-    "edges": 3150,
+    "nodes": 850,
+    "edges": 3159,
     "byKind": {
-      "doc": 160,
+      "doc": 161,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 147,
+      "file": 148,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 648,
+      "links_to": 651,
       "requires_env": 169,
       "routes_to": 8,
       "defined_in": 77,
@@ -36,18 +36,18 @@
       "imports": 791,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 759,
-      "constrains": 171,
+      "derives_from": 762,
+      "constrains": 172,
       "supersedes": 7,
-      "depends_on": 93,
+      "depends_on": 95,
       "explains": 29,
       "mitigates": 1,
       "alternative_to": 1,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2847,
-      "inferred": 303
+      "extracted": 2853,
+      "inferred": 306
     },
     "isolated": 4
   },
@@ -949,7 +949,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1669
+        "words": 1721
       }
     },
     {
@@ -1550,6 +1550,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 955
+      }
+    },
+    {
+      "id": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "kind": "doc",
+      "label": "ADR 0099: 0.19.0 ships the native runtime as an opt-in; the native default moves to 0.20.0",
+      "source": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 382
       }
     },
     {
@@ -3623,6 +3635,12 @@
       "kind": "file",
       "label": "release.yml",
       "source": ".github/workflows/release.yml"
+    },
+    {
+      "id": "file:CHANGELOG.md",
+      "kind": "file",
+      "label": "CHANGELOG.md",
+      "source": "CHANGELOG.md"
     },
     {
       "id": "file:compose.yaml",
@@ -9936,6 +9954,13 @@
       "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:24"
     },
     {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:84"
+    },
+    {
       "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "to": "file:tests/reasoningState.test.ts",
       "rel": "derives_from",
@@ -13462,6 +13487,41 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md:25"
+    },
+    {
+      "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "file:CHANGELOG.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0099-native-default-moves-to-0-20-0.md frontmatter"
+    },
+    {
+      "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "file:package.json",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0099-native-default-moves-to-0-20-0.md frontmatter"
+    },
+    {
+      "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "module:lib/runtime/runtimeFlag.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0099-native-default-moves-to-0-20-0.md frontmatter"
+    },
+    {
+      "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0099-native-default-moves-to-0-20-0.md:23"
+    },
+    {
+      "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
+      "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0099-native-default-moves-to-0-20-0.md:25"
     },
     {
       "from": "/memory/architecture.md",
