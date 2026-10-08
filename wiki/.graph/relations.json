@@ -1129,6 +1129,54 @@
       "evidence": "ADR 0064 Decision 4 names claudeCurrentApi among the suites left for a later ticket; tests/llmRequestBoundary.test.ts now lists it in ON_THE_CONTRACT, so it may never build an LlmRequest again.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0071 Decision 1: \"The loop ports handleFunctionCallList, mergeParallelFunctionResponseEvents, generateRequestConfirmationEvent … over TurnEvents.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "module:lib/runtime/native/step.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0071 Consequences: \"runModelStep takes model, beforeAppend and redirect, and its result carries tools … and redirected.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0071 Context: \"ADR 0066 gives the native runtime one model step that sends the ADK runtime's request and stores ADK's event. The loop around it is …\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0071 Decision 3: \"A fallback_model is a second step, once per leaf adapter (ADR 0053).\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0071 Decision 3: the primary's step takes a redirect hook \"that applies FallbackLlm's rules (ADR 0044)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "explains",
+      "evidence": "wiki/overview/native-loop.md \"The loop\": \"runAgentLoop(agent, ctx) is an async generator …\" and each step's calls, approval request, outputKey and end reasons.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-08"
     }
   ]
 }

@@ -106,6 +106,10 @@ export interface NativeAgent {
   codeExecution?: 'gemini';
   /** `mode: task` (workflow nodes): not yet run by the native step (WS3-5). */
   mode?: 'task';
+  /** The session-state key the agent's final answer is saved under (the loop writes it, lib/runtime/native/agentLoop.ts). */
+  outputKey?: string;
+  /** `fallback_model:`: answers a provider-side failure of the agent's model (ADR 0044). The loop calls it as its own leaf adapter. */
+  fallbackModel?: string;
 }
 
 /** What an instruction function reads. */

@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Native loop
-description: "The native runtime's agent loop (lib/runtime/native/): one model step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds and in what order, how the history is projected, what a stopped turn records, and what the step returns."
+description: "The native runtime's agent loop (lib/runtime/native/): runAgentLoop repeats one model step, runs the answer's tool calls and stores their results as ADK stores them, until the answer is final. Each step builds the request the ADK runtime would send for the same agent and session, calls the adapter under the turn's controls inside one llm.request span, and stores the answer as the event ADK would store. What the request holds, how the history is projected, how calls run, what a stopped or paused run records, and what the loop returns."
 tags:
   - runtime
   - models
@@ -13,14 +13,19 @@ sources:
   - resource: lib/runtime/native/request.ts
   - resource: lib/runtime/native/history.ts
   - resource: lib/runtime/native/step.ts
+  - resource: lib/runtime/native/agentLoop.ts
   - resource: tests/nativeStep.test.ts
+  - resource: tests/nativeLoop.test.ts
 ---
 
 # Native loop
 
-The native runtime runs an agent's turn without ADK ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). It lives in `lib/runtime/native/`, and `runSyndicateTurn` does not select it yet (the runtime flag is WS2-10). Its unit is one **model step**, `runModelStep` in `lib/runtime/native/step.ts`: build the request, call the adapter, record the answer. Running the answer's tool calls, and looping until there are none, is WS2-5b.
+The native runtime runs an agent's turn without ADK ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). It lives in `lib/runtime/native/`, and `runSyndicateTurn` does not select it yet (the runtime flag is WS2-10). For one agent, `runAgentLoop` in `lib/runtime/native/agentLoop.ts` runs a **model step** (`runModelStep`, `lib/runtime/native/step.ts`: build the request, call the adapter, record the answer), runs the answer's tool calls, stores their results, and steps again until the answer is final.
 
-Every piece matches the ADK runtime, so a session either runtime wrote is one the other continues ([ADR 0066](/decisions/0066-native-step-sends-the-adk-request.md)). `tests/nativeStep.test.ts` runs syndicates on ADK with a scripted adapter behind the [ADK shim](/models/adk-shim.md), then rebuilds each call on the native step from the session as it stood before the call. The adapter must be handed an equal request, and the store must hold an equal event, id and time aside.
+Every piece matches the ADK runtime, so a session either runtime wrote is one the other continues ([ADR 0066](/decisions/0066-native-step-sends-the-adk-request.md), [ADR 0071](/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md)). Two suites hold it there, each running syndicates on ADK with a scripted adapter behind the [ADK shim](/models/adk-shim.md):
+
+- `tests/nativeStep.test.ts` rebuilds each call on the native step from the session as it stood before the call. The adapter must be handed an equal request, and the store must hold an equal event.
+- `tests/nativeLoop.test.ts` runs the same conversation through `runAgentLoop`: every single-agent case of the boundary suite (`tests/syndicateTurn.test.ts`) and the loop's own cases. The store must hold the same events, ids and times aside, and `onTextDelta` must get the same deltas.
 
 ## The agent
 
@@ -74,7 +79,7 @@ Each response becomes ADK's event for it. The base event is created before the c
 - a `set_model_response` call becomes its arguments as JSON text, with `skipSummarization`;
 - an answer with no parts, no error and no usage makes no event.
 
-A partial event goes to the caller's `onPartial` and is never stored. The final event is stored through `SessionService.append`, which applies the store's rules ([sessions](/memory/sessions.md)).
+A partial event goes to the caller's `onPartial` and is never stored. The caller's `beforeAppend` sees the final event just before it is stored through `SessionService.append`, which applies the store's rules ([sessions](/memory/sessions.md)).
 
 ## What a step returns
 
@@ -85,4 +90,39 @@ A partial event goes to the caller's `onPartial` and is never stored. The final 
 - the answer's text and the thinking the partials showed (a final never holds thinking);
 - the tool calls with their ids as stored, and the long-running ids among them;
 - the error of a failed call (stored on the event as ADK stores it);
-- `stopped`, for a turn that stopped.
+- `stopped`, for a turn that stopped;
+- the client-side tools the request declared, by name;
+- `redirected`, for a failure the caller's `redirect` hook took (a fallback answers it; nothing was stored).
+
+A caller may also send the request under another model id (`model`): a fallback model answers the request built for the agent's own model.
+
+## The loop
+
+`runAgentLoop(agent, ctx)` is an async generator. `ctx` is what the step takes besides the agent and its adapter (session, store, run id, user content, branch, memory, `stream`, signal), plus `adapterFor`, the leaf adapter for a model id (default `resolveAdapter`), and `log` for the fallback's notice. The session already holds the run's user event. The loop yields each partial as it arrives, never stored, then each event as the store returned it, so `drainAgentStream` reads it as it reads ADK's stream: streamed text reaches `onTextDelta`, and narration before a tool call is withdrawn with `onTextReset`.
+
+Each step:
+
+1. **The model step.** With `fallback_model`, the step runs once per leaf adapter, by FallbackLlm's rules ([ADR 0044](/decisions/0044-fallback-model-and-circuit-breaker.md)). A retryable failure counts against the primary's circuit. When nothing was produced before it, the failure is not stored, and the fallback answers the same request under its own model id. An open circuit goes straight to the fallback.
+2. **The calls.** The answer's calls run in parallel, each with its own state delta and actions, and their results are kept in call order:
+   - a result that is not an object is wrapped `{ result }`, an array `{ results }`;
+   - a call naming no declared tool answers `Function <name> is not found in the toolsDict.`;
+   - a tool that throws answers `Error in tool '<name>': <message>`;
+   - a tool that requires approval asks for it: `requestedToolConfirmations` under the call's id, `skipSummarization`, and the pending notice as its answer;
+   - a long-running call (`ask_user`) with no result answers nothing; its actions, when it set any, make an event with no content.
+
+   An own Tool runs through `execute`. An ADK tool an agent still lists (a registry FunctionTool, the skills toolset's tools) runs through its `runAsync`, with a context shaped like ADK's. One call's response is its own event; several are merged into one, parts in call order, actions merged. Each call reads the state as the step left it, not the writes of another call in the same step.
+3. **An approval request ends the run.** In place of the response, the loop stores ADK's `adk_request_confirmation` call: the original call and the confirmation as its arguments, an `adk-` id listed in `longRunningToolIds`, and the response's actions.
+4. **`outputKey`.** Each final event of the agent carries its text in `stateDelta` under the agent's `outputKey`, written before it is stored. With an output schema, the text is parsed and validated (`z.fromJSONSchema`), kept as text when it does not parse, and saved as parsed when it does not validate.
+5. **Go on or stop.** The loop steps again unless the step's last event is final (ADK's `isFinalResponse`, unless it is an empty metadata event after tool calls), the turn stopped the step, or the step stored nothing. ADK's own ceiling of 500 model calls applies when no turn control is lower.
+
+The generator returns an `AgentLoopEnd`:
+
+| `reason` | when | also |
+|---|---|---|
+| `final` | the last event is a final answer: text, a `set_model_response` answer, a response that skips summarization | `lastEvent` |
+| `paused` | a call waits on a person: an `ask_user` call with no response, or an approval request | `pending`, the waiting call ids |
+| `error` | the last event carries a failed call's error, among them a model that thinks but never answers ([ADR 0027](/decisions/0027-thinking-without-answer-is-an-error.md)) | `lastEvent` |
+| `stopped` | the turn stopped a step (cancel, deadline, `max_steps`); nothing was stored for it | `stop`, the turn's code and message |
+| `empty` | the model answered nothing | |
+
+Not done by the loop: delegation and transfer (WS2-6), resuming an approval or a question (WS2-7a, WS2-7b), ADK's reflect-and-retry plugins (WS2-8; a throwing tool answers its error at once, as ADK does with `retries.tool_errors: 0`), compaction (WS2-9), tool spans (WS2-11), and an auth request a tool raises. A `temp:` key a tool writes is not visible to the next step's instruction placeholders.

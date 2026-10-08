@@ -34,8 +34,8 @@
  *
  * WHAT IT RETURNS: the request sent, the stored event, and the answer parsed
  * into text, thinking (from the partials: a final never holds thinking) and
- * tool calls with the ids as stored. Running those calls is the loop's next
- * step (WS2-5b).
+ * tool calls with the ids as stored, and the tools the request declared.
+ * Running those calls, and looping, is lib/runtime/native/agentLoop.ts.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -79,6 +79,20 @@ export interface ModelStepOptions {
   signal?: AbortSignal;
   /** Each partial event, as it arrives. Never stored. */
   onPartial?: (event: TurnEvent) => void;
+  /**
+   * The model id the request is sent under. Default the agent's. A fallback
+   * model answers the request built for the agent's own model, under its own
+   * id, as ADK's FallbackLlm sends it (ADR 0044).
+   */
+  model?: string;
+  /** Called on the final event just before it is stored: the loop saves the agent's outputKey here, as ADK does before its Runner appends. */
+  beforeAppend?: (event: TurnEvent) => void;
+  /**
+   * Called on each failed final, with whether the adapter had yielded
+   * anything before it. True hands the failure back unstored (`redirected`):
+   * a fallback model answers the step instead (ADR 0044, ADR 0053).
+   */
+  redirect?: (final: FinalModelResponse, produced: boolean) => boolean;
 }
 
 /** Why a step made no call, or stopped answering: the turn's own stop. */
@@ -106,6 +120,10 @@ export interface ModelStepResult {
   error?: ModelError;
   /** The turn stopped before or during the call: no event was made for it. */
   stopped?: StepStop;
+  /** The failure `redirect` took: nothing was stored for it. */
+  redirected?: ModelError;
+  /** The client-side tools the request declared, by name: what runs the answer's calls. */
+  tools: Map<string, unknown>;
 }
 
 function eitherSignal(...candidates: Array<AbortSignal | undefined>): AbortSignal | undefined {
@@ -151,7 +169,8 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
     stream: options.stream ?? false,
     ...(signal ? { signal } : {}),
   });
-  const result: ModelStepResult = { request, text: '', thinking: '', toolCalls: [], longRunningToolIds: [] };
+  if (options.model) request.model = options.model;
+  const result: ModelStepResult = { request, text: '', thinking: '', toolCalls: [], longRunningToolIds: [], tools };
   if (signal?.aborted) return { ...result, stopped: stopOf() };
 
   const adapter = options.adapter ?? resolveAdapter(agent.model);
@@ -169,6 +188,7 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
     }
   }
 
+  let produced = false;
   for await (const llmResponse of traceLlmGeneration({ provider: adapter.provider, model: request.model, request }, inner())) {
     if (signal?.aborted) return { ...result, stopped: stopOf() };
     const source = sources.get(llmResponse);
@@ -176,6 +196,9 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
       // A refusal the tracer made in place of the call: the turn has stopped.
       return { ...result, stopped: { code: String(llmResponse.errorCode), message: String(llmResponse.errorMessage ?? '') } };
     }
+    // Leaving the loop closes this call (and its span) before a fallback's opens.
+    if (!source.partial && source.error && options.redirect?.(source, produced)) return { ...result, response: source, redirected: source.error };
+    produced = true;
     if (!makesEvent(llmResponse)) {
       if (!source.partial) result.response = source;
       continue;
@@ -200,6 +223,7 @@ export async function runModelStep(options: ModelStepOptions): Promise<ModelStep
         ...new Set(calls.filter((c) => c.name && c.id && tools.has(c.name) && isLongRunning(tools.get(c.name))).map((c) => c.id as string)),
       ];
     }
+    options.beforeAppend?.(event);
 
     const stored = await sessions.append(session, event);
     result.event = stored;
