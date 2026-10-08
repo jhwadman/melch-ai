@@ -98,7 +98,7 @@ The adapters open no span and charge no turn ([ADR 0053](/decisions/0053-adapter
 
 - `usageMetadata.candidatesTokenCount` is `output_tokens`, reasoning included. So `llm.tokens.output`, the turn's output charge, the root span's `syndicate.tokens.output` and the ledger's `output_tokens` count what they counted before.
 - The server-side calls ride on the final as `customMetadata['responses.server_tool_calls']`, and xAI's counters as `['responses.server_tool_usage']`. The root span turns them into `ToolCall` events, so `adk_turns.tool_calls` counts a searched answer.
-- No `groundingMetadata`, so the A2A server's search and sources status lines stay Gemini's.
+- `groundingMetadata` from the adapter's grounding, so the A2A server lists the answer's web sources, as it does for Gemini (the owner's decision, 2026-10-08).
 
 The events gain `finishReason`, as every shimmed adapter's do. `buildResponsesInput` and `buildResponsesTools` (in `gptLlm.ts`) take an `LlmRequest`, map it to the contract and run the adapter's own builders. On the ADK path these differ from the earlier GPT and Grok adapters, because the contract carries them differently:
 

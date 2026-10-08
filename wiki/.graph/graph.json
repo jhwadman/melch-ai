@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 728,
-    "edges": 2110,
+    "edges": 2109,
     "byKind": {
       "doc": 121,
       "provider": 6,
@@ -33,7 +33,7 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 511,
+      "imports": 510,
       "reads_table": 28,
       "runs": 67,
       "derives_from": 449,
@@ -45,7 +45,7 @@
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2011,
+      "extracted": 2010,
       "inferred": 99
     },
     "isolated": 4
@@ -948,7 +948,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1173
+        "words": 1289
       }
     },
     {
@@ -1056,7 +1056,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1027
+        "words": 1073
       }
     },
     {
@@ -1068,7 +1068,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 811
+        "words": 859
       }
     },
     {
@@ -1308,7 +1308,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1748
+        "words": 1758
       }
     },
     {
@@ -4190,7 +4190,7 @@
       "label": "lib/models/claudeLlm.ts",
       "source": "lib/models/claudeLlm.ts",
       "attrs": {
-        "lines": 115
+        "lines": 102
       }
     },
     {
@@ -4316,7 +4316,7 @@
       "label": "lib/models/gptLlm.ts",
       "source": "lib/models/gptLlm.ts",
       "attrs": {
-        "lines": 164
+        "lines": 166
       }
     },
     {
@@ -15194,13 +15194,6 @@
     {
       "from": "module:lib/models/claudeLlm.ts",
       "to": "module:lib/models/claudeModels.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/claudeLlm.ts"
-    },
-    {
-      "from": "module:lib/models/claudeLlm.ts",
-      "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/claudeLlm.ts"

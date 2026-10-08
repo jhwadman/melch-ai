@@ -58,3 +58,5 @@ A second, smaller difference: the mapping turns a tool result into a value (`{ r
 - The span's payload on a failed call (`llm.payload.request`) includes `claudeReasoning` beside the request.
 - GPT and the chat-completions adapters may use the same hook for their own older-spelling readings.
 - Left as they were, for later decisions: `web_search_20250305` on every model, a `pause_turn` that ends the call, and no `cache_control`.
+
+> **Note (2026-10-08):** The owner decided that every provider's answers show their web sources. ClaudeLlm now pass the mapping's `groundingMetadata` through to the event, so the A2A server lists the pages a search used, as it does for Gemini. The rest of this record is unchanged.

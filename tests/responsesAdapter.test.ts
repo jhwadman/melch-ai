@@ -21,7 +21,8 @@
  *     the call at once and is never retryable;
  *   - on the ADK path, GptLlm keeps the Responses usage meaning (the turn's
  *     and the ledger's output count include reasoning, as before), the
- *     server-side tool record on customMetadata, and no groundingMetadata.
+ *     server-side tool record on customMetadata, and groundingMetadata for
+ *     the A2A server's web sources.
  */
 
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -724,7 +725,7 @@ test('GptLlm keeps the Responses usage meaning: the turn and the ledger count re
   assert.deepEqual(bare.counts, [12, 3, 4]);
 });
 
-test('GrokLlm events keep the server-side tool record, and carry no groundingMetadata', async () => {
+test('GrokLlm events keep the server-side tool record, and carry groundingMetadata for the web sources', async () => {
   const reply = responseOf(
     [
       { id: 'ws_1', type: 'web_search_call', status: 'completed', action: { type: 'search', query: 'NVDA', sources: [{ type: 'url', url: 'https://example.com/' }] } },
@@ -742,7 +743,7 @@ test('GrokLlm events keep the server-side tool record, and carry no groundingMet
         { name: 'web_search', args: { type: 'search', query: 'NVDA' }, status: 'completed', sources: ['https://example.com/'] },
       ]);
       assert.deepEqual(final.customMetadata?.['responses.server_tool_usage'], { total: 1, web_search_calls: 1 });
-      assert.equal(final.groundingMetadata, undefined);
+      assert.deepEqual(final.groundingMetadata?.groundingChunks, [{ web: { uri: 'https://example.com/', title: 'Example' } }]);
       assert.equal(final.content?.parts?.[0]?.text, 'Down 0.4%.');
     });
   }
