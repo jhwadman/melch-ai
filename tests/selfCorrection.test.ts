@@ -4,8 +4,9 @@
  * tool that throws gets structured guidance), `retries: 0` turning each off,
  * `url_context` native on Gemini and a no-op elsewhere, and `examples:` in the
  * instruction. Scripted models, in-memory sessions, no network. The turn
- * cases run on both runtimes (tests/helpers/runtime.ts); the malformed retry
- * is a known open difference on native, run as a todo.
+ * cases run on both runtimes (tests/helpers/runtime.ts). On native the
+ * malformed reply reaches the loop through the model contract, as an error
+ * code the genai mapping reads back as the finish reason (ADR 0088).
  *
  * The native loop's self-correction (lib/runtime/native/selfCorrection.ts,
  * ADR 0075) is held to the same stored events as these plugins in
@@ -69,12 +70,6 @@ forEachRuntime(
     assert.equal(r.status, 'completed', r.error?.message);
     assert.equal(r.text, 'recovered');
     assert.equal(boss.calls, 2);
-  },
-  {
-    differsOn: {
-      native:
-        'a MALFORMED_FUNCTION_CALL finish reaches the native loop through the model contract as an error code with finish reason OTHER, so the ported model plugin never retries it (ADR 0075); open question in the WS2-12 PR',
-    },
   },
 );
 
