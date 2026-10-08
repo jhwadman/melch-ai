@@ -15,6 +15,8 @@ sources:
   - resource: lib/a2a/identity.ts
   - resource: lib/a2a/executor.ts
   - resource: lib/a2a/policy.ts
+  - resource: lib/tools/oauthConsent.ts
+  - resource: tests/oauthConsent.test.ts
 ---
 
 # A2A
@@ -28,6 +30,33 @@ The server speaks A2A 1.0 with the SDK's 0.3 compatibility on every handler: the
 A syndicate can also CALL an A2A agent: a subagent with `a2a_agent_url:` is a remote agent (1.0 or 0.3, the card decides), reached as a delegation tool or a plan-dispatch route through `lib/a2a/remoteAgent.ts`. The delegation tool is an own Tool (`remoteAgentOwnTool`) with a subagent's single `request` argument; it keys the remote conversation by the local session and aborts with the turn, and the ADK runtime receives it through `toFunctionTool` (`remoteAgentTool`). Its card and endpoints pass the SSRF guard; credentials come from `A2A_AGENT_TOKENS` (host → bearer or headers).
 
 A tool an agent lists in `require_approval` runs only after a person approves the exact call ([ADR 0028](/decisions/0028-approval-gates.md)): the task ends `input-required` with the pending call (text, plus a data part `{ type: 'approval_request', approval_id, agent, tool, args }`), and the caller's next message on the conversation answers it — `approve` / `reject`, or `{ approval: { id, approved } }`. ADK's confirmation gate pins the call, so an approval cannot run a different one. Gates run on the orchestrator and plan-dispatch routes only; the resume skips the classifier and runs the route that asked, with the interrupted turn replayed raw. Stored function-call parts keep Gemini's `skip_thought_signature_validator` value so the replay is valid.
+
+### OAuth consent
+
+With `toolCredentials: { store, consent }` (`lib/tools/oauthConsent.ts`), a tool call whose provider the user has not granted ends the task `input-required` ([ADR 0085](/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md), [tool contracts](/tools/tool-contracts.md)). The status message names the provider and carries the link, and a data part carries the request:
+
+```json
+{
+  "type": "consent_request",
+  "consent_id": "adk-…",
+  "agent": "Boss",
+  "provider": "github",
+  "authorization_url": "https://github.com/login/oauth/authorize?response_type=code&client_id=…&redirect_uri=…&scope=…&state=…&code_challenge=…&code_challenge_method=S256",
+  "state": "<43 base64url characters>",
+  "scopes": ["repo"]
+}
+```
+
+`consent_id` is the stored `adk_request_credential` call's id, and `state` the nonce the URL carries. The part holds no token, code, client secret or PKCE verifier. A client opens `authorization_url` in the person's browser. The provider redirects to the **consent callback**: a `GET` at the path of the consent's configured redirect URI (`/oauth/callback` by convention). The callback completes the flow server-side and answers a page that holds no value. The person's next message on the conversation, of any content, resumes the paused call. Until the grant is stored, a message repeats the request and runs nothing. The part is additive: `approval_request` and `input_request` are unchanged, and a client that ignores data parts reads the link in the status text.
+
+The callback sits before the bearer check, because a browser cannot carry the A2A credential:
+
+- It has its own rate limit (`toolCredentials.callbackLimit`, default 30 requests per 15 minutes per IP).
+- The state admits it: 256 bits, single-use (spent by its first use, whatever the outcome), expiring after 10 minutes, and bound server-side to the user, the session, the provider and the paused call.
+- When the request carries a credential the authenticator accepts (behind `serverSecret`, only once the bearer matches), the caller must be the flow's user, else `403`. By default (`toolCredentials.requireCallerIdentity`, default true) a callback without such a credential is refused with `401` and the state is not spent: the browser that completes a grant must carry the flow's user's identity (a session cookie or a gateway header `resolveRequest` reads), so a forwarded authorization link cannot link someone else's account. `requireCallerIdentity: false` lets the state alone bind the flow, for a deployment whose browsers carry no identity and that accepts that risk.
+- The redirect URI is read from configuration only. The response is `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, with a CSP of `default-src 'none'`.
+- Nothing logs the query. The log names the provider and the refusal reason, and the audit trail gets a `consent.callback` row.
+- The pending flows live in the process (`memoryConsentStates`), so the callback must reach the instance that paused the call, as the A2A task store already requires. `ConsentStates` is the plug point for a shared store.
 
 ## Identity and keys
 

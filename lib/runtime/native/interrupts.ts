@@ -53,6 +53,30 @@
  * content processor does. When workflows run natively (WS4), the node-tool
  * resume is ported beside approvedCalls, in the same place in the order.
  *
+ * CREDENTIALS (OAuth consent, WS6-3b, ADR 0085) run first, as ADK runs its
+ * auth preprocessor (AUTH_PREPROCESSOR) before request-confirmation.
+ * grantedCalls is that preprocessor, check for check, with one difference
+ * in what the answer carries:
+ *   1. The answers: the function responses named `adk_request_credential`
+ *      in the last event with content, which must be the user's. None:
+ *      nothing happens.
+ *   2. The requests they answer: `adk_request_credential` calls this agent
+ *      made, by id. An answer naming no such request is ignored, as ADK
+ *      ignores it.
+ *   3. The binding. ADK's answer carries the authorization response (a code
+ *      or the redirect URL), which ADK exchanges in-process with the client
+ *      secret its request event stored. Here the server's callback route has
+ *      already exchanged the code and stored the grant
+ *      (lib/tools/oauthConsent.ts), so the answer carries no credential:
+ *      `{ credentialKey, granted: true }`, bound to the request by its
+ *      credentialKey. An answer that does not bind is ignored.
+ *   4. The paused calls the bound requests name (`function_call_id`, ADK's
+ *      toolset requests aside) run again, from the latest event that made
+ *      them, through the loop's own call path. The tool now reads its grant
+ *      through ctx.accessToken. The response is stored before the step
+ *      builds its request. A later step finds the agent's own events last,
+ *      so the call runs once.
+ *
  * ADK stays out of this file: an ADK tool an agent still lists is asked
  * whether it gates through its own checkRequireConfirmation, by shape.
  */
@@ -65,7 +89,7 @@ import type { ToolConfirmation } from '../../tools/tool.ts';
 import { getFunctionCalls, getFunctionResponses } from '../events.ts';
 import type { TurnEvent, TurnFunctionCall } from '../events.ts';
 import type { Session } from '../sessions.ts';
-import { REQUEST_CONFIRMATION_CALL, isSegmentPrefix } from './history.ts';
+import { REQUEST_CONFIRMATION_CALL, REQUEST_CREDENTIAL_CALL, isSegmentPrefix } from './history.ts';
 import { isToolset } from './request.ts';
 import type { NativeAgent } from './request.ts';
 
@@ -215,4 +239,65 @@ export async function approvedCalls(agent: NativeAgent, scope: Scope, contextFor
     confirmations: new Map([...bound].map(([id, b]) => [id, b.confirmation])),
     tools,
   };
+}
+
+// ── Credentials (ADK's auth preprocessor) ────────────────────────────────────
+
+/** ADK's prefix for a toolset's own credential request, which resumes no call. */
+const TOOLSET_AUTH_CREDENTIAL_ID_PREFIX = '_adk_toolset_auth_';
+
+/** The paused calls a granted consent lets run again, from the event that made them. */
+export interface GrantedCalls {
+  calls: TurnFunctionCall[];
+  /** The agent's tools by name, as the loop runs calls against them. */
+  tools: Map<string, unknown>;
+}
+
+/** Whether an answer binds to the request it names: granted, for the provider the request named. */
+function bindsGrant(config: Record<string, unknown>, response: unknown): boolean {
+  if (!isRecord(response) || response.granted !== true) return false;
+  return typeof config.credentialKey === 'string' && config.credentialKey !== '' && response.credentialKey === config.credentialKey;
+}
+
+/**
+ * The paused calls the latest user message resumes by answering this
+ * agent's credential requests; undefined when it answers none (ADK's
+ * AuthPreprocessor, the exchange left to the callback route).
+ */
+export async function grantedCalls(agent: NativeAgent, scope: Scope): Promise<GrantedCalls | undefined> {
+  const events = scope.session.events;
+  if (events.length === 0) return undefined;
+  let last: TurnEvent | undefined;
+  for (let i = events.length - 1; i >= 0 && !last; i--) if (events[i]?.content !== undefined) last = events[i];
+  if (!last || last.author !== 'user') return undefined;
+  const answers = new Map<string, unknown>();
+  for (const r of getFunctionResponses(last)) if (r.name === REQUEST_CREDENTIAL_CALL && r.id) answers.set(r.id, r.response);
+  if (answers.size === 0) return undefined;
+
+  // The requests this agent made, by id.
+  const requests = new Map<string, { config: Record<string, unknown>; args: Record<string, unknown> }>();
+  for (const event of events) {
+    if (event.author !== agent.name) continue;
+    for (const call of getFunctionCalls(event)) {
+      if (!call.id || !answers.has(call.id) || call.name !== REQUEST_CREDENTIAL_CALL || !isRecord(call.args)) continue;
+      const config = call.args.auth_config ?? call.args.authConfig;
+      if (isRecord(config)) requests.set(call.id, { config, args: call.args });
+    }
+  }
+  const resume = new Set<string>();
+  for (const [id, response] of answers) {
+    const request = requests.get(id);
+    if (!request || !bindsGrant(request.config, response)) continue;
+    const callId = request.args.function_call_id ?? request.args.functionCallId;
+    if (typeof callId === 'string' && callId && !callId.startsWith(TOOLSET_AUTH_CREDENTIAL_ID_PREFIX)) resume.add(callId);
+  }
+  if (resume.size === 0) return undefined;
+
+  // As ADK: the latest event before the answer that made any of the calls, those calls only.
+  for (let i = events.length - 2; i >= 0; i--) {
+    const calls = getFunctionCalls(events[i] as TurnEvent);
+    if (!calls.some((c) => c.id && resume.has(c.id))) continue;
+    return { calls: calls.filter((c) => c.id && resume.has(c.id)), tools: await toolsOf(agent, scope) };
+  }
+  return undefined;
 }

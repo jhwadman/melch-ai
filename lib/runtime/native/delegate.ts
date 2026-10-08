@@ -195,6 +195,9 @@ async function runChild(agent: NativeAgent, args: Record<string, unknown>, conte
     // plugins, so a subagent's own errors are not retried (ADR 0075).
     selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
     ...(ctx.memory ? { memory: ctx.memory } : {}),
+    // The parent's grants, pinned to the root's app (ADR 0072). Not its consent step: a subagent's
+    // pause would end inside the call, as ADK's AgentTool swallows it (ADR 0085).
+    ...(ctx.credentials ? { credentials: ctx.credentials } : {}),
     ...(ctx.signal ? { signal: ctx.signal } : {}),
     ...(ctx.adapterFor ? { adapterFor: ctx.adapterFor } : {}),
     ...(ctx.log ? { log: ctx.log } : {}),

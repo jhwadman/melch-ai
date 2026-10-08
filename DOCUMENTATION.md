@@ -822,6 +822,59 @@ subagent or a workflow node listing it is a load error. In code,
 `runSyndicateTurn` returns `status: 'input-required'` with `input`
 (`node`, `message`, `payload`), and the next message's text answers it.
 
+#### OAuth consent for tools
+
+A tool that acts for the person against a third-party API reads their
+delegated token with `ctx.accessToken(provider)` from the sealed credential
+store ([ADR 0072](./wiki/decisions/0072-tool-credentials-sealed-per-user.md)).
+When they have not granted the provider yet, the turn pauses for their
+consent ([ADR 0085](./wiki/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md)).
+This runs on the native runtime:
+
+```ts
+import { createA2AApp } from 'melchizedek-agents/a2a';
+import { oauthConsent } from 'melchizedek-agents/tools/oauthConsent';
+
+const consent = oauthConsent({
+  providers: {
+    github: {
+      authorizationUrl: 'https://github.com/login/oauth/authorize',
+      tokenUrl: 'https://github.com/login/oauth/access_token',
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      scopes: ['repo'],
+    },
+  },
+  redirectUri: 'https://agents.example.com/oauth/callback', // as registered at the provider
+  credentials: store, // storage.credentials, or credentialStore(...)
+});
+await createA2AApp({ /* … */ toolCredentials: { store, consent } });
+```
+
+1. **The pause.** The task ends `input-required` with the link in its status
+   message and a data part `{ type: 'consent_request', consent_id, agent,
+   provider, authorization_url, state, scopes }`.
+2. **The grant.** The person opens the link and consents. The provider
+   redirects their browser to the callback, which the server mounts at the
+   redirect URI's path. The callback exchanges the code with PKCE and stores
+   the grant, sealed.
+3. **The resume.** Their next message on the conversation runs the paused
+   call again. A message sent before the grant gets the same request back,
+   without a model call.
+
+The callback refuses these, and stores nothing:
+
+- a state that is replayed, tampered with or older than ten minutes;
+- a provider's `error`;
+- a caller who is authenticated as another user.
+
+No token, code, client secret or verifier is written to a page, an event, a
+log line or the model's context. The pending flows live in the process: run
+one replica, or route the callback to the instance that paused the call. In
+code, `runSyndicateTurn({ …, toolCredentials })` returns
+`status: 'input-required'` with `consent`. On the ADK runtime an open consent
+request throws `UnsupportedOnRuntimeError`.
+
 #### Limits
 
 | Setting | Default |

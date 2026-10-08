@@ -41,6 +41,8 @@ import type { AgentLoopEnd } from './native/agentLoop.ts';
 import type { NativeAgent } from './native/request.ts';
 import type { SelfCorrection } from './native/selfCorrection.ts';
 import type { SessionService } from './sessions.ts';
+import type { CredentialStore } from '../tools/auth.ts';
+import type { OAuthConsent } from '../tools/oauthConsent.ts';
 import { unsupportedOnNative } from './runtimeFlag.ts';
 
 // ── What native refuses before a turn starts ─────────────────────────────────
@@ -97,6 +99,10 @@ export interface NativeRunParams {
   log?: (message: string) => void;
   /** The turn's self-correction (ADR 0075), built once per turn from `retries:`. Default: retries at their defaults. */
   selfCorrection?: SelfCorrection;
+  /** The run's tool credentials, pinned to its app (ADR 0072). */
+  credentials?: Pick<CredentialStore, 'get'>;
+  /** The consent step (ADR 0085). */
+  consent?: Pick<OAuthConsent, 'has' | 'begin'>;
 }
 
 /**
@@ -131,5 +137,7 @@ export async function* runNativeAgent(params: NativeRunParams): AsyncGenerator<T
     ...(params.memory ? { memory: params.memory } : {}),
     ...(params.log ? { log: params.log } : {}),
     ...(params.selfCorrection ? { selfCorrection: params.selfCorrection } : {}),
+    ...(params.credentials ? { credentials: params.credentials } : {}),
+    ...(params.consent ? { consent: params.consent } : {}),
   });
 }

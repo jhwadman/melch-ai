@@ -22,6 +22,36 @@ the starter pack and the templates), not the repo's full history.
   file over 8 MiB are not loaded. `lib/tools/tool.ts` adds `Toolset`,
   `ToolsetContext`, `isOwnToolset`, `toolsetOf` and an optional
   `Tool.contents` hook. The `exports` map is unchanged.
+- **OAuth consent for tool credentials (ADR 0085).** On the native
+  runtime, `runSyndicateTurn` takes `toolCredentials: { store, consent }`
+  (both optional additions). `store` is the sealed credential store of ADR
+  0072, and `consent` is `oauthConsent({ providers, redirectUri,
+  credentials })` from `melchizedek-agents/tools/oauthConsent`.
+  - When a call's provider is not granted, `ctx.accessToken(provider)`
+    asks for consent by itself, or a tool calls the new
+    `ctx.requestCredential(provider)`. The turn ends `input-required` with
+    `result.consent` (`id`, `agent`, `provider`, `authUri`, `state`,
+    `scopes`), stored as ADK's own `adk_request_credential` call with no
+    secret in it.
+  - The person's next message, after the grant is stored, runs the paused
+    call again. Until then, a message repeats the request and runs nothing.
+  - `createA2AApp` takes the same `toolCredentials` (plus `callbackLimit`
+    and `requireCallerIdentity`, default true: the callback refuses a
+    browser that does not carry the flow's user's identity). It publishes a `consent_request` data part
+    beside `approval_request` and `input_request`, and mounts the consent
+    callback at the path of the redirect URI. The callback completes the
+    authorization-code flow with PKCE S256 and stores the grant.
+  - New exports, all through existing entries: `./a2a` gains
+    `consentCallback`. `./runtime` gains `pendingConsent`,
+    `credentialResponsePart`, `describeConsent`, `CREDENTIAL_REQUEST` and
+    the types `PendingConsent` and `ToolCredentials`. `./tools/*` gains the
+    new module `oauthConsent`.
+  - Also additive: `RouteDecision.decidedBy` gains `'consent'`, the audit
+    trail gains the `consent.callback` event, and `ToolContext` gains
+    `requestCredential`.
+  - On the ADK runtime, an open consent request throws
+    `UnsupportedOnRuntimeError`.
+  - No change to the `exports` map.
 - **A question is answered on the native runtime (ADR 0079).** On
   `runtime: 'native'` (or `MELCHIZEDEK_RUNTIME=native`), a plain-text
   message that answers an open `ask_user` call no longer throws
