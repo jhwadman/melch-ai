@@ -143,7 +143,7 @@ forEachRuntime('a nested workflow with an ask_user node is refused by name befor
     },
     'pipeline.yaml',
   ) as SyndicateYamlConfig;
-  await assert.rejects(runDesk(nested), /pipeline\.yaml: the ask_user node 'Confirm' pauses for a person, which a workflow nested as a subagent \(Writer\) cannot carry to its caller/);
+  await assert.rejects(runDesk(nested), /pipeline\.yaml: the ask_user node 'Confirm' pauses for a person, which a workflow nested in another syndicate \(Writer\) cannot carry to its caller/);
 });
 
 test('compile: the nested workflow is one tool, under the entry’s name and description, on both runtimes', async () => {

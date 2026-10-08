@@ -71,15 +71,16 @@ import type { MemoryService } from '../runtime/memoryService.ts';
 import type { NativeAgent } from '../runtime/native/request.ts';
 import type { SelfCorrection } from '../runtime/native/selfCorrection.ts';
 import { traceNodeExecution, traceToolNodeCall, traceWorkflowInvocation } from '../runtime/native/telemetry.ts';
-import type { SessionService } from '../runtime/sessions.ts';
+import { TEMP_STATE_PREFIX } from '../runtime/sessions.ts';
+import type { Session, SessionService } from '../runtime/sessions.ts';
 import type { CredentialStore } from '../tools/auth.ts';
-import { agentNodeRuntime } from './agentNode.ts';
+import { NodeStoppedError, agentNodeRuntime, nodeInputContent } from './agentNode.ts';
 import type { WorkflowGraph } from './graph.ts';
 import { askUserNodeRunner, workflowPauseEvent } from './pause.ts';
 import { workflowResume } from './resume.ts';
 import { InvocationAbortedError, nodeErrorEvent, runWorkflowGraph } from './scheduler.ts';
-import type { SchedulerEvent, WorkflowRun } from './scheduler.ts';
-import { resolveToolNode, toolNodeRunner } from './toolNode.ts';
+import type { NodeResult, NodeRun, SchedulerEvent, WorkflowRun } from './scheduler.ts';
+import { enrichNodeEvent, resolveToolNode, toolNodeRunner } from './toolNode.ts';
 
 export interface NativeWorkflowParams {
   graph: WorkflowGraph;
@@ -104,6 +105,97 @@ export interface NativeWorkflowParams {
   selfCorrection?: SelfCorrection;
   /** The run's tool credentials, pinned to its app (ADR 0072). */
   credentials?: Pick<CredentialStore, 'get'>;
+  /** The agent nodes that are a nested workflow syndicate, by YAML name (ADR 0106). */
+  workflows?: ReadonlyMap<string, NestedWorkflow>;
+}
+
+/** A workflow syndicate run as a node of another (ADR 0106): its graph, its agents, its tool nodes' lookup, and its own nested nodes. */
+export interface NestedWorkflow {
+  graph: WorkflowGraph;
+  agents: ReadonlyMap<string, NativeAgent>;
+  resolveTool: (name: string) => unknown;
+  workflows?: ReadonlyMap<string, NestedWorkflow>;
+}
+
+/** ADK's AgentTool answer: the last event's non-thought text parts, joined by a newline. */
+function lastText(event: TurnEvent | undefined): string {
+  return (event?.content?.parts ?? [])
+    .filter((p) => !p.thought)
+    .map((p) => p.text)
+    .filter((t) => t)
+    .join('\n');
+}
+
+/**
+ * Runs `workflow` as the node `run` names (ADR 0106), as a delegated nested
+ * workflow runs (ADR 0098): the whole graph walked on the child session
+ * under the node's name (created from the caller's state the first time,
+ * `temp:` keys dropped, and kept), the node's input as its message, its last
+ * yielded event's text the node's output. The caller stores one event for
+ * the node, carrying that output and the walk's state writes, so a resumed
+ * walk completes the node from it. A walk that ends paused is refused by
+ * name: a pause cannot reach the caller's walk yet (WS6-2).
+ */
+async function runWorkflowNode(
+  name: string,
+  workflow: NestedWorkflow,
+  run: NodeRun,
+  params: NativeWorkflowParams,
+  parent: { session: Session; invocationId: string; userContent: TurnContent; store: (event: TurnEvent) => void },
+): Promise<NodeResult> {
+  const { sessions, userId, sessionId } = params;
+  const key = { appName: name, userId, sessionId };
+  const state = Object.fromEntries(Object.entries(parent.session.state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
+  if (!(await sessions.get(key))) await sessions.create({ ...key, state });
+  const input = run.input === undefined || run.input === null ? parent.userContent : nodeInputContent(run.input);
+  const walk = runNativeWorkflow({
+    graph: workflow.graph,
+    agents: workflow.agents,
+    resolveTool: workflow.resolveTool,
+    ...(workflow.workflows ? { workflows: workflow.workflows } : {}),
+    sessions,
+    appName: name,
+    userId,
+    sessionId,
+    userParts: input.parts ?? [],
+    adapterFor: params.adapterFor,
+    signal: run.signal,
+    stream: false,
+    ...(params.memory ? { memory: params.memory } : {}),
+    ...(params.log ? { log: params.log } : {}),
+    ...(params.selfCorrection ? { selfCorrection: params.selfCorrection } : {}),
+    ...(params.credentials ? { credentials: params.credentials } : {}),
+  });
+  let last: TurnEvent | undefined;
+  const stateDelta: Record<string, unknown> = {};
+  let end: NativeWorkflowEnd | undefined;
+  for (;;) {
+    const next = await walk.next();
+    if (next.done) {
+      end = next.value;
+      break;
+    }
+    if (next.value.partial) continue;
+    for (const [k, v] of Object.entries(next.value.actions?.stateDelta ?? {})) if (!k.startsWith(TEMP_STATE_PREFIX)) stateDelta[k] = v;
+    last = next.value;
+  }
+  if (!end || end.stopped) throw new NodeStoppedError(name, undefined);
+  const paused = end.run?.interruptIds ?? [];
+  if (paused.length > 0) {
+    throw new Error(`Node '${name}': the workflow it runs paused on ${paused.join(', ')}; a pause inside a workflow run as a node cannot reach the walk yet.`);
+  }
+  const output = lastText(last);
+  const event = createTurnEvent({
+    author: name,
+    invocationId: parent.invocationId,
+    content: { role: 'model', parts: [{ text: output }] },
+    ...(Object.keys(stateDelta).length ? { actions: { stateDelta } } : {}),
+  });
+  event.output = output;
+  event.nodeInfo = { messageAsOutput: true };
+  enrichNodeEvent(event, run, { invocationId: parent.invocationId });
+  parent.store(event);
+  return { output };
 }
 
 /** How the walk ended. */
@@ -177,6 +269,14 @@ export async function* runNativeWorkflow(params: NativeWorkflowParams): AsyncGen
       queue.push(event);
       wake?.();
     },
+    ...(params.workflows?.size
+      ? {
+          workflowNodes: {
+            has: (name: string) => params.workflows!.has(name),
+            run: (name: string, run: NodeRun) => runWorkflowNode(name, params.workflows!.get(name)!, run, params, { session, invocationId, userContent, store }),
+          },
+        }
+      : {}),
   });
   // Every event handed over is queued a microtask later (agentNodeRuntime.store); `stored` waits for all of them.
   const handed = new Set<Promise<unknown>>();

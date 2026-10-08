@@ -40,18 +40,22 @@
 import type { BasePlugin } from '@google/adk';
 import type { BaseMemoryService, BaseSessionService, Event, LlmAgent } from '@google/adk';
 
+import { randomUUID } from 'node:crypto';
+
 import { DEFAULT_MAX_STEPS } from '../config.ts';
-import { agentGates, compileGraph, compileSpec, compileSubagent, compileSubagentSpec, compileWorkflowSpec, declaresApprovals } from '../compile.ts';
-import type { AgentSpec } from '../compile.ts';
+import { agentGates, compileEntrySpec, compileGraph, compileSpec, compileWorkflowSpec, declaresApprovals, workflowAgentSpecs, workflowEntryNames } from '../compile.ts';
+import type { AgentSpec, WorkflowSpec } from '../compile.ts';
+import { compileAdk } from '../compileAdk.ts';
 import { compileNative, compileNativeWorkflow, nativeAdapterFor } from '../compileNative.ts';
+import type { NativeWorkflow } from '../compileNative.ts';
 import type { ModelAdapter } from '../models/contract.ts';
 import type { NativeAgent } from './native/request.ts';
 import { nativeMemory, refuseOnNative, runNativeAgent } from './nativeTurn.ts';
 import { asAdkSessionService, asSessionService } from './adkSessionBridge.ts';
 import { requireAdk } from '../adkPeer.ts';
-import { getFunctionCalls, getFunctionResponses } from './events.ts';
+import { createTurnEvent, getFunctionCalls, getFunctionResponses } from './events.ts';
 import type { TurnEvent } from './events.ts';
-import { InProcessSessionService } from './sessions.ts';
+import { InProcessSessionService, TEMP_STATE_PREFIX } from './sessions.ts';
 import type { WorkflowGraph } from '../workflow/graph.ts';
 import { UnsupportedWorkflowResumeError } from '../workflow/resume.ts';
 import { runNativeWorkflow } from '../workflow/turn.ts';
@@ -71,7 +75,7 @@ export { AdkNotInstalledError, adkInstalled } from '../adkPeer.ts';
 // A turn's session store with no ADK: runSyndicateTurn takes it as asAdkSessionService(new InProcessSessionService()) (ADR 0102).
 export { InProcessSessionService } from './sessions.ts';
 export { asAdkSessionService, asSessionService } from './adkSessionBridge.ts';
-import { ROUTE_STEP_SUFFIX, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
+import { ROUTE_STEP_SUFFIX, assembleWorkflow, compileWorkflow, describeInput, inputRequestFrom, isWorkflowSyndicate } from '../workflow.ts';
 import type { PendingInput } from '../workflow.ts';
 export { describeInput } from '../workflow.ts';
 export type { PendingInput } from '../workflow.ts';
@@ -539,6 +543,8 @@ interface NativeWorkflowAgent {
   agents: Map<string, NativeAgent>;
   adapterFor: (model: string) => ModelAdapter;
   resolveTool: (name: string) => unknown;
+  /** The nodes that are a nested workflow syndicate (ADR 0106). */
+  workflows: Map<string, NativeWorkflow>;
 }
 
 /**
@@ -550,9 +556,13 @@ interface NativeWorkflowAgent {
  * tool) is refused here, before any model call, with ADK's message.
  */
 async function compileNativeWorkflowAgent(config: SyndicateYamlConfig, opts: CompileOptions): Promise<NativeWorkflowAgent> {
-  const spec = await compileWorkflowSpec(config, opts);
-  const { graph, agents, resolveTool } = compileNativeWorkflow(spec);
-  return { runtime: 'native-workflow', graph, agents, adapterFor: nativeAdapterFor(opts, spec.agents.map((a) => a.spec)), resolveTool };
+  return nativeWorkflowAgent(await compileWorkflowSpec(config, opts), opts);
+}
+
+/** A compiled workflow spec for the native walk: the root's, or a dispatch route's nested graph (ADR 0106). */
+function nativeWorkflowAgent(spec: WorkflowSpec, opts: CompileOptions): NativeWorkflowAgent {
+  const { graph, agents, resolveTool, workflows } = compileNativeWorkflow(spec);
+  return { runtime: 'native-workflow', graph, agents, adapterFor: nativeAdapterFor(opts, workflowAgentSpecs(spec)), resolveTool, workflows };
 }
 
 async function runTurnInner(
@@ -575,16 +585,31 @@ async function runTurnInner(
   if (native) refuseOnNative(config, { isWorkflow: isWorkflowSyndicate(config), transformAgent: opts.transformAgent });
   // ADK pauses a gated call in a workflow node, but its resume reruns the node from its input, so the
   // pinned call never runs: approvals on workflow nodes run on native only (ADR 0098).
+  // Skill scripts pause on the same approval, so they are refused with it, by name (ADR 0106).
   if (!native && isWorkflowSyndicate(config) && declaresApprovals(config)) {
-    throw new UnsupportedOnRuntimeError('an approval gate (require_approval) on a workflow node', 'adk', config.syndicate_name || 'syndicate');
+    const scripted = [config.orchestrator, ...(config.subagents ?? [])].find((a) => a?.skills?.scripts === 'local');
+    const feature = scripted ? `skill scripts (run_skill_script, an approval pause) on a workflow node (${scripted.name})` : 'an approval gate (require_approval) on a workflow node';
+    throw new UnsupportedOnRuntimeError(feature, 'adk', config.syndicate_name || 'syndicate');
+  }
+  // ADK runs a nested Workflow inline in the caller's session; the engine runs a workflow node's graph on a child
+  // session, which only the native walk does (ADR 0106).
+  if (!native && isWorkflowSyndicate(config)) {
+    const nested = workflowEntryNames(config, compileOpts)[0];
+    if (nested) throw new UnsupportedOnRuntimeError(`a workflow syndicate as a workflow node (${nested})`, 'adk', config.syndicate_name || 'syndicate');
   }
   const nativeOf = (spec: AgentSpec): TurnAgent => ({ runtime: 'native', agent: compileNative(spec), adapterFor: nativeAdapterFor(compileOpts, spec) });
   /** The orchestrator (a DELEGATE root, or a dispatch classifier) for the turn's runtime. */
   const compileRoot = async (): Promise<TurnAgent> =>
     native ? nativeOf(await compileSpec(config, compileOpts)) : { runtime: 'adk', agent: transform(await compileGraph(config, compileOpts)) };
-  /** A dispatch route for the turn's runtime. */
-  const compileRoute = async (routeCfg: SubagentYamlConfig): Promise<TurnAgent> =>
-    native ? nativeOf(await compileSubagentSpec(routeCfg, compileOpts)) : { runtime: 'adk', agent: transform(await compileSubagent(routeCfg, compileOpts)) };
+  /** A dispatch route for the turn's runtime: one agent, or a nested workflow's whole graph (ADR 0106). */
+  const compileRoute = async (routeCfg: SubagentYamlConfig): Promise<TurnAgent & { workflow?: WorkflowSpec }> => {
+    const entry = await compileEntrySpec(routeCfg, compileOpts);
+    if (entry.kind === 'workflow') {
+      const agent: TurnAgent = native ? nativeWorkflowAgent(entry.workflow, compileOpts) : { runtime: 'adk', agent: assembleWorkflow(entry.workflow, compileOpts, transform).workflow as unknown as LlmAgent };
+      return { ...agent, workflow: entry.workflow };
+    }
+    return native ? nativeOf(entry.spec) : { runtime: 'adk', agent: transform(compileAdk(entry.spec, compileOpts)) };
+  };
   // Native self-correction (ADR 0075): one per turn, from the YAML's retries:, as the ADK path installs retryPlugins.
   const selfCorrection = native ? new SelfCorrection(config.retries) : undefined;
 
@@ -739,6 +764,8 @@ async function runTurnInner(
   const runAgent = async (params: {
     agent: TurnAgent;
     sid: string;
+    /** The app the session is filed under; default the turn's. A workflow route walks on its child session (ADR 0106). */
+    appName?: string;
     userParts: any[];
     sessions: BaseSessionService;
     stage: TurnStage;
@@ -757,8 +784,9 @@ async function runTurnInner(
         agents: params.agent.agents,
         adapterFor: params.agent.adapterFor,
         resolveTool: params.agent.resolveTool,
+        workflows: params.agent.workflows,
         sessions: asSessionService(params.sessions),
-        appName,
+        appName: params.appName ?? appName,
         userId,
         sessionId: params.sid,
         userParts: params.userParts,
@@ -775,7 +803,7 @@ async function runTurnInner(
         agent: params.agent.agent,
         adapterFor: params.agent.adapterFor,
         sessions: params.sessions,
-        appName,
+        appName: params.appName ?? appName,
         userId,
         sessionId: params.sid,
         userParts: params.userParts,
@@ -793,7 +821,7 @@ async function runTurnInner(
       const { Runner, StreamingMode } = requireAdk('The adk runtime');
       const runner = new Runner({
         agent: params.agent.agent,
-        appName,
+        appName: params.appName ?? appName,
         sessionService: params.sessions,
         plugins: retryPlugins(config.retries),
         ...(opts.memoryService ? { memoryService: opts.memoryService } : {}),
@@ -845,6 +873,55 @@ async function runTurnInner(
       }
       throw err;
     }
+  };
+
+  /**
+   * A dispatch route that is a workflow syndicate (ADR 0106): its whole graph
+   * walked on the child session filed under the route's name (`{ <route>,
+   * userId, sessionId }`, created from the conversation's state the first
+   * time, `temp:` keys dropped, and kept), as a delegated nested workflow
+   * walks (ADR 0098), and drained by the reader a workflow turn uses, so the
+   * route's answer is what the workflow would answer as its own syndicate.
+   * The conversation stores the message and the answer, one event authored
+   * by the route that carries the walk's state writes, so the classifier and
+   * the next route read the exchange as they read any route's. A node that
+   * gave up fails the turn NODE_FAILED, as a workflow turn does.
+   */
+  const runWorkflowRoute = async (route: string, agent: TurnAgent, resolution: RouteResolution): Promise<{ answer: DrainedRun } | { failed: SyndicateTurnResult }> => {
+    const store = asSessionService(sessionService);
+    const key = { appName, userId, sessionId };
+    const shared = await store.get(key);
+    if (!shared) throw new Error(`Session not found: ${sessionId} (appName=${appName}, userId=${userId})`);
+    const kept = (state: Record<string, unknown> | undefined): Record<string, unknown> =>
+      Object.fromEntries(Object.entries(state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
+    const childKey = { appName: route, userId, sessionId };
+    const child = (await store.get(childKey)) ?? (await store.create({ ...childKey, state: kept(shared.state) }));
+    const before = new Map(Object.entries(kept(child.state)).map(([k, v]) => [k, JSON.stringify(v)]));
+    const invocationId = `e-${randomUUID()}`;
+    await store.append(shared, createTurnEvent({ invocationId, author: 'user', content: { role: 'user', parts } as any }));
+    let walked: DrainedRun;
+    try {
+      walked = await runAgent({ agent, sid: sessionId, appName: route, userParts: parts, sessions: sessionService, stage: 'dispatch', route: resolution, publishToolStatus: true, errorPolicy: 'collect' });
+    } catch (err) {
+      const last = control.stopReason ? undefined : (err as Error);
+      if (!last) throw err;
+      result.status = 'failed';
+      result.failedStage = 'dispatch';
+      result.error = { code: last instanceof UnsupportedWorkflowResumeError ? 'RESUME_UNSUPPORTED' : 'NODE_FAILED', message: last.message };
+      return { failed: finish() };
+    }
+    if (walked.text && !walked.error && !control.stopReason) {
+      const after = kept((await store.get(childKey))?.state);
+      const stateDelta = Object.fromEntries(Object.entries(after).filter(([k, v]) => before.get(k) !== JSON.stringify(v)));
+      const answered = createTurnEvent({
+        invocationId,
+        author: route,
+        content: { role: 'model', parts: [{ text: walked.text }] },
+        ...(Object.keys(stateDelta).length ? { actions: { stateDelta } } : {}),
+      });
+      await store.append((await store.get(key)) ?? shared, answered);
+    }
+    return { answer: walked };
   };
 
   let answer: DrainedRun;
@@ -926,7 +1003,12 @@ async function runTurnInner(
       // projection: ADK would otherwise render other agents' turns as user
       // speech mixed with their tool payloads (lib/session/transcript.ts).
       const routeAgent = await compileRoute(routeCfg);
-      answer = await runAgent({
+      if (routeAgent.workflow) {
+        // A workflow route walks its whole graph on its own child session (ADR 0106).
+        const walked = await runWorkflowRoute(routeCfg.name, routeAgent, resolution);
+        if ('failed' in walked) return walked.failed;
+        answer = walked.answer;
+      } else answer = await runAgent({
         agent: routeAgent,
         sid: sessionId,
         userParts: parts,

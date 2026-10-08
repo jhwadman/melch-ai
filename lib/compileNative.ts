@@ -41,7 +41,7 @@
  */
 
 import { remoteAgentOwnTool } from './a2a/remoteAgent.ts';
-import { compileSpec, compileSubagentSpec } from './compile.ts';
+import { compileSpec, compileSubagentSpec, workflowAgentSpecs } from './compile.ts';
 import type { AgentSpec, CompileOptions, WorkflowSpec } from './compile.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import type { ModelAdapter } from './models/contract.ts';
@@ -157,6 +157,8 @@ export interface NativeWorkflow {
   graph: WorkflowGraph;
   agents: Map<string, NativeAgent>;
   resolveTool: (name: string) => unknown;
+  /** The nodes that are a nested workflow syndicate, each compiled the same way, by YAML name (ADR 0106). */
+  workflows: Map<string, NativeWorkflow>;
 }
 
 /**
@@ -170,8 +172,10 @@ export function compileNativeWorkflow(spec: WorkflowSpec): NativeWorkflow {
   const graph = buildWorkflowGraph(spec.config);
   const agents = new Map<string, NativeAgent>();
   for (const { yaml, spec: agentSpec } of spec.agents) agents.set(yaml.name, compileNative(agentSpec));
+  const workflows = new Map<string, NativeWorkflow>();
+  for (const { yaml, workflow } of spec.workflows) workflows.set(yaml.name, compileNativeWorkflow(workflow));
   refuseUnrunnableNodes(graph, spec.resolveTool);
-  return { name: spec.name, description: spec.description, graph, agents, resolveTool: spec.resolveTool };
+  return { name: spec.name, description: spec.description, graph, agents, resolveTool: spec.resolveTool, workflows };
 }
 
 /**
@@ -189,6 +193,7 @@ export function workflowSubagentOf(workflow: NativeWorkflow): WorkflowSubagent {
         graph: workflow.graph,
         agents: workflow.agents,
         resolveTool: workflow.resolveTool,
+        workflows: workflow.workflows,
         sessions: run.sessions,
         appName: run.appName,
         userId: run.userId,
@@ -266,7 +271,7 @@ export function nativeAdapterFor(opts: CompileOptions = {}, spec?: NativeModelSp
     for (const entry of s.tools ?? []) {
       if (entry.kind === 'agent') learn(entry.agent);
       // A nested workflow's agents run under the caller's lookup (ADR 0098).
-      else if (entry.kind === 'workflow') for (const node of entry.workflow.agents) learn(node.spec);
+      else if (entry.kind === 'workflow') for (const node of workflowAgentSpecs(entry.workflow)) learn(node);
     }
   };
   // A workflow's agents share one lookup: every node's spec is learned.
