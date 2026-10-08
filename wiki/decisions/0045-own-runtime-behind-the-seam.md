@@ -80,7 +80,7 @@ ADR 0024's third trigger has partly fired: these limits can be removed, rather t
 
 Each gate's line is signed when its review passes, with the date, the evidence and who signed.
 
-- **G1** (own model contract): open.
+- **G1** (own model contract): **signed 2026-10-08 by the owner (jhwadman).** Evidence: the model contract (ADR 0048, #67); every provider's adapter on it behind the ADK shim (Claude #86, GPT and Grok #85, Kimi, Ollama and the gateway #87, Gemini through the temporary wrapper #82 and the engine's own adapter #75, unregistered); the genai mapping (#76); the shim (#80, ADR 0053); JSON mode on the contract (#88); fallback on error responses (#74); live checks on Claude, GPT, Grok, Kimi and Gemini during the reviews. Still open when signed, and owed before 0.19.0: WS1-11 (the tests assert from `ModelRequest`), WS1-12 (the `./model` export with no ADK in its import graph), and the live parity run under `adk` with every adapter behind the shim.
 - **G2** (both runtimes, six providers, cross-runtime resume): open.
 - **G3** (Gemini evidence `test`): open.
 - **G4** (native workflows, `pipeline.yaml` live): open.
