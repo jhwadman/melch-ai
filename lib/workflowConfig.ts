@@ -98,17 +98,10 @@ export function nodeSettings(node: WorkflowNodeYaml | undefined): { retryConfig?
 /**
  * The route an output names: the `routeKey` property of an object (a parsed
  * JSON output), else the trimmed text. Never undefined, so an edge with a
- * `default` key always has something to fall back from.
+ * `default` key always has something to fall back from. One function for
+ * both runtimes; it lives in lib/workflow/route.ts.
  */
-export function routeOf(output: unknown, routeKey: string = 'route'): string {
-  if (output && typeof output === 'object' && !Array.isArray(output)) {
-    const value = (output as Record<string, unknown>)[routeKey];
-    if (value === undefined || value === null) return '';
-    return String(value).trim();
-  }
-  if (typeof output === 'string') return output.trim();
-  return output === undefined || output === null ? '' : String(output).trim();
-}
+export { routeOf } from './workflow/route.ts';
 
 /** A pause raised by an `ask_user` node, read from the run's events (`adk_request_input`). */
 export interface PendingInput {
