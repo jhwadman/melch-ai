@@ -5,8 +5,10 @@
  * which deletes memory facts, sessions (with the per-subagent rows ADK writes
  * beside them), the ledger's turns, spans, payloads, verdicts and labels, the
  * scope's durable A2A tasks for those conversations, its memory ingestion
- * markers, and (without a namespace) its task tools' list and jobs
- * (migration 0010), in one transaction. Returns what each store lost.
+ * markers, (without a namespace) its task tools' list and jobs
+ * (migration 0010), and the third-party tokens held for its tools, every
+ * app's or the namespace's own (migration 0013), in one transaction.
+ * Returns what each store lost.
  *
  * With a namespace, ledger turns and A2A tasks are kept only when their
  * conversation is still live in another namespace (migration 0011): they do
@@ -30,6 +32,7 @@ export const ERASE_STORES = [
   'tasks',
   'memory_markers',
   'task_tools',
+  'credentials',
 ] as const;
 export type EraseStore = (typeof ERASE_STORES)[number];
 export type EraseCounts = Record<EraseStore, number>;

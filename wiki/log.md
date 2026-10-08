@@ -3,6 +3,26 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ module:lib/storage/postgres/credentialStore.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —depends_on→ /decisions/0020-memory-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —depends_on→ /decisions/0059-memory-on-the-engines-own-interfaces.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ module:lib/tools/tool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0072-tool-credentials-sealed-per-user.md —constrains→ table:melchizedek_tool_credentials
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /overview/native-loop.md —explains→ module:lib/runtime/native/agentLoop.ts
 
 by claude-code/claude-opus-5-5

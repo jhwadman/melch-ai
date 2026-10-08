@@ -5,48 +5,48 @@
     "at": "2026-10-08"
   },
   "stats": {
-    "nodes": 760,
-    "edges": 2381,
+    "nodes": 768,
+    "edges": 2420,
     "byKind": {
-      "doc": 131,
+      "doc": 132,
       "provider": 6,
       "env": 105,
       "model": 8,
       "tool": 34,
-      "file": 123,
+      "file": 125,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
-      "table": 17,
-      "module": 162,
+      "table": 18,
+      "module": 166,
       "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 478,
+      "links_to": 488,
       "requires_env": 167,
       "routes_to": 8,
-      "defined_in": 76,
+      "defined_in": 77,
       "documents": 56,
       "contains": 89,
       "uses_model": 89,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 589,
+      "imports": 598,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 522,
-      "constrains": 100,
+      "derives_from": 536,
+      "constrains": 103,
       "supersedes": 6,
-      "depends_on": 32,
+      "depends_on": 34,
       "explains": 6,
       "mitigates": 1,
       "alternative_to": 1
     },
     "byTier": {
-      "extracted": 2235,
-      "inferred": 146
+      "extracted": 2269,
+      "inferred": 151
     },
     "isolated": 4
   },
@@ -648,7 +648,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 944
+        "words": 967
       }
     },
     {
@@ -1240,6 +1240,18 @@
       }
     },
     {
+      "id": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "kind": "doc",
+      "label": "ADR 0072: Tool credentials are sealed per app, user and provider, reached through the tool context, and erased with the user",
+      "source": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1330
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1248,7 +1260,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1630
+        "words": 1653
       }
     },
     {
@@ -1260,7 +1272,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 12009
+        "words": 13591
       }
     },
     {
@@ -1464,7 +1476,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1251
+        "words": 1380
       }
     },
     {
@@ -1512,7 +1524,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1451
+        "words": 1466
       }
     },
     {
@@ -1596,7 +1608,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1417
+        "words": 1844
       }
     },
     {
@@ -3608,6 +3620,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0013_tool_credentials.sql",
+      "kind": "file",
+      "label": "0013_tool_credentials.sql",
+      "source": "db/migrations/0013_tool_credentials.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -3900,7 +3919,8 @@
       "id": "file:tests/postgresStorage.test.ts",
       "kind": "file",
       "label": "postgresStorage.test.ts",
-      "source": "tests/postgresStorage.test.ts"
+      "source": "tests/postgresStorage.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/publicPosture.test.ts",
@@ -4036,6 +4056,13 @@
       "kind": "file",
       "label": "toolContract.test.ts",
       "source": "tests/toolContract.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/toolCredentials.test.ts",
+      "kind": "file",
+      "label": "toolCredentials.test.ts",
+      "source": "tests/toolCredentials.test.ts",
       "attrs": {}
     },
     {
@@ -4289,7 +4316,7 @@
       "label": "lib/memory/erase.ts",
       "source": "lib/memory/erase.ts",
       "attrs": {
-        "lines": 73
+        "lines": 76
       }
     },
     {
@@ -4694,7 +4721,7 @@
       "label": "lib/observability/audit.ts",
       "source": "lib/observability/audit.ts",
       "attrs": {
-        "lines": 63
+        "lines": 71
       }
     },
     {
@@ -4914,12 +4941,21 @@
       }
     },
     {
+      "id": "module:lib/storage/postgres/credentialStore.ts",
+      "kind": "module",
+      "label": "lib/storage/postgres/credentialStore.ts",
+      "source": "lib/storage/postgres/credentialStore.ts",
+      "attrs": {
+        "lines": 109
+      }
+    },
+    {
       "id": "module:lib/storage/postgres/index.ts",
       "kind": "module",
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 242
+        "lines": 259
       }
     },
     {
@@ -5013,12 +5049,39 @@
       }
     },
     {
+      "id": "module:lib/tools/auth.ts",
+      "kind": "module",
+      "label": "lib/tools/auth.ts",
+      "source": "lib/tools/auth.ts",
+      "attrs": {
+        "lines": 156
+      }
+    },
+    {
       "id": "module:lib/tools/collectionsSearchTool.ts",
       "kind": "module",
       "label": "lib/tools/collectionsSearchTool.ts",
       "source": "lib/tools/collectionsSearchTool.ts",
       "attrs": {
         "lines": 83
+      }
+    },
+    {
+      "id": "module:lib/tools/credentialCipher.ts",
+      "kind": "module",
+      "label": "lib/tools/credentialCipher.ts",
+      "source": "lib/tools/credentialCipher.ts",
+      "attrs": {
+        "lines": 133
+      }
+    },
+    {
+      "id": "module:lib/tools/credentialStore.ts",
+      "kind": "module",
+      "label": "lib/tools/credentialStore.ts",
+      "source": "lib/tools/credentialStore.ts",
+      "attrs": {
+        "lines": 297
       }
     },
     {
@@ -5198,7 +5261,7 @@
       "label": "lib/tools/tool.ts",
       "source": "lib/tools/tool.ts",
       "attrs": {
-        "lines": 437
+        "lines": 459
       }
     },
     {
@@ -6520,6 +6583,15 @@
       "kind": "table",
       "label": "melchizedek_tasks",
       "source": "db/migrations/0009_task_queue.sql",
+      "attrs": {
+        "created_upstream": true
+      }
+    },
+    {
+      "id": "table:melchizedek_tool_credentials",
+      "kind": "table",
+      "label": "melchizedek_tool_credentials",
+      "source": "db/migrations/0013_tool_credentials.sql",
       "attrs": {
         "created_upstream": true
       }
@@ -8087,7 +8159,14 @@
       "to": "/decisions/0025-built-in-authenticators.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0020-memory-contract.md:69"
+      "evidence": "/decisions/0020-memory-contract.md:71"
+    },
+    {
+      "from": "/decisions/0020-memory-contract.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0020-memory-contract.md:59"
     },
     {
       "from": "/decisions/0021-postgres-first-storage.md",
@@ -10701,6 +10780,97 @@
       "evidence": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md:24"
     },
     {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "file:db/migrations/0013_tool_credentials.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "file:tests/postgresStorage.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "file:tests/toolCredentials.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/storage/postgres/credentialStore.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/tools/credentialCipher.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/tools/credentialStore.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md frontmatter"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md:30"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0021-postgres-first-storage.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md:57"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md:28"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0042-append-only-audit-trail.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md:30"
+    },
+    {
+      "from": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0072-tool-credentials-sealed-per-user.md:47"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -10804,6 +10974,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/architecture.md:28"
+    },
+    {
+      "from": "/memory/architecture.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/architecture.md:107"
     },
     {
       "from": "/memory/architecture.md",
@@ -10947,6 +11124,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0013_tool_credentials.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -10957,14 +11141,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:33"
+      "evidence": "/memory/schema.md:34"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2237"
+      "evidence": "/memory/schema.md:2511"
     },
     {
       "from": "/memory/sessions.md",
@@ -13029,7 +13213,7 @@
       "to": "/decisions/0040-releases-from-tags-with-provenance.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:54"
+      "evidence": "/operations/setup.md:56"
     },
     {
       "from": "/operations/setup.md",
@@ -13041,6 +13225,13 @@
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0043-link-inbound-trace-context.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:54"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:52"
@@ -13887,6 +14078,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "file:tests/toolCredentials.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "module:lib/models/schemaNormalize.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -13894,7 +14092,35 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "module:lib/storage/postgres/credentialStore.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "module:lib/tools/adkTool.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/credentialCipher.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/credentialStore.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md frontmatter"
@@ -13939,105 +14165,119 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:37"
+      "evidence": "/tools/tool-contracts.md:42"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:34"
+      "evidence": "/tools/tool-contracts.md:39"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:37"
+      "evidence": "/tools/tool-contracts.md:42"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0062-server-side-tools-as-markers.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:47"
+      "evidence": "/tools/tool-contracts.md:62"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:39"
+      "evidence": "/tools/tool-contracts.md:44"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:52"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:69"
+      "evidence": "/tools/tool-contracts.md:84"
     },
     {
       "from": "/tools/tool-contracts.md",
-      "to": "/models/model-contract.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:28"
-    },
-    {
-      "from": "/tools/tool-contracts.md",
-      "to": "/models/provider-routing.md",
+      "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:55"
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "/models/model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:33"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:70"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:61"
+      "evidence": "/tools/tool-contracts.md:76"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:59"
+      "evidence": "/tools/tool-contracts.md:74"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:40"
+      "evidence": "/tools/tool-contracts.md:45"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:61"
+      "evidence": "/tools/tool-contracts.md:76"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:61"
+      "evidence": "/tools/tool-contracts.md:76"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:61"
+      "evidence": "/tools/tool-contracts.md:76"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:61"
+      "evidence": "/tools/tool-contracts.md:76"
     },
     {
       "from": "/tools/web-tools.md",
@@ -18394,6 +18634,20 @@
       "evidence": "lib/session/transcript.ts"
     },
     {
+      "from": "module:lib/storage/postgres/credentialStore.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/credentialStore.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/credentialStore.ts",
+      "to": "module:lib/tools/credentialStore.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/credentialStore.ts"
+    },
+    {
       "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/a2a/turnLock.ts",
       "rel": "imports",
@@ -18424,6 +18678,13 @@
     {
       "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/observability/audit.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/storage/postgres/credentialStore.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/index.ts"
@@ -18466,6 +18727,20 @@
     {
       "from": "module:lib/storage/postgres/index.ts",
       "to": "module:lib/storage/schema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/storage/postgres/index.ts"
+    },
+    {
+      "from": "module:lib/storage/postgres/index.ts",
+      "to": "module:lib/tools/credentialStore.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/storage/postgres/index.ts"
@@ -18749,6 +19024,27 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/collectionsSearchTool.ts"
+    },
+    {
+      "from": "module:lib/tools/credentialStore.ts",
+      "to": "module:lib/observability/audit.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/credentialStore.ts"
+    },
+    {
+      "from": "module:lib/tools/credentialStore.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/credentialStore.ts"
+    },
+    {
+      "from": "module:lib/tools/credentialStore.ts",
+      "to": "module:lib/tools/credentialCipher.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/credentialStore.ts"
     },
     {
       "from": "module:lib/tools/examples.ts",
@@ -19152,6 +19448,13 @@
     {
       "from": "module:lib/tools/tool.ts",
       "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/tool.ts"
+    },
+    {
+      "from": "module:lib/tools/tool.ts",
+      "to": "module:lib/tools/auth.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/tool.ts"
@@ -22277,6 +22580,13 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "db/migrations/0009_task_queue.sql"
+    },
+    {
+      "from": "table:melchizedek_tool_credentials",
+      "to": "file:db/migrations/0013_tool_credentials.sql",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "db/migrations/0013_tool_credentials.sql"
     },
     {
       "from": "table:melchizedek_usage",
