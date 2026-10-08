@@ -225,15 +225,11 @@ test('adk: a gate on a workflow node is refused before any model call, naming th
   assert.equal(models.plan!.calls, 0);
 });
 
-test('schema: require_approval is allowed on a workflow node, not on an agent a map runs; skill scripts stay refused', () => {
+test('schema: require_approval is allowed on a workflow node, not on an agent a map runs (skill scripts: tests/workflowSkillScripts.test.ts)', () => {
   assert.doesNotThrow(() => chain());
   assert.doesNotThrow(() => validateSyndicateConfig({ syndicate_name: 'G', orchestrator: gated('Plan'), subagents: [agent('Report')], workflow: { edges: [['START', 'Plan', 'Report']] } }));
   assert.throws(
     () => config({ edges: [['START', 'Plan', 'Fan']], nodes: { Fan: { map: 'Send' } } }, [gated('Send')]),
     (e: unknown) => e instanceof SyndicateValidationError && /subagents\[0\]\.require_approval — approval gates are not supported on an agent a map node runs/.test((e as Error).message),
-  );
-  assert.throws(
-    () => config({ edges: [['START', 'Plan', 'Send']] }, [agent('Send', { skills: { scripts: 'local' } })]),
-    (e: unknown) => e instanceof SyndicateValidationError && /skill scripts \(an approval pause\) are not supported inside a workflow yet/.test((e as Error).message),
   );
 });

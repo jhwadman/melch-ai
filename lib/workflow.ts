@@ -59,19 +59,20 @@
  * caller's session, so assembleWorkflow refuses it by name. A map over one
  * is refused (lib/compile.ts).
  *
- * ── Approval gates (ADR 0098) ────────────────────────────────────────────
- * A tool in a node agent's `require_approval` pauses the node on ADK's
+ * ── Approval gates (ADR 0098, ADR 0106) ──────────────────────────────────
+ * A tool in a node agent's `require_approval`, and a skill script
+ * (`skills.scripts: local`, run_skill_script), pause the node on ADK's
  * `adk_request_confirmation`, and the walk with it. Only the native walk
  * resumes it (lib/workflow/agentNode.ts): ADK's runLlmAgentAsNode reruns the
  * node from its input and never runs the pinned call, so runSyndicateTurn
- * refuses a gated workflow on ADK. The schema refuses a gate on an agent a
- * map runs (an item cannot pause the walk).
+ * refuses a gated workflow on ADK, skill scripts by name. The schema refuses
+ * a gate or skill scripts on an agent a map runs (an item cannot pause the
+ * walk). A script runs with ADR 0086's minimal environment, as anywhere.
  *
  * ── Not in this version ───────────────────────────────────────────────────
- * Skill scripts (`skills.scripts: local`, an approval pause) and remote
- * `a2a_agent_url` subagents are refused inside a workflow by the schema; a
- * remote agent is reachable only as a tool. Both are open for a later
- * record.
+ * Remote `a2a_agent_url` subagents are refused inside a workflow by the
+ * schema; a remote agent is reachable only as a tool. It is open for a
+ * later record.
  */
 
 import type { BaseNode, BaseTool, EdgeItem, LlmAgent, Workflow } from '@google/adk';

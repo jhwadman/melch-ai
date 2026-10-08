@@ -213,7 +213,7 @@ const SCHEMA_CASES: Array<Record<string, unknown>> = [
   // Not reached by the schema test.
   base({ edges: [['START', 'Lead', 'Sub']] }, { subagents: [{ name: 'Sub__route', description: 'd', model: MODEL, instruction: 'y' }] }),
   base({ edges: [['START', 'Lead', 'X']], nodes: { X: { join: true, max_parallel: 2 }, START: { join: true } } }),
-  base({ edges: [['START', 'Lead', 'Sub']] }, { orchestrator: { name: 'Lead', model: MODEL, instruction: 'x', skills: { scripts: 'local' } } }),
+  base({ edges: [['START', 'Lead', 'Each']], nodes: { Each: { map: 'Sub' } } }, { subagents: [{ name: 'Sub', description: 'd', model: MODEL, instruction: 'y', skills: { scripts: 'local' } }] }),
   base({ edges: [['START', 'Lead', 'Sbu', { a: 'Lead' }, 'START'], ['Sub', 'Lead']] }, { dispatch: { default_route: 'Sub' } }),
 ];
 
@@ -244,7 +244,7 @@ const graphIssues = (r: Record<string, unknown>): string[] => {
 const isWorkflowRule = (line: string) =>
   line.startsWith('workflow') ||
   line.endsWith(' — approval gates are not supported on an agent a map node runs: a map item cannot pause the walk') ||
-  line.endsWith(' — skill scripts (an approval pause) are not supported inside a workflow yet') ||
+  line.endsWith(' — skill scripts (an approval pause) are not supported on an agent a map node runs: a map item cannot pause the walk') ||
   line.endsWith(' — a remote agent cannot be a workflow node yet');
 
 test('validation: every rule the schema enforces on a workflow block, with the same path, message and order', () => {

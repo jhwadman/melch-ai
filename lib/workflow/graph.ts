@@ -430,8 +430,9 @@ export function workflowConfigProblems(raw: Record<string, unknown>, subs: unkno
     if (typeof agent.name === 'string' && mapped.has(agent.name) && Array.isArray(agent.require_approval) && agent.require_approval.length) {
       out.push({ path: [...path, 'require_approval'], message: 'approval gates are not supported on an agent a map node runs: a map item cannot pause the walk' });
     }
-    if (isObj(agent.skills) && agent.skills.scripts === 'local') {
-      out.push({ path: [...path, 'skills', 'scripts'], message: 'skill scripts (an approval pause) are not supported inside a workflow yet' });
+    // A skill script run pauses on the same approval (ADR 0106): allowed on a node, not on a map item.
+    if (typeof agent.name === 'string' && mapped.has(agent.name) && isObj(agent.skills) && agent.skills.scripts === 'local') {
+      out.push({ path: [...path, 'skills', 'scripts'], message: 'skill scripts (an approval pause) are not supported on an agent a map node runs: a map item cannot pause the walk' });
     }
     if (typeof agent.a2a_agent_url === 'string') {
       out.push({ path: [...path, 'a2a_agent_url'], message: 'a remote agent cannot be a workflow node yet' });
