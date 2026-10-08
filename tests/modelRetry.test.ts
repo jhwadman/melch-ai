@@ -365,6 +365,11 @@ test('OllamaLlm does not retry a refused connection (Ollama not running)', async
 
 test('a canceled turn makes no retry on the chat-completions path', async () => {
   const restore = setRetryPolicyOverrides({ ...FAST, baseDelayMs: 10_000, maxDelayMs: 10_000 });
+  // Full jitter draws the delay from [0, 10 s); a draw under the 20 ms
+  // before the cancel let the retry run first (about one run in 500).
+  // Pin the draw near the ceiling so the cancel always comes first.
+  const realRandom = Math.random;
+  Math.random = () => 0.99;
   const control = createTurnControl();
   try {
     let responses: LlmResponse[] = [];
@@ -378,6 +383,7 @@ test('a canceled turn makes no retry on the chat-completions path', async () => 
     assert.equal(calls, 1);
     assert.equal((responses[0] as any).status, 503);
   } finally {
+    Math.random = realRandom;
     control.dispose();
     restore();
   }
