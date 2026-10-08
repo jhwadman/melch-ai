@@ -60,6 +60,14 @@ unchanged.
 
 ### Breaking — read before upgrading
 
+- **Breaking: a workflow `map:` node refuses `retry` and `timeout`
+  (ADR 0103).** Neither runtime ever applied them: each item of a map runs
+  under the mapped agent's own node entry, as ADK runs it. A YAML that set
+  them on the map entry loaded and silently ignored them; it is now refused
+  at load with `workflow.nodes.<Map>.retry — retry on a map node is not
+  applied: each item runs under its agent's own retry; set it on
+  nodes.<Agent>` (and the same for `timeout`). Move the keys to the mapped
+  agent's entry. No shipped example or template sets them.
 - **Breaking: a skill script no longer inherits the server's environment
   (ADR 0086).** An approved `run_skill_script` starts from PATH,
   HOME/USERPROFILE, TMPDIR/TEMP/TMP, LANG, LC_*, TZ, the user's name and

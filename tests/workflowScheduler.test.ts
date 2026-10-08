@@ -603,8 +603,8 @@ test('timeout: the runner\'s signal aborts with the timeout', async () => {
 
 const mapped = syndicate('M', ['Lead', 'Worker', 'Sum'], {
   edges: [['START', 'Lead', 'Fan', 'Sum']],
-  // The map entry's own timeout is not applied on ADK (its compile does not hand it to the worker), so here neither.
-  nodes: { Fan: { map: 'Worker', max_parallel: 1, timeout: 0.001 }, Worker: { retry: { max_attempts: 2, initial_delay: 0.001 } } },
+  // Each item runs under Worker's own modifiers; the schema refuses retry and timeout on the map entry (ADR 0103).
+  nodes: { Fan: { map: 'Worker', max_parallel: 1 }, Worker: { retry: { max_attempts: 2, initial_delay: 0.001 } } },
 });
 
 test('map: each item runs under its agent\'s retry; a reported item error names the item\'s path and branch', async () => {

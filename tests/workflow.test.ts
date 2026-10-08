@@ -303,6 +303,16 @@ test('schema: the rules a graph must keep', () => {
   assert.match(problems(base({ edges: [['START', 'Lead']], nodes: { X: { join: true } } })), /declared but used in no edge/);
   assert.match(problems(base({ edges: [['START', 'Lead', 'X']], nodes: { X: { tool: 't', schema: {} } } })), /schema applies to ask_user/);
   assert.match(problems(base({ edges: [['START', 'Lead']], nodes: { 'Lead__route': { join: true } } })), /reserved/);
+  // A map item runs under its agent's own modifiers (ADR 0089, ADR 0103): the map entry's are refused, with where they belong.
+  assert.match(
+    problems(base({ edges: [['START', 'Lead', 'Each']], nodes: { Each: { map: 'Sub', retry: { max_attempts: 2 } } } })),
+    /workflow\.nodes\.Each\.retry — retry on a map node is not applied: each item runs under its agent's own retry; set it on nodes\.Sub/,
+  );
+  assert.match(
+    problems(base({ edges: [['START', 'Lead', 'Each']], nodes: { Each: { map: 'Sub', timeout: 30 } } })),
+    /workflow\.nodes\.Each\.timeout — timeout on a map node is not applied: each item runs under its agent's own timeout; set it on nodes\.Sub/,
+  );
+  assert.equal(problems(base({ edges: [['START', 'Lead', 'Each']], nodes: { Each: { map: 'Sub' }, Sub: { retry: { max_attempts: 2 }, timeout: 30 } } })), '');
   // An approval gate pauses its agent node (ADR 0098), but not an item of a map.
   assert.equal(problems(base({ edges: [['START', 'Lead', 'Sub']] }, { orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'x', tools: ['web_extract'], require_approval: ['web_extract'] } })), '');
   assert.match(

@@ -1028,6 +1028,7 @@
                 "minLength": 1
               },
               "retry": {
+                "description": "Retry this node on failure. Not on a map node: each item runs under its agent's own retry.",
                 "type": "object",
                 "properties": {
                   "max_attempts": {
@@ -1050,11 +1051,10 @@
                     "exclusiveMinimum": 0
                   }
                 },
-                "additionalProperties": false,
-                "description": "Retry a node on failure (lib/workflow.ts)."
+                "additionalProperties": false
               },
               "timeout": {
-                "description": "Seconds this node may run before it fails.",
+                "description": "Seconds this node may run before it fails. Not on a map node: each item runs under its agent's own timeout.",
                 "type": "number",
                 "exclusiveMinimum": 0
               }
