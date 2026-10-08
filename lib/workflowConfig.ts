@@ -24,6 +24,10 @@ export interface RetryYaml {
   initial_delay?: number;
   max_delay?: number;
   backoff_factor?: number;
+  /** Randomness of the backoff: 0 none, default 1 (ADK's). */
+  jitter?: number;
+  /** Error names a failure is retried on (its class's or its `name`); every error when absent. */
+  exceptions?: string[];
 }
 
 /** Per-node settings. A node is an agent (modifiers only) or exactly one of the kinds. */
@@ -83,6 +87,8 @@ export function toRetryConfig(retry: RetryYaml | undefined): AdkRetryConfig | un
   if (retry.initial_delay !== undefined) out.initialDelay = retry.initial_delay;
   if (retry.max_delay !== undefined) out.maxDelay = retry.max_delay;
   if (retry.backoff_factor !== undefined) out.backoffFactor = retry.backoff_factor;
+  if (retry.jitter !== undefined) out.jitter = retry.jitter;
+  if (retry.exceptions !== undefined) out.exceptions = [...retry.exceptions];
   return out;
 }
 

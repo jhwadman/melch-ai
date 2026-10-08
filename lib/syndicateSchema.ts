@@ -333,12 +333,21 @@ const edgeElement = z.union([
     .describe('A routing map after a node: `{ <route>: <node or nodes>, default: <node> }`, matched against that node\'s output.'),
 ]);
 
+/** An error class name, as ADK matches `exceptions` against one: an identifier. */
+const ERROR_NAME = /^[A-Za-z_$][\w$]*$/;
+
 const retrySchema = z
   .strictObject({
     max_attempts: z.number().int().positive().optional().describe('Attempts including the first; 1 = no retry. ADK default 5.'),
     initial_delay: z.number().nonnegative().optional().describe('Seconds before the first retry.'),
     max_delay: z.number().nonnegative().optional(),
     backoff_factor: z.number().positive().optional(),
+    jitter: z.number().nonnegative().optional().describe('Randomness of the backoff; 0 = none. ADK default 1.'),
+    exceptions: z
+      .array(z.string().regex(ERROR_NAME, 'an error name, such as TypeError or NodeTimeoutError'))
+      .min(1)
+      .optional()
+      .describe('Error names to retry on (the error\'s class or its `name`); every error when absent.'),
   })
   .describe('Retry a node on failure (lib/workflow.ts).');
 

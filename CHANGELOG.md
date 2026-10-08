@@ -6,6 +6,14 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **A workflow node's `retry` takes `exceptions` and `jitter` (ADR 0103).**
+  `retry: { exceptions: [NodeTimeoutError] }` retries only a failure whose
+  error class or `name` is listed; `jitter` sets the backoff's randomness
+  (0 = none, default 1). Both runtimes honour them: the ADK runtime hands
+  them to ADK's `retryConfig`, the native scheduler applies them as ADK's
+  `retry_utils` does. `syndicate.schema.json` is regenerated; the `exports`
+  map is unchanged.
+
 - **The capability matrix's Gemini column is asserted on the engine's own
   Gemini adapter (WS3-6, ADR 0100).** Every Gemini cell is now evidence
   `test`, checked against the request `GeminiAdapter` sends through the
