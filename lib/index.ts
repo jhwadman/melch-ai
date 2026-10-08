@@ -75,7 +75,8 @@ export type { RemoteAnswer } from './a2a/remoteAgent.ts';
 export { resolveTools, registerTool, registeredToolNames } from './toolRegistry.ts';
 export { registerGuard, resolveGuards } from './guards/index.ts';
 export type { Guard, GuardResult } from './guards/index.ts';
-export { defineTool, toFunctionTool } from './tools/toolContract.ts';
+export { defineTool } from './tools/toolContract.ts';
+export { toFunctionTool } from './tools/adkTool.ts';
 
 // ── Memory ──────────────────────────────────────────────────────────────────
 export {

@@ -42,7 +42,8 @@
 import { z } from 'zod';
 
 import { checkHost } from '../net/addressGuard.ts';
-import { defineTool, toFunctionTool } from './toolContract.ts';
+import { toFunctionTool } from './adkTool.ts';
+import { defineTool } from './toolContract.ts';
 
 export const WEB_EXTRACT_TOOL_NAME = 'web_extract';
 

@@ -5,6 +5,7 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { checkHost } from '../net/addressGuard.ts';
 import { fetchWithRedirectPolicy } from '../net/redirects.ts';
 import type { RedirectPolicy } from '../net/redirects.ts';
+import { MAX_RESULT_CHARS } from './tool.ts';
 
 // Security (SSRF): mcp_server_url can arrive from a registry-stored syndicate
 // config. Only http(s), and the host must pass lib/net/addressGuard.ts (the
@@ -87,7 +88,8 @@ export const mcpFetch = (input: string | URL | Request, init?: RequestInit): Pro
  * so a server cannot flood the context (or the bill) with either.
  */
 export const MAX_MCP_DESCRIPTION_CHARS = 1_000;
-export const MAX_MCP_RESULT_CHARS = 20_000;
+/** Every tool's shared result limit (lib/tools/tool.ts). */
+export const MAX_MCP_RESULT_CHARS = MAX_RESULT_CHARS;
 const bounded = (text: string, max: number, what: string): string =>
   text.length <= max ? text : `${text.slice(0, max)}… [${what} cut at ${max} characters]`;
 

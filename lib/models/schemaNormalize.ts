@@ -15,16 +15,32 @@
  *
  *   The engine's own model contract (lib/models/contract.ts, ADR 0048) takes
  *   tools in its own shape instead: contractToolDeclaration() builds a
- *   ToolDeclaration from an ADK tool or a defineTool contract, converting
- *   Gemini's dialect once, where the tool enters, and nativeToolOf() names
- *   the server-side tools that declare nothing. The functions above stay as
- *   they are for the ADK path's adapters.
+ *   ToolDeclaration from an own Tool (lib/tools/tool.ts), an ADK tool or a
+ *   defineTool contract, converting Gemini's dialect once, where the tool
+ *   enters, and nativeToolOf() names the server-side tools that declare
+ *   nothing. The functions above stay as they are for the ADK path's adapters.
+ *
+ *   zodInputJsonSchema() is the one place a zod schema becomes JSON Schema,
+ *   for every surface: the declaration, the ADK FunctionTool and the MCP
+ *   tools/list entry all derive from it.
  */
 
 import { z } from 'zod';
 
 import type { JsonSchema, NativeTool, ToolDeclaration } from './contract.ts';
 import type { ToolContract } from '../tools/toolContract.ts';
+import { isTool } from '../tools/tool.ts';
+
+/**
+ * Standard JSON Schema for what a caller may send a zod schema: its input
+ * side (`io: 'input'`), so a field with a default is optional to the model,
+ * as it is to the schema. `$schema` is dropped: it is metadata about the
+ * document, noise on the wire.
+ */
+export function zodInputJsonSchema(schema: z.ZodType): Record<string, unknown> {
+  const { $schema: _drop, ...json } = z.toJSONSchema(schema, { io: 'input' }) as Record<string, unknown>;
+  return json;
+}
 
 /**
  * Deep-clones a Gemini/ADK-style JSON schema, lowercasing every `type` value
@@ -158,12 +174,17 @@ const SUBSCHEMA_MAP_KEYWORDS = new Set(['properties', 'patternProperties', '$def
 const INTEGER_KEYWORDS = ['minLength', 'maxLength', 'minItems', 'maxItems', 'minProperties', 'maxProperties'] as const;
 
 /**
- * Keywords a declaration built from a defineTool contract leaves out. The
- * ADK path cannot carry them (toGeminiSchema drops them), so leaving them out
- * of the direct path too means a contract declares the same parameters
- * whichever path resolves it.
+ * What a declaration built from a zod schema leaves out, as the ADK path
+ * (toGeminiSchema) leaves it out, so a contract declares the same
+ * parameters whichever path resolves it: the `default` keyword (zod applies
+ * defaults at parse time, and the field is already optional), and an
+ * `additionalProperties` that is only `true` or `false`. An
+ * `additionalProperties` holding a schema, a record's value schema, is kept.
  */
-const CONTRACT_DROPPED_KEYWORDS = ['additionalProperties', 'default'] as const;
+function dropZodOnlyKeywords(node: Record<string, unknown>): void {
+  delete node.default;
+  if (typeof node.additionalProperties === 'boolean') delete node.additionalProperties;
+}
 
 /** The tools a provider runs on its own side, as the contract names them. */
 const NATIVE_TOOLS: readonly NativeTool[] = [
@@ -206,6 +227,20 @@ function walkSchema(node: unknown, visit: (node: Record<string, unknown>) => voi
   visit(node);
 }
 
+/**
+ * A deep copy of `schema` with `visit` applied to every schema node of the
+ * copy, children first, following only the keywords that hold schemas (a
+ * property named `default` or `additionalProperties` is a property, not the
+ * keyword). Never mutates `schema`. Undefined for a schema that is not an
+ * object.
+ */
+export function mapSchemaNodes(schema: unknown, visit: (node: Record<string, unknown>) => void): Record<string, unknown> | undefined {
+  if (!isPlainObject(schema)) return undefined;
+  const root = cloneJson(schema) as Record<string, unknown>;
+  walkSchema(root, visit);
+  return root;
+}
+
 /** Keywords that say what a node is about, not what it admits; they stay put when a nullable node is wrapped. */
 const ANNOTATION_KEYWORDS = new Set(['title', 'description', 'default', 'examples', '$comment', 'deprecated', 'readOnly', 'writeOnly', '$defs', 'definitions']);
 /** Keywords beside which a type that admits null still refuses it. */
@@ -219,8 +254,9 @@ const NULL_REFUSING_KEYWORDS = ['allOf', 'anyOf', 'oneOf', '$ref', 'not', 'const
  * into an anyOf branch the walk has already passed. A node already in the
  * standard dialect passes through unchanged.
  */
-function toContractNode(node: Record<string, unknown>, dropped: readonly string[], strict: boolean): void {
-  for (const key of dropped) delete node[key];
+function toContractNode(node: Record<string, unknown>, fromZod: boolean, strict: boolean): void {
+  delete node.$schema;
+  if (fromZod) dropZodOnlyKeywords(node);
   if (typeof node.type === 'string') node.type = node.type.toLowerCase();
   else if (Array.isArray(node.type)) node.type = node.type.map((t) => (typeof t === 'string' ? t.toLowerCase() : t));
   for (const key of INTEGER_KEYWORDS) {
@@ -282,14 +318,22 @@ function toStrictNode(node: Record<string, unknown>): void {
  * of receiving a field the model can never fill. Never mutates `schema`.
  */
 export function toContractJsonSchema(schema: unknown, options: { strict?: boolean } = {}): JsonSchema {
-  return contractSchema(schema, [], options.strict === true);
+  return contractSchema(schema, false, options.strict === true);
 }
 
-function contractSchema(schema: unknown, dropped: readonly string[], strict: boolean): JsonSchema {
-  const root = isPlainObject(schema) ? (cloneJson(schema) as Record<string, unknown>) : { type: 'object', properties: {} };
-  const drop = ['$schema', ...dropped];
-  walkSchema(root, (node) => toContractNode(node, drop, strict));
-  return root;
+/**
+ * The parameters a zod schema declares, in the contract's dialect: its
+ * input side (zodInputJsonSchema) without the keywords the ADK path cannot
+ * carry (dropZodOnlyKeywords). defineTool's declaration() and
+ * contractToolDeclaration() both build from here, so a contract declares the
+ * same parameters on either runtime.
+ */
+export function zodToolParameters(schema: z.ZodType, options: { strict?: boolean } = {}): JsonSchema {
+  return contractSchema(zodInputJsonSchema(schema), true, options.strict === true);
+}
+
+function contractSchema(schema: unknown, fromZod: boolean, strict: boolean): JsonSchema {
+  return mapSchemaNodes(schema, (node) => toContractNode(node, fromZod, strict)) ?? { type: 'object', properties: {} };
 }
 
 /** A defineTool contract (lib/tools/toolContract.ts), told apart from an ADK tool, which has runAsync. */
@@ -302,14 +346,16 @@ function isToolContract(tool: Record<string, unknown>): tool is Record<string, u
  * The declaration a model receives for one client-side tool, in the
  * contract's shape (ToolDeclaration, lib/models/contract.ts).
  *
- * - A defineTool contract: built directly from its zod schema
- *   (`z.toJSONSchema`, called as toStandardJsonSchema calls it), never
- *   through Gemini's uppercase dialect. The keywords `additionalProperties`
- *   and `default` are left out, as the ADK path leaves them out, so the
+ * - An own Tool (lib/tools/tool.ts), defineTool's among them: its own
+ *   `declaration()`.
+ * - A plain defineTool-shaped contract (name, description, zod schema,
+ *   execute): built directly from its zod schema (zodToolParameters), never
+ *   through Gemini's uppercase dialect. The input side is declared, so a
+ *   field with a default is optional; the `default` keyword and a boolean
+ *   `additionalProperties` are left out, as the ADK path leaves them out,
+ *   and a record's value schema is kept, as the ADK path keeps it. The
  *   contract and the FunctionTool that toFunctionTool() makes of it declare
- *   the same parameters. (The one exception is a property itself named
- *   `additionalProperties` or `default`: toGeminiSchema drops it by name,
- *   and this keeps it.)
+ *   the same parameters.
  * - An ADK tool (FunctionTool, AgentTool, the memory tools, MCP tools): read
  *   from its own `_getDeclaration()` (ADR 0019), `parameters` or else
  *   `parametersJsonSchema`, and converted from Gemini's dialect once, here.
@@ -326,10 +372,15 @@ export function contractToolDeclaration(tool: unknown, options: { strict?: boole
   let name: unknown;
   let description: unknown;
   let parameters: JsonSchema;
-  if (isToolContract(tool)) {
+  if (isTool(tool)) {
+    const decl = tool.declaration();
+    name = decl.name;
+    description = decl.description;
+    parameters = contractSchema(decl.parameters, false, strict);
+  } else if (isToolContract(tool)) {
     name = tool.name;
     description = tool.description;
-    parameters = contractSchema(z.toJSONSchema(tool.schema), CONTRACT_DROPPED_KEYWORDS, strict);
+    parameters = zodToolParameters(tool.schema, { strict });
   } else {
     let decl: Record<string, unknown> | undefined;
     if (typeof tool._getDeclaration === 'function') {
@@ -344,7 +395,7 @@ export function contractToolDeclaration(tool: unknown, options: { strict?: boole
     name = decl ? decl.name ?? tool.name : tool.name;
     description = decl ? decl.description ?? tool.description : tool.description;
     const declared = decl ? decl.parameters ?? decl.parametersJsonSchema : tool.parameters;
-    parameters = contractSchema(declared, [], strict);
+    parameters = contractSchema(declared, false, strict);
   }
   if (!name || typeof name !== 'string') return undefined;
   return {

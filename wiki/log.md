@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —depends_on→ /decisions/0048-engine-owned-model-contract.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —constrains→ module:lib/tools/toolContract.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —constrains→ module:lib/tools/adkTool.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-08] relate | /decisions/0051-own-tool-base-behind-an-adk-wrapper.md —constrains→ module:lib/tools/tool.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-07] relate | /decisions/0049-claude-requests-by-model-generation.md —mitigates→ module:lib/session/transcript.ts
 
 by claude-code/claude-opus-5-5

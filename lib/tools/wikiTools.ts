@@ -85,7 +85,8 @@ import {
   type Vault,
   type WikiDoc,
 } from '../wiki/vault.ts';
-import { defineTool, toFunctionTool, type ToolContract } from './toolContract.ts';
+import { toFunctionTool } from './adkTool.ts';
+import { defineTool, type ToolContract } from './toolContract.ts';
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 

@@ -1,55 +1,43 @@
 /**
- * generateImageTool — native ADK FunctionTool for real image generation.
+ * generateImageTool — a tool contract for real image generation.
  *
- * WHY a FunctionTool instead of an AgentTool subagent:
+ * WHY a function tool instead of an AgentTool subagent:
  *   AgentTool converts all subagent output to a text function-response before
  *   returning it to the orchestrator. Binary inlineData (the base64 image bytes
  *   from an image-generation model) is therefore lost in transit.
  *
- *   A FunctionTool runs arbitrary TypeScript: we call @google/genai directly,
+ *   A function tool runs arbitrary TypeScript: we call @google/genai directly,
  *   receive the raw response including inlineData, write the file to disk, and
  *   return a plain-text confirmation with the saved file path. The orchestrator
  *   sees the path and relays it to the user.
+ *
+ * The contract is an own Tool (lib/tools/tool.ts); `generateImageTool` is the
+ * FunctionTool the ADK runtime runs, made from it by toFunctionTool.
  */
 
-import { FunctionTool } from '@google/adk';
-import { GoogleGenAI, type Schema } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { z } from 'zod';
+
+import { toFunctionTool } from './adkTool.ts';
+import { defineTool } from './toolContract.ts';
 
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
-export const generateImageTool = new FunctionTool({
+export const generateImageContract = defineTool({
   name: 'generate_image',
   description:
     'Generates a real image from a structured payload and saves it to the outputs/ directory. ' +
     'Returns the saved file path. Call this only after the user has approved the image payload.',
-  parameters: {
-    type: 'OBJECT' as const,
-    properties: {
-      prompt: {
-        type: 'STRING' as const,
-        description: 'The full image prompt describing the scene and subject.',
-      },
-      style: {
-        type: 'STRING' as const,
-        description: 'Visual style (e.g. "Ansel Adams", "impressionist", "photorealistic").',
-      },
-      aspect_ratio: {
-        type: 'STRING' as const,
-        description: 'Desired aspect ratio (e.g. "3:2", "16:9", "1:1").',
-      },
-      color_palette: {
-        type: 'STRING' as const,
-        description: 'Color palette guidance (e.g. "monochromatic", "warm tones", "vivid").',
-      },
-    },
-    required: ['prompt'],
-  } as unknown as Schema,
-  execute: async (input: unknown): Promise<string> => {
+  schema: z.object({
+    prompt: z.string().describe('The full image prompt describing the scene and subject.'),
+    style: z.string().optional().describe('Visual style (e.g. "Ansel Adams", "impressionist", "photorealistic").'),
+    aspect_ratio: z.string().optional().describe('Desired aspect ratio (e.g. "3:2", "16:9", "1:1").'),
+    color_palette: z.string().optional().describe('Color palette guidance (e.g. "monochromatic", "warm tones", "vivid").'),
+  }),
+  execute: async ({ prompt, style, aspect_ratio, color_palette }): Promise<string> => {
     console.log("[ImageTool] Starting image generation execution...");
-    const { prompt, style, aspect_ratio, color_palette } =
-      input as { prompt: string; style?: string; aspect_ratio?: string; color_palette?: string };
 
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
     if (!apiKey) {
@@ -134,3 +122,6 @@ export const generateImageTool = new FunctionTool({
     }
   },
 });
+
+/** ADK surface, ready for the registry. */
+export const generateImageTool = toFunctionTool(generateImageContract);

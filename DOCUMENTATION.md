@@ -127,23 +127,25 @@ skipped with a warning at compile time.
 ## 3. Tools
 
 Registered in `lib/toolRegistry.ts` — one map from YAML name to ADK tool
-instance:
+instance. A **Contract** is the engine's own Tool (`lib/tools/tool.ts`),
+defined once with `defineTool` and handed to the ADK runtime as a
+`FunctionTool` by `toFunctionTool` (`lib/tools/adkTool.ts`):
 
 | Name | Kind | Does |
 |---|---|---|
 | `web_search` | Provider-agnostic | Live web search via the agent model's NATIVE search: Gemini grounding, Anthropic `web_search` server tool, OpenAI Responses `web_search`, xAI Agent Tools `web_search`. On local `ollama/*` models, and on `kimi-*` (Moonshot's model-side search retires 2026-10-20; its successor is a REST API, not a request field), the tool is omitted with a one-time warning (keyless stays keyless). On grok-* agents, optional server-side domain filters via `XAI_WEB_SEARCH_ALLOWED_DOMAINS` / `_EXCLUDED_DOMAINS` in `.env` (max 5, mutually exclusive; xAI accepts no date bounds — those are `x_search`-only). Prefer this in new YAMLs. |
-| `web_extract` | FunctionTool | Deterministic page reading: fetches 1–5 agent-chosen URLs and returns clean page text (no LLM summarization). Keyless — works on every provider including local `ollama/*`. Per-page char budget (default 15k, `WEB_EXTRACT_CHAR_LIMIT`); long pages return a head+tail window with an `offset` continuation call served from a 15-minute cache. SSRF-guarded (http(s) only, private/link-local hosts refused, redirects re-checked). Block pages (bot checks, paywall stubs, JS shells) are detected code-side and returned as labeled `Error:` blocks, never as content. Pair with `web_search`: search to find, extract to read past the headline. |
+| `web_extract` | Contract | Deterministic page reading: fetches 1–5 agent-chosen URLs and returns clean page text (no LLM summarization). Keyless — works on every provider including local `ollama/*`. Per-page char budget (default 15k, `WEB_EXTRACT_CHAR_LIMIT`); long pages return a head+tail window with an `offset` continuation call served from a 15-minute cache. SSRF-guarded (http(s) only, private/link-local hosts refused, redirects re-checked). Block pages (bot checks, paywall stubs, JS shells) are detected code-side and returned as labeled `Error:` blocks, never as content. Pair with `web_search`: search to find, extract to read past the headline. |
 | `x_search` | xAI-only | Live search over X (Twitter) posts via xAI Agent Tools. Self-gates to `grok-*` agents; a silent no-op on every other provider, so mixed-provider YAMLs stay safe. Optional server-side constraints in `.env`: `XAI_X_SEARCH_FROM_DATE`/`_TO_DATE` (inclusive `YYYY-MM-DD`) and `_ALLOWED_HANDLES`/`_EXCLUDED_HANDLES` (max 20, mutually exclusive — allowlist wins). |
 | `collections_search` | xAI-only | Semantic search over xAI **Collections** — hosted document stores (PDFs/text/CSVs) uploaded at console.x.ai — server-side RAG with `collections://…` citations. Which collections: `XAI_COLLECTION_IDS` in `.env` (optional `XAI_COLLECTIONS_MAX_RESULTS`). Declared with no ids → omitted with a warning; non-xAI providers → silent no-op. |
 | `url_context` | Gemini built-in | Gemini reads the pages at URLs in the conversation, server-side (Google fetches them, not this host). On any other provider it is a no-op the doctor reports as dropped; use `web_extract` there. |
 | `google_search` | ADK built-in | Live web search — Gemini agents only (legacy alias; use `web_search`). |
 | `preload_memory` | ADK built-in | Silently injects similarity-matched facts into every request (ambient recall). |
 | `load_memory` | ADK built-in | Explicit tool call to search the fact store (deliberate recall). |
-| `generate_image` | FunctionTool | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A FunctionTool because binary `inlineData` cannot survive the AgentTool text boundary. |
-| `inspect_image` | FunctionTool | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
-| `task_add` / `task_list` / `task_get` / `task_update` | FunctionTool | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
-| `ask_user` | LongRunningFunctionTool | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Orchestrator or plan-dispatch route only (§6, Questions). |
-| `task_queue` | FunctionTool | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. |
+| `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive the AgentTool text boundary. |
+| `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
+| `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
+| `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Orchestrator or plan-dispatch route only (§6, Questions). |
+| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. |
 
 **MCP tools** are the exception to the registry: a subagent with
 `mcp_server_url:` in its YAML gets its tools from a remote MCP server at
@@ -1113,11 +1115,14 @@ closest starter-pack file from `config/agents/examples/` or start from
 <name>`. No code changes. The loader checks the root first, then
 `examples/`, so your syndicate and the starter pack never collide.
 
-**Add a tool**: implement a `FunctionTool` in `lib/tools/`, register the
-name in `lib/toolRegistry.ts`, reference it from YAML. The two image
-tools are the worked examples — including why binary data forces
-FunctionTools over subagents, and how a tool signature can enforce an
-epistemic rule (the blind inventory).
+**Add a tool**: write a `defineTool` contract in `lib/tools/` (name,
+description, zod schema, execute), register the name in
+`lib/toolRegistry.ts` (or call `registerTool` from your own code),
+reference it from YAML. The contract runs on either runtime; see
+`wiki/tools/tool-contracts.md`. The two image tools are the worked
+examples — including why binary data forces function tools over
+subagents, and how a tool signature can enforce an epistemic rule (the
+blind inventory).
 
 **Add a provider**: follow `claudeLlm.ts` (SDK-based, key-gated) or
 `ollamaLlm.ts` (fetch-based, keyless) — implement the ADK LLM
