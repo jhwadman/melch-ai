@@ -778,7 +778,7 @@ test('after a redirect: a hop to a private address or a name that resolves to on
   try {
     for (const location of ['http://169.254.169.254/latest/meta-data/', 'http://[fe80::1]/', 'https://inside.example.net/admin']) {
       const [tool] = await buildOpenApiTools({ spec: 'pets.yaml', operations: ['listPets'], base_url: 'https://pets.example.com' }, dir);
-      const { sent, fetchImpl } = recordingFetch((url) => (url.startsWith('https://pets.example.com') ? new Response(null, { status: 302, headers: { Location: location } }) : Response.json('reached')));
+      const { sent, fetchImpl } = recordingFetch((url) => (new URL(url).host === 'pets.example.com' ? new Response(null, { status: 302, headers: { Location: location } }) : Response.json('reached')));
       const original = globalThis.fetch;
       globalThis.fetch = fetchImpl;
       setHostResolver(async (host) => [{ address: host === 'inside.example.net' ? '192.168.1.10' : '93.184.216.34' }]);
