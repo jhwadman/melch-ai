@@ -47,12 +47,12 @@
  *
  * `agentNodeRuntime` puts it together for the scheduler: a `runNode` for
  * agent nodes and map items, and an `onEvent` that stores the event ADK
- * stores for each route step (lib/workflow/route.ts), so a session the
- * native walk writes holds what ADK's holds, in the same order.
+ * stores for each route step (lib/workflow/route.ts), join and map
+ * (lib/workflow/nodeEvents.ts), so a session the native walk writes holds
+ * what ADK's holds, in the same order.
  *
- * NOT HERE: the events ADK stores for a join or a map node itself, interrupts inside a
- * node (WS4-4a), tool and ask_user nodes (WS4-5, WS4-4a). It imports
- * nothing from ADK.
+ * NOT HERE: interrupts inside a node (WS4-4a), tool and ask_user nodes
+ * (WS4-5, WS4-4a). It imports nothing from ADK.
  */
 
 import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
@@ -62,6 +62,7 @@ import type { AgentLoopContext, AgentLoopEnd } from '../runtime/native/agentLoop
 import { predecessorOutputs } from '../runtime/native/request.ts';
 import type { NativeAgent, WorkflowInstructionScope } from '../runtime/native/request.ts';
 import type { Session, SessionService } from '../runtime/sessions.ts';
+import { joinNodeEvent, mapNodeEvent } from './nodeEvents.ts';
 import { routeStepEvent } from './route.ts';
 import { enrichNodeEvent } from './toolNode.ts';
 import type { NodeResult, NodeRun, NodeRunner, SchedulerEvent } from './scheduler.ts';
@@ -241,7 +242,7 @@ export interface AgentNodeRuntimeOptions extends Omit<AgentNodeContext, 'appendI
 export interface AgentNodeRuntime {
   /** The scheduler's runNode: agent nodes and map items run here; every other run goes to `next`. */
   runNode: NodeRunner;
-  /** The scheduler's onEvent: stores the event ADK stores for each route step. */
+  /** The scheduler's onEvent: stores the event ADK stores for each route step, join and map. */
   onEvent: (event: SchedulerEvent) => void;
   /**
    * Stores an event another runner of the chain made (a tool node's, through
@@ -301,8 +302,11 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
     throw new Error(`agentNodeRunner runs agent nodes and map items only; ${target.name} is a ${target.kind} run`);
   };
   const onEvent = (event: SchedulerEvent): void => {
-    if (event.type !== 'node_end' || event.kind !== 'route') return;
-    enqueue(routeStepEvent({ name: event.node, path: event.path, branch: event.branch, invocationId, output: event.output, route: event.route }), options.onEvent).catch(() => {}); // surfaced by runNode and settled()
+    if (event.type !== 'node_end') return;
+    const run = { name: event.node, path: event.path, branch: event.branch, invocationId, output: event.output };
+    // The events ADK stores for the nodes the scheduler runs itself: a route step's, a join's, a map's.
+    const stored = event.kind === 'route' ? routeStepEvent({ ...run, route: event.route }) : event.kind === 'join' ? joinNodeEvent(run) : event.kind === 'map' ? mapNodeEvent(run) : undefined;
+    if (stored) enqueue(stored, options.onEvent).catch(() => {}); // surfaced by runNode and settled()
   };
   return {
     runNode,

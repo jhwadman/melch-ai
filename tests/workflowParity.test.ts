@@ -5,6 +5,8 @@
  *   1. Workflow placeholders in a node agent's instruction (`{x.field}`,
  *      `<x.field from Node>`) are filled on native as ADK 2.2's
  *      injectSessionState fills them with its workflowInstructionScope.
+ *   2. A join and a map store the events ADK's JoinNode and ParallelWorker
+ *      store, so fan-out, join and map cases compare on stored events.
  *
  * Parity cases run one workflow syndicate on ADK (runSyndicateTurn, runtime
  * adk) and on the scheduler with agentNodeRuntime, with the same scripted
@@ -23,6 +25,9 @@ import { LogLevel, setLogLevel } from '@google/adk';
 import { createTurnEvent } from '../lib/runtime/events.ts';
 import { injectSessionState, predecessorOutputs } from '../lib/runtime/native/request.ts';
 import type { WorkflowInstructionScope } from '../lib/runtime/native/request.ts';
+import { buildWorkflowGraph } from '../lib/workflow/graph.ts';
+import { mapNodeEvent, nodeOutputContent } from '../lib/workflow/nodeEvents.ts';
+import { runWorkflowGraph } from '../lib/workflow/scheduler.ts';
 import { answer, requestTexts, toolCall } from './helpers/scriptedModel.ts';
 import { agent, bothAgree, workflowConfig } from './helpers/workflowParity.ts';
 
@@ -161,4 +166,113 @@ test('a task-mode node fills its placeholders, and the node after it reads its f
   };
   const { native } = await bothAgree(cfg, scripts as any, 'go');
   assert.match(native.models.booker!.requests[0]!.system ?? '', /Book Lyon \(Lyon\)\.$/);
+});
+
+// ── 2. The events of a join and a map ────────────────────────────────────────
+
+type Req = Parameters<typeof requestTexts>[0];
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const lastText = (req: Req) => requestTexts(req).at(-1) ?? '';
+/** A model that answers after `ms`; any two finish times in a case are at least 20 ms apart. */
+const after = (ms: number, text: (req: Req) => string) => async (req: Req) => {
+  await sleep(ms);
+  return answer(text(req));
+};
+
+test("fan-out and join: the join stores its output event, before its successor's input, as on ADK", async () => {
+  const cfg = workflowConfig(
+    { edges: [['START', 'Triage', ['Writer', 'Checker']], [['Writer', 'Checker'], 'Both', 'Editor']], nodes: { Both: { join: true } } },
+    [agent('Writer'), agent('Checker'), agent('Editor')],
+  );
+  const scripts = { triage: () => answer('t'), writer: after(80, () => 'w'), checker: after(20, () => 'c'), editor: (req: Req) => answer(`e ${lastText(req)}`) };
+  const { native } = await bothAgree(cfg, scripts, 'go');
+  const join = native.events.find((e) => e.author === 'Both')!;
+  assert.deepEqual(join.output, { Writer: 'w', Checker: 'c' });
+  assert.deepEqual(join.nodeInfo, { path: 'Graph.Both', outputFor: ['Graph.Both'] });
+  assert.equal(join.content, undefined, 'a join stores no content');
+  const order = native.events.map((e) => e.author);
+  assert.equal(order.indexOf('Both') + 1, order.lastIndexOf('user'), "the join's event, then the Editor's input");
+});
+
+test('a join of branches a route step fanned out keys every predecessor, as on ADK', async () => {
+  const cfg = workflowConfig(
+    { edges: [['START', 'Triage', { both: ['A', 'B'], default: 'A' }], [['A', 'B'], 'J', 'Last']], nodes: { J: { join: true } } },
+    [agent('A'), agent('B'), agent('Last')],
+  );
+  const scripts = { triage: () => answer('both'), a: after(20, () => 'a'), b: after(60, () => 'b'), last: (req: Req) => answer(`last ${lastText(req)}`) };
+  const { native } = await bothAgree(cfg, scripts, 'go');
+  assert.equal(native.output, 'last {"A":"a","B":"b"}');
+});
+
+const MAP = (maxParallel?: number, lister: Record<string, unknown> = { outputSchema: { type: 'ARRAY', items: { type: 'STRING' } } }) =>
+  workflowConfig(
+    { edges: [['START', 'Lister', 'Each', 'Merge']], nodes: { Each: { map: 'Summ', ...(maxParallel !== undefined ? { max_parallel: maxParallel } : {}) } } },
+    [agent('Summ'), agent('Merge')],
+    agent('Lister', lister),
+  );
+const DELAYS: Record<string, number> = { a: 100, b: 20, c: 60 };
+const mapScripts = (list: string) => ({
+  lister: () => answer(list),
+  summ: async (req: Req) => {
+    const item = lastText(req);
+    await sleep(DELAYS[item] ?? 40);
+    return answer(`s ${item}`);
+  },
+  merge: (req: Req) => answer(`m ${lastText(req)}`),
+});
+
+for (const maxParallel of [undefined, 2, 1]) {
+  test(`a map stores its list as ADK's ParallelWorker does (max_parallel ${maxParallel ?? 'default'}): one part per item, the list as output`, async () => {
+    const { native } = await bothAgree(MAP(maxParallel), mapScripts('["a","b","c"]'), 'go');
+    const map = native.events.find((e) => e.author === 'Each')!;
+    assert.deepEqual(map.output, ['s a', 's b', 's c'], 'by index, whatever order the items finished in');
+    assert.deepEqual(map.content, { role: 'model', parts: [{ text: 's a' }, { text: 's b' }, { text: 's c' }] });
+    assert.deepEqual(map.nodeInfo, { path: 'Graph.Each', outputFor: ['Graph.Each'] });
+    assert.equal(native.events.filter((e) => e.author === 'Each').length, 1, 'no wrapper event per item');
+  });
+}
+
+test("a map of an empty list, of a non-list input and of object items stores ADK's content for each", async () => {
+  const empty = await bothAgree(MAP(), mapScripts('[]'), 'go');
+  assert.deepEqual(empty.native.events.find((e) => e.author === 'Each')!.content, { role: 'model', parts: [{ text: '[]' }] }, 'an empty list is its JSON text');
+  const single = await bothAgree(MAP(undefined, {}), mapScripts('a'), 'go');
+  assert.deepEqual(single.native.events.find((e) => e.author === 'Each')!.output, ['s a'], 'a non-list input is one item');
+  const objects = workflowConfig(
+    { edges: [['START', 'Lister', 'Each', 'Merge']], nodes: { Each: { map: 'Summ' } } },
+    [agent('Summ', { outputSchema: { type: 'OBJECT', properties: { item: { type: 'STRING' } } } }), agent('Merge')],
+    agent('Lister'),
+  );
+  const scripts = { lister: () => answer('x'), summ: () => answer('{"item":"x"}'), merge: () => answer('done') };
+  const { native } = await bothAgree(objects, scripts, 'go');
+  assert.deepEqual(native.events.find((e) => e.author === 'Each')!.content, { role: 'model', parts: [{ text: '[{"item":"x"}]' }] }, "object items are the list's JSON text");
+});
+
+test("nodeOutputContent is ADK's toContent", async () => {
+  const { toContent } = await import(pathToFileURL(path.join(ROOT, 'node_modules/@google/adk/dist/esm/workflow/base_node.js')).href);
+  const values = ['x', ['a', 'b'], [], [1], ['a', { text: 'b' }], ['a', null], { text: 't', extra: 1 }, { k: 1 }, 3, true, { role: 'user', parts: [{ text: 'c' }] }, [{ functionCall: { name: 'f' } }], null, undefined];
+  for (const value of values) assert.deepEqual(nodeOutputContent(value), toContent(value), JSON.stringify(value));
+});
+
+test('a map stopped from outside outputs nothing, so it stores no event, as ADK\'s ParallelWorker yields nothing', async () => {
+  const cfg = MAP(1);
+  const controller = new AbortController();
+  const ends: unknown[] = [];
+  await assert.rejects(
+    runWorkflowGraph(buildWorkflowGraph(cfg), {
+      input: 'go',
+      signal: controller.signal,
+      runNode: async (run) => {
+        if (run.target.kind !== 'map_item') return { output: ['a', 'b', 'c'] };
+        if (run.target.index === 0) setTimeout(() => controller.abort(), 20);
+        await sleep(60);
+        return { output: `s ${run.input}` };
+      },
+      onEvent: (e) => {
+        if (e.type === 'node_end' && e.kind === 'map') ends.push(e.output);
+      },
+    }),
+    /aborted/,
+  );
+  assert.deepEqual(ends, [undefined]);
+  assert.equal(mapNodeEvent({ name: 'Each', path: 'Graph.Each', branch: undefined, invocationId: 'e-1', output: undefined }), undefined);
 });

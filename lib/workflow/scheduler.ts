@@ -756,9 +756,10 @@ function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
  * retry and timeout. The first item that gives up stops the pool taking new
  * items, and once every worker has stopped the map fails with
  * `DynamicNodeFailError` naming the agent, as ADK's dynamic-node scheduler
- * wraps it.
+ * wraps it. A map whose signal aborted outputs nothing, as ADK's yields
+ * nothing then.
  */
-async function runMap(node: MapNode, ctx: RunContext, walk: Walk): Promise<unknown[]> {
+async function runMap(node: MapNode, ctx: RunContext, walk: Walk): Promise<unknown[] | undefined> {
   const items = Array.isArray(ctx.input) ? ctx.input : [ctx.input];
   if (items.length === 0) return [];
   const results = new Array<unknown>(items.length);
@@ -797,6 +798,8 @@ async function runMap(node: MapNode, ctx: RunContext, walk: Walk): Promise<unkno
   };
   await Promise.all(Array.from({ length: poolSize }, () => worker()));
   if (failed) throw firstError;
+  // ADK's ParallelWorker yields nothing once aborted: no output, so no map event.
+  if (ctx.signal.aborted) return undefined;
   return results;
 }
 
