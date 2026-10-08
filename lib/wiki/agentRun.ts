@@ -15,6 +15,12 @@
  *   provider — wiki operations inherit the framework's full model
  *   optionality. A missing provider key degrades to a clear error string;
  *   nothing here throws for want of credentials.
+ *
+ *   The runtime follows the turn runner's flag (lib/runtime/runtimeFlag.ts):
+ *   MELCHIZEDEK_RUNTIME, or the run's `runtime` option. On `native` the
+ *   same agent runs on the engine's own loop (lib/runtime/nativeTurn.ts),
+ *   each wiki FunctionTool as the own Tool behind it, and its events are
+ *   read the same way.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -22,11 +28,21 @@ import { randomUUID } from 'node:crypto';
 import { InMemorySessionService, LlmAgent, Runner } from '@google/adk';
 import type { FunctionTool } from '@google/adk';
 
+import type { ModelAdapter } from '../models/contract.ts';
 import {
   providerForModel,
   providerKeyPresent,
   registerAvailableProviders,
+  resolveAdapter,
 } from '../models/registry.ts';
+import type { TurnEvent } from '../runtime/events.ts';
+import type { NativeAgent } from '../runtime/native/request.ts';
+import { SelfCorrection } from '../runtime/native/selfCorrection.ts';
+import { runNativeAgent } from '../runtime/nativeTurn.ts';
+import { chooseRuntime } from '../runtime/runtimeFlag.ts';
+import type { RuntimeName } from '../runtime/runtimeFlag.ts';
+import { InProcessSessionService } from '../runtime/sessions.ts';
+import { toolOf } from '../tools/tool.ts';
 
 export interface WikiAgentRun {
   name: string;
@@ -37,6 +53,10 @@ export interface WikiAgentRun {
   tools?: FunctionTool[];
   temperature?: number;
   maxOutputTokens?: number;
+  /** The runtime that runs the agent. Default: MELCHIZEDEK_RUNTIME, else adk. */
+  runtime?: RuntimeName;
+  /** Native runtime only: the leaf adapter for a model id. Default resolveAdapter (lib/models/registry.ts). */
+  adapterFor?: (model: string) => ModelAdapter;
 }
 
 export interface WikiAgentResult {
@@ -51,46 +71,28 @@ export function modelAvailable(model: string): { ok: boolean; reason?: string } 
   return { ok: false, reason: `provider "${provider}" has no API key configured` };
 }
 
-export async function runWikiAgent(run: WikiAgentRun): Promise<WikiAgentResult> {
-  const availability = modelAvailable(run.model);
-  if (!availability.ok) {
-    return { text: '', error: availability.reason };
-  }
-  registerAvailableProviders();
+const APP_NAME = 'melchizedek-wiki';
+const USER_ID = 'wiki';
 
-  const agent = new LlmAgent({
-    name: run.name,
-    description: run.description,
-    model: run.model,
-    instruction: run.instruction,
-    generateContentConfig: {
-      temperature: run.temperature ?? 0.3,
-      maxOutputTokens: run.maxOutputTokens ?? 4096,
-    } as never,
-    ...(run.tools && run.tools.length > 0 ? { tools: run.tools } : {}),
-  });
+/** The generateContentConfig every wiki run sends. */
+function configOf(run: WikiAgentRun): Record<string, unknown> {
+  return {
+    temperature: run.temperature ?? 0.3,
+    maxOutputTokens: run.maxOutputTokens ?? 4096,
+  };
+}
 
-  const appName = 'melchizedek-wiki';
-  const userId = 'wiki';
-  const sessionId = randomUUID();
-  const sessionService = new InMemorySessionService();
-  const runner = new Runner({ agent, appName, sessionService });
-  await sessionService.createSession({ appName, userId, sessionId, state: {} });
-
+/** Reads a run's events, either runtime: every non-thinking text part, and the last error. */
+async function readRun(stream: () => AsyncIterable<unknown>): Promise<WikiAgentResult> {
   let outputText = '';
   let errorText = '';
   try {
-    const stream = runner.runAsync({
-      userId,
-      sessionId,
-      newMessage: { role: 'user', parts: [{ text: run.userText }] },
-    });
-    for await (const event of stream) {
-      const evAny = event as { errorCode?: string; errorMessage?: string };
-      if ((evAny.errorCode || evAny.errorMessage) && evAny.errorCode !== 'STOP') {
-        errorText = `[${evAny.errorCode ?? 'ERROR'}] ${evAny.errorMessage ?? ''}`;
+    for await (const event of stream()) {
+      const e = event as { errorCode?: string; errorMessage?: string; content?: { parts?: unknown[] } };
+      if ((e.errorCode || e.errorMessage) && e.errorCode !== 'STOP') {
+        errorText = `[${e.errorCode ?? 'ERROR'}] ${e.errorMessage ?? ''}`;
       }
-      for (const part of event.content?.parts ?? []) {
+      for (const part of e.content?.parts ?? []) {
         const p = part as { thought?: boolean; text?: string };
         if (!p.thought && p.text) outputText += p.text;
       }
@@ -103,4 +105,53 @@ export async function runWikiAgent(run: WikiAgentRun): Promise<WikiAgentResult> 
     text: outputText.trim(),
     ...(errorText ? { error: errorText } : {}),
   };
+}
+
+export async function runWikiAgent(run: WikiAgentRun): Promise<WikiAgentResult> {
+  const availability = modelAvailable(run.model);
+  if (!availability.ok) {
+    return { text: '', error: availability.reason };
+  }
+  const sessionId = randomUUID();
+  const newMessage = { role: 'user', parts: [{ text: run.userText }] };
+
+  if (chooseRuntime(run.runtime) === 'native') {
+    const agent: NativeAgent = {
+      name: run.name,
+      description: run.description,
+      model: run.model,
+      instruction: run.instruction,
+      generateContentConfig: configOf(run),
+      tools: (run.tools ?? []).map((t) => toolOf(t) ?? t),
+    };
+    const sessions = new InProcessSessionService();
+    await sessions.create({ appName: APP_NAME, userId: USER_ID, sessionId });
+    return readRun((): AsyncIterable<TurnEvent> =>
+      runNativeAgent({
+        agent,
+        adapterFor: run.adapterFor ?? ((model) => resolveAdapter(model)),
+        sessions,
+        appName: APP_NAME,
+        userId: USER_ID,
+        sessionId,
+        userParts: newMessage.parts,
+        // As on ADK, where this Runner installs no reflect-and-retry plugins.
+        selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
+      }),
+    );
+  }
+
+  registerAvailableProviders();
+  const agent = new LlmAgent({
+    name: run.name,
+    description: run.description,
+    model: run.model,
+    instruction: run.instruction,
+    generateContentConfig: configOf(run) as never,
+    ...(run.tools && run.tools.length > 0 ? { tools: run.tools } : {}),
+  });
+  const sessionService = new InMemorySessionService();
+  const runner = new Runner({ agent, appName: APP_NAME, sessionService });
+  await sessionService.createSession({ appName: APP_NAME, userId: USER_ID, sessionId, state: {} });
+  return readRun(() => runner.runAsync({ userId: USER_ID, sessionId, newMessage }));
 }

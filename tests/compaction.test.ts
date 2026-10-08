@@ -439,3 +439,39 @@ test('the summarizing call is charged and traced as on ADK: the same turn and te
   assert.equal(summaryRow.agent, 'Chat', 'under the agent that compacted');
   assert.equal(n.adk_payloads.length, a.adk_payloads.length, 'the same payload rows');
 });
+
+// ── Through the turn runner ──────────────────────────────────────────────────
+
+test('runSyndicateTurn on the native runtime compacts as on ADK: the same stored events and requests', async () => {
+  const config = syndicate({ compact_after_tokens: 1000, keep_recent_events: 2, summary_model: 'scripted/sum' });
+  const turns = ['question 1', 'question 2', 'question 3', 'question 4', 'question 5'];
+  const run = async (runtime: 'adk' | 'native') => {
+    resetCircuits();
+    const models = build({ chat: growing(), sum: SUMMARY() });
+    const sessionService = new InMemorySessionService();
+    for (const text of turns) {
+      const r = await runSyndicateTurn({
+        config,
+        parts: [{ text }],
+        appName: APP,
+        userId: USER,
+        sessionId: SESSION,
+        sessionService,
+        compile: { resolveModel: shimResolver(models), log: () => {} },
+        trace: false,
+        runtime,
+      });
+      assert.equal(r.status, 'completed', r.error?.message);
+      assert.equal(r.text, `answer ${models.chat!.calls}`);
+    }
+    const s = await sessionService.getSession({ appName: APP, userId: USER, sessionId: SESSION });
+    return { models, events: JSON.parse(JSON.stringify(s?.events ?? [])) as TurnEvent[] };
+  };
+  const adk = await run('adk');
+  const native = await run('native');
+  // Each runtime mints its own run ids.
+  const strip = (events: TurnEvent[]) => events.map((e) => ({ ...e, invocationId: e.invocationId ? '<run>' : '' }));
+  assert.deepEqual(comparable(strip(native.events)), comparable(strip(adk.events)), 'the stored events');
+  assert.equal(native.events.filter((e: any) => e.isCompacted).length, 2, 'the fourth and fifth turns compact');
+  assertSameRequests(native.models, adk.models);
+});

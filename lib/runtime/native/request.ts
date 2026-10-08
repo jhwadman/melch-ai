@@ -71,14 +71,15 @@ import { createToolContext, instructionToolOf, isTool, toolOf } from '../../tool
 import type { InstructionTool, Tool, ToolContext } from '../../tools/tool.ts';
 import type { ContextConfig } from './compaction.ts';
 import { convertCodeExecutionParts, projectHistory } from './history.ts';
+import { withStateOverlay } from './tempState.ts';
 
 // ── The agent ────────────────────────────────────────────────────────────────
 
 /**
  * One agent as the native loop runs it: the fields of a compiled agent that
  * shape its model requests, in the YAML's own spelling. lib/compile.ts
- * builds the same fields into ADK's LlmAgent; the compile split (WS2-10)
- * builds this from the same agent spec.
+ * builds the same fields into ADK's LlmAgent, and lib/compileNative.ts
+ * builds this from the same AgentSpec (ADR 0073).
  */
 export interface NativeAgent {
   name: string;
@@ -141,6 +142,11 @@ export interface RequestContext {
   memory?: Pick<MemoryService, 'search'>;
   /** Stream text and thinking as partial responses. Default false. */
   stream?: boolean;
+  /**
+   * State laid over the session's for this request: the run's `temp:` keys,
+   * which no store keeps (lib/runtime/native/tempState.ts).
+   */
+  stateOverlay?: Readonly<Record<string, unknown>>;
   /** Aborts the call in flight: the turn's signal. */
   signal?: AbortSignal;
   /**
@@ -415,7 +421,7 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
     cfg.responseMimeType = 'application/json';
   }
 
-  const state = ctx.session.state;
+  const state = withStateOverlay(ctx.session.state, ctx.stateOverlay);
   const instructionCtx: InstructionContext = {
     agentName: agent.name,
     invocationId: ctx.invocationId,
