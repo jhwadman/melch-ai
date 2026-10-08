@@ -39,9 +39,10 @@ import { z } from 'zod';
 
 import type { FinalModelResponse, ModelAdapter, ModelRequest, ModelResponse, OutputPart } from '../lib/models/contract.ts';
 import { resetCircuits } from '../lib/models/fallback.ts';
+import { TOO_DEEP_ARGUMENTS } from '../lib/models/genaiMapping.ts';
 import { createTurnEvent, parseTurnEvents } from '../lib/runtime/events.ts';
 import type { TurnContent, TurnEvent, TurnPart } from '../lib/runtime/events.ts';
-import { runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
+import { TOO_DEEP_RESULT, runAgentLoop } from '../lib/runtime/native/agentLoop.ts';
 import type { AgentLoopContext, AgentLoopEnd } from '../lib/runtime/native/agentLoop.ts';
 import type { NativeAgent } from '../lib/runtime/native/request.ts';
 import { SelfCorrection } from '../lib/runtime/native/selfCorrection.ts';
@@ -54,6 +55,7 @@ import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import type { Session } from '../lib/runtime/sessions.ts';
 import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
 import { createTurnControl, runWithTurnControl } from '../lib/runtime/turnControl.ts';
+import { MAX_VALUE_DEPTH } from '../lib/runtime/valueDepth.ts';
 import { requireApproval } from '../lib/tools/tool.ts';
 import type { Tool } from '../lib/tools/tool.ts';
 import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
@@ -460,6 +462,30 @@ test('malformed tool calls: arguments that are not an object, odd names and ids 
     assert.ok(typeof call?.id === 'string' && call.id.length > 0, `${label}: the stored id is a string, minted when it was not one`);
     await assertNextTurnRuns(sessions, sessionId, label);
   }
+});
+
+test('huge and deeply nested values: a 1 MB argument is kept; arguments and results nested past the limit are replaced by a note', async () => {
+  const big = await oneTurn({ responses: [final([callPart('echo', { to: 'y'.repeat(1_000_000) }, 'c1')], { finishReason: 'tool_call' })] });
+  assert.equal(big.outcome.end?.reason, 'final', 'a 1 MB argument');
+  await assertNextTurnRuns(big.sessions, big.sessionId, 'a 1 MB argument');
+
+  // Nested 5,000 deep: every recursive reader of the session (a clone, a store's JSON, a span) would overflow on it, this turn and every later one.
+  const deepArgs = await oneTurn({ responses: [final([callPart('echo', deepObject(5_000), 'c1')], { finishReason: 'tool_call' })] });
+  assert.equal(deepArgs.outcome.error, undefined, 'deep arguments: no throw');
+  assert.equal(deepArgs.outcome.end?.reason, 'final', 'deep arguments: the call answers and the model goes on');
+  assert.deepEqual(modelEventsOf(deepArgs.stored)[0]?.content?.parts?.[0]?.functionCall?.args, { raw: TOO_DEEP_ARGUMENTS }, 'the arguments stored are the note');
+  await assertNextTurnRuns(deepArgs.sessions, deepArgs.sessionId, 'deep arguments');
+
+  const deepResult = await oneTurn({ responses: [final([callPart('nest', {}, 'c1')], { finishReason: 'tool_call' })] });
+  assert.equal(deepResult.outcome.error, undefined, 'a deep result: no throw');
+  assert.equal(deepResult.outcome.end?.reason, 'final', 'a deep result: the model goes on');
+  const response = deepResult.stored.events.flatMap((e) => (e.content?.parts ?? []).flatMap((p) => (p.functionResponse ? [p.functionResponse] : []))).at(-1);
+  assert.deepEqual(response?.response, { error: TOO_DEEP_RESULT('nest') }, 'the result stored is the note');
+  await assertNextTurnRuns(deepResult.sessions, deepResult.sessionId, 'a deep result');
+
+  // At the limit, a value is kept as it is.
+  const atLimit = await oneTurn({ responses: [final([callPart('echo', deepObject(MAX_VALUE_DEPTH - 2), 'c1')], { finishReason: 'tool_call' })] });
+  assert.notDeepEqual(modelEventsOf(atLimit.stored)[0]?.content?.parts?.[0]?.functionCall?.args, { raw: TOO_DEEP_ARGUMENTS }, 'arguments at the limit are kept');
 });
 
 // ── Interrupt helpers ────────────────────────────────────────────────────────

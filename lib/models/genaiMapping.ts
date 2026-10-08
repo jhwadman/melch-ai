@@ -190,6 +190,7 @@ import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, errorText, withRetryVerdict } fr
 import { GEMINI_PROVIDER, MINTED_CALL_ID_PREFIX, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
 import { reasoningConfig } from './reasoning.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './schemaNormalize.ts';
+import { MAX_VALUE_DEPTH, nestedDeeperThan } from '../runtime/valueDepth.ts';
 
 /**
  * The provider id the mapping writes its own state under (only a Gemini
@@ -721,6 +722,9 @@ function finishReasonOfCode(code: string | undefined): FinishReason | undefined 
   return code !== undefined && GEMINI_FINISH_REASONS.has(code) ? (code as FinishReason) : undefined;
 }
 
+/** What a call's arguments become when they nest past MAX_VALUE_DEPTH (contractOutputPart). */
+export const TOO_DEEP_ARGUMENTS = `[arguments nested deeper than ${MAX_VALUE_DEPTH} levels were dropped]`;
+
 /**
  * One part of a model's answer as the contract allows it (lib/models/
  * contract.ts), or undefined to drop it. The contract binds an adapter, and
@@ -734,6 +738,9 @@ function finishReasonOfCode(code: string | undefined): FinishReason | undefined 
  *     runtime then mints the id), and its arguments that are not an object
  *     become `{}` when absent or null, else `{ raw: <value> }`, the
  *     contract's form for arguments that do not parse;
+ *   - arguments that nest deeper than MAX_VALUE_DEPTH levels (lib/runtime/
+ *     valueDepth.ts) become `{ raw: TOO_DEEP_ARGUMENTS }`: every later
+ *     reader of the session would overflow its stack on them;
  *   - a blob needs a string mimeType and a string `data` or `url`;
  *   - a Gemini part carried whole must be an object.
  * A part the contract allows is returned as it is, so a well-behaved
@@ -749,8 +756,15 @@ function contractOutputPart(part: unknown): Part | undefined {
       return typeof part.text === 'string' ? (part as unknown as Part) : undefined;
     case 'toolCall': {
       const { name, id, args } = part;
-      if (typeof name === 'string' && typeof id === 'string' && (isObject(args) || Array.isArray(args))) return part as unknown as Part;
-      const checkedArgs = isObject(args) || Array.isArray(args) ? args : args === undefined || args === null ? {} : { raw: args };
+      const tooDeep = nestedDeeperThan(args);
+      if (typeof name === 'string' && typeof id === 'string' && (isObject(args) || Array.isArray(args)) && !tooDeep) return part as unknown as Part;
+      const checkedArgs = tooDeep
+        ? { raw: TOO_DEEP_ARGUMENTS }
+        : isObject(args) || Array.isArray(args)
+          ? args
+          : args === undefined || args === null
+            ? {}
+            : { raw: args };
       return { ...part, type: 'toolCall', name: typeof name === 'string' ? name : '', id: typeof id === 'string' ? id : '', args: checkedArgs as Record<string, unknown> };
     }
     case 'blob':

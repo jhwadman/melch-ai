@@ -36,7 +36,11 @@
  *      - a long-running tool (ask_user) that returns nothing answers
  *        nothing; its actions, when it set any, make an event of their own;
  *      - a result that is not an object is wrapped `{ result }`, an array
- *        `{ results }`, as ADK wraps them.
+ *        `{ results }`, as ADK wraps them;
+ *      - a result nested deeper than MAX_VALUE_DEPTH levels answers
+ *        `{ error: TOO_DEEP_RESULT }` instead: every later reader of the
+ *        session would overflow its stack on it (lib/runtime/valueDepth.ts,
+ *        ADR 0101). ADK keeps it.
  *      One call's response is stored as its own event; several are merged
  *      into one, parts in call order and actions merged (ADK's
  *      mergeParallelFunctionResponseEvents). ADK runs the calls one after
@@ -123,6 +127,7 @@ import type { Tool, ToolActions, ToolConfirmation, ToolContext, ToolState } from
 import { createEventActions, createTurnEvent, getFunctionCalls, getFunctionResponses, isFinal } from '../events.ts';
 import type { TurnContent, TurnEvent, TurnEventActions, TurnFunctionCall, TurnPart } from '../events.ts';
 import type { MemoryService } from '../memoryService.ts';
+import { MAX_VALUE_DEPTH, nestedDeeperThan } from '../valueDepth.ts';
 import { currentTurnSignal } from '../turnControl.ts';
 import { compactBeforeStep } from './compaction.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
@@ -399,6 +404,10 @@ function callContext(scope: CallScope, functionCallId: string | undefined, confi
 /** What one call left: a response part and its actions, its actions alone (a pending long-running call), or nothing. */
 type CallOutcome = { part?: TurnPart; actions: TurnEventActions } | undefined;
 
+/** What a tool's result becomes when it nests past MAX_VALUE_DEPTH (ADR 0101). */
+export const TOO_DEEP_RESULT = (toolName: string): string =>
+  `The result of tool '${toolName}' nested deeper than ${MAX_VALUE_DEPTH} levels and was not kept.`;
+
 /** ADK's normalization of a tool's result into a function response. */
 function asResponse(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null) return { result: value };
@@ -490,7 +499,9 @@ async function runCall(
     return isDefaultActions(context.actions) ? undefined : { actions: context.actions };
   }
   const answer = failure ? { error: failure } : response === null || response === undefined ? { result: response } : asResponse(response);
-  return { part: { functionResponse: { id: context.functionCallId, name: toolName, response: answer } }, actions: context.actions };
+  // A result nested past MAX_VALUE_DEPTH would overflow every later reader of the session (lib/runtime/valueDepth.ts, ADR 0101): a note stands in for it.
+  const kept = nestedDeeperThan(answer) ? { error: TOO_DEEP_RESULT(toolName) } : answer;
+  return { part: { functionResponse: { id: context.functionCallId, name: toolName, response: kept } }, actions: context.actions };
 }
 
 /**
