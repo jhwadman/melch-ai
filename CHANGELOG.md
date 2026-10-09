@@ -6,6 +6,29 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Changed
+
+- **`melchizedek-doctor --check` fails on an unrecognised `MODEL_GATEWAY`.**
+  The doctor already reported a `MODEL_GATEWAY` that names no gateway; `--check`
+  now exits 1 on it too (`checkProblems` adds a `gateway:` line naming the
+  accepted values, `vercel` and `openrouter`). The value is never echoed, in
+  text, `--json` or the check line, since it may be a key pasted into the wrong
+  variable. A recognised gateway without `MODEL_GATEWAY_API_KEY`, and unset
+  per-grant variables, stay a report, not a failure.
+- **Server-side logs name tools, never their arguments.** The turn runner's
+  `log` line for a tool call (what `melchizedek-serve`, `melchizedek-mcp` and
+  `melchizedek-worker` print) is `→ Tool: <tool> by <agent> — args: <key
+  names> (<n> bytes)` instead of the arguments cut to 60 characters. A
+  question logs `⏸ <node> asks a question` without its text, a dispatch
+  route logs without the classifier's reason (the caller's progress line
+  keeps it), and a router fallback reason measures the router's text instead
+  of quoting it. The worker logs a job's size, not its title; the image,
+  inspect-image and X API tools and the memory service log sizes and ids
+  instead of prompts, paths, queries and facts. A consumer that parsed the
+  old `→ Tool: name(args)` line reads the tool name before ` by `. Results,
+  the ledger, the A2A status updates and `melchizedek-chat`'s own rendering
+  are unchanged.
+
 ### Added
 
 - **`melchizedek-mcp`: syndicates as MCP tools** (ADR 0125). A new bin
@@ -91,22 +114,6 @@ the starter pack and the templates), not the repo's full history.
   unsupported subscription entry is now level 10 (Claude.ai, Gemini CLI, the
   Codex CLI's login) and routes OpenAI to level 9. `ONBOARDING.md` and the
   onboarding skills follow.
-
-### Changed
-
-- **Server-side logs name tools, never their arguments.** The turn runner's
-  `log` line for a tool call (what `melchizedek-serve`, `melchizedek-mcp` and
-  `melchizedek-worker` print) is `→ Tool: <tool> by <agent> — args: <key
-  names> (<n> bytes)` instead of the arguments cut to 60 characters. A
-  question logs `⏸ <node> asks a question` without its text, a dispatch
-  route logs without the classifier's reason (the caller's progress line
-  keeps it), and a router fallback reason measures the router's text instead
-  of quoting it. The worker logs a job's size, not its title; the image,
-  inspect-image and X API tools and the memory service log sizes and ids
-  instead of prompts, paths, queries and facts. A consumer that parsed the
-  old `→ Tool: name(args)` line reads the tool name before ` by `. Results,
-  the ledger, the A2A status updates and `melchizedek-chat`'s own rendering
-  are unchanged.
 
 ## 1.2.0 — 2026-10-09
 

@@ -2088,7 +2088,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 5411
+        "words": 5421
       }
     },
     {
@@ -5780,7 +5780,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 1071
+        "lines": 1079
       }
     },
     {
