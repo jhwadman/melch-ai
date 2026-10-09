@@ -17,11 +17,13 @@ Gemini, Claude, GPT, Grok, and Kimi each run on the engine's own adapter for the
 - **Native tools** — Web search, image generation, and a blind image-inventory tool that accepts only a file path, so the expected result can never reach the observer.
 - **Agent-to-Agent (A2A) serving** — Serve any syndicate over HTTP as a JSON-RPC endpoint with bearer auth and rate limiting.
 - **Knowledge bundle** — `wiki/` documents the framework as an [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog) bundle; `lib/wiki/` builds, lints, and searches any such bundle (`npm run mcp:wiki` serves the tools to MCP clients).
-- **Coding agent skills** — Six skills in the open `SKILL.md` standard for Claude Code, Codex, Cursor, OpenCode, and Gemini CLI.
+- **Coding agent skills** — Eleven skills in the open `SKILL.md` standard for Claude Code, Codex, Cursor, OpenCode, and Gemini CLI, five of them for onboarding a user from whatever credentials they have.
 
 ---
 
 ## Quick Start
+
+Start with `npx melchizedek-setup` (in a clone, `npm run setup`). Tell it what you have (no key, one or several provider keys, a gateway key, Vertex AI / Bedrock / Azure access, a server to put in front of other people, or a ChatGPT, Claude or Gemini sign-in) and it prints the startup guide for that level: which variables to set, the doctor check, which shipped syndicates run, and the first command. `npx melchizedek-setup --auto` detects the level from your environment without printing any value. The guides are also in [ONBOARDING.md](./ONBOARDING.md).
 
 ### 1. Local-only (no API keys)
 
@@ -153,10 +155,11 @@ A Gemini id resolves to the engine's `GeminiAdapter` here, on `@google/genai`.
 
 ### CLI & Server Utilities
 
+- `npx melchizedek-setup`: The onboarding menu: pick what you have, get the startup guide for it (`--auto` detects it).
 - `npx melchizedek-chat --syndicate <name>`: Interactive CLI REPL for any syndicate.
 - `npx melchizedek-serve`: Serve your `./config/agents/` over HTTP via JSON-RPC.
 - `npx melchizedek-doctor`: Report which syndicates your keys unlock, without sending a request.
-- `npx melchizedek-skills install`: Install the agent skills into `.claude/skills/` and `.agents/skills/`.
+- `npx melchizedek-skills install`: Install the agent skills into `.claude/skills/` and `.agents/skills/` (`--agents-md` also points `AGENTS.md` at them).
 
 ---
 

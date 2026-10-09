@@ -165,6 +165,45 @@ export interface DoctorResult {
   counts: Record<VerdictState, number>;
   /** The OAuth setup, when any syndicate declares a grant or its variables are set. */
   oauth?: DoctorOAuth;
+  /** How each provider would be reached here: the providers line, as data. */
+  providers: ProviderPath[];
+  /** How the A2A server would authenticate and bill, when any of its variables is set. */
+  serving?: DoctorServing;
+}
+
+/**
+ * How one provider would be reached under this environment (the doctor's
+ * providers line): funded or not, directly or through the gateway, and on
+ * which platform. `melchizedek-setup --auto` reads its levels from this.
+ */
+export interface ProviderPath {
+  provider: ProviderId;
+  label: string;
+  funded: boolean;
+  transport: 'direct' | 'gateway';
+  /** The gateway id when transport is 'gateway'. */
+  gateway?: string;
+  /** `local` for Ollama; a cloud platform (vertex, bedrock, azure) or `direct` otherwise. */
+  platform: Platform | 'local';
+  keyEnv: string | null;
+}
+
+/**
+ * The A2A server's identity and billing settings (scripts/a2a_server.ts),
+ * names and presence only: which `A2A_AUTH` mode, whether the secret and the
+ * mode's own variables are set, and who pays (`A2A_KEY_MODE`).
+ */
+export interface DoctorServing {
+  /** A2A_AUTH as set, or `secret` (the server's default). */
+  auth: string;
+  /** True when A2A_AUTH is set explicitly. */
+  authDeclared: boolean;
+  /** A2A_KEY_MODE as set, or `server`. */
+  keyMode: string;
+  /** Which of the serving variables are set (never their values). */
+  set: Record<string, boolean>;
+  /** What the server would refuse to start on, by variable name. */
+  problems: string[];
 }
 
 export interface DoctorEndpoint {
@@ -239,6 +278,63 @@ export function endpointRows(): DoctorEndpoint[] {
     });
   }
   return rows;
+}
+
+/** One status per provider, probed with an id of its own prefix (the providers line). */
+export function providerPaths(): ProviderPath[] {
+  return (Object.keys(PROVIDERS) as ProviderId[]).map((p) => {
+    const r = describeCapabilities(PROBE_ID[p]);
+    return {
+      provider: p,
+      label: PROVIDERS[p].label,
+      funded: r.funded,
+      transport: r.transport,
+      ...(r.gateway ? { gateway: r.gateway } : {}),
+      platform: p === 'ollama' ? 'local' : (r.platform ?? 'direct'),
+      keyEnv: r.keyEnv,
+    };
+  });
+}
+
+/** The serving variables the doctor reports by presence. */
+export const SERVING_ENV = [
+  'A2A_AUTH',
+  'A2A_SERVER_SECRET',
+  'A2A_CALLERS',
+  'A2A_JWT_ISSUER',
+  'A2A_JWT_AUDIENCE',
+  'A2A_JWT_JWKS_URL',
+  'A2A_JWT_SECRET',
+  'A2A_TRUSTED_USER_HEADER',
+  'A2A_KEY_MODE',
+  'PUBLIC_URL',
+] as const;
+
+/**
+ * How the A2A server would authenticate callers and who would pay, from the
+ * environment; undefined when none of its variables is set. The checks are
+ * the ones scripts/a2a_server.ts stops on, reported by name.
+ */
+export function servingReport(env: NodeJS.ProcessEnv = process.env): DoctorServing | undefined {
+  const has = (name: string) => !!env[name]?.trim();
+  const set = Object.fromEntries(SERVING_ENV.map((name) => [name, has(name)]));
+  if (!Object.values(set).some(Boolean)) return undefined;
+  // A value outside the known modes is reported as `invalid`, never echoed:
+  // a secret pasted into the wrong variable must not reach the terminal.
+  const rawAuth = (env.A2A_AUTH ?? '').trim().toLowerCase() || 'secret';
+  const rawKeyMode = (env.A2A_KEY_MODE ?? '').trim().toLowerCase() || 'server';
+  const auth = ['secret', 'callers', 'jwt', 'header'].includes(rawAuth) ? rawAuth : 'invalid';
+  const keyMode = rawKeyMode === 'server' || rawKeyMode === 'byok' ? rawKeyMode : 'invalid';
+  const problems: string[] = [];
+  if (auth === 'invalid') problems.push('A2A_AUTH must be secret, callers, jwt or header');
+  if (auth === 'callers' && !has('A2A_CALLERS')) problems.push('A2A_AUTH=callers needs A2A_CALLERS');
+  if (auth === 'jwt' && (!has('A2A_JWT_ISSUER') || !has('A2A_JWT_AUDIENCE'))) problems.push('A2A_AUTH=jwt needs A2A_JWT_ISSUER and A2A_JWT_AUDIENCE');
+  if (auth === 'jwt' && !has('A2A_JWT_JWKS_URL') && !has('A2A_JWT_SECRET')) problems.push('A2A_AUTH=jwt needs A2A_JWT_JWKS_URL or A2A_JWT_SECRET');
+  if (auth === 'header' && (!has('A2A_TRUSTED_USER_HEADER') || !has('A2A_SERVER_SECRET'))) problems.push('A2A_AUTH=header needs A2A_TRUSTED_USER_HEADER and A2A_SERVER_SECRET');
+  if (keyMode !== 'server' && keyMode !== 'byok') problems.push("A2A_KEY_MODE must be 'server' or 'byok'");
+  if (has('PUBLIC_URL') && !has('A2A_AUTH')) problems.push('PUBLIC_URL is set, so A2A_AUTH must be set explicitly (with A2A_SERVED_AGENTS and A2A_TRUST_PROXY)');
+  if (auth === 'secret' && !has('A2A_SERVER_SECRET') && keyMode === 'byok') problems.push('A2A_KEY_MODE=byok without A2A_SERVER_SECRET (or caller tokens) serves unauthenticated, loopback only');
+  return { auth, authDeclared: has('A2A_AUTH'), keyMode, set, problems };
 }
 
 // ── Where to get a key ───────────────────────────────────────────────────────
@@ -597,7 +693,19 @@ export function runDoctor(options: {
   const set = Object.fromEntries([CREDENTIAL_KEY_ENV, OAUTH_REDIRECT_URI_ENV, OAUTH_HOSTS_ENV].map((name) => [name, !!process.env[name]?.trim()]));
   const oauth = grants.length || Object.values(set).some(Boolean) ? { set, problems: oauthEnvProblems(grants) } : undefined;
 
-  return { agentsDir, runtime: runtimeReport(), syndicates, unlocks, gateway, endpoints: endpointRows(), counts, ...(oauth ? { oauth } : {}) };
+  const serving = servingReport();
+  return {
+    agentsDir,
+    runtime: runtimeReport(),
+    syndicates,
+    unlocks,
+    gateway,
+    endpoints: endpointRows(),
+    counts,
+    ...(oauth ? { oauth } : {}),
+    providers: providerPaths(),
+    ...(serving ? { serving } : {}),
+  };
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
@@ -655,11 +763,10 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
   // Provider line: what is funded, and how. Each provider is probed with an
   // id of its own prefix, so the line names ITS key (a fallthrough once put
   // xAI's key beside Moonshot).
-  const providerBits = (Object.keys(PROVIDERS) as ProviderId[]).map((p) => {
-    const r = describeCapabilities(PROBE_ID[p]);
+  const providerBits = (result.providers ?? providerPaths()).map((r) => {
     const mark = !r.funded ? `${c.red}✗${c.reset}` : r.transport === 'gateway' ? `${c.yellow}◇${c.reset}` : `${c.green}✓${c.reset}`;
-    const how = !r.funded ? `${c.dim}${r.keyEnv} not set${c.reset}` : r.transport === 'gateway' ? `${c.dim}via gateway:${r.gateway}${c.reset}` : p === 'ollama' ? `${c.dim}local${c.reset}` : `${c.dim}${r.platform ?? 'direct'}${c.reset}`;
-    return `${mark} ${PROVIDERS[p].label} ${how}`;
+    const how = !r.funded ? `${c.dim}${r.keyEnv} not set${c.reset}` : r.transport === 'gateway' ? `${c.dim}via gateway:${r.gateway}${c.reset}` : r.platform === 'local' ? `${c.dim}local${c.reset}` : `${c.dim}${r.platform}${c.reset}`;
+    return `${mark} ${r.label} ${how}`;
   });
   lines.push('providers   ' + providerBits.join('   '));
   for (const e of result.endpoints ?? []) {
@@ -675,6 +782,14 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
         ? `gateway     ${c.red}✗${c.reset} ${result.gateway.problem}`
         : `gateway     ${c.yellow}◇${c.reset} ${result.gateway.label} fills in for any provider whose direct key is absent ${c.dim}(native search is lost on that path)${c.reset}`,
     );
+  }
+  if (result.serving) {
+    // Names only: the A2A identity mode, who pays, and what the server would refuse.
+    const sv = result.serving;
+    const mark = sv.problems.length ? `${c.red}✗${c.reset}` : `${c.green}✓${c.reset}`;
+    const set = Object.entries(sv.set).filter(([, on]) => on).map(([name]) => name).join(', ');
+    lines.push(`serving     ${mark} A2A_AUTH=${sv.auth}${sv.authDeclared ? '' : ' (default)'} · A2A_KEY_MODE=${sv.keyMode} ${c.dim}· set: ${set || 'none'}${c.reset}`);
+    for (const p of sv.problems) lines.push(`            ${c.red}✗ ${p}${c.reset}`);
   }
   if (result.oauth) {
     // Names only: which variables are set, never their values (ADR 0114).

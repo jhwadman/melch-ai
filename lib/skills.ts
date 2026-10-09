@@ -190,3 +190,63 @@ export function installSkills(opts: InstallOptions = {}): InstallResult[] {
   }
   return results;
 }
+
+// ── The AGENTS.md pointer ────────────────────────────────────────────────────
+
+/** The markers that delimit the block this installer owns inside AGENTS.md. */
+export const AGENTS_MD_BEGIN = '<!-- melchizedek-skills:begin -->';
+export const AGENTS_MD_END = '<!-- melchizedek-skills:end -->';
+
+/** The pointer: where the skills are, and the onboarding entry point. */
+export function agentsMdBlock(destinations: string[], projectRoot: string): string {
+  const where = destinations.map((d) => `\`${relative(projectRoot, d) || '.'}/\``).join(' and ');
+  return [
+    AGENTS_MD_BEGIN,
+    '## Melchizedek agent skills',
+    '',
+    `The melchizedek-agents skills are installed in ${where}, one directory per skill with a SKILL.md.`,
+    'To onboard someone, start with `melchizedek-onboard/SKILL.md`, or run `npx melchizedek-setup --auto`.',
+    'Never ask for an API key in chat and never print a value from `.env`: the person types keys into `.env` themselves.',
+    AGENTS_MD_END,
+  ].join('\n');
+}
+
+export interface AgentsMdResult {
+  path: string;
+  status: 'created' | 'appended' | 'updated' | 'unchanged';
+}
+
+/**
+ * Write the pointer into `<projectRoot>/AGENTS.md`, the instructions file
+ * Codex and other agents read: create the file when absent, append the block
+ * when the file has none, or replace only the block between the markers.
+ * Nothing outside the markers is ever changed.
+ */
+export function writeAgentsMdPointer(
+  projectRoot: string,
+  destinations: string[],
+  opts: { dryRun?: boolean } = {},
+): AgentsMdResult {
+  const path = join(resolve(projectRoot), 'AGENTS.md');
+  const block = agentsMdBlock(destinations, resolve(projectRoot));
+  let status: AgentsMdResult['status'];
+  let next: string;
+  if (!existsSync(path)) {
+    status = 'created';
+    next = `# AGENTS.md\n\n${block}\n`;
+  } else {
+    if (lstatSync(path).isSymbolicLink()) throw new Error(`refusing to write through a symlink: ${path}`);
+    const text = readFileSync(path, 'utf-8');
+    const start = text.indexOf(AGENTS_MD_BEGIN);
+    const end = text.indexOf(AGENTS_MD_END);
+    if (start !== -1 && end > start) {
+      next = text.slice(0, start) + block + text.slice(end + AGENTS_MD_END.length);
+      status = next === text ? 'unchanged' : 'updated';
+    } else {
+      next = `${text}${text.endsWith('\n') ? '' : '\n'}\n${block}\n`;
+      status = 'appended';
+    }
+  }
+  if (!opts.dryRun && status !== 'unchanged') writeFileSync(path, next);
+  return { path, status };
+}

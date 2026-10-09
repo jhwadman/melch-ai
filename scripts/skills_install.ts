@@ -16,6 +16,7 @@
  *   melchizedek-skills install --only melchizedek,melchizedek-scribe
  *   melchizedek-skills install --force      # overwrite files that differ
  *   melchizedek-skills install --dry-run
+ *   melchizedek-skills install --agents-md  # also point AGENTS.md at the skills
  *
  * Clone equivalent: npm run skills:install -- <same flags>.
  * Nothing is read from the network; nothing is written outside the chosen
@@ -29,6 +30,7 @@ import {
   destinationsFor,
   installSkills,
   listSkills,
+  writeAgentsMdPointer,
   type InstallOptions,
   type SkillTarget,
 } from '../lib/skills.ts';
@@ -37,7 +39,7 @@ const USAGE = `melchizedek-skills — install the Melchizedek agent-skills suite
 
   melchizedek-skills list
   melchizedek-skills paths
-  melchizedek-skills install [--for <targets>] [--global] [--dir <path>] [--only <skills>] [--force] [--dry-run]
+  melchizedek-skills install [--for <targets>] [--global] [--dir <path>] [--only <skills>] [--force] [--dry-run] [--agents-md]
 
   --for      comma list of: ${Object.keys(SKILL_TARGETS).join(', ')}, all   (default: ${DEFAULT_TARGETS.join(',')})
   --global   write to the home-directory locations instead of this project's
@@ -45,11 +47,15 @@ const USAGE = `melchizedek-skills — install the Melchizedek agent-skills suite
   --only     comma list of skill names (default: every skill)
   --force    overwrite a file that exists with different content
   --dry-run  print what would be written, write nothing
+  --agents-md  also write a pointer block into ./AGENTS.md (created if absent; only the
+             block between its markers is ever rewritten). Project installs only.
+
+Onboarding starts with the melchizedek-onboard skill, or: npx melchizedek-setup
 `;
 
-export function parseArgs(argv: string[]): { command: string; opts: InstallOptions } {
+export function parseArgs(argv: string[]): { command: string; opts: InstallOptions & { agentsMd?: boolean } } {
   const [command = 'help', ...rest] = argv.filter((a) => a !== '--');
-  const opts: InstallOptions = {};
+  const opts: InstallOptions & { agentsMd?: boolean } = {};
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     const next = (): string => {
@@ -65,6 +71,7 @@ export function parseArgs(argv: string[]): { command: string; opts: InstallOptio
     else if (a === '--only') opts.only = next().split(',').map((s) => s.trim()).filter(Boolean);
     else if (a === '--force') opts.force = true;
     else if (a === '--dry-run') opts.dryRun = true;
+    else if (a === '--agents-md') opts.agentsMd = true;
     else if (a === '-h' || a === '--help') return { command: 'help', opts };
     else throw new Error(`unknown flag ${a}`);
   }
@@ -115,6 +122,14 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     console.log(`    ${verb} ${r.written.length} file(s), ${r.unchanged.length} unchanged, ${r.skipped.length} skipped`);
     for (const f of r.written) console.log(`    + ${f}`);
     for (const f of r.skipped) console.log(`    ! ${f} exists with different content (use --force to overwrite)`);
+  }
+  if (opts.agentsMd) {
+    if (opts.global || opts.dir) {
+      console.error('✗ --agents-md writes ./AGENTS.md beside a project install; it is not used with --global or --dir');
+      return 2;
+    }
+    const r = writeAgentsMdPointer(process.cwd(), destinationsFor(opts), { dryRun: opts.dryRun });
+    console.log(`${opts.dryRun ? '○' : '✓'} ${r.path}: ${r.status}${opts.dryRun ? ' (dry run)' : ''}`);
   }
   if (!opts.dir) {
     const sample = destinationsFor(opts);

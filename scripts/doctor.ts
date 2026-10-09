@@ -11,7 +11,9 @@
  * removed that runtime). Lists the tools that need an OAuth grant (an
  * `auth: { oauth2 }` or `mcp_auth`, ADR 0112): each user's consent, or the
  * server's own client credentials and whether their variables are set
- * (names only). Closes with the env vars that would
+ * (names only). When any A2A identity or billing variable is set, a
+ * `serving` line names the A2A_AUTH mode and A2A_KEY_MODE and what the
+ * server would refuse to start on. Closes with the env vars that would
  * unlock the most, where to get each, and the first command to try.
  *
  * Read-only: never edits .env, never sends a request, never prints a key

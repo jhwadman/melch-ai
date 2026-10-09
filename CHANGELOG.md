@@ -6,6 +6,41 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **`melchizedek-setup`, the onboarding command** (new bin; `npm run setup`
+  in a clone). A menu of nine authentication levels (no key / local
+  Ollama, one provider's key, several, a gateway key, Vertex AI / Bedrock /
+  Azure credentials, per-caller keys when serving, caller identities
+  through `A2A_AUTH`, OAuth tool grants, and subscription sign-ins), each
+  with a startup guide: the variables to set (names and shapes only), the
+  doctor check, the shipped templates and examples that run there, and the
+  first commands. `--auto` reads the doctor's result and prints the guide
+  for the highest level it detects, never a value; `--level <id|n>` prints
+  one guide; `--write-env` creates `.env` from `.env.example` with the
+  level's names blank, never over an existing file and only when git
+  ignores `.env` (ADR 0123).
+- **`ONBOARDING.md`** ships in the package: the same guides, generated from
+  the same code (`npm run setup -- --markdown`).
+- **Five onboarding skills** in `skills/`: `melchizedek-onboard` (triage:
+  "what do you have?") and `melchizedek-onboard-local`, `-keys`, `-cloud`
+  and `-serve`. `npx melchizedek-skills install` puts them in
+  `.claude/skills/` and `.agents/skills/` with the rest of the suite.
+- **`melchizedek-skills install --agents-md`** also writes a pointer to the
+  skills into the project's `AGENTS.md` (created when absent; only the
+  block between its markers is ever rewritten).
+- **The doctor's `serving` line.** When any A2A identity or billing variable
+  is set, `npm run doctor` prints the `A2A_AUTH` mode, `A2A_KEY_MODE`,
+  which serving variables are set and what the server would refuse to start
+  on, by name. `--json` gains `providers` (the providers line as data) and
+  `serving`.
+
+### Not supported, on purpose
+
+- ChatGPT / Codex, Claude.ai and Gemini CLI subscription sign-ins are not a
+  way to fund the engine, and nothing reads their tokens. The setup menu's
+  level 9 says so and routes to each vendor's API key or cloud platform.
+
 ## 1.1.0 — 2026-10-09
 
 Release 1.1.0 closes workstream 6 of the ADK-independence plan (ADRs

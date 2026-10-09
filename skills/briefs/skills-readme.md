@@ -6,7 +6,7 @@ STRUCTURE (exact): an H1 `# Melchizedek agent skills`, then `##` sections in thi
 
 FACTS:
 What this is:
-- A suite of six Agent Skills (the open SKILL.md standard: one directory per skill, a SKILL.md with `name` and `description` frontmatter, optional supporting files) that teach a coding agent how to find, run, author, serve, remember with, and write with Melchizedek syndicates. They ship in the npm package melchizedek-agents and in the public repository, in `skills/`.
+- A suite of eleven Agent Skills (the open SKILL.md standard: one directory per skill, a SKILL.md with `name` and `description` frontmatter, optional supporting files) that teach a coding agent how to onboard a person from the credentials they have, and how to find, run, author, serve, remember with, and write with Melchizedek syndicates. They ship in the npm package melchizedek-agents and in the public repository, in `skills/`.
 The skills (name → what it teaches):
 - `melchizedek` → the entry point: where the syndicates are, what each starter-pack file does and costs, the doctor, running one interactively or one shot, and delegating a task from a coding agent.
 - `melchizedek-author` → designing or editing a syndicate YAML: layout, keys, instruction anatomy, tools by name, the two constraints that break a file, offline validation.
@@ -14,6 +14,8 @@ The skills (name → what it teaches):
 - `melchizedek-memory` → Supabase sessions and long-term memory: modes, schema, tools, extraction rules, inspection, erasure.
 - `melchizedek-models` → model ids and providers, keys, keyless Ollama, the gateway fallback, per-agent settings, the errors.
 - `melchizedek-scribe` → writing documents from a brief with the Scribe syndicate.
+- Five onboarding skills, written by hand rather than by the Scribe (they print their facts from `npx melchizedek-setup --level <id>`): `melchizedek-onboard` (triage to one of nine authentication levels), `melchizedek-onboard-local`, `melchizedek-onboard-keys`, `melchizedek-onboard-cloud`, `melchizedek-onboard-serve`.
+- `--agents-md` also writes a pointer block into the project's `AGENTS.md`.
 Install (three ways):
 - From the package, into this project's `.claude/skills/` and `.agents/skills/` (the two locations that between them reach Claude Code, Codex, Cursor, OpenCode and Gemini CLI): `npx melchizedek-skills install` after `npm install melchizedek-agents`. `--for <targets>` picks platforms from `claude, agents, codex, cursor, opencode, gemini, all`; `--global` writes the home-directory locations instead; `--dir <path>` writes one explicit directory; `--only <names>` installs a subset; `--force` overwrites a file that differs; `--dry-run` prints without writing. `npx melchizedek-skills paths` prints the locations; `npx melchizedek-skills list` prints the skills. In a clone: `npm run skills:install -- <same flags>`.
 - With the skills CLI from the public repository: `npx skills add jhwadman/melch-ai` lists the skills and installs the ones you choose into the agents you choose.
