@@ -7,7 +7,7 @@ tags:
   - tasks
 generated:
   by: process:wiki-build
-  at: 2026-10-08
+  at: 2026-10-09
 sources:
   - resource: lib/tools/taskTools.ts
   - resource: scripts/assistant_worker.ts
@@ -15,7 +15,7 @@ sources:
 
 # Task tools
 
-One store holds two kinds of record: `todo` (the user's own tasks: open → done | cancelled) and `background` (jobs: queued → running → done | failed). The store is a JSON file written atomically, at `MELCHIZEDEK_TASKS_FILE` or `outputs/tasks.json` under the working directory: deployment config, never YAML and never an argument. Every call re-reads it, so the conversation and the worker see each other's writes.
+One store holds two kinds of record: `todo` (the user's own tasks: open → done | cancelled) and `background` (jobs: queued → running → done | failed, and cancelled before or while they run). The store is a JSON file written atomically, at `MELCHIZEDEK_TASKS_FILE` or `outputs/tasks.json` under the working directory: deployment config, never YAML and never an argument. Every call re-reads it, so the conversation and the worker see each other's writes.
 
 <!-- wiki:generated section="contracts" source="lib/tools/taskTools.ts" -->
 | Tool | Arguments | Does |
@@ -27,6 +27,8 @@ One store holds two kinds of record: `todo` (the user's own tasks: open → done
 | `task_update` | `id`, `status?`, `title?`, `notes?`, `due?` | Change a task: mark it done, cancel it, reopen it, or edit its title, notes, or due date. |
 <!-- /wiki:generated -->
 
-**The tools never run a job.** A tool that runs agents is the composite the [tool contract](/tools/tool-contracts.md) refuses, so `task_queue` only writes a record, and `scripts/assistant_worker.ts` (`npm run assistant:worker`; `melchizedek-worker` in the package) runs it: it claims the oldest queued job, runs its instruction as a fresh single turn through `runSyndicateTurn` (`lib/runtime/syndicateTurn.ts`) with one agent, on a fresh in-process store and the engine's [native loop](/overview/native-loop.md), and writes the result or the error back for `task_get`. The agent defaults to the [Assistant](/agents/assistant.md)'s Worker; `--syndicate <file> --agent <name>` picks any syndicate and agent. A job left running by a dead worker is re-queued at the next start and failed after two interruptions; a job that runs past ten minutes is aborted and recorded as failed. Run one worker per store: the claim is a read-modify-write, not a lock.
+**The tools never run a job.** A tool that runs agents is the composite the [tool contract](/tools/tool-contracts.md) refuses, so `task_queue` only writes a record, and `scripts/assistant_worker.ts` (`npm run assistant:worker`; `melchizedek-worker` in the package) runs it: it claims the oldest queued job, runs its instruction as a single turn through `runDurableTurn` (`lib/runtime/native/checkpoint.ts`), which calls `runSyndicateTurn` (`lib/runtime/syndicateTurn.ts`) with one agent on a fresh in-process store and the engine's [native loop](/overview/native-loop.md), and writes the result or the error back for `task_get`. The agent defaults to the [Assistant](/agents/assistant.md)'s Worker; `--syndicate <file> --agent <name>` picks any syndicate and agent. A job that runs past ten minutes is aborted and recorded as failed. Run one worker per store: the claim is a read-modify-write, not a lock.
+
+**A run is durable** ([ADR 0113](/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md)). At every step boundary (a stored tool response with no call left unanswered) the worker checkpoints the run's sessions beside the job, never inside its record: `<store>.checkpoints.json` next to the JSON file, the `checkpoint` column on Postgres (migration 0014). A job claimed again resumes from its last checkpoint and takes the next step instead of starting over; a dispatch run classifies its route again, and one checkpointed inside an agent route starts over. A job left running by a dead worker is re-queued at the next start (on Postgres, once its lease runs out) and failed after two interruptions; SIGTERM aborts the step in flight and re-queues the job with its checkpoint. `task_update` may cancel a running job: its claim ends, the worker sees that at its next lease renewal or checkpoint save, aborts the run and writes no result over the cancellation. A checkpoint lives only while its job is running or queued.
 
 Exposure: the default store is one file with no caller identity, so on a shared A2A endpoint every caller would share one list; on that store a syndicate carrying these tools is for one person's machine. With `DATABASE_URL` the server and the worker use Postgres instead (migration 0009): each tool call is filed under its caller's scope key, so every caller has their own list and ids, and any number of workers claim jobs with `FOR UPDATE SKIP LOCKED` under a lease they renew; a job whose worker died is queued again, or failed after two attempts. A job result is the worker's output and reaches the Assistant as material to report, never as instructions.

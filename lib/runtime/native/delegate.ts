@@ -34,10 +34,20 @@
  *      schema it is parsed as JSON; text that does not parse fails the call
  *      with the parser's message, as on ADK.
  *
- * A PAUSE INSIDE A SUBAGENT (an ask_user call, an approval request) cannot
- * reach the caller, exactly as under ADK (ADR 0028): the child run ends
- * paused, its last event carries no text, the call answers '', and the gated
- * tool never runs. WS6-2a lifts this.
+ * A PAUSE INSIDE A SUBAGENT (an ask_user call, an approval request, or a
+ * pause inside its own delegated call) reaches the caller (ADR 0110, which
+ * lifts ADR 0028's refusal). The child run ends paused; the call resolves to
+ * a SubagentPause naming the ids it waits on, and the caller stores no
+ * response to it: the call stays open, and the caller's run ends paused too
+ * (agentLoop.ts). The turn finds the pause by walking down the open calls
+ * (interrupts.ts delegatedPauses) and reports it with the agent path. The
+ * answer comes back as the caller's next user message; the caller resumes
+ * the open call (resumeSubagent), which stores the same answer parts as
+ * the child's next message, under a fresh invocation id, and runs the
+ * child's loop on: it reads the answer from its own session as a top-level
+ * agent reads it (an approval runs or refuses its pinned call, a question's
+ * answer is the call's response), finishes, and its answer is the open
+ * call's response. A child that pauses again leaves the call open again.
  *
  * Calls to subagents in one step run one after another, in call order, as
  * ADK runs them; running them concurrently is WS6.
@@ -71,7 +81,7 @@ import { randomUUID } from 'node:crypto';
 import type { ModelAdapter, ToolDeclaration } from '../../models/contract.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import type { Tool, ToolContext } from '../../tools/tool.ts';
-import type { TurnContent, TurnEvent } from '../events.ts';
+import type { TurnContent, TurnEvent, TurnPart } from '../events.ts';
 import { createTurnEvent } from '../events.ts';
 import { TEMP_STATE_PREFIX } from '../sessions.ts';
 import type { Session, SessionService } from '../sessions.ts';
@@ -177,6 +187,18 @@ export function subagentOf(tool: unknown): NativeAgent | undefined {
 
 // ── Running one call ─────────────────────────────────────────────────────────
 
+/**
+ * A delegated call whose child run ended paused (ADR 0110): the ids the
+ * child waits on. The caller stores no response to the call and ends its
+ * own run paused.
+ */
+export class SubagentPause {
+  readonly pending: readonly string[];
+  constructor(pending: readonly string[]) {
+    this.pending = pending;
+  }
+}
+
 /** What a delegated call needs from its caller's step. */
 export interface DelegationScope {
   /** The caller's loop context: its session, store, adapters, memory, signal. */
@@ -240,13 +262,23 @@ function recordState(event: TurnEvent, context: ToolContext): void {
  * throws, and for an output-schema answer that does not parse.
  */
 export function runSubagent(agent: NativeAgent, args: Record<string, unknown>, context: ToolContext, scope: DelegationScope): Promise<unknown> {
-  return inTurn(scope.queue, () => runChild(agent, args, context, scope));
+  return inTurn(scope.queue, () => runChild(agent, { role: 'user', parts: [{ text: args.request as string }] }, context, scope));
 }
 
-async function runChild(agent: NativeAgent, args: Record<string, unknown>, context: ToolContext, scope: DelegationScope): Promise<unknown> {
+/**
+ * Resumes a delegated call the child left paused (ADR 0110): `answer` (the
+ * caller's user message parts that answer what waits below the call) is
+ * stored as the child's next message and the child's loop runs on, as
+ * runSubagent runs it. Resolves as runSubagent does, a SubagentPause again
+ * when the child pauses again.
+ */
+export function resumeSubagent(agent: NativeAgent, answer: TurnPart[], context: ToolContext, scope: DelegationScope): Promise<unknown> {
+  return inTurn(scope.queue, () => runChild(agent, { role: 'user', parts: answer }, context, scope));
+}
+
+async function runChild(agent: NativeAgent, content: TurnContent, context: ToolContext, scope: DelegationScope): Promise<unknown> {
   const { ctx, signal } = scope;
   const { sessions } = ctx;
-  const content: TurnContent = { role: 'user', parts: [{ text: args.request as string }] };
 
   const session = await childSession(agent.name, context, scope);
   if (signal?.aborted) return '';
@@ -265,19 +297,28 @@ async function runChild(agent: NativeAgent, args: Record<string, unknown>, conte
     // plugins, so a subagent's own errors are not retried (ADR 0075).
     selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
     ...(ctx.memory ? { memory: ctx.memory } : {}),
-    // The parent's grants, pinned to the root's app (ADR 0072). Not its consent step: a subagent's
-    // pause would end inside the call, as ADK's AgentTool swallows it (ADR 0085).
+    // The parent's grants, pinned to the root's app (ADR 0072). Not its consent step: an OAuth
+    // consent inside a subagent is not carried to the caller (ADR 0085, ADR 0110).
     ...(ctx.credentials ? { credentials: ctx.credentials } : {}),
     ...(ctx.signal ? { signal: ctx.signal } : {}),
     ...(ctx.adapterFor ? { adapterFor: ctx.adapterFor } : {}),
     ...(ctx.log ? { log: ctx.log } : {}),
   });
   let last: TurnEvent | undefined;
-  for await (const event of loop) {
+  for (;;) {
+    const next = await loop.next();
+    if (next.done) {
+      // A child that ended waiting on a person leaves the call open (ADR 0110).
+      if (next.value.reason === 'paused' && !signal?.aborted) return new SubagentPause(next.value.pending ?? []);
+      break;
+    }
     // ADK's Runner stops yielding once the turn stopped: the answer is the last event it yielded.
-    if (signal?.aborted) break;
-    recordState(event, context);
-    last = event;
+    if (signal?.aborted) {
+      await loop.return(undefined as never);
+      break;
+    }
+    recordState(next.value, context);
+    last = next.value;
   }
   return answerOf(agent, last);
 }

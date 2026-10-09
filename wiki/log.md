@@ -3,6 +3,46 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ module:lib/storage/postgres/taskStore.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ table:melchizedek_tasks
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ module:scripts/assistant_worker.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —explains→ module:lib/runtime/native/checkpoint.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —depends_on→ /decisions/0015-task-queue-and-worker.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md —depends_on→ /decisions/0077-native-approvals-port-the-confirmation-processor.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md —supersedes→ /decisions/0028-approval-gates.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md —supersedes→ /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | module:lib/tools/oauthTools.ts —depends_on→ module:lib/tools/credentialEnv.ts
 
 by claude-code/claude-opus-5-5

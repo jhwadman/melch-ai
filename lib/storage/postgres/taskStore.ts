@@ -8,6 +8,16 @@
  * default resolver reads the authenticated user name), so one caller cannot
  * load or list another's task. `list` mirrors the SDK's InMemoryTaskStore:
  * same filters, same newest-first order, same page-token format.
+ *
+ * Cancel across replicas (migration 0014, ADR 0113). The SDK cancels a task
+ * through its own event bus when the task runs on this instance; otherwise
+ * it writes `canceled` into this store itself. When the row is still leased
+ * to another live instance, that write also stamps `cancel_requested_at`
+ * and leaves the lease with the instance running the task: its heartbeat
+ * (`cancelRequestedTasks`) finds the request and aborts the run. From then
+ * on the row stays `canceled` — the running instance's later saves renew or
+ * clear its lease but never overwrite the state it reported — so a client
+ * told `canceled` is never later shown `completed`.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -44,6 +54,29 @@ export interface TaskLease {
 /** States in which a task is being worked on by some instance. */
 const RUNNING = new Set<number>([TaskState.TASK_STATE_SUBMITTED, TaskState.TASK_STATE_WORKING]);
 
+/** SQL: the stored row is a running task leased to another live instance. */
+const HELD_ELSEWHERE = `(adk_a2a_tasks.lease_owner IS NOT NULL
+   AND adk_a2a_tasks.lease_owner IS DISTINCT FROM $12::text
+   AND adk_a2a_tasks.lease_until > now()
+   AND adk_a2a_tasks.state = ANY($14::int[]))`;
+/** SQL: this save is a cancel, written by an instance not running the task. */
+const CANCEL_FROM_ELSEWHERE = `($6::int = $13::int AND ${HELD_ELSEWHERE})`;
+/** SQL: a cancel was reported for the row; its state stays `canceled`. */
+const CANCEL_REPORTED = `(adk_a2a_tasks.cancel_requested_at IS NOT NULL AND adk_a2a_tasks.state = $13::int)`;
+
+/**
+ * Ids of the running tasks leased to this instance that a caller asked,
+ * through another instance, to cancel. The lease heartbeat aborts each.
+ */
+export async function cancelRequestedTasks(pool: Pool, lease: TaskLease): Promise<string[]> {
+  const r = await pool.query(
+    `SELECT id FROM adk_a2a_tasks
+     WHERE lease_owner = $1 AND lease_until IS NOT NULL AND cancel_requested_at IS NOT NULL`,
+    [lease.instanceId],
+  );
+  return r.rows.map((row) => String(row.id));
+}
+
 /** Extends every lease this instance holds. Returns how many it renewed. */
 export async function renewTaskLeases(pool: Pool, lease: TaskLease): Promise<number> {
   const r = await pool.query(
@@ -60,20 +93,31 @@ const ORPHANED = 'The server running this task stopped before it finished; send 
 /**
  * Marks running tasks whose lease expired (their instance died) as failed,
  * with a message saying so. Any instance may run it: rows are claimed with
- * SKIP LOCKED, so two reapers never fail the same task twice. Returns how
- * many it failed.
+ * SKIP LOCKED, so two reapers never fail the same task twice. A task whose
+ * cancel was already reported keeps `canceled`: only its lease is cleared.
+ * Returns how many it failed.
  */
 export async function reapExpiredTasks(pool: Pool, limit = 100): Promise<number> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const r = await client.query(
-      `SELECT tenant, owner, agent_id, id, task FROM adk_a2a_tasks
+      `SELECT tenant, owner, agent_id, id, task, state FROM adk_a2a_tasks
        WHERE lease_until IS NOT NULL AND lease_until < now()
        ORDER BY lease_until LIMIT $1 FOR UPDATE SKIP LOCKED`,
       [limit],
     );
+    let failed = 0;
     for (const row of r.rows) {
+      if (!RUNNING.has(Number(row.state))) {
+        await client.query(
+          `UPDATE adk_a2a_tasks SET lease_owner = NULL, lease_until = NULL, cancel_requested_at = NULL
+           WHERE tenant = $1 AND owner = $2 AND agent_id = $3 AND id = $4`,
+          [row.tenant, row.owner, row.agent_id, row.id],
+        );
+        continue;
+      }
+      failed += 1;
       const task = row.task as { id: string; contextId?: string; status?: unknown };
       const timestamp = new Date().toISOString();
       task.status = {
@@ -91,13 +135,13 @@ export async function reapExpiredTasks(pool: Pool, limit = 100): Promise<number>
       };
       await client.query(
         `UPDATE adk_a2a_tasks SET task = $5::jsonb, state = $6, status_ts = $7, updated_at = now(),
-                lease_owner = NULL, lease_until = NULL
+                lease_owner = NULL, lease_until = NULL, cancel_requested_at = NULL
          WHERE tenant = $1 AND owner = $2 AND agent_id = $3 AND id = $4`,
         [row.tenant, row.owner, row.agent_id, row.id, JSON.stringify(task), TaskState.TASK_STATE_FAILED, timestamp],
       );
     }
     await client.query('COMMIT');
-    return r.rows.length;
+    return failed;
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     throw err;
@@ -140,14 +184,27 @@ export class PostgresTaskStore implements TaskStore {
     const t = task as { id: string; contextId?: string; status?: { state?: number; timestamp?: string } };
     // A running task is leased to this instance; any other state holds none.
     const leased = !!this.lease && RUNNING.has(t.status?.state ?? -1);
+    // On conflict, three cases (see the header): a cancel written by an
+    // instance not running the task records the request and leaves the lease
+    // where it is; a row whose cancel was reported keeps its content while
+    // the running instance renews or clears the lease; anything else is the
+    // plain upsert. A pending request survives while the task runs and is
+    // cleared when it stops.
     await this.pool.query(
       `INSERT INTO adk_a2a_tasks (tenant, owner, agent_id, id, context_id, state, status_ts, task, updated_at, expire_at, lease_owner, lease_until)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, now(), $9, $10,
                CASE WHEN $10::text IS NULL THEN NULL ELSE now() + ($11::int * interval '1 millisecond') END)
        ON CONFLICT (tenant, owner, agent_id, id) DO UPDATE
-         SET context_id = EXCLUDED.context_id, state = EXCLUDED.state, status_ts = EXCLUDED.status_ts,
-             task = EXCLUDED.task, updated_at = now(), expire_at = EXCLUDED.expire_at,
-             lease_owner = EXCLUDED.lease_owner, lease_until = EXCLUDED.lease_until`,
+         SET context_id = CASE WHEN ${CANCEL_REPORTED} THEN adk_a2a_tasks.context_id ELSE EXCLUDED.context_id END,
+             state = CASE WHEN ${CANCEL_REPORTED} THEN adk_a2a_tasks.state ELSE EXCLUDED.state END,
+             status_ts = CASE WHEN ${CANCEL_REPORTED} THEN adk_a2a_tasks.status_ts ELSE EXCLUDED.status_ts END,
+             task = CASE WHEN ${CANCEL_REPORTED} THEN adk_a2a_tasks.task ELSE EXCLUDED.task END,
+             updated_at = now(), expire_at = EXCLUDED.expire_at,
+             lease_owner = CASE WHEN ${CANCEL_FROM_ELSEWHERE} THEN adk_a2a_tasks.lease_owner ELSE EXCLUDED.lease_owner END,
+             lease_until = CASE WHEN ${CANCEL_FROM_ELSEWHERE} THEN adk_a2a_tasks.lease_until ELSE EXCLUDED.lease_until END,
+             cancel_requested_at = CASE WHEN ${CANCEL_FROM_ELSEWHERE} THEN now()
+                                        WHEN EXCLUDED.lease_owner IS NOT NULL THEN adk_a2a_tasks.cancel_requested_at
+                                        ELSE NULL END`,
       [
         tenant,
         owner,
@@ -160,8 +217,29 @@ export class PostgresTaskStore implements TaskStore {
         new Date(Date.now() + this.ttlMs).toISOString(),
         leased ? this.lease!.instanceId : null,
         this.lease?.ttlMs ?? 0,
+        this.lease?.instanceId ?? null,
+        TaskState.TASK_STATE_CANCELED,
+        [...RUNNING],
       ],
     );
+  }
+
+  /**
+   * Asks the instance running a task to cancel it, without changing the
+   * task: stamps `cancel_requested_at` on the caller's own row (scoped as
+   * `load` is) while it is running and leased. The running instance's lease
+   * heartbeat aborts the run, which then ends `canceled`. Returns whether a
+   * running task of this caller's was found.
+   */
+  async requestCancel(taskId: string, context: Context): Promise<boolean> {
+    const [tenant, owner] = this.scope(context);
+    const r = await this.pool.query(
+      `UPDATE adk_a2a_tasks SET cancel_requested_at = now()
+       WHERE tenant = $1 AND owner = $2 AND agent_id = $3 AND id = $4
+         AND lease_until IS NOT NULL AND state = ANY($5::int[])`,
+      [tenant, owner, this.agentId, taskId, [...RUNNING]],
+    );
+    return (r.rowCount ?? 0) > 0;
   }
 
   async load(taskId: string, context: Context): Promise<Task | undefined> {

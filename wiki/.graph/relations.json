@@ -2800,6 +2800,88 @@
       "evidence": "lib/tools/oauthTools.ts header: the variable names pass credentialEnvProblem (lib/tools/credentialEnv.ts), so a YAML cannot send a framework secret to a token endpoint.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0110 Context and the dated note on ADR 0074: \"ADR 0110 supersedes Decision 3\" (a pause inside a subagent stays swallowed).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 3 only"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0028: \"ADR 0110 supersedes item 3's refusal for delegated subagents and nested delegate syndicates\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "item 3, for delegated subagents and nested delegate syndicates only"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0110 Decision 5: the child \"binds the decision to the pinned call (every IntentMismatchError check applies)\" through approvedCalls.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0110 Decisions 2 and 5: delegatedPauses walks the open calls into child sessions; resumedDelegations matches the answer by interrupt id.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0110 Decisions 1 and 5: a paused child resolves the call to a SubagentPause; resumeSubagent stores the answer as the child's next message.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0015-task-queue-and-worker.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0113 Context: \"ADR 0015 runs background work as a queue the tools write and a worker drains\"; durable runs extend that queue and worker.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "explains",
+      "evidence": "ADR 0113 Decision: \"lib/runtime/native/checkpoint.ts wraps the in-process store a job runs on\" and checkpoints at each step boundary.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0113 Decision: SIGTERM re-queues the job with its checkpoint, and a cancelled job loses its claim and gets no result written over it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "table:melchizedek_tasks",
+      "rel": "constrains",
+      "evidence": "ADR 0113: the checkpoint is stored beside the job in melchizedek_tasks.checkpoint and lives only while the job is running or queued.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/storage/postgres/taskStore.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0113: a cross-replica cancel is recorded in adk_a2a_tasks.cancel_requested_at and the stored task stays canceled whatever the running instance saves.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

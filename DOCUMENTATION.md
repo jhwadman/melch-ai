@@ -182,8 +182,8 @@ function, and every adapter recognises it by marker
 | `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive delegation, where a subagent returns only its final text. |
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
-| `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Orchestrator or plan-dispatch route only (§6, Questions). |
-| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. |
+| `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Any agent but a workflow node's; inside a delegated subagent the question reaches the person with the agent path (§6, Questions). |
+| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. |
 
 **MCP tools** are the exception to the registry: a subagent with
 `mcp_server_url:` in its YAML gets its tools from a remote MCP server at
@@ -795,12 +795,17 @@ without it. A message that is not an answer gets the same request back,
 without a model call. The paused call and its arguments are pinned, so an
 approval cannot run a different call.
 
-Gates are allowed on the orchestrator and on the subagents of a
-plan-dispatch syndicate, which run as the turn's own agent, and on the
-agent nodes of a workflow (§6). A delegated
-subagent runs inside a tool call, where a pause cannot reach the caller, so a
-gate there is a load error, as is any gate inside a nested `yaml_reference`
-syndicate. Only function tools from the registry can be gated, not MCP tools
+Gates are allowed on the orchestrator, on the subagents of a plan-dispatch
+syndicate, on the agent nodes of a workflow (§6), and on a delegated
+subagent, at any depth of nested delegate syndicates
+([ADR 0110](./wiki/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md)).
+A delegated subagent's gate pauses the whole turn: the call that reached it
+stays open, the request carries `path` (the agents from the turn's own down
+to the one that asked, e.g. `["Desk", "Mailer"]`, in the data part and in
+`approval.path`), and the decision goes back down to that subagent, which
+runs or refuses the call and finishes before its caller continues. A gate
+inside a nested workflow or nested dispatch syndicate is still a load error,
+as are skill scripts on a delegated subagent. Only function tools from the registry can be gated, not MCP tools
 or native-search sentinels. In code, `runSyndicateTurn` returns
 `status: 'input-required'` with `approval`, and the next turn's part
 `approvalResponsePart(approval.id, approved)` answers it.
@@ -827,12 +832,14 @@ call's result, and the agent resumes its own tool loop where it asked. A
 workflow's `ask_user` node (§6, Workflows) publishes the same data part and
 is answered the same way, so a client handles both alike.
 
-`ask_user` is allowed where an approval gate is: the orchestrator and the
+`ask_user` is allowed where an approval gate is: the orchestrator, the
 subagents of a plan-dispatch syndicate (a dispatch turn that answers goes
-straight back to the route that asked, without the classifier). A delegated
-subagent or a workflow node listing it is a load error. In code,
+straight back to the route that asked, without the classifier), and a
+delegated subagent, whose question carries `path` and whose answer goes back
+down to it (ADR 0110). A workflow node listing it is a load error. In code,
 `runSyndicateTurn` returns `status: 'input-required'` with `input`
-(`node`, `message`, `payload`), and the next message's text answers it.
+(`node`, `message`, `payload`, and `path` for a delegated subagent's
+question), and the next message's text answers it.
 
 #### OAuth consent for tools
 
