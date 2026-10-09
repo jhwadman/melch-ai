@@ -113,6 +113,16 @@
  * leaves its pause record as the conversation's last event (routePause).
  * A delegated nested workflow's node that is one is followed the same way.
  *
+ * CONSENT AND SKILL SCRIPTS INSIDE DELEGATED SUBAGENTS (ADR 0118). A skill
+ * script run asks for approval through the same `adk_request_confirmation`
+ * call a gated tool stores, so the walk and the resume above carry it with
+ * nothing of its own. An OAuth consent request (`adk_request_credential`)
+ * the subagent left open in its child session is a pause too: the walk
+ * reports it with the path (pendingConsent), the turn runner stores the
+ * grant's answer once the callback has stored the grant, and the open
+ * call carries that answer down as it carries an approval decision; the
+ * child's own grantedCalls binds it and runs its paused call again.
+ *
  * ADK stays out of this file: an ADK tool an agent still lists is asked
  * whether it gates through its own checkRequireConfirmation, by shape.
  */
@@ -126,6 +136,8 @@ import { inputRequestFrom } from '../../workflowConfig.ts';
 import type { PendingInput } from '../../workflowConfig.ts';
 import { approvalRequestOf, pendingApproval } from '../approvals.ts';
 import type { PendingApproval } from '../approvals.ts';
+import { pendingConsent } from '../credentials.ts';
+import type { PendingConsent } from '../credentials.ts';
 import { getFunctionCalls, getFunctionResponses } from '../events.ts';
 import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import { ASK_USER, pendingQuestion } from '../questions.ts';
@@ -374,6 +386,8 @@ export interface DelegatedPause {
   approval?: PendingApproval;
   /** The question, when the asker waits on one; its `path` is set. */
   question?: PendingInput;
+  /** The OAuth consent request, when the asker waits for a grant (ADR 0118); its `path` is set. */
+  consent?: PendingConsent;
 }
 
 /** Where a session's delegated calls opened their child sessions: the store, and the caller's user and session ids. */
@@ -453,6 +467,9 @@ async function pauseBelow(key: DelegationKey, caller: string, call: TurnFunction
   if (approval && approval.agent === name) return { path: here, callIds: [id], approval: { ...approval, path: here } };
   const question = pendingQuestion(child.events);
   if (question && question.node === name) return { path: here, callIds: [id], question: { ...question, path: here } };
+  // Only the subagent's own request counts (pendingConsent already skips a user-authored one).
+  const consent = pendingConsent(child.events);
+  if (consent && consent.agent === name) return { path: here, callIds: [id], consent: { ...consent, path: here } };
   const [first] = await delegatedPauses({ ...key, appName: child.appName, delegated: true }, child.events, name, depth + 1, new Set([...seen, name]));
   if (!first) return undefined;
   const path = [caller, ...first.path];
@@ -461,6 +478,7 @@ async function pauseBelow(key: DelegationKey, caller: string, call: TurnFunction
     callIds: [id, ...first.callIds],
     ...(first.approval ? { approval: { ...first.approval, path } } : {}),
     ...(first.question ? { question: { ...first.question, path } } : {}),
+    ...(first.consent ? { consent: { ...first.consent, path } } : {}),
   };
 }
 
@@ -597,9 +615,9 @@ export async function delegatedPauses(
   return out;
 }
 
-/** The interrupt a delegated pause waits on: the approval request's id, or the question's. */
+/** The interrupt a delegated pause waits on: the approval request's id, the question's, or the consent request's. */
 export function interruptIdOf(pause: DelegatedPause): string | undefined {
-  return pause.approval?.id ?? pause.question?.id;
+  return pause.approval?.id ?? pause.question?.id ?? pause.consent?.id;
 }
 
 /** The open delegated calls the latest user message resumes, and the ones still waiting after it. */
@@ -618,10 +636,11 @@ export interface ResumedDelegations {
  * The delegated calls `agent` left open that the latest user message
  * answers (ADR 0110): the message's approval decisions and question
  * answers (function responses to `adk_request_confirmation` or `ask_user`)
- * matched, by interrupt id, to the pause below each open call. Undefined
- * when the message answers none. The child binds the answer itself: an
- * approval is checked against its pinned call there (approvedCalls), as at
- * the top.
+ * and grants (to `adk_request_credential`, ADR 0118) matched, by interrupt
+ * id, to the pause below each open call. Undefined when the message answers
+ * none. The child binds the answer itself: an approval is checked against
+ * its pinned call there (approvedCalls), a grant against its request
+ * (grantedCalls), as at the top.
  */
 export async function resumedDelegations(agent: NativeAgent, scope: Scope, sessions: Pick<SessionService, 'get'>): Promise<ResumedDelegations | undefined> {
   const events = scope.session.events;
@@ -630,7 +649,7 @@ export async function resumedDelegations(agent: NativeAgent, scope: Scope, sessi
   if (!latest) return undefined;
   const answerParts = (latest.content?.parts ?? []).filter((p) => {
     const r = p.functionResponse;
-    return !!r?.id && (r.name === REQUEST_CONFIRMATION_CALL || r.name === ASK_USER);
+    return !!r?.id && (r.name === REQUEST_CONFIRMATION_CALL || r.name === ASK_USER || r.name === REQUEST_CREDENTIAL_CALL);
   });
   if (answerParts.length === 0) return undefined;
   const pauses = await delegatedPauses(

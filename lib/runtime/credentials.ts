@@ -38,6 +38,12 @@ export interface PendingConsent {
   /** The state nonce the URL carries. */
   state: string;
   scopes: string[];
+  /**
+   * For a call paused inside a delegated subagent (ADR 0118): the agents
+   * from the turn's own agent down to the one that asked, `agent` last.
+   * Absent when the turn's own agent asked.
+   */
+  path?: string[];
 }
 
 const partsOf = (e: Event) => (e.content?.parts ?? []) as Array<Record<string, any>>;

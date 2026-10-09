@@ -46,8 +46,8 @@ export type OAuthHostAllowlist = Readonly<Record<string, readonly string[]>>;
 const LABEL = /^[a-z0-9-]{1,63}$/;
 const IPV6 = /^\[[0-9a-f:.]{2,45}\]$/;
 
-/** Why `pattern` is not a host the allowlist can hold, or null. */
-function hostPatternProblem(pattern: string): string | null {
+/** Why `pattern` is not a host an allowlist can hold, or null (lowercased, trimmed). Also lib/tools/credentialHosts.ts. */
+export function hostPatternProblem(pattern: string): string | null {
   if (pattern.length > 253) return 'is longer than 253 characters';
   if (IPV6.test(pattern)) return null;
   const name = pattern.startsWith('*.') ? pattern.slice(2) : pattern;

@@ -43,6 +43,74 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —depends_on→ /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/doctor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/a2a/oauthSetup.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/oauthConsent.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/oauthTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/openapiTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/tools/credentialUses.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/tools/credentialHosts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —explains→ syndicate:systems_operator
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —explains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —depends_on→ /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —supersedes→ /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —depends_on→ /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —supersedes→ /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | syndicate:council —depends_on→ /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md
 
 by claude-code/claude-opus-5-5
@@ -76,6 +144,7 @@ by claude-code/claude-opus-5-5
 by claude-code/claude-opus-5-5
 
 ## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —explains→ module:lib/agentDialect.ts
+
 ## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —constrains→ module:lib/syndicateSchema.ts
 
 by claude-code/claude-opus-5-5

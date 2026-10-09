@@ -150,7 +150,7 @@ test('a request the user moved on from is no longer pending', () => {
   assert.equal(pendingApproval([request, moved]), undefined);
 });
 
-test('the schema: gates only on tools the agent has, on a delegated subagent too (ADR 0110)', () => {
+test('the schema: gates only on tools the agent has, on a delegated subagent too (ADR 0110, ADR 0118)', () => {
   const base = delegateConfig() as any;
   assert.doesNotThrow(() => validateSyndicateConfig(structuredClone(base), 'ok'));
   const unknown = structuredClone(base);
@@ -159,8 +159,9 @@ test('the schema: gates only on tools the agent has, on a delegated subagent too
   const delegated = structuredClone(base);
   delegated.subagents = [{ name: 'Helper', description: 'd', model: 'm', instruction: 'i', tools: ['approval_test_send'], require_approval: ['approval_test_send'] }];
   assert.doesNotThrow(() => validateSyndicateConfig(delegated, 'x'));
-  delegated.subagents[0].skills = { scripts: 'local' };
-  assert.throws(() => validateSyndicateConfig(delegated, 'x'), /skill scripts on a delegated subagent are not supported yet/);
+  // Skill scripts on a delegated subagent pause the turn as its gates do (ADR 0118).
+  delegated.subagents[0].skills = { dir: 'skills', scripts: 'local' };
+  assert.doesNotThrow(() => validateSyndicateConfig(delegated, 'x'));
 });
 
 test('storage keeps a stored function call replayable with Gemini\'s skip signature', () => {

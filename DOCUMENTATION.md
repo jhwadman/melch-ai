@@ -238,7 +238,12 @@ with no allowlist, `authorization_code` is refused. An unset variable fails the 
 (the database URL, a provider key, an `A2A_` secret: anything `.env.example`
 documents), since the YAML chooses the host it goes to.
 `OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`
-may name. A refused or unset variable fails the compile, and a static token is applied to the request,
+may name. `MELCHIZEDEK_CREDENTIAL_HOSTS` binds each such variable to the hosts
+its value may reach (`TRACKER_TOKEN=api.tracker.example.com;…`, or
+`createA2AApp({ credentialHosts })`, [ADR 0122](./wiki/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md)):
+unset, a credential goes where the YAML says and the server and the doctor
+name it as unbound; set, it is the whole list, checked when a syndicate
+loads, when it compiles and before each call. A refused or unset variable fails the compile, and a static token is applied to the request,
 never stored in session state. Every server must be http(s) and pass the
 SSRF guard: its literal rules when the agent compiles, the full check with
 DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for
@@ -818,7 +823,10 @@ ends at the node, e.g. `["Desk", "Writer", "Send"]`. A workflow run as a
 dispatch route or as another workflow's node pauses the turn the same way
 ([ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)),
 the path running from the route or node down, e.g. `["Writer", "Send"]`.
-Skill scripts on a delegated subagent are still a load error. Only function tools from the registry can be gated, not MCP tools
+Skill scripts (`skills.scripts: local`) on a delegated
+subagent pause the same way, with `run_skill_script` as the tool
+([ADR 0118](./wiki/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md));
+an agent a map node runs still may not carry them. Only function tools from the registry can be gated, not MCP tools
 or native-search sentinels. In code, `runSyndicateTurn` returns
 `status: 'input-required'` with `approval`, and the next turn's part
 `approvalResponsePart(approval.id, approved)` answers it.
@@ -893,6 +901,13 @@ await createA2AApp({ /* … */ toolCredentials: { store, consent } });
    call again. A message sent before the grant gets the same request back,
    without a model call.
 
+The call may sit in a delegated subagent, at any depth (the systems_operator
+template's Systems, say): the request then carries `path`, the agents from
+the turn's own down to the one that asked (in the data part and in
+`consent.path`), the grant is stored under the conversation's app, and the
+next message resumes that subagent's call before its caller continues
+([ADR 0118](./wiki/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md)).
+
 The callback refuses these, and stores nothing:
 
 - a state that is replayed, tampered with or older than ten minutes;
@@ -916,6 +931,7 @@ name a provider they declare, never define one):
 | `OAUTH_REDIRECT_URI` | `https://agents.example.com/oauth/callback` (no query) | The callback, as registered at every provider. Mounts it and lets a run ask a user to connect. Needs the key |
 | `OAUTH_CALLBACK_IDENTITY` | `required` (default) or `state` | `required`: the browser that completes a grant carries the flow's user's identity, which only `A2A_AUTH=header` behind a gateway gives it. `state`: the single-use state alone binds the flow (a forwarded link can connect the wrong account) |
 | `MELCHIZEDEK_OAUTH_HOSTS` | `provider=host,host;provider=host` | Which hosts each provider's tokens and client secret may be sent to. A host is a hostname, `*.domain` (subdomains only), IPv4 or `[IPv6]` |
+| `MELCHIZEDEK_CREDENTIAL_HOSTS` | `VARIABLE=host,host;VARIABLE=host` | Which hosts each static credential variable a YAML sends (`bearer_env`, `api_key.env`, `client_secret_env`) may be sent to. Unset: as the YAML says, each named as unbound. Set: the whole list ([ADR 0122](./wiki/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md)) |
 
 **The host allowlist** ([ADR 0114](./wiki/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md))
 is the operator's binding, never the YAML's: `MELCHIZEDEK_OAUTH_HOSTS`, or
@@ -930,6 +946,21 @@ again when its tools compile, and every call checks the host it sends a
 token to. The server refuses to start on a malformed key, allowlist or
 redirect URI, or on a redirect URI without a key; `npm run doctor` reports
 each of these, and a declared grant with no key or redirect URI, by name.
+
+**The credential host allowlist** ([ADR 0122](./wiki/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md))
+does the same for the static credentials a YAML sends: `bearer_env` and
+`api_key.env` to an OpenAPI server, and `client_secret_env` to a token
+endpoint. `MELCHIZEDEK_CREDENTIAL_HOSTS`, or
+`createA2AApp({ credentialHosts: { TRACKER_TOKEN: ['api.tracker.example.com'] } })`,
+which wins. Unset, nothing changes: each credential goes to the host the
+YAML names, and the server's boot and `npm run doctor` name every variable a
+served YAML sends that no binding holds (names only). Set, it is the whole
+list: a variable not on it is sent nowhere, and one on it only to its own
+hosts. A syndicate that breaks the rule is refused when it loads, when it
+compiles, and each call (an OpenAPI call, a client-credentials token
+request, a consent code exchange, a refresh) checks again and sends nothing
+when refused. `MCP_BEARER_TOKENS` is not covered: it already maps each token
+to its host.
 
 #### Limits
 

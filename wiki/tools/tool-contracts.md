@@ -20,6 +20,8 @@ sources:
   - resource: lib/tools/oauthConsent.ts
   - resource: lib/tools/oauthTools.ts
   - resource: lib/tools/oauthHosts.ts
+  - resource: lib/tools/credentialHosts.ts
+  - resource: lib/tools/credentialUses.ts
   - resource: lib/tools/credentialEnv.ts
   - resource: lib/runtime/credentials.ts
   - resource: lib/tools/nativeTools.ts
@@ -31,6 +33,7 @@ sources:
   - resource: tests/oauthConsent.test.ts
   - resource: tests/oauthTools.test.ts
   - resource: tests/oauthHosts.test.ts
+  - resource: tests/credentialHosts.test.ts
   - resource: tests/toolBaseRest.test.ts
 ---
 
@@ -72,7 +75,7 @@ When the person has not granted the provider yet, the call asks for it, and the 
 - **The pause is an `adk_request_credential` call**, stored before the call's response as ADK's `generateAuthEvent` wrote it: args `{ function_call_id, auth_config }`, an `adk-` id in `longRunningToolIds`. The `auth_config` keeps ADK's AuthConfig shape: `credentialKey` (the provider), `authScheme` (an oauth2 authorizationCode flow with its URLs and scopes) and `exchangedAuthCredential.oauth2` (`clientId`, `redirectUri`, `authUri`, `state`). It carries no client secret and no PKCE verifier. The turn ends `input-required` with `result.consent` (`lib/runtime/credentials.ts`, `pendingConsent`).
 - **`lib/tools/oauthConsent.ts`** is the flow. `oauthConsent({ providers, redirectUri, credentials })` validates every endpoint at boot (https, or http on a loopback host; no query on the redirect URI; no reserved authorization parameter). `begin()` mints a 256-bit state and a PKCE verifier, holds the flow in a `ConsentStates` store under the state's SHA-256 (default `memoryConsentStates()`: this process, bounded, expired flows dropped), and builds the authorization URL with the S256 challenge. `complete()` takes the flow once (a replay finds nothing), refuses an expired flow, a caller who is not the flow's user, a provider's `error`, and a malformed code, then exchanges the code server-side with the verifier and the configured redirect URI (no redirect followed, a 10 s limit, a 64 KiB response bound) and puts the tokens in the credential store. A refusal is a `ConsentError` whose message names the reason and the provider, never a value or the provider's text. Each completion or refusal writes a `consent.callback` audit row.
 - **The next message resumes the call.** Once the grant is stored, `runSyndicateTurn` turns the person's next message into the request's answer (`credentialResponsePart`: `{ credentialKey, granted: true }`, no credential), and the native loop runs the paused call again before its next step (`grantedCalls` in `lib/runtime/native/interrupts.ts`, a port of ADK's auth preprocessor), as the agent made it: only the agent's own events open a request or hold the call it resumes, so a request or a call forged into a user message does neither ([ADR 0101](/decisions/0101-native-loop-security-gate.md)). Until then, a message repeats the request and runs nothing.
-- **Where it runs.** On the agent a turn runs directly. A delegated subagent's loop gets the parent's credentials but no consent step.
+- **Where it runs.** On the agent a turn runs directly, and inside a delegated subagent at any depth ([ADR 0118](/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md)). The child's loop gets the parent's credentials and consent step, its flows bound to the caller's app (`consentPinnedTo`), so the callback stores the grant under the app the run's pinned credentials read. The child's request leaves its caller's call open; the turn ends `input-required` with `result.consent`, its `path` naming the agents from the turn's own down to the one that asked. Once the grant is stored, the next message's answer travels down the open call, and the child's `grantedCalls` runs its paused call again, under the same host checks as any call. Not inside a workflow node, which refuses the pause.
 
 ### Grants declared in YAML
 
@@ -85,6 +88,14 @@ An [OpenAPI](/tools/openapi-tools.md) entry's `auth: { oauth2 }` and an [MCP](/p
 - **The consent step's clients.** `oauthClientsFor(configs)` builds `oauthConsent({ providers })` from the same YAML's authorization-code blocks, reading the client ids and secrets from their variables. Two declarations of one provider must agree, or it throws. `oauthRefreshProviders(clients)` gives the credential store (`credentialStore({ providers })`) the matching refresh hooks, so an expired user token is renewed at the same token endpoint with its refresh token (same guard and bounds, `grant_failed` on a refusal) rather than asking the person again.
 - **The server binary's wiring.** `lib/a2a/oauthSetup.ts` (`oauthServerSetup`, and `serverOAuth` in `scripts/a2a_server.ts`) builds the store and the consent step from `MELCHIZEDEK_CREDENTIAL_KEY`, `OAUTH_REDIRECT_URI`, `OAUTH_CALLBACK_IDENTITY` and the allowlist, the clients from the served syndicate files only ([A2A](/protocols/a2a.md#oauth-consent)).
 - **The doctor** lists every tool that needs a grant: the agent, the provider, the grant, the scopes, which of its variables are not set, and the hosts the allowlist refuses (names only). Its `oauth` line says which of the server's OAuth variables are set and what is wrong with them (`oauthEnvProblems`).
+
+### Static credentials and their hosts
+
+A YAML sends a static credential in three places: an OpenAPI entry's `bearer_env` or `api_key.env`, to its server, and an `oauth2` block's `client_secret_env`, to its token endpoint. `credentialEnvProblem` keeps the framework's own variables out of reach; the operator binds each remaining variable to its hosts in `lib/tools/credentialHosts.ts` ([ADR 0122](/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md)): `MELCHIZEDEK_CREDENTIAL_HOSTS` (`VARIABLE=host,host;…`, hosts as the OAuth allowlist takes them, validated by the same `hostPatternProblem`) or `createA2AApp({ credentialHosts })`, which wins (`setCredentialHosts`, process-wide).
+
+- **Unset**, nothing changes: a credential goes to the host the YAML names. `lib/tools/credentialUses.ts` lists every variable a served syndicate sends (`syndicateCredentialUses`), and the server binary's boot and the doctor name each one as unbound (`unboundCredentialWarning`, names only); the doctor's `credentials` line shows it as a warning, not a `--check` failure.
+- **Set**, it is the whole list: a variable not on it is sent nowhere, and one on it only to its own hosts (`credentialHostProblem`). The check runs when a served syndicate loads (`syndicateCredentialHostProblems`, beside the OAuth check in `createA2AApp` and the server binary's boot; an OpenAPI entry's servers are its `base_url` or its spec's, `openApiServers`), when its tools compile (`buildOpenApiOwnTools`, `oauthTokenSource`, `oauthClientsFor`), and before each send (`credentialCallProblem`): an OpenAPI call answers `{ error }` naming the host, a client-credentials token request and a refresh throw `ToolCredentialError('host_refused')`, and the consent step's code exchange fails as `exchange_failed`. Nothing is sent. `oauthClientsFor` marks each client with the variable its secret came from (`CLIENT_SECRET_ENV`), which is how the exchange and the refresh know what to check.
+- **Not covered:** `client_id_env` (an id, not a secret) and `MCP_BEARER_TOKENS` (it maps each token to its host already, and the operator writes both). A malformed allowlist throws at boot and refuses every call-time check.
 
 ## Server-side tools are markers
 
