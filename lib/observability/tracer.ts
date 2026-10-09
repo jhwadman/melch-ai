@@ -1,10 +1,10 @@
-import { trace, context, defaultTextMapGetter, ROOT_CONTEXT } from '@opentelemetry/api';
-import type { Context, SpanContext } from '@opentelemetry/api';
+import { trace, context, defaultTextMapGetter, ROOT_CONTEXT, INVALID_SPAN_CONTEXT } from '@opentelemetry/api';
+import type { Context, Span, SpanContext, SpanOptions } from '@opentelemetry/api';
 import { createRequire } from 'node:module';
 import { ADK_SPAN_SCOPE, RUNTIME_SPAN_SCOPE, TELEMETRY_SCHEMA_VERSION, agentOfSpanName, engineVersion, isModelCallSpan, isToolSpanName } from './lineage.ts';
 import { FilteringSpanExporter, otlpContentMode } from './otlpFilter.ts';
 import { telemetryRedactor } from './redact.ts';
-import { chargeLlmCall, chargeTokens } from '../runtime/turnControl.ts';
+import { chargeLlmCall, chargeTokens, turnUntraced } from '../runtime/turnControl.ts';
 
 import sdkNode from '@opentelemetry/sdk-trace-node';
 const { NodeTracerProvider } = sdkNode;
@@ -318,6 +318,27 @@ export function initializeTracing() {
 
 const tracer = trace.getTracer('melchizedek-tracer');
 
+/**
+ * A span that records nothing, for code running in a turn that opted out of
+ * tracing (`runSyndicateTurn({ trace: false })`, turnUntraced): its
+ * attributes, events and end go nowhere, and no tracer is started for it.
+ */
+function nonRecordingSpan(): Span {
+  return trace.wrapSpanContext(INVALID_SPAN_CONTEXT);
+}
+
+/**
+ * Starts a span on the named tracer, starting the tracer first; in a turn
+ * that opted out of tracing, a non-recording span and no tracer. Every span
+ * the engine opens inside a turn goes through here or checks turnUntraced
+ * itself.
+ */
+export function startEngineSpan(tracerName: string, name: string, options?: SpanOptions): Span {
+  if (turnUntraced()) return nonRecordingSpan();
+  initializeTracing();
+  return trace.getTracer(tracerName).startSpan(name, options);
+}
+
 /** Turn identity by trace id, so llm.request children can carry it too. */
 const turnContexts = new Map<string, { sessionId?: string; userId?: string; taskId?: string }>();
 
@@ -434,6 +455,11 @@ export async function* traceAgentRun(
   stream: AsyncIterableIterator<Event>,
   metadata: TraceMetadata
 ): AsyncGenerator<Event, void, void> {
+  // A turn that opted out of tracing gets its events untouched and no span.
+  if (turnUntraced()) {
+    yield* stream;
+    return;
+  }
   initializeTracing();
 
   const caller = callerSpanContext(metadata.traceparent);
@@ -686,7 +712,9 @@ export async function* traceLlmGeneration(
   meta: LlmCallMeta,
   inner: AsyncGenerator<LlmResponse, void>,
 ): AsyncGenerator<LlmResponse, void> {
-  initializeTracing();
+  // An untraced turn still charges the call and its tokens; it opens no span.
+  const untraced = turnUntraced();
+  if (!untraced) initializeTracing();
 
   // Every model call on every provider passes here, so this is where the
   // turn's step budget and cancellation are enforced (lib/runtime/
@@ -698,7 +726,7 @@ export async function* traceLlmGeneration(
     return;
   }
 
-  const span = tracer.startSpan('llm.request');
+  const span = untraced ? nonRecordingSpan() : tracer.startSpan('llm.request');
   span.setAttribute('llm.provider', meta.provider);
   span.setAttribute('llm.model', meta.model);
   // OpenTelemetry GenAI semantic conventions alongside the llm.* names, so
@@ -770,7 +798,7 @@ export async function* traceLlmGeneration(
     if (thinkingPreview) {
       span.addEvent('llm.thinking', { 'thinking.preview': thinkingPreview });
     }
-    if (errorCode) {
+    if (errorCode && span.isRecording()) {
       span.setAttribute('llm.error_code', errorCode);
       span.setAttribute('llm.error_message', errorMessage.slice(0, ERROR_MESSAGE_MAX_CHARS));
       // Make this span a payload candidate (see supabaseSpanExporter's

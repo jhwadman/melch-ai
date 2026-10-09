@@ -35,6 +35,8 @@ import { OllamaAdapter } from '../../lib/models/ollamaAdapter.ts';
 import { GatewayAdapter } from '../../lib/models/gatewayAdapter.ts';
 import { contractToolDeclaration } from '../../lib/models/schemaNormalize.ts';
 import { subagentTool } from '../../lib/runtime/native/delegate.ts';
+import { buildModelRequest } from '../../lib/runtime/native/request.ts';
+import { InProcessSessionService } from '../../lib/runtime/sessions.ts';
 import { resolveTools } from '../../lib/toolRegistry.ts';
 
 export type AdapterRow = Exclude<MatrixRow, 'gemini'>;
@@ -205,6 +207,39 @@ export function delegationTools(): ToolDeclaration[] {
 
 export function withDelegationTools(row: AdapterRow): ModelRequest {
   return request(row, { tools: delegationTools() });
+}
+
+/**
+ * The request the native loop builds for an agent that delegates (Scout),
+ * declares load_memory and holds SCHEMA: lib/runtime/native/request.ts's own
+ * buildModelRequest, so a check sees where the schema goes (beside the tools,
+ * or as set_model_response) under the environment it runs in (ADR 0109).
+ * Called inside a capture, so the decision reads the row's fixture env.
+ */
+export async function schemaBesideToolsRequest(model: string): Promise<ModelRequest> {
+  const sessions = new InProcessSessionService();
+  const session = await sessions.create({ appName: 'matrix', userId: 'u1', sessionId: 's1' });
+  await sessions.append(session, {
+    id: 'u0000001',
+    invocationId: 'e-1',
+    author: 'user',
+    content: { role: 'user', parts: [{ text: 'grade the draft' }] },
+    actions: {},
+    timestamp: 1,
+  } as Parameters<typeof sessions.append>[1]);
+  const scout = subagentTool({ name: 'Scout', description: 'Finds things', model: 'gemini-3.5-flash-lite', instruction: 'x' });
+  const { request } = await buildModelRequest(
+    { name: 'Critic', model, instruction: 'Ask Scout, then grade.', tools: [scout, resolveTools(['load_memory'])[0]], outputSchema: SCHEMA },
+    { session, invocationId: 'e-1' },
+  );
+  return request;
+}
+
+/** Captures what the row's adapter posts for schemaBesideToolsRequest(model), the request built under the row's env. */
+export function captureSchemaBesideTools(row: AdapterRow, model = MODEL[row]): Promise<any> {
+  return captureBody(row, async function* () {
+    yield* adapterFor(row, model).generate(await schemaBesideToolsRequest(model));
+  });
 }
 
 /** The signed block Claude returned before its tool call, as the adapter stores it (ADR 0046). */

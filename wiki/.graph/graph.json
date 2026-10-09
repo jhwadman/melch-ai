@@ -5,25 +5,25 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 884,
-    "edges": 3421,
+    "nodes": 893,
+    "edges": 3500,
     "byKind": {
-      "doc": 173,
+      "doc": 176,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 184,
+      "file": 189,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 182,
+      "module": 183,
       "script": 46,
       "external": 2
     },
     "byRelation": {
-      "links_to": 764,
+      "links_to": 787,
       "requires_env": 172,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 756,
+      "imports": 767,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 895,
-      "constrains": 181,
-      "supersedes": 9,
-      "depends_on": 118,
-      "explains": 41,
+      "derives_from": 926,
+      "constrains": 189,
+      "supersedes": 11,
+      "depends_on": 121,
+      "explains": 42,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3067,
-      "inferred": 354
+      "extracted": 3132,
+      "inferred": 368
     },
     "isolated": 4
   },
@@ -588,7 +588,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 502
+        "words": 556
       }
     },
     {
@@ -744,7 +744,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 770
+        "words": 832
       }
     },
     {
@@ -1272,7 +1272,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 803
+        "words": 845
       }
     },
     {
@@ -1672,6 +1672,30 @@
       }
     },
     {
+      "id": "/decisions/0109-structured-output-beside-tools.md",
+      "kind": "doc",
+      "label": "ADR 0109: An output schema beside tools travels in the provider's own field where the path takes both, as set_model_response elsewhere",
+      "source": "/decisions/0109-structured-output-beside-tools.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 986
+      }
+    },
+    {
+      "id": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "kind": "doc",
+      "label": "ADR 0110: A pause inside a delegated subagent reaches the turn through the open call, and the answer travels back down",
+      "source": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1235
+      }
+    },
+    {
       "id": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "kind": "doc",
       "label": "ADR 0112: OAuth grants are declared beside the tool they protect, and an authorization-code MCP server is reached on each user's own connection",
@@ -1681,6 +1705,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 989
+      }
+    },
+    {
+      "id": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "kind": "doc",
+      "label": "ADR 0113: A long run is durable by checkpointing its sessions beside the job at every step boundary, and a re-claimed job resumes from the last one",
+      "source": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1019
       }
     },
     {
@@ -1716,7 +1752,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 13591
+        "words": 13829
       }
     },
     {
@@ -1824,7 +1860,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1485
+        "words": 1525
       }
     },
     {
@@ -1836,7 +1872,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3383
+        "words": 3437
       }
     },
     {
@@ -1860,7 +1896,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4396
+        "words": 4912
       }
     },
     {
@@ -1968,7 +2004,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6690
+        "words": 7293
       }
     },
     {
@@ -2016,7 +2052,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2210
+        "words": 2369
       }
     },
     {
@@ -2028,7 +2064,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 862
+        "words": 924
       }
     },
     {
@@ -2040,7 +2076,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 344
+        "words": 387
       }
     },
     {
@@ -2088,7 +2124,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 458
+        "words": 609
       }
     },
     {
@@ -4137,6 +4173,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0014_durable_runs.sql",
+      "kind": "file",
+      "label": "0014_durable_runs.sql",
+      "source": "db/migrations/0014_durable_runs.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -4411,6 +4454,13 @@
       "source": "tests/contractToolDeclarations.test.ts"
     },
     {
+      "id": "file:tests/delegatedPauses.test.ts",
+      "kind": "file",
+      "label": "delegatedPauses.test.ts",
+      "source": "tests/delegatedPauses.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/doctor.test.ts",
       "kind": "file",
       "label": "doctor.test.ts",
@@ -4447,6 +4497,12 @@
       "kind": "file",
       "label": "scenarios.ts",
       "source": "tests/fixtures/sessions/scenarios.ts"
+    },
+    {
+      "id": "file:tests/fixtures/structured-critic.yaml",
+      "kind": "file",
+      "label": "structured-critic.yaml",
+      "source": "tests/fixtures/structured-critic.yaml"
     },
     {
       "id": "file:tests/geminiAdapter.test.ts",
@@ -4837,6 +4893,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/structuredOrchestrator.test.ts",
+      "kind": "file",
+      "label": "structuredOrchestrator.test.ts",
+      "source": "tests/structuredOrchestrator.test.ts"
+    },
+    {
       "id": "file:tests/surfacesOffAdk.test.ts",
       "kind": "file",
       "label": "surfacesOffAdk.test.ts",
@@ -4881,6 +4943,12 @@
       "kind": "file",
       "label": "traceCorrelation.test.ts",
       "source": "tests/traceCorrelation.test.ts"
+    },
+    {
+      "id": "file:tests/traceOff.test.ts",
+      "kind": "file",
+      "label": "traceOff.test.ts",
+      "source": "tests/traceOff.test.ts"
     },
     {
       "id": "file:tests/workflow.test.ts",
@@ -5054,7 +5122,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1307
+        "lines": 1337
       }
     },
     {
@@ -5063,7 +5131,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 839
+        "lines": 870
       }
     },
     {
@@ -5126,7 +5194,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 606
+        "lines": 616
       }
     },
     {
@@ -5153,7 +5221,7 @@
       "label": "lib/dispatch.ts",
       "source": "lib/dispatch.ts",
       "attrs": {
-        "lines": 257
+        "lines": 262
       }
     },
     {
@@ -5243,7 +5311,7 @@
       "label": "lib/memory/providers.ts",
       "source": "lib/memory/providers.ts",
       "attrs": {
-        "lines": 347
+        "lines": 346
       }
     },
     {
@@ -5288,7 +5356,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 403
+        "lines": 461
       }
     },
     {
@@ -5594,7 +5662,7 @@
       "label": "lib/observability/tracer.ts",
       "source": "lib/observability/tracer.ts",
       "attrs": {
-        "lines": 801
+        "lines": 829
       }
     },
     {
@@ -5621,7 +5689,7 @@
       "label": "lib/runtime/approvals.ts",
       "source": "lib/runtime/approvals.ts",
       "attrs": {
-        "lines": 125
+        "lines": 131
       }
     },
     {
@@ -5666,7 +5734,16 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 853
+        "lines": 914
+      }
+    },
+    {
+      "id": "module:lib/runtime/native/checkpoint.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/checkpoint.ts",
+      "source": "lib/runtime/native/checkpoint.ts",
+      "attrs": {
+        "lines": 467
       }
     },
     {
@@ -5684,7 +5761,7 @@
       "label": "lib/runtime/native/delegate.ts",
       "source": "lib/runtime/native/delegate.ts",
       "attrs": {
-        "lines": 322
+        "lines": 363
       }
     },
     {
@@ -5702,7 +5779,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 319
+        "lines": 495
       }
     },
     {
@@ -5711,7 +5788,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 711
+        "lines": 736
       }
     },
     {
@@ -5747,7 +5824,7 @@
       "label": "lib/runtime/native/telemetry.ts",
       "source": "lib/runtime/native/telemetry.ts",
       "attrs": {
-        "lines": 318
+        "lines": 313
       }
     },
     {
@@ -5774,7 +5851,7 @@
       "label": "lib/runtime/questions.ts",
       "source": "lib/runtime/questions.ts",
       "attrs": {
-        "lines": 153
+        "lines": 156
       }
     },
     {
@@ -5801,7 +5878,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1215
+        "lines": 1272
       }
     },
     {
@@ -5810,7 +5887,7 @@
       "label": "lib/runtime/turnControl.ts",
       "source": "lib/runtime/turnControl.ts",
       "attrs": {
-        "lines": 165
+        "lines": 184
       }
     },
     {
@@ -5864,7 +5941,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 259
+        "lines": 274
       }
     },
     {
@@ -5891,7 +5968,7 @@
       "label": "lib/storage/postgres/taskQueue.ts",
       "source": "lib/storage/postgres/taskQueue.ts",
       "attrs": {
-        "lines": 146
+        "lines": 183
       }
     },
     {
@@ -5900,7 +5977,7 @@
       "label": "lib/storage/postgres/taskStore.ts",
       "source": "lib/storage/postgres/taskStore.ts",
       "attrs": {
-        "lines": 230
+        "lines": 308
       }
     },
     {
@@ -5936,7 +6013,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1067
+        "lines": 1069
       }
     },
     {
@@ -5981,7 +6058,7 @@
       "label": "lib/tools/credentialStore.ts",
       "source": "lib/tools/credentialStore.ts",
       "attrs": {
-        "lines": 297
+        "lines": 305
       }
     },
     {
@@ -6224,7 +6301,7 @@
       "label": "lib/tools/taskTools.ts",
       "source": "lib/tools/taskTools.ts",
       "attrs": {
-        "lines": 481
+        "lines": 571
       }
     },
     {
@@ -6485,7 +6562,7 @@
       "label": "lib/workflowConfig.ts",
       "source": "lib/workflowConfig.ts",
       "attrs": {
-        "lines": 124
+        "lines": 130
       }
     },
     {
@@ -6503,7 +6580,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 213
+        "lines": 257
       }
     },
     {
@@ -7494,7 +7571,7 @@
       "id": "table:adk_a2a_tasks",
       "kind": "table",
       "label": "adk_a2a_tasks",
-      "source": "db/migrations/0006_task_leases.sql",
+      "source": "db/migrations/0014_durable_runs.sql",
       "attrs": {
         "created_upstream": true
       }
@@ -7608,7 +7685,7 @@
       "id": "table:melchizedek_tasks",
       "kind": "table",
       "label": "melchizedek_tasks",
-      "source": "db/migrations/0009_task_queue.sql",
+      "source": "db/migrations/0014_durable_runs.sql",
       "attrs": {
         "created_upstream": true
       }
@@ -8989,7 +9066,7 @@
       "to": "/decisions/0007-engine-as-package.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0015-task-queue-and-worker.md:38"
+      "evidence": "/decisions/0015-task-queue-and-worker.md:40"
     },
     {
       "from": "/decisions/0015-task-queue-and-worker.md",
@@ -8997,6 +9074,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0015-task-queue-and-worker.md:36"
+    },
+    {
+      "from": "/decisions/0015-task-queue-and-worker.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0015-task-queue-and-worker.md:38"
     },
     {
       "from": "/decisions/0015-task-queue-and-worker.md",
@@ -9613,6 +9697,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0028-approval-gates.md:47"
+    },
+    {
+      "from": "/decisions/0028-approval-gates.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0028-approval-gates.md:49"
     },
     {
       "from": "/decisions/0028-approval-gates.md",
@@ -12282,6 +12373,13 @@
       "evidence": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md:24"
     },
     {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md:38"
+    },
+    {
       "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "to": "file:tests/nativeLoop.test.ts",
       "rel": "derives_from",
@@ -14928,6 +15026,188 @@
       "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md:39"
     },
     {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/fixtures/structured-critic.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/structuredOrchestrator.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/dispatch.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:50"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:30"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:32"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:30"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "file:tests/delegatedPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "file:tests/nativeDelegate.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "file:tests/sessionFixtures.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md:33"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md:33"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md:35"
+    },
+    {
       "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "to": "file:config/agents/templates/systems_operator.yaml",
       "rel": "derives_from",
@@ -15003,6 +15283,83 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md:29"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "file:db/migrations/0014_durable_runs.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/storage/postgres/taskQueue.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/storage/postgres/taskStore.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/tools/taskTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0015-task-queue-and-worker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:29"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:33"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:53"
     },
     {
       "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
@@ -15363,6 +15720,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0014_durable_runs.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -15373,14 +15737,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:34"
+      "evidence": "/memory/schema.md:35"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2511"
+      "evidence": "/memory/schema.md:2550"
     },
     {
       "from": "/memory/sessions.md",
@@ -16147,6 +16511,13 @@
     },
     {
       "from": "/models/claude-adapter.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:49"
+    },
+    {
+      "from": "/models/claude-adapter.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -16347,6 +16718,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/gemini-adapter.md:132"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:151"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -16717,7 +17095,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:135"
+      "evidence": "/models/provider-routing.md:143"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16731,7 +17109,7 @@
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:115"
+      "evidence": "/models/provider-routing.md:123"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16752,14 +17130,14 @@
       "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:131"
+      "evidence": "/models/provider-routing.md:139"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:156"
+      "evidence": "/models/provider-routing.md:164"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16773,14 +17151,14 @@
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:161"
+      "evidence": "/models/provider-routing.md:169"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:155"
+      "evidence": "/models/provider-routing.md:163"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16788,6 +17166,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:20"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:53"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16808,7 +17193,7 @@
       "to": "/models/gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:111"
+      "evidence": "/models/provider-routing.md:119"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16822,7 +17207,7 @@
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:131"
+      "evidence": "/models/provider-routing.md:139"
     },
     {
       "from": "/models/provider-routing.md",
@@ -17799,6 +18184,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/delegatedPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/execution.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -17870,6 +18262,13 @@
     {
       "from": "/overview/native-loop.md",
       "to": "file:tests/oauthConsent.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "file:tests/traceOff.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md frontmatter"
@@ -17995,6 +18394,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "module:lib/runtime/valueDepth.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -18005,259 +18411,273 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:169"
+      "evidence": "/overview/native-loop.md:173"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:234"
+      "evidence": "/overview/native-loop.md:238"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:268"
+      "evidence": "/overview/native-loop.md:272"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:54"
+      "evidence": "/overview/native-loop.md:58"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:195"
+      "evidence": "/overview/native-loop.md:199"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:146"
+      "evidence": "/overview/native-loop.md:150"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:47"
+      "evidence": "/overview/native-loop.md:51"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:104"
+      "evidence": "/overview/native-loop.md:108"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:230"
+      "evidence": "/overview/native-loop.md:234"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:49"
+      "evidence": "/overview/native-loop.md:53"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:49"
+      "evidence": "/overview/native-loop.md:53"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:256"
+      "evidence": "/overview/native-loop.md:260"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:49"
+      "evidence": "/overview/native-loop.md:53"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:195"
+      "evidence": "/overview/native-loop.md:199"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:329"
+      "evidence": "/overview/native-loop.md:344"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:236"
+      "evidence": "/overview/native-loop.md:240"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:175"
+      "evidence": "/overview/native-loop.md:179"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:270"
+      "evidence": "/overview/native-loop.md:274"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:223"
+      "evidence": "/overview/native-loop.md:227"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:256"
+      "evidence": "/overview/native-loop.md:260"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:202"
+      "evidence": "/overview/native-loop.md:206"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:199"
+      "evidence": "/overview/native-loop.md:203"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:286"
+      "evidence": "/overview/native-loop.md:290"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:118"
+      "evidence": "/overview/native-loop.md:122"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:149"
+      "evidence": "/overview/native-loop.md:153"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:203"
+      "evidence": "/overview/native-loop.md:207"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:47"
+      "evidence": "/overview/native-loop.md:51"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:314"
+      "evidence": "/overview/native-loop.md:329"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:82"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:296"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:122"
+      "evidence": "/overview/native-loop.md:126"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:84"
+      "evidence": "/overview/native-loop.md:88"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/operations/native-loop-security.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:58"
+      "evidence": "/overview/native-loop.md:62"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:81"
+      "evidence": "/overview/native-loop.md:85"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:270"
+      "evidence": "/overview/native-loop.md:274"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:70"
+      "evidence": "/overview/native-loop.md:74"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:70"
+      "evidence": "/overview/native-loop.md:74"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:68"
+      "evidence": "/overview/native-loop.md:72"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:67"
+      "evidence": "/overview/native-loop.md:71"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -18821,6 +19241,20 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:34"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:95"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18839,6 +19273,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md:26"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/tools/task-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:95"
     },
     {
       "from": "/protocols/a2a.md",
@@ -18901,42 +19342,42 @@
       "to": "/agents/librarian.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:29"
+      "evidence": "/protocols/mcp.md:31"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:31"
+      "evidence": "/protocols/mcp.md:33"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:31"
+      "evidence": "/protocols/mcp.md:33"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:35"
+      "evidence": "/protocols/mcp.md:37"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:39"
+      "evidence": "/protocols/mcp.md:41"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:47"
+      "evidence": "/protocols/mcp.md:49"
     },
     {
       "from": "/protocols/mcp.md",
@@ -18950,7 +19391,7 @@
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:46"
+      "evidence": "/protocols/mcp.md:48"
     },
     {
       "from": "/tools/ask-user.md",
@@ -19021,6 +19462,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/ask-user.md:24"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:30"
     },
     {
       "from": "/tools/ask-user.md",
@@ -19399,6 +19847,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/task-tools.md:30"
+    },
+    {
+      "from": "/tools/task-tools.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/task-tools.md:32"
     },
     {
       "from": "/tools/task-tools.md",
@@ -21320,6 +21775,13 @@
     },
     {
       "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21335,6 +21797,13 @@
     {
       "from": "module:lib/a2a/executor.ts",
       "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/executor.ts"
+    },
+    {
+      "from": "module:lib/a2a/executor.ts",
+      "to": "module:lib/workflow.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/executor.ts"
@@ -23762,6 +24231,34 @@
       "evidence": "lib/runtime/native/agentLoop.ts"
     },
     {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/dispatch.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
       "from": "module:lib/runtime/native/compaction.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -23875,6 +24372,13 @@
     },
     {
       "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23896,6 +24400,13 @@
     },
     {
       "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/runtime/questions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
       "to": "module:lib/runtime/sessions.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23907,6 +24418,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/workflowConfig.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
     },
     {
       "from": "module:lib/runtime/native/request.ts",
@@ -24456,6 +24981,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/native/request.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24926,6 +25458,13 @@
     {
       "from": "module:lib/tools/credentialStore.ts",
       "to": "module:lib/observability/audit.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/credentialStore.ts"
+    },
+    {
+      "from": "module:lib/tools/credentialStore.ts",
+      "to": "module:lib/runtime/turnControl.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/credentialStore.ts"
@@ -26647,21 +27186,14 @@
     },
     {
       "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
       "to": "module:lib/runtime/runtimeFlag.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "scripts/assistant_worker.ts"
-    },
-    {
-      "from": "module:scripts/assistant_worker.ts",
-      "to": "module:lib/runtime/sessions.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "scripts/assistant_worker.ts"
-    },
-    {
-      "from": "module:scripts/assistant_worker.ts",
-      "to": "module:lib/runtime/syndicateTurn.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/assistant_worker.ts"

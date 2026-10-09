@@ -237,8 +237,16 @@ export interface A2AAppOptions {
     /**
      * Task leases (postgresStorage): renewed on a heartbeat while this
      * instance runs, and expired ones from dead instances marked failed.
+     * `cancelRequested`, when given, lists this instance's running tasks a
+     * caller asked another instance to cancel; the same heartbeat aborts
+     * each, and the task ends `canceled` as an in-process cancel does.
      */
-    leases?: { ttlMs: number; renew: () => Promise<number>; reap: () => Promise<number> };
+    leases?: {
+      ttlMs: number;
+      renew: () => Promise<number>;
+      reap: () => Promise<number>;
+      cancelRequested?: () => Promise<string[]>;
+    };
   };
   /** How long a second turn on a busy conversation waits before it is refused, ms. Default 30 000. */
   turnLockWaitMs?: number;
@@ -744,6 +752,28 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     perScope: options.maxConcurrentPerScope ?? DEFAULT_MAX_CONCURRENT_PER_SCOPE,
     perCaller: options.maxConcurrentPerCaller ?? 0,
   });
+  // A cancel that reached another instance (ADR 0113): on the lease
+  // heartbeat, abort each run here that was asked to stop. The abort is
+  // idempotent; it is logged once per task, by its id's prefix only.
+  if (leases?.cancelRequested) {
+    const cancelRequested = leases.cancelRequested;
+    const aborted = new Set<string>();
+    const honourCancels = async () => {
+      try {
+        const ids = new Set(await cancelRequested());
+        for (const id of aborted) if (!ids.has(id)) aborted.delete(id);
+        for (const id of ids) {
+          if (limiter.cancel(id) && !aborted.has(id)) {
+            aborted.add(id);
+            log(`Cancel requested for task ${id.slice(0, 8)} through another instance`);
+          }
+        }
+      } catch (err: unknown) {
+        warn(`Task cancel check failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    leaseTimers.push(setInterval(honourCancels, Math.max(1000, Math.floor(leases.ttlMs / 3))).unref());
+  }
   const metrics = options.metricsToken ? createMetrics() : undefined;
   const onTaskEnd = (record: TaskRecord) => {
     metrics?.observeTask(record);

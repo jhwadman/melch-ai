@@ -421,8 +421,10 @@ function nestedOptions(ref: string, opts: CompileOptions): CompileOptions {
 function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlConfig {
   opts.log?.(`Loading nested syndicate: ${ref}`);
   const nested = (opts.loadNested ?? loadSyndicate)(ref);
-  if (declaresApprovals(nested)) {
-    throw new Error(`${ref}: approval gates (require_approval) are not supported inside a nested syndicate.`);
+  // A nested delegate syndicate's gates pause the turn through the open call (ADR 0110). A nested workflow's
+  // pause cannot reach its caller yet, and a nested dispatch syndicate runs its classifier alone.
+  if (declaresApprovals(nested) && (isWorkflowSyndicate(nested) || isDispatchSyndicate(nested))) {
+    throw new Error(`${ref}: approval gates (require_approval) are not supported inside a nested ${isWorkflowSyndicate(nested) ? 'workflow' : 'dispatch'} syndicate.`);
   }
   return nested;
 }
@@ -582,11 +584,19 @@ export async function compileSpec(
       );
 
   const name = overrideName || config.orchestrator.name;
-  // Orchestrator tools are registry names only — no entrypoint has ever
-  // attached an MCP server to an orchestrator, and this compiler preserves
-  // that exactly rather than widening the contract in passing.
+  // The orchestrator's own tools resolve as a subagent's do: registry
+  // names, OpenAPI operations, and the MCP server's tools (narrowed by
+  // mcp_tools, under its mcp_auth grant), so a one-agent syndicate can reach an MCP server.
   const own = gateTools(
-    await resolveAgentTools(config.orchestrator.tools, undefined, opts, config.orchestrator.openapi, config.orchestrator.examples),
+    await resolveAgentTools(
+      config.orchestrator.tools,
+      config.orchestrator.mcp_server_url,
+      opts,
+      config.orchestrator.openapi,
+      config.orchestrator.examples,
+      config.orchestrator.mcp_tools,
+      config.orchestrator.mcp_auth,
+    ),
     config.orchestrator.require_approval,
     name,
   );

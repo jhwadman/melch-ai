@@ -28,9 +28,9 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 184 | a repo file that is not a source module (DDL, config, prose) |
-| `module` | `module:<name>` | 182 | one source module |
-| `doc` | `/dir/doc.md` | 173 | a concept document in the bundle — identity is its bundle path |
+| `file` | `file:<name>` | 189 | a repo file that is not a source module (DDL, config, prose) |
+| `module` | `module:<name>` | 183 | one source module |
+| `doc` | `/dir/doc.md` | 176 | a concept document in the bundle — identity is its bundle path |
 | `env` | `env:<name>` | 106 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 89 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 46 | an npm script entrypoint |
@@ -50,9 +50,9 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 895 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 764 | a resolved markdown link between documents |
-| `imports` | extracted | A imports B | 756 | a static import edge between source files |
+| `derives_from` | extracted | A derives from B | 926 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 787 | a resolved markdown link between documents |
+| `imports` | extracted | A imports B | 767 | a static import edge between source files |
 | `requires_env` | extracted | A requires B | 172 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 89 | the first is composed of the second |
 | `uses_model` | extracted | A runs on B | 89 | the agent is configured with this model id |
@@ -65,10 +65,10 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
-| `constrains` | inferred | A constrains B | 181 | a decision or doctrine limits what the target may do |
-| `depends_on` | inferred | A depends on B | 118 | the first cannot do its job unless the second holds |
-| `explains` | inferred | A explains B | 41 | the document is where the target’s rationale is written down |
-| `supersedes` | inferred | A supersedes B | 9 | replaces an earlier decision or document |
+| `constrains` | inferred | A constrains B | 189 | a decision or doctrine limits what the target may do |
+| `depends_on` | inferred | A depends on B | 121 | the first cannot do its job unless the second holds |
+| `explains` | inferred | A explains B | 42 | the document is where the target’s rationale is written down |
+| `supersedes` | inferred | A supersedes B | 11 | replaces an earlier decision or document |
 | `mitigates` | inferred | A mitigates B | 4 | the mechanism exists to contain the named failure |
 | `contradicts` | inferred | A contradicts B | 1 | two sources state incompatible things — a rot signal |
 | `alternative_to` | inferred | A is an alternative to B | 0 | two ways of reaching the same capability |

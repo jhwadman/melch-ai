@@ -19,6 +19,8 @@ sources:
   - resource: lib/runtime/runtimeFlag.ts
   - resource: lib/compileNative.ts
   - resource: lib/runtime/native/delegate.ts
+  - resource: lib/runtime/native/interrupts.ts
+  - resource: tests/delegatedPauses.test.ts
   - resource: lib/runtime/native/selfCorrection.ts
   - resource: lib/runtime/credentials.ts
   - resource: tests/oauthConsent.test.ts
@@ -28,6 +30,8 @@ sources:
   - resource: tests/nativeDelegate.test.ts
   - resource: lib/runtime/native/telemetry.ts
   - resource: tests/nativeLedger.test.ts
+  - resource: tests/traceOff.test.ts
+  - resource: lib/runtime/turnControl.ts
   - resource: tests/helpers/adkReference.ts
   - resource: lib/runtime/native/taskMode.ts
   - resource: tests/execution.test.ts
@@ -75,11 +79,11 @@ MCP and OpenAPI tools are own Tools too ([MCP](/protocols/mcp.md), [OpenAPI tool
 
 `buildModelRequest(agent, ctx)` builds the `ModelRequest` in the order ADK built it:
 
-1. **Config.** The agent's `generateContentConfig`. The output schema joins it when the agent lists no tools, or when the model takes a schema beside tools (Gemini 2 and later on Vertex AI), and never in `mode: task`, where it is `finish_task`'s parameters. A config holding `tools`, `systemInstruction` or `responseSchema` is refused, as ADK's `LlmAgent` refused it.
+1. **Config.** The agent's `generateContentConfig`. The output schema joins it when the agent lists no tools, or when every model the step may call (the agent's own and its `fallback_model`) takes a schema beside tools in one request, and never in `mode: task`. A model takes both where the capability matrix's `structured_output_with_tools` cell is supported for its generation (`outputSchemaBesideTools`, `lib/models/capabilities.ts`): Claude from Opus 4.8, Sonnet 5 and Haiku 5.5 on, every OpenAI id, and Gemini 2 and later on Vertex AI ([ADR 0109](/decisions/0109-structured-output-beside-tools.md)). That is how an orchestrator that delegates answers in its own schema. In `mode: task` the schema is `finish_task`'s parameters, and the Vertex AI rule alone (Gemini 2 and later) decides the `set_model_response` line. A config holding `tools`, `systemInstruction` or `responseSchema` is refused, as ADK's `LlmAgent` refused it.
 2. **System prompt.** Each piece is joined to the last by a blank line:
    - the identity lines, unless the agent may transfer to no one (an output schema rules transfer out);
    - the root agent's global instruction, then the agent's instruction. A string has its `{key}` placeholders filled from session state: `{key?}` is optional, a placeholder naming no state key stays as written, and a required key that is absent fails the request. In a workflow node's run, the request's `workflowScope` (the node's input and the outputs stored so far) also fills `{x.field}` and `<x.field from Node>` as ADK's workflow instruction scope did ([Workflow agent node](/overview/workflow-agent-node.md#the-instruction));
-   - the `set_model_response` line, when an output schema sits beside tools on a model that cannot take both;
+   - the `set_model_response` line, when an output schema sits beside tools and step 1 left it out of the config (a path that cannot take both, or a fallback model's that cannot);
    - each tool's `instruction(ctx)` text, in the agent's tool order: the examples block, `preload_memory`'s facts, `load_memory`'s note. The skills index is already part of the instruction.
 3. **History.** `projectHistory` (`lib/runtime/native/history.ts`) projects the session's events as ADK's content processor did, then the [genai mapping](/models/model-contract.md) turns them into messages:
    - `includeContents: default` keeps the conversation. `none` keeps the current turn, from the latest message by the person or by another agent.
@@ -281,13 +285,24 @@ A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`
 2. **The request as a message.** `{ role: 'user', parts: [{ text: request }] }` is stored as a user event under a fresh `e-<uuid>` invocation id. A turn already stopped answers `''`.
 3. **The child loop.** The subagent runs on `runAgentLoop` as its run's root: not streamed, under the turn's controls and signal (its calls count toward `max_steps`), with the caller's memory and adapters. None of its events reach the caller's stream or session.
 4. **State out.** Each event the child stores has its state writes, `temp:` keys aside, written into the call's state delta. They land on the caller's response event, an `outputKey` write among them.
-5. **The answer.** The result is the last event's non-thought text, joined by newlines, or `''` when it has no parts (a failed model call, a pause). With an output schema it is parsed as JSON, and text that does not parse fails the call with the parser's message. Once the turn has stopped, no further child events are read.
+5. **The answer.** The result is the last event's non-thought text, joined by newlines, or `''` when it has no parts (a failed model call). With an output schema it is parsed as JSON, and text that does not parse fails the call with the parser's message. Once the turn has stopped, no further child events are read.
 
 A `yaml_reference` to a workflow syndicate is a `workflowSubagentTool` instead, holding the whole graph ([ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)). `runCall` asks `workflowSubagentOf(tool)` next, and `runWorkflowSubagent` runs the call as steps 1, 4 and 5 say, with the graph's walk (`runNativeWorkflow`, which `lib/compileNative.ts` hands over) in place of steps 2 and 3: the walk stores the message and yields the events ADK's Runner yielded for a `Workflow` root, and the answer is the last one's text, never parsed. A node that gave up fails the call ([As a subagent](/overview/workflow-scheduler.md#as-a-subagent)).
 
-Calls to subagents in one step run one after another, in call order, as ADK ran them. A pause inside a subagent (an `ask_user` call, an approval request) cannot reach the caller ([ADR 0028](/decisions/0028-approval-gates.md)): the child run ends paused, the call answers `''`, and the gated tool never runs. The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run.
+Calls to subagents in one step run one after another, in call order, as ADK ran them. The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run.
 
-Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently, and a pause inside a subagent reaching the caller.
+### A pause inside a subagent
+
+A child run that ends paused (an `ask_user` call, an approval request, or a pause inside its own delegated call) leaves the call open ([ADR 0110](/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md)):
+
+1. **The call stays open.** `runSubagent` resolves to a `SubagentPause`. `runCall` stores no response for the call and records its id; the step's other responses are stored, and the run ends `paused` with the open call among its pending ids. The request stays where the child stored it, in the child's own session, in the shape it always had.
+2. **The turn finds it below.** `delegatedPauses` (`lib/runtime/native/interrupts.ts`) walks from a session's open calls (no later response, no user text since, made by an agent) into the child session under each call's name: the child's own open request or question is the pause, or the walk follows the child's own open calls, at most 16 levels. `runSyndicateTurn` ends the turn `input-required` with the request or question, its `path` naming the agents from the turn's own down to the one that asked.
+3. **The answer travels down.** The answer is the conversation's next user event, as for a pause at the top. Before each step, after the approval resume, the loop asks `resumedDelegations` which open subagent calls that message answers, by interrupt id, and runs each with `resumeSubagent`: the answering parts become the child's next user message, under a fresh invocation id, and the child's loop runs on, binding an approval to its pinned call (`approvedCalls`) or reading a question's answer from its history, as at the top. The child's answer is stored as the open call's response.
+4. **One at a time.** A child that pauses again leaves the call open again. When other open calls still wait, the run ends paused on them without a model step; the caller steps once every open call has a response.
+
+The answer event in the caller's session answers no call of the caller's, so its history leaves it out once the open call's response follows.
+
+Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently, a pause inside a nested workflow reaching the caller, and an OAuth consent inside a subagent.
 
 A `temp:` key a tool writes is visible to the rest of the run, as ADK's live session state made it: the next step's instruction placeholders, its toolsets, and the next step's calls read it. The loop reads each event's `temp:` keys just before the store drops them, and lays them over the session's state when it builds a request or a call's context (`lib/runtime/native/tempState.ts`). They are never written into the session object, since a store that saves the whole session would keep them.
 
@@ -344,3 +359,7 @@ What they carry:
 - **How the run ended** on the agent span: `agent.end_reason`, `agent.steps`, and `agent.stop_code` for a stopped run.
 
 The rows differ from the ones ADK wrote in two places. A step's own payload row holds the engine's request and response shapes, and its `provider` column names the provider where ADK's said `gcp.vertex.agent`. And a step's calls run side by side, so `tool_ms` sums their durations where ADK's sum was wall time. The root span is the turn runner's: `runSyndicateTurn` wraps the stream in `traceAgentRun` with the metadata ADK's run had ([the runtime flag](#the-runtime-flag)).
+
+### A turn without spans
+
+`runSyndicateTurn({ trace: false })` records nothing. The turn's control (`lib/runtime/turnControl.ts`) carries `untraced`, and every span the engine opens inside the turn reads it through `turnUntraced()` first: the root span (`traceAgentRun`), the loop's `agent.invoke`, `model.call` and `tool.execute`, a workflow's `workflow.invoke` and `node.execute`, every `llm.request` (`traceLlmGeneration`, the compaction summary's included), a memory search's embedding span and `credential.refresh`. Each gets a non-recording span instead (`startEngineSpan` in `lib/observability/tracer.ts`), and none of them starts the tracer. So no row reaches `adk_telemetry`, `adk_turns` or `adk_payloads`, nothing reaches the console exporter, the in-process listeners (`onSpanEnd`) or an OTLP endpoint, whether or not another turn in the process started the tracer. The turn runs under OpenTelemetry's `suppressTracing` context as well, so a library span opened through the OpenTelemetry API records nothing while a tracer is registered. The step budget and the token charge are unaffected: `traceLlmGeneration` still charges every call, and the result's `usage` counts it. The default is traced; the A2A server and the chat bin always pass trace metadata, and the consumer smoke test (`scripts/ci/consumer_turn.mjs`) and `scripts/gemini_engine_check.ts` pass `false`. Work a surface runs after the turn, such as memory ingestion, is not the turn's and traces as usual. `tests/traceOff.test.ts` runs turns against a loopback ledger and OTLP collector.

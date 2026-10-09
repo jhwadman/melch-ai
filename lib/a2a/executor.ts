@@ -32,6 +32,8 @@ import type { SessionService } from '../runtime/sessions.ts';
 import { approvalResponsePart, describeApproval, pendingApproval } from '../runtime/approvals.ts';
 import type { PendingApproval } from '../runtime/approvals.ts';
 import { declaresApprovals } from '../compile.ts';
+import { delegatedPauses } from '../runtime/native/interrupts.ts';
+import { isWorkflowSyndicate } from '../workflow.ts';
 import type { MessagePart, PendingInput, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
 import { describeInput } from '../runtime/syndicateTurn.ts';
 import { describeConsent } from '../runtime/credentials.ts';
@@ -370,6 +372,7 @@ function publishInputRequest(eventBus: ExecutionEventBus, taskId: string, contex
         message: input.message,
         ...(input.payload !== undefined ? { payload: input.payload } : {}),
         ...(input.schema !== undefined ? { schema: input.schema } : {}),
+        ...(input.path ? { path: input.path } : {}),
       },
     },
     metadata: undefined,
@@ -400,7 +403,15 @@ function publishApprovalRequest(eventBus: ExecutionEventBus, taskId: string, con
   message.parts.push({
     content: {
       $case: 'data',
-      value: { type: 'approval_request', approval_id: pending.id, agent: pending.agent, tool: pending.tool, args: pending.args },
+      value: {
+        type: 'approval_request',
+        approval_id: pending.id,
+        agent: pending.agent,
+        tool: pending.tool,
+        args: pending.args,
+        // A call gated inside a delegated subagent: the agents from the turn's own down to the one that asked (ADR 0110).
+        ...(pending.path ? { path: pending.path } : {}),
+      },
     },
     metadata: undefined,
     filename: '',
@@ -691,6 +702,13 @@ export class SyndicateExecutor implements AgentExecutor {
           waitMs: this.opts.turnLockWaitMs ?? 30_000,
           signal: slot.signal,
         });
+        if (!releaseTurn && slot.signal.aborted) {
+          // Canceled while waiting its turn (here or through another instance).
+          log(`✗ Task ${short} canceled before it started`);
+          publishFinal(eventBus, taskId, contextId, 'canceled', 'The task was canceled.');
+          await report(ctx, 'canceled', 'canceled');
+          return;
+        }
         if (!releaseTurn) {
           const why = 'Another turn on this conversation is still running; send this again when it finishes.';
           warn(`Task ${short} rejected — conversation busy`);
@@ -704,10 +722,17 @@ export class SyndicateExecutor implements AgentExecutor {
 
       // Approvals (ADR 0028): while a gated call waits, a message is its
       // answer, or the request is repeated without spending a model call.
-      if (declaresApprovals(config)) {
+      // A call gated inside a delegated subagent waits below an open call
+      // (ADR 0110), wherever the gate is declared, so a syndicate that
+      // delegates is read too.
+      const delegates = !isWorkflowSyndicate(config) && !!config.subagents?.length;
+      if (declaresApprovals(config) || delegates) {
         const session = await this.sessions.get({ appName, userId, sessionId: contextId });
         // The stored Event JSON (ADR 0052), read as TurnEvents.
-        const pending = pendingApproval(session?.events ?? []);
+        const events = session?.events ?? [];
+        const pending =
+          (declaresApprovals(config) ? pendingApproval(events) : undefined) ??
+          (delegates ? (await delegatedPauses({ sessions: this.sessions, userId, sessionId: contextId }, events))[0]?.approval : undefined);
         if (pending) {
           const answer = approvalAnswer(rawParts, pending);
           if (!answer) {
@@ -831,7 +856,13 @@ export class SyndicateExecutor implements AgentExecutor {
     }
   }
 
-  /** Aborts the task's run; `execute` then publishes the `canceled` status. */
+  /**
+   * Aborts the task's run; `execute` then publishes the `canceled` status.
+   * The SDK calls this only on the instance whose event bus carries the
+   * task. A cancel reaching another instance is written to the task store
+   * (PostgresTaskStore records the request) and reaches the run through
+   * the lease heartbeat in lib/a2a/app.ts, which calls the limiter directly.
+   */
   async cancelTask(taskId: string): Promise<void> {
     if (this.opts.limiter.cancel(taskId)) this.opts.log(`Cancel requested for task ${taskId.slice(0, 8)}`);
   }

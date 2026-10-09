@@ -7,7 +7,7 @@ tags:
   - routing
 generated:
   by: process:wiki-build
-  at: 2026-10-08
+  at: 2026-10-09
 sources:
   - resource: lib/models/providerMap.ts
   - resource: lib/models/registry.ts
@@ -50,7 +50,7 @@ Claude's request surface differs by model generation, so the adapter reads a tab
 - **Claude 4.6 and earlier** (Opus 4.6, Sonnet 4.6, Haiku 4.5 and older) take the thinking budget: `thinking: { type: 'enabled', budget_tokens }` from `thinkingBudget` (a budget under 1,024 is raised to 1,024, the least Anthropic takes), with `max_tokens` at least the budget plus 2,048. `none` sends no `thinking` field.
 - **Later models** take adaptive thinking: the effort word becomes `output_config.effort` (`low`, `medium`, `high`; the older spelling's `xhigh` and `max` pass through), thinking asks for a `summarized` display, and `max_tokens` keeps the same floor as the budget would set. `none` is the model's off switch at `low` effort: `disabled` on Opus 4.7 and 4.8, Sonnet 5 and Haiku 5.5, `between_tools` on Sonnet 5.5. Opus 5, Opus 5.5, Fable and Mythos stay on adaptive thinking at `low`: they have no off switch, or, on Opus 5, one with a documented failure where a tool call is written as text and never runs. An agent that sets no reasoning gets the model's default, made readable where the model thinks by default, with `max_tokens` at least 18,432 there, since that thinking counts toward it.
 - **The non-streaming ceiling.** The Anthropic SDK refuses a non-streaming request whose `max_tokens` passes about 21,333 unless the client sets a timeout, and the adapter sets none. No level raises `max_tokens` past 18,432 on any generation; a `budget_tokens` above about 19,000, or a `maxOutputTokens` above the limit, fails a non-streaming turn.
-- **Structured output** is `output_config.format` (a strict JSON schema, through the Anthropic SDK's own transform) on Opus 4.8 and later, Sonnet 5 and later, Haiku 5.5, Fable and Mythos, read back from the reply text. Claude 4.6 and earlier and Opus 4.7 get a tool whose input schema is the output schema, forced with `tool_choice` unless thinking is on or another tool is sent. `llm.structured_output` on the span names which.
+- **Structured output** is `output_config.format` (a strict JSON schema, through the Anthropic SDK's own transform) on Opus 4.8 and later, Sonnet 5 and later, Haiku 5.5, Fable and Mythos, read back from the reply text. Claude 4.6 and earlier and Opus 4.7 get a tool whose input schema is the output schema, forced with `tool_choice` unless thinking is on or another tool is sent. `llm.structured_output` on the span names which. An agent that holds a schema beside tools (an orchestrator that delegates, say) gets `output_config.format` beside them on the generations that take it, and the native loop's `set_model_response` tool on the others ([ADR 0109](/decisions/0109-structured-output-beside-tools.md)).
 - **No sampling parameter** (`temperature`, `top_p`, `top_k`) is sent to any Claude model.
 
 ## Platforms: Vertex AI, Bedrock, Azure OpenAI and proxies
@@ -69,10 +69,11 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 | delegation (subagents as tools) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | memory tools (load_memory) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | structured output (outputSchema) | ✓ | ✓1 | ✓ | ✓ | ✓2 | ✓3 | ✓4 |
-| thinking with tool use | ✓ | ✓5 | ✓6 | ✓7 | ✓8 | ◐9 | ◐10 |
+| structured output beside tools (an outputSchema on an agent that calls tools or delegates) | ◐5 | ✓6 | ✓7 | ◐8 | ◐9 | ◐10 | ◐11 |
+| thinking with tool use | ✓ | ✓12 | ✓13 | ✓14 | ✓15 | ◐16 | ◐17 |
 | token streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| image input | ✓ | ✓11 | ✓12 | ✓13 | ✓14 | ✓15 | ✓16 |
-| native web search | ✓ | ✓ | ✓ | ✓ | ✗17 | ✗18 | ✗19 |
+| image input | ✓ | ✓18 | ✓19 | ✓20 | ✓21 | ✓22 | ✓23 |
+| native web search | ✓ | ✓ | ✓ | ✓ | ✗24 | ✗25 | ✗26 |
 
 ✓ supported · ◐ degraded · ✗ unsupported. Every cell is asserted against the request the adapter sends; the Gemini column is the engine's own Gemini adapter.
 
@@ -80,27 +81,34 @@ Wiki agent operations default to `gemini-3.8-flash` (WIKI_AGENT_MODEL in lib/con
 2. Moonshot Kimi · structured output (outputSchema): strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf).
 3. Ollama (local) · structured output (outputSchema): json_schema, enforced by grammar-constrained decoding from Ollama 0.5.0 (an older server ignores it); not enforced on Ollama Cloud (ADR 0096).
 4. Gateway (any id) · structured output (outputSchema): strict json_schema; upstream support varies by model.
-5. Anthropic Claude · thinking with tool use: a thinking budget on Claude 4.6 and earlier, adaptive thinking with output_config.effort after (ADR 0049); signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046), and where the model binds them to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5) under drop_block, so a block whose history changed is dropped rather than rejected; with a budget, a step answering another model's tool call runs without thinking.
-6. OpenAI GPT · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); reasoning ids only (o-series, gpt-5*).
-7. xAI Grok · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); grok-4.5, grok-4.6 and grok-4.7; other grok ids re-reason each step.
-8. Moonshot Kimi · thinking with tool use: reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
-9. Ollama (local) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
-10. Gateway (any id) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
-11. Anthropic Claude · image input: user-turn images only.
-12. OpenAI GPT · image input: user-turn images only.
-13. xAI Grok · image input: user-turn images only.
-14. Moonshot Kimi · image input: user-turn images only, sent as base64 (Moonshot takes no public image URLs).
-15. Ollama (local) · image input: needs a vision model, e.g. ollama/qwen3-vl:8b.
-16. Gateway (any id) · image input: upstream model must accept images.
-17. Moonshot Kimi · native web search: Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract).
-18. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
-19. Gateway (any id) · native web search: a gateway cannot enable upstream native search; the web_search sentinel is dropped.
+5. Google Gemini · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (on the Gemini API; Gemini 2 and later on Vertex AI take responseJsonSchema beside the tools in one request; ADR 0109).
+6. Anthropic Claude · structured output beside tools (an outputSchema on an agent that calls tools or delegates): output_config.format beside the tools in one request from Opus 4.8, Sonnet 5 and Haiku 5.5 on; Claude 4.6 and earlier and Opus 4.7 get a set_model_response tool beside them (ADR 0109).
+7. OpenAI GPT · structured output beside tools (an outputSchema on an agent that calls tools or delegates): text.format (strict json_schema) beside the tools in one request (ADR 0109).
+8. xAI Grok · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on xAI; ADR 0109).
+9. Moonshot Kimi · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (the schema is not yet sent beside tools on Moonshot; ADR 0109).
+10. Ollama (local) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (grammar-constrained decoding to the schema would hold back the tool calls; ADR 0109).
+11. Gateway (any id) · structured output beside tools (an outputSchema on an agent that calls tools or delegates): the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (upstream support for a schema beside tools varies by model; ADR 0109).
+12. Anthropic Claude · thinking with tool use: a thinking budget on Claude 4.6 and earlier, adaptive thinking with output_config.effort after (ADR 0049); signed thinking blocks are replayed verbatim within the turn's tool loop (ADR 0046), and where the model binds them to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5) under drop_block, so a block whose history changed is dropped rather than rejected; with a budget, a step answering another model's tool call runs without thinking.
+13. OpenAI GPT · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); reasoning ids only (o-series, gpt-5*).
+14. xAI Grok · thinking with tool use: encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); grok-4.5, grok-4.6 and grok-4.7; other grok ids re-reason each step.
+15. Moonshot Kimi · thinking with tool use: reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x).
+16. Ollama (local) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
+17. Gateway (any id) · thinking with tool use: reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step.
+18. Anthropic Claude · image input: user-turn images only.
+19. OpenAI GPT · image input: user-turn images only.
+20. xAI Grok · image input: user-turn images only.
+21. Moonshot Kimi · image input: user-turn images only, sent as base64 (Moonshot takes no public image URLs).
+22. Ollama (local) · image input: needs a vision model, e.g. ollama/qwen3-vl:8b.
+23. Gateway (any id) · image input: upstream model must accept images.
+24. Moonshot Kimi · native web search: Moonshot's model-side $web_search retires 2026-10-20 and its successor is a REST call, not a request field; the web_search sentinel is dropped (use web_extract).
+25. Ollama (local) · native web search: no native search on this path; the web_search sentinel is dropped (use web_extract).
+26. Gateway (any id) · native web search: a gateway cannot enable upstream native search; the web_search sentinel is dropped.
 
 **Cloud platforms** (ADR 0023): the same adapter and request as the provider's own API, except as listed. These paths are tested against mocks, not against the live clouds.
 
 | Path | Differs from the provider row |
 |---|---|
-| Google Gemini on Vertex AI | nothing |
+| Google Gemini on Vertex AI | structured output beside tools (an outputSchema on an agent that calls tools or delegates): ✓ responseJsonSchema beside the tools in one request on Gemini 2 and later; an earlier id gets set_model_response (ADR 0109) |
 | Anthropic Claude on Bedrock | image input: ◐ user-turn images inline (base64) only; an image given by URL is dropped, since Bedrock takes no URL image source; native web search: ✗ not sent on Bedrock; the web_search sentinel is dropped (use web_extract) |
 | Anthropic Claude on Vertex AI | image input: ◐ user-turn images inline (base64) only; an image given by URL is dropped, since Vertex AI takes no URL image source; native web search: ✗ not sent on Vertex AI; the web_search sentinel is dropped (use web_extract) |
 | OpenAI GPT on Azure OpenAI | native web search: ✗ not sent on Azure OpenAI; the web_search sentinel is dropped (use web_extract) |

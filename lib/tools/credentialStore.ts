@@ -25,7 +25,9 @@
  *     since a provider may echo the token it refused.
  */
 
-import { SpanStatusCode, trace } from '@opentelemetry/api';
+import { INVALID_SPAN_CONTEXT, SpanStatusCode, trace } from '@opentelemetry/api';
+import type { Span } from '@opentelemetry/api';
+import { turnUntraced } from '../runtime/turnControl.ts';
 
 import { scopeHashOf } from '../observability/audit.ts';
 import type { AuditSink } from '../observability/audit.ts';
@@ -75,6 +77,12 @@ export interface CredentialStoreOptions {
 }
 
 const tracer = () => trace.getTracer('melchizedek.credentials');
+
+/** `credential.refresh` as an active span; in a turn that opted out of tracing, a non-recording one. */
+function withRefreshSpan<T>(provider: string, fn: (span: Span) => Promise<T>): Promise<T> {
+  if (turnUntraced()) return fn(trace.wrapSpanContext(INVALID_SPAN_CONTEXT));
+  return tracer().startActiveSpan('credential.refresh', { attributes: { 'credential.provider': provider } }, fn);
+}
 
 /** The AAD a field is sealed under: its app, user, provider and field, NUL-separated. */
 export function credentialContext(key: CredentialKey, field: 'access' | 'refresh'): string {
@@ -163,7 +171,7 @@ export function credentialStore(options: CredentialStoreOptions): CredentialStor
       throw new ToolCredentialError('expired', key.provider);
     }
     const refreshToken = await open(row.refreshTokenEnc, key, 'refresh');
-    return tracer().startActiveSpan('credential.refresh', { attributes: { 'credential.provider': key.provider } }, async (span) => {
+    return withRefreshSpan(key.provider, async (span) => {
       try {
         let issued: TokenSet;
         try {
