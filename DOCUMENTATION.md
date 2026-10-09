@@ -819,9 +819,11 @@ nested delegate syndicate's gates anywhere in it, a nested dispatch
 syndicate's on its classifier (its routes never run when it is nested, so a
 gate on one is a load error), and a nested workflow's gated agent nodes and
 `ask_user` nodes when the workflow is a delegated subagent; the path then
-ends at the node, e.g. `["Desk", "Writer", "Send"]`. A gate or `ask_user`
-node in a workflow run as a dispatch route or as another workflow's node is
-still a load error. Skill scripts (`skills.scripts: local`) on a delegated
+ends at the node, e.g. `["Desk", "Writer", "Send"]`. A workflow run as a
+dispatch route or as another workflow's node pauses the turn the same way
+([ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)),
+the path running from the route or node down, e.g. `["Writer", "Send"]`.
+Skill scripts (`skills.scripts: local`) on a delegated
 subagent pause the same way, with `run_skill_script` as the tool
 ([ADR 0118](./wiki/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md));
 an agent a map node runs still may not carry them. Only function tools from the registry can be gated, not MCP tools
@@ -1333,12 +1335,13 @@ graph, under the entry's name and description, wherever it appears: as a
 DELEGATE subagent its last output is the tool's answer; as a plan-dispatch
 route it is the turn's answer, and the conversation keeps the message and
 that answer; as a node of another workflow it is the node's output. The
-graph's events are kept in the entry's own session, as for any subagent.
-As a DELEGATE subagent, an `ask_user` node or a gated agent node inside it
-pauses the whole turn, and the answer resumes the graph
-([ADR 0111](./wiki/decisions/0111-pauses-inside-nested-syndicates.md)). As a
-route or a node, a pause inside it cannot reach the turn yet, so an
-`ask_user` node or a gate there is refused by name, as is a `map` over one.
+graph's events are kept in the entry's own session, filed under the agent
+path (`<app>/<route>`, `<app>/<node>`), as for any subagent. Wherever it
+runs, an `ask_user` node or a gated agent node inside it pauses the whole
+turn with the path down to that node, and the answer resumes the graph
+([ADR 0111](./wiki/decisions/0111-pauses-inside-nested-syndicates.md),
+[ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)).
+A `map` over one is refused by name.
 
 **Not yet.** Remote `a2a_agent_url` subagents are refused inside a
 workflow by the schema. An `ask_user` tool on a node agent is refused

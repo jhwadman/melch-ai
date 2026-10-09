@@ -43,7 +43,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { DEFAULT_MAX_STEPS } from '../config.ts';
-import { agentGates, compileEntrySpec, compileSpec, compileWorkflowSpec, declaresApprovals, workflowAgentSpecs } from '../compile.ts';
+import { agentGates, compileEntrySpec, compileSpec, compileWorkflowSpec, workflowAgentSpecs } from '../compile.ts';
 import type { AgentSpec, WorkflowSpec } from '../compile.ts';
 import { compileNative, compileNativeWorkflow, nativeAdapterFor } from '../compileNative.ts';
 import type { NativeWorkflow } from '../compileNative.ts';
@@ -94,8 +94,11 @@ import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
 import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
 import { pendingQuestion, questionAnswerPart, questionFrom, turnStartOfCall } from './questions.ts';
-import { delegatedPauses } from './native/interrupts.ts';
-import type { DelegatedPause } from './native/interrupts.ts';
+import { deepestPause, delegatedPauses, nestedWorkflowPause, routePause } from './native/interrupts.ts';
+import type { DelegatedPause, NestedWorkflowPause } from './native/interrupts.ts';
+import { entrySession } from './native/delegate.ts';
+import { workflowPauseEvent } from '../workflow/pause.ts';
+import { INPUT_REQUEST } from '../workflowConfig.ts';
 export { ASK_USER, pendingQuestion, questionAnswerPart } from './questions.ts';
 import type { PendingApproval } from './approvals.ts';
 export { approvalResponsePart, describeApproval, pendingApproval } from './approvals.ts';
@@ -636,13 +639,25 @@ async function runTurnInner(
   /** The first pause waiting below an open delegated call in this conversation, `author`'s calls only when given. */
   const pauseBelow = async (events: readonly TurnEvent[], author?: string): Promise<DelegatedPause | undefined> =>
     isWorkflowSyndicate(config) ? undefined : (await delegatedPauses(delegationKey, events, author))[0];
+  // Pauses inside nested workflows run as a dispatch route or a workflow node (ADR 0119).
+  const pauseKey = { ...delegationKey, appName };
+  /** A request a workflow's own session holds, raised by a node that is a nested workflow: the one its walk waits on, with the path. */
+  const deepen = <T extends PendingApproval | PendingInput>(pending: T): Promise<T> => deepestPause(pauseKey, pending);
+  /** A dispatch route that is a nested workflow, its walk paused: the conversation's last event is its pause record. */
+  const routePaused = isDispatchSyndicate(config) ? await routePause(pauseKey, existing?.events ?? [], subagentNames) : undefined;
   let resumingBelow: DelegatedPause | undefined;
+  let resumingRoute: (NestedWorkflowPause & { route: string }) | undefined;
   let resuming: PendingApproval | undefined;
   if (decision) {
     resuming = pendingApproval(existing?.events ?? []);
+    if (resuming && isWorkflowSyndicate(config)) resuming = await deepen(resuming);
     if (!resuming) {
       resumingBelow = await pauseBelow(existing?.events ?? []);
       resuming = resumingBelow?.approval;
+    }
+    if (!resuming && routePaused?.approval) {
+      resumingRoute = routePaused;
+      resuming = routePaused.approval;
     }
     if (!resuming || resuming.id !== decision.id) {
       result.status = 'failed';
@@ -704,12 +719,20 @@ async function runTurnInner(
   // A question asked inside a delegated subagent (ADR 0110) is answered the same way: the answer is stored here, and the
   // open call that leads to the asker carries it down; `answering` names that call and the agent that made it.
   let answering: { agent: string; id: string } | undefined;
+  /** The parts a paused workflow route's walk resumes on, when the message answers its question: the answer as the explicit reply to its `adk_request_input` call (ADR 0119). */
+  let routeAnswer: unknown[] | undefined;
   if (!decision && !granting && !isWorkflowSyndicate(config)) {
     const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
     const own = plainText ? pendingQuestion(existing?.events ?? []) : undefined;
     const below = plainText && !own ? await pauseBelow(existing?.events ?? []) : undefined;
     const question = own ?? below?.question;
-    if (question) {
+    if (!question && plainText && routePaused?.question) {
+      // The conversation stores the person's words; the route's walk reads them as the reply to the node that asked.
+      const waiting = routePaused.question;
+      answering = { agent: routePaused.route, id: waiting.id };
+      routeAnswer = [{ functionResponse: { id: waiting.id, name: INPUT_REQUEST, response: { result: messageText } } }];
+      ev.log?.(`✓ Answer to ${(waiting.path ?? [waiting.node]).join(' → ')}'s question`);
+    } else if (question) {
       answering = below ? { agent: below.path[0] as string, id: below.callIds[0] as string } : { agent: question.node, id: question.id };
       parts = [questionAnswerPart(question.id, messageText)];
       ev.log?.(`✓ Answer to ${(question.path ?? [question.node]).join(' → ')}'s question`);
@@ -718,6 +741,8 @@ async function runTurnInner(
   /** The agent a dispatch turn must resume, and the call its interrupted turn holds. */
   const resumeTarget = resumingBelow
     ? { agent: resumingBelow.path[0] as string, id: resumingBelow.callIds[0] as string, why: 'resuming an approval' }
+    : resumingRoute
+    ? { agent: resumingRoute.route, id: resuming!.id, why: 'resuming an approval' }
     : grantingBelow
     ? { agent: grantingBelow.path[0] as string, id: grantingBelow.callIds[0] as string, why: 'resuming after an authorization' }
     : resuming
@@ -772,6 +797,16 @@ async function runTurnInner(
     ev.log?.(`⏸ Approval needed: ${(pending.path ?? [pending.agent]).join(' → ')} → ${pending.tool}`);
     return finish();
   };
+  /** The turn waits on what a question asks. */
+  const question = (input: PendingInput): SyndicateTurnResult => {
+    result.status = 'input-required';
+    result.input = input;
+    result.text = input.message;
+    ev.log?.(`⏸ Input needed: ${describeInput(input)}${input.path ? ` (${input.path.join(' → ')})` : ''}`);
+    return finish();
+  };
+  /** A nested workflow's walk paused below a route (ADR 0119): its approval request, else its question. */
+  const pausedWalk = (paused: NestedWorkflowPause): SyndicateTurnResult => (paused.approval ? pause(paused.approval) : question(paused.question!));
 
   /** Run ONE agent against ONE session, under the turn's controls. */
   const runAgent = async (params: {
@@ -873,31 +908,53 @@ async function runTurnInner(
 
   /**
    * A dispatch route that is a workflow syndicate (ADR 0106): its whole graph
-   * walked on the child session filed under the route's name (`{ <route>,
-   * userId, sessionId }`, created from the conversation's state the first
-   * time, `temp:` keys dropped, and kept), as a delegated nested workflow
-   * walks (ADR 0098), and drained by the reader a workflow turn uses, so the
-   * route's answer is what the workflow would answer as its own syndicate.
-   * The conversation stores the message and the answer, one event authored
-   * by the route that carries the walk's state writes, so the classifier and
-   * the next route read the exchange as they read any route's. A node that
-   * gave up fails the turn NODE_FAILED, as a workflow turn does.
+   * walked on the child session filed under the agent path (`{ <app>/<route>,
+   * userId, sessionId }`, ADR 0119; the one ADR 0106 filed under the route's
+   * name alone is continued when the route ran in the conversation before),
+   * created from the conversation's state the first time, `temp:` keys
+   * dropped, and kept, as a delegated nested workflow walks (ADR 0098), and
+   * drained by the reader a workflow turn uses, so the route's answer is what
+   * the workflow would answer as its own syndicate. The conversation stores
+   * the message and the answer, one event authored by the route that carries
+   * the walk's state writes, so the classifier and the next route read the
+   * exchange as they read any route's. A node that gave up fails the turn
+   * NODE_FAILED, as a workflow turn does.
+   *
+   * A walk that ends paused (ADR 0119) stores the route's pause record in
+   * place of the answer: authored by the route at its own path, no content,
+   * the walk's open interrupts in `longRunningToolIds`, its state writes so
+   * far. While it is the conversation's last event the route waits: the
+   * turn reports the request or question with the path from the route down
+   * to the node that asked (interrupts.ts routePause), a decision or a
+   * plain-text answer resumes the route without classifying, and the walk
+   * reads the answer as its explicit reply (`routeAnswer`).
    */
-  const runWorkflowRoute = async (route: string, agent: TurnAgent, resolution: RouteResolution): Promise<{ answer: DrainedRun } | { failed: SyndicateTurnResult }> => {
+  const runWorkflowRoute = async (
+    route: string,
+    agent: TurnAgent,
+    resolution: RouteResolution,
+  ): Promise<{ answer: DrainedRun; paused?: NestedWorkflowPause } | { failed: SyndicateTurnResult }> => {
     const store = sessionService;
     const key = { appName, userId, sessionId };
     const shared = await store.get(key);
     if (!shared) throw new Error(`Session not found: ${sessionId} (appName=${appName}, userId=${userId})`);
     const kept = (state: Record<string, unknown> | undefined): Record<string, unknown> =>
       Object.fromEntries(Object.entries(state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
-    const childKey = { appName: route, userId, sessionId };
-    const child = (await store.get(childKey)) ?? (await store.create({ ...childKey, state: kept(shared.state) }));
+    // Filed under the agent path (ADR 0119), else continued under the route's name alone where ADR 0106 filed it.
+    const resumingWalk = resumingRoute !== undefined || routeAnswer !== undefined;
+    const child = await entrySession(store, { appName, userId, sessionId, events: shared.events }, route, kept(shared.state), resumingWalk);
+    const childKey = { appName: child.appName, userId, sessionId };
     const before = new Map(Object.entries(kept(child.state)).map(([k, v]) => [k, JSON.stringify(v)]));
     const invocationId = `e-${randomUUID()}`;
     await store.append(shared, createTurnEvent({ invocationId, author: 'user', content: { role: 'user', parts } as any }));
+    /** The walk's state writes this turn, `temp:` keys aside: what the conversation's event for the route carries. */
+    const written = async (): Promise<Record<string, unknown>> => {
+      const after = kept((await store.get(childKey))?.state);
+      return Object.fromEntries(Object.entries(after).filter(([k, v]) => before.get(k) !== JSON.stringify(v)));
+    };
     let walked: DrainedRun;
     try {
-      walked = await runAgent({ agent, sid: sessionId, appName: route, userParts: parts, sessions: sessionService, stage: 'dispatch', route: resolution, publishToolStatus: true, errorPolicy: 'collect' });
+      walked = await runAgent({ agent, sid: sessionId, appName: child.appName, userParts: routeAnswer ?? parts, sessions: sessionService, stage: 'dispatch', route: resolution, publishToolStatus: true, errorPolicy: 'collect' });
     } catch (err) {
       const last = control.stopReason ? undefined : (err as Error);
       if (!last) throw err;
@@ -906,9 +963,21 @@ async function runTurnInner(
       result.error = { code: last instanceof UnsupportedWorkflowResumeError ? 'RESUME_UNSUPPORTED' : last instanceof NodeRunLimitError ? NODE_RUN_LIMIT : 'NODE_FAILED', message: last.message };
       return { failed: finish() };
     }
+    if (!walked.error && !control.stopReason) {
+      // A walk that ended paused (ADR 0119): the conversation stores the route's pause record, which names the walk's
+      // open interrupts and carries its state writes so far; the next message finds the walk through it.
+      const walkEnd = (await store.get(childKey))?.events.at(-1);
+      const paused = walkEnd?.author === route && walkEnd.nodeInfo?.path === route && !walkEnd.content?.parts?.length ? await nestedWorkflowPause(pauseKey, route) : undefined;
+      if (paused) {
+        const record = workflowPauseEvent({ name: route, invocationId, input: null, interruptIds: [...(walkEnd!.longRunningToolIds ?? [])] });
+        const stateDelta = await written();
+        if (Object.keys(stateDelta).length) record.actions.stateDelta = stateDelta;
+        await store.append((await store.get(key)) ?? shared, record);
+        return { answer: walked, paused };
+      }
+    }
     if (walked.text && !walked.error && !control.stopReason) {
-      const after = kept((await store.get(childKey))?.state);
-      const stateDelta = Object.fromEntries(Object.entries(after).filter(([k, v]) => before.get(k) !== JSON.stringify(v)));
+      const stateDelta = await written();
       const answered = createTurnEvent({
         invocationId,
         author: route,
@@ -919,6 +988,10 @@ async function runTurnInner(
     }
     return { answer: walked };
   };
+
+  // While a route's walk waits on a gated call (ADR 0119), a message that is not its decision repeats the request: the
+  // walk cannot move past the waiting node, so nothing is stored and nothing runs, as a workflow turn answers it.
+  if (!decision && routePaused?.approval) return pause(routePaused.approval);
 
   let answer: DrainedRun;
 
@@ -1001,6 +1074,11 @@ async function runTurnInner(
         const walked = await runWorkflowRoute(routeCfg.name, routeAgent, resolution);
         if ('failed' in walked) return walked.failed;
         answer = walked.answer;
+        // Its walk paused (ADR 0119): the turn waits on the node that asked, with the path from the route down to it.
+        if (walked.paused) {
+          result.answer = answer;
+          return pausedWalk(walked.paused);
+        }
       } else answer = await runAgent({
         agent: routeAgent,
         sid: sessionId,
@@ -1066,9 +1144,10 @@ async function runTurnInner(
     // resumes the graph where it waited.
     // While a gated call waits, a message that is not its decision repeats the request: the walk cannot move past
     // the waiting node, so nothing is stored and nothing runs, as the A2A server answers it (ADR 0098).
-    if (!decision && declaresApprovals(config)) {
+    // A node that is a nested workflow raised its walk's request again on the walk's own session (ADR 0119), wherever the gate is declared.
+    if (!decision) {
       const open = pendingApproval(existing?.events ?? []);
-      if (open) return pause(open);
+      if (open) return pause(await deepen(open));
     }
     const workflowAgent: TurnAgent = await compileNativeWorkflowAgent(config, compileOpts);
     try {
@@ -1102,20 +1181,12 @@ async function runTurnInner(
       result.error = answer.error;
       return finish();
     }
-    // A gated call paused its node, and the walk with it (ADR 0098): the next message answers it.
-    if (declaresApprovals(config)) {
-      const after = await sessionService.get({ appName, userId, sessionId });
-      const pending = pendingApproval(after?.events ?? []);
-      if (pending) return pause(pending);
-    }
-    if (answer.inputRequests.length) {
-      const input = answer.inputRequests[answer.inputRequests.length - 1]!;
-      result.status = 'input-required';
-      result.input = input;
-      result.text = input.message;
-      ev.log?.(`⏸ Input needed: ${describeInput(input)}`);
-      return finish();
-    }
+    // A gated call paused its node, and the walk with it (ADR 0098): the next message answers it. A node that is a
+    // nested workflow pauses on its walk's request, reported with the path down to the node that asked (ADR 0119).
+    const after = await sessionService.get({ appName, userId, sessionId });
+    const pending = pendingApproval(after?.events ?? []);
+    if (pending) return pause(await deepen(pending));
+    if (answer.inputRequests.length) return question(await deepen(answer.inputRequests[answer.inputRequests.length - 1]!));
     result.text = answer.text;
     if (!result.text) {
       const failed = answer.nodeErrors[answer.nodeErrors.length - 1];

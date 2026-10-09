@@ -41,6 +41,30 @@ the starter pack and the templates), not the repo's full history.
 
 ### Changed
 
+- **A nested workflow run as a dispatch route or a workflow node pauses the
+  turn** ([ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)).
+  Its `ask_user` nodes and gated agent nodes (`require_approval`, skill
+  scripts) are no longer a load error there: the turn ends `input-required`
+  with `result.input` or `result.approval`, whose `path` runs from the route
+  or node down to the node that asked (`["Writer", "Send"]`, and further
+  down through a node that is itself a nested workflow), over
+  `runSyndicateTurn` and A2A. The next message answers it: a decision, or a
+  plain-text reply to the question, resumes a paused route without running
+  the classifier (`route.decidedBy` `approval` or `answer`); any other
+  message while an approval waits repeats the request and runs nothing. A
+  workflow node resumes inside the caller's walk. The conversation of a
+  paused route ends on the route's pause record (no content, the walk's
+  open interrupt ids in `longRunningToolIds`) in place of its answer.
+- **The child session of a nested workflow run as a route or a node is
+  filed under the agent path** (ADR 0119): `<app>/<route>`, and
+  `<walk's app>/<node>` for a node (`app/Writer/Inner` two levels down), no
+  longer under the entry's name alone, so it no longer shares a row with a
+  same-named entry of another syndicate. A session 1.1.0 stored under the
+  entry's name is still continued when the entry ran in that conversation
+  before; nothing stored is rewritten. Code that read the walk's events at
+  `{ appName: '<entry>' }` reads them at the path now.
+- `compileEntrySpec` and `compileWorkflowSpec` still accept their
+  `delegated` argument; it no longer changes what compiles.
 - **The council example's Moderator consults both subagents in one step**
   (`config/agents/examples/council.yaml`). Its instruction asks for the
   Advocate and the Skeptic together, both function calls in one response,

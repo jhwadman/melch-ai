@@ -3262,6 +3262,88 @@
       "evidence": "ADR 0122 Context and Decision 1: it extends ADR 0114's operator binding, in the same host format, from OAuth providers to static credential variables.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0119 Decision 1 lifts ADR 0111 Decision 4 (a nested workflow's gates and ask_user nodes refused as a dispatch route or a workflow node); dated note on ADR 0111.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 4 only"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0119 Decisions 1 and 2: the refusals of ADR 0106 Decision 5 are lifted, and the route's and node's child session moves from the entry's name to entryAppName; dated note on ADR 0106.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 5 and the child session key"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0119 Decision 5: the caller's own resume reruns the waiting node with the answers; \"Raising the requests again on the node's event satisfies both rules unchanged\" (raisedInterrupt, assertResumable).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0119 Decision 5: the node raises its walk's requests again \"as waitAgain does for an agent node\"; Decision 4 repeats a waiting approval \"as a workflow turn answers it (ADR 0098)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 5: runWorkflowNode raises a paused walk's open requests again on the caller's walk and walks the graph again on the answered ids.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 4: a route walk that ends paused stores the route's pause record; a decision or plain-text answer resumes the route without classifying.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decisions 4 and 6: routePause, nestedWorkflowPause and deepestPause find a route's or node's pause by id down to the node that asked.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decisions 2 and 3: entryAppName and entrySession file the child session under the agent path, continuing a 1.1.0 session under the entry's name.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 1: loadNestedSyndicate and compileWorkflowSpec no longer refuse a nested workflow's gates and ask_user nodes; delegated no longer changes what compiles.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 6: \"The A2A executor reads a paused route and a raised request the same way, so approve and reject work and the repeated request carries the path.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

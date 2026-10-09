@@ -3,6 +3,46 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/a2a/executor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/workflow/turn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —depends_on→ /decisions/0098-workflow-subagent-and-node-approvals.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —depends_on→ /decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —supersedes→ /decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —supersedes→ /decisions/0111-pauses-inside-nested-syndicates.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —depends_on→ /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md
 
 by claude-code/claude-opus-5-5
