@@ -1,5 +1,5 @@
 {
-  "//": "Package build: compiles lib/ (+ the ten bins) to dist/ as JS + d.ts. Node refuses to strip types under node_modules, so the npm package must ship compiled output; the cloned repo keeps running the .ts sources directly. rewriteRelativeImportExtensions turns the source's './x.ts' specifiers into './x.js' on emit (TypeScript >= 5.7).",
+  "//": "Package build: compiles lib/ (+ the eleven bins) to dist/ as JS + d.ts. Node refuses to strip types under node_modules, so the npm package must ship compiled output; the cloned repo keeps running the .ts sources directly. rewriteRelativeImportExtensions turns the source's './x.ts' specifiers into './x.js' on emit (TypeScript >= 5.7).",
   "compilerOptions": {
     "target": "es2022",
     "module": "nodenext",
@@ -18,6 +18,7 @@
   "include": [
     "lib/**/*.ts",
     "scripts/a2a_server.ts",
+    "scripts/mcp_server.ts",
     "scripts/syndicate_chat.ts",
     "scripts/doctor.ts",
     "scripts/skills_install.ts",

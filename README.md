@@ -12,7 +12,7 @@ Gemini, Claude, GPT, Grok, and Kimi each run on the engine's own adapter for the
 
 - **Declarative YAML configuration** — Orchestrators, subagents, routing, output schemas, and tool assignments in one readable document. Tools and guards are registered in code; YAML names them.
 - **Multi-model routing** — Mix providers within the same agent graph (`gemini-*`, `claude-*`, `gpt-*`, `grok-*`, `kimi-*`, and local `ollama/*`). Switching an agent's model is a one-line change.
-- **MCP integration** — Give a subagent an `mcp_server_url:` and the server's tools are discovered and wrapped as agent tools at runtime. URLs are SSRF-guarded.
+- **MCP integration** — Give a subagent an `mcp_server_url:` and the server's tools are discovered and wrapped as agent tools at runtime. URLs are SSRF-guarded. In the other direction, `melchizedek-mcp` serves your syndicates as MCP tools to Claude Code, Codex and other MCP clients.
 - **Persistent sessions & long-term memory** — Optional Supabase backend for session persistence and pgvector memory: transcripts are distilled into structured records and recalled by similarity in later sessions. Without it, sessions run in memory.
 - **Native tools** — Web search, image generation, and a blind image-inventory tool that accepts only a file path, so the expected result can never reach the observer.
 - **Agent-to-Agent (A2A) serving** — Serve any syndicate over HTTP as a JSON-RPC endpoint with bearer auth and rate limiting.
@@ -158,8 +158,28 @@ A Gemini id resolves to the engine's `GeminiAdapter` here, on `@google/genai`.
 - `npx melchizedek-setup`: The onboarding menu: pick what you have, get the startup guide for it (`--auto` detects it).
 - `npx melchizedek-chat --syndicate <name>`: Interactive CLI REPL for any syndicate.
 - `npx melchizedek-serve`: Serve your `./config/agents/` over HTTP via JSON-RPC.
+- `npx melchizedek-mcp`: Serve your syndicates as MCP tools, over stdio (Claude Code, Codex) or Streamable HTTP.
 - `npx melchizedek-doctor`: Report which syndicates your keys unlock, without sending a request.
 - `npx melchizedek-skills install`: Install the agent skills into `.claude/skills/` and `.agents/skills/` (`--agents-md` also points `AGENTS.md` at them).
+
+### Use melch from Claude Code or Codex
+
+`melchizedek-mcp` makes each syndicate an MCP tool (`{ message, session_id? }` in, the answer and its `session_id` out), plus `melch_resume` for a turn that pauses for an approval, a question or an authorization. Run it from your project, where `.env` and `config/agents/` live:
+
+```bash
+claude mcp add melch -- npx melchizedek-mcp --syndicate research_desk
+```
+
+```toml
+# ~/.codex/config.toml
+[mcp_servers.melch]
+command = "npx"
+args = ["-y", "-p", "melchizedek-agents", "melchizedek-mcp", "--syndicate", "research_desk"]
+cwd = "/path/to/your/project"
+tool_timeout_sec = 900
+```
+
+`--http` serves Streamable HTTP on `127.0.0.1:4100/mcp`; beyond loopback it requires `MCP_SERVER_SECRET`. See [DOCUMENTATION.md § MCP server mode](./DOCUMENTATION.md#mcp-server-mode-melchizedek-mcp).
 
 ---
 

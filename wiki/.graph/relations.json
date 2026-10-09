@@ -3612,6 +3612,38 @@
       "evidence": "lib/tools/auth.ts ToolCredentialError: a host_refused error with allowlist 'credential' names MELCHIZEDEK_CREDENTIAL_HOSTS, the allowlist ADR 0122 defines; lib/tools/oauthTools.ts passes it where credentialCallProblem refuses a client secret.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "module:lib/mcp/server.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0125 Decision 2: \"Every call is one task through SyndicateExecutor. lib/mcp/server.ts builds the executor's collaborators as createA2AApp does\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "module:scripts/mcp_server.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0125 Decision 4: \"A bind beyond loopback refuses to start without MCP_SERVER_SECRET of 32 characters or more (mcpBindProblem)\"; \"The bin sends every console line to stderr before anything loads\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "depends_on",
+      "evidence": "wiki/protocols/mcp-server.md: \"Each call is a SyndicateExecutor task ... Budgets, caps, the turn lock, the approval read, the deadline, guards ... are therefore the A2A server's.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0125 Alternatives: calling runSyndicateTurn directly \"would re-implement ... beside the executor: the drift ADR 0024 ended for turn semantics would return one layer up.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }
