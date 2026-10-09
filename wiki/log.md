@@ -3,6 +3,26 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ module:lib/storage/postgres/taskStore.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ table:melchizedek_tasks
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ module:scripts/assistant_worker.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —explains→ module:lib/runtime/native/checkpoint.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —depends_on→ /decisions/0015-task-queue-and-worker.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0108-adk-reference-recorded-by-the-parity-suites.md —explains→ file:tests/helpers/adkReference.ts
 
 by claude-code/claude-opus-5-5

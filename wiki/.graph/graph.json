@@ -5,25 +5,25 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 876,
-    "edges": 3322,
+    "nodes": 879,
+    "edges": 3346,
     "byKind": {
-      "doc": 171,
+      "doc": 172,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 182,
+      "file": 183,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 178,
+      "module": 179,
       "script": 46,
       "external": 2
     },
     "byRelation": {
-      "links_to": 747,
+      "links_to": 754,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 723,
+      "imports": 726,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 866,
-      "constrains": 175,
+      "derives_from": 875,
+      "constrains": 178,
       "supersedes": 9,
-      "depends_on": 113,
-      "explains": 38,
+      "depends_on": 114,
+      "explains": 39,
       "mitigates": 3,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 2983,
-      "inferred": 339
+      "extracted": 3002,
+      "inferred": 344
     },
     "isolated": 4
   },
@@ -588,7 +588,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 502
+        "words": 556
       }
     },
     {
@@ -1672,6 +1672,18 @@
       }
     },
     {
+      "id": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "kind": "doc",
+      "label": "ADR 0113: A long run is durable by checkpointing its sessions beside the job at every step boundary, and a re-claimed job resumes from the last one",
+      "source": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1019
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1692,7 +1704,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 13591
+        "words": 13829
       }
     },
     {
@@ -1992,7 +2004,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2019
+        "words": 2140
       }
     },
     {
@@ -2064,7 +2076,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 458
+        "words": 609
       }
     },
     {
@@ -4110,6 +4122,13 @@
       "attrs": {}
     },
     {
+      "id": "file:db/migrations/0014_durable_runs.sql",
+      "kind": "file",
+      "label": "0014_durable_runs.sql",
+      "source": "db/migrations/0014_durable_runs.sql",
+      "attrs": {}
+    },
+    {
       "id": "file:db/telemetry.sql",
       "kind": "file",
       "label": "telemetry.sql",
@@ -5013,7 +5032,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1272
+        "lines": 1302
       }
     },
     {
@@ -5022,7 +5041,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 839
+        "lines": 852
       }
     },
     {
@@ -5620,6 +5639,15 @@
       }
     },
     {
+      "id": "module:lib/runtime/native/checkpoint.ts",
+      "kind": "module",
+      "label": "lib/runtime/native/checkpoint.ts",
+      "source": "lib/runtime/native/checkpoint.ts",
+      "attrs": {
+        "lines": 467
+      }
+    },
+    {
       "id": "module:lib/runtime/native/compaction.ts",
       "kind": "module",
       "label": "lib/runtime/native/compaction.ts",
@@ -5814,7 +5842,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 259
+        "lines": 274
       }
     },
     {
@@ -5841,7 +5869,7 @@
       "label": "lib/storage/postgres/taskQueue.ts",
       "source": "lib/storage/postgres/taskQueue.ts",
       "attrs": {
-        "lines": 146
+        "lines": 183
       }
     },
     {
@@ -5850,7 +5878,7 @@
       "label": "lib/storage/postgres/taskStore.ts",
       "source": "lib/storage/postgres/taskStore.ts",
       "attrs": {
-        "lines": 230
+        "lines": 308
       }
     },
     {
@@ -6147,7 +6175,7 @@
       "label": "lib/tools/taskTools.ts",
       "source": "lib/tools/taskTools.ts",
       "attrs": {
-        "lines": 481
+        "lines": 571
       }
     },
     {
@@ -6426,7 +6454,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 213
+        "lines": 257
       }
     },
     {
@@ -7417,7 +7445,7 @@
       "id": "table:adk_a2a_tasks",
       "kind": "table",
       "label": "adk_a2a_tasks",
-      "source": "db/migrations/0006_task_leases.sql",
+      "source": "db/migrations/0014_durable_runs.sql",
       "attrs": {
         "created_upstream": true
       }
@@ -7531,7 +7559,7 @@
       "id": "table:melchizedek_tasks",
       "kind": "table",
       "label": "melchizedek_tasks",
-      "source": "db/migrations/0009_task_queue.sql",
+      "source": "db/migrations/0014_durable_runs.sql",
       "attrs": {
         "created_upstream": true
       }
@@ -8905,7 +8933,7 @@
       "to": "/decisions/0007-engine-as-package.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0015-task-queue-and-worker.md:38"
+      "evidence": "/decisions/0015-task-queue-and-worker.md:40"
     },
     {
       "from": "/decisions/0015-task-queue-and-worker.md",
@@ -8913,6 +8941,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0015-task-queue-and-worker.md:36"
+    },
+    {
+      "from": "/decisions/0015-task-queue-and-worker.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0015-task-queue-and-worker.md:38"
     },
     {
       "from": "/decisions/0015-task-queue-and-worker.md",
@@ -14844,6 +14879,83 @@
       "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md:39"
     },
     {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "file:db/migrations/0014_durable_runs.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/storage/postgres/taskQueue.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/storage/postgres/taskStore.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/tools/taskTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md frontmatter"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0015-task-queue-and-worker.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:29"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:33"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:53"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -15118,6 +15230,13 @@
     },
     {
       "from": "/memory/schema.md",
+      "to": "file:db/migrations/0014_durable_runs.sql",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/memory/schema.md frontmatter"
+    },
+    {
+      "from": "/memory/schema.md",
       "to": "file:db/telemetry.sql",
       "rel": "derives_from",
       "tier": "extracted",
@@ -15128,14 +15247,14 @@
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:34"
+      "evidence": "/memory/schema.md:35"
     },
     {
       "from": "/memory/schema.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/memory/schema.md:2511"
+      "evidence": "/memory/schema.md:2550"
     },
     {
       "from": "/memory/sessions.md",
@@ -18555,6 +18674,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:89"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18566,6 +18692,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md:24"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/tools/task-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:89"
     },
     {
       "from": "/protocols/a2a.md",
@@ -19056,6 +19189,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/task-tools.md:30"
+    },
+    {
+      "from": "/tools/task-tools.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/task-tools.md:32"
     },
     {
       "from": "/tools/task-tools.md",
@@ -23258,6 +23398,34 @@
       "evidence": "lib/runtime/native/agentLoop.ts"
     },
     {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/dispatch.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/checkpoint.ts",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/checkpoint.ts"
+    },
+    {
       "from": "module:lib/runtime/native/compaction.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
@@ -25982,21 +26150,14 @@
     },
     {
       "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
       "to": "module:lib/runtime/runtimeFlag.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "scripts/assistant_worker.ts"
-    },
-    {
-      "from": "module:scripts/assistant_worker.ts",
-      "to": "module:lib/runtime/sessions.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "scripts/assistant_worker.ts"
-    },
-    {
-      "from": "module:scripts/assistant_worker.ts",
-      "to": "module:lib/runtime/syndicateTurn.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/assistant_worker.ts"

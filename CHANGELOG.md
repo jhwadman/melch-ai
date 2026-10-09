@@ -6,6 +6,48 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Durable long-running runs (WS6-5, ADR 0113)
+
+Apply migration `0014_durable_runs` (`melchizedek-db apply`) before
+upgrading a server or worker that uses `DATABASE_URL`: the Postgres task
+store writes `adk_a2a_tasks.cancel_requested_at`, and the worker writes
+`melchizedek_tasks.checkpoint`.
+
+- **The worker resumes a job instead of starting over.** `melchizedek-worker`
+  checkpoints each job's sessions beside the job at every step boundary
+  (Postgres: the `checkpoint` column; the JSON store: `<store>.checkpoints.json`).
+  A job claimed again after its worker stopped resumes from its last
+  checkpoint. A dispatch syndicate checkpointed inside an agent route
+  starts over, and its classifier runs again.
+- **SIGTERM re-queues the job in hand** with its checkpoint, so the next
+  worker finishes it. Before, the job was recorded as failed.
+- **A running background job can be cancelled.** `task_update` with
+  `status: cancelled` now accepts a running job. The worker stops at its
+  next lease renewal or checkpoint save and writes no result.
+- **`TaskBackend` (`melchizedek-agents/tools/taskTools`), additive only:**
+  - new optional members `saveCheckpoint` and `loadCheckpoint`;
+  - `renew` may resolve `false` when the claim is gone;
+  - new export `taskCheckpointPath`.
+
+  A backend you wrote yourself still type-checks. It just does not
+  checkpoint.
+- **New module `lib/runtime/native/checkpoint.ts`** (`runDurableTurn`,
+  `checkpointingSessions`). It is the worker's runner and is not in the
+  exports map.
+- **A2A cancel works across replicas** (`melchizedek-agents/storage/postgres`):
+  - A `tasks/cancel` that reaches a replica not running the task answers
+    `canceled` and records the request.
+  - The replica holding the task's lease aborts the run on its lease
+    heartbeat.
+  - The stored task stays `canceled`.
+  - The reaper keeps a cancel that was already reported.
+  - New: `PostgresTaskStore.requestCancel(taskId, context)`, the optional
+    `leases.cancelRequested` on `postgresStorage()`, and the optional
+    `storage.leases.cancelRequested` option of `createA2AApp`.
+- **A2A task cancelled during the turn-lock wait:** a task cancelled while
+  waiting for its conversation's turn lock now ends `canceled`, not
+  `rejected`.
+
 ## 1.0.2 — 2026-10-09
 
 A test and documentation patch. Nothing a consumer imports, configures or

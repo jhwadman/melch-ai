@@ -691,6 +691,13 @@ export class SyndicateExecutor implements AgentExecutor {
           waitMs: this.opts.turnLockWaitMs ?? 30_000,
           signal: slot.signal,
         });
+        if (!releaseTurn && slot.signal.aborted) {
+          // Canceled while waiting its turn (here or through another instance).
+          log(`✗ Task ${short} canceled before it started`);
+          publishFinal(eventBus, taskId, contextId, 'canceled', 'The task was canceled.');
+          await report(ctx, 'canceled', 'canceled');
+          return;
+        }
         if (!releaseTurn) {
           const why = 'Another turn on this conversation is still running; send this again when it finishes.';
           warn(`Task ${short} rejected — conversation busy`);
@@ -831,7 +838,13 @@ export class SyndicateExecutor implements AgentExecutor {
     }
   }
 
-  /** Aborts the task's run; `execute` then publishes the `canceled` status. */
+  /**
+   * Aborts the task's run; `execute` then publishes the `canceled` status.
+   * The SDK calls this only on the instance whose event bus carries the
+   * task. A cancel reaching another instance is written to the task store
+   * (PostgresTaskStore records the request) and reaches the run through
+   * the lease heartbeat in lib/a2a/app.ts, which calls the limiter directly.
+   */
   async cancelTask(taskId: string): Promise<void> {
     if (this.opts.limiter.cancel(taskId)) this.opts.log(`Cancel requested for task ${taskId.slice(0, 8)}`);
   }
