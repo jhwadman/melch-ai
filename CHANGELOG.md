@@ -6,6 +6,24 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **A pause inside a delegated subagent reaches the turn** (WS6-2a,
+  [ADR 0110](./wiki/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md)).
+  `require_approval` and `ask_user` are allowed on a delegated subagent, and
+  gates inside a nested delegate syndicate (`yaml_reference`) no longer fail
+  to load. The turn ends `input-required` with the request or question; the
+  decision or answer goes back down to the subagent, which finishes before
+  its caller continues. Before, a gate there was a load error and a pause
+  answered the call with an empty text.
+- `PendingApproval.path` and `PendingInput.path` (optional): the agents from
+  the turn's own agent down to the one that asked, set only for a pause
+  inside a delegated subagent. The A2A `approval_request` and
+  `input_request` data parts carry `path` beside their fields when it is set.
+- `delegatedPauses`, `openCalls`, `resumedDelegations` in
+  `lib/runtime/native/interrupts.ts` and `resumeSubagent`, `SubagentPause` in
+  `lib/runtime/native/delegate.ts` (engine internals; no exports map entry).
+
 ## 1.0.2 — 2026-10-09
 
 A test and documentation patch. Nothing a consumer imports, configures or

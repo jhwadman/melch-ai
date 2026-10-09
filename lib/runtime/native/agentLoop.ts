@@ -72,6 +72,13 @@
  *
  * DELEGATION: a call to a subagent tool runs the subagent as its own child
  * loop, as ADK's AgentTool runs it (lib/runtime/native/delegate.ts, ADR 0074).
+ * A child that ends paused leaves the call open (ADR 0110): no response is
+ * stored for it, the step's other responses are, and the run ends paused on
+ * the call's id. Before each step, after the approval resume, a delegated
+ * call whose pause the latest user message answers is resumed with that
+ * answer (interrupts.ts resumedDelegations, delegate.ts resumeSubagent) and
+ * its response stored; while another open call still waits, the run ends
+ * paused again on it without a model step.
  *
  * SELF-CORRECTION (ADR 0034, ADR 0075) is ADK's reflect-and-retry plugins,
  * ported to lib/runtime/native/selfCorrection.ts: the step declares the
@@ -133,8 +140,8 @@ import { MAX_VALUE_DEPTH, nestedDeeperThan } from '../valueDepth.ts';
 import { currentTurnSignal } from '../turnControl.ts';
 import { compactBeforeStep } from './compaction.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
-import { runSubagent, runWorkflowSubagent, subagentOf, workflowSubagentOf } from './delegate.ts';
-import { approvedCalls, grantedCalls } from './interrupts.ts';
+import { SubagentPause, resumeSubagent, runSubagent, runWorkflowSubagent, subagentOf, workflowSubagentOf } from './delegate.ts';
+import { approvedCalls, grantedCalls, resumedDelegations } from './interrupts.ts';
 import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
 import type { CallCorrection } from './selfCorrection.ts';
@@ -210,7 +217,7 @@ export interface AgentLoopEnd {
   steps: number;
   /** The last event stored. */
   lastEvent?: TurnEvent;
-  /** For `paused`: the ids waiting on a person (the ask_user call ids, or the adk_request_confirmation call ids). */
+  /** For `paused`: the ids waiting on a person (the ask_user call ids, the adk_request_confirmation call ids, or the delegated calls whose child waits; ADR 0110). */
   pending?: string[];
   /** For `stopped`: the turn's code and message. */
   stop?: StepStop;
@@ -331,6 +338,8 @@ interface CallScope {
   stateBase: Readonly<Record<string, unknown>>;
   signal?: AbortSignal;
   selfCorrection?: SelfCorrection;
+  /** The ids of the step's delegated calls whose child ended paused (ADR 0110): runCall adds them. */
+  paused?: string[];
 }
 
 function callContext(scope: CallScope, functionCallId: string | undefined, confirmation?: ToolConfirmation): CallContext {
@@ -458,6 +467,7 @@ async function runCall(
   tools: Map<string, unknown>,
   correction?: CallCorrection,
   confirmation?: ToolConfirmation,
+  resume?: TurnPart[],
 ): Promise<CallOutcome> {
   const context = callContext(scope, call.id || undefined, confirmation);
   const name = call.name ?? '';
@@ -485,7 +495,9 @@ async function runCall(
   let failure: unknown;
   try {
     response = subagent
-      ? await runSubagent(subagent, args, context, delegation)
+      ? resume
+        ? await resumeSubagent(subagent, resume, context, delegation)
+        : await runSubagent(subagent, args, context, delegation)
       : workflow
         ? await runWorkflowSubagent(workflow, args, context, delegation)
         : await runOwnTool(tool, args, context);
@@ -500,6 +512,11 @@ async function runCall(
   if (asked.length > 0) {
     const provider = String(asked[0]?.credentialKey ?? '');
     return { part: { functionResponse: { id: context.functionCallId, name: toolName, response: { result: CONSENT_TEXTS.pending(provider) } } }, actions: context.actions };
+  }
+  // A child that ended paused (ADR 0110): the call stays open, with no response, and the run ends paused on it.
+  if (response instanceof SubagentPause) {
+    if (context.functionCallId) (scope.paused ??= []).push(context.functionCallId);
+    return isDefaultActions(context.actions) ? undefined : { actions: context.actions };
   }
   if (failure === undefined) await correction?.answered(toolName, response);
   // As ADK: a long-running call with no response answers nothing, even when it threw.
@@ -522,13 +539,14 @@ async function runCalls(
   calls: TurnFunctionCall[],
   tools: Map<string, unknown>,
   confirmations?: ReadonlyMap<string, ToolConfirmation>,
+  resumes?: ReadonlyMap<string, TurnPart[]>,
 ): Promise<TurnEvent | undefined> {
   const order = scope.selfCorrection?.forCalls(scope.ctx.invocationId, calls.length);
   const outcomes = (
     await Promise.all(
       calls.map((call, i) =>
         traceToolCall(call, tools.get(call.name ?? ''), () =>
-          runCall(scope, call, tools, order?.call(i), call.id ? confirmations?.get(call.id) : undefined),
+          runCall(scope, call, tools, order?.call(i), call.id ? confirmations?.get(call.id) : undefined, call.id ? resumes?.get(call.id) : undefined),
         ).finally(() => order?.release(i)),
       ),
     )
@@ -635,6 +653,32 @@ async function resumeGrants(
   if (!response) return undefined;
   const auth = authEvent(scope, response);
   return { response, ...(auth ? { auth } : {}) };
+}
+
+/**
+ * Delegated calls the latest user message resumes (ADR 0110), before a step
+ * and after the approval resume: each open call whose child waits on what
+ * the message answers runs the child on with that answer, and their
+ * response is returned to be stored, with the open calls still paused:
+ * those the child paused again, and those the message did not answer.
+ * Undefined when the message answers none; 'stopped' when the turn stopped
+ * while they ran (nothing is stored).
+ */
+async function resumeDelegations(
+  agent: NativeAgent,
+  ctx: AgentLoopContext,
+  stateBase: Readonly<Record<string, unknown>>,
+  selfCorrection: SelfCorrection,
+): Promise<{ response?: TurnEvent; paused: string[] } | 'stopped' | undefined> {
+  const resumed = await resumedDelegations(agent, ctx, ctx.sessions);
+  if (!resumed) return undefined;
+  const calls = resumed.calls.filter((c) => subagentOf(resumed.tools.get(c.name ?? '')));
+  if (calls.length === 0) return undefined;
+  const signal = eitherSignal(ctx.signal, currentTurnSignal());
+  const scope: CallScope = { agent, ctx, stateBase, selfCorrection, ...(signal ? { signal } : {}) };
+  const response = await runCalls(scope, calls, resumed.tools, undefined, resumed.answers);
+  if (signal?.aborted) return 'stopped';
+  return { ...(response ? { response } : {}), paused: [...(scope.paused ?? []), ...resumed.waiting] };
 }
 
 // ── The model step, with partials and the fallback ───────────────────────────
@@ -779,6 +823,16 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
       lastEvent = await store(resumed);
       yield lastEvent;
     }
+    // Delegation hook (WS6-2a, ADR 0110): an answer to a pause inside a delegated call resumes that call before the step.
+    const redelegated = await resumeDelegations(agent, ctx, withStateOverlay(session.state, runTemp.values()), selfCorrection);
+    if (redelegated === 'stopped') return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
+    if (redelegated) {
+      if (redelegated.response) {
+        lastEvent = await store(redelegated.response);
+        yield lastEvent;
+      }
+      if (redelegated.paused.length > 0) return { reason: 'paused', steps, lastEvent, pending: redelegated.paused };
+    }
     // Compaction hook (WS2-9, lib/runtime/native/compaction.ts): with `context:`, the summary is stored before the step reads the history,
     // before the step budget, as ADK's request processors run before its call count.
     const compacted = await compactBeforeStep(agent, {
@@ -817,6 +871,8 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
       const response = await runCalls(scope, getFunctionCalls(modelEvent), step.tools);
       // As ADK: a turn that stopped while the calls ran (a long subagent run, say) stores no response.
       if (scope.signal?.aborted) return { reason: 'stopped', steps, lastEvent, stop: stopOf() };
+      // Delegated calls whose child ended paused (ADR 0110): they stay open, and the run ends paused on them once the step's responses are stored.
+      const delegated = scope.paused ?? [];
       if (response) {
         const auth = authEvent(scope, response);
         if (auth) {
@@ -828,14 +884,19 @@ async function* agentLoop(agent: NativeAgent, ctx: AgentLoopContext): AsyncGener
         if (confirmation) {
           lastEvent = await store(confirmation);
           yield lastEvent;
-          return { reason: 'paused', steps, lastEvent, pending: [...(lastEvent.longRunningToolIds ?? [])] };
+          return { reason: 'paused', steps, lastEvent, pending: [...(lastEvent.longRunningToolIds ?? []), ...delegated] };
         }
         lastEvent = await store(response);
         yield lastEvent;
         // As ADK: the response asking for auth is final, and the run waits on its credential request (ADR 0085).
-        if (authIds.length > 0) return { reason: 'paused', steps, lastEvent, pending: authIds };
+        if (authIds.length > 0) return { reason: 'paused', steps, lastEvent, pending: [...authIds, ...delegated] };
         stepEnd = lastEvent;
-        if (task?.finished) return { reason: 'final', steps, lastEvent, output: task.output };
+        if (task?.finished && delegated.length === 0) return { reason: 'final', steps, lastEvent, output: task.output };
+      }
+      if (delegated.length > 0) {
+        const answered = new Set(getFunctionResponses(stepEnd).map((r) => r.id));
+        const longRunning = (modelEvent.longRunningToolIds ?? []).filter((id) => !answered.has(id));
+        return { reason: 'paused', steps, lastEvent, pending: [...longRunning, ...delegated] };
       }
     }
 

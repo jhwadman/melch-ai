@@ -209,7 +209,7 @@ const agentFields = {
     .array(z.string().min(1))
     .optional()
     .describe(
-      'Tools from this agent\'s `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on the orchestrator and on plan-dispatch routes.',
+      'Tools from this agent\'s `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on any agent but one a workflow map node runs; inside a delegated subagent the pause reaches the caller through its open call (ADR 0110).',
     ),
   includeContents: z
     .enum(['default', 'none'])
@@ -622,15 +622,15 @@ function crossFieldProblems(raw: unknown): Problem[] {
   }
   const subs = Array.isArray(raw.subagents) ? raw.subagents : [];
 
-  // Approval gates (ADR 0028): only tools the agent has, and only on agents
-  // the turn runs directly — a delegated subagent runs inside a tool call,
-  // where the pause cannot reach the caller and the gated tool silently never runs.
+  // Approval gates (ADR 0028): only tools the agent has. A delegated
+  // subagent's pause reaches the caller through the open call (ADR 0110),
+  // so every agent of a delegate, dispatch or workflow syndicate may gate.
   const gateProblems = (agent: Record<string, unknown>, path: (string | number)[], allowed: boolean) => {
     if (agent.require_approval === undefined) return;
     if (!allowed) {
       out.push({
         path: [...path, 'require_approval'],
-        message: 'approval gates run only on the orchestrator or a plan-dispatch route; a delegated subagent cannot pause the turn (ADR 0028)',
+        message: 'approval gates are not supported here (ADR 0028, ADR 0110)',
       });
       return;
     }
@@ -653,7 +653,7 @@ function crossFieldProblems(raw: unknown): Problem[] {
     if (agent.skills.scripts === 'local' && !allowed) {
       out.push({
         path: [...path, 'skills', 'scripts'],
-        message: 'skill scripts pause for approval, which only the orchestrator or a plan-dispatch route can do; a delegated subagent cannot pause the turn (ADR 0028)',
+        message: 'skill scripts on a delegated subagent are not supported yet; run them on the orchestrator or a plan-dispatch route (ADR 0110)',
       });
     }
     const tools = Array.isArray(agent.tools) ? agent.tools : [];
@@ -664,7 +664,8 @@ function crossFieldProblems(raw: unknown): Problem[] {
     });
   };
   // ask_user ends the turn waiting for the person, the same pause as an
-  // approval, so it is allowed in the same places (lib/runtime/questions.ts).
+  // approval, so it is allowed in the same places (lib/runtime/questions.ts),
+  // a delegated subagent included (ADR 0110); a workflow node asks through an ask_user node.
   const questionProblems = (agent: Record<string, unknown>, path: (string | number)[], allowed: boolean) => {
     const tools = Array.isArray(agent.tools) ? agent.tools : [];
     const at = tools.indexOf('ask_user');
@@ -672,7 +673,7 @@ function crossFieldProblems(raw: unknown): Problem[] {
     if (isObj(raw.workflow)) {
       out.push({ path: [...path, 'tools', at], message: 'ask_user is not supported on a workflow node yet; use an ask_user node (workflow.nodes)' });
     } else if (!allowed) {
-      out.push({ path: [...path, 'tools', at], message: 'ask_user pauses the turn, which only the orchestrator or a plan-dispatch route can do; a delegated subagent cannot' });
+      out.push({ path: [...path, 'tools', at], message: 'ask_user is not supported here (ADR 0110)' });
     }
   };
   // Execution keys (ADR 0033): where each one means something.
@@ -729,9 +730,10 @@ function crossFieldProblems(raw: unknown): Problem[] {
 
   subs.forEach((sub, i) => {
     if (!isObj(sub)) return;
-    gateProblems(sub, ['subagents', i], pausing);
+    // A delegated subagent's gate and question pause the turn through the open call (ADR 0110); its skill scripts stay refused.
+    gateProblems(sub, ['subagents', i], true);
     skillProblems(sub, ['subagents', i], pausing);
-    questionProblems(sub, ['subagents', i], dispatching);
+    questionProblems(sub, ['subagents', i], true);
     const hasRef = typeof sub.yaml_reference === 'string';
     const hasRemote = typeof sub.a2a_agent_url === 'string';
     if (hasRef && hasRemote) {

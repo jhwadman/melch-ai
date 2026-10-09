@@ -46,6 +46,8 @@ Three facts constrain the design, each found by running ADK, not by reading it:
 
 > **Note (2026-10-08):** On the native runtime, the default since 0.20.0 ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)), the engine's own loop raises and resumes the confirmation, pinned to the stored call and its arguments as ADK's gate pins it ([ADR 0077](/decisions/0077-native-approvals-port-the-confirmation-processor.md)); ADK's gate (items 2 and 6) does the work only on the optional adk runtime, which 1.0.0 removes ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)). The interrupt name `adk_request_confirmation` and the A2A surface are unchanged.
 
+> **Note (2026-10-09):** [ADR 0110](/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md) supersedes item 3's refusal for delegated subagents and nested delegate syndicates: a gate (or an `ask_user` call) inside a delegated subagent pauses the turn through the call its caller leaves open, the pending record carries the agent path, and the decision travels back down to the child. Gates inside a nested workflow or dispatch syndicate stay refused.
+
 ## Alternatives considered
 
 - **Gate in the policy plug point** (`authorize` before every tool call). Rejected: it decides before the model's arguments are known to a person, and it has no way to wait for one.
