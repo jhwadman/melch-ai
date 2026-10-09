@@ -41,16 +41,24 @@
  *   a span: a failure is reported by kind (ToolCredentialError).
  *
  * WHERE A TOKEN MAY GO: a token is sent only over https, or http to a
- *   loopback host (local development), to the server the YAML names. The
- *   client-credentials token endpoint passes the same SSRF guard as the
- *   server it serves (ALLOW_PRIVATE_OPENAPI or ALLOW_PRIVATE_MCP), and no
- *   redirect from it is followed.
+ *   loopback host (local development), to the server the YAML names, and
+ *   only to a host the operator's allowlist binds to the provider
+ *   (lib/tools/oauthHosts.ts, ADR 0114): with none configured, an
+ *   authorization_code grant is refused. The allowlist is checked when a
+ *   served syndicate loads (`syndicateOAuthHostProblems`), when the tools
+ *   compile (the server, the token endpoint and the authorization
+ *   endpoint), and again before each call sends a token
+ *   (`oauthCallProblem`). The client-credentials token endpoint passes the
+ *   same SSRF guard as the server it serves (ALLOW_PRIVATE_OPENAPI or
+ *   ALLOW_PRIVATE_MCP), and no redirect from it is followed.
  */
 
 import { blockedHostReason, checkHost } from '../net/addressGuard.ts';
 import { PROVIDER_NAME, ToolCredentialError } from './auth.ts';
 import type { OAuthProvider, TokenSet } from './auth.ts';
 import { readCredentialEnv } from './credentialEnv.ts';
+import { oauthHostProblem, oauthHosts } from './oauthHosts.ts';
+import type { OAuthHostAllowlist } from './oauthHosts.ts';
 import type { OAuthClientConfig } from './oauthConsent.ts';
 import type { ToolContext } from './tool.ts';
 
@@ -123,6 +131,45 @@ export function tokenTransportProblem(raw: string): string | null {
   if (url.protocol === 'https:') return null;
   if (url.protocol === 'http:' && LOOPBACK.has(url.hostname)) return null;
   return `an OAuth token is sent only over https (http only to a loopback host), not to ${url.protocol}//${url.hostname}`;
+}
+
+// ── The operator's host allowlist (ADR 0114) ─────────────────────────────────
+
+/**
+ * Why this grant may not be declared for these servers, one line per
+ * refusal: each server the tools call, the token endpoint and the
+ * authorization endpoint must be hosts the operator's allowlist binds to the
+ * provider (lib/tools/oauthHosts.ts). With no allowlist, an
+ * authorization_code grant is refused and a client_credentials one allowed.
+ * `allowlist` defaults to the one in force; `null` means none is configured.
+ */
+export function oauthGrantHostProblems(oauth2: OAuth2AuthConfig, servers: readonly string[], allowlist?: OAuthHostAllowlist | null): string[] {
+  const list = allowlist === undefined ? oauthHosts() ?? null : allowlist;
+  const urls: Array<[string, string]> = servers.map((s): [string, string] => ['server', s]);
+  urls.push(['token_url', oauth2.token_url]);
+  if (oauth2.authorization_url) urls.push(['authorization_url', oauth2.authorization_url]);
+  const out = new Set<string>();
+  for (const [role, url] of urls) {
+    const problem = oauthHostProblem(oauth2, url, role, list);
+    if (problem) out.add(problem);
+  }
+  return [...out];
+}
+
+/**
+ * Why a call may not send this grant's token (or secret) to `destination`
+ * now, or null: the transport rule and the allowlist in force, checked again
+ * at each call. The compile checked the same; this holds if a request is
+ * aimed elsewhere, or the allowlist changed. A malformed allowlist refuses.
+ */
+export function oauthCallProblem(oauth2: Pick<OAuth2AuthConfig, 'provider' | 'grant'>, destination: string): string | null {
+  const transport = tokenTransportProblem(destination);
+  if (transport) return transport;
+  try {
+    return oauthHostProblem(oauth2, destination, 'server', oauthHosts() ?? null);
+  } catch {
+    return 'the OAuth host allowlist is malformed';
+  }
 }
 
 // ── client_credentials ───────────────────────────────────────────────────────
@@ -255,22 +302,38 @@ export function clientCredentialsGrant(options: ClientCredentialsOptions): { tok
 
 // ── The token a call sends ───────────────────────────────────────────────────
 
-/** What a tool calls for the token of one call: throws ToolCredentialError, whose message names no value. */
-export type OAuthTokenSource = (ctx: ToolContext | undefined) => Promise<string>;
+/**
+ * What a tool calls for the token of one call, naming where that call goes.
+ * Throws ToolCredentialError, whose message names no value: `host_refused`
+ * when the destination is not one of the provider's hosts.
+ */
+export type OAuthTokenSource = (ctx: ToolContext | undefined, destination: string) => Promise<string>;
 
 /**
  * The token source a declared `oauth2` block gives its tools. Reads the
  * client-credentials variables now, so a variable that is not set (or that
- * the allowlist refuses) fails the compile, naming the variable only.
- * `where` prefixes those messages; `server` is the URL the token is sent to.
+ * the allowlist refuses) fails the compile, naming the variable only, and
+ * so does a host the operator's OAuth host allowlist does not bind to the
+ * provider (ADR 0114). `where` prefixes those messages; `server` is the URL
+ * (or URLs) the token is sent to.
  */
-export function oauthTokenSource(oauth2: OAuth2AuthConfig, where: string, server: string, options: { allowPrivate?: boolean; env?: NodeJS.ProcessEnv; fetch?: typeof fetch } = {}): OAuthTokenSource {
-  const problem = tokenTransportProblem(server);
-  if (problem) throw new Error(`${where}: ${problem}`);
+export function oauthTokenSource(oauth2: OAuth2AuthConfig, where: string, server: string | readonly string[], options: { allowPrivate?: boolean; env?: NodeJS.ProcessEnv; fetch?: typeof fetch } = {}): OAuthTokenSource {
+  const servers = typeof server === 'string' ? [server] : [...server];
+  for (const s of servers) {
+    const problem = tokenTransportProblem(s);
+    if (problem) throw new Error(`${where}: ${problem}`);
+  }
   if (!PROVIDER_NAME.test(oauth2.provider)) throw new Error(`${where}: provider must match ${PROVIDER_NAME}`);
+  const hostProblems = oauthGrantHostProblems(oauth2, servers);
+  if (hostProblems.length) throw new Error(`${where}: ${hostProblems.join('; ')}`);
   const provider = oauth2.provider;
+  /** The call-time check (ADR 0114): before any token is read or fetched. */
+  const refuse = (destination: string) => {
+    if (oauthCallProblem(oauth2, destination)) throw new ToolCredentialError('host_refused', provider);
+  };
   if (oauth2.grant === 'authorization_code') {
-    return async (ctx) => {
+    return async (ctx, destination) => {
+      refuse(destination);
       if (!ctx?.accessToken) throw new ToolCredentialError('unavailable', provider);
       return ctx.accessToken(provider);
     };
@@ -292,7 +355,12 @@ export function oauthTokenSource(oauth2: OAuth2AuthConfig, where: string, server
     ...(options.allowPrivate ? { allowPrivate: true } : {}),
     ...(options.fetch ? { fetch: options.fetch } : {}),
   });
-  return (ctx) => grant.token(ctx?.signal);
+  return async (ctx, destination) => {
+    refuse(destination);
+    // The client secret goes to the token endpoint: held to the same rule.
+    refuse(oauth2.token_url);
+    return grant.token(ctx?.signal);
+  };
 }
 
 // ── The consent step's clients ───────────────────────────────────────────────
@@ -321,46 +389,79 @@ interface SyndicateLike {
  */
 export function oauthClientsFor(
   configs: readonly SyndicateLike[],
-  options: { env?: NodeJS.ProcessEnv; load?: (ref: string) => SyndicateLike } = {},
+  options: { env?: NodeJS.ProcessEnv; load?: (ref: string) => SyndicateLike; allowlist?: OAuthHostAllowlist | null } = {},
 ): Record<string, OAuthClientConfig> {
   const env = options.env ?? process.env;
+  const allowlist = options.allowlist === undefined ? oauthHosts(env) ?? null : options.allowlist;
   const clients: Record<string, OAuthClientConfig> = {};
-  const seen = new Set<string>();
   const signature = new Map<string, string>();
-  const visit = (config: SyndicateLike) => {
+  for (const use of syndicateOAuthGrants(configs, options.load)) {
+    const o = use.oauth2;
+    if (o.grant !== 'authorization_code') continue;
+    const where = `${use.agent} · ${use.tools} · oauth2`;
+    if (!o.authorization_url) throw new Error(`${where}: an authorization_code grant needs authorization_url`);
+    // The consent step sends the client secret, the code and later the refresh token to these endpoints (ADR 0114).
+    const hostProblems = oauthGrantHostProblems(o, [], allowlist);
+    if (hostProblems.length) throw new Error(`${where}: ${hostProblems.join('; ')}`);
+    const sig = JSON.stringify([o.authorization_url, o.token_url, o.client_id ?? null, o.client_id_env ?? null, o.client_secret_env ?? null, [...(o.scopes ?? [])].sort(), o.authorization_params ?? {}]);
+    const before = signature.get(o.provider);
+    if (before !== undefined) {
+      if (before !== sig) throw new Error(`${where}: provider "${o.provider}" is declared twice with different endpoints, client or scopes`);
+      continue;
+    }
+    signature.set(o.provider, sig);
+    clients[o.provider] = {
+      authorizationUrl: o.authorization_url,
+      tokenUrl: o.token_url,
+      clientId: o.client_id ?? readCredentialEnv(o.client_id_env ?? '', where, env),
+      ...(o.client_secret_env ? { clientSecret: readCredentialEnv(o.client_secret_env, where, env) } : {}),
+      scopes: [...(o.scopes ?? [])],
+      ...(o.authorization_params ? { authorizationParams: { ...o.authorization_params } } : {}),
+    };
+  }
+  return clients;
+}
+
+/**
+ * Every OAuth grant these syndicates declare, orchestrators and subagents,
+ * following a nested `yaml_reference:` through `load` when given (once per
+ * file; agent names then read "Parent › Child").
+ */
+export function syndicateOAuthGrants(configs: readonly SyndicateLike[], load?: (ref: string) => SyndicateLike): OAuthGrantUse[] {
+  const out: OAuthGrantUse[] = [];
+  const seen = new Set<string>();
+  const visit = (config: SyndicateLike, prefix: string) => {
     const agents = [config.orchestrator, ...(config.subagents ?? [])].filter((a): a is AgentLike => !!a);
     for (const agent of agents) {
-      if (agent.yaml_reference && options.load) {
-        if (seen.has(agent.yaml_reference)) continue;
+      if (agent.yaml_reference) {
+        if (!load || seen.has(agent.yaml_reference)) continue;
         seen.add(agent.yaml_reference);
-        visit(options.load(agent.yaml_reference));
+        visit(load(agent.yaml_reference), `${prefix}${agent.name ?? agent.yaml_reference} › `);
         continue;
       }
-      for (const use of agentOAuthGrants(agent)) {
-        const o = use.oauth2;
-        if (o.grant !== 'authorization_code') continue;
-        const where = `${use.agent} · ${use.tools} · oauth2`;
-        if (!o.authorization_url) throw new Error(`${where}: an authorization_code grant needs authorization_url`);
-        const sig = JSON.stringify([o.authorization_url, o.token_url, o.client_id ?? null, o.client_id_env ?? null, o.client_secret_env ?? null, [...(o.scopes ?? [])].sort(), o.authorization_params ?? {}]);
-        const before = signature.get(o.provider);
-        if (before !== undefined) {
-          if (before !== sig) throw new Error(`${where}: provider "${o.provider}" is declared twice with different endpoints, client or scopes`);
-          continue;
-        }
-        signature.set(o.provider, sig);
-        clients[o.provider] = {
-          authorizationUrl: o.authorization_url,
-          tokenUrl: o.token_url,
-          clientId: o.client_id ?? readCredentialEnv(o.client_id_env ?? '', where, env),
-          ...(o.client_secret_env ? { clientSecret: readCredentialEnv(o.client_secret_env, where, env) } : {}),
-          scopes: [...(o.scopes ?? [])],
-          ...(o.authorization_params ? { authorizationParams: { ...o.authorization_params } } : {}),
-        };
-      }
+      out.push(...agentOAuthGrants(agent, prefix));
     }
   };
-  for (const config of configs) visit(config);
-  return clients;
+  for (const config of configs) visit(config, '');
+  return out;
+}
+
+/**
+ * Why these syndicates may not be served here, one line per refusal
+ * (ADR 0114): each declared grant's MCP server, token endpoint and
+ * authorization endpoint against the operator's OAuth host allowlist (an
+ * OpenAPI entry's servers are in its spec, so its compile checks those).
+ * The A2A server checks every syndicate it loads to serve; the compile
+ * checks again, and each call once more.
+ */
+export function syndicateOAuthHostProblems(configs: readonly SyndicateLike[], options: { load?: (ref: string) => SyndicateLike; allowlist?: OAuthHostAllowlist | null } = {}): string[] {
+  const allowlist = options.allowlist === undefined ? oauthHosts() ?? null : options.allowlist;
+  const out: string[] = [];
+  for (const use of syndicateOAuthGrants(configs, options.load)) {
+    const servers = use.tools.startsWith('mcp ') && use.tools.length > 4 ? [use.tools.slice(4)] : [];
+    for (const problem of oauthGrantHostProblems(use.oauth2, servers, allowlist)) out.push(`${use.agent} · ${use.tools} · oauth2: ${problem}`);
+  }
+  return out;
 }
 
 /**
@@ -378,7 +479,9 @@ export function oauthRefreshProviders(
   const providers: Record<string, OAuthProvider> = {};
   for (const [name, client] of Object.entries(clients)) {
     providers[name] = {
-      refresh: (refreshToken, context) => {
+      refresh: async (refreshToken, context) => {
+        // A refresh token goes only to a token endpoint the allowlist binds to its provider (ADR 0114).
+        if (oauthCallProblem({ provider: name, grant: 'authorization_code' }, client.tokenUrl)) throw new ToolCredentialError('host_refused', name);
         const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: client.clientId });
         if (client.clientSecret) body.set('client_secret', client.clientSecret);
         return tokenRequest(client.tokenUrl, body, name, {

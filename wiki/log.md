@@ -3,6 +3,42 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | module:lib/tools/oauthHosts.ts —mitigates→ /decisions/0112-oauth-grants-declared-beside-the-tool.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —depends_on→ /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —depends_on→ /decisions/0112-oauth-grants-declared-beside-the-tool.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:scripts/a2a_server.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/a2a/oauthSetup.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/mcpToolFactory.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/oauthTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/tools/oauthHosts.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ module:lib/storage/postgres/taskStore.ts
 
 by claude-code/claude-opus-5-5

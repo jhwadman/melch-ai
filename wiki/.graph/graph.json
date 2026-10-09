@@ -5,26 +5,26 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 889,
-    "edges": 3447,
+    "nodes": 893,
+    "edges": 3500,
     "byKind": {
-      "doc": 175,
+      "doc": 176,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 188,
+      "file": 189,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 181,
+      "module": 183,
       "script": 46,
       "external": 2
     },
     "byRelation": {
-      "links_to": 779,
-      "requires_env": 168,
+      "links_to": 787,
+      "requires_env": 172,
       "routes_to": 8,
       "defined_in": 77,
       "documents": 56,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 748,
+      "imports": 767,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 913,
-      "constrains": 185,
+      "derives_from": 926,
+      "constrains": 189,
       "supersedes": 11,
-      "depends_on": 119,
-      "explains": 40,
-      "mitigates": 3,
+      "depends_on": 121,
+      "explains": 42,
+      "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3088,
-      "inferred": 359
+      "extracted": 3132,
+      "inferred": 368
     },
     "isolated": 4
   },
@@ -1720,6 +1720,18 @@
       }
     },
     {
+      "id": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "kind": "doc",
+      "label": "ADR 0114: OAuth tokens go only to hosts the operator binds to their provider, and the server binary wires tool credentials from the environment",
+      "source": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 949
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1956,7 +1968,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1412
+        "words": 1464
       }
     },
     {
@@ -2040,7 +2052,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2178
+        "words": 2369
       }
     },
     {
@@ -2052,7 +2064,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 874
+        "words": 924
       }
     },
     {
@@ -2088,7 +2100,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 792
+        "words": 820
       }
     },
     {
@@ -2124,7 +2136,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2585
+        "words": 2784
       }
     },
     {
@@ -3112,7 +3124,8 @@
       "id": "env:A2A_AUTH",
       "kind": "env",
       "label": "A2A_AUTH",
-      "source": "scripts/a2a_server.ts"
+      "source": "scripts/a2a_server.ts",
+      "attrs": {}
     },
     {
       "id": "env:A2A_BODY_LIMIT",
@@ -3214,13 +3227,14 @@
       "id": "env:ALLOW_PRIVATE_MCP",
       "kind": "env",
       "label": "ALLOW_PRIVATE_MCP",
-      "source": "lib/tools/mcpToolFactory.ts"
+      "source": "scripts/a2a_server.ts",
+      "attrs": {}
     },
     {
       "id": "env:ALLOW_PRIVATE_OPENAPI",
       "kind": "env",
       "label": "ALLOW_PRIVATE_OPENAPI",
-      "source": "lib/tools/openapiTools.ts",
+      "source": "scripts/a2a_server.ts",
       "attrs": {}
     },
     {
@@ -4707,6 +4721,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/oauthHosts.test.ts",
+      "kind": "file",
+      "label": "oauthHosts.test.ts",
+      "source": "tests/oauthHosts.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/oauthTools.test.ts",
       "kind": "file",
       "label": "oauthTools.test.ts",
@@ -5101,7 +5122,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1302
+        "lines": 1337
       }
     },
     {
@@ -5120,6 +5141,15 @@
       "source": "lib/a2a/identity.ts",
       "attrs": {
         "lines": 287
+      }
+    },
+    {
+      "id": "module:lib/a2a/oauthSetup.ts",
+      "kind": "module",
+      "label": "lib/a2a/oauthSetup.ts",
+      "source": "lib/a2a/oauthSetup.ts",
+      "attrs": {
+        "lines": 228
       }
     },
     {
@@ -5200,7 +5230,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 774
+        "lines": 806
       }
     },
     {
@@ -6001,7 +6031,7 @@
       "label": "lib/tools/auth.ts",
       "source": "lib/tools/auth.ts",
       "attrs": {
-        "lines": 164
+        "lines": 166
       }
     },
     {
@@ -6073,7 +6103,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 379
+        "lines": 383
       }
     },
     {
@@ -6104,12 +6134,21 @@
       }
     },
     {
+      "id": "module:lib/tools/oauthHosts.ts",
+      "kind": "module",
+      "label": "lib/tools/oauthHosts.ts",
+      "source": "lib/tools/oauthHosts.ts",
+      "attrs": {
+        "lines": 159
+      }
+    },
+    {
       "id": "module:lib/tools/oauthTools.ts",
       "kind": "module",
       "label": "lib/tools/oauthTools.ts",
       "source": "lib/tools/oauthTools.ts",
       "attrs": {
-        "lines": 396
+        "lines": 499
       }
     },
     {
@@ -6532,7 +6571,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 513
+        "lines": 647
       }
     },
     {
@@ -15323,6 +15362,90 @@
       "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:53"
     },
     {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "file:tests/oauthHosts.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthHosts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md frontmatter"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0020-memory-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md:50"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md:30"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md:30"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -17802,6 +17925,13 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:52"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18971,6 +19101,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "file:tests/oauthHosts.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md frontmatter"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "module:lib/a2a/app.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -18986,6 +19123,13 @@
     {
       "from": "/protocols/a2a.md",
       "to": "module:lib/a2a/identity.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md frontmatter"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md frontmatter"
@@ -19023,119 +19167,126 @@
       "to": "/decisions/0017-plug-points.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:63"
+      "evidence": "/protocols/a2a.md:69"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0018-files-are-the-source-of-truth.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:83"
+      "evidence": "/protocols/a2a.md:89"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0020-memory-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:79"
+      "evidence": "/protocols/a2a.md:85"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:24"
+      "evidence": "/protocols/a2a.md:26"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0025-built-in-authenticators.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:63"
+      "evidence": "/protocols/a2a.md:69"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0026-governance-policy-and-visibility.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:95"
+      "evidence": "/protocols/a2a.md:101"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:32"
+      "evidence": "/protocols/a2a.md:34"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0039-public-deployments-state-their-posture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:65"
+      "evidence": "/protocols/a2a.md:71"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0080-surfaces-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:91"
+      "evidence": "/protocols/a2a.md:97"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:36"
+      "evidence": "/protocols/a2a.md:38"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:24"
+      "evidence": "/protocols/a2a.md:26"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:32"
+      "evidence": "/protocols/a2a.md:34"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:89"
+      "evidence": "/protocols/a2a.md:95"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:62"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:105"
+      "evidence": "/protocols/a2a.md:111"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:24"
+      "evidence": "/protocols/a2a.md:26"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:89"
+      "evidence": "/protocols/a2a.md:95"
     },
     {
       "from": "/protocols/a2a.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/a2a.md:36"
+      "evidence": "/protocols/a2a.md:38"
     },
     {
       "from": "/protocols/mcp.md",
@@ -19216,10 +19367,17 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:41"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:48"
+      "evidence": "/protocols/mcp.md:49"
     },
     {
       "from": "/protocols/mcp.md",
@@ -19233,7 +19391,7 @@
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:47"
+      "evidence": "/protocols/mcp.md:48"
     },
     {
       "from": "/tools/ask-user.md",
@@ -19489,6 +19647,13 @@
     },
     {
       "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:49"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -19720,6 +19885,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "file:tests/oauthHosts.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "file:tests/oauthTools.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19832,6 +20004,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/oauthHosts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "module:lib/tools/oauthTools.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19856,168 +20035,175 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:47"
+      "evidence": "/tools/tool-contracts.md:49"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:44"
+      "evidence": "/tools/tool-contracts.md:46"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:47"
+      "evidence": "/tools/tool-contracts.md:49"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0062-server-side-tools-as-markers.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:88"
+      "evidence": "/tools/tool-contracts.md:91"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:51"
+      "evidence": "/tools/tool-contracts.md:53"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:59"
+      "evidence": "/tools/tool-contracts.md:61"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:49"
+      "evidence": "/tools/tool-contracts.md:51"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:67"
+      "evidence": "/tools/tool-contracts.md:69"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:72"
+      "evidence": "/tools/tool-contracts.md:74"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:55"
+      "evidence": "/tools/tool-contracts.md:57"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:77"
+      "evidence": "/tools/tool-contracts.md:79"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:84"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:110"
+      "evidence": "/tools/tool-contracts.md:113"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:62"
+      "evidence": "/tools/tool-contracts.md:64"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:39"
+      "evidence": "/tools/tool-contracts.md:41"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:96"
+      "evidence": "/tools/tool-contracts.md:99"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:102"
+      "evidence": "/tools/tool-contracts.md:86"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:77"
+      "evidence": "/tools/tool-contracts.md:79"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:52"
+      "evidence": "/tools/tool-contracts.md:54"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:102"
+      "evidence": "/tools/tool-contracts.md:105"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:77"
+      "evidence": "/tools/tool-contracts.md:79"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:50"
+      "evidence": "/tools/tool-contracts.md:52"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:102"
+      "evidence": "/tools/tool-contracts.md:105"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:102"
+      "evidence": "/tools/tool-contracts.md:105"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:102"
+      "evidence": "/tools/tool-contracts.md:105"
     },
     {
       "from": "/tools/web-tools.md",
@@ -21491,6 +21677,20 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/tools/oauthHosts.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "env:GEMINI_API_KEY",
       "rel": "requires_env",
       "tier": "extracted",
@@ -21621,6 +21821,55 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/a2a/identity.ts"
+    },
+    {
+      "from": "module:lib/a2a/oauthSetup.ts",
+      "to": "module:lib/observability/audit.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/oauthSetup.ts"
+    },
+    {
+      "from": "module:lib/a2a/oauthSetup.ts",
+      "to": "module:lib/tools/credentialCipher.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/oauthSetup.ts"
+    },
+    {
+      "from": "module:lib/a2a/oauthSetup.ts",
+      "to": "module:lib/tools/credentialStore.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/oauthSetup.ts"
+    },
+    {
+      "from": "module:lib/a2a/oauthSetup.ts",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/oauthSetup.ts"
+    },
+    {
+      "from": "module:lib/a2a/oauthSetup.ts",
+      "to": "module:lib/tools/oauthHosts.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/oauthSetup.ts"
+    },
+    {
+      "from": "module:lib/a2a/oauthSetup.ts",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/oauthSetup.ts"
+    },
+    {
+      "from": "module:lib/a2a/oauthSetup.ts",
+      "to": "env:A2A_AUTH",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/a2a/oauthSetup.ts"
     },
     {
       "from": "module:lib/a2a/policy.ts",
@@ -21876,6 +22125,13 @@
     },
     {
       "from": "module:lib/doctor.ts",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
       "to": "module:lib/loadSyndicate.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21926,6 +22182,20 @@
     {
       "from": "module:lib/doctor.ts",
       "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
+      "to": "module:lib/tools/credentialCipher.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
+      "to": "module:lib/tools/oauthHosts.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/doctor.ts"
@@ -25396,6 +25666,13 @@
       "evidence": "lib/tools/oauthConsent.ts"
     },
     {
+      "from": "module:lib/tools/oauthHosts.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthHosts.ts"
+    },
+    {
       "from": "module:lib/tools/oauthTools.ts",
       "to": "module:lib/net/addressGuard.ts",
       "rel": "imports",
@@ -25419,6 +25696,13 @@
     {
       "from": "module:lib/tools/oauthTools.ts",
       "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthTools.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthTools.ts",
+      "to": "module:lib/tools/oauthHosts.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/oauthTools.ts"
@@ -26559,6 +26843,13 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/a2a/policy.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26574,6 +26865,20 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/loadEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/observability/audit.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"
@@ -26601,6 +26906,13 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/storage/postgres/credentialStore.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/storage/postgres/index.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26609,6 +26921,20 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/storage/schema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/tools/credentialStore.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/tools/oauthHosts.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"
@@ -26734,6 +27060,20 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "env:ALLOW_PRIVATE_MCP",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "env:ALLOW_SCHEMA_MISMATCH",
       "rel": "requires_env",
       "tier": "extracted",
@@ -26777,6 +27117,13 @@
     {
       "from": "module:scripts/a2a_server.ts",
       "to": "env:HOST",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
+      "to": "env:MELCHIZEDEK_AGENTS_DIR",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"

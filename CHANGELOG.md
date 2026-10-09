@@ -51,6 +51,30 @@ the starter pack and the templates), not the repo's full history.
   `grant_failed`, and `createMcpTools` / `loadMcpTools` an optional second
   argument. The systems_operator template carries a commented
   `mcp_auth` block.
+- **The OAuth host allowlist (`MELCHIZEDEK_OAUTH_HOSTS`,
+  `createA2AApp({ oauthHosts })`; ADR 0114).** The operator binds each
+  provider to the hosts its tokens and client secret may be sent to
+  (`provider=host,host;…`; `*.domain` for subdomains). With none, an
+  `authorization_code` grant is refused and `client_credentials` allowed;
+  with one, every grant's provider must be listed and its server, token
+  endpoint and authorization endpoint must be that provider's hosts. A
+  syndicate that breaks it is refused when served, when compiled and at
+  each call (`ToolCredentialError` code `host_refused`). New module
+  `melchizedek-agents/tools/oauthHosts` (`parseOAuthHosts`,
+  `checkOAuthHosts`, `setOAuthHosts`, `oauthHosts`, `hostAllowed`,
+  `oauthHostProblem`) under the existing `./tools/*` export;
+  `tools/oauthTools` gains `oauthGrantHostProblems`, `oauthCallProblem`,
+  `syndicateOAuthGrants` and `syndicateOAuthHostProblems`, and
+  `oauthClientsFor` an `allowlist` option.
+- **`melchizedek-serve` wires tool credentials and the consent step**
+  from `MELCHIZEDEK_CREDENTIAL_KEY` (rows in Postgres with `DATABASE_URL`,
+  else process memory), `OAUTH_REDIRECT_URI`, `OAUTH_CALLBACK_IDENTITY`
+  (`required`, the default, or `state`) and `MELCHIZEDEK_OAUTH_HOSTS`, with
+  the consent clients and refresh hooks built from the served syndicate
+  files. `melchizedek-agents/server` exports `serverOAuth` and
+  `servedFileSyndicates`. `npm run doctor` prints an `oauth` line (which
+  variables are set, and each problem by name) and each grant's host
+  refusals; `--check` fails on an OAuth problem.
 
 - **A pause inside a delegated subagent reaches the turn** (WS6-2a,
   [ADR 0110](./wiki/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md)).
@@ -156,6 +180,9 @@ the starter pack and the templates), not the repo's full history.
 
 ### Changed
 
+- **`OAuthTokenSource` takes the call's destination** (`(ctx,
+  destination)`), and `oauthTokenSource` accepts several servers; both are
+  new in this release (ADR 0112).
 - **An OpenAPI `auth` that sets two forms** now reads "exactly one of
   bearer_env, api_key or oauth2" (was "exactly one of bearer_env or
   api_key").
