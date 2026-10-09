@@ -3,6 +3,38 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —explains→ syndicate:systems_operator
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —explains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —depends_on→ /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —supersedes→ /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —depends_on→ /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —supersedes→ /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | syndicate:council —depends_on→ /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md
 
 by claude-code/claude-opus-5-5

@@ -432,7 +432,8 @@ function publishApprovalRequest(eventBus: ExecutionEventBus, taskId: string, con
  * naming the provider, with a data part carrying the authorization URL and
  * its state nonce. The person opens the URL; the server's callback stores
  * the grant; the next message on the conversation resumes the call. The
- * part carries no token, code or verifier.
+ * part carries no token, code or verifier. For a call inside a delegated
+ * subagent it carries the agent path too (ADR 0118).
  */
 function publishConsentRequest(eventBus: ExecutionEventBus, taskId: string, contextId: string, pending: PendingConsent): void {
   const message = statusMessage(
@@ -451,6 +452,8 @@ function publishConsentRequest(eventBus: ExecutionEventBus, taskId: string, cont
         authorization_url: pending.authUri,
         state: pending.state,
         scopes: pending.scopes,
+        // A call paused inside a delegated subagent: the agents from the turn's own down to the one that asked (ADR 0118).
+        ...(pending.path ? { path: pending.path } : {}),
       },
     },
     metadata: undefined,

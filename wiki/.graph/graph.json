@@ -5,15 +5,15 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 911,
-    "edges": 3612,
+    "nodes": 913,
+    "edges": 3651,
     "byKind": {
-      "doc": 180,
+      "doc": 181,
       "provider": 6,
       "env": 106,
       "model": 10,
       "tool": 34,
-      "file": 194,
+      "file": 195,
       "syndicate": 33,
       "agent": 91,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 831,
+      "links_to": 851,
       "requires_env": 172,
       "routes_to": 10,
       "defined_in": 78,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 777,
+      "imports": 778,
       "reads_table": 28,
       "runs": 70,
-      "derives_from": 952,
-      "constrains": 198,
-      "supersedes": 13,
-      "depends_on": 128,
-      "explains": 45,
+      "derives_from": 962,
+      "constrains": 200,
+      "supersedes": 15,
+      "depends_on": 130,
+      "explains": 47,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3223,
-      "inferred": 389
+      "extracted": 3254,
+      "inferred": 397
     },
     "isolated": 4
   },
@@ -420,7 +420,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 357
+        "words": 377
       }
     },
     {
@@ -768,7 +768,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1039
+        "words": 1092
       }
     },
     {
@@ -1416,7 +1416,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1584
+        "words": 1635
       }
     },
     {
@@ -1704,7 +1704,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1286
+        "words": 1340
       }
     },
     {
@@ -1728,7 +1728,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 989
+        "words": 1048
       }
     },
     {
@@ -1777,6 +1777,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 979
+      }
+    },
+    {
+      "id": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "kind": "doc",
+      "label": "ADR 0118: Skill scripts and OAuth consent inside a delegated subagent pause the turn through the open call",
+      "source": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1187
       }
     },
     {
@@ -1992,7 +2004,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 3111
+        "words": 3212
       }
     },
     {
@@ -2052,7 +2064,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 7833
+        "words": 7922
       }
     },
     {
@@ -2100,7 +2112,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2406
+        "words": 2454
       }
     },
     {
@@ -2112,7 +2124,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 924
+        "words": 937
       }
     },
     {
@@ -2160,7 +2172,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 1557
+        "words": 1621
       }
     },
     {
@@ -2184,7 +2196,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2784
+        "words": 2883
       }
     },
     {
@@ -4544,6 +4556,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/delegatedScriptsConsent.test.ts",
+      "kind": "file",
+      "label": "delegatedScriptsConsent.test.ts",
+      "source": "tests/delegatedScriptsConsent.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/doctor.test.ts",
       "kind": "file",
       "label": "doctor.test.ts",
@@ -5246,7 +5265,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 870
+        "lines": 873
       }
     },
     {
@@ -5822,7 +5841,7 @@
       "label": "lib/runtime/credentials.ts",
       "source": "lib/runtime/credentials.ts",
       "attrs": {
-        "lines": 106
+        "lines": 112
       }
     },
     {
@@ -5858,7 +5877,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 956
+        "lines": 959
       }
     },
     {
@@ -5885,7 +5904,7 @@
       "label": "lib/runtime/native/delegate.ts",
       "source": "lib/runtime/native/delegate.ts",
       "attrs": {
-        "lines": 537
+        "lines": 556
       }
     },
     {
@@ -5903,7 +5922,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 563
+        "lines": 582
       }
     },
     {
@@ -6002,7 +6021,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1272
+        "lines": 1288
       }
     },
     {
@@ -6137,7 +6156,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1180
+        "lines": 1172
       }
     },
     {
@@ -8762,6 +8781,20 @@
       "evidence": "/agents/systems_operator.md:17"
     },
     {
+      "from": "/agents/systems_operator.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/systems_operator.md:17"
+    },
+    {
+      "from": "/agents/systems_operator.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/systems_operator.md:17"
+    },
+    {
       "from": "/agents/tutor.md",
       "to": "file:config/agents/examples/tutor.yaml",
       "rel": "derives_from",
@@ -9992,6 +10025,20 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0029-skills-read-like-a-harness.md:50"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md:52"
+    },
+    {
+      "from": "/decisions/0029-skills-read-like-a-harness.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0029-skills-read-like-a-harness.md:52"
     },
     {
       "from": "/decisions/0030-workflow-graphs.md",
@@ -13512,7 +13559,7 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md:87"
+      "evidence": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md:89"
     },
     {
       "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
@@ -13527,6 +13574,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md:30"
+    },
+    {
+      "from": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md:73"
     },
     {
       "from": "/decisions/0086-skill-scripts-get-a-minimal-environment.md",
@@ -15503,6 +15557,13 @@
       "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md:50"
     },
     {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md:52"
+    },
+    {
       "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "to": "file:tests/delegatedPauses.test.ts",
       "rel": "derives_from",
@@ -15669,6 +15730,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md:29"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md:47"
     },
     {
       "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
@@ -15991,6 +16059,118 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md:28"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "file:config/agents/templates/systems_operator.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "file:tests/delegatedScriptsConsent.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/credentials.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md frontmatter"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0029-skills-read-like-a-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md:33"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md:36"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md:33"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md:34"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md:31"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md:31"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md:34"
     },
     {
       "from": "/memory/architecture.md",
@@ -18318,6 +18498,13 @@
     },
     {
       "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:135"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18780,6 +18967,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/delegatedScriptsConsent.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/execution.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19014,301 +19208,308 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:175"
+      "evidence": "/overview/native-loop.md:176"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:240"
+      "evidence": "/overview/native-loop.md:241"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:274"
+      "evidence": "/overview/native-loop.md:275"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:60"
+      "evidence": "/overview/native-loop.md:61"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:201"
+      "evidence": "/overview/native-loop.md:202"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:152"
+      "evidence": "/overview/native-loop.md:153"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:53"
+      "evidence": "/overview/native-loop.md:54"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:110"
+      "evidence": "/overview/native-loop.md:111"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:236"
+      "evidence": "/overview/native-loop.md:237"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:55"
+      "evidence": "/overview/native-loop.md:56"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:55"
+      "evidence": "/overview/native-loop.md:56"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:262"
+      "evidence": "/overview/native-loop.md:263"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:55"
+      "evidence": "/overview/native-loop.md:56"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:201"
+      "evidence": "/overview/native-loop.md:202"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:358"
+      "evidence": "/overview/native-loop.md:359"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:242"
+      "evidence": "/overview/native-loop.md:243"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:181"
+      "evidence": "/overview/native-loop.md:182"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:276"
+      "evidence": "/overview/native-loop.md:277"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:229"
+      "evidence": "/overview/native-loop.md:230"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:262"
+      "evidence": "/overview/native-loop.md:263"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:208"
+      "evidence": "/overview/native-loop.md:209"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:205"
+      "evidence": "/overview/native-loop.md:206"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:292"
+      "evidence": "/overview/native-loop.md:293"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:124"
+      "evidence": "/overview/native-loop.md:125"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:155"
+      "evidence": "/overview/native-loop.md:156"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:209"
+      "evidence": "/overview/native-loop.md:210"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:53"
+      "evidence": "/overview/native-loop.md:54"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:343"
+      "evidence": "/overview/native-loop.md:344"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0109-structured-output-beside-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:84"
+      "evidence": "/overview/native-loop.md:85"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:310"
+      "evidence": "/overview/native-loop.md:311"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:286"
+      "evidence": "/overview/native-loop.md:287"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:304"
+      "evidence": "/overview/native-loop.md:305"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:68"
+      "evidence": "/overview/native-loop.md:69"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:296"
+      "evidence": "/overview/native-loop.md:297"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:271"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:128"
+      "evidence": "/overview/native-loop.md:129"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:90"
+      "evidence": "/overview/native-loop.md:91"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/operations/native-loop-security.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:64"
+      "evidence": "/overview/native-loop.md:65"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:87"
+      "evidence": "/overview/native-loop.md:88"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:276"
+      "evidence": "/overview/native-loop.md:277"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:76"
+      "evidence": "/overview/native-loop.md:77"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:76"
+      "evidence": "/overview/native-loop.md:77"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:74"
+      "evidence": "/overview/native-loop.md:75"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:73"
+      "evidence": "/overview/native-loop.md:74"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -19914,6 +20115,13 @@
     },
     {
       "from": "/protocols/a2a.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:34"
+    },
+    {
+      "from": "/protocols/a2a.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -20023,6 +20231,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md:41"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:40"
     },
     {
       "from": "/protocols/mcp.md",
@@ -20446,6 +20661,13 @@
     },
     {
       "from": "/tools/skill-harness.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/skill-harness.md:82"
+    },
+    {
+      "from": "/tools/skill-harness.md",
       "to": "/operations/agent-skills.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -20772,6 +20994,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/tool-contracts.md:84"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:75"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -25095,6 +25324,13 @@
     {
       "from": "module:lib/runtime/native/interrupts.ts",
       "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/runtime/credentials.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/interrupts.ts"
