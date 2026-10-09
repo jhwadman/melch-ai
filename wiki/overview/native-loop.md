@@ -29,6 +29,7 @@ sources:
   - resource: tests/nativeLoop.test.ts
   - resource: tests/nativeTurn.test.ts
   - resource: tests/nativeDelegate.test.ts
+  - resource: tests/parallelDelegation.test.ts
   - resource: lib/runtime/native/telemetry.ts
   - resource: tests/nativeLedger.test.ts
   - resource: tests/traceOff.test.ts
@@ -290,7 +291,19 @@ A DELEGATE syndicate's orchestrator lists each subagent as `subagentTool(agent)`
 
 A `yaml_reference` to a workflow syndicate is a `workflowSubagentTool` instead, holding the whole graph ([ADR 0098](/decisions/0098-workflow-subagent-and-node-approvals.md)). `runCall` asks `workflowSubagentOf(tool)` next, and `runWorkflowSubagent` runs the call as steps 1, 4 and 5 say, with the graph's walk (`runNativeWorkflow`, which `lib/compileNative.ts` hands over) in place of steps 2 and 3: the walk stores the message and yields the events ADK's Runner yielded for a `Workflow` root, and the answer is the last one's text, never parsed. A node that gave up fails the call ([As a subagent](/overview/workflow-scheduler.md#as-a-subagent)). A walk that ends paused (an `ask_user` node, a gated agent node) resolves the call to a `SubagentPause` with its open interrupts, as a paused child run does, and `resumeWorkflowSubagent` walks the graph again on the answer ([ADR 0111](/decisions/0111-pauses-inside-nested-syndicates.md)).
 
-Calls to subagents in one step run one after another, in call order, as ADK ran them. The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run.
+### Concurrent delegations
+
+Calls to subagents in one step run at once ([ADR 0116](/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md)). `runCalls` makes one `DelegationGate` per step, sized by the agent's `maxConcurrency`: the syndicate's root `max_concurrency`, on its orchestrator, default `DEFAULT_MAX_CONCURRENCY` (4). A nested syndicate's orchestrator runs its own delegations under its own file's key. Each delegated call (a subagent, a nested workflow) enters the gate synchronously, in call order, before any call runs, and waits for its ticket in `runCall`:
+
+- **The cap.** At most `max_concurrency` children run at once; the rest start in call order as slots free up. A slot is held from the child's start to the end of its run, so self-correction's in-order bookkeeping after it holds none. `max_concurrency: 1` runs them one after another, as ADK did.
+- **One session, one lane.** Two calls to the same subagent in one step continue one child session, so they run one after the other in call order, while other subagents run beside them.
+- **Stored order.** The step's response event is built once every call has answered, its parts in call order, and the open calls a paused child left are listed in call order: the stored history does not depend on which child finished first.
+- **Pauses.** A child that pauses leaves its call open while the others finish; their responses are stored and the run ends paused on the open call, as above.
+- **Cancel.** The children share the turn's signal: a cancel or the deadline aborts every running child, a call still waiting for a slot answers `''` without running, and the step stores no response.
+- **Budget.** Every child's model call counts toward `max_steps` as it starts; the children entered first in call order reach the model first.
+- **Durable runs.** A checkpoint is taken only at a step boundary, where every call in every session of the run has its response ([ADR 0113](/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md)), so a child that finishes while another still runs is no boundary.
+
+Other calls in a step start at once, uncapped, as they always have ([ADR 0071](/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md)). The DELEGATE relay fallback stays in `runSyndicateTurn`, which reads the drained run.
 
 ### A pause inside a subagent
 
@@ -303,7 +316,7 @@ A child run that ends paused (an `ask_user` call, an approval request, or a paus
 
 The answer event in the caller's session answers no call of the caller's, so its history leaves it out once the open call's response follows.
 
-Not done by the loop: transfer (`transfer_to_agent`), running subagents concurrently, a pause inside a nested workflow run as a dispatch route or a workflow node reaching the turn (the compile refuses its gates and `ask_user` nodes there), a pause inside a workflow node's own delegation, and an OAuth consent inside a subagent.
+Not done by the loop: transfer (`transfer_to_agent`), a pause inside a nested workflow run as a dispatch route or a workflow node reaching the turn (the compile refuses its gates and `ask_user` nodes there), a pause inside a workflow node's own delegation, and an OAuth consent inside a subagent.
 
 A `temp:` key a tool writes is visible to the rest of the run, as ADK's live session state made it: the next step's instruction placeholders, its toolsets, and the next step's calls read it. The loop reads each event's `temp:` keys just before the store drops them, and lays them over the session's state when it builds a request or a call's context (`lib/runtime/native/tempState.ts`). They are never written into the session object, since a store that saves the whole session would keep them.
 

@@ -62,6 +62,16 @@ variables:
 #   model_errors: 2
 #   tool_errors: 3
 
+# [optional] Subagent calls the orchestrator's model makes in ONE step that
+# run at once (ADR 0116). The rest wait their turn and start in call order;
+# two calls to the same subagent run one after the other on its session.
+# Their results are stored in call order whatever order they finish in.
+# Default 4, at most 32; 1 runs them one after another. A delegate
+# syndicate only: a workflow bounds its nodes with workflow.max_concurrency,
+# and a dispatch classifier delegates nothing. A nested syndicate's
+# orchestrator runs under its own file's value.
+# max_concurrency: 4
+
 # [optional] Domain rules appended to the shared fact-extraction prompt for
 # THIS syndicate only (requires memory_system: "long-term").
 #

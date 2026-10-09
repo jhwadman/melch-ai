@@ -153,6 +153,7 @@ What does not stop it: a `{key}` placeholder puts state, which a tool or a model
 | the deadline (`A2A_TASK_TIMEOUT_MS`, 15 minutes by default) and cancel | wall time; the call in flight is aborted, a stopped step stores nothing | `tests/nativeDelegate.test.ts`, `tests/workflowScheduler.test.ts` |
 | the node-run ceiling, `max(20 × max_steps, 100)` | node runs in one workflow walk, so a routed cycle through tool nodes and route steps ends at once ([ADR 0105](/decisions/0105-workflow-node-run-ceiling.md)) | `tests/workflowNodeRunLimit.test.ts` |
 | `max_parallel` (default 8), `max_concurrency` | a map's workers, a walk's pending nodes | `tests/workflowScheduler.test.ts` |
+| root `max_concurrency` (default 4, at most 32) | subagent runs one orchestrator step starts at once; each level bounds its own ([ADR 0116](/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md)) | `tests/parallelDelegation.test.ts` |
 | `MAX_VALUE_DEPTH` (64) | nesting of a call's arguments and a tool's result | `tests/nativeFuzz.test.ts` |
 | 16 levels | a `yaml_reference` chain | `tests/compile.test.ts` |
 

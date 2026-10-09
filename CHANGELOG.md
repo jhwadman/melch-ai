@@ -338,6 +338,19 @@ the starter pack and the templates), not the repo's full history.
 
 ### Changed
 
+- **A step's calls to subagents run at once** (ADR 0116). When an
+  orchestrator's model calls several subagents in one step (the council's
+  Advocate and Skeptic, say), they now run concurrently instead of one after
+  another, at most `max_concurrency` at a time: a new optional root key of
+  a delegate syndicate, a positive integer up to 32, default 4.
+  `max_concurrency: 1` keeps the old order. Two calls to the same subagent
+  in one step still run one after the other on its one session. The stored
+  responses stay in call order whatever order the subagents finish in, so
+  stored history does not change; a pause, a cancel, `max_steps` and durable
+  checkpoints keep their rules. The key is refused beside `workflow:` (use
+  `workflow.max_concurrency`) and `dispatch:`. Other tool calls are
+  unchanged.
+
 - **`OAuthTokenSource` takes the call's destination** (`(ctx,
   destination)`), and `oauthTokenSource` accepts several servers; both are
   new in this release (ADR 0112).

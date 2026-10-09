@@ -107,6 +107,9 @@ const generateContentConfig = z
 
 // ── Skills ───────────────────────────────────────────────────────────────────
 
+/** The most delegated calls one step may run at once (`max_concurrency`, ADR 0116): each is a model run that costs money. */
+const MAX_DELEGATION_CONCURRENCY = 32;
+
 export const SKILL_SCRIPT_MODES = ['none', 'local'] as const;
 
 const envName = z.string().regex(/^[A-Z_][A-Z0-9_]*$/, 'an environment variable name (A–Z, 0–9, _)');
@@ -483,6 +486,13 @@ export const syndicateSchema = z
       .positive()
       .optional()
       .describe('Hard cap on model calls per turn, subagents included. Default 50 (DEFAULT_MAX_STEPS) when unset.'),
+    max_concurrency: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_DELEGATION_CONCURRENCY)
+      .optional()
+      .describe('Subagent calls from one orchestrator step that run at once; the rest wait their turn, in call order. Default 4; 1 runs them one after another. A delegate syndicate only (ADR 0116).'),
     bundled_references: z
       .record(z.string(), z.record(z.string(), z.unknown()))
       .optional()
@@ -752,6 +762,15 @@ function crossFieldProblems(raw: unknown): Problem[] {
     }
   };
   if (isObj(raw.orchestrator)) executionProblems(raw.orchestrator, ['orchestrator'], true);
+  // max_concurrency bounds an orchestrator's delegated calls (ADR 0116): a workflow bounds its nodes under workflow:, and a dispatch classifier delegates nothing.
+  if (raw.max_concurrency !== undefined && (isObj(raw.workflow) || isObj(raw.dispatch))) {
+    out.push({
+      path: ['max_concurrency'],
+      message: isObj(raw.workflow)
+        ? 'max_concurrency at the root bounds a delegate orchestrator\'s subagent calls; a workflow bounds its nodes with workflow.max_concurrency'
+        : 'max_concurrency bounds a delegate orchestrator\'s subagent calls; a dispatch syndicate\'s classifier delegates nothing (set it in a route\'s own syndicate file)',
+    });
+  }
   for (const [i, sub] of (Array.isArray(raw.subagents) ? raw.subagents : []).entries()) if (isObj(sub)) executionProblems(sub, ['subagents', i], false);
 
   // One spelling per agent (ADR 0047): `reasoning` is mapped onto the very
