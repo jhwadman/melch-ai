@@ -95,8 +95,16 @@ const nativeGraphOf = (config: SyndicateYamlConfig, nested: Nested): Promise<Nat
   compileNativeGraph(config, { log: () => {}, loadNested: (ref) => nested[ref] as SyndicateYamlConfig });
 
 /** Every agent name a subagent session may be kept under. */
-function agentNames(config: SyndicateYamlConfig, nested: Nested): string[] {
-  return (config.subagents ?? []).flatMap((s) => [s.name, ...(s.yaml_reference ? agentNames(nested[s.yaml_reference] as SyndicateYamlConfig, nested) : [])]);
+/**
+ * Each subagent's session: the name ADK filed it under, and the agent path
+ * the engine files it under (delegate.ts childAppName, ADR 0111), which a
+ * nested syndicate's own subagents extend.
+ */
+function agentKeys(config: SyndicateYamlConfig, nested: Nested, parent = `${APP}/${config.orchestrator.name}`): Array<[string, string]> {
+  return (config.subagents ?? []).flatMap((s): Array<[string, string]> => {
+    const key = `${parent}/${s.name}`;
+    return [[s.name, key], ...(s.yaml_reference ? agentKeys(nested[s.yaml_reference] as SyndicateYamlConfig, nested, key) : [])];
+  });
 }
 
 // ── ADK's recorded side and the native run ───────────────────────────────────
@@ -183,8 +191,9 @@ async function runNative(config: SyndicateYamlConfig, nested: Nested, scripts: M
     }
   }
   const sessions: Record<string, TurnEvent[]> = {};
-  for (const app of [APP, ...agentNames(config, nested)]) {
-    const s = await store.get({ appName: app, userId: USER, sessionId: 's1' });
+  // Each session under the name ADK's recording files it under: the stored events are the same, only the key moved (ADR 0111).
+  for (const [app, key] of [[APP, APP] as [string, string], ...agentKeys(config, nested)]) {
+    const s = await store.get({ appName: key, userId: USER, sessionId: 's1' });
     if (s) sessions[app] = plain(s.events);
   }
   return { ends, sessions, models };
@@ -462,43 +471,51 @@ test('council: the Moderator consults the Advocate, then the Skeptic, and the lo
   assert.ok(native.models.moderator?.requests[0]?.tools?.some((t) => t.name === 'Skeptic'));
 });
 
-test('council: two delegations in one step run one after another, in call order, as ADK runs them', async () => {
+/** The council's Moderator calling both subagents in one step, then answering; each subagent's script records when it starts and ends. */
+function councilInOneStep(claim: string, order: string[]): Models {
+  return {
+    moderator: (_r, n) =>
+      n === 1
+        ? {
+            partial: false,
+            parts: [
+              { type: 'toolCall', id: 'call-advocate-1', name: 'Advocate', args: { request: claim } },
+              { type: 'toolCall', id: 'call-skeptic-1', name: 'Skeptic', args: { request: claim } },
+            ],
+            finishReason: 'tool_call',
+          }
+        : answer('THE VERDICT: unclear.'),
+    advocate: async () => {
+      order.push('advocate:start');
+      await new Promise((r) => setTimeout(r, 10));
+      order.push('advocate:end');
+      return answer('1. Rested people.');
+    },
+    skeptic: () => {
+      order.push('skeptic');
+      return answer('1. Coverage gaps.');
+    },
+  };
+}
+
+test('council: two delegations in one step run at once (ADR 0116), and every session holds what ADK stored', async () => {
   const claim = 'Four-day weeks raise output.';
   const order: string[] = [];
-  const { native } = await assertParity(
-    'council-two-in-one-step',
-    council(),
-    {
-      moderator: (_r, n) =>
-        n === 1
-          ? {
-              partial: false,
-              parts: [
-                { type: 'toolCall', id: 'call-advocate-1', name: 'Advocate', args: { request: claim } },
-                { type: 'toolCall', id: 'call-skeptic-1', name: 'Skeptic', args: { request: claim } },
-              ],
-              finishReason: 'tool_call',
-            }
-          : answer('THE VERDICT: unclear.'),
-      advocate: async () => {
-        order.push('advocate:start');
-        await new Promise((r) => setTimeout(r, 10));
-        order.push('advocate:end');
-        return answer('1. Rested people.');
-      },
-      skeptic: () => {
-        order.push('skeptic');
-        return answer('1. Coverage gaps.');
-      },
-    },
-    [{ parts: [{ text: claim }] }],
-  );
-  assert.deepEqual(order, ['advocate:start', 'advocate:end', 'skeptic'], 'the native run, sequential');
+  const { native } = await assertParity('council-two-in-one-step', council(), councilInOneStep(claim, order), [{ parts: [{ text: claim }] }]);
+  assert.deepEqual(order, ['advocate:start', 'skeptic', 'advocate:end'], 'the Skeptic runs while the Advocate is still working');
+  // The responses are stored in call order, though the Skeptic answered first.
   const responses = native.sessions[APP]?.[2]?.content?.parts?.map((p) => [p.functionResponse?.name, p.functionResponse?.response]);
   assert.deepEqual(responses, [
     ['Advocate', { result: '1. Rested people.' }],
     ['Skeptic', { result: '1. Coverage gaps.' }],
   ]);
+});
+
+test('council: max_concurrency: 1 runs a step\'s delegations one after another, in call order, as ADK ran them', async () => {
+  const claim = 'Four-day weeks raise output.';
+  const order: string[] = [];
+  await assertParity('council-two-in-one-step', { ...council(), max_concurrency: 1 }, councilInOneStep(claim, order), [{ parts: [{ text: claim }] }]);
+  assert.deepEqual(order, ['advocate:start', 'advocate:end', 'skeptic']);
 });
 
 // ── The subagent tool on its own ─────────────────────────────────────────────

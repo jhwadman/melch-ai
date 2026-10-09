@@ -26,6 +26,8 @@ import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall, untilAbo
 
 const APP = 'ckpt-app';
 const USER = 'u1';
+/** The subagent's own session, filed under its agent path (ADR 0111). */
+const SCOUT = `${APP}/Boss/Scout`;
 const MESSAGE = [{ text: 'look up a and b' }];
 
 registerTool(
@@ -253,7 +255,7 @@ test('delegation: a run killed after its subagent answered resumes with the chil
   assert.equal(r1.status, 'canceled');
   assert.equal(store.saved.length, 2, 'the lookup step and the delegation step; the child run inside the delegation is no boundary');
   const last = store.latest()!;
-  const child = last.sessions.find((s) => s.appName === 'Scout');
+  const child = last.sessions.find((s) => s.appName === SCOUT);
   assert.ok(child, 'the child session is in the checkpoint');
   assert.equal(child.opening, false);
   assert.equal(child.events.length, 2);
@@ -274,9 +276,9 @@ test('delegation: a run killed after its subagent answered resumes with the chil
   const r3 = await fresh.run;
   assert.equal(r3.text, r2.text);
   assert.deepEqual(await history(resumed.sessions, APP, r2.sessionId), await history(fresh.sessions, APP, r3.sessionId));
-  const restoredChild = await history(resumed.sessions, 'Scout', r2.sessionId);
+  const restoredChild = await history(resumed.sessions, SCOUT, r2.sessionId);
   assert.equal(restoredChild.length, 2);
-  assert.deepEqual(restoredChild, await history(fresh.sessions, 'Scout', r3.sessionId));
+  assert.deepEqual(restoredChild, await history(fresh.sessions, SCOUT, r3.sessionId));
 });
 
 test('a checkpoint for another message, or another run, is ignored: the run starts fresh', async () => {

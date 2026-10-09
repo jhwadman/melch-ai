@@ -67,9 +67,24 @@
  *                             running turn (default 20). Behind a session-mode
  *                             pooler (Supabase :5432) keep the two sums under its
  *                             client limit, per instance.
+ *   MELCHIZEDEK_CREDENTIAL_KEY  32 random bytes (base64 or hex) that seal each user's
+ *                             third-party OAuth tokens (ADR 0072). Unset = no tool
+ *                             credentials. Rows live in Postgres with DATABASE_URL,
+ *                             else in process memory
+ *   OAUTH_REDIRECT_URI        the consent callback, exactly as registered at every
+ *                             provider (https://agents.example.com/oauth/callback);
+ *                             mounts the callback and lets a run ask a user to
+ *                             connect (ADR 0085). Needs MELCHIZEDEK_CREDENTIAL_KEY
+ *   OAUTH_CALLBACK_IDENTITY   required (default): the callback's browser must carry the
+ *                             flow's user's identity (A2A_AUTH=header behind a gateway);
+ *                             state: the single-use state nonce alone binds it (ADR 0114)
+ *   MELCHIZEDEK_OAUTH_HOSTS   provider=host,host;…: the hosts each provider's tokens may
+ *                             be sent to. Unset: authorization_code grants are refused,
+ *                             client_credentials allowed (ADR 0114)
  */
 import { randomBytes } from 'node:crypto';
-import { realpathSync, writeFileSync } from 'node:fs';
+import { readdirSync, realpathSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import type { Server } from 'node:http';
 import { pathToFileURL } from 'node:url';
 
@@ -95,6 +110,14 @@ import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import { isPlaceholderValue, loadEnv } from '../lib/loadEnv.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
+import { loadSyndicate } from '../lib/loadSyndicate.ts';
+import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
+import { callbackIdentity, callbackIdentityProblem, oauthServerSetup } from '../lib/a2a/oauthSetup.ts';
+import type { OAuthServerSetup } from '../lib/a2a/oauthSetup.ts';
+import { postgresCredentialRows } from '../lib/storage/postgres/credentialStore.ts';
+import { setOAuthHosts } from '../lib/tools/oauthHosts.ts';
+import type { AuditSink } from '../lib/observability/audit.ts';
+import type { CredentialRows } from '../lib/tools/credentialStore.ts';
 
 // Re-exported for existing importers (tests/failNarration.test.ts).
 export { describeTurnError } from '../lib/a2a/executor.ts';
@@ -152,6 +175,98 @@ export interface ServerExtensions {
   routes?: (app: import('express').Express) => void;
   /** Any other createA2AApp option; wins over what the environment sets. */
   options?: Partial<Parameters<typeof createA2AApp>[0]>;
+}
+
+/**
+ * The syndicates this server serves from FILES: the default (unless it is a
+ * registry row), each served id that is not a registry id, and, when every
+ * file is served (A2A_SERVED_AGENTS unset or *), every syndicate at the
+ * agents directory's root. The consent step's OAuth clients come from these
+ * only (ADR 0114): a registry row may name a provider they declare, never
+ * define one. A file that does not load is skipped with a warning (its route
+ * fails on its own).
+ */
+export function servedFileSyndicates(
+  syndicateName: string,
+  servedAgents: string[] | undefined,
+  registryAgents: string[] | undefined,
+  warn: (m: string) => void = () => {},
+): SyndicateYamlConfig[] {
+  const registry = new Set(registryAgents ?? []);
+  const files = new Set<string>();
+  const add = (id: string) => {
+    if (id.startsWith('registry:') || registry.has(id)) return;
+    files.add(id.endsWith('.yaml') || id.endsWith('.yml') ? id : `${id}.yaml`);
+  };
+  add(syndicateName);
+  if (servedAgents) {
+    for (const id of servedAgents) add(id);
+  } else {
+    const agentsDir = path.resolve(process.env.MELCHIZEDEK_AGENTS_DIR ?? path.join(process.cwd(), 'config', 'agents'));
+    let names: string[] = [];
+    try {
+      names = readdirSync(agentsDir);
+    } catch {
+      names = [];
+    }
+    for (const f of names.sort()) if ((f.endsWith('.yaml') || f.endsWith('.yml')) && f !== 'syndicateSchema.yaml') files.add(f);
+  }
+  const out: SyndicateYamlConfig[] = [];
+  for (const file of files) {
+    try {
+      out.push(loadSyndicate(file, { shippedFallback: servedAgents !== undefined || file === syndicateName }));
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') warn(`OAuth setup skipped ${file}: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`);
+    }
+  }
+  return out;
+}
+
+/** The server's tool credentials, from the environment: what createA2AApp takes, and what to print. */
+export interface ServerOAuth extends OAuthServerSetup {
+  toolCredentials?: OAuthServerSetup['toolCredentials'] & { requireCallerIdentity?: boolean };
+}
+
+/**
+ * Tool credentials and the consent step for the served syndicates, from
+ * MELCHIZEDEK_CREDENTIAL_KEY, OAUTH_REDIRECT_URI, OAUTH_CALLBACK_IDENTITY
+ * and MELCHIZEDEK_OAUTH_HOSTS (lib/a2a/oauthSetup.ts). Throws, naming
+ * variables only, on a configuration that is unsafe or cannot work.
+ */
+export function serverOAuth(options: {
+  syndicateName: string;
+  servedAgents?: string[];
+  registryAgents?: string[];
+  rows?: CredentialRows;
+  audit?: AuditSink;
+  env?: NodeJS.ProcessEnv;
+  fetch?: typeof fetch;
+  warn?: (m: string) => void;
+}): ServerOAuth {
+  const env = options.env ?? process.env;
+  const identity = callbackIdentity(env);
+  const setup = oauthServerSetup({
+    configs: servedFileSyndicates(options.syndicateName, options.servedAgents, options.registryAgents, options.warn),
+    load: (ref) => loadSyndicate(ref),
+    env,
+    ...(options.rows ? { rows: options.rows } : {}),
+    ...(options.audit ? { audit: options.audit } : {}),
+    allowPrivate: env.ALLOW_PRIVATE_OPENAPI === 'true' || env.ALLOW_PRIVATE_MCP === 'true',
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+  });
+  if (!setup.toolCredentials?.consent) return setup;
+  const warnings = [...setup.warnings];
+  const refused = callbackIdentityProblem(env);
+  if (identity === 'state') {
+    warnings.push('OAUTH_CALLBACK_IDENTITY=state: the single-use state alone binds a consent callback to its user, so a forwarded authorization link can connect the forwarder\'s account to the user who was asked.');
+  } else if (refused) {
+    warnings.push(`${refused.charAt(0).toUpperCase()}${refused.slice(1)}.`);
+  }
+  return {
+    ...setup,
+    warnings,
+    toolCredentials: { ...setup.toolCredentials, requireCallerIdentity: identity === 'required' },
+  };
 }
 
 export async function startServer(syndicateName: string = 'syndicate.yaml', extensions: ServerExtensions = {}): Promise<Server> {
@@ -335,6 +450,23 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
     fatal('A2A_METRICS_TOKEN must be a long random value (openssl rand -hex 32).');
   }
 
+  // ── Tool credentials and the OAuth consent step (ADR 0072, 0085, 0114) ────
+  let oauth: ServerOAuth;
+  try {
+    // An extension's allowlist wins over the environment's here too, as createA2AApp applies it.
+    if (extensions.options?.oauthHosts) setOAuthHosts(extensions.options.oauthHosts);
+    oauth = serverOAuth({
+      syndicateName,
+      servedAgents,
+      registryAgents,
+      ...(pgStorage ? { rows: postgresCredentialRows(pgStorage.pool), audit: pgStorage.audit } : {}),
+      warn: (m) => emit('warn', `[A2A] ⚠ ${m}`),
+    });
+  } catch (err: unknown) {
+    fatal(err instanceof Error ? err.message : String(err));
+  }
+  for (const w of oauth.warnings) emit('warn', `[A2A] ⚠ ${w}`);
+
   let built;
   try {
     built = await createA2AApp({
@@ -361,6 +493,7 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
       keyMode,
       ...(pgStorage ? { storage: pgStorage } : {}),
       ...(policy ? { policy } : {}),
+      ...(oauth.toolCredentials ? { toolCredentials: oauth.toolCredentials } : {}),
       metricsToken,
       log: (m: string) => emit('info', `[A2A] ${m}`),
       warn: (m: string) => emit('warn', `[A2A] ⚠ ${m}`),
@@ -402,6 +535,7 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
     emit('warn', '[A2A]   only A2A_KEY_MODE=byok reaches. Keep byok until that data is migrated.');
   }
   if (budgetLabel) emit('info', `[A2A]   budgets  ${budgetLabel}`);
+  emit('info', `[A2A]   oauth    ${oauth.summary}`);
   if (metricsToken) emit('info', `[A2A]   metrics  ${base}/metrics (bearer A2A_METRICS_TOKEN)`);
   emit('info', `[A2A]   health   ${base}/healthz  ${base}/readyz`);
 

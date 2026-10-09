@@ -24,6 +24,91 @@ by claude-code/claude-opus-5-5
 by claude-code/claude-opus-5-5
 
 ## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —explains→ module:lib/agentDialect.ts
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —depends_on→ /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —depends_on→ /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —supersedes→ /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —depends_on→ /decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —supersedes→ /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —depends_on→ /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | module:lib/tools/oauthHosts.ts —mitigates→ /decisions/0112-oauth-grants-declared-beside-the-tool.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —depends_on→ /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —depends_on→ /decisions/0112-oauth-grants-declared-beside-the-tool.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:scripts/a2a_server.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/a2a/oauthSetup.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/mcpToolFactory.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/oauthTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/tools/oauthHosts.ts
 
 by claude-code/claude-opus-5-5
 

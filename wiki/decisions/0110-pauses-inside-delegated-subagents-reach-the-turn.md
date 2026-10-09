@@ -47,6 +47,8 @@ A subagent runs in its own session, `{ <subagent>, userId, sessionId }`. Its req
 7. **The turn runner reports it.** After the orchestrator's run (or a dispatch route's), `runSyndicateTurn` looks below that agent's open calls and ends the turn `input-required` with `result.approval` or `result.input`. A dispatch resume picks the route that made the outermost open call and replays its turn raw from that call's turn. The A2A server reads a pending approval below the conversation's open calls for any syndicate that delegates, so a message that is not the decision repeats the request without a model call.
 8. **The schema lifts the refusals.** `require_approval` and `ask_user` are allowed on a delegated subagent. A nested delegate syndicate may declare gates. Still refused: gates in a nested workflow or nested dispatch syndicate, an `ask_user` node in a nested workflow, `ask_user` as a tool on a workflow node, skill scripts on a delegated subagent, and a gate on an agent a map runs.
 
+> **Note (2026-10-09):** [ADR 0111](/decisions/0111-pauses-inside-nested-syndicates.md) lifts item 8's refusals of a nested dispatch syndicate's classifier gates and of a delegated nested workflow's gates and `ask_user` nodes, and files a subagent's child session under its agent path instead of its name (item 2's walk follows the same key, then the old one).
+
 ## Alternatives considered
 
 - **Copy the request into the caller's session.** The turn runner and the A2A server would find it with the readers they have. But the copy is a request the caller never made: `approvedCalls` would refuse or skip it, the history would carry a second framework call, and the two copies could disagree. The walk reads the one stored request.

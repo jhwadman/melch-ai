@@ -102,7 +102,7 @@ Both search through the tool context's `searchMemory`, bound to the run's own `<
 
 ## Boundaries
 
-Every row is siloed by `user_key = appName/userId`, where `appName` on the A2A server is the syndicate's `memory_namespace` (else `melchizedek-a2a`). `namespacedMemoryService` pins that namespace on every search and ingestion, through either interface's names, so a subagent running under its own name reads and writes the root syndicate's silo.
+Every row is siloed by `user_key = appName/userId`, where `appName` on the A2A server is the syndicate's `memory_namespace` (else `melchizedek-a2a`). `namespacedMemoryService` pins that namespace on every search and ingestion, through either interface's names, so a subagent whose session is filed under its agent path reads and writes the root syndicate's silo.
 
 Erasure comes in two sizes. The A2A server's `DELETE /memory` and `erase(scopeKey)` remove a scope from every store: facts, sessions, ledger rows, A2A tasks and tool credentials ([A2A](/protocols/a2a.md), [ADR 0072](/decisions/0072-tool-credentials-sealed-per-user.md)). `deleteUserMemory(userKey)` removes one user key's facts only, leaving sessions and the ledger in place. Both **throw** on failure rather than silently doing nothing. How the whole framework fits around this: [architecture](/overview/architecture.md).
 

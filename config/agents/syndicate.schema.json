@@ -1613,7 +1613,7 @@
             "additionalProperties": false
           },
           "yaml_reference": {
-            "description": "A whole nested syndicate (filename under the agents dir) used as this subagent.",
+            "description": "A whole nested syndicate (filename under the agents dir) used as this subagent. An approval request or ask_user question raised inside it pauses the turn with the agent path (ADR 0110, ADR 0111): a delegate syndicate's gates anywhere, a dispatch syndicate's on its classifier (its routes never run nested), and a workflow's ask_user nodes and gates when it is delegated to as a subagent.",
             "type": "string",
             "minLength": 1
           },
@@ -1947,6 +1947,12 @@
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991
+    },
+    "max_concurrency": {
+      "description": "Subagent calls from one orchestrator step that run at once; the rest wait their turn, in call order. Default 4; 1 runs them one after another. A delegate syndicate only (ADR 0116).",
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 32
     },
     "bundled_references": {
       "description": "Written by the registry publisher, not by hand: every nested yaml_reference this syndicate reaches, as it was when published, so a registry version is one unit (ADR 0018). Nested references load from here instead of from files.",

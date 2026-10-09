@@ -102,7 +102,7 @@ async function runDesk(nested: SyndicateYamlConfig = pipeline()): Promise<Run> {
     trace: false,
   });
   const read = async (appName: string) => JSON.parse(JSON.stringify((await sessionService.get({ appName, userId: 'u', sessionId: 's' }))?.events ?? [])) as TurnEvent[];
-  return { result, models, callerEvents: await read('app'), childEvents: await read('Writer') };
+  return { result, models, callerEvents: await read('app'), childEvents: await read('app/Boss/Writer') };
 }
 
 test('a delegated yaml_reference to a workflow syndicate runs the whole graph; its last output is the tool’s answer', async () => {
@@ -129,20 +129,6 @@ test('the nested workflow stores the same sessions and sends the same requests a
   for (const key of Object.keys(adk.requests)) {
     assert.deepEqual(requestsOf(native.models[key]!), adk.requests[key], `the requests ${key} received`);
   }
-});
-
-test('a nested workflow with an ask_user node is refused by name before any model call', async () => {
-  const nested = validateSyndicateConfig(
-    {
-      syndicate_name: 'Pipeline',
-      memory_system: 'internal-only',
-      orchestrator: agent('Plan'),
-      subagents: [agent('Edit')],
-      workflow: { edges: [['START', 'Plan', 'Confirm', 'Edit']], nodes: { Confirm: { ask_user: 'Publish?' } } },
-    },
-    'pipeline.yaml',
-  ) as SyndicateYamlConfig;
-  await assert.rejects(runDesk(nested), /pipeline\.yaml: the ask_user node 'Confirm' pauses for a person, which a workflow nested in another syndicate \(Writer\) cannot carry to its caller/);
 });
 
 test('compile: the nested workflow is one tool, under the entry’s name and description', async () => {

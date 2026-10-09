@@ -37,6 +37,10 @@ Three choices had real alternatives: where the child's events live, whether a st
 
 > **Note (2026-10-09):** [ADR 0110](/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md) supersedes Decision 3: a child run that ends paused leaves the call open, the caller ends paused, the turn reports the pause with the agent path, and the answer resumes the child before the caller's next step.
 
+> **Note (2026-10-09):** [ADR 0111](/decisions/0111-pauses-inside-nested-syndicates.md) supersedes Decision 1's session key: the child session is filed under the agent path (`<app>/<caller>/<subagent>`), and one stored under the subagent's name is still continued.
+
+> **Note (2026-10-09):** [ADR 0116](/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md) supersedes Decision 2: a step's subagent calls run at once, under the syndicate's `max_concurrency` (default 4; `1` keeps this order), two calls to one subagent one after the other, and the responses stored in call order.
+
 ## Alternatives considered
 
 - **Run the child on a branch of the caller's session** (ADK's `ParallelAgent` naming, `<caller>.<subagent>`). It keeps one session per conversation. But ADK's AgentTool does not do it, so a session written by one runtime would not be one the other continues: on ADK the subagent would lose its own history, and the caller's projection would meet branch events it never meets on ADK.

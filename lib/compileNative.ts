@@ -146,6 +146,7 @@ export function compileNative(spec: AgentSpec): NativeAgent {
   if (spec.outputKey !== undefined) agent.outputKey = spec.outputKey;
   if (spec.fallbackModel) agent.fallbackModel = spec.fallbackModel;
   if (spec.context) agent.context = spec.context;
+  if (spec.maxConcurrency !== undefined) agent.maxConcurrency = spec.maxConcurrency;
   return agent;
 }
 

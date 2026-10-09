@@ -2884,6 +2884,184 @@
       "at": "2026-10-09"
     },
     {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthHosts.ts",
+      "rel": "explains",
+      "evidence": "ADR 0114 Decision 1-3: the operator allowlist, its format, and the rule (no allowlist: authorization_code refused, client_credentials allowed; with one, the whole list) live in lib/tools/oauthHosts.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0114 Decision 4: oauthTokenSource and oauthClientsFor refuse a host the allowlist does not bind at compile, and oauthCallProblem refuses it again before each call sends a token.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0114 Decision 4: every MCP request is checked where it actually goes (bearerFetch) before a token is attached.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0114 Decision 4: createA2AApp refuses a syndicate whose grant the allowlist does not permit when it loads one to serve, the default and every dynamic route.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "explains",
+      "evidence": "ADR 0114 Decision 5-6: the server builds the credential store and consent step from MELCHIZEDEK_CREDENTIAL_KEY, OAUTH_REDIRECT_URI, OAUTH_CALLBACK_IDENTITY and the allowlist, with the clients from the served files only.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0114 Decision 5: melchizedek-serve wires toolCredentials through serverOAuth and refuses to start on a malformed key, allowlist or redirect URI, or a redirect URI without a key.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0114 Context: it answers the open question ADR 0112 left, binding a YAML-declared provider to its hosts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0114 Decision 6: OAUTH_CALLBACK_IDENTITY keeps ADR 0085 requireCallerIdentity default (required), with state as the opt-out.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "module:lib/tools/oauthHosts.ts",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "mitigates",
+      "evidence": "lib/tools/oauthHosts.ts header: a registry-stored YAML could name a provider another syndicate users granted and point a tool at its own host; the allowlist is the binding that closes this (ADR 0112 Consequences).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0111 Context and Decision 3: ADR 0110's propagation carried through yaml_reference; a paused walk resolves to a SubagentPause and resumes through resumedDelegations.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0074: \"ADR 0111 supersedes Decision 1's session key: the child session is filed under the agent path\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 1's session key only"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0111 Decision 3: resumeWorkflowSubagent walks the graph again on the answer, and \"The walk's own resume binds it\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0111 Decisions 3, 5 and 6: walkChild resolves a paused walk to a SubagentPause; childAppName and legacyChild key the child session.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0111 Decisions 2 to 4: loadNestedSyndicate refuses a nested dispatch route gate; compileEntrySpec and compileWorkflowSpec take delegated.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0111 Decision 3: delegatedPauses finds a nested walk by the workflow's own pause record and reports the node's request or question.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0074: \"ADR 0116 supersedes Decision 2: a step's subagent calls run at once, under the syndicate's max_concurrency\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 2 only"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0116 Decisions 4 and 6: the response event is merged in call order as ADR 0071 specified, and ordinary calls keep running at once.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0116 Decision 5: a paused child leaves its call open while the others finish and are stored.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0116 Decision 5: a step boundary needs every call in every session answered, so no checkpoint is taken while a child of the step runs.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0116 Decisions 1 and 3: DelegationGate caps a step's delegated calls, starts them in entry order, and runs same-subagent calls in one lane.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0116 Decisions 1 and 4: runCalls enters each delegated call in the gate in call order, runCall releases it when the child ends, and paused ids are sorted into call order.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0116 Decision 2: max_concurrency is a root key, a positive integer up to 32, refused beside workflow: and dispatch:.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
       "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
       "to": "module:lib/agentDialect.ts",
       "rel": "explains",

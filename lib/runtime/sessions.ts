@@ -41,7 +41,7 @@ import type { TurnEvent } from './events.ts';
 
 /** A conversation's address. Stores key it as `<appName>:<userId>:<sessionId>`. */
 export interface SessionKey {
-  /** The syndicate (or, for a DELEGATE subagent's own row, the subagent's name). */
+  /** The syndicate (or, for a DELEGATE subagent's own row, its agent path: lib/runtime/native/delegate.ts childAppName). */
   appName: string;
   userId: string;
   sessionId: string;

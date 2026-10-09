@@ -73,7 +73,7 @@ The helpers answer as ADK's own functions did:
 
 ## Sessions
 
-A `Session` is the same JSON as ADK's `Session` was: `id`, `appName`, `userId`, `state`, `events` (oldest first) and `lastUpdateTime`. A `SessionKey` is `appName`, `userId` and `sessionId`. A DELEGATE subagent's own row has the subagent's name as `appName`.
+A `Session` is the same JSON as ADK's `Session` was: `id`, `appName`, `userId`, `state`, `events` (oldest first) and `lastUpdateTime`. A `SessionKey` is `appName`, `userId` and `sessionId`. A DELEGATE subagent's own row is filed under its agent path as `appName`: `<app>/<caller>/<subagent>`, and below a nested syndicate `<app>/<caller>/<subagent>/<inner>` (`childAppName`, `lib/runtime/native/delegate.ts`, [ADR 0111](/decisions/0111-pauses-inside-nested-syndicates.md)). A row an earlier release filed under the subagent's name alone is still continued for the caller that called it there. A workflow route's or node's row has the entry's name.
 
 `SessionService` has five methods:
 

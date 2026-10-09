@@ -92,6 +92,18 @@
  * whose pause the latest user message answers (agentLoop.ts), and the
  * child reads the same answer from its own session, as it would at the top.
  *
+ * NESTED SYNDICATES (WS6-2b, ADR 0111). The child session of a call is the
+ * one runSubagent files it under: the agent path (delegate.ts childAppName),
+ * else, for a conversation stored before ADR 0111, the subagent's name
+ * alone (legacyChild). A nested delegate syndicate is its orchestrator
+ * there, so the walk goes on through its open calls. A nested workflow
+ * syndicate holds a paused walk there instead: its own pause record (the
+ * workflow's event naming every interrupt it left open, authored by the
+ * workflow under the call's name) makes an approval request an agent node
+ * raised, or an ask_user node's question, the pause, with the node that
+ * asked at the end of the path. The walk stops there: a pause inside a
+ * workflow node's own delegation does not run (lib/workflow/agentNode.ts).
+ *
  * ADK stays out of this file: an ADK tool an agent still lists is asked
  * whether it gates through its own checkRequireConfirmation, by shape.
  */
@@ -101,6 +113,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { nativeToolOf } from '../../models/schemaNormalize.ts';
 import { instructionToolOf, isTool, toolOf } from '../../tools/tool.ts';
 import type { ToolConfirmation } from '../../tools/tool.ts';
+import { inputRequestFrom } from '../../workflowConfig.ts';
 import type { PendingInput } from '../../workflowConfig.ts';
 import { pendingApproval } from '../approvals.ts';
 import type { PendingApproval } from '../approvals.ts';
@@ -108,7 +121,8 @@ import { getFunctionCalls, getFunctionResponses } from '../events.ts';
 import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import { ASK_USER, pendingQuestion } from '../questions.ts';
 import type { Session, SessionService } from '../sessions.ts';
-import { REQUEST_CONFIRMATION_CALL, REQUEST_CREDENTIAL_CALL, isSegmentPrefix } from './history.ts';
+import { childAppName, legacyChild } from './delegate.ts';
+import { REQUEST_CONFIRMATION_CALL, REQUEST_CREDENTIAL_CALL, REQUEST_INPUT_CALL, isSegmentPrefix } from './history.ts';
 import { isToolset } from './request.ts';
 import type { NativeAgent } from './request.ts';
 
@@ -146,6 +160,8 @@ interface Scope {
   session: Session;
   invocationId: string;
   branch?: string;
+  /** The session is a delegated subagent's, filed under its agent path (delegate.ts childAppName). */
+  delegated?: boolean;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -356,6 +372,14 @@ export interface DelegationKey {
   sessions: Pick<SessionService, 'get'>;
   userId: string;
   sessionId: string;
+  /**
+   * The app name of the session whose events are walked: its children are
+   * filed below it (delegate.ts childAppName, ADR 0111). Absent, only the
+   * children a conversation stored before ADR 0111 holds are found.
+   */
+  appName?: string;
+  /** The session walked is a delegated subagent's, already filed under its agent path. */
+  delegated?: boolean;
 }
 
 /** The deepest a chain of delegated pauses is followed: nested syndicates stop at 16 levels (lib/compile.ts). */
@@ -401,14 +425,26 @@ async function pauseBelow(key: DelegationKey, caller: string, call: TurnFunction
   const name = call.name as string;
   const id = call.id as string;
   if (depth >= MAX_DELEGATION_DEPTH || seen.has(name)) return undefined;
-  const child = await key.sessions.get({ appName: name, userId: key.userId, sessionId: key.sessionId });
+  // Where runSubagent filed the call (ADR 0111), else where it filed it before.
+  const own = key.appName === undefined ? undefined : await key.sessions.get({ appName: childAppName({ appName: key.appName, delegated: key.delegated === true }, caller, name), userId: key.userId, sessionId: key.sessionId });
+  const child = own ?? (await legacyChild(key.sessions, key, name, true));
   if (!child) return undefined;
   const here = [caller, name];
+  const walked = workflowPause(child.events, name);
+  if (walked) {
+    const path = [...here, walked.asker];
+    return {
+      path,
+      callIds: [id],
+      ...(walked.approval ? { approval: { ...walked.approval, path } } : {}),
+      ...(walked.question ? { question: { ...walked.question, path } } : {}),
+    };
+  }
   const approval = pendingApproval(child.events);
   if (approval && approval.agent === name) return { path: here, callIds: [id], approval: { ...approval, path: here } };
   const question = pendingQuestion(child.events);
   if (question && question.node === name) return { path: here, callIds: [id], question: { ...question, path: here } };
-  const [first] = await delegatedPauses(key, child.events, name, depth + 1, new Set([...seen, name]));
+  const [first] = await delegatedPauses({ ...key, appName: child.appName, delegated: true }, child.events, name, depth + 1, new Set([...seen, name]));
   if (!first) return undefined;
   const path = [caller, ...first.path];
   return {
@@ -417,6 +453,34 @@ async function pauseBelow(key: DelegationKey, caller: string, call: TurnFunction
     ...(first.approval ? { approval: { ...first.approval, path } } : {}),
     ...(first.question ? { question: { ...first.question, path } } : {}),
   };
+}
+
+/**
+ * The pause a nested workflow's walk holds in its child session (ADR 0111):
+ * the workflow's own pause record, the last event, authored by the
+ * workflow (`name`) at its own path with no content, names the open
+ * interrupts; the approval request or ask_user question among them is the
+ * pause, and the node that raised it the asker. Undefined when the session
+ * holds no paused walk of `name`'s.
+ */
+function workflowPause(events: readonly TurnEvent[], name: string): { asker: string; approval?: PendingApproval; question?: PendingInput } | undefined {
+  const record = events[events.length - 1];
+  if (!record || record.author !== name || (record.content?.parts ?? []).length > 0 || record.nodeInfo?.path !== name) return undefined;
+  const open = new Set(record.longRunningToolIds ?? []);
+  if (open.size === 0) return undefined;
+  const approval = pendingApproval(events);
+  if (approval && open.has(approval.id) && approval.agent && approval.agent !== 'user') return { asker: approval.agent, approval };
+  // The ask_user node's request the record names: the walk stores node inputs as user turns, so a later one may follow it.
+  for (let i = events.length - 2; i >= 0; i--) {
+    const event = events[i] as TurnEvent;
+    if (!event.author || event.author === 'user') continue;
+    for (const call of getFunctionCalls(event)) {
+      if (call.name !== REQUEST_INPUT_CALL || !call.id || !open.has(call.id)) continue;
+      const question = inputRequestFrom(event.author, call);
+      if (question && question.id === call.id) return { asker: event.author, question };
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -477,7 +541,11 @@ export async function resumedDelegations(agent: NativeAgent, scope: Scope, sessi
     return !!r?.id && (r.name === REQUEST_CONFIRMATION_CALL || r.name === ASK_USER);
   });
   if (answerParts.length === 0) return undefined;
-  const pauses = await delegatedPauses({ sessions, userId: scope.session.userId, sessionId: scope.session.id }, events, agent.name);
+  const pauses = await delegatedPauses(
+    { sessions, userId: scope.session.userId, sessionId: scope.session.id, appName: scope.session.appName, delegated: scope.delegated === true },
+    events,
+    agent.name,
+  );
   if (pauses.length === 0) return undefined;
   const open = new Map(openCalls(events, agent.name).map(({ call }) => [call.id as string, call]));
   const answers = new Map<string, TurnPart[]>();

@@ -128,6 +128,8 @@ export interface NativeAgent {
   fallbackModel?: string;
   /** `context:` (ADR 0033): compact the history into a summary past a token threshold. The loop runs it before each step (compaction.ts). */
   context?: ContextConfig;
+  /** The syndicate's `max_concurrency` (ADR 0116): delegated calls one step runs at once. Default DEFAULT_MAX_CONCURRENCY (delegate.ts). */
+  maxConcurrency?: number;
 }
 
 /** What an instruction function reads. */
