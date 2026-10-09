@@ -80,6 +80,18 @@
  *      builds its request. A later step finds the agent's own events last,
  *      so the call runs once.
  *
+ * PAUSES INSIDE DELEGATED SUBAGENTS (WS6-2a, ADR 0110). A subagent runs in
+ * its own child session (delegate.ts); an approval request or question it
+ * leaves open ends its run paused, and its caller leaves the delegated
+ * call open (no response stored) and ends paused too, up to the turn.
+ * delegatedPauses finds such a pause from any session by walking down:
+ * each call its agent left open (openCalls) leads to the child session
+ * under the call's name, whose own open request or question is the pause,
+ * or whose own open call leads one level further. The answer travels back
+ * down the same way: before each step, the loop resumes the open call
+ * whose pause the latest user message answers (agentLoop.ts), and the
+ * child reads the same answer from its own session, as it would at the top.
+ *
  * ADK stays out of this file: an ADK tool an agent still lists is asked
  * whether it gates through its own checkRequireConfirmation, by shape.
  */
@@ -89,9 +101,13 @@ import { isDeepStrictEqual } from 'node:util';
 import { nativeToolOf } from '../../models/schemaNormalize.ts';
 import { instructionToolOf, isTool, toolOf } from '../../tools/tool.ts';
 import type { ToolConfirmation } from '../../tools/tool.ts';
+import type { PendingInput } from '../../workflowConfig.ts';
+import { pendingApproval } from '../approvals.ts';
+import type { PendingApproval } from '../approvals.ts';
 import { getFunctionCalls, getFunctionResponses } from '../events.ts';
-import type { TurnEvent, TurnFunctionCall } from '../events.ts';
-import type { Session } from '../sessions.ts';
+import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
+import { ASK_USER, pendingQuestion } from '../questions.ts';
+import type { Session, SessionService } from '../sessions.ts';
 import { REQUEST_CONFIRMATION_CALL, REQUEST_CREDENTIAL_CALL, isSegmentPrefix } from './history.ts';
 import { isToolset } from './request.ts';
 import type { NativeAgent } from './request.ts';
@@ -315,4 +331,164 @@ export async function grantedCalls(agent: NativeAgent, scope: Scope): Promise<Gr
     return { calls: calls.filter((c) => c.id && resume.has(c.id)), tools: await toolsOf(agent, scope) };
   }
   return undefined;
+}
+
+// ── Pauses inside delegated subagents (WS6-2a, ADR 0110) ─────────────────────
+
+/**
+ * An approval request or a question waiting inside a delegated call: the
+ * open call that leads to it from the session it was found from, and on
+ * down, to the agent that asked.
+ */
+export interface DelegatedPause {
+  /** The agents from the one that made the open call down to the one that asked: `[caller, subagent, …, asker]`. */
+  path: string[];
+  /** The open subagent calls on that path, by id, the outermost first. */
+  callIds: string[];
+  /** The approval request, when the asker waits on one; its `path` is set. */
+  approval?: PendingApproval;
+  /** The question, when the asker waits on one; its `path` is set. */
+  question?: PendingInput;
+}
+
+/** Where a session's delegated calls opened their child sessions: the store, and the caller's user and session ids. */
+export interface DelegationKey {
+  sessions: Pick<SessionService, 'get'>;
+  userId: string;
+  sessionId: string;
+}
+
+/** The deepest a chain of delegated pauses is followed: nested syndicates stop at 16 levels (lib/compile.ts). */
+const MAX_DELEGATION_DEPTH = 16;
+
+/** The engine's own long-running calls: never a delegation. */
+const FRAMEWORK_CALLS = new Set([REQUEST_CONFIRMATION_CALL, REQUEST_CREDENTIAL_CALL, ASK_USER]);
+
+const hasUserText = (e: TurnEvent): boolean =>
+  e.author === 'user' && (e.content?.parts ?? []).some((p) => typeof p.text === 'string' && p.text.trim() !== '' && !p.thought);
+
+/**
+ * The calls an agent made that are still open: no later event answers it,
+ * and the person has not written since. Only an agent's calls count (a
+ * call in a user-authored event is never one), and the engine's own
+ * framework calls are left out. `author`, when given, keeps one agent's
+ * calls. Latest event first, calls in call order.
+ */
+export function openCalls(events: readonly TurnEvent[], author?: string): Array<{ author: string; call: TurnFunctionCall }> {
+  const answered = new Set<string>();
+  const open: Array<{ author: string; call: TurnFunctionCall }> = [];
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i] as TurnEvent;
+    if (hasUserText(event)) break;
+    for (const r of getFunctionResponses(event)) if (r.id) answered.add(r.id);
+    if (!event.author || event.author === 'user' || (author !== undefined && event.author !== author)) continue;
+    for (const call of getFunctionCalls(event)) {
+      if (!call.id || !call.name || FRAMEWORK_CALLS.has(call.name) || answered.has(call.id)) continue;
+      open.push({ author: event.author, call });
+    }
+  }
+  return open;
+}
+
+/**
+ * What waits inside the delegated call `call` that `caller` left open: the
+ * child session under the call's name (where runSubagent runs it), and its
+ * own open approval request or question, else a pause inside a call it left
+ * open, one level down. Only the subagent's own requests count: a request
+ * or question authored by anyone else is none.
+ */
+async function pauseBelow(key: DelegationKey, caller: string, call: TurnFunctionCall, depth: number, seen: ReadonlySet<string>): Promise<DelegatedPause | undefined> {
+  const name = call.name as string;
+  const id = call.id as string;
+  if (depth >= MAX_DELEGATION_DEPTH || seen.has(name)) return undefined;
+  const child = await key.sessions.get({ appName: name, userId: key.userId, sessionId: key.sessionId });
+  if (!child) return undefined;
+  const here = [caller, name];
+  const approval = pendingApproval(child.events);
+  if (approval && approval.agent === name) return { path: here, callIds: [id], approval: { ...approval, path: here } };
+  const question = pendingQuestion(child.events);
+  if (question && question.node === name) return { path: here, callIds: [id], question: { ...question, path: here } };
+  const [first] = await delegatedPauses(key, child.events, name, depth + 1, new Set([...seen, name]));
+  if (!first) return undefined;
+  const path = [caller, ...first.path];
+  return {
+    path,
+    callIds: [id, ...first.callIds],
+    ...(first.approval ? { approval: { ...first.approval, path } } : {}),
+    ...(first.question ? { question: { ...first.question, path } } : {}),
+  };
+}
+
+/**
+ * Every pause waiting inside a delegated call still open in `events` (one
+ * session's events), latest call first: each open call whose child session
+ * holds an open approval request or question, at any depth. `author`, when
+ * given, keeps one agent's calls. A call the person has written past is no
+ * longer open, and neither is anything waiting below it.
+ */
+export async function delegatedPauses(
+  key: DelegationKey,
+  events: readonly TurnEvent[],
+  author?: string,
+  depth = 0,
+  seen: ReadonlySet<string> = new Set(),
+): Promise<DelegatedPause[]> {
+  const out: DelegatedPause[] = [];
+  for (const { author: caller, call } of openCalls(events, author)) {
+    const pause = await pauseBelow(key, caller, call, depth, seen);
+    if (pause) out.push(pause);
+  }
+  return out;
+}
+
+/** The interrupt a delegated pause waits on: the approval request's id, or the question's. */
+export function interruptIdOf(pause: DelegatedPause): string | undefined {
+  return pause.approval?.id ?? pause.question?.id;
+}
+
+/** The open delegated calls the latest user message resumes, and the ones still waiting after it. */
+export interface ResumedDelegations {
+  /** The open calls whose pause the message answers, as the agent made them. */
+  calls: TurnFunctionCall[];
+  /** By call id: the message's parts that answer what waits below it, to be the child's next message. */
+  answers: Map<string, TurnPart[]>;
+  /** The open calls whose pause the message does not answer, by id. */
+  waiting: string[];
+  /** The agent's tools by name, as the loop runs calls against them. */
+  tools: Map<string, unknown>;
+}
+
+/**
+ * The delegated calls `agent` left open that the latest user message
+ * answers (ADR 0110): the message's approval decisions and question
+ * answers (function responses to `adk_request_confirmation` or `ask_user`)
+ * matched, by interrupt id, to the pause below each open call. Undefined
+ * when the message answers none. The child binds the answer itself: an
+ * approval is checked against its pinned call there (approvedCalls), as at
+ * the top.
+ */
+export async function resumedDelegations(agent: NativeAgent, scope: Scope, sessions: Pick<SessionService, 'get'>): Promise<ResumedDelegations | undefined> {
+  const events = scope.session.events;
+  let latest: TurnEvent | undefined;
+  for (let i = events.length - 1; i >= 0 && !latest; i--) if (events[i]?.author === 'user') latest = events[i];
+  if (!latest) return undefined;
+  const answerParts = (latest.content?.parts ?? []).filter((p) => {
+    const r = p.functionResponse;
+    return !!r?.id && (r.name === REQUEST_CONFIRMATION_CALL || r.name === ASK_USER);
+  });
+  if (answerParts.length === 0) return undefined;
+  const pauses = await delegatedPauses({ sessions, userId: scope.session.userId, sessionId: scope.session.id }, events, agent.name);
+  if (pauses.length === 0) return undefined;
+  const open = new Map(openCalls(events, agent.name).map(({ call }) => [call.id as string, call]));
+  const answers = new Map<string, TurnPart[]>();
+  const waiting: string[] = [];
+  for (const pause of pauses) {
+    const callId = pause.callIds[0] as string;
+    const parts = answerParts.filter((p) => p.functionResponse?.id === interruptIdOf(pause));
+    if (parts.length) answers.set(callId, [...(answers.get(callId) ?? []), ...parts]);
+    else waiting.push(callId);
+  }
+  if (answers.size === 0) return undefined;
+  const calls = [...answers.keys()].map((id) => open.get(id)).filter((c): c is TurnFunctionCall => !!c);
+  return { calls, answers, waiting: waiting.filter((id) => !answers.has(id)), tools: await toolsOf(agent, scope) };
 }

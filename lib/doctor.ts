@@ -7,7 +7,8 @@
  *   from the YAMLs and the environment: every syndicate the loader can see,
  *   every agent's model, the provider that id routes to, whether that path
  *   is funded (direct key, gateway, or local), and which declared
- *   server-side tools the path will drop. Then it says exactly what to set,
+ *   server-side tools the path will drop, and which tools need an OAuth
+ *   grant before they work (ADR 0112). Then it says exactly what to set,
  *   grouped by how much each variable unlocks.
  *
  * WHAT IT NEVER DOES:
@@ -46,6 +47,7 @@ import {
 import { PROVIDERS } from './models/providerMap.ts';
 import type { ProviderId } from './models/providerMap.ts';
 import { describeRuntime } from './runtime/runtimeFlag.ts';
+import { agentOAuthGrants, oauthEnvNames } from './tools/oauthTools.ts';
 import type { RuntimeName, RuntimeSource } from './runtime/runtimeFlag.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -73,6 +75,23 @@ export interface DoctorRow {
 
 export type VerdictState = 'ready' | 'ready-local' | 'via-gateway' | 'blocked';
 
+/**
+ * A tool that sends an OAuth token (ADR 0112): which agent holds it, the
+ * provider, and the grant. An authorization_code grant needs each user's
+ * consent before the tool works for them; a client_credentials grant needs
+ * its variables set. Variable names only, never a value.
+ */
+export interface DoctorGrant {
+  agent: string;
+  /** `openapi <spec>` or `mcp <url>`. */
+  tools: string;
+  provider: string;
+  grant: 'authorization_code' | 'client_credentials';
+  scopes: string[];
+  /** The variables the grant reads that are not set here. */
+  missingEnv: string[];
+}
+
 export interface DoctorSyndicate {
   /** Path relative to the agents dir, e.g. "examples/council.yaml". */
   file: string;
@@ -95,6 +114,8 @@ export interface DoctorSyndicate {
    * (ADR 0020), and what is wrong with it, if anything.
    */
   memory?: { namespace: string; declared: boolean; issue?: string };
+  /** The tools that need an OAuth grant (ADR 0112), when any do. */
+  grants?: DoctorGrant[];
 }
 
 export interface Unlock {
@@ -273,6 +294,20 @@ interface WalkOptions {
   seen: Set<string>;
   /** Nested `yaml_reference:` files that failed to load or validate. */
   nestedErrors: string[];
+  /** The tools that need an OAuth grant, as the walk finds them. */
+  grants: DoctorGrant[];
+}
+
+/** The OAuth grants one agent's tools declare, with the variables not set here. */
+function grantsOf(agent: Parameters<typeof agentOAuthGrants>[0], prefix: string): DoctorGrant[] {
+  return agentOAuthGrants(agent, prefix).map((use) => ({
+    agent: use.agent,
+    tools: use.tools,
+    provider: use.oauth2.provider,
+    grant: use.oauth2.grant,
+    scopes: [...(use.oauth2.scopes ?? [])],
+    missingEnv: oauthEnvNames(use.oauth2).filter((name) => !process.env[name]?.trim()),
+  }));
 }
 
 /** The first problem, without the file prefix the doctor already shows. */
@@ -300,6 +335,7 @@ function walk(
 ): void {
   const orch = config.orchestrator;
   const orchModel = orch?.model;
+  if (orch) opts.grants.push(...grantsOf(orch as Parameters<typeof agentOAuthGrants>[0], prefix));
   if (orch && orchModel) {
     // In DELEGATE mode the orchestrator calls its subagents as tools; under
     // plan-dispatch it is a tool-less classifier and code runs the route; in
@@ -336,6 +372,7 @@ function walk(
       }
       continue;
     }
+    opts.grants.push(...grantsOf(sub as Parameters<typeof agentOAuthGrants>[0], prefix));
     // A subagent without its own model inherits the orchestrator's.
     const model = sub.model ?? orchModel;
     if (!model) continue;
@@ -407,7 +444,8 @@ export function diagnoseSyndicate(
     const config = load(file);
     const rows: DoctorRow[] = [];
     const nestedErrors: string[] = [];
-    walk(config, '', { load, seen: new Set([file, path.basename(file)]), nestedErrors }, rows);
+    const grants: DoctorGrant[] = [];
+    walk(config, '', { load, seen: new Set([file, path.basename(file)]), nestedErrors, grants }, rows);
     const memory =
       config.memory_system === 'long-term'
         ? {
@@ -427,6 +465,7 @@ export function diagnoseSyndicate(
       ...(runCommand ? { runCommand } : {}),
       ...(nestedErrors.length ? { error: nestedErrors.join('\n') } : {}),
       ...(memory ? { memory } : {}),
+      ...(grants.length ? { grants } : {}),
     };
   } catch (err) {
     // A schema failure is the author's to fix and names the key; anything
@@ -640,6 +679,15 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
     lines.push(`${head}  ${verdict}${s.runCommand ? `  ${c.dim}${s.runCommand}${c.reset}` : ''}`);
     if (s.memory?.issue) {
       lines.push(`  ${c.yellow}⚠ memory: ${s.memory.issue}${c.reset}`);
+    }
+    for (const g of s.grants ?? []) {
+      const scopes = g.scopes.length ? ` ${c.dim}[${g.scopes.join(' ')}]${c.reset}` : '';
+      const what =
+        g.grant === 'authorization_code'
+          ? `needs a grant: each user connects ${g.provider} (consent) before ${g.tools} works for them`
+          : `needs a grant: the server's own ${g.provider} token (client_credentials) for ${g.tools}`;
+      const missing = g.missingEnv.length ? ` ${c.red}✗ ${g.missingEnv.join(', ')} not set${c.reset}` : '';
+      lines.push(`  ${c.cyan}⚿ ${g.agent}${c.reset} ${what}${scopes}${missing}`);
     }
     if (s.declaredTier && s.declaredTier !== s.tier) {
       lines.push(`  ${c.yellow}⚠ header says "tier: ${s.declaredTier}" but the models say ${s.tier}${c.reset}`);

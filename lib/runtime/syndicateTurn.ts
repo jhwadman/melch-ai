@@ -94,6 +94,8 @@ import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
 import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
 import { pendingQuestion, questionAnswerPart, questionFrom, turnStartOfCall } from './questions.ts';
+import { delegatedPauses } from './native/interrupts.ts';
+import type { DelegatedPause } from './native/interrupts.ts';
 export { ASK_USER, pendingQuestion, questionAnswerPart } from './questions.ts';
 import type { PendingApproval } from './approvals.ts';
 export { approvalResponsePart, describeApproval, pendingApproval } from './approvals.ts';
@@ -627,16 +629,26 @@ async function runTurnInner(
   // A message answering an approval resumes the agent that asked; the answer
   // must name the request still open in this conversation.
   const decision = approvalDecisionIn(parts);
+  // Pauses inside delegated subagents (ADR 0110): what waits below a call an agent of this conversation left open.
+  const delegationKey = { sessions: sessionService, userId, sessionId };
+  /** The first pause waiting below an open delegated call in this conversation, `author`'s calls only when given. */
+  const pauseBelow = async (events: readonly TurnEvent[], author?: string): Promise<DelegatedPause | undefined> =>
+    isWorkflowSyndicate(config) ? undefined : (await delegatedPauses(delegationKey, events, author))[0];
+  let resumingBelow: DelegatedPause | undefined;
   let resuming: PendingApproval | undefined;
   if (decision) {
     resuming = pendingApproval(existing?.events ?? []);
+    if (!resuming) {
+      resumingBelow = await pauseBelow(existing?.events ?? []);
+      resuming = resumingBelow?.approval;
+    }
     if (!resuming || resuming.id !== decision.id) {
       result.status = 'failed';
       result.error = { code: 'NO_PENDING_APPROVAL', message: `No approval ${decision.id} is waiting in this conversation.` };
       return finish();
     }
     // The log names the call, not its arguments: they are user content.
-    ev.log?.(`✓ Approval ${decision.approved ? 'granted' : 'refused'}: ${resuming.agent} → ${resuming.tool}`);
+    ev.log?.(`✓ Approval ${decision.approved ? 'granted' : 'refused'}: ${(resuming.path ?? [resuming.agent]).join(' → ')} → ${resuming.tool}`);
   }
 
   // ── Consent (lib/runtime/credentials.ts, ADR 0085) ────────────────────────
@@ -678,18 +690,24 @@ async function runTurnInner(
   // answer: it becomes that call's response, and the agent that asked
   // resumes its own tool loop (the loop reads the response from its history;
   // ADR 0079). A workflow's pauses are its walk's own business.
+  // A question asked inside a delegated subagent (ADR 0110) is answered the same way: the answer is stored here, and the
+  // open call that leads to the asker carries it down; `answering` names that call and the agent that made it.
   let answering: { agent: string; id: string } | undefined;
   if (!decision && !granting && !isWorkflowSyndicate(config)) {
-    const question = pendingQuestion(existing?.events ?? []);
     const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
-    if (question && plainText) {
-      answering = { agent: question.node, id: question.id };
+    const own = plainText ? pendingQuestion(existing?.events ?? []) : undefined;
+    const below = plainText && !own ? await pauseBelow(existing?.events ?? []) : undefined;
+    const question = own ?? below?.question;
+    if (question) {
+      answering = below ? { agent: below.path[0] as string, id: below.callIds[0] as string } : { agent: question.node, id: question.id };
       parts = [questionAnswerPart(question.id, messageText)];
-      ev.log?.(`✓ Answer to ${question.node}'s question`);
+      ev.log?.(`✓ Answer to ${(question.path ?? [question.node]).join(' → ')}'s question`);
     }
   }
   /** The agent a dispatch turn must resume, and the call its interrupted turn holds. */
-  const resumeTarget = resuming
+  const resumeTarget = resumingBelow
+    ? { agent: resumingBelow.path[0] as string, id: resumingBelow.callIds[0] as string, why: 'resuming an approval' }
+    : resuming
     ? { agent: resuming.agent, id: resuming.id, why: 'resuming an approval' }
     : granting
       ? { agent: granting.agent, id: granting.id, why: 'resuming after an authorization' }
@@ -719,11 +737,25 @@ async function runTurnInner(
     ev.log?.(`⏸ Input needed: ${describeInput(input)}`);
     return finish();
   };
+  /** After the answering run: does a pause wait inside a delegated call `agentName` left open (ADR 0110)? */
+  const pausedBelow = async (agentName: string): Promise<SyndicateTurnResult | undefined> => {
+    const after = await sessionService.get({ appName, userId, sessionId });
+    const below = await pauseBelow(after?.events ?? [], agentName);
+    if (below?.approval) return pause(below.approval);
+    if (below?.question) {
+      result.status = 'input-required';
+      result.input = below.question;
+      result.text = below.question.message;
+      ev.log?.(`⏸ Input needed: ${describeInput(below.question)} (${below.path.join(' → ')})`);
+      return finish();
+    }
+    return undefined;
+  };
   const pause = (pending: PendingApproval): SyndicateTurnResult => {
     result.status = 'input-required';
     result.approval = pending;
     result.text = `Approval needed: ${describeApproval(pending)}.`;
-    ev.log?.(`⏸ Approval needed: ${pending.agent} → ${pending.tool}`);
+    ev.log?.(`⏸ Approval needed: ${(pending.path ?? [pending.agent]).join(' → ')} → ${pending.tool}`);
     return finish();
   };
 
@@ -964,7 +996,9 @@ async function runTurnInner(
         sessions: new ProjectedSessionService(
           sessionService,
           routeCfg.name,
-          resuming
+          resumingBelow
+            ? { rawFrom: (events) => turnStartOfCall(events, resumingBelow!.callIds[0] as string) }
+            : resuming
             ? { rawFrom: (events) => interruptedTurnStart(events, resuming!.id) }
             : answering
               ? { rawFrom: (events) => turnStartOfCall(events, answering!.id) }
@@ -984,9 +1018,13 @@ async function runTurnInner(
       result.error = answer.error;
       return finish();
     }
-    if (!routeCfg.a2a_agent_url && agentGates(routeCfg)) {
+    if (!routeCfg.a2a_agent_url && (agentGates(routeCfg) || routeCfg.yaml_reference)) {
       const pending = await awaitingApproval(routeCfg.name);
       if (pending) return pause(pending);
+    }
+    if (!routeCfg.a2a_agent_url) {
+      const below = await pausedBelow(routeCfg.name);
+      if (below) return below;
     }
     if (!routeCfg.a2a_agent_url) {
       const consent = await awaitingConsent(routeCfg.name);
@@ -1099,6 +1137,10 @@ async function runTurnInner(
     }
     const consent = await awaitingConsent(config.orchestrator.name);
     if (consent) return consentPause(consent);
+    if (config.subagents?.length) {
+      const below = await pausedBelow(config.orchestrator.name);
+      if (below) return below;
+    }
     const askedOrchestrator = asked(answer);
     if (askedOrchestrator) return askedOrchestrator;
     result.text = answer.text;

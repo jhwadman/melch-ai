@@ -22,9 +22,9 @@
  *   (`pinnedCredentialStore`, like namespacedMemoryService), so a delegated
  *   subagent, which runs under its own app name, reads the root's
  *   credentials. The consent step that puts a token is
- *   lib/tools/oauthConsent.ts (ADR 0085); the YAML that lets an agent use a
- *   provider (WS6-3c) comes later; nothing here
- *   wires a tool to the store.
+ *   lib/tools/oauthConsent.ts (ADR 0085); the YAML that lets an OpenAPI or
+ *   MCP tool use a provider (`auth: { oauth2 }`, lib/tools/oauthTools.ts,
+ *   ADR 0112) is what calls `accessToken` for a declared tool.
  *
  * A LEAF: types and plain functions, no runtime imports, so lib/tools/tool.ts
  * can bind the member without loading crypto, pg or telemetry.
@@ -54,7 +54,7 @@ export interface AccessGrant {
   expiresAt?: Date;
 }
 
-/** How a provider renews and withdraws a token (from the provider's config; WS6-3c). */
+/** How a provider renews and withdraws a token (`oauthRefreshProviders` builds the refresh from a YAML grant, ADR 0112). */
 export interface OAuthProvider {
   /**
    * A new token set for this refresh token. Throw when the provider refuses;
@@ -92,7 +92,7 @@ export interface CredentialStore {
 /** What the ToolContext member gives a tool: a valid access token for a provider, for this run's user only. */
 export type ToolAccessToken = (provider: string) => Promise<string>;
 
-export type ToolCredentialErrorCode = 'not_connected' | 'expired' | 'refresh_failed' | 'unreadable' | 'no_user' | 'invalid';
+export type ToolCredentialErrorCode = 'not_connected' | 'expired' | 'refresh_failed' | 'unreadable' | 'no_user' | 'invalid' | 'unavailable' | 'grant_failed';
 
 /**
  * A credential that cannot be used. The message names the provider and what
@@ -114,7 +114,11 @@ export class ToolCredentialError extends Error {
               ? `The stored ${p} authorization cannot be read with this server's credential key.`
               : code === 'no_user'
                 ? 'Third-party access needs the app and user of the run.'
-                : `Invalid credential request for ${p}.`,
+                : code === 'unavailable'
+                  ? `This server holds no ${p} authorizations: its operator has not configured tool credentials.`
+                  : code === 'grant_failed'
+                    ? `The server's own ${p} authorization could not be obtained from the provider's token endpoint.`
+                    : `Invalid credential request for ${p}.`,
     );
     this.name = 'ToolCredentialError';
     this.code = code;
@@ -124,6 +128,9 @@ export class ToolCredentialError extends Error {
 
 /** A provider name: lowercase letters, digits, and . _ - inside; at most 64 characters. */
 export const PROVIDER_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+
+/** One OAuth scope token (RFC 6749 3.3: visible ASCII but space, `"` and `\`), at most 256 characters. One class, so it cannot backtrack. */
+export const OAUTH_SCOPE = /^[\x21\x23-\x5b\x5d-\x7e]{1,256}$/;
 
 /**
  * The ToolContext member: an access token for `provider`, from this app's

@@ -313,6 +313,20 @@ orchestrator:
   #     auth: { bearer_env: "MY_API_TOKEN" }    # or api_key: { env, in, name }
   #     base_url: "https://api.example.com/v2"  # overrides servers[0].url
   #     prefix: "shop"                          # shop_list_orders, ...
+  #   # or an OAuth 2 token per call (ADR 0112): each user's own
+  #   # (authorization_code: a user who has not granted it is asked, through
+  #   # the consent pause) or the server's own (client_credentials). Client
+  #   # ids and secrets are environment variable NAMES, never values.
+  #   - spec: "specs/tracker.yaml"
+  #     auth:
+  #       oauth2:
+  #         provider: "tracker"                   # the credential store's name
+  #         grant: "authorization_code"           # or client_credentials
+  #         authorization_url: "https://tracker.example.com/oauth/authorize"
+  #         token_url: "https://tracker.example.com/oauth/token"
+  #         client_id_env: "TRACKER_CLIENT_ID"    # or client_id: "<the id>"
+  #         client_secret_env: "TRACKER_CLIENT_SECRET"
+  #         scopes: ["issues:read"]
   # skills:
   #   dir: ".claude/skills"
   #   scripts: "local"
@@ -501,6 +515,23 @@ subagents:
     # (ADR 0041). Descriptions are
     # cut at 1,000 characters and results at 20,000.
     # mcp_tools: [wiki_search, wiki_read]
+
+    # [optional] The OAuth 2 grant the MCP server takes (ADR 0112), the same
+    # `oauth2` block as an OpenAPI `auth`. client_credentials: the server's
+    # own token on every request. authorization_code: each user's own token
+    # on their own connection; a user who has not granted it is asked
+    # (the consent pause, which only the orchestrator or a dispatch route
+    # can raise), and mcp_tools is required, since no grant exists at
+    # startup to list the server's tools. Replaces MCP_BEARER_TOKENS for
+    # this server. `npm run doctor` lists every tool that needs a grant.
+    # mcp_auth:
+    #   oauth2:
+    #     provider: "systems"
+    #     grant: "client_credentials"
+    #     token_url: "https://auth.example.com/oauth/token"
+    #     client_id_env: "SYSTEMS_CLIENT_ID"
+    #     client_secret_env: "SYSTEMS_CLIENT_SECRET"
+    #     scopes: ["orders:read"]
 
     # [optional] Agent Skills for this subagent; same block as on the
     # orchestrator. `scripts: "local"` is allowed here only under

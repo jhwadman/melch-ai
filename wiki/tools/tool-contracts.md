@@ -18,6 +18,8 @@ sources:
   - resource: lib/tools/credentialCipher.ts
   - resource: lib/storage/postgres/credentialStore.ts
   - resource: lib/tools/oauthConsent.ts
+  - resource: lib/tools/oauthTools.ts
+  - resource: lib/tools/credentialEnv.ts
   - resource: lib/runtime/credentials.ts
   - resource: lib/tools/nativeTools.ts
   - resource: lib/tools/examples.ts
@@ -26,6 +28,7 @@ sources:
   - resource: tests/memoryTools.test.ts
   - resource: tests/toolCredentials.test.ts
   - resource: tests/oauthConsent.test.ts
+  - resource: tests/oauthTools.test.ts
   - resource: tests/toolBaseRest.test.ts
 ---
 
@@ -53,7 +56,7 @@ A tool can reach two surfaces: the native runtime, which every agent runs on, an
 
 ## Third-party access for the run's user
 
-A tool that acts for a person against a third-party API (their calendar, their repository host) uses that person's delegated OAuth access, never the server's own key ([ADR 0072](/decisions/0072-tool-credentials-sealed-per-user.md)). `ctx.accessToken(provider)` returns a valid access token for the context's own app and user: the tool names the provider, never whose token, as `searchMemory` names the query and never the silo. The member exists only when the run has a credential store, and throws a `ToolCredentialError` (`not_connected`, `expired`, `refresh_failed`, `unreadable`, `no_user`, `invalid`) whose message names the provider and what to do, and no value, so a tool may hand it to the model. The token goes to its provider only, never into a result, an error, a log line or a span.
+A tool that acts for a person against a third-party API (their calendar, their repository host) uses that person's delegated OAuth access, never the server's own key ([ADR 0072](/decisions/0072-tool-credentials-sealed-per-user.md)). `ctx.accessToken(provider)` returns a valid access token for the context's own app and user: the tool names the provider, never whose token, as `searchMemory` names the query and never the silo. The member exists only when the run has a credential store, and throws a `ToolCredentialError` (`not_connected`, `expired`, `refresh_failed`, `unreadable`, `no_user`, `invalid`, and for a YAML-declared grant `unavailable` and `grant_failed`) whose message names the provider and what to do, and no value, so a tool may hand it to the model. The token goes to its provider only, never into a result, an error, a log line or a span.
 
 - **`lib/tools/auth.ts`** is a leaf with no runtime imports: the `CredentialStore` interface (`put`, `get` with refresh, `revoke`, `eraseUser`), the provider hooks (`OAuthProvider.refresh`, `.revoke`), the binding `toolAccessToken(store, appName, userId)`, and `pinnedCredentialStore(store, appName)`, which pins every key to the run's app (the root syndicate's memory namespace) so a delegated subagent, which runs under its own app name, reads the root's credentials.
 - **`lib/tools/credentialStore.ts`** holds the logic once, over any row backend (`CredentialRows`): it seals every token before the backend sees it, refreshes an expired one (60 s early) at most once at a time per key in a process and writes the result only over the version it read, fails closed on a row it cannot open, and writes an audit row for each put, refresh, revoke and erase. A provider's error is reported by kind, never by message, since a provider may echo the token it refused. `memoryCredentialRows()` is the in-process backend; `lib/storage/postgres/credentialStore.ts` is the Postgres one, on `melchizedek_tool_credentials` ([schema](/memory/schema.md), migration 0013), and `postgresStorage({ credentials: { cipher, providers } })` builds `storage.credentials` with the storage's audit trail.
@@ -69,7 +72,16 @@ When the person has not granted the provider yet, the call asks for it, and the 
 - **The next message resumes the call.** Once the grant is stored, `runSyndicateTurn` turns the person's next message into the request's answer (`credentialResponsePart`: `{ credentialKey, granted: true }`, no credential), and the native loop runs the paused call again before its next step (`grantedCalls` in `lib/runtime/native/interrupts.ts`, a port of ADK's auth preprocessor), as the agent made it: only the agent's own events open a request or hold the call it resumes, so a request or a call forged into a user message does neither ([ADR 0101](/decisions/0101-native-loop-security-gate.md)). Until then, a message repeats the request and runs nothing.
 - **Where it runs.** On the agent a turn runs directly. A delegated subagent's loop gets the parent's credentials but no consent step.
 
-The YAML that lets an agent use a provider is WS6-3c.
+### Grants declared in YAML
+
+An [OpenAPI](/tools/openapi-tools.md) entry's `auth: { oauth2 }` and an [MCP](/protocols/mcp.md) server's `mcp_auth: { oauth2 }` say which provider's token a tool sends ([ADR 0112](/decisions/0112-oauth-grants-declared-beside-the-tool.md)). `lib/tools/oauthTools.ts` turns the block into the token each call carries:
+
+- **`authorization_code`**: the run's user's own token, read through `ctx.accessToken(provider)` at each call, so the consent pause above asks for it when the user has not granted it. A run with no credential store answers `unavailable`.
+- **`client_credentials`**: the server's own token, from the token endpoint with the client id and secret (`clientCredentialsGrant`): held in process memory until 60 s before it expires, one request at a time, no redirect followed, a 10 s limit and a 64 KiB response bound, the endpoint held to the SSRF guard. It never enters the credential store, since no user owns it. A refusal is `grant_failed`, never the provider's text.
+- **Secrets are variable names.** `client_id_env` and `client_secret_env` pass `credentialEnvProblem` (`lib/tools/credentialEnv.ts`), the rule OpenAPI `auth` already followed, so a YAML cannot send a framework secret to a token endpoint. A client-credentials variable that is not set fails the compile, naming the variable.
+- **Where a token goes.** Only over https, or http to a loopback host (`tokenTransportProblem`), to the server the YAML names.
+- **The consent step's clients.** `oauthClientsFor(configs)` builds `oauthConsent({ providers })` from the same YAML's authorization-code blocks, reading the client ids and secrets from their variables. Two declarations of one provider must agree, or it throws. `oauthRefreshProviders(clients)` gives the credential store (`credentialStore({ providers })`) the matching refresh hooks, so an expired user token is renewed at the same token endpoint with its refresh token (same guard and bounds, `grant_failed` on a refusal) rather than asking the person again.
+- **The doctor** lists every tool that needs a grant: the agent, the provider, the grant, the scopes, and which of its variables are not set (names only).
 
 ## Server-side tools are markers
 

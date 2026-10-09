@@ -144,6 +144,7 @@ Field reference:
 | `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to the agent (spelled after ADK's `LlmAgent` fields). `includeContents: none` makes an agent see only the current message. |
 | `fallback_model` | any agent | A model, ideally on another provider, that answers when this agent's model fails provider-side (5xx, 429, a connection reset, after its own retries) before producing any output, or while that provider's circuit is open: after `MODEL_BREAKER_THRESHOLD` consecutive provider failures (default 5; 0 disables) the provider is skipped for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx and a canceled turn are never redirected, and a stream that already produced text is never replayed elsewhere ([ADR 0044](./wiki/decisions/0044-fallback-model-and-circuit-breaker.md)). |
 | `mcp_tools` | subagent | The MCP server's tools this agent may use; any other tool the server lists is not exposed. On a dispatch route `require_approval` may name them ([ADR 0041](./wiki/decisions/0041-tool-vendors-get-least-privilege.md)). |
+| `mcp_auth` | subagent | `{ oauth2 }`: the OAuth grant the MCP server takes, the same block as an OpenAPI `auth.oauth2`. `client_credentials` sends the server's own token; `authorization_code` sends each user's own token on their own connection (the consent pause asks for it) and needs `mcp_tools` ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)). |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
 | `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
@@ -181,7 +182,7 @@ function, and every adapter recognises it by marker
 | `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive delegation, where a subagent returns only its final text. |
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
-| `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Orchestrator or plan-dispatch route only (§6, Questions). |
+| `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Any agent but a workflow node's; inside a delegated subagent the question reaches the person with the agent path (§6, Questions). |
 | `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. |
 
 **MCP tools** are the exception to the registry: a subagent with
@@ -221,8 +222,15 @@ without `operations`, only GET operations become tools, so anything that
 writes is exposed only by naming it, and a named operation can be listed
 under `require_approval` (as written under `operations`) so a person
 approves each call. `auth` names an environment variable, never a value
-(`bearer_env`, or `api_key` with `in: header | query` and `name`); an unset
-variable fails the compile, and so does one of the framework's own settings
+(`bearer_env`, or `api_key` with `in: header | query` and `name`), or
+declares an OAuth grant (`oauth2`: `provider`, `grant: authorization_code |
+client_credentials`, `authorization_url`, `token_url`, `client_id` or
+`client_id_env`, `client_secret_env`, `scopes`), whose token each call
+fetches: the run's user's own through the consent pause, or the server's own
+from the token endpoint ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)).
+`oauthClientsFor(configs)` (`melchizedek-agents/tools/oauthTools`) builds the
+consent step's clients from the same YAML, and `npm run doctor` lists every
+tool that needs a grant. An unset variable fails the compile, and so does one of the framework's own settings
 (the database URL, a provider key, an `A2A_` secret: anything `.env.example`
 documents), since the YAML chooses the host it goes to.
 `OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`
@@ -787,12 +795,17 @@ without it. A message that is not an answer gets the same request back,
 without a model call. The paused call and its arguments are pinned, so an
 approval cannot run a different call.
 
-Gates are allowed on the orchestrator and on the subagents of a
-plan-dispatch syndicate, which run as the turn's own agent, and on the
-agent nodes of a workflow (§6). A delegated
-subagent runs inside a tool call, where a pause cannot reach the caller, so a
-gate there is a load error, as is any gate inside a nested `yaml_reference`
-syndicate. Only function tools from the registry can be gated, not MCP tools
+Gates are allowed on the orchestrator, on the subagents of a plan-dispatch
+syndicate, on the agent nodes of a workflow (§6), and on a delegated
+subagent, at any depth of nested delegate syndicates
+([ADR 0110](./wiki/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md)).
+A delegated subagent's gate pauses the whole turn: the call that reached it
+stays open, the request carries `path` (the agents from the turn's own down
+to the one that asked, e.g. `["Desk", "Mailer"]`, in the data part and in
+`approval.path`), and the decision goes back down to that subagent, which
+runs or refuses the call and finishes before its caller continues. A gate
+inside a nested workflow or nested dispatch syndicate is still a load error,
+as are skill scripts on a delegated subagent. Only function tools from the registry can be gated, not MCP tools
 or native-search sentinels. In code, `runSyndicateTurn` returns
 `status: 'input-required'` with `approval`, and the next turn's part
 `approvalResponsePart(approval.id, approved)` answers it.
@@ -819,12 +832,14 @@ call's result, and the agent resumes its own tool loop where it asked. A
 workflow's `ask_user` node (§6, Workflows) publishes the same data part and
 is answered the same way, so a client handles both alike.
 
-`ask_user` is allowed where an approval gate is: the orchestrator and the
+`ask_user` is allowed where an approval gate is: the orchestrator, the
 subagents of a plan-dispatch syndicate (a dispatch turn that answers goes
-straight back to the route that asked, without the classifier). A delegated
-subagent or a workflow node listing it is a load error. In code,
+straight back to the route that asked, without the classifier), and a
+delegated subagent, whose question carries `path` and whose answer goes back
+down to it (ADR 0110). A workflow node listing it is a load error. In code,
 `runSyndicateTurn` returns `status: 'input-required'` with `input`
-(`node`, `message`, `payload`), and the next message's text answers it.
+(`node`, `message`, `payload`, and `path` for a delegated subagent's
+question), and the next message's text answers it.
 
 #### OAuth consent for tools
 
