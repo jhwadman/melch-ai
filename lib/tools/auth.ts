@@ -54,7 +54,7 @@ export interface AccessGrant {
   expiresAt?: Date;
 }
 
-/** How a provider renews and withdraws a token (from the provider's config; WS6-3c). */
+/** How a provider renews and withdraws a token (`oauthRefreshProviders` builds the refresh from a YAML grant, ADR 0112). */
 export interface OAuthProvider {
   /**
    * A new token set for this refresh token. Throw when the provider refuses;

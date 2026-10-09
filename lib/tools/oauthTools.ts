@@ -27,7 +27,8 @@
  *     `ctx.accessToken(provider)` at each call. A user who has not granted it
  *     is asked (the consent pause, when the run has a consent step whose
  *     clients include the provider: `oauthClientsFor` builds them from the
- *     same YAML). The tool never chooses whose token.
+ *     same YAML, and `oauthRefreshProviders` the store's refresh hooks).
+ *     The tool never chooses whose token.
  *   - client_credentials: the server's own token for the provider, from its
  *     token endpoint with the client id and secret, held in this process's
  *     memory until shortly before it expires, never in the credential store
@@ -48,6 +49,7 @@
 
 import { blockedHostReason, checkHost } from '../net/addressGuard.ts';
 import { PROVIDER_NAME, ToolCredentialError } from './auth.ts';
+import type { OAuthProvider, TokenSet } from './auth.ts';
 import { readCredentialEnv } from './credentialEnv.ts';
 import type { OAuthClientConfig } from './oauthConsent.ts';
 import type { ToolContext } from './tool.ts';
@@ -178,6 +180,49 @@ async function tokenEndpointProblem(raw: string, allowPrivate: boolean): Promise
 }
 
 /**
+ * One token-endpoint request (RFC 6749 4.4, 6): the endpoint checked by the
+ * guard first, no redirect followed, a time limit, a bounded response. Any
+ * failure is ToolCredentialError('grant_failed'), never the provider's text,
+ * which may echo what it refused.
+ */
+async function tokenRequest(
+  tokenUrl: string,
+  body: URLSearchParams,
+  provider: string,
+  options: { allowPrivate: boolean; doFetch: typeof fetch; timeoutMs: number; now: () => number; signal?: AbortSignal },
+): Promise<TokenSet> {
+  if (await tokenEndpointProblem(tokenUrl, options.allowPrivate)) throw new ToolCredentialError('grant_failed', provider);
+  let json: Record<string, unknown> | undefined;
+  try {
+    const res = await options.doFetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body,
+      // A redirect would carry the client secret (or the refresh token) to wherever it points.
+      redirect: 'error',
+      signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs)]) : AbortSignal.timeout(options.timeoutMs),
+    });
+    json = await readTokenJson(res);
+    if (!res.ok) json = undefined;
+  } catch {
+    json = undefined;
+  }
+  const accessToken = json?.access_token;
+  const tokenType = json?.token_type;
+  if (typeof accessToken !== 'string' || !accessToken) throw new ToolCredentialError('grant_failed', provider);
+  if (tokenType !== undefined && (typeof tokenType !== 'string' || tokenType.toLowerCase() !== 'bearer')) throw new ToolCredentialError('grant_failed', provider);
+  const refreshToken = typeof json?.refresh_token === 'string' && json.refresh_token ? json.refresh_token : undefined;
+  const expiresIn = typeof json?.expires_in === 'number' ? json.expires_in : typeof json?.expires_in === 'string' ? Number(json.expires_in) : undefined;
+  const scopes = typeof json?.scope === 'string' ? json.scope.split(' ').filter((x) => x !== '') : undefined;
+  return {
+    accessToken,
+    ...(refreshToken ? { refreshToken } : {}),
+    ...(expiresIn !== undefined && Number.isFinite(expiresIn) && expiresIn > 0 ? { expiresAt: new Date(options.now() + expiresIn * 1000) } : {}),
+    ...(scopes ? { scopes } : {}),
+  };
+}
+
+/**
  * The server's own token for a provider (RFC 6749 4.4), fetched when first
  * needed and again shortly before it expires, one request at a time. A
  * failure throws ToolCredentialError('grant_failed'), never the provider's
@@ -192,31 +237,11 @@ export function clientCredentialsGrant(options: ClientCredentialsOptions): { tok
   let pending: Promise<string> | undefined;
 
   const request = async (signal?: AbortSignal): Promise<string> => {
-    if (await tokenEndpointProblem(options.tokenUrl, options.allowPrivate === true)) throw new ToolCredentialError('grant_failed', options.provider);
     const body = new URLSearchParams({ grant_type: 'client_credentials', client_id: options.clientId, client_secret: options.clientSecret });
     if (options.scopes?.length) body.set('scope', options.scopes.join(' '));
-    let json: Record<string, unknown> | undefined;
-    try {
-      const res = await doFetch(options.tokenUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-        body,
-        // A redirect would carry the client secret to wherever it points.
-        redirect: 'error',
-        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
-      });
-      json = await readTokenJson(res);
-      if (!res.ok) json = undefined;
-    } catch {
-      json = undefined;
-    }
-    const accessToken = json?.access_token;
-    const tokenType = json?.token_type;
-    if (typeof accessToken !== 'string' || !accessToken) throw new ToolCredentialError('grant_failed', options.provider);
-    if (tokenType !== undefined && (typeof tokenType !== 'string' || tokenType.toLowerCase() !== 'bearer')) throw new ToolCredentialError('grant_failed', options.provider);
-    const expiresIn = typeof json?.expires_in === 'number' ? json.expires_in : typeof json?.expires_in === 'string' ? Number(json.expires_in) : undefined;
-    held = { accessToken, ...(expiresIn !== undefined && Number.isFinite(expiresIn) && expiresIn > 0 ? { expiresAt: now() + expiresIn * 1000 } : {}) };
-    return accessToken;
+    const issued = await tokenRequest(options.tokenUrl, body, options.provider, { allowPrivate: options.allowPrivate === true, doFetch, timeoutMs, now, ...(signal ? { signal } : {}) });
+    held = { accessToken: issued.accessToken, ...(issued.expiresAt ? { expiresAt: issued.expiresAt.getTime() } : {}) };
+    return issued.accessToken;
   };
 
   return {
@@ -336,4 +361,35 @@ export function oauthClientsFor(
   };
   for (const config of configs) visit(config);
   return clients;
+}
+
+/**
+ * The credential store's refresh hooks for the same providers
+ * (`credentialStore({ providers })`, lib/tools/credentialStore.ts): an
+ * expired user token is renewed at the provider's token endpoint with its
+ * refresh token (RFC 6749 6) instead of asking the person again. Built from
+ * `oauthClientsFor`'s clients; `allowPrivate` lets a private or loopback
+ * token endpoint through the guard (development).
+ */
+export function oauthRefreshProviders(
+  clients: Record<string, OAuthClientConfig>,
+  options: { allowPrivate?: boolean; fetch?: typeof fetch; timeoutMs?: number; now?: () => number } = {},
+): Record<string, OAuthProvider> {
+  const providers: Record<string, OAuthProvider> = {};
+  for (const [name, client] of Object.entries(clients)) {
+    providers[name] = {
+      refresh: (refreshToken, context) => {
+        const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: client.clientId });
+        if (client.clientSecret) body.set('client_secret', client.clientSecret);
+        return tokenRequest(client.tokenUrl, body, name, {
+          allowPrivate: options.allowPrivate === true,
+          doFetch: options.fetch ?? fetch,
+          timeoutMs: options.timeoutMs ?? 10_000,
+          now: options.now ?? Date.now,
+          ...(context.signal ? { signal: context.signal } : {}),
+        });
+      },
+    };
+  }
+  return providers;
 }

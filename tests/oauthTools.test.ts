@@ -41,7 +41,7 @@ import { aesGcmCipher } from '../lib/tools/credentialCipher.ts';
 import { credentialStore, memoryCredentialRows } from '../lib/tools/credentialStore.ts';
 import { closeMcpConnections, createMcpTools } from '../lib/tools/mcpToolFactory.ts';
 import { oauthConsent } from '../lib/tools/oauthConsent.ts';
-import { clientCredentialsGrant, oauthClientsFor, oauthTokenSource, tokenTransportProblem } from '../lib/tools/oauthTools.ts';
+import { clientCredentialsGrant, oauthClientsFor, oauthRefreshProviders, oauthTokenSource, tokenTransportProblem } from '../lib/tools/oauthTools.ts';
 import type { OAuth2AuthConfig } from '../lib/tools/oauthTools.ts';
 import { buildOpenApiOwnTools, credentialEnvProblem } from '../lib/tools/openapiTools.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
@@ -55,6 +55,7 @@ process.env[SECRET_ENV] = CLIENT_SECRET;
 
 const userTokens = new Map<string, string>(); // token → user (the code's subject)
 const serverTokens = new Set<string>();
+const refreshTokens = new Map<string, string>(); // refresh token → user
 const codes = new Map<string, { challenge: string; redirectUri: string }>();
 const tokenRequests: URLSearchParams[] = [];
 /** Every bearer the MCP server and the API saw, in order. */
@@ -89,6 +90,13 @@ before(async () => {
       const token = `fake-server-${randomBytes(8).toString('hex')}`;
       serverTokens.add(token);
       return void res.json({ access_token: token, token_type: 'Bearer', expires_in: serverTokenTtl });
+    }
+    if (form.get('grant_type') === 'refresh_token') {
+      const user = refreshTokens.get(String(form.get('refresh_token')));
+      if (!user || form.get('client_secret') !== CLIENT_SECRET) return void res.status(400).json({ error: 'invalid_grant' });
+      const token = `fake-user-${randomBytes(8).toString('hex')}`;
+      userTokens.set(token, user);
+      return void res.json({ access_token: token, token_type: 'Bearer', expires_in: 3600 });
     }
     const issued = codes.get(String(form.get('code')));
     const verifier = form.get('code_verifier') ?? '';
@@ -352,6 +360,25 @@ test('client_credentials OpenAPI: each call carries the server token; a refused 
 });
 
 // ── authorization_code, through the consent pause ────────────────────────────
+
+test('an expired user token is renewed at the YAML\'s token endpoint with its refresh token', async () => {
+  const clients = oauthClientsFor([{ subagents: [{ name: 'Ops', mcp_server_url: `${base}/sse`, mcp_auth: { oauth2: authCode() } }] }]);
+  let clock = Date.now();
+  const store = credentialStore({ rows: memoryCredentialRows(), cipher: aesGcmCipher(randomBytes(32)), providers: oauthRefreshProviders(clients, { allowPrivate: true }), now: () => clock });
+  const refresh = `fake-refresh-${randomBytes(6).toString('hex')}`;
+  refreshTokens.set(refresh, 'bob');
+  const key = { appName: 'app', userId: 'bob', provider: 'tracker' };
+  await store.put(key, { accessToken: 'fake-old-access', refreshToken: refresh, expiresAt: new Date(clock + 30_000), scopes: ['tracker:read'] });
+  const grant = await store.get(key);
+  assert.notEqual(grant?.accessToken, 'fake-old-access', 'renewed inside the 60 s skew');
+  assert.equal(userTokens.get(grant!.accessToken), 'bob');
+  assert.equal(tokenRequests.at(-1)?.get('grant_type'), 'refresh_token');
+  clock += 1000;
+  assert.equal((await store.get(key))?.accessToken, grant!.accessToken, 'the renewed token is kept');
+  // A refused refresh is reported by kind.
+  const refusing = oauthRefreshProviders(clients, { allowPrivate: true }).tracker!;
+  await assert.rejects(refusing.refresh!('fake-unknown-refresh', { scopes: [] }), (e: unknown) => e instanceof ToolCredentialError && e.code === 'grant_failed');
+});
 
 test('the consent step\'s clients come from the YAML; one provider declared twice must agree', () => {
   const config = { orchestrator: { name: 'R' }, subagents: [{ name: 'Ops', mcp_server_url: `${base}/sse`, mcp_auth: { oauth2: authCode() } }, { name: 'Cc', mcp_server_url: `${base}/sse`, mcp_auth: { oauth2: clientCreds() } }] };

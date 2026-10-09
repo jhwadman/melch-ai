@@ -23,7 +23,9 @@ the starter pack and the templates), not the repo's full history.
   server needs `mcp_tools` and runs each user on their own connection.
   `npm run doctor` lists every tool that needs a grant. New module
   `melchizedek-agents/tools/oauthTools` (`oauthClientsFor`, which builds
-  `oauthConsent({ providers })` from the YAML, `clientCredentialsGrant`,
+  `oauthConsent({ providers })` from the YAML, `oauthRefreshProviders`,
+  which gives `credentialStore({ providers })` the matching refresh hooks,
+  `clientCredentialsGrant`,
   `oauthTokenSource`, `tokenTransportProblem`) and
   `melchizedek-agents/tools/credentialEnv` (`credentialEnvProblem`, still
   exported from `tools/openapiTools`), both under the existing `./tools/*`
@@ -37,6 +39,47 @@ the starter pack and the templates), not the repo's full history.
 - **An OpenAPI `auth` that sets two forms** now reads "exactly one of
   bearer_env, api_key or oauth2" (was "exactly one of bearer_env or
   api_key").
+
+## 1.0.3 — 2026-10-09
+
+Dependency updates and one packaging fix. No export, bin, YAML key or
+adapter behaviour changes; no source file under `lib/` changes.
+
+### Fixed
+
+- **`config/agents/syndicate.schema.json` ships in the package.** The
+  shipped `config/agents/syndicateSchema.yaml` names it in its
+  `yaml-language-server` modeline, and `melchizedek-init` locates the
+  package root by it; it was missing from `files`, so editors could not
+  resolve the schema and, in an installed package, `melchizedek-init`
+  stopped with "config/agents/ not found next to this package".
+  `tests/packageSurface.test.ts` now checks that `files` ships it and
+  every shipped modeline's target.
+
+### Changed — dependencies
+
+- `@anthropic-ai/sdk` ^0.129.0 → ^0.131.0. Additive (Admin and Managed
+  Agents endpoints). The SDK now marks `claude-sonnet-4-5` and
+  `claude-sonnet-4-5-20250929` deprecated (end of life 2026-11-30) and
+  logs a `console.warn` when a request names them; no shipped syndicate
+  uses either id.
+- `openai` ^7.23.0 → ^7.28.0. Additive (Agents, Realtime, Responses
+  WebSocket features). The client now keeps a base URL's query string
+  when joining endpoints; this reaches the GPT adapter only when
+  an `OPENAI_BASE_URL` carries a query (the Azure and xAI base URLs carry none;
+  the Kimi, Ollama and gateway adapters do not use the SDK).
+- `@modelcontextprotocol/sdk` ^1.29.0 → ^1.32.1 (lock 1.31.0 → 1.32.1).
+  The SDK's HTTP client transports now follow redirects only within the
+  endpoint's origin unless `redirectPolicy: 'follow'` is set. The MCP
+  client's own fetch (`mcpFetch`, `lib/net/redirects.ts`) already follows
+  every hop itself under `MCP_REDIRECTS`, so the SDK sees the final
+  response and redirect behaviour is unchanged.
+- `@google/genai` 2.25.0 → 2.27.0, still pinned exact. Additive
+  (`continuation_token` in GenerateContent and Interactions, new model
+  enum values).
+- `@types/node` ^22 → ^25 (dev only). `engines.node` stays `>=22.6.0`; the
+  source type-checks against both the Node 22 and Node 25 types.
+- Dockerfile base image `node:22-slim` → `node:25-slim`, pinned by digest.
 
 ## 1.0.2 — 2026-10-09
 
