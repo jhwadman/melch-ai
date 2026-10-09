@@ -3,6 +3,34 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —constrains→ module:lib/runtime/native/agentLoop.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —depends_on→ /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —depends_on→ /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —depends_on→ /decisions/0071-native-loop-runs-calls-as-adk-stores-them.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —supersedes→ /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —constrains→ module:lib/runtime/native/interrupts.ts
 
 by claude-code/claude-opus-5-5

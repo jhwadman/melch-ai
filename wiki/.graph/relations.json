@@ -3003,6 +3003,63 @@
       "evidence": "ADR 0111 Decision 3: delegatedPauses finds a nested walk by the workflow's own pause record and reports the node's request or question.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0074: \"ADR 0116 supersedes Decision 2: a step's subagent calls run at once, under the syndicate's max_concurrency\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 2 only"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0116 Decisions 4 and 6: the response event is merged in call order as ADR 0071 specified, and ordinary calls keep running at once.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0116 Decision 5: a paused child leaves its call open while the others finish and are stored.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0116 Decision 5: a step boundary needs every call in every session answered, so no checkpoint is taken while a child of the step runs.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0116 Decisions 1 and 3: DelegationGate caps a step's delegated calls, starts them in entry order, and runs same-subagent calls in one lane.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0116 Decisions 1 and 4: runCalls enters each delegated call in the gate in call order, runCall releases it when the child ends, and paused ids are sorted into call order.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0116 Decision 2: max_concurrency is a root key, a positive integer up to 32, refused beside workflow: and dispatch:.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

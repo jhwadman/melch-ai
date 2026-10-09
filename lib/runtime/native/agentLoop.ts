@@ -72,6 +72,10 @@
  *
  * DELEGATION: a call to a subagent tool runs the subagent as its own child
  * loop, as ADK's AgentTool runs it (lib/runtime/native/delegate.ts, ADR 0074).
+ * A step's delegated calls run at once through the step's DelegationGate,
+ * at most the agent's `maxConcurrency` (the syndicate's `max_concurrency`)
+ * at a time, entered in call order, their responses stored in call order
+ * (ADR 0116).
  * A child that ends paused leaves the call open (ADR 0110): no response is
  * stored for it, the step's other responses are, and the run ends paused on
  * the call's id. Before each step, after the approval resume, a delegated
