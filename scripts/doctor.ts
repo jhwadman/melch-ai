@@ -8,7 +8,10 @@
  * gateway stand-in, or local), which declared server-side tools it keeps or
  * drops, and one verdict per syndicate. Says first which runtime a turn runs
  * on (native; a leftover MELCHIZEDEK_RUNTIME=adk is a problem, since 1.0.0
- * removed that runtime). Closes with the env vars that would
+ * removed that runtime). Lists the tools that need an OAuth grant (an
+ * `auth: { oauth2 }` or `mcp_auth`, ADR 0112): each user's consent, or the
+ * server's own client credentials and whether their variables are set
+ * (names only). Closes with the env vars that would
  * unlock the most, where to get each, and the first command to try.
  *
  * Read-only: never edits .env, never sends a request, never prints a key

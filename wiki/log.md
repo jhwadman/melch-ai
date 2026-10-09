@@ -3,6 +3,30 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | module:lib/tools/oauthTools.ts —depends_on→ module:lib/tools/credentialEnv.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —depends_on→ /decisions/0072-tool-credentials-sealed-per-user.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —depends_on→ /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —constrains→ module:lib/tools/mcpToolFactory.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —explains→ module:lib/tools/oauthTools.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-08] relate | /decisions/0108-adk-reference-recorded-by-the-parity-suites.md —explains→ file:tests/helpers/adkReference.ts
 
 by claude-code/claude-opus-5-5

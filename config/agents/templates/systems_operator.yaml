@@ -19,7 +19,14 @@
 #       published; nothing about them is written here. Unreachable → an
 #       empty tool list and a warning, never a crash.
 #       Auth: MCP_BEARER_TOKENS='{"mcp.example.com":"<token>"}' sends a
-#       bearer token only to that exact host and only over https.
+#       bearer token only to that exact host and only over https. An
+#       OAuth-protected server is declared on the agent instead, with
+#       `mcp_auth: { oauth2 }` (ADR 0112): uncomment the block on Systems
+#       below. client_credentials gives the server's own token on every
+#       request. authorization_code (each person's own token, granted
+#       through the consent pause) needs the agent to run the turn
+#       itself: a dispatch route, not a delegated subagent like Systems.
+#       `npm run doctor` lists every tool that needs a grant.
 #       Loopback and private addresses are refused unless
 #       ALLOW_PRIVATE_MCP=true (local development).
 #   OUT (agent → HTTP): `npm run start:a2a` serves it at
@@ -125,6 +132,15 @@ subagents:
     description: "Calls the company's systems through the operations their MCP server publishes and returns each call's operation, parameters and result verbatim. Pass a READ request, or a WRITE request listing the exact confirmed changes."
     model: gemini-3.8-flash
     mcp_server_url: "{{systems_mcp_url}}"
+    # An OAuth-protected server (ADR 0112): the variables are NAMES, never values.
+    # mcp_auth:
+    #   oauth2:
+    #     provider: "systems"
+    #     grant: "client_credentials"
+    #     token_url: "https://auth.example.com/oauth/token"
+    #     client_id_env: "SYSTEMS_CLIENT_ID"
+    #     client_secret_env: "SYSTEMS_CLIENT_SECRET"
+    #     scopes: ["systems:read", "systems:write"]
     instruction: |
       The current date is {{current_date}}.
 
