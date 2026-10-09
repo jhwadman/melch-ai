@@ -585,7 +585,7 @@ export function mcpHttpApp(mcp: MelchMcpServer, opts: McpHttpOptions = {}): Expr
   const host = opts.host ?? '127.0.0.1';
   const problem = mcpBindProblem({ host, ...(opts.secret ? { secret: opts.secret } : {}) });
   if (problem) throw new Error(problem);
-  const warn = opts.warn ?? ((m: string) => console.error(`[MCP] ⚠ ${m}`));
+  const warn = opts.warn ?? ((m: string) => console.error(`[MCP] ⚠ ${m.replace(/[\r\n]/g, ' ')}`));
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', opts.trustProxy ?? false);
