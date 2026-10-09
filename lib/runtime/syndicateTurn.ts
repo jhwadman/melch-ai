@@ -44,7 +44,7 @@ import { randomUUID } from 'node:crypto';
 
 import { DEFAULT_MAX_STEPS } from '../config.ts';
 import { agentGates, compileEntrySpec, compileSpec, compileWorkflowSpec, workflowAgentSpecs } from '../compile.ts';
-import type { AgentSpec, WorkflowSpec } from '../compile.ts';
+import type { AgentSpec, DispatchSpec, WorkflowSpec } from '../compile.ts';
 import { compileNative, compileNativeWorkflow, nativeAdapterFor } from '../compileNative.ts';
 import type { NativeWorkflow } from '../compileNative.ts';
 import type { ModelAdapter } from '../models/contract.ts';
@@ -58,6 +58,7 @@ import type { MemoryService } from './memoryService.ts';
 import type { WorkflowGraph } from '../workflow/graph.ts';
 import { UnsupportedWorkflowResumeError } from '../workflow/resume.ts';
 import { runNativeWorkflow } from '../workflow/turn.ts';
+import type { NestedRun } from '../workflow/turn.ts';
 import { NODE_RUN_LIMIT, NodeRunLimitError } from '../workflow/scheduler.ts';
 import { SelfCorrection } from './native/selfCorrection.ts';
 import { chooseRuntime } from './runtimeFlag.ts';
@@ -96,7 +97,7 @@ import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingAppr
 import { pendingQuestion, questionAnswerPart, questionFrom, turnStartOfCall } from './questions.ts';
 import { deepestPause, delegatedPauses, nestedWorkflowPause, routePause } from './native/interrupts.ts';
 import type { DelegatedPause, NestedWorkflowPause } from './native/interrupts.ts';
-import { entrySession } from './native/delegate.ts';
+import { consentPinnedTo, entrySession } from './native/delegate.ts';
 import { workflowPauseEvent } from '../workflow/pause.ts';
 import { INPUT_REQUEST } from '../workflowConfig.ts';
 export { ASK_USER, pendingQuestion, questionAnswerPart } from './questions.ts';
@@ -106,7 +107,7 @@ export type { PendingApproval } from './approvals.ts';
 import { RemoteA2AAgent, remoteContextId, remoteToolOutput } from '../a2a/remoteAgent.ts';
 import { createTurnControl, runWithTurnControl, stopCode, stopMessage } from './turnControl.ts';
 import { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './native/selfCorrection.ts';
-import type { TurnStopReason } from './turnControl.ts';
+import type { NestedDispatchEnd, NestedDispatchRun, TurnStopReason } from './turnControl.ts';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -521,6 +522,8 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
     // `trace: false`: no span from anything the turn runs, to any sink.
     untraced: opts.trace === false,
   });
+  // A nested dispatch syndicate, wherever the turn reaches one, runs as a turn of its own under these controls (ADR 0120).
+  control.nestedDispatch = (run) => runNestedDispatch(opts, control, runtime, run);
   try {
     const run = () => runWithTurnControl(control, () => runTurnInner(opts, control, runtime));
     // A span a library opens through OpenTelemetry's own API (not the
@@ -544,8 +547,8 @@ interface NativeWorkflowAgent {
   agents: Map<string, NativeAgent>;
   adapterFor: (model: string) => ModelAdapter;
   resolveTool: (name: string) => unknown;
-  /** The nodes that are a nested workflow syndicate (ADR 0106). */
-  workflows: Map<string, NativeWorkflow>;
+  /** The nodes that are a nested workflow syndicate (ADR 0106), or a nested dispatch syndicate (ADR 0120). */
+  workflows: Map<string, NativeWorkflow | NestedRun>;
 }
 
 /**
@@ -565,10 +568,72 @@ function nativeWorkflowAgent(spec: WorkflowSpec, opts: CompileOptions): NativeWo
   return { runtime: 'native-workflow', graph, agents, adapterFor: nativeAdapterFor(opts, workflowAgentSpecs(spec)), resolveTool, workflows };
 }
 
+/** How a nested dispatch syndicate's turn differs from a turn at the top (ADR 0120). */
+interface NestedTurn {
+  /** The app its grants are read and stored under: the root's, as a delegated subagent's are (ADR 0118). */
+  credentialApp: string;
+}
+
+/**
+ * A nested dispatch syndicate's own turn (ADR 0120): runTurnInner on its
+ * conversation (`run`, opened by the caller), under the turn's controls,
+ * with the turn's store, memory, credentials and log, never streamed, its
+ * guards left to the turn at the top (collectGuards already lists them
+ * there). Its result is read as a walk's end: the route's final text, the
+ * conversation's state writes, and what it waits on, by id.
+ */
+async function runNestedDispatch(
+  opts: SyndicateTurnOptions,
+  control: ReturnType<typeof createTurnControl>,
+  runtime: RuntimeName,
+  run: NestedDispatchRun,
+): Promise<NestedDispatchEnd> {
+  const sessions = run.sessions as SessionService;
+  const key = { appName: run.appName, userId: run.userId, sessionId: run.sessionId };
+  const kept = (state: Record<string, unknown> | undefined): Record<string, unknown> =>
+    Object.fromEntries(Object.entries(state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
+  const before = new Map(Object.entries(kept((await sessions.get(key))?.state)).map(([k, v]) => [k, JSON.stringify(v)]));
+  const config = run.config as SyndicateYamlConfig;
+  const trace = opts.trace === false ? false : { ...(opts.trace ?? {}), syndicateName: config.syndicate_name ?? run.name };
+  const nested = await runTurnInner(
+    {
+      config,
+      parts: run.parts as MessagePart[],
+      appName: run.appName,
+      userId: run.userId,
+      sessionId: run.sessionId,
+      sessionService: sessions,
+      ...(opts.memoryService ? { memoryService: opts.memoryService } : {}),
+      compile: run.compile as CompileOptions,
+      ...(opts.toolCredentials ? { toolCredentials: opts.toolCredentials } : {}),
+      streaming: false,
+      trace,
+      events: { ...(opts.events?.log ? { log: opts.events.log } : {}), ...(opts.events?.warn ? { warn: opts.events.warn } : {}) },
+    },
+    control,
+    runtime,
+    { credentialApp: opts.appName },
+  );
+  const after = kept((await sessions.get(key))?.state);
+  const stateDelta = Object.fromEntries(Object.entries(after).filter(([k, v]) => before.get(k) !== JSON.stringify(v)));
+  const interruptId = nested.approval?.id ?? nested.input?.id ?? nested.consent?.id;
+  return {
+    status: nested.status,
+    text: nested.text,
+    stateDelta,
+    ...(interruptId ? { interruptId } : {}),
+    ...(nested.approval ? { approval: nested.approval } : {}),
+    ...(nested.input ? { input: nested.input } : {}),
+    ...(nested.consent ? { consent: nested.consent } : {}),
+    ...(nested.error ? { error: nested.error } : {}),
+  };
+}
+
 async function runTurnInner(
   opts: SyndicateTurnOptions,
   control: ReturnType<typeof createTurnControl>,
   _runtime: RuntimeName,
+  nestedTurn?: NestedTurn,
 ): Promise<SyndicateTurnResult> {
   const { config, appName, userId, sessionId, sessionService } = opts;
   const ev = opts.events ?? {};
@@ -584,10 +649,11 @@ async function runTurnInner(
   const nativeOf = (spec: AgentSpec): TurnAgent => ({ runtime: 'native', agent: compileNative(spec), adapterFor: nativeAdapterFor(compileOpts, spec) });
   /** The orchestrator (a DELEGATE root, or a dispatch classifier). */
   const compileRoot = async (): Promise<TurnAgent> => nativeOf(await compileSpec(config, compileOpts));
-  /** A dispatch route: one agent, or a nested workflow's whole graph (ADR 0106). */
-  const compileRoute = async (routeCfg: SubagentYamlConfig): Promise<TurnAgent & { workflow?: WorkflowSpec }> => {
+  /** A dispatch route: one agent, a nested workflow's whole graph (ADR 0106), or a nested dispatch syndicate's own turn (ADR 0120). */
+  const compileRoute = async (routeCfg: SubagentYamlConfig): Promise<(TurnAgent & { workflow?: WorkflowSpec }) | { dispatch: DispatchSpec }> => {
     const entry = await compileEntrySpec(routeCfg, compileOpts);
     if (entry.kind === 'workflow') return { ...nativeWorkflowAgent(entry.workflow, compileOpts), workflow: entry.workflow };
+    if (entry.kind === 'dispatch') return { dispatch: entry.dispatch };
     return nativeOf(entry.spec);
   };
   // Self-correction (ADR 0075): one per turn, from the YAML's retries:.
@@ -672,7 +738,14 @@ async function runTurnInner(
   // While a call waits for an OAuth grant, the next message resumes it once
   // the callback has stored the grant; until then it repeats the request and
   // runs nothing.
-  const credentialStore = opts.toolCredentials ? pinnedCredentialStore(opts.toolCredentials.store, appName) : undefined;
+  // A nested dispatch syndicate's turn reads and stores grants under the root's app, as a delegated subagent does (ADR 0118, ADR 0120).
+  const credentialApp = nestedTurn?.credentialApp ?? appName;
+  const credentialStore = opts.toolCredentials ? pinnedCredentialStore(opts.toolCredentials.store, credentialApp) : undefined;
+  const consentStep = opts.toolCredentials?.consent
+    ? nestedTurn
+      ? consentPinnedTo(opts.toolCredentials.consent, credentialApp)
+      : opts.toolCredentials.consent
+    : undefined;
   const consentPause = (pending: PendingConsent): SyndicateTurnResult => {
     result.status = 'input-required';
     result.consent = pending;
@@ -683,6 +756,8 @@ async function runTurnInner(
   let granting: PendingConsent | undefined;
   // A call waiting for a grant inside a delegated subagent (ADR 0118): the grant's answer is stored here, and the open call carries it down.
   let grantingBelow: DelegatedPause | undefined;
+  // A dispatch route that is a nested dispatch syndicate, waiting for a grant (ADR 0120): its own turn checks the grant, then resumes or asks again.
+  let consentRoute: (NestedWorkflowPause & { route: string }) | undefined;
   if (!decision && !isWorkflowSyndicate(config)) {
     let open = pendingConsent(existing?.events ?? []);
     if (!open && config.subagents?.length) {
@@ -692,6 +767,8 @@ async function runTurnInner(
         open = below.consent;
       }
     }
+    const routeWaits = !open && !!routePaused?.consent;
+    if (routeWaits) open = routePaused!.consent;
     if (open) {
       if (!credentialStore) {
         result.status = 'failed';
@@ -700,13 +777,17 @@ async function runTurnInner(
       }
       let granted = false;
       try {
-        granted = !!open.provider && !!(await credentialStore.get({ appName, userId, provider: open.provider }));
+        granted = !!open.provider && !!(await credentialStore.get({ appName: credentialApp, userId, provider: open.provider }));
       } catch {
         // Expired or unreadable: not granted. The request stands.
       }
       if (!granted) return consentPause(open);
-      granting = open;
-      parts = [credentialResponsePart(open.id, open.provider)];
+      // The route's own turn carries the grant's answer down to its call; the message goes to it as it came.
+      if (routeWaits) consentRoute = routePaused;
+      else {
+        granting = open;
+        parts = [credentialResponsePart(open.id, open.provider)];
+      }
       ev.log?.(`✓ Authorization granted: ${(open.path ?? [open.agent]).join(' → ')} → ${open.provider}`);
     }
   }
@@ -721,7 +802,7 @@ async function runTurnInner(
   let answering: { agent: string; id: string } | undefined;
   /** The parts a paused workflow route's walk resumes on, when the message answers its question: the answer as the explicit reply to its `adk_request_input` call (ADR 0119). */
   let routeAnswer: unknown[] | undefined;
-  if (!decision && !granting && !isWorkflowSyndicate(config)) {
+  if (!decision && !granting && !consentRoute && !isWorkflowSyndicate(config)) {
     const plainText = parts.length > 0 && parts.every((p: any) => typeof p.text === 'string');
     const own = plainText ? pendingQuestion(existing?.events ?? []) : undefined;
     const below = plainText && !own ? await pauseBelow(existing?.events ?? []) : undefined;
@@ -743,6 +824,8 @@ async function runTurnInner(
     ? { agent: resumingBelow.path[0] as string, id: resumingBelow.callIds[0] as string, why: 'resuming an approval' }
     : resumingRoute
     ? { agent: resumingRoute.route, id: resuming!.id, why: 'resuming an approval' }
+    : consentRoute
+    ? { agent: consentRoute.route, id: consentRoute.consent!.id, why: 'resuming after an authorization' }
     : grantingBelow
     ? { agent: grantingBelow.path[0] as string, id: grantingBelow.callIds[0] as string, why: 'resuming after an authorization' }
     : resuming
@@ -805,8 +888,9 @@ async function runTurnInner(
     ev.log?.(`⏸ Input needed: ${describeInput(input)}${input.path ? ` (${input.path.join(' → ')})` : ''}`);
     return finish();
   };
-  /** A nested workflow's walk paused below a route (ADR 0119): its approval request, else its question. */
-  const pausedWalk = (paused: NestedWorkflowPause): SyndicateTurnResult => (paused.approval ? pause(paused.approval) : question(paused.question!));
+  /** A nested workflow's walk, or a nested dispatch syndicate's turn, paused below a route (ADR 0119, ADR 0120): its approval request, its consent request, else its question. */
+  const pausedWalk = (paused: NestedWorkflowPause): SyndicateTurnResult =>
+    paused.approval ? pause(paused.approval) : paused.consent ? consentPause(paused.consent) : question(paused.question!);
 
   /** Run ONE agent against ONE session, under the turn's controls. */
   const runAgent = async (params: {
@@ -861,7 +945,7 @@ async function runTurnInner(
         ...(selfCorrection ? { selfCorrection } : {}),
         // Tool credentials and the consent step (ADR 0072, ADR 0085); the classifier's lane lists no tools.
         ...(credentialStore ? { credentials: credentialStore } : {}),
-        ...(opts.toolCredentials?.consent && params.stage !== 'classify' ? { consent: opts.toolCredentials.consent } : {}),
+        ...(consentStep && params.stage !== 'classify' ? { consent: consentStep } : {}),
         ...(compileOpts.log ? { log: compileOpts.log } : {}),
       });
     }
@@ -908,9 +992,10 @@ async function runTurnInner(
 
   /**
    * A dispatch route that is a workflow syndicate (ADR 0106): its whole graph
-   * walked on the child session filed under the agent path (`{ <app>/<route>,
-   * userId, sessionId }`, ADR 0119; the one ADR 0106 filed under the route's
-   * name alone is continued when the route ran in the conversation before),
+   * walked on the child session filed under the agent path and its kind
+   * (`{ <app>/route:<route>, userId, sessionId }`, ADR 0119, ADR 0120; the
+   * one filed under an older key is continued when the route ran in the
+   * conversation before, entrySession),
    * created from the conversation's state the first time, `temp:` keys
    * dropped, and kept, as a delegated nested workflow walks (ADR 0098), and
    * drained by the reader a workflow turn uses, so the route's answer is what
@@ -942,7 +1027,7 @@ async function runTurnInner(
       Object.fromEntries(Object.entries(state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
     // Filed under the agent path (ADR 0119), else continued under the route's name alone where ADR 0106 filed it.
     const resumingWalk = resumingRoute !== undefined || routeAnswer !== undefined;
-    const child = await entrySession(store, { appName, userId, sessionId, events: shared.events }, route, kept(shared.state), resumingWalk);
+    const child = await entrySession(store, { appName, userId, sessionId, events: shared.events }, route, 'route', kept(shared.state), resumingWalk);
     const childKey = { appName: child.appName, userId, sessionId };
     const before = new Map(Object.entries(kept(child.state)).map(([k, v]) => [k, JSON.stringify(v)]));
     const invocationId = `e-${randomUUID()}`;
@@ -967,7 +1052,7 @@ async function runTurnInner(
       // A walk that ended paused (ADR 0119): the conversation stores the route's pause record, which names the walk's
       // open interrupts and carries its state writes so far; the next message finds the walk through it.
       const walkEnd = (await store.get(childKey))?.events.at(-1);
-      const paused = walkEnd?.author === route && walkEnd.nodeInfo?.path === route && !walkEnd.content?.parts?.length ? await nestedWorkflowPause(pauseKey, route) : undefined;
+      const paused = walkEnd?.author === route && walkEnd.nodeInfo?.path === route && !walkEnd.content?.parts?.length ? await nestedWorkflowPause(pauseKey, route, 'route') : undefined;
       if (paused) {
         const record = workflowPauseEvent({ name: route, invocationId, input: null, interruptIds: [...(walkEnd!.longRunningToolIds ?? [])] });
         const stateDelta = await written();
@@ -987,6 +1072,74 @@ async function runTurnInner(
       await store.append((await store.get(key)) ?? shared, answered);
     }
     return { answer: walked };
+  };
+
+  /**
+   * A dispatch route that is a nested dispatch syndicate (ADR 0120): its own
+   * turn (runNestedDispatch: its classifier picks one of its routes, the
+   * route answers), on the child session filed under the route's kind
+   * (`<app>/route:<route>`, entrySession), created from the conversation's
+   * state the first time, `temp:` keys dropped, and kept. The conversation
+   * stores the message and, as for a workflow route, one event authored by
+   * the route: its answer (the inner route's final text) with the state
+   * writes, or, when its turn ends paused, the route's pause record naming
+   * the one request it waits on. The turn reports that request with the
+   * path from the route down (routePause, which follows the record into the
+   * nested conversation), and the next message that answers it resumes the
+   * route without classifying: the nested turn reads it as a message at the
+   * top reads an answer (an approval decision as it came, a question's
+   * answer as the person's text, any message once a grant is stored).
+   */
+  const runDispatchRoute = async (route: string, dispatch: DispatchSpec): Promise<{ answer: DrainedRun; paused?: NestedWorkflowPause } | { failed: SyndicateTurnResult }> => {
+    const store = sessionService;
+    const key = { appName, userId, sessionId };
+    const shared = await store.get(key);
+    if (!shared) throw new Error(`Session not found: ${sessionId} (appName=${appName}, userId=${userId})`);
+    const kept = (state: Record<string, unknown> | undefined): Record<string, unknown> =>
+      Object.fromEntries(Object.entries(state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
+    const resumingTurn = resumingRoute !== undefined || routeAnswer !== undefined || consentRoute !== undefined;
+    const child = await entrySession(store, { appName, userId, sessionId, events: shared.events }, route, 'route', kept(shared.state), resumingTurn);
+    const invocationId = `e-${randomUUID()}`;
+    await store.append(shared, createTurnEvent({ invocationId, author: 'user', content: { role: 'user', parts } as any }));
+    // A question's answer goes in as the person's words; anything else as it came.
+    const nestedParts = routeAnswer ? [{ text: messageText }] : parts;
+    const end = await runNestedDispatch(opts, control, _runtime, {
+      config: dispatch.config,
+      compile: dispatch.compile,
+      name: route,
+      sessions: store,
+      appName: child.appName,
+      userId,
+      sessionId,
+      parts: nestedParts,
+    });
+    if (control.stopReason) return { failed: finish() };
+    if (end.status === 'failed') {
+      result.status = 'failed';
+      result.failedStage = 'dispatch';
+      result.error = end.error ?? { code: 'ROUTE_FAILED', message: `${route} failed.` };
+      return { failed: finish() };
+    }
+    const delta = Object.keys(end.stateDelta).length ? { actions: { stateDelta: end.stateDelta } } : {};
+    const answer = emptyRun();
+    answer.agents.add(route);
+    if (end.status === 'input-required' && end.interruptId) {
+      const record = workflowPauseEvent({ name: route, invocationId, input: null, interruptIds: [end.interruptId] });
+      if (delta.actions) record.actions.stateDelta = delta.actions.stateDelta;
+      await store.append((await store.get(key)) ?? shared, record);
+      const stored = (await store.get(key))?.events ?? [];
+      const paused = await routePause(pauseKey, stored, subagentNames);
+      if (!paused) throw new Error(`${route}: its turn paused on ${end.interruptId}, which its conversation does not hold.`);
+      return { answer, paused };
+    }
+    answer.text = end.text;
+    if (end.text) {
+      await store.append(
+        (await store.get(key)) ?? shared,
+        createTurnEvent({ invocationId, author: route, content: { role: 'model', parts: [{ text: end.text }] }, ...delta }),
+      );
+    }
+    return { answer };
   };
 
   // While a route's walk waits on a gated call (ADR 0119), a message that is not its decision repeats the request: the
@@ -1009,7 +1162,7 @@ async function runTurnInner(
         throw new Error(`Call ${resumeTarget.id} was raised by '${resumeTarget.agent}', which is not a route of this syndicate.`);
       }
       resolution = { route: resumeTarget.agent, reason: resumeTarget.why, fellBack: false, fallbackReason: '', viaOverride: false };
-      decidedBy = resuming ? 'approval' : granting ? 'consent' : 'answer';
+      decidedBy = resuming ? 'approval' : granting || consentRoute ? 'consent' : 'answer';
     } else if (resolution) {
       ev.log?.(`⇄ Route pinned by override: ${resolution.route}`);
     } else if (opts.forceRoute) {
@@ -1069,7 +1222,17 @@ async function runTurnInner(
       // projection: other agents' turns would otherwise read as user speech
       // mixed with their tool payloads (lib/session/transcript.ts).
       const routeAgent = await compileRoute(routeCfg);
-      if (routeAgent.workflow) {
+      if ('dispatch' in routeAgent) {
+        // A nested dispatch syndicate runs as its own turn on its own conversation (ADR 0120).
+        const ran = await runDispatchRoute(routeCfg.name, routeAgent.dispatch);
+        if ('failed' in ran) return ran.failed;
+        answer = ran.answer;
+        // Its turn paused: the turn waits on what it waits on, with the path from the route down.
+        if (ran.paused) {
+          result.answer = answer;
+          return pausedWalk(ran.paused);
+        }
+      } else if (routeAgent.workflow) {
         // A workflow route walks its whole graph on its own child session (ADR 0106).
         const walked = await runWorkflowRoute(routeCfg.name, routeAgent, resolution);
         if ('failed' in walked) return walked.failed;
@@ -1250,7 +1413,8 @@ async function runTurnInner(
   // Named in the syndicate's `guards:` list (and any nested syndicate's). They
   // REWRITE rather than retry, on the answering turn's text with every tool
   // result it produced. The classifier never reaches here.
-  const guardNames = collectGuards(config, compileOpts.loadNested);
+  // A nested dispatch syndicate's guards run once, on the turn's answer at the top, which lists them (ADR 0120).
+  const guardNames = nestedTurn ? [] : collectGuards(config, compileOpts.loadNested);
   if (result.text && guardNames.length) {
     const inputs = answer.toolResultTexts;
     for (const guard of resolveGuards(guardNames, (n) => ev.warn?.(`Unknown guard '${n}' — ignored`))) {

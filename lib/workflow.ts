@@ -48,8 +48,9 @@
  *
  * ── As a dispatch route or a workflow node (ADR 0106) ────────────────────
  * A `yaml_reference` to a workflow syndicate runs its whole graph there too,
- * on the child session filed under the agent path (`<app>/<entry>`, ADR
- * 0119), as a subagent does. A route's answer is what the graph would
+ * on the child session filed under the agent path and its kind
+ * (`<app>/route:<entry>`, `<walk's app>/node:<entry>`, ADR 0119, ADR 0120),
+ * as a subagent does. A route's answer is what the graph would
  * answer as its own syndicate (lib/runtime/syndicateTurn.ts); a node's is
  * the nested walk's (lib/workflow/turn.ts). A map over one is refused
  * (lib/compile.ts). Its pauses (an `ask_user` node, a gate) reach the turn

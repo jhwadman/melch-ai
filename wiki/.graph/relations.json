@@ -3344,6 +3344,121 @@
       "evidence": "ADR 0119 Decision 6: \"The A2A executor reads a paused route and a raised request the same way, so approve and reject work and the repeated request carries the path.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0120 Decision 2: \"runNestedDispatch (lib/runtime/syndicateTurn.ts) calls the turn runner's inner function with the nested config ... and the turn's TurnControl\"; Decision 3: runDispatchRoute stores the route's answer or its pause record.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0120 Decision 4: \"conversationPause (lib/runtime/native/interrupts.ts) finds what a nested dispatch conversation waits on as the turn finds it at the top\"; pauseBelow and nestedWorkflowPause fall to it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0120 Decisions 2 and 5: nestedDispatchWalk wraps the turn runner's hook as a walk; entryAppName(parent, name, kind) gives <app>/route:<route> and <walk's app>/node:<node>, while childAppName keeps delegation keys names only.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0120 Decision 1: \"compileEntrySpec (lib/compile.ts) returns { kind: 'dispatch', dispatch }\" and compileSubagentSpec refuses a dispatch reference by name; references below it are followed when it compiles.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0120 Decision 2: \"The runner sets control.nestedDispatch (lib/runtime/turnControl.ts, NestedDispatchRun, NestedDispatchEnd), which the code below it reads\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0111 Note (2026-10-09): \"ADR 0120 lifts decision 2: a nested dispatch syndicate no longer runs its classifier alone.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "In part: only decision 2 (a nested dispatch syndicate compiles to its classifier alone; gates on its routes refused). The rest of ADR 0111 stands."
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0119 Note (2026-10-09): \"ADR 0120 adds the kind to the keys of decision 2: a route's child session is filed under <app>/route:<route> and a node's under <walk's app>/node:<node>\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "In part: only the key format of decision 2; the <app>/<entry> key is still continued. The pause mechanism of ADR 0119 stands and ADR 0120 reuses it (the route pause record, raiseAgain)."
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0120 Decision 2: grants are read and stored under the root's app, \"the consent step pinned there with consentPinnedTo, as ADR 0118 does for a subagent\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0121 Decision 4: \"runDurableTurn restores every usable checkpoint. projectedRouteCheckpoint is gone.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0121 Decision 3: when the store answers an append with its own events, \"ProjectedSessionService.append takes into the projected session ... every event the real session gained, unprojected\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/tools/taskTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0121 Decision 1: \"checkpointJson (lib/tools/taskTools.ts) serializes the checkpoint once ... or null when it is above the cap\", default DEFAULT_CHECKPOINT_MAX_BYTES (5 MiB); fileTaskBackendWith takes TaskBackendOptions.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/storage/postgres/taskQueue.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0121 Decision 2: \"postgresTaskBackend(pool, options?) takes the same options, which postgresStorage passes from PostgresStorageOptions.taskQueue\"; a save over the cap writes nothing and still reports the claim.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0121 Decision 2: \"The worker (scripts/assistant_worker.ts) reads MELCHIZEDEK_CHECKPOINT_MAX_BYTES (CHECKPOINT_MAX_BYTES_ENV) through checkpointMaxBytesSetting\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0113 Note (2026-10-09): \"the consequence below that such a run is not resumed, and that runDurableTurn sets its checkpoint aside, no longer holds.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "In part: only the consequence that a dispatch run is not resumed from inside an agent route; the cap is an addition. The checkpointing design of ADR 0113 stands."
     }
   ]
 }

@@ -3,6 +3,62 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —supersedes→ /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —constrains→ module:scripts/assistant_worker.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —constrains→ module:lib/storage/postgres/taskQueue.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —constrains→ module:lib/tools/taskTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —constrains→ module:lib/session/transcript.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —constrains→ module:lib/runtime/native/checkpoint.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md —depends_on→ /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md —supersedes→ /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md —supersedes→ /decisions/0111-pauses-inside-nested-syndicates.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md —constrains→ module:lib/runtime/turnControl.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/a2a/executor.ts
 
 by claude-code/claude-opus-5-5

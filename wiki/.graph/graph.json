@@ -5,15 +5,15 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 919,
-    "edges": 3734,
+    "nodes": 925,
+    "edges": 3787,
     "byKind": {
-      "doc": 183,
+      "doc": 185,
       "provider": 6,
       "env": 106,
       "model": 10,
       "tool": 34,
-      "file": 197,
+      "file": 201,
       "syndicate": 33,
       "agent": 91,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 868,
+      "links_to": 886,
       "requires_env": 172,
       "routes_to": 10,
       "defined_in": 78,
@@ -36,17 +36,17 @@
       "imports": 797,
       "reads_table": 28,
       "runs": 70,
-      "derives_from": 990,
-      "constrains": 212,
-      "supersedes": 17,
-      "depends_on": 133,
+      "derives_from": 1011,
+      "constrains": 222,
+      "supersedes": 20,
+      "depends_on": 134,
       "explains": 49,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3318,
-      "inferred": 416
+      "extracted": 3357,
+      "inferred": 430
     },
     "isolated": 4
   },
@@ -1716,7 +1716,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 817
+        "words": 874
       }
     },
     {
@@ -1740,7 +1740,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1019
+        "words": 1071
       }
     },
     {
@@ -1800,7 +1800,31 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1224
+        "words": 1280
+      }
+    },
+    {
+      "id": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "kind": "doc",
+      "label": "ADR 0120: A nested dispatch syndicate classifies and routes as at the top, as a turn of its own, and a child session's key carries its kind",
+      "source": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1507
+      }
+    },
+    {
+      "id": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "kind": "doc",
+      "label": "ADR 0121: A checkpoint above a size cap is skipped and the previous one kept, and a durable dispatch run resumes from inside an agent route",
+      "source": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 907
       }
     },
     {
@@ -1848,7 +1872,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 2053
+        "words": 2140
       }
     },
     {
@@ -2016,7 +2040,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1373
+        "words": 1438
       }
     },
     {
@@ -2028,7 +2052,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 3306
+        "words": 3419
       }
     },
     {
@@ -2064,7 +2088,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 499
+        "words": 516
       }
     },
     {
@@ -2088,7 +2112,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 7965
+        "words": 8523
       }
     },
     {
@@ -2124,7 +2148,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 5128
+        "words": 5369
       }
     },
     {
@@ -2136,7 +2160,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2561
+        "words": 2601
       }
     },
     {
@@ -2160,7 +2184,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 440
+        "words": 468
       }
     },
     {
@@ -2208,7 +2232,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 609
+        "words": 667
       }
     },
     {
@@ -4534,6 +4558,18 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/checkpoint.test.ts",
+      "kind": "file",
+      "label": "checkpoint.test.ts",
+      "source": "tests/checkpoint.test.ts"
+    },
+    {
+      "id": "file:tests/checkpointCap.test.ts",
+      "kind": "file",
+      "label": "checkpointCap.test.ts",
+      "source": "tests/checkpointCap.test.ts"
+    },
+    {
       "id": "file:tests/claudeAdapter.test.ts",
       "kind": "file",
       "label": "claudeAdapter.test.ts",
@@ -4847,6 +4883,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nestedDispatch.test.ts",
+      "kind": "file",
+      "label": "nestedDispatch.test.ts",
+      "source": "tests/nestedDispatch.test.ts"
+    },
+    {
       "id": "file:tests/nestedPauses.test.ts",
       "kind": "file",
       "label": "nestedPauses.test.ts",
@@ -5063,6 +5105,12 @@
       "kind": "file",
       "label": "taskLimiter.test.ts",
       "source": "tests/taskLimiter.test.ts"
+    },
+    {
+      "id": "file:tests/taskTools.test.ts",
+      "kind": "file",
+      "label": "taskTools.test.ts",
+      "source": "tests/taskTools.test.ts"
     },
     {
       "id": "file:tests/toolBaseRest.test.ts",
@@ -5376,7 +5424,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 643
+        "lines": 694
       }
     },
     {
@@ -5385,7 +5433,7 @@
       "label": "lib/compileNative.ts",
       "source": "lib/compileNative.ts",
       "attrs": {
-        "lines": 293
+        "lines": 310
       }
     },
     {
@@ -5925,7 +5973,7 @@
       "label": "lib/runtime/native/checkpoint.ts",
       "source": "lib/runtime/native/checkpoint.ts",
       "attrs": {
-        "lines": 467
+        "lines": 461
       }
     },
     {
@@ -5943,7 +5991,7 @@
       "label": "lib/runtime/native/delegate.ts",
       "source": "lib/runtime/native/delegate.ts",
       "attrs": {
-        "lines": 589
+        "lines": 732
       }
     },
     {
@@ -5961,7 +6009,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 674
+        "lines": 778
       }
     },
     {
@@ -6060,7 +6108,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1359
+        "lines": 1523
       }
     },
     {
@@ -6069,7 +6117,7 @@
       "label": "lib/runtime/turnControl.ts",
       "source": "lib/runtime/turnControl.ts",
       "attrs": {
-        "lines": 184
+        "lines": 224
       }
     },
     {
@@ -6096,7 +6144,7 @@
       "label": "lib/session/transcript.ts",
       "source": "lib/session/transcript.ts",
       "attrs": {
-        "lines": 427
+        "lines": 444
       }
     },
     {
@@ -6123,7 +6171,7 @@
       "label": "lib/storage/postgres/index.ts",
       "source": "lib/storage/postgres/index.ts",
       "attrs": {
-        "lines": 274
+        "lines": 279
       }
     },
     {
@@ -6150,7 +6198,7 @@
       "label": "lib/storage/postgres/taskQueue.ts",
       "source": "lib/storage/postgres/taskQueue.ts",
       "attrs": {
-        "lines": 183
+        "lines": 196
       }
     },
     {
@@ -6501,7 +6549,7 @@
       "label": "lib/tools/taskTools.ts",
       "source": "lib/tools/taskTools.ts",
       "attrs": {
-        "lines": 571
+        "lines": 642
       }
     },
     {
@@ -6672,7 +6720,7 @@
       "label": "lib/workflow.ts",
       "source": "lib/workflow.ts",
       "attrs": {
-        "lines": 76
+        "lines": 77
       }
     },
     {
@@ -6753,7 +6801,7 @@
       "label": "lib/workflow/turn.ts",
       "source": "lib/workflow/turn.ts",
       "attrs": {
-        "lines": 473
+        "lines": 499
       }
     },
     {
@@ -6780,7 +6828,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 257
+        "lines": 275
       }
     },
     {
@@ -15726,6 +15774,13 @@
       "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md:43"
     },
     {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md:45"
+    },
+    {
       "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "to": "file:config/agents/templates/systems_operator.yaml",
       "rel": "derives_from",
@@ -15884,7 +15939,14 @@
       "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:53"
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:55"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md:47"
     },
     {
       "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
@@ -16340,6 +16402,195 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md:31"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md:44"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "file:tests/delegatedScriptsConsent.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "file:tests/nestedDispatch.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "file:tests/workflowChildPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "file:tests/workflowNested.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/compileNative.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/runtime/turnControl.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md frontmatter"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md:32"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md:41"
+    },
+    {
+      "from": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md:36"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "file:tests/checkpoint.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "file:tests/checkpointCap.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "file:tests/taskTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/session/transcript.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/storage/postgres/taskQueue.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:lib/tools/taskTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md frontmatter"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md:30"
+    },
+    {
+      "from": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md:40"
     },
     {
       "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
@@ -16893,6 +17144,20 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/sessions.md:76"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:76"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:115"
     },
     {
       "from": "/memory/sessions.md",
@@ -18541,6 +18806,13 @@
     },
     {
       "from": "/operations/failure-modes.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md:80"
+    },
+    {
+      "from": "/operations/failure-modes.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18766,6 +19038,13 @@
     {
       "from": "/operations/native-loop-security.md",
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:135"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/native-loop-security.md:135"
@@ -19067,6 +19346,13 @@
     {
       "from": "/overview/architecture.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/architecture.md:27"
+    },
+    {
+      "from": "/overview/architecture.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/architecture.md:27"
@@ -19580,7 +19866,7 @@
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:361"
+      "evidence": "/overview/native-loop.md:370"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19671,7 +19957,7 @@
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:346"
+      "evidence": "/overview/native-loop.md:355"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19685,7 +19971,7 @@
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:311"
+      "evidence": "/overview/native-loop.md:320"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19699,7 +19985,7 @@
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:305"
+      "evidence": "/overview/native-loop.md:314"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19713,7 +19999,7 @@
       "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:297"
+      "evidence": "/overview/native-loop.md:306"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19727,7 +20013,14 @@
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:314"
+      "evidence": "/overview/native-loop.md:323"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:297"
     },
     {
       "from": "/overview/native-loop.md",
@@ -20214,6 +20507,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:206"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -20425,6 +20725,13 @@
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:35"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md:35"
@@ -20663,6 +20970,13 @@
     {
       "from": "/tools/ask-user.md",
       "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:30"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/ask-user.md:30"
@@ -21076,6 +21390,13 @@
     {
       "from": "/tools/task-tools.md",
       "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/task-tools.md:32"
+    },
+    {
+      "from": "/tools/task-tools.md",
+      "to": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/task-tools.md:32"
@@ -25590,13 +25911,6 @@
     },
     {
       "from": "module:lib/runtime/native/checkpoint.ts",
-      "to": "module:lib/dispatch.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/runtime/native/checkpoint.ts"
-    },
-    {
-      "from": "module:lib/runtime/native/checkpoint.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25710,6 +26024,13 @@
     {
       "from": "module:lib/runtime/native/delegate.ts",
       "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/delegate.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/delegate.ts",
+      "to": "module:lib/runtime/turnControl.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/delegate.ts"

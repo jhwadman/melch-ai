@@ -38,8 +38,58 @@ the starter pack and the templates), not the repo's full history.
   `./tools/*` export); `openApiServers` in `tools/openapiTools`;
   `DoctorResult.credentials`; the server's banner gains a `creds` line,
   and `oauthServerSetup` returns `credentialSummary`.
+- **Nested dispatch syndicates route as at the top**
+  ([ADR 0120](./wiki/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md)).
+  A `yaml_reference` to a plan-dispatch syndicate runs as a turn of its own
+  on its own conversation, wherever it appears (a delegated subagent, a
+  dispatch route, a workflow node): its classifier picks one of its routes
+  and the route answers, under the turn's `max_steps`, deadline and cancel.
+  Approvals, `ask_user` questions and OAuth consent on its routes, and
+  inside a route's own delegation, pause the turn `input-required` with
+  the path (`["Boss", "Team", "Ops"]` delegated, `["Team", "Ops"]` as a
+  route), over `runSyndicateTurn` and A2A; the answer resumes that route
+  without classifying again. Its grants are stored under the root's app.
+  As a workflow node it fails on a consent pause. A route carrying the
+  entry's own name, a `map` node over one, and a reference cycle below it
+  are refused by name before any model call. Surface:
+  `melchizedek-agents/compile` gains the `DispatchSpec` type, a
+  `{ kind: 'dispatch'; dispatch: DispatchSpec }` variant on `EntrySpec` and
+  `SpecTool`, and an optional `WorkflowSpec.dispatches`; `melchizedek-agents/runtime/turnControl`
+  gains the optional `TurnControl.nestedDispatch` hook and the
+  `NestedDispatchRun` and `NestedDispatchEnd` types. The generated
+  `syndicate.schema.json` describes `yaml_reference` accordingly.
+- **A cap on a background job's checkpoint**
+  ([ADR 0121](./wiki/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md)).
+  A checkpoint above `MELCHIZEDEK_CHECKPOINT_MAX_BYTES` (the worker's
+  variable; a positive whole number of bytes of JSON, default 5 MiB) is
+  not stored: the job keeps its previous checkpoint, the save still reports
+  whether the claim holds (a cancel still stops the run), and one log line
+  names the job id and the sizes. New in `melchizedek-agents/tools/taskTools`:
+  `TaskBackendOptions` (`checkpointMaxBytes`, `log`), `fileTaskBackendWith`,
+  `checkpointJson`, `checkpointMaxBytesSetting`, `DEFAULT_CHECKPOINT_MAX_BYTES`
+  and `CHECKPOINT_MAX_BYTES_ENV`; `PostgresStorageOptions.taskQueue` passes
+  the options to the Postgres queue. The file store's checkpoint sidecar is
+  written compact; one written by 1.1.0 still reads.
 
 ### Changed
+
+- **A nested dispatch syndicate answers with its route's text, not its
+  classifier's JSON** (ADR 0120). A `yaml_reference` to a plan-dispatch
+  syndicate used to compile to its classifier alone, so its caller got the
+  routing verdict and its routes never ran; a prompt or parser that relied
+  on that verdict sees the specialist's answer now. A gate or skill scripts
+  on one of its routes is no longer a load error. `compileSubagentSpec`
+  refuses a reference to a dispatch syndicate by name: compile it with
+  `compileEntrySpec`.
+- **Child session keys for routes and nodes carry their kind** (ADR 0120):
+  a nested syndicate run as a dispatch route is filed under
+  `<app>/route:<route>`, and as a workflow node under
+  `<walk's app>/node:<node>`, so neither can share a key with a delegated
+  subagent's (`<app>/<caller>/<subagent>`, unchanged). A session filed
+  under `<app>/<entry>`, or under the entry's name alone, is still continued
+  when the entry ran in that conversation before; nothing stored is
+  rewritten. Code that read a route's or node's walk at `<app>/<entry>`
+  reads it at the kind key now.
 
 - **A nested workflow run as a dispatch route or a workflow node pauses the
   turn** ([ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)).
@@ -56,9 +106,10 @@ the starter pack and the templates), not the repo's full history.
   paused route ends on the route's pause record (no content, the walk's
   open interrupt ids in `longRunningToolIds`) in place of its answer.
 - **The child session of a nested workflow run as a route or a node is
-  filed under the agent path** (ADR 0119): `<app>/<route>`, and
-  `<walk's app>/<node>` for a node (`app/Writer/Inner` two levels down), no
-  longer under the entry's name alone, so it no longer shares a row with a
+  filed under the agent path** (ADR 0119, with the kind segment of
+  ADR 0120 below): `<app>/route:<route>`, and `<walk's app>/node:<node>`
+  for a node (`app/route:Writer/node:Inner` two levels down), no longer
+  under the entry's name alone, so it no longer shares a row with a
   same-named entry of another syndicate. A session 1.1.0 stored under the
   entry's name is still continued when the entry ran in that conversation
   before; nothing stored is rewritten. Code that read the walk's events at
@@ -72,6 +123,15 @@ the starter pack and the templates), not the repo's full history.
   `max_concurrency` (ADR 0116). Its role, its three-part verdict and its
   guardrails are unchanged; the YAML keeps its v2 keys. A project that
   copied the example keeps the old prompt until it copies it again.
+
+### Fixed
+
+- **A durable dispatch run resumes inside its agent route** (ADR 0121). A
+  background job killed mid-step inside a plan-dispatch route used to start
+  over (its checkpoint was set aside); it now resumes from its checkpoint,
+  classifying again and storing what an uninterrupted run stores. A nested
+  dispatch syndicate's route resumes the same way, and checkpoints 1.1.0
+  saved inside a route restore.
 
 ## 1.1.0 — 2026-10-09
 

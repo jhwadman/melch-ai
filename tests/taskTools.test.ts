@@ -226,7 +226,7 @@ test('file backend: a checkpoint is saved beside the store and read back, never 
   assert.strictEqual(await backend.saveCheckpoint!(worker, job, { step: 2, notes: ['a', 'b'] }), true);
   assert.deepStrictEqual(await backend.loadCheckpoint!(job), { step: 2, notes: ['a', 'b'] });
   assert.ok(!readFileSync(taskStorePath(), 'utf8').includes('step'), 'the task list never carries the checkpoint');
-  assert.ok(readFileSync(taskCheckpointPath(), 'utf8').includes('"step": 2'));
+  assert.match(readFileSync(taskCheckpointPath(), 'utf8'), /"step":\s*2/);
   assert.doesNotMatch(await call(taskGetContract, { id: job.id }), /step/);
   assert.strictEqual(await backend.renew(worker, job), true, 'a running job keeps its claim');
 });

@@ -49,6 +49,46 @@ export interface TurnControl {
   stopReason?: TurnStopReason;
   /** Stop the turn. The first reason wins. */
   stop(reason: TurnStopReason): void;
+  /**
+   * Runs a nested dispatch syndicate as its own turn on its own
+   * conversation, under this turn's controls (ADR 0120): set by the turn
+   * runner (lib/runtime/syndicateTurn.ts), read where a nested dispatch
+   * syndicate runs (a delegated call, a dispatch route, a workflow node),
+   * which sit below the turn runner and cannot import it.
+   */
+  nestedDispatch?: (run: NestedDispatchRun) => Promise<NestedDispatchEnd>;
+}
+
+/** One run of a nested dispatch syndicate (ADR 0120): what it is, where its conversation is filed, and the message. */
+export interface NestedDispatchRun {
+  /** The nested syndicate's config (a SyndicateYamlConfig with a `dispatch:` block). */
+  config: unknown;
+  /** The compile options it loads its routes with (CompileOptions, its nesting chain included). */
+  compile: unknown;
+  /** The entry's name: the nested syndicate as its caller lists it. */
+  name: string;
+  /** The store, and the key its conversation is filed under (already opened by the caller). */
+  sessions: unknown;
+  appName: string;
+  userId: string;
+  sessionId: string;
+  /** The message's parts: the request, or the answer to what waits in it. */
+  parts: unknown[];
+}
+
+/** How a nested dispatch syndicate's turn ended (ADR 0120). */
+export interface NestedDispatchEnd {
+  status: 'completed' | 'input-required' | 'failed' | 'canceled';
+  /** The route's final text: the nested syndicate's answer. */
+  text: string;
+  /** Its conversation's state writes this run, `temp:` keys aside. */
+  stateDelta: Record<string, unknown>;
+  /** What it waits on, when paused: the request's id, and the request as the turn reports it (a PendingApproval, a PendingInput, a PendingConsent). */
+  interruptId?: string;
+  approval?: unknown;
+  input?: unknown;
+  consent?: unknown;
+  error?: { code: string; message: string };
 }
 
 const storage = new AsyncLocalStorage<TurnControl>();

@@ -3,8 +3,8 @@
  * ADR 0111): an approval request or a question raised inside a
  * `yaml_reference` subagent pauses the top-level turn input-required with
  * the agent path, and the answer resumes it. A nested delegate syndicate's
- * own orchestrator, a nested dispatch syndicate's classifier, and a nested
- * workflow's ask_user node and gated agent node; what stays refused, with
+ * own orchestrator, and a nested workflow's ask_user node and gated agent
+ * node (a nested dispatch syndicate: tests/nestedDispatch.test.ts, ADR 0120); what stays refused, with
  * its reason; child sessions filed under the agent path, and conversations
  * stored under the old key resuming. Over runSyndicateTurn and over A2A.
  * A nested workflow run as a dispatch route or a workflow node:
@@ -139,30 +139,8 @@ test('ask_user on a nested syndicate’s own orchestrator: the next message is i
 });
 
 // ── A nested dispatch syndicate ──────────────────────────────────────────────
-
-test('a nested dispatch syndicate: its classifier may gate and pauses the turn; a gate on a route, which never runs nested, is refused by name', async () => {
-  const desk = (routeGate: boolean) =>
-    config(
-      {
-        syndicate_name: 'Team',
-        orchestrator: { name: 'Router', model: 'scripted/router', instruction: 'Classify.', tools: ['np_send'], require_approval: ['np_send'] },
-        subagents: [agent('Chat', routeGate ? { tools: ['np_send'], require_approval: ['np_send'] } : {})],
-        dispatch: { default_route: 'Chat' },
-      },
-      'team.yaml',
-    );
-  const c = converse(top(), { boss: delegating('Boss', 'Team', { request: 'tell ops' }, 'call-team-1'), router: delegating('Router', 'np_send', { to: 'ops@acme.test' }, 'call-send-1'), chat: () => answer('chat') }, { 'team.yaml': desk(false) });
-  const first = await c.turn([{ text: 'tell ops' }]);
-  assert.equal(first.status, 'input-required', first.error?.message);
-  assert.deepEqual(first.approval?.path, ['Boss', 'Team']);
-  const second = await c.turn([approvalResponsePart(first.approval!.id, true) as MessagePart]);
-  assert.equal(second.status, 'completed', second.error?.message);
-  assert.deepEqual(sent, ['ops@acme.test']);
-
-  const refused = converse(top(), { boss: () => answer('never') }, { 'team.yaml': desk(true) });
-  await assert.rejects(refused.turn([{ text: 'tell ops' }]), /team\.yaml: approval gates \(require_approval, or skill scripts\) on the route 'Chat' never run: a nested dispatch syndicate runs its classifier alone/);
-  assert.equal(refused.models.boss!.calls, 0, 'refused before any model call');
-});
+// It classifies and routes as at the top, and a gate or a question on its routes pauses the turn (ADR 0120,
+// which lifts ADR 0111's route refusal): tests/nestedDispatch.test.ts.
 
 // ── A nested workflow syndicate ──────────────────────────────────────────────
 

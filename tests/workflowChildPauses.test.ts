@@ -157,7 +157,7 @@ test('a route’s ask_user node pauses the turn with the path; the next message 
   assert.equal(first.text, 'Publish?');
   assert.equal(c.models.edit!.calls, 0, 'the walk waits on the node');
   // The walk is filed under the agent path; the conversation ends on the route's pause record.
-  assert.ok((await c.events('app/Writer')).some((e) => e.longRunningToolIds?.includes(first.input!.id)));
+  assert.ok((await c.events('app/route:Writer')).some((e) => e.longRunningToolIds?.includes(first.input!.id)));
   assert.equal(await c.sessionService.get({ appName: 'Writer', userId: 'u', sessionId: 's' }), undefined, 'nothing is filed under the bare name');
   const record = (await c.events('app')).at(-1)!;
   assert.equal(record.author, 'Writer');
@@ -231,7 +231,7 @@ test('a node’s ask_user node pauses the caller’s walk and the turn with the 
   assert.deepEqual(first.input?.path, ['Writer', 'Confirm']);
   assert.equal(c.models.edit!.calls, 0);
   assert.equal(c.models.wrap!.calls, 0, 'the caller’s walk waits on the node');
-  assert.ok((await c.events('app/Writer')).some((e) => e.longRunningToolIds?.includes(first.input!.id)));
+  assert.ok((await c.events('app/node:Writer')).some((e) => e.longRunningToolIds?.includes(first.input!.id)));
   // The node raised its walk's request again on the caller's walk, at its own path.
   const raised = (await c.events('app')).filter((e) => e.nodeInfo?.path === 'Room.Writer' && e.longRunningToolIds?.includes(first.input!.id));
   assert.equal(raised.length, 1);
@@ -290,7 +290,7 @@ test('a route whose node is a nested workflow: the gate two levels down pauses t
   const first = await c.turn([{ text: 'tell ops' }]);
   assert.equal(first.status, 'input-required', first.error?.message);
   assert.deepEqual(first.approval?.path, ['Writer', 'Inner', 'Send']);
-  assert.ok((await c.events('app/Writer/Inner')).some((e) => e.longRunningToolIds?.includes(first.approval!.id)), 'each walk is filed below its caller’s');
+  assert.ok((await c.events('app/route:Writer/node:Inner')).some((e) => e.longRunningToolIds?.includes(first.approval!.id)), 'each walk is filed below its caller’s');
   const second = await c.turn([approvalResponsePart(first.approval!.id, true) as MessagePart]);
   assert.equal(second.status, 'completed', second.error?.message);
   assert.deepEqual(sent, ['ops@acme.test']);
@@ -332,17 +332,22 @@ for (const [where, cfg] of [
   ['route', front],
   ['node', room],
 ] as const) {
-  test(`a ${where}’s child session stored under the entry’s name alone (1.1.0) is continued, and nothing is filed under the path`, async () => {
-    const c = converse(cfg(), { 'pipeline.yaml': countingFlow() }, { plan: (req) => answer(`plan ${req.messages.length}`) });
-    const first = await c.turn([{ text: 'one' }]);
-    assert.equal(first.status, 'completed', first.error?.message);
-    await storeUnderOldKey(c.sessionService, 'app/Writer', 'Writer');
-    const before = (await c.events('Writer')).length;
-    const second = await c.turn([{ text: 'two' }]);
-    assert.equal(second.status, 'completed', second.error?.message);
-    assert.ok((await c.events('Writer')).length > before, 'the walk went on in the old session');
-    assert.equal(await c.sessionService.get({ appName: 'app/Writer', userId: 'u', sessionId: 's' }), undefined);
-  });
+  for (const [stored, oldKey] of [
+    ['the entry’s name alone (1.1.0)', 'Writer'],
+    ['the path without its kind (ADR 0119)', 'app/Writer'],
+  ] as const) {
+    test(`a ${where}’s child session stored under ${stored} is continued, and nothing is filed under the path`, async () => {
+      const c = converse(cfg(), { 'pipeline.yaml': countingFlow() }, { plan: (req) => answer(`plan ${req.messages.length}`) });
+      const first = await c.turn([{ text: 'one' }]);
+      assert.equal(first.status, 'completed', first.error?.message);
+      await storeUnderOldKey(c.sessionService, `app/${where}:Writer`, oldKey);
+      const before = (await c.events(oldKey)).length;
+      const second = await c.turn([{ text: 'two' }]);
+      assert.equal(second.status, 'completed', second.error?.message);
+      assert.ok((await c.events(oldKey)).length > before, 'the walk went on in the old session');
+      assert.equal(await c.sessionService.get({ appName: `app/${where}:Writer`, userId: 'u', sessionId: 's' }), undefined);
+    });
+  }
 }
 
 test('a conversation that never ran the entry does not read another’s session under the bare name', async () => {
@@ -352,7 +357,7 @@ test('a conversation that never ran the entry does not read another’s session 
   const result = await c.turn([{ text: 'one' }]);
   assert.equal(result.status, 'completed', result.error?.message);
   assert.equal((await c.events('Writer')).length, before);
-  assert.ok((await c.events('app/Writer')).length > 0);
+  assert.ok((await c.events('app/route:Writer')).length > 0);
 });
 
 // ── Over A2A ─────────────────────────────────────────────────────────────────

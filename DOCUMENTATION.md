@@ -185,7 +185,7 @@ function, and every adapter recognises it by marker
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
 | `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Any agent but a workflow node's; inside a delegated subagent the question reaches the person with the agent path (§6, Questions). |
-| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. |
+| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint (inside a dispatch route too, ADR 0121), a checkpoint above `MELCHIZEDEK_CHECKPOINT_MAX_BYTES` (default 5 MiB of JSON; `TaskBackendOptions.checkpointMaxBytes`, `postgresStorage({ taskQueue })`) is skipped and the previous one kept, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. |
 
 **MCP tools** are the exception to the registry: a subagent with
 `mcp_server_url:` in its YAML gets its tools from a remote MCP server at
@@ -816,8 +816,10 @@ runs or refuses the call and finishes before its caller continues. The same
 holds inside nested syndicates
 ([ADR 0111](./wiki/decisions/0111-pauses-inside-nested-syndicates.md)): a
 nested delegate syndicate's gates anywhere in it, a nested dispatch
-syndicate's on its classifier (its routes never run when it is nested, so a
-gate on one is a load error), and a nested workflow's gated agent nodes and
+syndicate's on its routes, which it classifies and runs as at the top
+(`["Boss", "Team", "Ops"]`,
+[ADR 0120](./wiki/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md)),
+and a nested workflow's gated agent nodes and
 `ask_user` nodes when the workflow is a delegated subagent; the path then
 ends at the node, e.g. `["Desk", "Writer", "Send"]`. A workflow run as a
 dispatch route or as another workflow's node pauses the turn the same way
@@ -1255,6 +1257,27 @@ Implemented in `runSyndicateTurn`, so every surface honours it: the A2A
 server, the CLI runner (`scripts/syndicate_chat.ts`), the worker and the
 evals.
 
+**Nested.** A `yaml_reference` to a plan-dispatch syndicate runs as it
+runs at the top, as a turn of its own on its own conversation, wherever
+it appears
+([ADR 0120](./wiki/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md)):
+its classifier picks one of its routes, and the route's final text is
+what its caller gets: the tool's answer as a DELEGATE subagent, the turn's
+answer as a plan-dispatch route, the node's output as a workflow node. The
+classifier's JSON never reaches its caller. It runs under the turn's
+`max_steps`, deadline and cancel; its guards run once, on the answer at the
+top; its OAuth grants are stored under the root's app. An approval, an
+`ask_user` question or an OAuth consent on one of its routes, or inside a
+route's own delegation, pauses the whole turn with the path (e.g.
+`["Boss", "Team", "Ops"]` delegated, `["Team", "Ops"]` as a route), and
+the answer resumes that route without classifying again. As a workflow
+node it cannot pause on a consent request: the node fails. Its
+conversation is filed at `<app>/<caller>/<entry>` when delegated, at
+`<app>/route:<route>` as a route and at `<app>/node:<node>` as a node. A
+route that carries the entry's own name, a `map` over one, and a reference
+chain below it that reaches itself are refused by name before any model
+call.
+
 ### Workflows (`workflow:`) — the third orchestration method
 
 A syndicate that declares a `workflow:` block is a **graph**. Its agents
@@ -1336,7 +1359,9 @@ DELEGATE subagent its last output is the tool's answer; as a plan-dispatch
 route it is the turn's answer, and the conversation keeps the message and
 that answer; as a node of another workflow it is the node's output. The
 graph's events are kept in the entry's own session, filed under the agent
-path (`<app>/<route>`, `<app>/<node>`), as for any subagent. Wherever it
+path and its kind (`<app>/route:<route>`, `<app>/node:<node>`; a session
+an earlier release filed under `<app>/<entry>` or the entry's name alone is
+still continued). Wherever it
 runs, an `ask_user` node or a gated agent node inside it pauses the whole
 turn with the path down to that node, and the answer resumes the graph
 ([ADR 0111](./wiki/decisions/0111-pauses-inside-nested-syndicates.md),

@@ -42,6 +42,8 @@ Two facts set what can be lifted. A nested dispatch syndicate compiles to its cl
 
 > **Note (2026-10-09):** [ADR 0119](/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md) lifts decision 4: a nested workflow run as a dispatch route or a workflow node pauses the turn too, and its child session is filed under the agent path.
 
+> **Note (2026-10-09):** [ADR 0120](/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md) lifts decision 2: a nested dispatch syndicate no longer runs its classifier alone. It classifies and routes as at the top, as a turn of its own, so a gate, a question or skill scripts on one of its routes pause the turn and nothing on a route is refused at load.
+
 ## Alternatives considered
 
 - **Carry a nested workflow's pause as a route or a node too.** The route would need the turn runner to find and resume a child walk outside any call, and the node a pause inside one walk carried to another; both are larger than this ticket, and both are refused with a message that says so.

@@ -40,6 +40,8 @@
  *   --agent names a subagent of the syndicate, or its orchestrator.
  *   MELCHIZEDEK_TASKS_FILE moves the store (default: outputs/tasks.json),
  *   and must match the chat process's value. Run ONE worker per store.
+ *   MELCHIZEDEK_CHECKPOINT_MAX_BYTES caps a stored checkpoint (bytes of
+ *   JSON, default 5 MiB); a larger one is skipped and the previous kept.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -56,7 +58,15 @@ import {
   providerForModel,
   providerKeyPresent,
 } from '../lib/models/registry.ts';
-import { applyInterrupted, getTaskBackend, setTaskBackend, taskStorePath } from '../lib/tools/taskTools.ts';
+import {
+  CHECKPOINT_MAX_BYTES_ENV,
+  applyInterrupted,
+  checkpointMaxBytesSetting,
+  fileTaskBackendWith,
+  getTaskBackend,
+  setTaskBackend,
+  taskStorePath,
+} from '../lib/tools/taskTools.ts';
 import type { OwnedTask, WorkerLease } from '../lib/tools/taskTools.ts';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import { dbSchema } from '../lib/storage/schema.ts';
@@ -105,9 +115,17 @@ const log = (message: string) => console.log(`[worker] ${message}`);
 
 // The queue: the JSON file, or Postgres when DATABASE_URL is set, where any
 // number of workers may run (each claim is FOR UPDATE SKIP LOCKED).
+// A checkpoint above MELCHIZEDEK_CHECKPOINT_MAX_BYTES (bytes of JSON, default
+// 5 MiB) is not saved: the job keeps its previous one (ADR 0113).
+const rawCap = process.env[CHECKPOINT_MAX_BYTES_ENV];
+const checkpointMaxBytes = checkpointMaxBytesSetting(rawCap);
+if (rawCap?.trim() && Number(rawCap.trim()) !== checkpointMaxBytes) {
+  log(`${CHECKPOINT_MAX_BYTES_ENV} is not a positive whole number of bytes; using ${checkpointMaxBytes}`);
+}
+const taskQueue = { checkpointMaxBytes, log };
 const databaseUrl = process.env.DATABASE_URL?.trim();
-const pg = databaseUrl ? postgresStorage({ connectionString: databaseUrl, schema: dbSchema() }) : undefined;
-if (pg) setTaskBackend(pg.taskQueue);
+const pg = databaseUrl ? postgresStorage({ connectionString: databaseUrl, schema: dbSchema(), taskQueue }) : undefined;
+setTaskBackend(pg ? pg.taskQueue : fileTaskBackendWith(taskQueue));
 const backend = getTaskBackend();
 /** A claimed job stays this worker's while it renews; the job timeout bounds a turn. */
 const lease: WorkerLease = { workerId: `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`, leaseMs: 60_000 };

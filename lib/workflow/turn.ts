@@ -69,6 +69,7 @@ import { APPROVAL_REQUEST } from '../runtime/approvals.ts';
 import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
 import type { TurnContent, TurnEvent, TurnFunctionCall, TurnPart } from '../runtime/events.ts';
 import { entrySession } from '../runtime/native/delegate.ts';
+import type { WorkflowSubagentEnd } from '../runtime/native/delegate.ts';
 import { INPUT_REQUEST } from '../workflowConfig.ts';
 import type { MemoryService } from '../runtime/memoryService.ts';
 import type { NativeAgent } from '../runtime/native/request.ts';
@@ -108,8 +109,8 @@ export interface NativeWorkflowParams {
   selfCorrection?: SelfCorrection;
   /** The run's tool credentials, pinned to its app (ADR 0072). */
   credentials?: Pick<CredentialStore, 'get'>;
-  /** The agent nodes that are a nested workflow syndicate, by YAML name (ADR 0106). */
-  workflows?: ReadonlyMap<string, NestedWorkflow>;
+  /** The agent nodes that are a nested workflow syndicate (ADR 0106) or a nested dispatch syndicate (ADR 0120), by YAML name. */
+  workflows?: ReadonlyMap<string, NestedWorkflow | NestedRun>;
 }
 
 /** A workflow syndicate run as a node of another (ADR 0106): its graph, its agents, its tool nodes' lookup, and its own nested nodes. */
@@ -117,7 +118,27 @@ export interface NestedWorkflow {
   graph: WorkflowGraph;
   agents: ReadonlyMap<string, NativeAgent>;
   resolveTool: (name: string) => unknown;
-  workflows?: ReadonlyMap<string, NestedWorkflow>;
+  workflows?: ReadonlyMap<string, NestedWorkflow | NestedRun>;
+}
+
+/** Where a node's own run goes: its child session, the message, the turn's signal. */
+export interface NestedRunParams {
+  sessions: SessionService;
+  appName: string;
+  userId: string;
+  sessionId: string;
+  userParts: unknown[];
+  signal?: AbortSignal;
+}
+
+/**
+ * A node that runs as something other than a graph (ADR 0120): a nested
+ * dispatch syndicate, its own turn (lib/runtime/native/delegate.ts
+ * nestedDispatchWalk). It runs where a nested workflow's walk runs, on the
+ * same child session, and ends as a walk ends.
+ */
+export interface NestedRun {
+  walk(run: NestedRunParams): AsyncGenerator<TurnEvent, WorkflowSubagentEnd | undefined>;
 }
 
 /** ADK's AgentTool answer: the last event's non-thought text parts, joined by a newline. */
@@ -210,9 +231,9 @@ function raiseAgain(name: string, run: NodeRun, invocationId: string, calls: Tur
 /**
  * Runs `workflow` as the node `run` names (ADR 0106), as a delegated nested
  * workflow runs (ADR 0098): the whole graph walked on the child session
- * filed under the walk's app name and the node's (entryAppName, ADR 0119;
- * the one under the node's name alone is continued when it ran there
- * before), created from the caller's state the first time, `temp:` keys
+ * filed under the walk's app name and the node's behind its kind
+ * (`<walk's app>/node:<node>`, entryAppName, ADR 0119, ADR 0120; the one
+ * under an older key is continued when it ran there before), created from the caller's state the first time, `temp:` keys
  * dropped, and kept; the node's input as its message, its last yielded
  * event's text the node's output. The caller stores one event for the
  * node, carrying that output and the walk's state writes, so a resumed
@@ -230,7 +251,7 @@ function raiseAgain(name: string, run: NodeRun, invocationId: string, calls: Tur
  */
 async function runWorkflowNode(
   name: string,
-  workflow: NestedWorkflow,
+  workflow: NestedWorkflow | NestedRun,
   run: NodeRun,
   params: NativeWorkflowParams,
   parent: { session: Session; invocationId: string; userContent: TurnContent; store: (event: TurnEvent) => void },
@@ -253,8 +274,11 @@ async function runWorkflowNode(
     userParts = input.parts ?? [];
   }
   const state = Object.fromEntries(Object.entries(parent.session.state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
-  const child = await entrySession(sessions, { appName: parent.session.appName, userId: parent.session.userId, sessionId: parent.session.id, events: parent.session.events }, name, state, resumed.length > 0);
-  const walk = runNativeWorkflow({
+  const child = await entrySession(sessions, { appName: parent.session.appName, userId: parent.session.userId, sessionId: parent.session.id, events: parent.session.events }, name, 'node', state, resumed.length > 0);
+  // A nested dispatch syndicate runs its own turn there (ADR 0120); a nested workflow walks its graph.
+  const walk: AsyncGenerator<TurnEvent, NativeWorkflowEnd | WorkflowSubagentEnd | undefined> = 'walk' in workflow
+    ? workflow.walk({ sessions, appName: child.appName, userId: child.userId, sessionId: child.id, userParts, ...(run.signal ? { signal: run.signal } : {}) })
+    : runNativeWorkflow({
     graph: workflow.graph,
     agents: workflow.agents,
     resolveTool: workflow.resolveTool,
@@ -274,7 +298,7 @@ async function runWorkflowNode(
   });
   let last: TurnEvent | undefined;
   const stateDelta: Record<string, unknown> = {};
-  let end: NativeWorkflowEnd | undefined;
+  let end: NativeWorkflowEnd | WorkflowSubagentEnd | undefined;
   for (;;) {
     const next = await walk.next();
     if (next.done) {
@@ -289,9 +313,11 @@ async function runWorkflowNode(
   const paused = end.run?.interruptIds ?? [];
   if (paused.length > 0) {
     const walked = (await sessions.get({ appName: child.appName, userId: child.userId, sessionId: child.id }))?.events ?? [];
-    const raised = requestCalls(walked, paused);
+    // A nested dispatch syndicate names the calls it waits on: they may sit in a route's delegation below its conversation (ADR 0120).
+    const named = 'requests' in end && end.requests ? new Map(end.requests.map((call) => [call.id as string, call])) : undefined;
+    const raised = named ?? requestCalls(walked, paused);
     const missing = paused.filter((id) => !raised.has(id));
-    if (missing.length > 0) throw new Error(`Node '${name}': the workflow it runs paused on ${missing.join(', ')}, which is not an approval request or a question.`);
+    if (missing.length > 0) throw new Error(`Node '${name}': the ${'walk' in workflow ? 'syndicate' : 'workflow'} it runs paused on ${missing.join(', ')}, which is not an approval request or a question.`);
     parent.store(raiseAgain(name, run, parent.invocationId, paused.map((id) => raised.get(id)!), stateDelta));
     return { interruptIds: [...paused] };
   }
