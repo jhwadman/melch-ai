@@ -49,6 +49,8 @@ A subagent runs in its own session, `{ <subagent>, userId, sessionId }`. Its req
 
 > **Note (2026-10-09):** [ADR 0111](/decisions/0111-pauses-inside-nested-syndicates.md) lifts item 8's refusals of a nested dispatch syndicate's classifier gates and of a delegated nested workflow's gates and `ask_user` nodes, and files a subagent's child session under its agent path instead of its name (item 2's walk follows the same key, then the old one).
 
+> **Note (2026-10-09):** [ADR 0118](/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md) lifts item 8's refusal of skill scripts on a delegated subagent (a script run pauses on the same `adk_request_confirmation` call), and carries an OAuth consent request inside a delegated subagent the same way: the walk reports it with the path, and the grant's answer travels down the open call.
+
 ## Alternatives considered
 
 - **Copy the request into the caller's session.** The turn runner and the A2A server would find it with the readers they have. But the copy is a request the caller never made: `approvedCalls` would refuse or skip it, the history would carry a second framework call, and the two copies could disagree. The walk reads the one stored request.

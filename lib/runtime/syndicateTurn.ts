@@ -198,7 +198,8 @@ export interface SyndicateTurnOptions {
    * the native runtime. The store is pinned to `appName`; a tool reads the
    * grant of `userId` only. With `consent`, a call whose provider the user
    * has not granted pauses the turn input-required (`result.consent`), and
-   * the next message after the grant resumes it. Omitted: tools have no
+   * the next message after the grant resumes it; inside a delegated
+   * subagent too, with `consent.path` set (ADR 0118). Omitted: tools have no
    * `accessToken`, as before.
    */
   toolCredentials?: ToolCredentials;
@@ -255,7 +256,8 @@ export interface SyndicateTurnResult {
   input?: PendingInput;
   /** The OAuth grant a paused call waits for, when status is input-required
    *  (ADR 0085): the person opens `consent.authUri`; their next message after
-   *  the grant is stored resumes the call. */
+   *  the grant is stored resumes the call. `consent.path` is set for a call
+   *  inside a delegated subagent (ADR 0118). */
   consent?: PendingConsent;
   /** The text the user receives (relay fallback and guards applied). */
   text: string;
@@ -660,12 +662,21 @@ async function runTurnInner(
     result.status = 'input-required';
     result.consent = pending;
     result.text = `Authorization needed: ${describeConsent(pending)}. Open the authorization link, then send any message to continue.`;
-    ev.log?.(`⏸ Authorization needed: ${pending.agent} → ${pending.provider}`);
+    ev.log?.(`⏸ Authorization needed: ${(pending.path ?? [pending.agent]).join(' → ')} → ${pending.provider}`);
     return finish();
   };
   let granting: PendingConsent | undefined;
+  // A call waiting for a grant inside a delegated subagent (ADR 0118): the grant's answer is stored here, and the open call carries it down.
+  let grantingBelow: DelegatedPause | undefined;
   if (!decision && !isWorkflowSyndicate(config)) {
-    const open = pendingConsent(existing?.events ?? []);
+    let open = pendingConsent(existing?.events ?? []);
+    if (!open && config.subagents?.length) {
+      const below = await pauseBelow(existing?.events ?? []);
+      if (below?.consent) {
+        grantingBelow = below;
+        open = below.consent;
+      }
+    }
     if (open) {
       if (!credentialStore) {
         result.status = 'failed';
@@ -681,7 +692,7 @@ async function runTurnInner(
       if (!granted) return consentPause(open);
       granting = open;
       parts = [credentialResponsePart(open.id, open.provider)];
-      ev.log?.(`✓ Authorization granted: ${open.agent} → ${open.provider}`);
+      ev.log?.(`✓ Authorization granted: ${(open.path ?? [open.agent]).join(' → ')} → ${open.provider}`);
     }
   }
 
@@ -707,6 +718,8 @@ async function runTurnInner(
   /** The agent a dispatch turn must resume, and the call its interrupted turn holds. */
   const resumeTarget = resumingBelow
     ? { agent: resumingBelow.path[0] as string, id: resumingBelow.callIds[0] as string, why: 'resuming an approval' }
+    : grantingBelow
+    ? { agent: grantingBelow.path[0] as string, id: grantingBelow.callIds[0] as string, why: 'resuming after an authorization' }
     : resuming
     ? { agent: resuming.agent, id: resuming.id, why: 'resuming an approval' }
     : granting
@@ -742,6 +755,7 @@ async function runTurnInner(
     const after = await sessionService.get({ appName, userId, sessionId });
     const below = await pauseBelow(after?.events ?? [], agentName);
     if (below?.approval) return pause(below.approval);
+    if (below?.consent) return consentPause(below.consent);
     if (below?.question) {
       result.status = 'input-required';
       result.input = below.question;
@@ -998,6 +1012,8 @@ async function runTurnInner(
           routeCfg.name,
           resumingBelow
             ? { rawFrom: (events) => turnStartOfCall(events, resumingBelow!.callIds[0] as string) }
+            : grantingBelow
+            ? { rawFrom: (events) => turnStartOfCall(events, grantingBelow!.callIds[0] as string) }
             : resuming
             ? { rawFrom: (events) => interruptedTurnStart(events, resuming!.id) }
             : answering

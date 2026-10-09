@@ -49,6 +49,8 @@ The third shape.
 
 > **Note (2026-10-08):** Since 0.20.0 the native runtime is the default ([ADR 0102](/decisions/0102-native-default-and-optional-adk-peer.md)); the harness runs on the engine's own tool base on it, and ADK's toolset, executor and activation list (items 3 to 5) apply on neither runtime ([ADR 0083](/decisions/0083-skills-harness-on-the-own-tool-base.md)). The optional adk runtime is removed at 1.0.0 ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)).
 
+> **Note (2026-10-09):** Item 5's "only where that pause can reach the caller" now includes a workflow node ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)) and a delegated subagent at any depth: [ADR 0118](/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md) carries a delegated subagent's script approval to the turn through the open call. An agent a map node runs still may not carry scripts.
+
 ## Consequences
 
 - No new tool contracts and no registry entries: the capability is one toolset built per compile, and an agent without `skills:` is unchanged.
