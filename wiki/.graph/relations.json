@@ -2768,6 +2768,78 @@
       "evidence": "lib/tools/oauthTools.ts header: the variable names pass credentialEnvProblem (lib/tools/credentialEnv.ts), so a YAML cannot send a framework secret to a token endpoint.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthHosts.ts",
+      "rel": "explains",
+      "evidence": "ADR 0114 Decision 1-3: the operator allowlist, its format, and the rule (no allowlist: authorization_code refused, client_credentials allowed; with one, the whole list) live in lib/tools/oauthHosts.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0114 Decision 4: oauthTokenSource and oauthClientsFor refuse a host the allowlist does not bind at compile, and oauthCallProblem refuses it again before each call sends a token.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0114 Decision 4: every MCP request is checked where it actually goes (bearerFetch) before a token is attached.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0114 Decision 4: createA2AApp refuses a syndicate whose grant the allowlist does not permit when it loads one to serve, the default and every dynamic route.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "explains",
+      "evidence": "ADR 0114 Decision 5-6: the server builds the credential store and consent step from MELCHIZEDEK_CREDENTIAL_KEY, OAUTH_REDIRECT_URI, OAUTH_CALLBACK_IDENTITY and the allowlist, with the clients from the served files only.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0114 Decision 5: melchizedek-serve wires toolCredentials through serverOAuth and refuses to start on a malformed key, allowlist or redirect URI, or a redirect URI without a key.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0114 Context: it answers the open question ADR 0112 left, binding a YAML-declared provider to its hosts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0114 Decision 6: OAUTH_CALLBACK_IDENTITY keeps ADR 0085 requireCallerIdentity default (required), with state as the opt-out.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "module:lib/tools/oauthHosts.ts",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "mitigates",
+      "evidence": "lib/tools/oauthHosts.ts header: a registry-stored YAML could name a provider another syndicate users granted and point a tool at its own host; the allowlist is the binding that closes this (ADR 0112 Consequences).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

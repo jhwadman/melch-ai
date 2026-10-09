@@ -173,7 +173,7 @@ function operationTool(op: OpenApiOperation, credential: OpenApiCredential | und
       let sent = credential;
       if (oauth) {
         try {
-          sent = { kind: 'bearer', token: await oauth(ctx) };
+          sent = { kind: 'bearer', token: await oauth(ctx, op.baseUrl) };
         } catch (error) {
           return { error: error instanceof ToolCredentialError ? error.message : 'The authorization for this API could not be obtained.' };
         }
@@ -225,7 +225,7 @@ export async function buildOpenApiOwnTools(entry: OpenApiConfig, baseDir: string
       const problem = tokenTransportProblem(server);
       if (problem) throw new Error(`openapi ${entry.spec}: ${problem}`);
     }
-    oauth = oauthTokenSource(entry.auth.oauth2, `openapi ${entry.spec}`, chosen[0]!.baseUrl, { allowPrivate: process.env.ALLOW_PRIVATE_OPENAPI === 'true' });
+    oauth = oauthTokenSource(entry.auth.oauth2, `openapi ${entry.spec}`, [...new Set(chosen.map((o) => o.baseUrl))], { allowPrivate: process.env.ALLOW_PRIVATE_OPENAPI === 'true' });
   }
   return chosen.map((o) => operationTool(o, credential, oauth));
 }

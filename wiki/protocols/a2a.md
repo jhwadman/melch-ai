@@ -17,6 +17,8 @@ sources:
   - resource: lib/a2a/policy.ts
   - resource: lib/tools/oauthConsent.ts
   - resource: tests/oauthConsent.test.ts
+  - resource: lib/a2a/oauthSetup.ts
+  - resource: tests/oauthHosts.test.ts
 ---
 
 # A2A
@@ -56,6 +58,10 @@ The callback sits before the bearer check, because a browser cannot carry the A2
 - When the request carries a credential the authenticator accepts (behind `serverSecret`, only once the bearer matches), the caller must be the flow's user, else `403`. By default (`toolCredentials.requireCallerIdentity`, default true) a callback without such a credential is refused with `401` and the state is not spent: the browser that completes a grant must carry the flow's user's identity (a session cookie or a gateway header `resolveRequest` reads), so a forwarded authorization link cannot link someone else's account. `requireCallerIdentity: false` lets the state alone bind the flow, for a deployment whose browsers carry no identity and that accepts that risk.
 - The redirect URI is read from configuration only. The response is `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, with a CSP of `default-src 'none'`.
 - Nothing logs the query. The log names the provider and the refusal reason, and the audit trail gets a `consent.callback` row.
+
+**The server binary** (`melchizedek-serve`) builds `toolCredentials` from the environment ([ADR 0114](/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md); `lib/a2a/oauthSetup.ts`, `serverOAuth`): `MELCHIZEDEK_CREDENTIAL_KEY` seals the store's rows (Postgres with `DATABASE_URL`, else process memory); `OAUTH_REDIRECT_URI` mounts the callback; `OAUTH_CALLBACK_IDENTITY` is `required` (the default, `requireCallerIdentity: true`) or `state`; the consent clients and refresh hooks come from the authorization-code grants the served syndicate files declare (the default, the `A2A_SERVED_AGENTS` files, or every root file when that is unset), never from a registry row. It refuses to start on a malformed key, allowlist or redirect URI, a redirect URI without a key, or a served file whose grant `MELCHIZEDEK_OAUTH_HOSTS` refuses, and prints one `oauth` line: the key's id, where rows live, the callback path, the providers, the allowlist. It warns when `required` meets an authenticator a browser cannot carry (anything but `A2A_AUTH=header`), since every callback would then be refused.
+
+`createA2AApp({ oauthHosts })` sets the OAuth host allowlist for the process, over `MELCHIZEDEK_OAUTH_HOSTS`, and the app refuses a syndicate whose grant it does not permit when it loads one to serve: the default at startup, and each dynamic route (a file or a registry row) with `503` and the reason in the log ([tool contracts](/tools/tool-contracts.md#grants-declared-in-yaml)).
 - The pending flows live in the process (`memoryConsentStates`), so the callback must reach the instance that paused the call, as the A2A task store already requires. `ConsentStates` is the plug point for a shared store.
 
 ## Identity and keys

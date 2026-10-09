@@ -21,7 +21,7 @@ const FRAMEWORK_ENV_PREFIXES = [
   'GOOGLE_', 'GEMINI_', 'ANTHROPIC_', 'OPENAI_', 'AZURE_', 'AWS_', 'XAI_', 'MOONSHOT_', 'OLLAMA_', 'WIKI_',
   'ALLOW_', 'OPENAPI_',
 ];
-const FRAMEWORK_ENV_NAMES = new Set(['PUBLIC_URL', 'HOST', 'PORT', 'PATH', 'HOME', 'NODE_OPTIONS', 'WEB_EXTRACT_CHAR_LIMIT']);
+const FRAMEWORK_ENV_NAMES = new Set(['PUBLIC_URL', 'HOST', 'PORT', 'PATH', 'HOME', 'NODE_OPTIONS', 'WEB_EXTRACT_CHAR_LIMIT', 'OAUTH_REDIRECT_URI', 'OAUTH_CALLBACK_IDENTITY']);
 
 /**
  * Why an `auth` may not read this variable, or null. With

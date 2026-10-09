@@ -92,7 +92,7 @@ export interface CredentialStore {
 /** What the ToolContext member gives a tool: a valid access token for a provider, for this run's user only. */
 export type ToolAccessToken = (provider: string) => Promise<string>;
 
-export type ToolCredentialErrorCode = 'not_connected' | 'expired' | 'refresh_failed' | 'unreadable' | 'no_user' | 'invalid' | 'unavailable' | 'grant_failed';
+export type ToolCredentialErrorCode = 'not_connected' | 'expired' | 'refresh_failed' | 'unreadable' | 'no_user' | 'invalid' | 'unavailable' | 'grant_failed' | 'host_refused';
 
 /**
  * A credential that cannot be used. The message names the provider and what
@@ -118,7 +118,9 @@ export class ToolCredentialError extends Error {
                   ? `This server holds no ${p} authorizations: its operator has not configured tool credentials.`
                   : code === 'grant_failed'
                     ? `The server's own ${p} authorization could not be obtained from the provider's token endpoint.`
-                    : `Invalid credential request for ${p}.`,
+                    : code === 'host_refused'
+                      ? `The ${p} authorization may not be sent to this host: the operator's OAuth host allowlist does not include it.`
+                      : `Invalid credential request for ${p}.`,
     );
     this.name = 'ToolCredentialError';
     this.code = code;

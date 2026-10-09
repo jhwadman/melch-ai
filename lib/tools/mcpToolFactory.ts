@@ -26,7 +26,7 @@ import { checkHost } from '../net/addressGuard.ts';
 import { fetchWithRedirectPolicy } from '../net/redirects.ts';
 import type { RedirectPolicy } from '../net/redirects.ts';
 import { ToolCredentialError } from './auth.ts';
-import { oauthTokenSource } from './oauthTools.ts';
+import { oauthCallProblem, oauthTokenSource } from './oauthTools.ts';
 import type { OAuth2AuthConfig } from './oauthTools.ts';
 import { MAX_RESULT_CHARS } from './tool.ts';
 import type { Tool, ToolContext } from './tool.ts';
@@ -177,10 +177,14 @@ const redact = (message: string, secret: string | undefined): string => (secret 
  * token `token()` returns now, and every redirect hop is checked, a hop off
  * the server's origin losing the header (MCP_REDIRECTS).
  */
-function bearerFetch(token: () => Promise<string>) {
+function bearerFetch(oauth2: OAuth2AuthConfig, token: (destination: string) => Promise<string>) {
   return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    // Every request is checked where it actually goes (the stream, and the
+    // message endpoint the server names), before a token is attached (ADR 0114).
+    const destination = input instanceof Request ? input.url : String(input);
+    if (oauthCallProblem(oauth2, destination)) throw new ToolCredentialError('host_refused', oauth2.provider);
     const headers = new Headers(init?.headers);
-    headers.set('Authorization', `Bearer ${await token()}`);
+    headers.set('Authorization', `Bearer ${await token(destination)}`);
     return mcpFetch(input, { ...init, headers });
   };
 }
@@ -227,7 +231,7 @@ export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions
     transport = new SSEClientTransport(
       url,
       tokenSource
-        ? { fetch: bearerFetch(() => tokenSource(undefined)) }
+        ? { fetch: bearerFetch(oauth2!, (destination) => tokenSource(undefined, destination)) }
         : { requestInit: { headers: mcpAuthHeaders(url) }, fetch: mcpFetch },
     );
     const client = new Client({
@@ -311,7 +315,7 @@ function userGrantMcpTools(mcpServerUrl: string, oauth2: OAuth2AuthConfig, names
     conn.holder = holder;
     conn.ready = (async () => {
       const url = await assertSafeMcpUrl(mcpServerUrl);
-      const transport = new SSEClientTransport(url, { fetch: bearerFetch(async () => holder.token) });
+      const transport = new SSEClientTransport(url, { fetch: bearerFetch(oauth2, async () => holder.token) });
       conn.transport = transport;
       const client = new Client({ name: 'melchizedek-a2a-client', version: '1.0.0' }, { capabilities: {} });
       await client.connect(transport);
@@ -344,7 +348,7 @@ function userGrantMcpTools(mcpServerUrl: string, oauth2: OAuth2AuthConfig, names
       execute: async (input: Record<string, unknown>, ctx: ToolContext): Promise<string> => {
         let token: string;
         try {
-          token = await source(ctx);
+          token = await source(ctx, mcpServerUrl);
         } catch (error) {
           return `[MCP ERROR] Tool ${name}: ${error instanceof ToolCredentialError ? error.message : `the ${provider} authorization could not be read.`}`;
         }
