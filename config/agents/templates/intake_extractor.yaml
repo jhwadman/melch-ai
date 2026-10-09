@@ -23,8 +23,9 @@
 #
 # SHAPE: a single agent with an `outputSchema`, so the reply is JSON the
 # schema describes, parseable without a second model call. No subagents and
-# no tools: the document is the only input, and the extractor may not add
-# anything the document does not say.
+# no tools, by choice rather than by rule (an agent that delegates or calls
+# tools may hold a schema too, ADR 0109): the document is the only input,
+# and the extractor may not add anything the document does not say.
 #
 # REDACTION: card numbers, bank details, passwords and government IDs are
 # never copied into the record, not even as a `references` entry; `redacted`

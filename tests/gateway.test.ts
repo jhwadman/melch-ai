@@ -67,10 +67,13 @@ test('gateway is off when MODEL_GATEWAY is unset', () => {
   });
 });
 
-test('an unknown gateway id is a named problem, not a silent route', () => {
-  withEnv({ MODEL_GATEWAY: 'nope', MODEL_GATEWAY_API_KEY: 'k' }, () => {
+test('an unknown gateway id is a named problem, not a silent route, and its value is never repeated', () => {
+  const pasted = 'fake-pasted-key-0123456789';
+  withEnv({ MODEL_GATEWAY: pasted, MODEL_GATEWAY_API_KEY: 'k' }, () => {
     assert.equal(gatewayConfig(), null);
-    assert.match(gatewayProblem()!, /not a known gateway/);
+    const problem = gatewayProblem()!;
+    assert.match(problem, /MODEL_GATEWAY is set to an unrecognised value \(not shown\); it must be one of: vercel, openrouter/);
+    assert.ok(!problem.includes(pasted));
   });
 });
 

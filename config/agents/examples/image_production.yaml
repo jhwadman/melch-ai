@@ -16,9 +16,10 @@ memory_system: "session-only"
 #   path — the spec physically cannot reach the inventory, so expectation bias
 #   is blocked by the tool signature, not by good intentions. SpecAuditor is a
 #   text-only leaf that receives spec + inventory but never the image, and
-#   holds the outputSchema (the same rule as critic.yaml: the schema-holder
-#   is a leaf that delegates nothing). Perception, judgment, and decision are three
-#   different minds.
+#   holds the outputSchema, so its verdict is JSON while ImageDesigner keeps
+#   answering the user in prose (the same choice as critic.yaml; an
+#   orchestrator may hold a schema itself, ADR 0109, but then its own reply
+#   is the JSON). Perception, judgment, and decision are three different minds.
 #
 # WHY the instruction maps payload fields to tool parameters by name
 # (step 6): the payload holds `meta.artist_style`, the tool takes `style`.

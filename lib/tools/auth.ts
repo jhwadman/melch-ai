@@ -95,13 +95,26 @@ export type ToolAccessToken = (provider: string) => Promise<string>;
 export type ToolCredentialErrorCode = 'not_connected' | 'expired' | 'refresh_failed' | 'unreadable' | 'no_user' | 'invalid' | 'unavailable' | 'grant_failed' | 'host_refused';
 
 /**
+ * Which operator allowlist refused a `host_refused` call: the OAuth host
+ * allowlist, which binds a provider's tokens to its hosts
+ * (`MELCHIZEDEK_OAUTH_HOSTS`, ADR 0114), or the credential host allowlist,
+ * which binds a static credential variable such as a client secret to its
+ * hosts (`MELCHIZEDEK_CREDENTIAL_HOSTS`, ADR 0122).
+ */
+export type HostAllowlist = 'oauth' | 'credential';
+
+/**
  * A credential that cannot be used. The message names the provider and what
  * to do, never a token, a user or a key, so a tool may return it to the model.
+ * A `host_refused` error names the allowlist that refused (`allowlist`,
+ * `'oauth'` when not given).
  */
 export class ToolCredentialError extends Error {
   readonly code: ToolCredentialErrorCode;
   readonly provider?: string;
-  constructor(code: ToolCredentialErrorCode, provider?: string) {
+  /** For `host_refused`: the allowlist that refused the host. */
+  readonly allowlist?: HostAllowlist;
+  constructor(code: ToolCredentialErrorCode, provider?: string, allowlist?: HostAllowlist) {
     const p = provider ? `"${provider}"` : 'this provider';
     super(
       code === 'not_connected'
@@ -119,12 +132,15 @@ export class ToolCredentialError extends Error {
                   : code === 'grant_failed'
                     ? `The server's own ${p} authorization could not be obtained from the provider's token endpoint.`
                     : code === 'host_refused'
-                      ? `The ${p} authorization may not be sent to this host: the operator's OAuth host allowlist does not include it.`
+                      ? allowlist === 'credential'
+                        ? `The ${p} client secret may not be sent to this host: the operator's credential host allowlist (MELCHIZEDEK_CREDENTIAL_HOSTS) does not bind it there.`
+                        : `The ${p} authorization may not be sent to this host: the operator's OAuth host allowlist (MELCHIZEDEK_OAUTH_HOSTS) does not include it.`
                       : `Invalid credential request for ${p}.`,
     );
     this.name = 'ToolCredentialError';
     this.code = code;
     this.provider = provider;
+    if (code === 'host_refused') this.allowlist = allowlist ?? 'oauth';
   }
 }
 
