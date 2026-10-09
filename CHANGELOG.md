@@ -23,6 +23,29 @@ the starter pack and the templates), not the repo's full history.
 - `delegatedPauses`, `openCalls`, `resumedDelegations` in
   `lib/runtime/native/interrupts.ts` and `resumeSubagent`, `SubagentPause` in
   `lib/runtime/native/delegate.ts` (engine internals; no exports map entry).
+- **Pauses inside nested syndicates reach the turn** (WS6-2b,
+  [ADR 0111](./wiki/decisions/0111-pauses-inside-nested-syndicates.md)). An
+  approval request or `ask_user` question raised inside a `yaml_reference`
+  subagent ends the turn `input-required` with the agent path, over
+  `runSyndicateTurn` and A2A, and the answer resumes it. A nested dispatch
+  syndicate may gate its classifier (a gate on one of its routes, which never
+  run nested, is refused by name). A nested workflow delegated to as a
+  subagent may hold `ask_user` nodes and gated agent nodes; the path ends at
+  the node. As a dispatch route or a workflow node, a nested workflow's
+  pauses stay refused, with a message that says so.
+- `resumeWorkflowSubagent`, `childAppName`, `legacyChild` in
+  `lib/runtime/native/delegate.ts` (engine internals; no exports map entry).
+
+### Changed
+
+- **A delegated subagent's own session is filed under its agent path**
+  (ADR 0111): `<app>/<caller>/<subagent>`, and below a nested syndicate
+  `<app>/<caller>/<subagent>/<inner>`, instead of the subagent's name alone,
+  so two syndicates with a same-named subagent on one conversation no longer
+  share it. A conversation stored before keeps its subagents' sessions under
+  the old key: they are still read, continued and resumed. Code that read a
+  subagent's session directly by its name reads the path instead. The stored
+  events do not change.
 
 ## 1.0.2 — 2026-10-09
 

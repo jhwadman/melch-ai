@@ -725,7 +725,7 @@ export class SyndicateExecutor implements AgentExecutor {
         const events = session?.events ?? [];
         const pending =
           (declaresApprovals(config) ? pendingApproval(events) : undefined) ??
-          (delegates ? (await delegatedPauses({ sessions: this.sessions, userId, sessionId: contextId }, events))[0]?.approval : undefined);
+          (delegates ? (await delegatedPauses({ sessions: this.sessions, userId, sessionId: contextId, appName }, events))[0]?.approval : undefined);
         if (pending) {
           const answer = approvalAnswer(rawParts, pending);
           if (!answer) {

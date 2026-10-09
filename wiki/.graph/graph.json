@@ -5,15 +5,15 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 878,
-    "edges": 3354,
+    "nodes": 880,
+    "edges": 3387,
     "byKind": {
-      "doc": 172,
+      "doc": 173,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 183,
+      "file": 184,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 755,
+      "links_to": 769,
       "requires_env": 167,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 729,
+      "imports": 731,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 879,
-      "constrains": 177,
-      "supersedes": 11,
-      "depends_on": 114,
+      "derives_from": 890,
+      "constrains": 180,
+      "supersedes": 12,
+      "depends_on": 116,
       "explains": 38,
       "mitigates": 3,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3010,
-      "inferred": 344
+      "extracted": 3037,
+      "inferred": 350
     },
     "isolated": 4
   },
@@ -1272,7 +1272,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 845
+        "words": 875
       }
     },
     {
@@ -1560,7 +1560,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1347
+        "words": 1381
       }
     },
     {
@@ -1644,7 +1644,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1297
+        "words": 1331
       }
     },
     {
@@ -1680,7 +1680,19 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1235
+        "words": 1286
+      }
+    },
+    {
+      "id": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "kind": "doc",
+      "label": "ADR 0111: Pauses inside nested syndicates reach the turn, and a subagent's session is filed under its agent path",
+      "source": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 783
       }
     },
     {
@@ -1692,7 +1704,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1574
+        "words": 1577
       }
     },
     {
@@ -1716,7 +1728,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 1942
+        "words": 1986
       }
     },
     {
@@ -1896,7 +1908,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2929
+        "words": 3072
       }
     },
     {
@@ -1956,7 +1968,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6953
+        "words": 7153
       }
     },
     {
@@ -1992,7 +2004,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4641
+        "words": 4725
       }
     },
     {
@@ -2004,7 +2016,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2057
+        "words": 2094
       }
     },
     {
@@ -2028,7 +2040,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 386
+        "words": 421
       }
     },
     {
@@ -4650,6 +4662,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/nestedPauses.test.ts",
+      "kind": "file",
+      "label": "nestedPauses.test.ts",
+      "source": "tests/nestedPauses.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/oauthConsent.test.ts",
       "kind": "file",
       "label": "oauthConsent.test.ts",
@@ -5095,7 +5114,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 605
+        "lines": 620
       }
     },
     {
@@ -5635,7 +5654,7 @@
       "label": "lib/runtime/native/agentLoop.ts",
       "source": "lib/runtime/native/agentLoop.ts",
       "attrs": {
-        "lines": 914
+        "lines": 925
       }
     },
     {
@@ -5653,7 +5672,7 @@
       "label": "lib/runtime/native/delegate.ts",
       "source": "lib/runtime/native/delegate.ts",
       "attrs": {
-        "lines": 363
+        "lines": 463
       }
     },
     {
@@ -5671,7 +5690,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 495
+        "lines": 563
       }
     },
     {
@@ -5905,7 +5924,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1015
+        "lines": 1017
       }
     },
     {
@@ -6337,7 +6356,7 @@
       "label": "lib/workflow.ts",
       "source": "lib/workflow.ts",
       "attrs": {
-        "lines": 70
+        "lines": 74
       }
     },
     {
@@ -12231,6 +12250,13 @@
       "evidence": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md:38"
     },
     {
+      "from": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md:40"
+    },
+    {
       "from": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "to": "file:tests/nativeLoop.test.ts",
       "rel": "derives_from",
@@ -14023,6 +14049,13 @@
       "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md:36"
     },
     {
+      "from": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0098-workflow-subagent-and-node-approvals.md:55"
+    },
+    {
       "from": "/decisions/0099-native-default-moves-to-0-20-0.md",
       "to": "file:CHANGELOG.md",
       "rel": "derives_from",
@@ -14622,7 +14655,7 @@
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:51"
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:53"
     },
     {
       "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
@@ -14644,6 +14677,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:46"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:49"
     },
     {
       "from": "/decisions/0107-release-1-0-0-removes-adk.md",
@@ -14980,6 +15020,104 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md:35"
+    },
+    {
+      "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md:50"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "file:tests/delegatedPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "file:tests/nativeDelegate.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "file:tests/nestedPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/runtime/native/agentLoop.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md frontmatter"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md:32"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md:32"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md:30"
     },
     {
       "from": "/memory/architecture.md",
@@ -15428,6 +15566,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/sessions.md:144"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:76"
     },
     {
       "from": "/memory/sessions.md",
@@ -17195,13 +17340,6 @@
     },
     {
       "from": "/operations/native-loop-security.md",
-      "to": "/decisions/0028-approval-gates.md",
-      "rel": "links_to",
-      "tier": "extracted",
-      "evidence": "/operations/native-loop-security.md:135"
-    },
-    {
-      "from": "/operations/native-loop-security.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -17234,6 +17372,20 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/native-loop-security.md:34"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:135"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:135"
     },
     {
       "from": "/operations/native-loop-security.md",
@@ -17762,6 +17914,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "file:tests/nestedPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md frontmatter"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "file:tests/oauthConsent.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -17898,266 +18057,273 @@
       "to": "/decisions/0027-thinking-without-answer-is-an-error.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:171"
+      "evidence": "/overview/native-loop.md:172"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:236"
+      "evidence": "/overview/native-loop.md:237"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0031-ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:270"
+      "evidence": "/overview/native-loop.md:271"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0033-context-task-code.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:56"
+      "evidence": "/overview/native-loop.md:57"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0034-self-correction.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:197"
+      "evidence": "/overview/native-loop.md:198"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:148"
+      "evidence": "/overview/native-loop.md:149"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:49"
+      "evidence": "/overview/native-loop.md:50"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:106"
+      "evidence": "/overview/native-loop.md:107"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0065-gemini-carried-parts-and-server-side-invocations.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:232"
+      "evidence": "/overview/native-loop.md:233"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0066-native-step-sends-the-adk-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:51"
+      "evidence": "/overview/native-loop.md:52"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0071-native-loop-runs-calls-as-adk-stores-them.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:51"
+      "evidence": "/overview/native-loop.md:52"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:258"
+      "evidence": "/overview/native-loop.md:259"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:51"
+      "evidence": "/overview/native-loop.md:52"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0075-native-self-correction-ports-adk-plugins.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:197"
+      "evidence": "/overview/native-loop.md:198"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:342"
+      "evidence": "/overview/native-loop.md:343"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0077-native-approvals-port-the-confirmation-processor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:238"
+      "evidence": "/overview/native-loop.md:239"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0078-native-compaction-ports-adk-compactor.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:177"
+      "evidence": "/overview/native-loop.md:178"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0079-native-questions-resume-through-the-history.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:272"
+      "evidence": "/overview/native-loop.md:273"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0081-native-task-mode-ends-a-node-on-finish-task.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:225"
+      "evidence": "/overview/native-loop.md:226"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:258"
+      "evidence": "/overview/native-loop.md:259"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0088-native-parity-followups.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:204"
+      "evidence": "/overview/native-loop.md:205"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0097-reflection-tool-declared-where-adk-declares-it.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:201"
+      "evidence": "/overview/native-loop.md:202"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:288"
+      "evidence": "/overview/native-loop.md:289"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:120"
+      "evidence": "/overview/native-loop.md:121"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:151"
+      "evidence": "/overview/native-loop.md:152"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:205"
+      "evidence": "/overview/native-loop.md:206"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:49"
+      "evidence": "/overview/native-loop.md:50"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:327"
+      "evidence": "/overview/native-loop.md:328"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:294"
+      "evidence": "/overview/native-loop.md:295"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:283"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:124"
+      "evidence": "/overview/native-loop.md:125"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:86"
+      "evidence": "/overview/native-loop.md:87"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/operations/native-loop-security.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:60"
+      "evidence": "/overview/native-loop.md:61"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:83"
+      "evidence": "/overview/native-loop.md:84"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/overview/workflow-scheduler.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:272"
+      "evidence": "/overview/native-loop.md:273"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:72"
+      "evidence": "/overview/native-loop.md:73"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:72"
+      "evidence": "/overview/native-loop.md:73"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:70"
+      "evidence": "/overview/native-loop.md:71"
     },
     {
       "from": "/overview/native-loop.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:69"
+      "evidence": "/overview/native-loop.md:70"
     },
     {
       "from": "/overview/workflow-agent-node.md",
@@ -18560,6 +18726,20 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:199"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/overview/native-loop.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:199"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18708,6 +18888,13 @@
     {
       "from": "/protocols/a2a.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:32"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md:32"
@@ -18883,6 +19070,13 @@
     {
       "from": "/tools/ask-user.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:30"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/ask-user.md:30"
@@ -23509,6 +23703,13 @@
     },
     {
       "from": "module:lib/runtime/native/delegate.ts",
+      "to": "module:lib/runtime/native/history.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/delegate.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/delegate.ts",
       "to": "module:lib/runtime/native/request.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -23559,6 +23760,13 @@
     {
       "from": "module:lib/runtime/native/interrupts.ts",
       "to": "module:lib/runtime/events.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/interrupts.ts",
+      "to": "module:lib/runtime/native/delegate.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/interrupts.ts"

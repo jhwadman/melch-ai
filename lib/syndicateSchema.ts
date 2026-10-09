@@ -288,7 +288,9 @@ export const subagentSchema = z
       .string()
       .min(1)
       .optional()
-      .describe('A whole nested syndicate (filename under the agents dir) used as this subagent.'),
+      .describe(
+        'A whole nested syndicate (filename under the agents dir) used as this subagent. An approval request or ask_user question raised inside it pauses the turn with the agent path (ADR 0110, ADR 0111): a delegate syndicate\'s gates anywhere, a dispatch syndicate\'s on its classifier (its routes never run nested), and a workflow\'s ask_user nodes and gates when it is delegated to as a subagent.',
+      ),
     a2a_agent_url: z
       .string()
       .min(1)
