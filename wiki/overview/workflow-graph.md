@@ -1,7 +1,7 @@
 ---
 type: subsystem
 title: Workflow graph
-description: "The engine-owned model of a workflow: block (lib/workflow/graph.ts): buildWorkflowGraph turns the YAML chains into typed nodes (start, agent, join, map, tool, ask_user, and the hidden route step), edges that fire always, on a route key or on the default route, and max_concurrency, with no ADK import. The engine's own scheduler (lib/workflow/scheduler.ts) runs it. It is the graph ADK's compile built, node for node and edge for edge, and it raises the schema's messages for the block's rules and ADK's messages for the graph's."
+description: "The engine-owned model of a workflow: block (lib/workflow/graph.ts): buildWorkflowGraph turns the YAML chains into typed nodes (start, agent, join, map, tool, ask_user, and the hidden route step), edges that fire always, on a route key or on the default route, and max_concurrency, with no ADK import. The engine's own scheduler (lib/workflow/scheduler.ts) runs it. It is the graph ADK's compile built, node for node and edge for edge, and it raises the schema's messages for the block's rules and the messages ADK's compile raised for the graph's."
 tags:
   - runtime
   - agents
