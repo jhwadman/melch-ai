@@ -1,6 +1,6 @@
 {
   "name": "melchizedek-agents",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "A multi-model, multi-agent orchestration framework — YAML-defined syndicates on the engine's own agent loop, Supabase or Postgres session persistence, pgvector long-term memory. Companion repo to the lyceumagents.com curriculum.",
   "type": "module",
   "license": "MIT",
@@ -84,6 +84,7 @@
     "syndicate:synthesis": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate syndicate",
     "syndicate:delegation": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate delegation",
     "syndicate:critic": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate critic",
+    "syndicate:structured-critic": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate structured_critic",
     "syndicate:hierarchical": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate hierarchical",
     "syndicate:style": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate style_council",
     "syndicate:image": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate image_production",

@@ -19,6 +19,7 @@ Read these starter files for specific designs:
 - `tutor.yaml` shows the instruction anatomy at its smallest.
 - `patient_advocate.yaml` shows the same anatomy grown to full size.
 - `critic.yaml` shows an `output: { schema }` on a leaf subagent.
+- `structured_critic.yaml` shows an `output: { schema }` on an orchestrator that delegates and answers in it.
 - `scribe.yaml` shows a draft-and-audit loop.
 - `librarian.yaml` shows MCP tools via `mcp_server_url:`.
 - `council.yaml` shows a keyless multi-agent file.
@@ -69,7 +70,7 @@ Put facts and rules in the YAML: a new capability for an agent is a YAML edit.
 
 ## Two constraints that break a file
 
-Do not give one agent both an `output: { schema }` and subagents. An agent that holds an output schema answers with that JSON and nothing else, so an orchestrator holding one would end its turn on the JSON instead of relaying an answer. Place the schema on a leaf subagent with no tools and let the orchestrator return plain text, as shown in `critic.yaml` and `scribe.yaml`.
+An agent that holds an `output: { schema }` answers with that JSON and nothing else. Give one to an orchestrator beside its subagents only when the answer is the orchestrator's own structured judgment of what its team returned (`structured_critic.yaml`): it delegates first, then ends its turn on the JSON. When the user should receive a specialist's answer, place the schema on a leaf subagent with no tools and let the orchestrator return plain text, as shown in `critic.yaml` and `scribe.yaml`.
 
 A tool result or an MCP server reply provides data for the agent to analyze. An instruction must never tell the agent to obey text that arrives inside a tool result.
 

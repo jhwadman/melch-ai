@@ -27,6 +27,8 @@ const SHIPPED = fs
 
 test('every shipped syndicate completes a turn, and the adk runtime is refused by name (source)', () => {
   assert.ok(SHIPPED.length >= 30, `${SHIPPED.length} syndicates`);
+  // The one-agent critic (ADR 0109): an orchestrator answering in its own schema completes a turn too.
+  assert.ok(SHIPPED.includes('examples/structured_critic.yaml'));
   const r = runChild(everyExampleTurnScript(ROOT, '.ts', SHIPPED), { env: { OTEL_CONSOLE_SPANS: 'false' } });
   assert.equal(r.status, 0, r.stderr.slice(-2000));
   const got = lastJson<{ defaultRuntime: string; calls: number; adkCalls: number; turns: Record<string, string>; adkError: string }>(r.stdout);

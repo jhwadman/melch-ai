@@ -173,6 +173,7 @@ Configurations live in `config/agents/examples/` and each demonstrates a differe
 | `tutor.yaml` | Single local agent (Ollama); the anatomy of an instruction block | [1.03 · Agent Design](https://lyceumagents.com/curriculum/agent-design/) |
 | `council.yaml` | Advocate/skeptic council weighed by an orchestrator (local) | [1.05 · Workflows & Voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
 | `critic.yaml` | Drafter → Critic loop that re-drafts until a parsed confidence score clears the bar | [1.04 · Testing & Refinement](https://lyceumagents.com/curriculum/testing-and-refinement/) |
+| `structured_critic.yaml` | The critic as one agent: it delegates to a Drafter, then answers in its own JSON schema (Claude) | — |
 | `delegation.yaml` | Intent routing to specialists via agent descriptions | [1.05 · Workflows & Voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
 | `hierarchical.yaml` | Goal decomposition into sequential research and writing stages, then a checked merge | [1.05 · Workflows & Voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |
 | `style_council.yaml` | Three stylists with identical knowledge and different voices, behind one router | [1.05 · Workflows & Voice](https://lyceumagents.com/curriculum/workflows-and-voice/) |

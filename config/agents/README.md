@@ -17,8 +17,8 @@ and it is loadable by filename everywhere (`npm run chat:syndicate --
 
 Everything under `examples/` is a **starter pack**: working, tested
 syndicates that demonstrate the engine's patterns (synthesis, delegation,
-critic loops, hierarchies, MCP tools, local open-weight models, the wiki
-gardeners). They are teaching material, not product — copy them, gut them,
+critic loops, an orchestrator answering in its own JSON schema,
+hierarchies, MCP tools, local open-weight models, the wiki gardeners). They are teaching material, not product — copy them, gut them,
 delete the whole directory; the engine runs fine without them.
 
 ## `templates/` — the production templates

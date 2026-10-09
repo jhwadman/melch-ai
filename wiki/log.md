@@ -3,6 +3,14 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0109-structured-output-beside-tools.md —explains→ syndicate:structured_critic
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] build | structural build: 1 created, 1 updated
+
+by process:wiki-build
+
 ## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —depends_on→ /decisions/0047-provider-neutral-reasoning-key.md
 
 by claude-code/claude-opus-5-5

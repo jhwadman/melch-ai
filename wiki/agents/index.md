@@ -27,6 +27,7 @@
 - [Review Panel](/agents/review_panel.md) — The Review Panel syndicate.
 - [The Scribe](/agents/scribe.md) — Writes one reader-facing document from a brief, audits it through the Auditor, and returns the document alone.
 - [The Scriptorium](/agents/scriptorium.md) — Keeper of the knowledge bundle: answers what the house knows via the Seeker, records what it learns via the Illuminator.
+- [Structured Critic](/agents/structured_critic.md) — Asks a Drafter for a draft, then grades it in its own JSON schema: a polished message, a confidence score and the issues.
 - [Style Council](/agents/style_council.md) — The Style Council syndicate.
 - [Support Triage](/agents/support_triage.md) — The Support Triage syndicate.
 - [Global Synthesis Council](/agents/syndicate.md) — The Global Synthesis Council syndicate.

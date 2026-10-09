@@ -122,6 +122,19 @@ test('adding the Gemini key beside the gateway moves Gemini agents back to direc
   });
 });
 
+test('the structured critic example: one Anthropic key readies it, and its schema beside the delegation tool is no gap (ADR 0109)', () => {
+  withEnv({ ANTHROPIC_API_KEY: 'a' }, () => {
+    const result = runDoctor({ agentsDir: AGENTS });
+    const critic = result.syndicates.find((s) => s.file === 'examples/structured_critic.yaml')!;
+    assert.ok(critic, 'the example ships');
+    assert.equal(critic.tier, 'anthropic');
+    assert.equal(critic.verdict.state, 'ready');
+    const orch = critic.rows.find((r) => r.role === 'orchestrator')!;
+    assert.equal(orch.model, 'claude-opus-5-5');
+    assert.deepEqual(orch.gaps, []);
+  });
+});
+
 test('declared tiers match the models in every example', () => {
   withEnv({}, () => {
     const result = runDoctor({ agentsDir: AGENTS });

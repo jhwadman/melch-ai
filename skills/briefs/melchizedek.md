@@ -25,6 +25,7 @@ The starter pack (file → name → what it does → tier / extra requirement):
 - tutor.yaml → Tutor → one agent that teaches a topic or pasted material by questioning → keyless (Ollama with qwen3:8b pulled)
 - council.yaml → Council → an advocate and a skeptic argue a question and a chair rules → keyless
 - critic.yaml → Critic Review Workflow → a Drafter answers, a Critic scores it as JSON with a confidence field, and the loop repeats until confidence is 85 or higher (three rounds at most) → gemini
+- structured_critic.yaml → Structured Critic → the critic as one agent: it asks a Drafter for a draft, then grades it in its own JSON schema (message, confidence, issues), with no relay leaf → anthropic
 - delegation.yaml → delegation router → a router sends each request to a code or a math specialist by their descriptions → gemini
 - hierarchical.yaml → task decomposition → one goal split into parts, delegated, and merged → gemini
 - style_council.yaml → Style Council → the same knowledge answered in three engineered voices → gemini
