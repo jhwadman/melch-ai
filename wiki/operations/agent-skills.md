@@ -26,7 +26,7 @@ sources:
 | `melchizedek-author` | the syndicate YAML: layout, keys (`reasoning:` among them), instruction anatomy, tools by name, the two constraints that break a file, offline validation; ships `assets/minimal.yaml` |
 | `melchizedek-serve` | the [A2A server](/protocols/a2a.md), securing and calling it, [MCP](/protocols/mcp.md) tools for a subagent, serving your own tools over MCP |
 | `melchizedek-memory` | [long-term memory](/memory/architecture.md): modes, the [schema](/memory/schema.md), tools, extraction rules, inspection, erasure |
-| `melchizedek-models` | [provider routing](/models/provider-routing.md), keys, keyless Ollama, the gateway fallback, per-agent settings (what `reasoning:` becomes on each provider and each Claude model generation, and `thinkingConfig` / `reasoningEffort` as its older spelling; [ADR 0047](/decisions/0047-provider-neutral-reasoning-key.md), [ADR 0049](/decisions/0049-claude-requests-by-model-generation.md)), the errors |
+| `melchizedek-models` | [provider routing](/models/provider-routing.md), keys, keyless Ollama, the gateway fallback, per-agent settings (what `reasoning:` becomes on each provider and each Claude model generation, `sampling:` and `model_overrides:`, and `generateContentConfig` as their deprecated spelling; [ADR 0047](/decisions/0047-provider-neutral-reasoning-key.md), [ADR 0049](/decisions/0049-claude-requests-by-model-generation.md), [ADR 0115](/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)), the errors |
 | `melchizedek-scribe` | writing documents from a brief with [the Scribe](/agents/scribe.md); ships `assets/brief.md` |
 
 ## Installing

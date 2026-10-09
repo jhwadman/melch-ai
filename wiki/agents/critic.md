@@ -14,7 +14,7 @@ sources:
 # Critic Review Workflow
 
 <!-- wiki:fill slot="charter" -->
-The Critic Review Workflow syndicate coordinates an iterative draft-and-review process to ensure only high-confidence answers reach the user. It delegates the user's question to a DrafterAgent and routes each draft to a CriticAgent. The Critic is a leaf with no tools that holds the `outputSchema`: it returns JSON with a polished `message`, a `confidence` score from 0 to 100, and an `issues` list. The schema sits on the leaf, which delegates nothing, so the review is one structured answer.
+The Critic Review Workflow syndicate coordinates an iterative draft-and-review process to ensure only high-confidence answers reach the user. It delegates the user's question to a DrafterAgent and routes each draft to a CriticAgent. The Critic is a leaf with no tools that holds the output schema (`output.schema`): it returns JSON with a polished `message`, a `confidence` score from 0 to 100, and an `issues` list. The schema sits on the leaf, which delegates nothing, so the review is one structured answer.
 
 The loop runs within a single user-facing turn. If the confidence score is below 85, the ReviewOrchestrator sends the Critic's issues back to the DrafterAgent for a revision, for at most three rounds. It then returns the Critic's latest JSON raw and unchanged. The Critic grades without tools, so it checks a draft only as far as the model can reason. Run this syndicate to see a graded draft-and-revise loop; [Draft Review](/agents/draft_review.md) is the production template with a policy checklist in place of the score.
 <!-- /wiki:fill -->

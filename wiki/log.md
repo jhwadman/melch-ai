@@ -3,6 +3,30 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —depends_on→ /decisions/0047-provider-neutral-reasoning-key.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —explains→ module:scripts/yaml_codemod.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —constrains→ module:lib/loadSyndicate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —explains→ module:lib/agentDialect.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ module:lib/storage/postgres/taskStore.ts
 
 by claude-code/claude-opus-5-5

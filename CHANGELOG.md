@@ -160,6 +160,41 @@ the starter pack and the templates), not the repo's full history.
   bearer_env, api_key or oauth2" (was "exactly one of bearer_env or
   api_key").
 
+### YAML schema v2 (WS6-4, ADR 0115)
+
+- **Provider-neutral keys for what an agent asks of its model.**
+  `sampling: { temperature, top_p, max_output_tokens, stop }`,
+  `output: { schema, mime }` (`application/json` or `text/plain`) and
+  `reasoning:` (ADR 0047) replace `generateContentConfig` and
+  `outputSchema`. `model_overrides.<provider>` (`gemini`, `anthropic`,
+  `openai`, `xai`, `moonshot`, `ollama`) gives one provider its own
+  `instruction` or an `instruction_append`, applied for the provider the
+  agent's model routes to.
+- **`generateContentConfig` and `outputSchema` are deprecated, not
+  removed.** A v1 file loads and behaves exactly as before; each load that
+  finds them prints one line, once per file or registry id per process,
+  naming the key paths (never their values). A v2 key beside its v1
+  spelling on one agent (`sampling.temperature` with
+  `generateContentConfig.temperature`, `output.schema` with
+  `outputSchema`, …) is a load error. `toolConfig` and the effort words
+  `xhigh` and `max` have no v2 key yet and stay readable there.
+  `syndicate.schema.json` marks both keys `deprecated`.
+- **New bin `melchizedek-codemod [--check] <file|dir>…`** rewrites v1 YAML
+  into v2, keeping comments and layout; idempotent; `--check` exits
+  non-zero when a file would change. A registry row is migrated by running
+  it on the file it was published from and republishing.
+- **`LoadSyndicateOptions.onWarning`** receives the deprecation line
+  (default `console.warn`). The agent YAML types (`AgentYamlConfig`,
+  `SubagentYamlConfig`) gain `sampling`, `output` and `model_overrides`.
+  The loader (and `validateSyndicateConfig`) returns the engine form:
+  `sampling` and `output` arrive folded into `generateContentConfig` and
+  `outputSchema`.
+- **Every shipped example, template, the annotated `syndicateSchema.yaml`
+  and the author skill's `minimal.yaml` are in the v2 spelling.** Copies of
+  them keep working either way. The `ares` example's search agent now says
+  `reasoning: none` (`thinkingLevel: MINIMAL` on Gemini 3) where it said
+  `thinkingBudget: 0`.
+
 ### Durable long-running runs (WS6-5, ADR 0113)
 
 Apply migration `0014_durable_runs` (`melchizedek-db apply`) before

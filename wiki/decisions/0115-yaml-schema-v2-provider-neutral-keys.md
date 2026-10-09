@@ -16,7 +16,6 @@ sources:
   - resource: lib/loadSyndicate.ts
   - resource: lib/compile.ts
   - resource: scripts/yaml_codemod.ts
-  - resource: config/agents/syndicateSchema.yaml
   - resource: tests/agentDialect.test.ts
   - resource: tests/yamlCodemod.test.ts
 ---

@@ -2882,6 +2882,54 @@
       "evidence": "ADR 0113: a cross-replica cancel is recorded in adk_a2a_tasks.cancel_requested_at and the stored task stays canceled whatever the running instance saves.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "explains",
+      "evidence": "ADR 0115 Decision 4: toEngineAgent (lib/agentDialect.ts) folds sampling and output into the engine form; Decision 6: the v2/v1 conflict table lives beside it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0115 Decision 6: a v2 key beside its v1 spelling on one agent is a load error against the v2 key path; sampling, output and model_overrides on a yaml_reference or a2a_agent_url subagent are refused. validateSyndicateConfig applies toEngineAgent (Decision 4).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0115 Decision 5: a load that finds generateContentConfig or outputSchema prints one line through LoadSyndicateOptions.onWarning, once per file or registry id per process, naming key paths and never values.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0115 Decision 2: the compiler applies the model_overrides entry for the provider of the agent model id to the base instruction before the skills index is appended; Decision 4: it applies toEngineAgent again for configs built in code.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:scripts/yaml_codemod.ts",
+      "rel": "explains",
+      "evidence": "ADR 0115 Decision 7: melchizedek-codemod (scripts/yaml_codemod.ts) rewrites v1 keys to v2 through the yaml Document API, keeps comments, is idempotent, converts thinking to reasoning only where reasoningOf reads the same setting.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0115 Decision 1: reasoning (ADR 0047, unchanged) is the v2 key for thinkingConfig and reasoningEffort; Decision 8 relies on ADR 0047 section 3 (the effort word is always written).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }
