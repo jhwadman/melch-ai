@@ -5,26 +5,26 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 934,
-    "edges": 3868,
+    "nodes": 945,
+    "edges": 3942,
     "byKind": {
-      "doc": 187,
+      "doc": 189,
       "provider": 6,
-      "env": 106,
+      "env": 111,
       "model": 10,
       "tool": 34,
-      "file": 205,
+      "file": 206,
       "syndicate": 33,
       "agent": 91,
       "mcp-server": 4,
       "table": 18,
-      "module": 189,
-      "script": 49,
+      "module": 191,
+      "script": 50,
       "external": 2
     },
     "byRelation": {
-      "links_to": 908,
-      "requires_env": 174,
+      "links_to": 926,
+      "requires_env": 188,
       "routes_to": 10,
       "defined_in": 78,
       "documents": 57,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 808,
+      "imports": 836,
       "reads_table": 28,
-      "runs": 71,
-      "derives_from": 1040,
-      "constrains": 229,
+      "runs": 72,
+      "derives_from": 1049,
+      "constrains": 231,
       "supersedes": 20,
-      "depends_on": 140,
+      "depends_on": 142,
       "explains": 52,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3422,
-      "inferred": 446
+      "extracted": 3492,
+      "inferred": 450
     },
     "isolated": 4
   },
@@ -1864,6 +1864,18 @@
       }
     },
     {
+      "id": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "kind": "doc",
+      "label": "ADR 0125: Syndicates served as MCP tools through the A2A executor",
+      "source": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 858
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2188,6 +2200,18 @@
       }
     },
     {
+      "id": "/protocols/mcp-server.md",
+      "kind": "doc",
+      "label": "MCP server (melchizedek-mcp)",
+      "source": "/protocols/mcp-server.md",
+      "attrs": {
+        "type": "protocol",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 968
+      }
+    },
+    {
       "id": "/protocols/mcp.md",
       "kind": "doc",
       "label": "MCP",
@@ -2196,7 +2220,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 937
+        "words": 972
       }
     },
     {
@@ -3291,7 +3315,8 @@
       "id": "env:A2A_BUDGETS",
       "kind": "env",
       "label": "A2A_BUDGETS",
-      "source": "scripts/a2a_server.ts"
+      "source": "scripts/mcp_server.ts",
+      "attrs": {}
     },
     {
       "id": "env:A2A_CALLERS",
@@ -3382,21 +3407,22 @@
       "id": "env:ALLOW_PRIVATE_MCP",
       "kind": "env",
       "label": "ALLOW_PRIVATE_MCP",
-      "source": "scripts/a2a_server.ts",
+      "source": "scripts/mcp_server.ts",
       "attrs": {}
     },
     {
       "id": "env:ALLOW_PRIVATE_OPENAPI",
       "kind": "env",
       "label": "ALLOW_PRIVATE_OPENAPI",
-      "source": "scripts/a2a_server.ts",
+      "source": "scripts/mcp_server.ts",
       "attrs": {}
     },
     {
       "id": "env:ALLOW_SCHEMA_MISMATCH",
       "kind": "env",
       "label": "ALLOW_SCHEMA_MISMATCH",
-      "source": "scripts/a2a_server.ts"
+      "source": "scripts/mcp_server.ts",
+      "attrs": {}
     },
     {
       "id": "env:ALLOW_UNAUTHENTICATED",
@@ -3481,7 +3507,7 @@
       "id": "env:DATABASE_URL",
       "kind": "env",
       "label": "DATABASE_URL",
-      "source": "scripts/db.ts",
+      "source": "scripts/mcp_server.ts",
       "attrs": {}
     },
     {
@@ -3560,6 +3586,12 @@
       "source": "scripts/a2a_server.ts"
     },
     {
+      "id": "env:MCP_ALLOWED_HOSTS",
+      "kind": "env",
+      "label": "MCP_ALLOWED_HOSTS",
+      "source": "scripts/mcp_server.ts"
+    },
+    {
       "id": "env:MCP_BEARER_TOKENS",
       "kind": "env",
       "label": "MCP_BEARER_TOKENS",
@@ -3572,10 +3604,34 @@
       "source": "scripts/demo_mcp_server.ts"
     },
     {
+      "id": "env:MCP_HOST",
+      "kind": "env",
+      "label": "MCP_HOST",
+      "source": "scripts/mcp_server.ts"
+    },
+    {
       "id": "env:MCP_SCIENCE_PORT",
       "kind": "env",
       "label": "MCP_SCIENCE_PORT",
       "source": "scripts/science_mcp_server.ts"
+    },
+    {
+      "id": "env:MCP_SERVER_SECRET",
+      "kind": "env",
+      "label": "MCP_SERVER_SECRET",
+      "source": "scripts/mcp_server.ts"
+    },
+    {
+      "id": "env:MCP_TRUST_PROXY",
+      "kind": "env",
+      "label": "MCP_TRUST_PROXY",
+      "source": "scripts/mcp_server.ts"
+    },
+    {
+      "id": "env:MCP_USER_ID",
+      "kind": "env",
+      "label": "MCP_USER_ID",
+      "source": "scripts/mcp_server.ts"
     },
     {
       "id": "env:MCP_WIKI_PORT",
@@ -3587,7 +3643,7 @@
       "id": "env:MELCHIZEDEK_AGENTS_DIR",
       "kind": "env",
       "label": "MELCHIZEDEK_AGENTS_DIR",
-      "source": "scripts/doctor.ts",
+      "source": "scripts/mcp_server.ts",
       "attrs": {}
     },
     {
@@ -4827,6 +4883,13 @@
       "source": "tests/llmRequestBoundary.test.ts"
     },
     {
+      "id": "file:tests/mcpServer.test.ts",
+      "kind": "file",
+      "label": "mcpServer.test.ts",
+      "source": "tests/mcpServer.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/mcpTools.test.ts",
       "kind": "file",
       "label": "mcpTools.test.ts",
@@ -5567,6 +5630,15 @@
       "source": "lib/loadSyndicate.ts",
       "attrs": {
         "lines": 783
+      }
+    },
+    {
+      "id": "module:lib/mcp/server.ts",
+      "kind": "module",
+      "label": "lib/mcp/server.ts",
+      "source": "lib/mcp/server.ts",
+      "attrs": {
+        "lines": 708
       }
     },
     {
@@ -6965,6 +7037,15 @@
       }
     },
     {
+      "id": "module:scripts/mcp_server.ts",
+      "kind": "module",
+      "label": "scripts/mcp_server.ts",
+      "source": "scripts/mcp_server.ts",
+      "attrs": {
+        "lines": 327
+      }
+    },
+    {
       "id": "module:scripts/memory_admin.ts",
       "kind": "module",
       "label": "scripts/memory_admin.ts",
@@ -7214,6 +7295,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/science_mcp_server.ts"
+      }
+    },
+    {
+      "id": "script:mcp:serve",
+      "kind": "script",
+      "label": "npm run mcp:serve",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/mcp_server.ts"
       }
     },
     {
@@ -16980,6 +17070,90 @@
       "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md:29"
     },
     {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "file:tests/mcpServer.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "module:lib/mcp/server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "module:scripts/mcp_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/decisions/0024-adk-behind-the-runtime-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:29"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/decisions/0028-approval-gates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:24"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:24"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:24"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:24"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:24"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:24"
+    },
+    {
+      "from": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "to": "/protocols/mcp.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:24"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -21208,8 +21382,106 @@
       "evidence": "/protocols/a2a.md:39"
     },
     {
+      "from": "/protocols/mcp-server.md",
+      "to": "file:tests/mcpServer.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "module:lib/mcp/server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "module:scripts/mcp_server.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:43"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:43"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:27"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:43"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:43"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:27"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/decisions/0125-syndicates-as-mcp-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:20"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/protocols/a2a.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:47"
+    },
+    {
+      "from": "/protocols/mcp-server.md",
+      "to": "/protocols/mcp.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp-server.md:20"
+    },
+    {
       "from": "/protocols/mcp.md",
       "to": "file:tests/oauthTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "module:lib/mcp/server.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md frontmatter"
@@ -21261,63 +21533,70 @@
       "to": "/agents/librarian.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:31"
+      "evidence": "/protocols/mcp.md:32"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:33"
+      "evidence": "/protocols/mcp.md:34"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:33"
+      "evidence": "/protocols/mcp.md:34"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:37"
+      "evidence": "/protocols/mcp.md:38"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:41"
+      "evidence": "/protocols/mcp.md:42"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:40"
+      "evidence": "/protocols/mcp.md:41"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "/protocols/mcp-server.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:54"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:49"
+      "evidence": "/protocols/mcp.md:50"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:27"
+      "evidence": "/protocols/mcp.md:28"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:48"
+      "evidence": "/protocols/mcp.md:49"
     },
     {
       "from": "/tools/ask-user.md",
@@ -24650,6 +24929,97 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/a2a/identity.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/a2a/policy.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/a2a/turnLock.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/compile.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/memory/namespace.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/models/registry.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/observability/audit.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/observability/metrics.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/runtime/sessions.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
+    },
+    {
+      "from": "module:lib/mcp/server.ts",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/mcp/server.ts"
     },
     {
       "from": "module:lib/memory/namespace.ts",
@@ -29867,6 +30237,209 @@
       "evidence": "scripts/init.ts"
     },
     {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/a2a/identity.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/a2a/policy.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/loadEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/mcp/server.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/runtime/logging.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/storage/postgres/credentialStore.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/storage/postgres/index.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/storage/schema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/storage/schemaVersion.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/tools/credentialUses.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:A2A_BUDGETS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:ALLOW_PRIVATE_MCP",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:ALLOW_PRIVATE_OPENAPI",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:ALLOW_SCHEMA_MISMATCH",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:DATABASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:GEMINI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:GOOGLE_GENAI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:MCP_ALLOWED_HOSTS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:MCP_HOST",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:MCP_SERVER_SECRET",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:MCP_TRUST_PROXY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:MCP_USER_ID",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:MELCHIZEDEK_AGENTS_DIR",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
+      "to": "env:OTEL_CONSOLE_SPANS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
       "from": "module:scripts/memory_admin.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
@@ -30709,6 +31282,13 @@
     {
       "from": "script:mcp:science",
       "to": "module:scripts/science_mcp_server.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:mcp:serve",
+      "to": "module:scripts/mcp_server.ts",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"

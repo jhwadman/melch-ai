@@ -3,6 +3,22 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0125-syndicates-as-mcp-tools.md —depends_on→ /decisions/0024-adk-behind-the-runtime-seam.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | module:lib/mcp/server.ts —depends_on→ module:lib/a2a/executor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0125-syndicates-as-mcp-tools.md —constrains→ module:scripts/mcp_server.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0125-syndicates-as-mcp-tools.md —constrains→ module:lib/mcp/server.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —supersedes→ /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md
 
 by claude-code/claude-opus-5-5

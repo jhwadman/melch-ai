@@ -16,6 +16,7 @@ sources:
   - resource: lib/tools/mcpServe.ts
   - resource: lib/tools/oauthTools.ts
   - resource: tests/oauthTools.test.ts
+  - resource: lib/mcp/server.ts
 ---
 
 # MCP
@@ -42,10 +43,12 @@ The point, taught by the [Librarian](/agents/librarian.md) example: the agent's 
 
 ## Serving outward
 
-Servers are express + SSE, bound to 127.0.0.1, unauthenticated by design (never bind wider without real auth in front), rate-limited (240 requests a minute), using the low-level `Server` API:
+The contract servers are express + SSE, bound to 127.0.0.1, unauthenticated by design (never bind wider without real auth in front), rate-limited (240 requests a minute), using the low-level `Server` API:
 
 - `npm run mcp:demo` — the library-catalog teaching server (`:8931`, `MCP_DEMO_PORT`), hand-written schemas and dispatch on purpose, real read/write state persisted to `demo/library.json`.
 - `npm run mcp:wiki` — this knowledge bundle (`:8933`, `MCP_WIKI_PORT`), every tool derived from the [wiki tool contracts](/tools/wiki-tools.md); includes gated writes.
 - `npm run mcp:science` — the read-only [evidence tools](/tools/evidence-tools.md) (`:8934`, `MCP_SCIENCE_PORT`), derived from their contracts.
 
 The contract servers share one scaffold, `serveContracts` in `lib/tools/mcpServe.ts`. Its `contracts` list is the deliberate act: a contract not listed there does not exist to MCP clients. A server of your own is the same call with your own list.
+
+Syndicates themselves are served to MCP clients by a different server, `melchizedek-mcp`: one tool per syndicate over stdio or authenticated Streamable HTTP, each call a task through the A2A executor. See [MCP server](/protocols/mcp-server.md).

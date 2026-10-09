@@ -1146,6 +1146,95 @@ and the parent changes only when it is published again. `--no-bundle` stores
 the references bare, to resolve from files at run time; a version published
 before bundling existed behaves that way too.
 
+### MCP server mode (`melchizedek-mcp`)
+
+`npx melchizedek-mcp` (clone: `npm run mcp:serve --`) serves syndicates as
+MCP tools, so Claude Code, Codex or any MCP client asks a syndicate the way
+it calls any other tool ([ADR 0125](./wiki/decisions/0125-syndicates-as-mcp-tools.md)).
+Each syndicate is one tool named after its file (`research_desk.yaml` is
+`research_desk`), described by its orchestrator's `description`, taking
+`{ message, session_id? }`. The result is the turn's answer, then a line with
+the `session_id`; pass it back to continue the conversation, omit it to start
+a new one. An answer declared by an output schema (or JSON mode) is also
+returned as `structuredContent.output`. One more tool, `melch_resume
+{ session_id, approve?, answer? }`, answers a turn that paused.
+
+Which syndicates: `--syndicate <id>` (repeatable; a bare id also finds the
+shipped `examples/` and `templates/`), else every YAML at the agents
+directory's root (`--agents-dir`, `MELCHIZEDEK_AGENTS_DIR`, else
+`./config/agents`).
+
+**Claude Code** (stdio, run from the project, which holds `.env` and
+`config/agents/`):
+
+```bash
+claude mcp add melch -- npx melchizedek-mcp --syndicate research_desk
+# not installed in the project:
+claude mcp add melch -- npx -y -p melchizedek-agents melchizedek-mcp --syndicate research_desk
+# a remote server over Streamable HTTP:
+claude mcp add --transport http melch https://mcp.example.com/mcp --header "Authorization: Bearer $MCP_SERVER_SECRET"
+```
+
+A turn can run for minutes: raise Claude Code's tool timeout with
+`MCP_TOOL_TIMEOUT` (ms) when a syndicate needs longer than its default. The
+server sends progress notifications while a turn works.
+
+**Codex** (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.melch]
+command = "npx"
+args = ["-y", "-p", "melchizedek-agents", "melchizedek-mcp", "--syndicate", "research_desk"]
+cwd = "/path/to/your/project"
+tool_timeout_sec = 900
+
+# or a running HTTP server:
+# [mcp_servers.melch]
+# url = "http://127.0.0.1:4100/mcp"
+# bearer_token_env_var = "MCP_SERVER_SECRET"
+```
+
+**Pauses.** A turn that stops for a person returns `status: input-required`
+with what is waiting and the `session_id`, and nothing has run:
+
+| Waiting for | The result says | Resume with |
+|---|---|---|
+| an approval (`require_approval`) | the agent, the tool, its arguments | `melch_resume { session_id, approve: true \| false }` |
+| a question (`ask_user`) | the question and its options | `melch_resume { session_id, answer }` |
+| an OAuth grant | the provider and the authorization URL | `melch_resume { session_id }` once the person has granted it |
+
+An approval is answered only through `melch_resume`'s explicit `approve`: a
+message that reads "approve" on the syndicate's own tool repeats the request.
+The server never approves anything itself. Resumes run through the same path
+an A2A answer does, so a call paused inside a delegated subagent, a dispatch
+route or a workflow node resumes where it paused.
+
+**Transports.** stdio is the default; every log line goes to stderr, so stdout
+carries only the protocol. `--http` serves Streamable HTTP at `/mcp`
+(stateful sessions, `Mcp-Session-Id`), on `127.0.0.1:4100` (`--host`,
+`--port`, `MCP_HOST`, `MCP_PORT`). On loopback the Host header must name
+loopback (DNS rebinding). Beyond loopback the bin refuses to start without
+`MCP_SERVER_SECRET` (32 characters or more), which every request then
+presents as `Authorization: Bearer`; `MCP_ALLOWED_HOSTS` names the Host
+values it answers, `MCP_TRUST_PROXY` the proxies in front. Requests are
+limited to `MCP_RATE_LIMIT_PER_MINUTE` (240) per IP, and failed
+authentications to 30 per 15 minutes per IP. `X-User-Id` scopes an HTTP
+caller's sessions and memory as on the A2A server; a stdio client's scope is
+`MCP_USER_ID` (default `default`).
+
+**The same turn as A2A.** Each tool call is one task through the A2A
+executor: budgets (`A2A_BUDGETS`), the concurrency caps
+(`A2A_MAX_CONCURRENT_*`), one turn at a time per conversation, the deadline
+(`A2A_TASK_TIMEOUT_MS`), guards, the ledger, the task record and memory
+ingestion. MCP's `notifications/cancelled` cancels the turn. `DATABASE_URL`
+keeps sessions, memory, turn locks, the audit trail and tool credentials in
+Postgres; without it they live in process memory. The OAuth consent callback
+is mounted on `--http` when `OAUTH_REDIRECT_URI` is set; stdio serves none.
+
+In your own process: `createMcpServer({ syndicates, ... })` from
+`melchizedek-agents/mcp`, then `serveMcpStdio(mcp)` or
+`mcpHttpApp(mcp, { secret })`.
+
 ### Plan-dispatch routing (`dispatch:`) — the second orchestration method
 
 A syndicate that declares a `dispatch:` block stops delegating and

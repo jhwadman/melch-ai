@@ -8,6 +8,22 @@ the starter pack and the templates), not the repo's full history.
 
 ### Added
 
+- **`melchizedek-mcp`: syndicates as MCP tools** (ADR 0125). A new bin
+  serves each loaded syndicate as one MCP tool (`{ message, session_id? }`;
+  the answer, then its `session_id`; `structuredContent.output` for a
+  syndicate with an output schema) plus `melch_resume { session_id,
+  approve?, answer? }` for a turn that paused on an approval, an `ask_user`
+  question or an OAuth consent. stdio by default (`claude mcp add melch --
+  npx melchizedek-mcp`, or a Codex `[mcp_servers]` table); `--http` serves
+  Streamable HTTP at `/mcp` on 127.0.0.1:4100 and refuses a bind beyond
+  loopback without `MCP_SERVER_SECRET` (32+ characters). Every call is one
+  task through the A2A executor, so budgets, caps, the turn lock, deadlines,
+  cancel (`notifications/cancelled`), guards and the ledger match
+  `melchizedek-serve`; an approval is answered only by `melch_resume`'s
+  explicit `approve`. Surface addition: the `melchizedek-mcp` bin and the
+  `melchizedek-agents/mcp` export path (`createMcpServer`, `serveMcpStdio`,
+  `mcpHttpApp`, `mcpBindProblem`, `toolNameFor`, `RESUME_TOOL`).
+
 - **Skill scripts on a delegated subagent.** `skills.scripts: local` is no
   longer a load error on a delegated subagent (or a nested delegate
   syndicate's): a `run_skill_script` call there pauses the turn
