@@ -681,6 +681,116 @@ test('task queue: concurrent workers never claim the same job; a dead worker\'s 
   assert.deepEqual(row, { status: 'done', lease_owner: null });
 });
 
+test('durable runs (migration 0014): checkpoints beside the record, leased, kept on requeue, dropped otherwise; a running job can be cancelled', { skip }, async () => {
+  const { taskUpdateContract } = await import('../lib/tools/taskTools.ts');
+  const q = storage.taskQueue;
+  const owner = 'durable-owner';
+  const w = { workerId: 'dw-1', leaseMs: 60_000 };
+  const other = { workerId: 'dw-2', leaseMs: 60_000 };
+  const queue = (title: string) =>
+    q.mutate(owner, (s: any) => {
+      s.tasks.push({ id: `t${s.next_id}`, kind: 'background', status: 'queued', title, instruction: 'x', created_at: '', updated_at: '' });
+      s.next_id += 1;
+    });
+  const row = async (id: string) =>
+    (await pool.query(`SELECT status, record, checkpoint, checkpoint_at, lease_owner FROM melchizedek_tasks WHERE owner = $1 AND id = $2`, [owner, id])).rows[0];
+  // Only this test's owner: other tests leave queued jobs of their own owners.
+  const claimMine = async (worker: typeof w) => {
+    const j = await q.claimNext(worker);
+    assert.equal(j?.owner, owner, 'no other owner has a queued job left');
+    return j!;
+  };
+
+  // Saved by the lease holder only, read back, never inside the record.
+  await queue('long run');
+  const job = await claimMine(w);
+  assert.equal(await q.loadCheckpoint!(job), null);
+  assert.equal(await q.saveCheckpoint!(w, job, { step: 1, memo: 'a' }), true);
+  assert.equal(await q.saveCheckpoint!(other, job, { step: 99 }), false, 'another worker cannot write it');
+  assert.deepEqual(await q.loadCheckpoint!(job), { step: 1, memo: 'a' });
+  let r = await row(job.id);
+  assert.ok(r.checkpoint_at, 'stamped');
+  assert.ok(!JSON.stringify(r.record).includes('step'), 'the record never carries the checkpoint');
+  assert.ok(!JSON.stringify((await q.read(owner)).tasks).includes('step'), 'read() never returns it');
+  assert.equal(await q.renew(w, job), true);
+  assert.equal(await q.renew(other, job), false, 'renew by a non-holder reports no claim');
+
+  // A live lease is not recovered: the checkpoint and claim stay.
+  assert.deepEqual((await q.recover()).requeued.filter((x) => x.startsWith(owner)), []);
+  assert.equal((await row(job.id)).lease_owner, 'dw-1');
+
+  // Interrupted: requeued keeps it, the next claim resumes from it; recover leaves the queued job alone.
+  await pool.query(`UPDATE melchizedek_tasks SET lease_until = now() - interval '1 second' WHERE owner = $1 AND id = $2`, [owner, job.id]);
+  assert.deepEqual((await q.recover()).requeued, [`${owner}:${job.id}`]);
+  r = await row(job.id);
+  assert.equal(r.status, 'queued');
+  assert.deepEqual(r.checkpoint, { step: 1, memo: 'a' });
+  assert.equal(await q.saveCheckpoint!(w, job, { step: 2 }), false, 'the old lease is gone');
+  assert.deepEqual(await q.recover(), { requeued: [], failed: [] }, 'a queued job is never touched by recover');
+  assert.deepEqual((await row(job.id)).checkpoint, { step: 1, memo: 'a' });
+  const resumed = await claimMine(other);
+  assert.equal(resumed.id, job.id);
+  assert.deepEqual(await q.loadCheckpoint!(resumed), { step: 1, memo: 'a' }, 'claimNext leaves it');
+  assert.equal(await q.saveCheckpoint!(w, resumed, { step: 2 }), false, 'the first worker no longer holds it');
+  assert.equal(await q.saveCheckpoint!(other, resumed, { step: 2 }), true);
+
+  // Finished: done drops it.
+  await q.finish(resumed, { result: 'ok' });
+  r = await row(job.id);
+  assert.equal(r.status, 'done');
+  assert.equal(r.checkpoint, null);
+  assert.equal(r.checkpoint_at, null);
+  assert.equal(await q.loadCheckpoint!(resumed), null);
+  assert.equal(await q.renew(other, resumed), false);
+
+  // Failed after MAX_ATTEMPTS by recover: dropped.
+  await queue('crashy');
+  for (;;) {
+    const j = await claimMine(w);
+    await q.saveCheckpoint!(w, j, { attempt: j.attempts });
+    await pool.query(`UPDATE melchizedek_tasks SET lease_until = now() - interval '1 second' WHERE owner = $1 AND id = $2`, [owner, j.id]);
+    const rec = await q.recover();
+    if (rec.failed.length) {
+      assert.deepEqual(rec.failed, [`${owner}:${j.id}`]);
+      r = await row(j.id);
+      assert.equal(r.status, 'failed');
+      assert.equal(r.checkpoint, null);
+      break;
+    }
+    assert.deepEqual((await row(j.id)).checkpoint, { attempt: j.attempts });
+  }
+
+  // Cancelled while running, through the tool: accepted, the claim and checkpoint end, a late outcome is ignored.
+  const { setTaskBackend, fileTaskBackend } = await import('../lib/tools/taskTools.ts');
+  await queue('to cancel');
+  const running = await claimMine(w);
+  assert.equal(await q.saveCheckpoint!(w, running, { step: 1 }), true);
+  setTaskBackend(q);
+  try {
+    assert.match(
+      await taskUpdateContract.execute({ id: running.id, status: 'cancelled' } as any, { userId: owner }),
+      /\[cancelled · background\]/,
+    );
+  } finally {
+    setTaskBackend(fileTaskBackend);
+  }
+  assert.equal(await q.renew(w, running), false, 'the worker learns the claim is gone');
+  assert.equal(await q.saveCheckpoint!(w, running, { step: 2 }), false);
+  r = await row(running.id);
+  assert.deepEqual([r.status, r.checkpoint, r.lease_owner], ['cancelled', null, null]);
+  await q.finish(running, { result: 'late' });
+  assert.equal((await row(running.id)).status, 'cancelled', 'the outcome leaves a cancelled record alone');
+
+  // A deleted record takes its checkpoint along.
+  await queue('pruned');
+  const gone = await claimMine(w);
+  await q.saveCheckpoint!(w, gone, { step: 1 });
+  await q.mutate(owner, (s: any) => {
+    s.tasks = s.tasks.filter((t: any) => t.id !== gone.id);
+  });
+  assert.equal(await q.loadCheckpoint!(gone), null);
+});
+
 test('a private schema: the whole chain installs into it and the stores work there', { skip }, async () => {
   const { sqlForSchema } = await import('../lib/storage/schema.ts');
   const { shippedSchemaVersion } = await import('../lib/storage/schemaVersion.ts');

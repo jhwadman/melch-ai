@@ -2842,6 +2842,46 @@
       "evidence": "ADR 0110 Decisions 1 and 5: a paused child resolves the call to a SubagentPause; resumeSubagent stores the answer as the child's next message.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "/decisions/0015-task-queue-and-worker.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0113 Context: \"ADR 0015 runs background work as a queue the tools write and a worker drains\"; durable runs extend that queue and worker.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/runtime/native/checkpoint.ts",
+      "rel": "explains",
+      "evidence": "ADR 0113 Decision: \"lib/runtime/native/checkpoint.ts wraps the in-process store a job runs on\" and checkpoints at each step boundary.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0113 Decision: SIGTERM re-queues the job with its checkpoint, and a cancelled job loses its claim and gets no result written over it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "table:melchizedek_tasks",
+      "rel": "constrains",
+      "evidence": "ADR 0113: the checkpoint is stored beside the job in melchizedek_tasks.checkpoint and lives only while the job is running or queued.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "to": "module:lib/storage/postgres/taskStore.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0113: a cross-replica cancel is recorded in adk_a2a_tasks.cancel_requested_at and the stored task stays canceled whatever the running instance saves.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

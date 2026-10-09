@@ -21,7 +21,7 @@ import { ERASE_STORES } from '../../memory/erase.ts';
 import type { EraseCounts, EraseOptions } from '../../memory/erase.ts';
 import { postgresMemoryStore } from './memoryStore.ts';
 import { PostgresSessionService } from './sessionService.ts';
-import { PostgresTaskStore, reapExpiredTasks, renewTaskLeases } from './taskStore.ts';
+import { PostgresTaskStore, cancelRequestedTasks, reapExpiredTasks, renewTaskLeases } from './taskStore.ts';
 import { postgresTaskBackend } from './taskQueue.ts';
 import { postgresCredentialStore } from './credentialStore.ts';
 import type { CredentialStoreOptions } from '../../tools/credentialStore.ts';
@@ -110,8 +110,18 @@ export interface PostgresStorage {
   turnLock: TurnLock;
   /** The task tools' lists and job queue (lib/tools/taskTools.ts setTaskBackend). */
   taskQueue: TaskBackend;
-  /** Task leases: renew this instance's, fail other instances' expired ones. */
-  leases: { instanceId: string; ttlMs: number; renew: () => Promise<number>; reap: () => Promise<number> };
+  /**
+   * Task leases: renew this instance's, fail other instances' expired ones,
+   * and list this instance's running tasks a caller asked another instance
+   * to cancel (migration 0014, ADR 0113).
+   */
+  leases: {
+    instanceId: string;
+    ttlMs: number;
+    renew: () => Promise<number>;
+    reap: () => Promise<number>;
+    cancelRequested?: () => Promise<string[]>;
+  };
   /** Closes the pool when this module created it, and the lock pool. */
   close: () => Promise<void>;
 }
@@ -215,7 +225,12 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
     ...(credentials ? { credentials } : {}),
     ...(memoryService ? { memoryService } : {}),
     taskStore: (agentId) => new PostgresTaskStore(pool, agentId, { ttlDays: options.ttlDays, ownerResolver: options.taskOwner, lease }),
-    leases: { ...lease, renew: () => renewTaskLeases(pool, lease), reap: () => reapExpiredTasks(pool) },
+    leases: {
+      ...lease,
+      renew: () => renewTaskLeases(pool, lease),
+      reap: () => reapExpiredTasks(pool),
+      cancelRequested: () => cancelRequestedTasks(pool, lease),
+    },
     taskQueue: postgresTaskBackend(pool),
     async schemaVersion() {
       try {
