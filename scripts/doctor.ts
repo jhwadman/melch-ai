@@ -22,7 +22,7 @@
  * Usage:
  *   npm run doctor
  *   npm run doctor -- --json          # machine-readable
- *   npm run doctor -- --check         # exit 1 on a blocked syndicate, a runtime problem, or an OAuth or credential host problem
+ *   npm run doctor -- --check         # exit 1 on a blocked syndicate, a runtime problem, an unrecognised MODEL_GATEWAY, or an OAuth or credential host problem
  *   npm run doctor -- --matrix        # the provider × capability matrix
  *   npm run doctor -- --fix-namespaces [file…]   # give long-term syndicates a memory_namespace
  *   MELCHIZEDEK_AGENTS_DIR=/path npm run doctor

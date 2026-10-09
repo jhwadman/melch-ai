@@ -8,8 +8,10 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 import {
+  checkProblems,
   declaredTierOf,
   listSyndicateFiles,
   renderDoctor,
@@ -224,6 +226,56 @@ test('an unrecognised MODEL_GATEWAY is reported by name and the accepted values,
     assert.match(out, /gateway +✗ MODEL_GATEWAY is set to an unrecognised value/);
     for (const text of [out, JSON.stringify(result)]) assert.ok(!text.includes(pasted), 'the value never appears');
   });
+});
+
+test('--check fails on an unrecognised MODEL_GATEWAY, naming the accepted values only', () => {
+  const pasted = 'fake-sk-pasted-into-the-wrong-variable-0123456789';
+  withEnv({ MODEL_GATEWAY: pasted }, () => {
+    const result = runDoctor({ agentsDir: AGENTS });
+    const problems = checkProblems(result);
+    assert.ok(
+      problems.includes('gateway: MODEL_GATEWAY is set to an unrecognised value (not shown); it must be one of: vercel, openrouter'),
+      problems.join('\n'),
+    );
+    assert.ok(!problems.join('\n').includes(pasted), 'the value never appears');
+  });
+  // A recognised gateway, or none, adds no gateway line.
+  for (const vars of [{}, { MODEL_GATEWAY: 'vercel', MODEL_GATEWAY_API_KEY: 'k' }, { MODEL_GATEWAY: ' OpenRouter ', MODEL_GATEWAY_API_KEY: 'k' }] as Record<string, string>[]) {
+    withEnv(vars, () => {
+      assert.ok(!checkProblems(runDoctor({ agentsDir: AGENTS })).some((p) => p.startsWith('gateway:')), JSON.stringify(vars));
+    });
+  }
+});
+
+test('melchizedek-doctor --check exits 1 on an unrecognised MODEL_GATEWAY and never prints it, in text or --json', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-gateway-check-'));
+  try {
+    // A local model, so no syndicate is blocked: only the gateway decides.
+    fs.writeFileSync(
+      path.join(dir, 'local.yaml'),
+      ['syndicate_name: Local', 'orchestrator:', '  name: Lead', '  model: ollama/llama3.2', '  instruction: x', ''].join('\n'),
+    );
+    const pasted = 'fake-sk-pasted-into-the-wrong-variable-0123456789';
+    const doctor = path.resolve('scripts/doctor.ts');
+    const base: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: dir, MELCHIZEDEK_AGENTS_DIR: dir, MELCHIZEDEK_DOTENV: 'off' };
+    const run = (env: NodeJS.ProcessEnv, ...flags: string[]) =>
+      spawnSync(process.execPath, ['--disable-warning=DEP0040', '--experimental-strip-types', doctor, '--check', '--no-color', ...flags], {
+        cwd: dir,
+        env,
+        encoding: 'utf8',
+        timeout: 60_000,
+      });
+    const clean = run(base);
+    assert.equal(clean.status, 0, clean.stdout + clean.stderr);
+    for (const flags of [[], ['--json']]) {
+      const bad = run({ ...base, MODEL_GATEWAY: pasted }, ...flags);
+      assert.equal(bad.status, 1, bad.stdout + bad.stderr);
+      assert.match(bad.stdout, /MODEL_GATEWAY is set to an unrecognised value \(not shown\); it must be one of: vercel, openrouter/);
+      assert.ok(!bad.stdout.includes(pasted) && !bad.stderr.includes(pasted), `the value never appears (${flags.join(' ') || 'text'})`);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('capability gaps: each agent row names what its path cannot fully do (ADR 0019)', () => {
