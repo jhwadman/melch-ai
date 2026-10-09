@@ -44,6 +44,8 @@ Three constraints shape the YAML:
 6. **The consent step's clients come from the same YAML.** `oauthClientsFor(configs)` returns `oauthConsent({ providers })`'s map from the authorization-code blocks, reading ids and secrets from their variables. Two declarations of one provider must agree. `oauthRefreshProviders(clients)` gives the credential store the matching refresh hooks (RFC 6749 6), so an expired grant is renewed rather than asked for again.
 7. **The doctor lists every tool that needs a grant**: the agent, the provider, the grant, the scopes and which variables are unset, names only.
 
+> **Note (2026-10-09):** [ADR 0118](/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md) lets a delegated subagent's authorization-code tool ask for consent: the pause reaches the turn through the open call, and the next message after the grant resumes the subagent's call. The Consequences line saying only the orchestrator or a dispatch route raises the consent pause no longer holds, and the systems_operator template's comment says so.
+
 ## Alternatives considered
 
 - **A syndicate-level `oauth_providers:` block that tools reference by name.** Rejected for now. It keeps one provider in one place, but splits a tool from its grant across the file, and the doctor and the reader then join two places. Rule 6's agreement check gives the one-provider guarantee without it.

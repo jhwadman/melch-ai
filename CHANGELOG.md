@@ -6,6 +6,25 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **Skill scripts on a delegated subagent.** `skills.scripts: local` is no
+  longer a load error on a delegated subagent (or a nested delegate
+  syndicate's): a `run_skill_script` call there pauses the turn
+  `input-required` with `approval.path`, and the decision runs or refuses the
+  script in the subagent before its caller continues. An agent a map node
+  runs still may not carry scripts (ADR 0118).
+- **OAuth consent inside a delegated subagent.** A subagent's
+  `authorization_code` tool (an `mcp_auth` or OpenAPI `auth.oauth2` grant)
+  now asks for a missing grant instead of answering `not_connected`: the turn
+  ends `input-required` with `consent`, whose new optional `path` names the
+  agents from the turn's own down to the one that asked (`PendingConsent.path`;
+  the A2A `consent_request` data part carries `path` too). The callback stores
+  the grant under the conversation's app, and the next message resumes the
+  subagent's call. The host allowlist's checks are unchanged. The
+  systems_operator template's comment says authorization_code works on its
+  Systems subagent (ADR 0118).
+
 ### Changed
 
 - **A nested workflow run as a dispatch route or a workflow node pauses the

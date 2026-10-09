@@ -818,7 +818,10 @@ ends at the node, e.g. `["Desk", "Writer", "Send"]`. A workflow run as a
 dispatch route or as another workflow's node pauses the turn the same way
 ([ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)),
 the path running from the route or node down, e.g. `["Writer", "Send"]`.
-Skill scripts on a delegated subagent are still a load error. Only function tools from the registry can be gated, not MCP tools
+Skill scripts (`skills.scripts: local`) on a delegated subagent pause the
+same way, with `run_skill_script` as the tool
+([ADR 0118](./wiki/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md));
+an agent a map node runs still may not carry them. Only function tools from the registry can be gated, not MCP tools
 or native-search sentinels. In code, `runSyndicateTurn` returns
 `status: 'input-required'` with `approval`, and the next turn's part
 `approvalResponsePart(approval.id, approved)` answers it.
@@ -892,6 +895,13 @@ await createA2AApp({ /* … */ toolCredentials: { store, consent } });
 3. **The resume.** Their next message on the conversation runs the paused
    call again. A message sent before the grant gets the same request back,
    without a model call.
+
+The call may sit in a delegated subagent, at any depth (the systems_operator
+template's Systems, say): the request then carries `path`, the agents from
+the turn's own down to the one that asked (in the data part and in
+`consent.path`), the grant is stored under the conversation's app, and the
+next message resumes that subagent's call before its caller continues
+([ADR 0118](./wiki/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md)).
 
 The callback refuses these, and stores nothing:
 
