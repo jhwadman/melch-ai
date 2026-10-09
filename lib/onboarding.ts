@@ -523,7 +523,7 @@ export function detectLevels(result: DoctorResult): LevelDetection[] {
     },
     gateway: {
       detected: !!result.gateway?.usable,
-      // An unknown MODEL_GATEWAY value is never echoed (the doctor's own line quotes it).
+      // An unknown MODEL_GATEWAY value is never echoed, here or on the doctor's own line.
       evidence: !result.gateway
         ? `${GATEWAY_ENV} unset`
         : knownGateway

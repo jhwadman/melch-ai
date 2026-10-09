@@ -214,6 +214,18 @@ test('renderDoctor never prints a key value', () => {
   });
 });
 
+test('an unrecognised MODEL_GATEWAY is reported by name and the accepted values, never echoed', () => {
+  const pasted = 'fake-sk-pasted-into-the-wrong-variable-0123456789';
+  withEnv({ MODEL_GATEWAY: pasted, MODEL_GATEWAY_API_KEY: 'fake-gateway-key' }, () => {
+    const result = runDoctor({ agentsDir: AGENTS });
+    assert.equal(result.gateway?.usable, false);
+    assert.match(result.gateway?.problem ?? '', /MODEL_GATEWAY is set to an unrecognised value \(not shown\); it must be one of: vercel, openrouter/);
+    const out = renderDoctor(result, { color: false });
+    assert.match(out, /gateway +✗ MODEL_GATEWAY is set to an unrecognised value/);
+    for (const text of [out, JSON.stringify(result)]) assert.ok(!text.includes(pasted), 'the value never appears');
+  });
+});
+
 test('capability gaps: each agent row names what its path cannot fully do (ADR 0019)', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-gaps-'));
   try {

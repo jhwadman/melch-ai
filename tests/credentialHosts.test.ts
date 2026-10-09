@@ -269,11 +269,12 @@ test('allowed to its host, and at call time refused with nothing sent once the o
     }
     // The server's own token is held from before; a fresh source must fetch one, and is refused.
     const source = await underHosts(HOSTS, () => oauthTokenSource(clientCreds(), 'x', `${base}/api`, { allowPrivate: true }));
-    await assert.rejects(source(ctx, `${base}/api`), (e: unknown) => e instanceof ToolCredentialError && e.code === 'host_refused');
+    await assert.rejects(source(ctx, `${base}/api`), (e: unknown) => e instanceof ToolCredentialError && e.code === 'host_refused' && e.allowlist === 'credential' && /client secret may not be sent to this host: the operator's credential host allowlist \(MELCHIZEDEK_CREDENTIAL_HOSTS\)/.test(e.message) && !e.message.includes('MELCHIZEDEK_OAUTH_HOSTS') && !e.message.includes(SECRET));
     // The refresh hook and the consent step's code exchange carry the client secret: refused too.
     const clients = await underHosts(HOSTS, () => oauthClientsFor([{ orchestrator: { name: 'Ops', mcp_server_url: `${base}/sse`, mcp_auth: { oauth2: authCode() } } }], { allowlist: { tracker: ['127.0.0.1'] } }));
     const refresh = oauthRefreshProviders(clients, { allowPrivate: true }).tracker!;
-    await assert.rejects(refresh.refresh!('fake-refresh', { scopes: [] }), (e: unknown) => e instanceof ToolCredentialError && e.code === 'host_refused');
+    // The OAuth host allowlist is unset here, so the refresh token is refused first, and the refusal names that list.
+    await assert.rejects(refresh.refresh!('fake-refresh', { scopes: [] }), (e: unknown) => e instanceof ToolCredentialError && e.code === 'host_refused' && e.allowlist === 'oauth');
     const cipher = credentialCipherFromEnv({ MELCHIZEDEK_CREDENTIAL_KEY: randomBytes(32).toString('base64') })!;
     const consent = oauthConsent({ providers: clients, redirectUri: 'https://agents.example.com/oauth/callback', credentials: credentialStore({ rows: memoryCredentialRows(), cipher }) });
     const begun = await consent.begin({ appName: 'Desk', userId: 'alice', sessionId: 's1', functionCallId: 'call-1', provider: 'tracker' });

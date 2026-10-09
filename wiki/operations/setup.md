@@ -40,7 +40,7 @@ With [Ollama](https://ollama.com) serving `qwen3:8b` (the smallest pulled model 
 
 ## Path A″ — one key for every cloud provider
 
-`MODEL_GATEWAY=vercel` (or `openrouter`) with `MODEL_GATEWAY_API_KEY` serves any cloud model id whose direct key is absent through that gateway. It is a fallback: a direct key set beside it always wins for its own provider, so adding `GOOGLE_GENAI_API_KEY` later restores Gemini grounding with no YAML change. Native search is lost on the gateway path and the doctor says so per agent ([ADR 0012](/decisions/0012-direct-adapters-canonical.md)).
+`MODEL_GATEWAY=vercel` (or `openrouter`) with `MODEL_GATEWAY_API_KEY` serves any cloud model id whose direct key is absent through that gateway. It is a fallback: a direct key set beside it always wins for its own provider, so adding `GOOGLE_GENAI_API_KEY` later restores Gemini grounding with no YAML change. Native search is lost on the gateway path and the doctor says so per agent ([ADR 0012](/decisions/0012-direct-adapters-canonical.md)). Any other `MODEL_GATEWAY` value is reported as unrecognised, with the accepted values, and the value itself is never shown.
 
 ## Path B — A2A HTTP server (~15 min)
 

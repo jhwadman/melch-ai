@@ -3,6 +3,18 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/auth.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/auth.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/doctor.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —supersedes→ /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md
 
 by claude-code/claude-opus-5-5
