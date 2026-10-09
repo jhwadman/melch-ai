@@ -26,11 +26,16 @@
  * be logged, traced, and streamed to a waiting user as progress. In DELEGATE
  * mode the choice is only ever implicit in a tool call.
  *
- * ── Why the router MUST be tool-less ──────────────────────────────────────
- * The classifier holds an `outputSchema`, and an agent holding one answers
- * with that JSON and nothing else (see config/agents/examples/critic.yaml; ADK
- * refused the combination outright). So the classifier is a leaf with no
- * subagent tools, and dispatch happens in code where it belongs.
+ * ── Why the router is tool-less ────────────────────────────────────────────
+ * The classifier holds an `outputSchema`, and an agent holding one ends its
+ * turn on that JSON. Its JSON names a route for code to run, so it holds no
+ * subagent tools: dispatch happens in code where it belongs. This is a choice
+ * of method, not a constraint of the engine: an orchestrator may hold an
+ * `outputSchema` beside its subagent tools, delegate, and answer in that
+ * schema itself (ADR 0109; ADK refused the combination, the engine does not).
+ * Plan-dispatch is for a turn whose answer IS the specialist's; a schema on a
+ * delegating orchestrator is for a turn whose answer is the orchestrator's
+ * own structured judgment of what its team returned.
  *
  * ── Fail-static ───────────────────────────────────────────────────────────
  * Every failure mode here resolves to `default_route` and answers the user.

@@ -24,7 +24,7 @@ import { planTransport } from './gateway.ts';
 import type { TransportPlan } from './gateway.ts';
 import { nativeSearchOn, PLATFORMS_FOR, platformFromEnv } from './endpoints.ts';
 import type { Platform } from './endpoints.ts';
-import { claudeUrlImagesOn } from './claudeModels.ts';
+import { claudeGeneration, claudeUrlImagesOn } from './claudeModels.ts';
 import type { ReasoningSetting } from '../loadSyndicate.ts';
 
 /** The platform a direct path uses (ADR 0023); a misconfigured one reads as direct here, the doctor reports it. */
@@ -151,6 +151,7 @@ export const CAPABILITIES = [
   'delegation',
   'memory_tools',
   'structured_output',
+  'structured_output_with_tools',
   'thinking_with_tools',
   'streaming',
   'vision',
@@ -162,6 +163,7 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   delegation: 'delegation (subagents as tools)',
   memory_tools: 'memory tools (load_memory)',
   structured_output: 'structured output (outputSchema)',
+  structured_output_with_tools: 'structured output beside tools (an outputSchema on an agent that calls tools or delegates)',
   thinking_with_tools: 'thinking with tool use',
   streaming: 'token streaming',
   vision: 'image input',
@@ -192,6 +194,8 @@ const nativeSearch = (row: ProviderId): CapabilityCell =>
 
 const responsesReasoningNote = (ids: string): string =>
   `encrypted reasoning items are replayed verbatim within the turn's tool loop, with store: false (ADR 0050); ${ids}`;
+const setModelResponseNote = (why: string): string =>
+  `the schema travels as a set_model_response tool beside the agent's tools, so the model is asked, not held, to answer in it: the turn ends when it calls the tool, and its arguments are the answer (${why}; ADR 0109)`;
 const CHAT_THINKING_NOTE =
   "reasoning: is the lever, sent as reasoning_effort in the model's word, a thinking budget as the level that covers it (ADR 0047); the reasoning is not carried between tool steps, so the model re-reasons each step";
 
@@ -200,6 +204,9 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok(),
+    structured_output_with_tools: degraded(
+      setModelResponseNote('on the Gemini API; Gemini 2 and later on Vertex AI take responseJsonSchema beside the tools in one request'),
+    ),
     thinking_with_tools: ok(),
     streaming: ok(),
     vision: ok(),
@@ -211,6 +218,10 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     structured_output: ok(
       'test',
       'output_config.format (json_schema) from Opus 4.8, Sonnet 5 and Haiku 5.5 on; a forced tool call on Claude 4.6 and earlier and Opus 4.7, offered under tool_choice auto when thinking is on (ADR 0049)',
+    ),
+    structured_output_with_tools: ok(
+      'test',
+      'output_config.format beside the tools in one request from Opus 4.8, Sonnet 5 and Haiku 5.5 on; Claude 4.6 and earlier and Opus 4.7 get a set_model_response tool beside them (ADR 0109)',
     ),
     thinking_with_tools: ok(
       'test',
@@ -224,6 +235,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok(),
+    structured_output_with_tools: ok('test', 'text.format (strict json_schema) beside the tools in one request (ADR 0109)'),
     thinking_with_tools: ok('test', responsesReasoningNote('reasoning ids only (o-series, gpt-5*)')),
     streaming: ok(),
     vision: ok('test', 'user-turn images only'),
@@ -233,6 +245,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok(),
+    structured_output_with_tools: degraded(setModelResponseNote('the schema is not yet sent beside tools on xAI')),
     thinking_with_tools: ok('test', responsesReasoningNote('grok-4.5, grok-4.6 and grok-4.7; other grok ids re-reason each step')),
     streaming: ok(),
     vision: ok('test', 'user-turn images only'),
@@ -242,6 +255,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok('test', 'strict json_schema; kimi-k2.6 is documented as unstable on complex schemas ($ref, oneOf)'),
+    structured_output_with_tools: degraded(setModelResponseNote('the schema is not yet sent beside tools on Moonshot')),
     thinking_with_tools: ok(
       'test',
       "reasoning_content is sent back on the turn's tool-loop assistant messages for the same model (ADR 0046) on kimi-k3, kimi-k2.6 and kimi-k2.7-code; earlier turns' reasoning is not, which K3 and K2.7 Code also ask for; effort travels as reasoning_effort (K3) or a thinking switch (K2.x)",
@@ -256,6 +270,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok('test', 'json_schema, enforced by grammar-constrained decoding from Ollama 0.5.0 (an older server ignores it); not enforced on Ollama Cloud (ADR 0096)'),
+    structured_output_with_tools: degraded(setModelResponseNote('grammar-constrained decoding to the schema would hold back the tool calls')),
     thinking_with_tools: degraded(CHAT_THINKING_NOTE),
     streaming: ok(),
     vision: ok('test', 'needs a vision model, e.g. ollama/qwen3-vl:8b'),
@@ -265,6 +280,7 @@ export const CAPABILITY_MATRIX: Record<MatrixRow, Record<Capability, CapabilityC
     delegation: ok(),
     memory_tools: ok(),
     structured_output: ok('test', 'strict json_schema; upstream support varies by model'),
+    structured_output_with_tools: degraded(setModelResponseNote('upstream support for a schema beside tools varies by model')),
     thinking_with_tools: degraded(CHAT_THINKING_NOTE),
     streaming: ok(),
     vision: ok('test', 'upstream model must accept images'),
@@ -287,6 +303,44 @@ export function capabilityOf(
   return { row, ...CAPABILITY_MATRIX[row][capability] };
 }
 
+/**
+ * Whether an outputSchema goes in the same request as the agent's tools, as
+ * the provider's own structured-output field, on the path `model` takes
+ * (ADR 0109). True only where the `structured_output_with_tools` cell is
+ * supported and the model's generation takes it: Claude from Opus 4.8,
+ * Sonnet 5 and Haiku 5.5 on (`output_config.format`), every OpenAI id
+ * (`text.format`), Gemini 2 and later on Vertex AI (`responseJsonSchema`).
+ * Elsewhere the native loop declares set_model_response beside the tools
+ * (lib/runtime/native/request.ts), which works on every path. A path that
+ * cannot be planned (a malformed gateway setting) answers false, the form
+ * that works everywhere.
+ */
+export function outputSchemaBesideTools(model: string, opts: { callerKey?: boolean } = {}): boolean {
+  let cell: ReturnType<typeof capabilityOf>;
+  try {
+    cell = capabilityOf(model, 'structured_output_with_tools', opts);
+  } catch {
+    return false;
+  }
+  if (cell.support !== 'supported') return false;
+  switch (cell.row) {
+    case 'anthropic':
+      return claudeGeneration(model).structuredOutput === 'output_format';
+    case 'gemini':
+      return geminiMajorVersion(model) >= 2;
+    default:
+      return true;
+  }
+}
+
+/** A Gemini id's major version (a Vertex AI resource name's last segment), or 0 when it is not a `gemini-<n>` id. Read without a pattern. */
+function geminiMajorVersion(model: string): number {
+  const name = model.slice(model.lastIndexOf('/') + 1);
+  if (!name.startsWith('gemini-')) return 0;
+  const major = Number.parseInt(name.slice('gemini-'.length), 10);
+  return Number.isFinite(major) ? major : 0;
+}
+
 /** What one agent's YAML asks of its model. */
 export interface AgentNeedsInput {
   tools?: readonly string[];
@@ -304,6 +358,7 @@ export function requiredCapabilities(agent: AgentNeedsInput): Capability[] {
   if (agent.delegates) needs.add('delegation');
   if (tools.includes('load_memory')) needs.add('memory_tools');
   if (agent.outputSchema) needs.add('structured_output');
+  if (agent.outputSchema && (tools.length > 0 || agent.delegates)) needs.add('structured_output_with_tools');
   const thinking = agent.generateContentConfig?.thinkingConfig;
   const thinks =
     agent.reasoning !== undefined
@@ -347,6 +402,9 @@ export function capabilityGaps(
 /** The cell that differs from the provider's row on a platform, or undefined. */
 export function platformCell(provider: ProviderId, platform: Platform, capability: Capability): CapabilityCell | undefined {
   if (platform === 'direct') return undefined;
+  if (capability === 'structured_output_with_tools' && provider === 'gemini' && platform === 'vertex') {
+    return ok('test', 'responseJsonSchema beside the tools in one request on Gemini 2 and later; an earlier id gets set_model_response (ADR 0109)');
+  }
   if (capability === 'vision' && provider === 'anthropic' && !claudeUrlImagesOn(platform)) {
     return degraded(`user-turn images inline (base64) only; an image given by URL is dropped, since ${PLATFORM_LABEL[platform]} takes no URL image source`);
   }

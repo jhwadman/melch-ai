@@ -148,6 +148,7 @@ The matrix's Gemini column ([ADR 0019](/decisions/0019-multi-model-parity-matrix
 | delegation | a subagent tool's declaration in `parametersJsonSchema`, with no `parameters` beside it |
 | memory tools | `load_memory` declared, and its call and result sent back as `functionCall` and `functionResponse` with the engine's id left off |
 | structured output | `responseMimeType` and `responseJsonSchema` as written, no `responseSchema`; JSON mode as the MIME type alone; a schema beside tools |
+| structured output beside tools | degraded on the Gemini API: the request the native loop builds for an agent with tools and a schema declares `set_model_response` beside them and sends no `responseJsonSchema`; with `GOOGLE_GENAI_USE_VERTEXAI` the platform cell is supported and the same agent's request carries the schema and the tools ([ADR 0109](/decisions/0109-structured-output-beside-tools.md)) |
 | thinking with tools | `thinkingLevel` for each level on a Gemini 3 id, a budget on request and on Gemini 2.x, `includeThoughts` unless `none`; the call's signature replayed on the call, another model's not; a response's thought as a partial and its call's signature written as `providerState` |
 | streaming | the `streamGenerateContent?alt=sse` endpoint, thinking and text partials, one final with the joined text and usage (tool-use prompt, thoughts and cached tokens counted); `generateContent` when not streaming |
 | image input | an inline image as `inlineData`, a URL image as `fileData` |
