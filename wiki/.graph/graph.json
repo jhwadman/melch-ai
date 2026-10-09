@@ -5,15 +5,15 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 911,
-    "edges": 3612,
+    "nodes": 913,
+    "edges": 3650,
     "byKind": {
-      "doc": 180,
+      "doc": 181,
       "provider": 6,
       "env": 106,
       "model": 10,
       "tool": 34,
-      "file": 194,
+      "file": 195,
       "syndicate": 33,
       "agent": 91,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 831,
+      "links_to": 841,
       "requires_env": 172,
       "routes_to": 10,
       "defined_in": 78,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 777,
+      "imports": 783,
       "reads_table": 28,
       "runs": 70,
-      "derives_from": 952,
-      "constrains": 198,
-      "supersedes": 13,
-      "depends_on": 128,
+      "derives_from": 964,
+      "constrains": 204,
+      "supersedes": 15,
+      "depends_on": 130,
       "explains": 45,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3223,
-      "inferred": 389
+      "extracted": 3251,
+      "inferred": 399
     },
     "isolated": 4
   },
@@ -1656,7 +1656,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1331
+        "words": 1358
       }
     },
     {
@@ -1716,7 +1716,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 783
+        "words": 817
       }
     },
     {
@@ -1780,6 +1780,18 @@
       }
     },
     {
+      "id": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "kind": "doc",
+      "label": "ADR 0119: A nested workflow run as a dispatch route or a workflow node pauses the turn, and its child session is filed under the agent path",
+      "source": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1224
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1812,7 +1824,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 2008
+        "words": 2053
       }
     },
     {
@@ -1992,7 +2004,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 3111
+        "words": 3205
       }
     },
     {
@@ -2052,7 +2064,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 7833
+        "words": 7876
       }
     },
     {
@@ -2088,7 +2100,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4749
+        "words": 5128
       }
     },
     {
@@ -2100,7 +2112,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2406
+        "words": 2454
       }
     },
     {
@@ -2124,7 +2136,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 422
+        "words": 440
       }
     },
     {
@@ -5068,6 +5080,13 @@
       "source": "tests/workflowApprovals.test.ts"
     },
     {
+      "id": "file:tests/workflowChildPauses.test.ts",
+      "kind": "file",
+      "label": "workflowChildPauses.test.ts",
+      "source": "tests/workflowChildPauses.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/workflowGraph.test.ts",
       "kind": "file",
       "label": "workflowGraph.test.ts",
@@ -5078,7 +5097,8 @@
       "id": "file:tests/workflowNested.test.ts",
       "kind": "file",
       "label": "workflowNested.test.ts",
-      "source": "tests/workflowNested.test.ts"
+      "source": "tests/workflowNested.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tests/workflowNodeRunLimit.test.ts",
@@ -5246,7 +5266,7 @@
       "label": "lib/a2a/executor.ts",
       "source": "lib/a2a/executor.ts",
       "attrs": {
-        "lines": 870
+        "lines": 875
       }
     },
     {
@@ -5318,7 +5338,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 653
+        "lines": 643
       }
     },
     {
@@ -5813,7 +5833,7 @@
       "label": "lib/runtime/approvals.ts",
       "source": "lib/runtime/approvals.ts",
       "attrs": {
-        "lines": 131
+        "lines": 132
       }
     },
     {
@@ -5885,7 +5905,7 @@
       "label": "lib/runtime/native/delegate.ts",
       "source": "lib/runtime/native/delegate.ts",
       "attrs": {
-        "lines": 537
+        "lines": 570
       }
     },
     {
@@ -5903,7 +5923,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 563
+        "lines": 655
       }
     },
     {
@@ -6002,7 +6022,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1272
+        "lines": 1343
       }
     },
     {
@@ -6596,7 +6616,7 @@
       "label": "lib/workflow.ts",
       "source": "lib/workflow.ts",
       "attrs": {
-        "lines": 74
+        "lines": 76
       }
     },
     {
@@ -6677,7 +6697,7 @@
       "label": "lib/workflow/turn.ts",
       "source": "lib/workflow/turn.ts",
       "attrs": {
-        "lines": 362
+        "lines": 473
       }
     },
     {
@@ -15052,7 +15072,7 @@
       "to": "/decisions/0045-own-runtime-behind-the-seam.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:53"
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:55"
     },
     {
       "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
@@ -15081,6 +15101,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:49"
+    },
+    {
+      "from": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md:51"
     },
     {
       "from": "/decisions/0107-release-1-0-0-removes-adk.md",
@@ -15594,6 +15621,13 @@
       "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md:30"
     },
     {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0111-pauses-inside-nested-syndicates.md:43"
+    },
+    {
       "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "to": "file:config/agents/templates/systems_operator.yaml",
       "rel": "derives_from",
@@ -15991,6 +16025,97 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md:28"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "file:tests/nestedPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "file:tests/workflowChildPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "file:tests/workflowNested.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md frontmatter"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md:31"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md:31"
     },
     {
       "from": "/memory/architecture.md",
@@ -16450,6 +16575,13 @@
     {
       "from": "/memory/sessions.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/memory/sessions.md:76"
+    },
+    {
+      "from": "/memory/sessions.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/memory/sessions.md:76"
@@ -18318,6 +18450,13 @@
     },
     {
       "from": "/operations/native-loop-security.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/native-loop-security.md:135"
+    },
+    {
+      "from": "/operations/native-loop-security.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -19112,7 +19251,7 @@
       "to": "/decisions/0076-native-loop-spans-feed-the-same-ledger.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:358"
+      "evidence": "/overview/native-loop.md:360"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19203,7 +19342,7 @@
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/native-loop.md:343"
+      "evidence": "/overview/native-loop.md:345"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19246,6 +19385,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:296"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:313"
     },
     {
       "from": "/overview/native-loop.md",
@@ -19543,6 +19689,13 @@
     },
     {
       "from": "/overview/workflow-scheduler.md",
+      "to": "file:tests/workflowChildPauses.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md frontmatter"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
       "to": "file:tests/workflowPause.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19630,112 +19783,119 @@
       "to": "/decisions/0087-workflow-scheduler-walks-the-graph-as-adk-does.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:32"
+      "evidence": "/overview/workflow-scheduler.md:33"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0089-workflow-scheduler-controls-follow-adks-node-runner.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:32"
+      "evidence": "/overview/workflow-scheduler.md:33"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0091-workflow-tool-node-writes-adks-event.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:97"
+      "evidence": "/overview/workflow-scheduler.md:98"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0092-workflow-pause-returns-interrupts-to-the-walk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:122"
+      "evidence": "/overview/workflow-scheduler.md:123"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:148"
+      "evidence": "/overview/workflow-scheduler.md:149"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0095-native-workflow-turn-drains-through-the-adk-reader.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:32"
+      "evidence": "/overview/workflow-scheduler.md:33"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:167"
+      "evidence": "/overview/workflow-scheduler.md:168"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0103-workflow-retry-spelling-and-signed-reflection-call.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:86"
+      "evidence": "/overview/workflow-scheduler.md:87"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0105-workflow-node-run-ceiling.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:91"
+      "evidence": "/overview/workflow-scheduler.md:92"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:195"
+      "evidence": "/overview/workflow-scheduler.md:196"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:32"
+      "evidence": "/overview/workflow-scheduler.md:33"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:171"
+      "evidence": "/overview/workflow-scheduler.md:172"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:199"
+      "evidence": "/overview/workflow-scheduler.md:200"
+    },
+    {
+      "from": "/overview/workflow-scheduler.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/workflow-scheduler.md:206"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:199"
+      "evidence": "/overview/workflow-scheduler.md:200"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-agent-node.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:32"
+      "evidence": "/overview/workflow-scheduler.md:33"
     },
     {
       "from": "/overview/workflow-scheduler.md",
       "to": "/overview/workflow-graph.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/overview/workflow-scheduler.md:32"
+      "evidence": "/overview/workflow-scheduler.md:33"
     },
     {
       "from": "/protocols/a2a.md",
@@ -19911,6 +20071,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md:62"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:34"
     },
     {
       "from": "/protocols/a2a.md",
@@ -20125,6 +20292,13 @@
     {
       "from": "/tools/ask-user.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/ask-user.md:30"
+    },
+    {
+      "from": "/tools/ask-user.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/tools/ask-user.md:30"
@@ -25710,6 +25884,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/runtime/native/interrupts.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25801,6 +25982,13 @@
     },
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/workflow/pause.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/workflow/resume.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -25816,6 +26004,13 @@
     {
       "from": "module:lib/runtime/syndicateTurn.ts",
       "to": "module:lib/workflow/turn.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/syndicateTurn.ts"
+    },
+    {
+      "from": "module:lib/runtime/syndicateTurn.ts",
+      "to": "module:lib/workflowConfig.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/syndicateTurn.ts"
@@ -27460,6 +27655,13 @@
     },
     {
       "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/runtime/approvals.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
       "to": "module:lib/runtime/events.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27468,6 +27670,13 @@
     {
       "from": "module:lib/workflow/turn.ts",
       "to": "module:lib/runtime/memoryService.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/runtime/native/delegate.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/turn.ts"
@@ -27545,6 +27754,13 @@
     {
       "from": "module:lib/workflow/turn.ts",
       "to": "module:lib/workflow/toolNode.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/workflow/turn.ts"
+    },
+    {
+      "from": "module:lib/workflow/turn.ts",
+      "to": "module:lib/workflowConfig.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/workflow/turn.ts"
