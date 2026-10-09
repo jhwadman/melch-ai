@@ -26,6 +26,12 @@ export interface PendingApproval {
   args: Record<string, unknown>;
   /** The original call's id. */
   callId?: string;
+  /**
+   * For a call gated inside a delegated subagent (ADR 0110): the agents from
+   * the turn's own agent down to the one that asked, `agent` last. Absent
+   * when the turn's own agent asked.
+   */
+  path?: string[];
 }
 
 const partsOf = (e: Event) => (e.content?.parts ?? []) as Array<Record<string, any>>;

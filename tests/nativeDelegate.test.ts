@@ -388,24 +388,20 @@ test('parity: an output schema’s answer is parsed, and an answer that does not
   assert.ok('error' in (broken.native.sessions[APP]?.[2]?.content?.parts?.[0]?.functionResponse?.response ?? {}));
 });
 
-test('parity: a pause inside a subagent stays refused: the gated tool never runs and the call answers an empty text', async () => {
-  // Not a valid YAML (ADR 0028 refuses a gate on a delegated subagent at load): built here to show the loop swallows it as ADK did.
+test('a pause inside a subagent leaves the call open and pauses the caller (ADR 0110)', async () => {
+  // ADK swallowed this pause (ADR 0028); the engine carries it to the caller, so there is no ADK side to compare with.
   sent.length = 0;
-  const { native } = await assertParity('pause-approval-refused', delegateConfig(noRetries, { tools: ['native_delegate_send'], require_approval: ['native_delegate_send'] }), {
-    boss: relay,
-    scout: () => toolCall('native_delegate_send', { to: 'ops@acme.test' }, 'call-send-1'),
-  });
-  assert.deepEqual(sent, [], 'the gated tool never ran');
+  const gated = delegateConfig(noRetries, { tools: ['native_delegate_send'], require_approval: ['native_delegate_send'] });
+  const turn: Turn = { parts: [{ text: 'send it' }] };
+  const native = await runNative(gated, {}, { boss: relay, scout: () => toolCall('native_delegate_send', { to: 'ops@acme.test' }, 'call-send-1') }, [turn], { sessions: {} });
+  assert.deepEqual(sent, [], 'the gated tool has not run');
   assert.equal(native.sessions.Scout?.at(-1)?.content?.parts?.[0]?.functionCall?.name, 'adk_request_confirmation');
-  assert.deepEqual(native.sessions[APP]?.[2]?.content?.parts?.[0]?.functionResponse?.response, { result: '' });
-  assert.equal(native.ends[0]?.reason, 'final', 'the caller does not pause');
+  assert.deepEqual(native.ends.map((e) => [e.reason, e.pending]), [['paused', ['call-scout-1']]], 'the caller pauses on the open call');
+  assert.equal(native.sessions[APP]?.length, 1, 'the caller stores no response to the open call (its user event aside, which runNative does not store)');
 
-  const asked = await assertParity('pause-ask-user-refused', delegateConfig(noRetries, { tools: ['ask_user'] }), {
-    boss: relay,
-    scout: () => toolCall('ask_user', { question: 'Which attic?' }, 'call-ask-1'),
-  });
-  assert.deepEqual(asked.native.sessions[APP]?.[2]?.content?.parts?.[0]?.functionResponse?.response, { result: '' });
-  assert.equal(asked.native.ends[0]?.reason, 'final');
+  const asked = await runNative(delegateConfig(noRetries, { tools: ['ask_user'] }), {}, { boss: relay, scout: () => toolCall('ask_user', { question: 'Which attic?' }, 'call-ask-1') }, [turn], { sessions: {} });
+  assert.deepEqual(asked.ends.map((e) => [e.reason, e.pending]), [['paused', ['call-scout-1']]]);
+  assert.ok(asked.sessions.Scout?.some((e) => e.content?.parts?.[0]?.functionCall?.name === 'ask_user'), 'the question is open in the child session');
 });
 
 // ── A nested syndicate, and the council example ──────────────────────────────

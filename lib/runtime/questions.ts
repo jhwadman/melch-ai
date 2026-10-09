@@ -17,10 +17,13 @@
  * (lib/workflow.ts) and an approval (ADR 0028); a client handles all three
  * by showing `result.input` (or the approval) and sending the next message.
  *
- * WHERE: only on an agent the turn runs directly (the orchestrator, or a
- * plan-dispatch route), as with approval gates: inside a delegated
- * subagent the pause cannot reach the person. Not inside a workflow node
- * yet. The schema refuses both.
+ * WHERE: on any agent of a delegate or dispatch syndicate, as with approval
+ * gates. Inside a delegated subagent the question waits in the child's
+ * session, below the call its caller left open, and reaches the person
+ * with the agent path (`result.input.path`, ADR 0110); the next message is
+ * stored as the answer and carried down to the child
+ * (lib/runtime/native/interrupts.ts). Not inside a workflow node yet; the
+ * schema refuses it there.
  *
  * RESUME: the answer is an ordinary function response, so the loop resumes
  * a question ADK opened before 1.0.0 as one it opened itself (ADR 0079); no

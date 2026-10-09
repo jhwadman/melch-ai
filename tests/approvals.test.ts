@@ -150,15 +150,17 @@ test('a request the user moved on from is no longer pending', () => {
   assert.equal(pendingApproval([request, moved]), undefined);
 });
 
-test('the schema: gates only on tools the agent has, and only where a pause reaches the caller', () => {
+test('the schema: gates only on tools the agent has, on a delegated subagent too (ADR 0110)', () => {
   const base = delegateConfig() as any;
   assert.doesNotThrow(() => validateSyndicateConfig(structuredClone(base), 'ok'));
   const unknown = structuredClone(base);
   unknown.orchestrator.require_approval = ['web_extract'];
   assert.throws(() => validateSyndicateConfig(unknown, 'x'), /'web_extract' is not in this agent's tools/);
   const delegated = structuredClone(base);
-  delegated.subagents = [{ name: 'Helper', model: 'm', instruction: 'i', tools: ['approval_test_send'], require_approval: ['approval_test_send'] }];
-  assert.throws(() => validateSyndicateConfig(delegated, 'x'), /a delegated subagent cannot pause the turn/);
+  delegated.subagents = [{ name: 'Helper', description: 'd', model: 'm', instruction: 'i', tools: ['approval_test_send'], require_approval: ['approval_test_send'] }];
+  assert.doesNotThrow(() => validateSyndicateConfig(delegated, 'x'));
+  delegated.subagents[0].skills = { scripts: 'local' };
+  assert.throws(() => validateSyndicateConfig(delegated, 'x'), /skill scripts on a delegated subagent are not supported yet/);
 });
 
 test('storage keeps a stored function call replayable with Gemini\'s skip signature', () => {

@@ -35,6 +35,8 @@ Three choices had real alternatives: where the child's events live, whether a st
 4. **An ADK AgentTool listed on a native agent fails the run**, with a message that names `subagentTool`. A subagent reaches the native loop as `subagentTool(agent)`, or as any tool carrying the `SUBAGENT` symbol with a `NativeAgent`.
 5. **The hook in the loop is one call.** `runCall` asks `subagentOf(tool)` before the generic path, and `runSubagent` does the rest in `delegate.ts`. The DELEGATE relay fallback stays in `runSyndicateTurn`: it reads the drained run, from either runtime.
 
+> **Note (2026-10-09):** [ADR 0110](/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md) supersedes Decision 3: a child run that ends paused leaves the call open, the caller ends paused, the turn reports the pause with the agent path, and the answer resumes the child before the caller's next step.
+
 ## Alternatives considered
 
 - **Run the child on a branch of the caller's session** (ADK's `ParallelAgent` naming, `<caller>.<subagent>`). It keeps one session per conversation. But ADK's AgentTool does not do it, so a session written by one runtime would not be one the other continues: on ADK the subagent would lose its own history, and the caller's projection would meet branch events it never meets on ADK.

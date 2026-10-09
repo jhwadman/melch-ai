@@ -176,7 +176,7 @@ test('schema: scripts pause only where a pause can reach the caller; skills.tool
     orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'x' },
     subagents: [{ name: 'Sub', description: 'd', model: 'gemini-3.5-flash-lite', instruction: 'y', skills: { dir: FIXTURES, scripts: 'local' } }],
   });
-  assert.throws(() => validateSyndicateConfig(base(), 't'), (e: unknown) => e instanceof SyndicateValidationError && /subagents\[0\]\.skills\.scripts.*cannot pause/.test(String(e.message)));
+  assert.throws(() => validateSyndicateConfig(base(), 't'), (e: unknown) => e instanceof SyndicateValidationError && /subagents\[0\]\.skills\.scripts.*not supported yet/.test(String(e.message)));
   const dispatching = { ...base(), dispatch: { default_route: 'Sub' } };
   assert.doesNotThrow(() => validateSyndicateConfig(dispatching, 't'));
   const overlap = { ...base(), subagents: [], orchestrator: { ...base().orchestrator, tools: ['web_extract'], skills: { dir: FIXTURES, tools: ['web_extract'] } } };

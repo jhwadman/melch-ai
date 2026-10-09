@@ -269,14 +269,14 @@ test('a user-authored ask_user call is no question: the next message is an ordin
   assert.deepEqual(comparable(runs.native.stored), comparable(runs.adk.stored), 'the stored events');
 });
 
-test('schema: ask_user only where a pause can reach the person', () => {
+test('schema: ask_user on any agent but a workflow node’s (a delegated subagent’s pause reaches the caller, ADR 0110)', () => {
   const sub = (extra: Record<string, unknown> = {}) => ({
     syndicate_name: 'S',
     orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'x' },
     subagents: [{ name: 'Sub', description: 'd', model: 'gemini-3.5-flash-lite', instruction: 'y', tools: ['ask_user'] }],
     ...extra,
   });
-  assert.throws(() => validateSyndicateConfig(sub(), 't'), /ask_user pauses the turn, which only the orchestrator or a plan-dispatch route can do/);
+  assert.doesNotThrow(() => validateSyndicateConfig(sub(), 't'));
   assert.doesNotThrow(() => validateSyndicateConfig(sub({ dispatch: { default_route: 'Sub' } }), 't'));
   assert.doesNotThrow(() => validateSyndicateConfig(delegate(), 't'));
   assert.throws(

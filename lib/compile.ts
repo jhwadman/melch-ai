@@ -421,8 +421,10 @@ function nestedOptions(ref: string, opts: CompileOptions): CompileOptions {
 function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlConfig {
   opts.log?.(`Loading nested syndicate: ${ref}`);
   const nested = (opts.loadNested ?? loadSyndicate)(ref);
-  if (declaresApprovals(nested)) {
-    throw new Error(`${ref}: approval gates (require_approval) are not supported inside a nested syndicate.`);
+  // A nested delegate syndicate's gates pause the turn through the open call (ADR 0110). A nested workflow's
+  // pause cannot reach its caller yet, and a nested dispatch syndicate runs its classifier alone.
+  if (declaresApprovals(nested) && (isWorkflowSyndicate(nested) || isDispatchSyndicate(nested))) {
+    throw new Error(`${ref}: approval gates (require_approval) are not supported inside a nested ${isWorkflowSyndicate(nested) ? 'workflow' : 'dispatch'} syndicate.`);
   }
   return nested;
 }
