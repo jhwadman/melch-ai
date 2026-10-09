@@ -2,8 +2,9 @@
  * tests/workflowNested.test.ts — a workflow syndicate as a plan-dispatch
  * route or as a node of another workflow (ADR 0106). Either way the
  * `yaml_reference` runs the whole graph, as a delegated subagent does (ADR
- * 0098): on the child session filed under the entry's name, the graph's last
- * yielded event's text the route's answer or the node's output.
+ * 0098): on the child session filed under the agent path (`app/Writer`,
+ * ADR 0119), the graph's last yielded event's text the route's answer or the
+ * node's output. Its pauses: tests/workflowChildPauses.test.ts.
  *
  *   - The route stores the sessions ADK 2.2 stored: the child session holds
  *     the walk, the conversation the message and the route's answer.
@@ -146,7 +147,7 @@ test('a dispatch route that is a workflow syndicate runs the whole graph; its la
   for (const key of ['plan', 'write', 'check', 'edit']) assert.equal(models[key]!.calls, 1, `${key} ran once`);
   assert.equal(lastText(models.plan!.requests[0]!), 'write me something on cats', 'the first node gets the message');
   // The walk is the route's child session, every node path rooted at the entry's name.
-  const child = await events('Writer');
+  const child = await events('app/Writer');
   assert.deepEqual([...new Set(child.map((e) => e.nodeInfo?.path).filter(Boolean))].sort(), ['Writer.Both', 'Writer.Check', 'Writer.Edit', 'Writer.Plan', 'Writer.Write']);
   // The conversation holds the message and the route's answer, as any route's exchange.
   const shared = await events('app');
@@ -174,7 +175,7 @@ test('a workflow route stores the same sessions and sends the same requests as A
   const run = async () => {
     const c = conversation(desk());
     const result = await c.turn('write me something on cats');
-    return { result, models: c.models, shared: await c.events('app'), child: await c.events('Writer') };
+    return { result, models: c.models, shared: await c.events('app'), child: await c.events('app/Writer') };
   };
   const adk = await reference<{ status: string; text: string; shared: TurnEvent[]; child: TurnEvent[]; requests: Record<string, unknown> }>('workflow-route-sessions-and-requests');
   const native = await run();
@@ -205,7 +206,7 @@ test('native: a workflow node that is a workflow syndicate runs the whole graph;
   assert.equal(lastText(models.plan!.requests[0]!), 'brief(cats)', 'the nested graph gets the node’s input');
   assert.equal(result.text, `published(${edited('brief(cats)')})`);
   for (const key of ['brief', 'plan', 'write', 'check', 'edit', 'publish']) assert.equal(models[key]!.calls, 1, `${key} ran once`);
-  const child = await events('Writer');
+  const child = await events('app/Writer');
   assert.deepEqual([...new Set(child.map((e) => e.nodeInfo?.path).filter(Boolean))].sort(), ['Writer.Both', 'Writer.Check', 'Writer.Edit', 'Writer.Plan', 'Writer.Write']);
   // The caller's walk stores one event for the node, carrying its output, so a resume completes it.
   const node = (await events('app')).filter((e) => e.nodeInfo?.path === 'Newsroom.Writer');
@@ -258,22 +259,6 @@ test('compile: a map over a workflow syndicate is refused by name', async () => 
   ) as SyndicateYamlConfig;
   await assert.rejects(compileWorkflowSpec(cfg, { loadNested: () => pipeline(), log: () => {} }), /Fan: the map node 'Each' runs 'Writer', a workflow syndicate \(pipeline\.yaml\); a map runs one agent per item/);
 });
-
-test('a nested workflow with an ask_user node is refused by name as a route and as a node', async () => {
-  const asking = validateSyndicateConfig(
-    { syndicate_name: 'Pipeline', memory_system: 'internal-only', orchestrator: agent('Plan'), subagents: [agent('Edit')], workflow: { edges: [['START', 'Plan', 'Confirm', 'Edit']], nodes: { Confirm: { ask_user: 'Go?' } } } },
-    'pipeline.yaml',
-  ) as SyndicateYamlConfig;
-  for (const cfg of [desk(), newsroom()]) {
-    const models = Object.fromEntries(Object.entries(scripts()).map(([key, s]) => [key, new ScriptedModel(`scripted/${key}`, s)]));
-    await assert.rejects(
-      runSyndicateTurn({ config: cfg, parts: [{ text: 'cats' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InProcessSessionService(), compile: { resolveModel: shimResolver(models), loadNested: () => asking, log: () => {} }, trace: false }),
-      /pipeline\.yaml: the ask_user node 'Confirm' pauses for a person, which a workflow run as a dispatch route or a workflow node \(Writer\) cannot carry to the turn yet/,
-    );
-  }
-});
-
-
 
 // ── The node-run ceiling (ADR 0105) ──────────────────────────────────────────
 

@@ -48,13 +48,15 @@
  *
  * ── As a dispatch route or a workflow node (ADR 0106) ────────────────────
  * A `yaml_reference` to a workflow syndicate runs its whole graph there too,
- * on the child session filed under the entry's name, as a subagent does. A
- * route's answer is what the graph would answer as its own syndicate
- * (lib/runtime/syndicateTurn.ts); a node's is the nested walk's
- * (lib/workflow/turn.ts). A map over one is refused (lib/compile.ts), and
- * so are its pauses (an `ask_user` node, a gate): they cannot reach the
- * turn from a route or a node yet (lib/compile.ts compileWorkflowSpec,
- * loadNestedSyndicate).
+ * on the child session filed under the agent path (`<app>/<entry>`, ADR
+ * 0119), as a subagent does. A route's answer is what the graph would
+ * answer as its own syndicate (lib/runtime/syndicateTurn.ts); a node's is
+ * the nested walk's (lib/workflow/turn.ts). A map over one is refused
+ * (lib/compile.ts). Its pauses (an `ask_user` node, a gate) reach the turn
+ * with the path from the entry down to the node that asked: a route's
+ * through the route's pause record in the conversation, a node's through
+ * its own pause on the caller's walk; the answer walks the nested graph
+ * again (ADR 0119).
  *
  * ── Approval gates (ADR 0098, ADR 0106) ──────────────────────────────────
  * A tool in a node agent's `require_approval`, and a skill script

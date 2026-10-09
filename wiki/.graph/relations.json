@@ -3262,6 +3262,160 @@
       "evidence": "config/agents/templates/systems_operator.yaml header: authorization_code \"works on Systems too: the first call for a person who has not connected pauses the turn with an authorization link ... (ADR 0118)\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/credentialHosts.ts",
+      "rel": "explains",
+      "evidence": "ADR 0122 Decision 1-4: the credential host allowlist, its format, what it covers and the rule (unset: as before; set: the whole list) live in lib/tools/credentialHosts.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/credentialUses.ts",
+      "rel": "explains",
+      "evidence": "ADR 0122 Decision 3 and 5: syndicateCredentialUses lists every variable a served YAML sends, and syndicateCredentialHostProblems refuses one the allowlist does not bind at load.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: buildOpenApiOwnTools refuses a bearer_env or api_key aimed at a host its variable is not bound to, and each call checks again and sends nothing when refused.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: oauthTokenSource and oauthClientsFor refuse a client_secret_env whose token_url is off its binding, and the token request and refresh hook check again before sending.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: the consent step's code exchange checks the client secret's variable against the allowlist before sending it, failing as exchange_failed.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: createA2AApp takes credentialHosts and refuses a syndicate that sends a credential the allowlist does not permit when it loads one to serve.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 3 and 5: oauthServerSetup refuses a served file the credential allowlist refuses, throws on a malformed one, and warns naming each unbound variable.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 3: the doctor shows a credentials line naming each unbound variable as a warning, and each refusal as a --check failure.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0122 Context and Decision 1: it extends ADR 0114's operator binding, in the same host format, from OAuth providers to static credential variables.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0119 Decision 1 lifts ADR 0111 Decision 4 (a nested workflow's gates and ask_user nodes refused as a dispatch route or a workflow node); dated note on ADR 0111.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 4 only"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0119 Decisions 1 and 2: the refusals of ADR 0106 Decision 5 are lifted, and the route's and node's child session moves from the entry's name to entryAppName; dated note on ADR 0106.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 5 and the child session key"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0119 Decision 5: the caller's own resume reruns the waiting node with the answers; \"Raising the requests again on the node's event satisfies both rules unchanged\" (raisedInterrupt, assertResumable).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0119 Decision 5: the node raises its walk's requests again \"as waitAgain does for an agent node\"; Decision 4 repeats a waiting approval \"as a workflow turn answers it (ADR 0098)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 5: runWorkflowNode raises a paused walk's open requests again on the caller's walk and walks the graph again on the answered ids.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 4: a route walk that ends paused stores the route's pause record; a decision or plain-text answer resumes the route without classifying.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decisions 4 and 6: routePause, nestedWorkflowPause and deepestPause find a route's or node's pause by id down to the node that asked.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decisions 2 and 3: entryAppName and entrySession file the child session under the agent path, continuing a 1.1.0 session under the entry's name.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 1: loadNestedSyndicate and compileWorkflowSpec no longer refuse a nested workflow's gates and ask_user nodes; delegated no longer changes what compiles.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 6: \"The A2A executor reads a paused route and a raised request the same way, so approve and reject work and the repeated request carries the path.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

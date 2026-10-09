@@ -13,6 +13,7 @@
  *     MELCHIZEDEK_CREDENTIAL_KEY  the key that seals each user's tokens (ADR 0072)
  *     OAUTH_REDIRECT_URI          the consent callback, as registered at every provider (ADR 0085)
  *     MELCHIZEDEK_OAUTH_HOSTS     which hosts each provider's tokens may go to (ADR 0114)
+ *     MELCHIZEDEK_CREDENTIAL_HOSTS  which hosts each static credential variable may go to (ADR 0122)
  *     the client id and secret variables each YAML grant names
  *
  *   The consent clients are built from the syndicates the server serves from
@@ -32,6 +33,8 @@ import type { ToolCredentials } from '../tools/oauthConsent.ts';
 import { OAUTH_HOSTS_ENV, oauthHosts } from '../tools/oauthHosts.ts';
 import { oauthClientsFor, oauthGrantHostProblems, oauthRefreshProviders, syndicateOAuthGrants, syndicateOAuthHostProblems } from '../tools/oauthTools.ts';
 import type { OAuthGrantUse } from '../tools/oauthTools.ts';
+import { CREDENTIAL_HOSTS_ENV, credentialHosts } from '../tools/credentialHosts.ts';
+import { syndicateCredentialHostProblems, syndicateCredentialUses, unboundCredentialEnvs } from '../tools/credentialUses.ts';
 
 /** The consent callback's URL, exactly as registered at every provider. */
 export const OAUTH_REDIRECT_URI_ENV = 'OAUTH_REDIRECT_URI';
@@ -138,6 +141,40 @@ export function oauthEnvProblems(grants: readonly OAuthGrantUse[], env: NodeJS.P
   return problems;
 }
 
+/**
+ * The warning for credential variables no allowlist binds (ADR 0122), or
+ * null: with no credential host allowlist, each variable in `envs` (the
+ * ones the served YAML sends) still goes to whatever host the YAML names.
+ * Names only.
+ */
+export function unboundCredentialWarning(envs: readonly string[], env: NodeJS.ProcessEnv = process.env): string | null {
+  let allowlist;
+  try {
+    allowlist = credentialHosts(env);
+  } catch {
+    return null; // A malformed allowlist is a problem, reported as one.
+  }
+  if (allowlist) return null; // Configured: an unbound variable is refused, not warned about.
+  const unbound = [...new Set(envs)].sort();
+  if (!unbound.length) return null;
+  return `${unbound.join(', ')} ${unbound.length === 1 ? 'is' : 'are'} sent to whatever host the YAML names: no ${CREDENTIAL_HOSTS_ENV} binds ${unbound.length === 1 ? 'it' : 'them'} to ${unbound.length === 1 ? 'its' : 'their'} hosts`;
+}
+
+/**
+ * What is wrong with the credential host allowlist for these uses, one line
+ * each, names and hosts only: a malformed allowlist, or each use it refuses
+ * (lib/tools/credentialUses.ts). Empty when none is configured.
+ */
+export function credentialHostEnvProblems(configs: readonly SyndicateLike[], env: NodeJS.ProcessEnv = process.env, load?: (ref: string) => SyndicateLike): string[] {
+  let allowlist;
+  try {
+    allowlist = credentialHosts(env);
+  } catch (err) {
+    return [err instanceof Error ? err.message : `${CREDENTIAL_HOSTS_ENV} is malformed`];
+  }
+  return syndicateCredentialHostProblems(configs, { allowlist: allowlist ?? null, ...(load ? { load } : {}) });
+}
+
 /** The parts of a syndicate config the setup reads. */
 type SyndicateLike = Parameters<typeof oauthClientsFor>[0][number];
 
@@ -162,6 +199,8 @@ export interface OAuthServerSetup {
   toolCredentials?: ToolCredentials;
   /** One line for the server's banner: key id, row store, consent path, providers, allowlist. No value. */
   summary: string;
+  /** One line for the server's banner: the credential host allowlist (ADR 0122), variable names only. */
+  credentialSummary: string;
   /** What works less than the YAML asks, names only. */
   warnings: string[];
 }
@@ -189,10 +228,22 @@ export function oauthServerSetup(options: OAuthServerSetupOptions): OAuthServerS
   // A served syndicate whose grant the allowlist refuses is refused here, at boot, as its route would refuse it.
   const refused = syndicateOAuthHostProblems(options.configs, { ...(options.load ? { load: options.load } : {}), allowlist: allowlist ?? null });
   if (refused.length) throw new Error(`refusing an OAuth grant the operator's host allowlist does not permit:\n  - ${refused.join('\n  - ')}`);
+  // The credential host allowlist (ADR 0122): malformed throws here, at boot; a served file it refuses too.
+  const credentialList = credentialHosts(env);
+  const credentialRefused = syndicateCredentialHostProblems(options.configs, { ...(options.load ? { load: options.load } : {}), allowlist: credentialList ?? null });
+  if (credentialRefused.length) throw new Error(`refusing a credential the operator's credential host allowlist does not permit:\n  - ${credentialRefused.join('\n  - ')}`);
+  const uses = syndicateCredentialUses(options.configs, options.load);
+  const unboundWarning = unboundCredentialWarning(uses.map((u) => u.env), env);
+  if (unboundWarning) warnings.push(`${unboundWarning.charAt(0).toUpperCase()}${unboundWarning.slice(1)}.`);
+  const credentialSummary = credentialList
+    ? `bound: ${Object.keys(credentialList).join(', ')} (${CREDENTIAL_HOSTS_ENV})`
+    : uses.length
+      ? `no allowlist (${CREDENTIAL_HOSTS_ENV}): ${unboundCredentialEnvs(uses, undefined).join(', ')} unbound`
+      : `no allowlist (${CREDENTIAL_HOSTS_ENV}); no served file sends a static credential`;
   if (!cipher) {
     if (redirect) throw new Error(`${OAUTH_REDIRECT_URI_ENV} is set but ${CREDENTIAL_KEY_ENV} is not: the consent step has nowhere to keep a grant. Set ${CREDENTIAL_KEY_ENV} (openssl rand -base64 32).`);
     if (authCode.length) warnings.push(`authorization_code grants (${authCode.join(', ')}) are declared but ${CREDENTIAL_KEY_ENV} is not set: their tools answer unavailable.`);
-    return { summary: `off (${CREDENTIAL_KEY_ENV} unset) · ${hostsLabel}`, warnings };
+    return { summary: `off (${CREDENTIAL_KEY_ENV} unset) · ${hostsLabel}`, credentialSummary, warnings };
   }
   const clients = oauthClientsFor(options.configs, { env, ...(options.load ? { load: options.load } : {}), allowlist: allowlist ?? null });
   const providers = Object.keys(clients);
@@ -206,11 +257,11 @@ export function oauthServerSetup(options: OAuthServerSetupOptions): OAuthServerS
   const where = options.rows ? 'postgres' : 'process memory';
   if (!redirect) {
     if (providers.length) warnings.push(`${OAUTH_REDIRECT_URI_ENV} is not set: a user who has not connected ${providers.join(', ')} cannot be asked to.`);
-    return { toolCredentials: { store }, summary: `sealed (key ${cipher.keyId}) in ${where}; no consent step · ${hostsLabel}`, warnings };
+    return { toolCredentials: { store }, summary: `sealed (key ${cipher.keyId}) in ${where}; no consent step · ${hostsLabel}`, credentialSummary, warnings };
   }
   if (!providers.length) {
     warnings.push(`${OAUTH_REDIRECT_URI_ENV} is set but no served syndicate declares an authorization_code grant: no consent callback is mounted.`);
-    return { toolCredentials: { store }, summary: `sealed (key ${cipher.keyId}) in ${where}; no consent step · ${hostsLabel}`, warnings };
+    return { toolCredentials: { store }, summary: `sealed (key ${cipher.keyId}) in ${where}; no consent step · ${hostsLabel}`, credentialSummary, warnings };
   }
   const consent = oauthConsent({
     providers: clients,
@@ -222,6 +273,7 @@ export function oauthServerSetup(options: OAuthServerSetupOptions): OAuthServerS
   return {
     toolCredentials: { store, consent },
     summary: `sealed (key ${cipher.keyId}) in ${where}; consent at ${new URL(redirect).pathname} for ${providers.join(', ')} · ${hostsLabel}`,
+    credentialSummary,
     warnings,
   };
 }

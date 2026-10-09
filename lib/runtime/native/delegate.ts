@@ -354,7 +354,19 @@ function answerOf(agent: Pick<NativeAgent, 'outputSchema'>, last: TurnEvent | un
  * never hold a `/`.
  */
 export function childAppName(parent: { appName: string; delegated?: boolean }, caller: string, name: string): string {
-  return parent.delegated ? `${parent.appName}/${name}` : `${parent.appName}/${caller}/${name}`;
+  return parent.delegated ? entryAppName(parent.appName, name) : `${parent.appName}/${caller}/${name}`;
+}
+
+/**
+ * The app name a nested workflow run as a dispatch route or a workflow node
+ * walks under (ADR 0119): the session that runs it, and the entry's name
+ * (`<app>/<route>`, `<walk's app>/<node>`). A route answers in the
+ * conversation itself and a node's walk is one session, so the entry's name
+ * is unique below either; ADR 0106 filed it under the entry's name alone,
+ * which legacyChild still reads.
+ */
+export function entryAppName(parentAppName: string, name: string): string {
+  return `${parentAppName}/${name}`;
 }
 
 /**
@@ -372,6 +384,27 @@ export async function legacyChild(
 ): Promise<Session | undefined> {
   if (!continues) return undefined;
   return sessions.get({ appName: name, userId: key.userId, sessionId: key.sessionId });
+}
+
+/**
+ * The child session a nested workflow run as a dispatch route or a workflow
+ * node walks on (ADR 0119): the one filed under entryAppName, else, when
+ * the entry ran in `parent` before (an event it authored there) or a pause
+ * was found waiting below it (`resuming`), the one ADR 0106 filed under its
+ * name alone (legacyChild), else a new one from `state`.
+ */
+export async function entrySession(
+  sessions: Pick<SessionService, 'get' | 'create'>,
+  parent: { appName: string; userId: string; sessionId: string; events: readonly TurnEvent[] },
+  name: string,
+  state: Record<string, unknown>,
+  resuming = false,
+): Promise<Session> {
+  const key = { appName: entryAppName(parent.appName, name), userId: parent.userId, sessionId: parent.sessionId };
+  const own = await sessions.get(key);
+  if (own) return own;
+  const legacy = await legacyChild(sessions, key, name, resuming || parent.events.some((e) => e.author === name));
+  return legacy ?? (await sessions.create({ ...key, state }));
 }
 
 /** Whether `caller` called `name` in `events` in a call other than `callId`: the subagent ran for it before. */

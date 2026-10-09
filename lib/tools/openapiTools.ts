@@ -36,6 +36,12 @@
  *     instead, fetched per call: the run's user's own (authorization_code,
  *     through `ctx.accessToken` and the consent pause) or the server's own
  *     (client_credentials), lib/tools/oauthTools.ts, ADR 0112.
+ *   - STATIC CREDENTIALS ONLY TO THEIR HOSTS. When the operator configures a
+ *     credential host allowlist (MELCHIZEDEK_CREDENTIAL_HOSTS, or
+ *     createA2AApp's credentialHosts; lib/tools/credentialHosts.ts,
+ *     ADR 0122), a `bearer_env` or `api_key` variable is sent only to a host
+ *     it binds that variable to: checked at compile (every server), and
+ *     again before each call, which is refused with nothing sent.
  *   - THE SSRF GUARD. Every server URL the tools will call must be http(s)
  *     and pass lib/net/addressGuard.ts: its literal rules at compile time
  *     (offline), and the full check with DNS before each call (a name can
@@ -71,6 +77,7 @@ import { MAX_SPEC_BYTES, operationNamed, parseOpenApiSpec } from './openapi/pars
 import type { OpenApiOperation } from './openapi/parse.ts';
 import { ToolCredentialError } from './auth.ts';
 import { readCredentialEnv } from './credentialEnv.ts';
+import { credentialCallProblem, credentialHostProblem } from './credentialHosts.ts';
 import { oauthTokenSource, tokenTransportProblem } from './oauthTools.ts';
 import type { OAuth2AuthConfig, OAuthTokenSource } from './oauthTools.ts';
 
@@ -116,12 +123,17 @@ export const OPENAPI_TOOL = Symbol.for('melchizedek.openapiTool');
  * An `oauth2` block is not read here: its token is fetched per call
  * (oauthTokenSource, lib/tools/oauthTools.ts).
  */
-function credentialFor(auth: OpenApiAuthConfig | undefined, spec: string): OpenApiCredential | undefined {
+function credentialFor(auth: OpenApiAuthConfig | undefined, spec: string): { credential: OpenApiCredential; env: string } | undefined {
   if (!auth) return undefined;
   const read = (env: string): string => readCredentialEnv(env, `openapi ${spec}`);
-  if (auth.bearer_env) return { kind: 'bearer', token: read(auth.bearer_env) };
-  if (auth.api_key) return { kind: 'api_key', in: auth.api_key.in, name: auth.api_key.name, value: read(auth.api_key.env) };
+  if (auth.bearer_env) return { credential: { kind: 'bearer', token: read(auth.bearer_env) }, env: auth.bearer_env };
+  if (auth.api_key) return { credential: { kind: 'api_key', in: auth.api_key.in, name: auth.api_key.name, value: read(auth.api_key.env) }, env: auth.api_key.env };
   return undefined;
+}
+
+/** The variable a static `auth` sends (bearer_env or api_key.env), or undefined. */
+function staticCredentialEnv(auth: OpenApiAuthConfig | undefined): string | undefined {
+  return auth?.bearer_env ?? auth?.api_key?.env;
 }
 
 /**
@@ -165,11 +177,24 @@ function readSpec(specPath: string, source: string): string {
  * provider and what to do, never a value (and, for a user who has not
  * granted it, the run's consent step has already asked).
  */
-function operationTool(op: OpenApiOperation, credential: OpenApiCredential | undefined, oauth?: OAuthTokenSource): Tool {
+function operationTool(op: OpenApiOperation, held: { credential: OpenApiCredential; env: string } | undefined, oauth?: OAuthTokenSource): Tool {
+  const credential = held?.credential;
   const tool: Tool = {
     name: op.name,
     declaration: () => op.declaration,
     async execute(args: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
+      // The operator's credential host allowlist, again at each call (ADR 0122): the
+      // compile checked it, and it can change. Refused, nothing is sent; the
+      // message names the host, never the value.
+      if (held && credentialCallProblem(held.env, op.baseUrl)) {
+        let host = op.baseUrl;
+        try {
+          host = new URL(op.baseUrl).hostname;
+        } catch {
+          // A server that is not a URL is named as written.
+        }
+        return { error: `${op.name} was not called: the operator's credential host allowlist does not let this API's credential be sent to ${host}` };
+      }
       let sent = credential;
       if (oauth) {
         try {
@@ -213,10 +238,14 @@ export async function buildOpenApiOwnTools(entry: OpenApiConfig, baseDir: string
   }
   const chosen = entry.base_url ? picked.map((o) => ({ ...o, baseUrl: entry.base_url! })) : picked;
 
+  const credentialEnv = staticCredentialEnv(entry.auth);
   for (const baseUrl of new Set(chosen.map((o) => o.baseUrl))) {
     if (!baseUrl) throw new Error(`openapi ${entry.spec}: the spec names no server; set base_url`);
     const problem = await hostProblem(baseUrl, false);
     if (problem) throw new Error(`openapi ${entry.spec}: ${problem}`);
+    // A static credential goes only to a host the operator binds its variable to (ADR 0122).
+    const bound = credentialEnv ? credentialHostProblem(credentialEnv, baseUrl) : null;
+    if (bound) throw new Error(`openapi ${entry.spec}: ${bound}`);
   }
   let oauth: OAuthTokenSource | undefined;
   if (entry.auth?.oauth2 && chosen.length) {
@@ -228,6 +257,21 @@ export async function buildOpenApiOwnTools(entry: OpenApiConfig, baseDir: string
     oauth = oauthTokenSource(entry.auth.oauth2, `openapi ${entry.spec}`, [...new Set(chosen.map((o) => o.baseUrl))], { allowPrivate: process.env.ALLOW_PRIVATE_OPENAPI === 'true' });
   }
   return chosen.map((o) => operationTool(o, credential, oauth));
+}
+
+/**
+ * The server URLs one `openapi:` entry calls: its `base_url`, else its
+ * spec's server. Reads and parses the spec (bounded); throws as the compile
+ * would on a spec that cannot be read. For the load-time credential host
+ * check (lib/tools/credentialUses.ts, ADR 0122).
+ */
+export function openApiServers(entry: OpenApiConfig, baseDir: string = process.cwd()): string[] {
+  if (entry.base_url) return [entry.base_url];
+  const specPath = resolve(baseDir, entry.spec);
+  const ext = extname(specPath).toLowerCase();
+  if (!['.yaml', '.yml', '.json'].includes(ext)) throw new Error(`openapi ${entry.spec}: a spec is .yaml, .yml or .json`);
+  const all = parseOpenApiSpec(readSpec(specPath, entry.spec), ext === '.json' ? 'json' : 'yaml', { source: entry.spec });
+  return [...new Set(all.map((o) => o.baseUrl).filter((u) => u !== ''))];
 }
 
 /**

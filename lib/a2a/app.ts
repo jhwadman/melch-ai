@@ -92,6 +92,8 @@ import type { TaskRecord } from '../observability/metrics.ts';
 import { ConsentError } from '../tools/oauthConsent.ts';
 import type { OAuthConsent, ToolCredentials } from '../tools/oauthConsent.ts';
 import { setOAuthHosts } from '../tools/oauthHosts.ts';
+import { setCredentialHosts } from '../tools/credentialHosts.ts';
+import { syndicateCredentialHostProblems } from '../tools/credentialUses.ts';
 import { syndicateOAuthHostProblems } from '../tools/oauthTools.ts';
 const SURFACE_HEADERS = [
   ['x-surface', 'name'],
@@ -328,6 +330,18 @@ export interface A2AAppOptions {
    * refused when loaded, when compiled, and at each call.
    */
   oauthHosts?: Record<string, string[]>;
+  /**
+   * The credential host allowlist (ADR 0122): each static credential
+   * variable a YAML may send (`bearer_env`, `api_key.env`,
+   * `client_secret_env`) and the hosts its value may go to, e.g.
+   * `{ TRACKER_TOKEN: ['api.tracker.example.com'] }`. Wins over
+   * MELCHIZEDEK_CREDENTIAL_HOSTS; it is set for this process. With neither,
+   * a credential goes to the host the YAML names, as before. With one, it is
+   * the whole list: a syndicate that sends a variable it does not bind, or
+   * to a host outside that variable's, is refused when loaded, when
+   * compiled, and at each call.
+   */
+  credentialHosts?: Record<string, string[]>;
   toolCredentials?: ToolCredentials & {
     /** Callback requests per window per client IP. Default 30 per 15 minutes. */
     callbackLimit?: { windowMs: number; max: number };
@@ -591,19 +605,26 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
 
   // ── The OAuth host allowlist (ADR 0114) ────────────────────────────────────
   if (options.oauthHosts) setOAuthHosts(options.oauthHosts);
-  /** A served syndicate whose OAuth grant names a provider or host outside the allowlist is refused at load. */
+  // ── The credential host allowlist (ADR 0122) ───────────────────────────────
+  if (options.credentialHosts) setCredentialHosts(options.credentialHosts);
+  /**
+   * A served syndicate whose OAuth grant names a provider or host outside the
+   * OAuth allowlist, or that sends a static credential the credential
+   * allowlist does not bind to its host, is refused at load.
+   */
   const checkOAuthHosts = (cfg: SyndicateYamlConfig, label: string): SyndicateYamlConfig => {
     const nested = nestedLoader(cfg, (ref) => loadSyndicate(ref, { bindings: bindings() }));
-    const problems = syndicateOAuthHostProblems([cfg], {
-      load: (ref) => {
-        try {
-          return nested(ref);
-        } catch {
-          return {}; // A nested file that cannot load fails its own compile.
-        }
-      },
-    });
+    const load = (ref: string) => {
+      try {
+        return nested(ref);
+      } catch {
+        return {}; // A nested file that cannot load fails its own compile.
+      }
+    };
+    const problems = syndicateOAuthHostProblems([cfg], { load });
     if (problems.length) throw new Error(`${label}: refusing an OAuth grant the operator's host allowlist does not permit:\n  - ${problems.join('\n  - ')}`);
+    const credentials = syndicateCredentialHostProblems([cfg], { load });
+    if (credentials.length) throw new Error(`${label}: refusing a credential the operator's credential host allowlist does not permit:\n  - ${credentials.join('\n  - ')}`);
     return cfg;
   };
 

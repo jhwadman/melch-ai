@@ -40,6 +40,8 @@ Two facts set what can be lifted. A nested dispatch syndicate compiles to its cl
 5. **A subagent's session is filed under its agent path:** `childAppName` gives `<app>/<caller>/<subagent>` below a top-level agent and `<parent app>/<subagent>` below a delegated one (the loop marks a child run `delegated`). Agent names are identifiers, so `/` never occurs in one. The walk derives the same keys from the session it walks.
 6. **Old sessions still resume:** when no session exists under the path, the one under the subagent's name is continued if the caller called the subagent before in its own session, or a pause waits there (`legacyChild`). A syndicate that never called it, another syndicate's caller included, starts its own.
 
+> **Note (2026-10-09):** [ADR 0119](/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md) lifts decision 4: a nested workflow run as a dispatch route or a workflow node pauses the turn too, and its child session is filed under the agent path.
+
 ## Alternatives considered
 
 - **Carry a nested workflow's pause as a route or a node too.** The route would need the turn runner to find and resume a child walk outside any call, and the node a pause inside one walk carried to another; both are larger than this ticket, and both are refused with a message that says so.

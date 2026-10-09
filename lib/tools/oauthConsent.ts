@@ -41,6 +41,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { AuditSink } from '../observability/audit.ts';
 import { scopeHashOf } from '../observability/audit.ts';
 import { PROVIDER_NAME } from './auth.ts';
+import { clientSecretEnvOf, credentialCallProblem } from './credentialHosts.ts';
 import type { CredentialStore, TokenSet } from './auth.ts';
 
 // ── Configuration ────────────────────────────────────────────────────────────
@@ -323,7 +324,13 @@ export function oauthConsent(options: OAuthConsentOptions): OAuthConsent {
       client_id: client.clientId,
       code_verifier: flow.codeVerifier,
     });
-    if (client.clientSecret) body.set('client_secret', client.clientSecret);
+    if (client.clientSecret) {
+      // The secret goes only to a host the operator binds its variable to (ADR 0122), checked now:
+      // the allowlist can change after boot. Refused, nothing is sent.
+      const secretEnv = clientSecretEnvOf(client);
+      if (secretEnv && credentialCallProblem(secretEnv, client.tokenUrl)) throw new ConsentError('exchange_failed', flow.provider);
+      body.set('client_secret', client.clientSecret);
+    }
     let json: Record<string, unknown> | undefined;
     try {
       const res = await doFetch(client.tokenUrl, {

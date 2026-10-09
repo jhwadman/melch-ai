@@ -39,6 +39,81 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/a2a/executor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/workflow/turn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —depends_on→ /decisions/0098-workflow-subagent-and-node-approvals.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —depends_on→ /decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —supersedes→ /decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —supersedes→ /decisions/0111-pauses-inside-nested-syndicates.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —depends_on→ /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/doctor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/a2a/oauthSetup.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/oauthConsent.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/oauthTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/openapiTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/tools/credentialUses.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/tools/credentialHosts.ts
+
+by claude-code/claude-opus-5-5
 
 ## [2026-10-09] relate | /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md —explains→ syndicate:systems_operator
 
@@ -105,6 +180,7 @@ by claude-code/claude-opus-5-5
 by claude-code/claude-opus-5-5
 
 ## [2026-10-09] relate | /decisions/0115-yaml-schema-v2-provider-neutral-keys.md —explains→ module:lib/agentDialect.ts
+
 ## [2026-10-09] relate | /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md —constrains→ module:lib/syndicateSchema.ts
 
 by claude-code/claude-opus-5-5
