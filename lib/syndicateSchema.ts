@@ -41,7 +41,7 @@ const AGENT_NAME_RE = /^[\p{ID_Start}$_][\p{ID_Continue}$_-]*$/u;
 const agentName = z
   .string()
   .regex(AGENT_NAME_RE, 'must be a valid identifier (letters, digits, _ and -; not starting with a digit)')
-  .refine((n) => n !== 'user', "'user' is reserved by ADK for the end user's input")
+  .refine((n) => n !== 'user', "'user' is reserved for the end user's input")
   .describe('Unique agent name within the tree. A valid identifier; cannot be "user".');
 
 export const MEMORY_SYSTEMS = ['internal-only', 'session-only', 'long-term'] as const;
@@ -223,7 +223,7 @@ const agentFields = {
   outputSchema: z
     .record(z.string(), z.unknown())
     .optional()
-    .describe('JSON Schema for structured output. Cannot be combined with AgentTool delegation.'),
+    .describe('JSON Schema for structured output: the agent answers with one JSON object matching it. Hold it on a leaf; an agent that delegates and holds one ends its turn on that JSON.'),
   mcp_server_url: z
     .string()
     .optional()
@@ -267,7 +267,7 @@ const agentFields = {
 
 export const agentSchema = z
   .strictObject(agentFields)
-  .describe('The root agent (ADK LlmAgentConfig).');
+  .describe('The root agent, which the engine\'s agent loop runs (keys spelled after ADK\'s LlmAgentConfig).');
 
 /**
  * Model and instruction are optional at the type level because a nested
@@ -338,11 +338,11 @@ const ERROR_NAME = /^[A-Za-z_$][\w$]*$/;
 
 const retrySchema = z
   .strictObject({
-    max_attempts: z.number().int().positive().optional().describe('Attempts including the first; 1 = no retry. ADK default 5.'),
+    max_attempts: z.number().int().positive().optional().describe('Attempts including the first; 1 = no retry. Default 5.'),
     initial_delay: z.number().nonnegative().optional().describe('Seconds before the first retry.'),
     max_delay: z.number().nonnegative().optional(),
     backoff_factor: z.number().positive().optional(),
-    jitter: z.number().nonnegative().optional().describe('Randomness of the backoff; 0 = none. ADK default 1.'),
+    jitter: z.number().nonnegative().optional().describe('Randomness of the backoff; 0 = none. Default 1.'),
     exceptions: z
       .array(z.string().regex(ERROR_NAME, 'an error name, such as TypeError or NodeTimeoutError'))
       .min(1)
@@ -394,7 +394,7 @@ export const syndicateSchema = z
         tool_errors: z.number().int().min(0).max(5).optional().describe('Retries of a tool that threw, with reflection guidance. Default 3; 0 off.'),
       })
       .optional()
-      .describe('Self-correction on model and tool errors (ADK reflect-and-retry plugins). On by default.'),
+      .describe('Self-correction on model and tool errors: the engine\'s reflect-and-retry. On by default.'),
     variables: z
       .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
       .optional()

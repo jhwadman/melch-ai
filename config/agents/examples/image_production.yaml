@@ -16,8 +16,8 @@ memory_system: "session-only"
 #   path — the spec physically cannot reach the inventory, so expectation bias
 #   is blocked by the tool signature, not by good intentions. SpecAuditor is a
 #   text-only leaf that receives spec + inventory but never the image, and
-#   holds the outputSchema (same ADK constraint as critic.yaml: schema-holders
-#   get no transfer powers). Perception, judgment, and decision are three
+#   holds the outputSchema (the same rule as critic.yaml: the schema-holder
+#   is a leaf that delegates nothing). Perception, judgment, and decision are three
 #   different minds.
 #
 # WHY the instruction maps payload fields to tool parameters by name

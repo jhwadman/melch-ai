@@ -7,7 +7,7 @@
 # subagent declares NO tools of its own — its entire capability
 # arrives at runtime from an MCP server (mcp_server_url below).
 # The framework dials the server, asks "what tools do you offer?",
-# and wraps each answer as a live ADK tool (lib/tools/mcpToolFactory.ts).
+# and wraps each answer as a live engine tool (lib/tools/mcpToolFactory.ts).
 #
 # That is the point of MCP: the agent's reach is no longer fixed
 # at design time. Point the same agent at a different server and

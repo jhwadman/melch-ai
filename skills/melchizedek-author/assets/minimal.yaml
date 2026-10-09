@@ -52,7 +52,7 @@ subagents:
     generateContentConfig:
       maxOutputTokens: 2048
     # For structured output put the schema HERE, on a leaf with no tools —
-    # an agent cannot hold both an outputSchema and subagents:
+    # an agent with an outputSchema answers only in that JSON:
     # generateContentConfig:
     #   responseMimeType: "application/json"
     # outputSchema:

@@ -12,8 +12,9 @@
 # SHAPE: plan-dispatch (lib/dispatch.ts). A small triage model names one of
 # three routes, and that route's output IS the answer. Each route HOLDS its
 # own tools instead of delegating to researcher subagents. That choice is
-# deliberate: ADK's AgentTool returns only a subagent's final text, so tool
-# output from a delegated subagent never reaches the outer stream, and the
+# deliberate: the engine's subagent tool returns only a subagent's final text
+# (lib/runtime/native/delegate.ts), so tool output from a delegated subagent
+# never reaches the outer stream, and the
 # `science` guard below checks the answer against exactly that output. When
 # the answering route makes the calls itself, every identifier it cites is
 # on its own stream. It also means an A2A client sees each tool call live.

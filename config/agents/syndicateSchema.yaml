@@ -53,9 +53,9 @@ syndicate_name: "My Syndicate"
 variables:
   my_variable: "default_value"
 
-# [optional] Self-correction, ON by default: ADK's reflect-and-retry
-# behaviour, which the native loop ports (ADR 0034, ADR 0075). model_errors: retries of a model
-# reply the runtime marks malformed (default 2). tool_errors: retries of a tool that threw, with
+# [optional] Self-correction, ON by default: the engine's reflect-and-retry,
+# ported from ADK's plugins (ADR 0034, ADR 0075). model_errors: retries of a model
+# reply the engine marks malformed (default 2). tool_errors: retries of a tool that threw, with
 # reflection guidance to the model (default 3). 0 turns either off. Every
 # retry is a model call under max_steps.
 # retries:
@@ -89,8 +89,9 @@ memory_extraction_model: "gemini-3.8-flash"
 
 # [optional] Switches this syndicate from DELEGATE to PLAN-DISPATCH.
 #
-#   DELEGATE (omit this block, the default): subagents become AgentTools on
-#   the orchestrator, which calls one and then RE-EMITS its answer to close
+#   DELEGATE (omit this block, the default): each subagent is a tool on the
+#   orchestrator (lib/runtime/native/delegate.ts), which calls one and then
+#   RE-EMITS its answer to close
 #   the turn. Classification is implicit in which tool it calls.
 #
 #   PLAN-DISPATCH (declare it): the orchestrator holds NO subagent tools and
@@ -101,8 +102,9 @@ memory_extraction_model: "gemini-3.8-flash"
 #   "[STATUS] Routed to <Name> — <reason>".
 #
 # ⚠ The orchestrator is a leaf in this mode: it gets no subagent tools on
-#   any provider, because outputSchema and subagent delegation do not
-#   combine on one agent (ADK refused it too; see examples/critic.yaml).
+#   any provider: the engine compiles it with no subagent tools, because an
+#   agent that holds an outputSchema answers in that JSON and nothing else
+#   (see examples/critic.yaml).
 #   Pair the schema with generateContentConfig.responseMimeType:
 #   "application/json".
 # Every surface runs it the same way: the A2A server and
@@ -180,8 +182,8 @@ dispatch:
 #   max_concurrency: 4
 
 # ── Orchestrator ────────────────────────────────────────────
-# The turn's root agent: the native loop runs it. Maps to: new
-# LlmAgent({ ... }), the root agent of ADK's Runner.
+# The turn's root agent: the engine's agent loop runs it. Its keys are
+# spelled after ADK's LlmAgentConfig.
 
 orchestrator:
 
@@ -263,8 +265,9 @@ orchestrator:
   # stderr are each cut at 20,000 characters, with a line saying so.
   # Maps to: tools[] (a toolset) and instruction (the appended index)
 
-  # [optional] Few-shot exchanges added to every request's instruction,
-  # as ADK's ExampleTool added them (the model never calls it).
+  # [optional] Few-shot exchanges the engine adds to every request's
+  # instruction (lib/tools/examples.ts), in the block ADK's ExampleTool
+  # wrote; the model never calls it.
   # Up to 20.
   # examples:
   #   - input: "Is it going to rain in Lyon tomorrow?"
@@ -424,9 +427,9 @@ orchestrator:
 
 # ── Subagents ───────────────────────────────────────────────
 # Each entry is an agent the orchestrator calls as a tool (DELEGATE),
-# a route (dispatch) or a node (workflow); the native loop runs it.
-# Maps to: new LlmAgent({ ... }) wrapped in AgentTool and passed to the
-# orchestrator's tools[].
+# a route (dispatch) or a node (workflow); the engine's agent loop runs it.
+# Its keys are spelled after ADK's LlmAgentConfig; under DELEGATE the
+# engine lists it in the orchestrator's tools (lib/runtime/native/delegate.ts).
 
 subagents:
 
@@ -435,7 +438,7 @@ subagents:
     # [required] Unique name. Must be a valid JS identifier.
     name: "MySubagent"
 
-    # [required for AgentTool] One-line description.
+    # [required] One-line description.
     # The orchestrator LLM reads this to decide when to call this subagent.
     description: "Handles a specific domain task."
 

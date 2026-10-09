@@ -7,7 +7,8 @@
 # that uses it. No tool code: the `openapi:` list below points at two
 # spec files, and every operation in them becomes a tool, its
 # parameters the tool's arguments and its summary the description the
-# model reads (lib/tools/openapiTools.ts; ADK's OpenAPIToolset).
+# model reads (lib/tools/openapiTools.ts, the engine's own parser and
+# caller, by the rules ADK's OpenAPIToolset had).
 #
 # The specs are hand-written subsets of Open-Meteo's free, keyless
 # APIs (specs/): find a place, then forecast its weather. Swap in

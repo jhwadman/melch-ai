@@ -9,7 +9,7 @@
 # what they produce, edit it, ask the person, then publish". A
 # `workflow:` block says exactly that: the agents below are the
 # nodes of a graph, and `edges` says what runs after what
-# (lib/workflow.ts; ADK's Workflow underneath).
+# (lib/workflow.ts; the engine's own scheduler, lib/workflow/, runs it).
 #
 #   START → Planner ─(article)→ Writer ──┐
 #                    │                  ├→ Both → Editor → Confirm → Publisher

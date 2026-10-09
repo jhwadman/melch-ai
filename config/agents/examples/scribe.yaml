@@ -36,10 +36,11 @@
 # the two lists lived apart they drifted, and drafts failed rules the
 # writer had never been given. Edit the rule in one place.
 #
-# WHY the orchestrator has no outputSchema: the ADK does not let
-# an agent hold both an outputSchema and AgentTools, so the JSON
-# contract sits on the Auditor (the leaf) and the Scribe returns
-# plain text. See critic.yaml for the same constraint.
+# WHY the orchestrator has no outputSchema: an agent that holds
+# one answers in that JSON and nothing else, and the Scribe's answer
+# is the document. So the JSON contract sits on the Auditor (the
+# leaf) and the Scribe returns plain text. See critic.yaml for the
+# same rule.
 #
 # Run it:  npm run syndicate:scribe
 #          npm run syndicate:scribe -- "$(cat brief.md)"     # one shot

@@ -141,7 +141,7 @@ Field reference:
 | `yaml_reference` | subagent | Mount another syndicate file as a nested subagent. |
 | `a2a_agent_url` | subagent | A REMOTE agent over A2A (§6): the orchestrator delegates to it with one `request` argument; in plan-dispatch it can be a route. No `model`/`instruction` — the remote agent has its own. Credentials come from `A2A_AGENT_TOKENS`, never YAML. |
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
-| `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to the agent (the names are ADK's `LlmAgent` fields). `includeContents: none` makes an agent see only the current message. |
+| `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to the agent (spelled after ADK's `LlmAgent` fields). `includeContents: none` makes an agent see only the current message. |
 | `fallback_model` | any agent | A model, ideally on another provider, that answers when this agent's model fails provider-side (5xx, 429, a connection reset, after its own retries) before producing any output, or while that provider's circuit is open: after `MODEL_BREAKER_THRESHOLD` consecutive provider failures (default 5; 0 disables) the provider is skipped for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx and a canceled turn are never redirected, and a stream that already produced text is never replayed elsewhere ([ADR 0044](./wiki/decisions/0044-fallback-model-and-circuit-breaker.md)). |
 | `mcp_tools` | subagent | The MCP server's tools this agent may use; any other tool the server lists is not exposed. On a dispatch route `require_approval` may name them ([ADR 0041](./wiki/decisions/0041-tool-vendors-get-least-privilege.md)). |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
@@ -178,7 +178,7 @@ function, and every adapter recognises it by marker
 | `google_search` | Gemini built-in | Live web search — Gemini agents only (legacy alias; use `web_search`). |
 | `preload_memory` | Instruction tool | Silently injects similarity-matched facts into every request's instruction (ambient recall). The model never calls it. |
 | `load_memory` | Contract | Explicit tool call to search the fact store (deliberate recall). Both memory tools read the caller's own silo only and send the model what ADK's tools of the same names sent ([ADR 0059](./wiki/decisions/0059-memory-on-the-engines-own-interfaces.md)). |
-| `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive the AgentTool text boundary. |
+| `generate_image` | Contract | Calls the Gemini image model directly, saves the result under `outputs/`, returns the path. A function tool because binary `inlineData` cannot survive delegation, where a subagent returns only its final text. |
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
 | `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Orchestrator or plan-dispatch route only (§6, Questions). |
@@ -575,7 +575,7 @@ Model floor: agent transfer (subagent delegation) requires
 `gemini-3.8-flash` or newer — older flash models reject it with
 `[400] Tool call context circulation is not enabled`. For `ollama/*`
 agents the equivalent floor is tool-calling support in the model
-itself; delegation is exercised through AgentTool function calls.
+itself; delegation runs through ordinary function calls to the subagent tools.
 
 ## 6. A2A service mode
 
@@ -1055,7 +1055,7 @@ user:
 
 | | DELEGATE (default) | PLAN-DISPATCH (`dispatch:` present) |
 |---|---|---|
-| Subagents are | `AgentTool`s on the orchestrator | plain configs the server selects from |
+| Subagents are | tools on the orchestrator | plain configs the server selects from |
 | Orchestrator holds | subagent tools, no `outputSchema` | an `outputSchema`, no subagent tools |
 | Routing decision is | implicit in which tool it calls | an explicit value in code |
 | The final answer comes from | the orchestrator re-emitting the answer | **the specialist itself** |
@@ -1089,9 +1089,11 @@ emitted the bare tool name in place of a 2,599-character answer.
 Plan-dispatch has no relay turn to fail, and the classifier's output
 shrinks from a whole relayed answer to ~15 tokens of JSON.
 
-**Why the classifier is tool-less.** Structured output does not combine
-with delegation on one agent (see `config/agents/examples/critic.yaml`,
-whose header tells how an orchestrator holding both deadlocked on ADK).
+**Why the classifier is tool-less.** An agent that holds an
+`outputSchema` answers with that JSON and nothing else, so the schema sits
+on a leaf that delegates nothing (see `config/agents/examples/critic.yaml`,
+whose header also tells how an orchestrator holding both deadlocked on
+ADK before 1.0.0).
 That constraint shapes the method: the classifier is a leaf, and the
 hand-off happens in code, where it can be logged, traced, and streamed
 to the user as progress.
@@ -1100,8 +1102,8 @@ to the user as progress.
 one transcript accumulates across routes and long-term memory ingests
 real answers instead of a relay copy of them. Sharing the session is
 necessary but not sufficient: a stored event is rendered by comparing
-`event.author` against the agent now running (ADK's rule, which the native
-loop keeps), and under plan-dispatch
+`event.author` against the agent now running (the rule ADK had, which the
+engine's loop keeps), and under plan-dispatch
 every route is its own root agent, so the whole history fails that
 comparison and `convertForeignEvent` rewrites it to `role: "user"`
 prefixed "For context:". A route reading the raw shared session
