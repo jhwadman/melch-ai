@@ -82,6 +82,9 @@ export interface DoctorRow {
 
 export type VerdictState = 'ready' | 'ready-local' | 'via-gateway' | 'blocked';
 
+/** The `gateway.id` the doctor reports when `MODEL_GATEWAY` names no known gateway; the value itself is never kept. */
+const UNRECOGNISED_GATEWAY = 'unrecognised';
+
 /**
  * A tool that sends an OAuth token (ADR 0112): which agent holds it, the
  * provider, and the grant. An authorization_code grant needs each user's
@@ -730,7 +733,7 @@ export function runDoctor(options: {
   const gateway = rawGateway
     ? {
         // An unrecognised value is never echoed: it may be a key pasted into the wrong variable.
-        id: cfg?.gateway.id ?? 'unrecognised',
+        id: cfg?.gateway.id ?? UNRECOGNISED_GATEWAY,
         label: cfg?.gateway.label ?? 'an unrecognised gateway',
         usable: gatewayUsable(),
         ...(gatewayProblem() ? { problem: gatewayProblem() } : {}),
@@ -838,15 +841,20 @@ const PROBE_ID: Record<ProviderId, string> = {
 
 /**
  * Why `melchizedek-doctor --check` exits non-zero, one line each; empty when
- * it passes. A blocked syndicate, a runtime problem, the OAuth setup's and
- * the credential allowlist's problems, and each grant whose hosts the OAuth
- * host allowlist refuses (ADR 0114), and the Sign in with ChatGPT line's
- * problems (ADR 0126). Names and hosts only, never a value.
+ * it passes. A blocked syndicate, a runtime problem, a `MODEL_GATEWAY` that
+ * names no gateway (named with the accepted values only: the value may be a
+ * key pasted into the wrong variable), the OAuth setup's and the credential
+ * allowlist's problems, and each grant whose hosts the OAuth host allowlist
+ * refuses (ADR 0114), and the Sign in with ChatGPT line's problems (ADR 0126).
+ * Names and hosts only, never a value.
  */
 export function checkProblems(result: DoctorResult): string[] {
   const problems: string[] = [];
   if (result.counts.blocked > 0) problems.push(`${result.counts.blocked} syndicate(s) blocked`);
   if (result.runtime.problem) problems.push(result.runtime.problem);
+  if (result.gateway?.id === UNRECOGNISED_GATEWAY) {
+    problems.push(`gateway: ${GATEWAY_ENV} is set to an unrecognised value (not shown); it must be one of: ${Object.keys(GATEWAYS).join(', ')}`);
+  }
   for (const p of result.oauth?.problems ?? []) problems.push(`oauth: ${p}`);
   for (const p of result.credentials?.problems ?? []) problems.push(`credentials: ${p}`);
   for (const p of result.chatgpt?.problems ?? []) problems.push(`chatgpt: ${p}`);

@@ -6,6 +6,16 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Changed
+
+- **`melchizedek-doctor --check` fails on an unrecognised `MODEL_GATEWAY`.**
+  The doctor already reported a `MODEL_GATEWAY` that names no gateway; `--check`
+  now exits 1 on it too (`checkProblems` adds a `gateway:` line naming the
+  accepted values, `vercel` and `openrouter`). The value is never echoed, in
+  text, `--json` or the check line, since it may be a key pasted into the wrong
+  variable. A recognised gateway without `MODEL_GATEWAY_API_KEY`, and unset
+  per-grant variables, stay a report, not a failure.
+
 ### Added
 
 - **`melchizedek-mcp`: syndicates as MCP tools** (ADR 0125). A new bin
