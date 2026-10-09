@@ -3,6 +3,42 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —depends_on→ /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/doctor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/a2a/oauthSetup.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/oauthConsent.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/oauthTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/openapiTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/tools/credentialUses.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —explains→ module:lib/tools/credentialHosts.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0109-structured-output-beside-tools.md —explains→ syndicate:structured_critic
 
 by claude-code/claude-opus-5-5

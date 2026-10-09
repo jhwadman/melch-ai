@@ -20,6 +20,8 @@ sources:
   - resource: lib/tools/oauthConsent.ts
   - resource: lib/tools/oauthTools.ts
   - resource: lib/tools/oauthHosts.ts
+  - resource: lib/tools/credentialHosts.ts
+  - resource: lib/tools/credentialUses.ts
   - resource: lib/tools/credentialEnv.ts
   - resource: lib/runtime/credentials.ts
   - resource: lib/tools/nativeTools.ts
@@ -31,6 +33,7 @@ sources:
   - resource: tests/oauthConsent.test.ts
   - resource: tests/oauthTools.test.ts
   - resource: tests/oauthHosts.test.ts
+  - resource: tests/credentialHosts.test.ts
   - resource: tests/toolBaseRest.test.ts
 ---
 
@@ -85,6 +88,14 @@ An [OpenAPI](/tools/openapi-tools.md) entry's `auth: { oauth2 }` and an [MCP](/p
 - **The consent step's clients.** `oauthClientsFor(configs)` builds `oauthConsent({ providers })` from the same YAML's authorization-code blocks, reading the client ids and secrets from their variables. Two declarations of one provider must agree, or it throws. `oauthRefreshProviders(clients)` gives the credential store (`credentialStore({ providers })`) the matching refresh hooks, so an expired user token is renewed at the same token endpoint with its refresh token (same guard and bounds, `grant_failed` on a refusal) rather than asking the person again.
 - **The server binary's wiring.** `lib/a2a/oauthSetup.ts` (`oauthServerSetup`, and `serverOAuth` in `scripts/a2a_server.ts`) builds the store and the consent step from `MELCHIZEDEK_CREDENTIAL_KEY`, `OAUTH_REDIRECT_URI`, `OAUTH_CALLBACK_IDENTITY` and the allowlist, the clients from the served syndicate files only ([A2A](/protocols/a2a.md#oauth-consent)).
 - **The doctor** lists every tool that needs a grant: the agent, the provider, the grant, the scopes, which of its variables are not set, and the hosts the allowlist refuses (names only). Its `oauth` line says which of the server's OAuth variables are set and what is wrong with them (`oauthEnvProblems`).
+
+### Static credentials and their hosts
+
+A YAML sends a static credential in three places: an OpenAPI entry's `bearer_env` or `api_key.env`, to its server, and an `oauth2` block's `client_secret_env`, to its token endpoint. `credentialEnvProblem` keeps the framework's own variables out of reach; the operator binds each remaining variable to its hosts in `lib/tools/credentialHosts.ts` ([ADR 0122](/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md)): `MELCHIZEDEK_CREDENTIAL_HOSTS` (`VARIABLE=host,host;…`, hosts as the OAuth allowlist takes them, validated by the same `hostPatternProblem`) or `createA2AApp({ credentialHosts })`, which wins (`setCredentialHosts`, process-wide).
+
+- **Unset**, nothing changes: a credential goes to the host the YAML names. `lib/tools/credentialUses.ts` lists every variable a served syndicate sends (`syndicateCredentialUses`), and the server binary's boot and the doctor name each one as unbound (`unboundCredentialWarning`, names only); the doctor's `credentials` line shows it as a warning, not a `--check` failure.
+- **Set**, it is the whole list: a variable not on it is sent nowhere, and one on it only to its own hosts (`credentialHostProblem`). The check runs when a served syndicate loads (`syndicateCredentialHostProblems`, beside the OAuth check in `createA2AApp` and the server binary's boot; an OpenAPI entry's servers are its `base_url` or its spec's, `openApiServers`), when its tools compile (`buildOpenApiOwnTools`, `oauthTokenSource`, `oauthClientsFor`), and before each send (`credentialCallProblem`): an OpenAPI call answers `{ error }` naming the host, a client-credentials token request and a refresh throw `ToolCredentialError('host_refused')`, and the consent step's code exchange fails as `exchange_failed`. Nothing is sent. `oauthClientsFor` marks each client with the variable its secret came from (`CLIENT_SECRET_ENV`), which is how the exchange and the refresh know what to check.
+- **Not covered:** `client_id_env` (an id, not a secret) and `MCP_BEARER_TOKENS` (it maps each token to its host already, and the operator writes both). A malformed allowlist throws at boot and refuses every call-time check.
 
 ## Server-side tools are markers
 

@@ -3116,6 +3116,78 @@
       "evidence": "config/agents/examples/structured_critic.yaml header: \"the critic as ONE agent (ADR 0109). The orchestrator delegates to a Drafter, then grades the draft and answers in its own `output.schema`, with no relay leaf and no plan-dispatch block.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/credentialHosts.ts",
+      "rel": "explains",
+      "evidence": "ADR 0122 Decision 1-4: the credential host allowlist, its format, what it covers and the rule (unset: as before; set: the whole list) live in lib/tools/credentialHosts.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/credentialUses.ts",
+      "rel": "explains",
+      "evidence": "ADR 0122 Decision 3 and 5: syndicateCredentialUses lists every variable a served YAML sends, and syndicateCredentialHostProblems refuses one the allowlist does not bind at load.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: buildOpenApiOwnTools refuses a bearer_env or api_key aimed at a host its variable is not bound to, and each call checks again and sends nothing when refused.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: oauthTokenSource and oauthClientsFor refuse a client_secret_env whose token_url is off its binding, and the token request and refresh hook check again before sending.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: the consent step's code exchange checks the client secret's variable against the allowlist before sending it, failing as exchange_failed.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: createA2AApp takes credentialHosts and refuses a syndicate that sends a credential the allowlist does not permit when it loads one to serve.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 3 and 5: oauthServerSetup refuses a served file the credential allowlist refuses, throws on a malformed one, and warns naming each unbound variable.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 3: the doctor shows a credentials line naming each unbound variable as a warning, and each refusal as a --check failure.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0122 Context and Decision 1: it extends ADR 0114's operator binding, in the same host format, from OAuth providers to static credential variables.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

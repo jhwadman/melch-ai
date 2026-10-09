@@ -6,6 +6,19 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+- **Static credentials go only to hosts the operator binds** (ADR 0122).
+  `MELCHIZEDEK_CREDENTIAL_HOSTS="TRACKER_TOKEN=api.tracker.example.com;…"`,
+  or `createA2AApp({ credentialHosts })`, binds each credential variable a
+  YAML sends (`bearer_env`, `api_key.env`, `client_secret_env`) to its hosts.
+  Unset, nothing changes: `melchizedek-serve` warns at boot and
+  `melchizedek-doctor` shows a `credentials` warning naming each unbound
+  variable. Set, it is the whole list, checked when a syndicate loads, when
+  it compiles and before each send; a refused call sends nothing. New
+  modules `melchizedek-agents/tools/credentialHosts` and
+  `melchizedek-agents/tools/credentialUses` (through the existing
+  `./tools/*` export); `openApiServers` in `tools/openapiTools`; `DoctorResult.credentials`; the server's banner gains
+  a `creds` line, and `oauthServerSetup` returns `credentialSummary`.
+
 ## 1.1.0 — 2026-10-09
 
 Release 1.1.0 closes workstream 6 of the ADK-independence plan (ADRs
