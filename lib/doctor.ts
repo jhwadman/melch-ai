@@ -729,8 +729,9 @@ export function runDoctor(options: {
   const rawGateway = (process.env[GATEWAY_ENV] ?? '').trim();
   const gateway = rawGateway
     ? {
-        id: cfg?.gateway.id ?? rawGateway,
-        label: cfg?.gateway.label ?? rawGateway,
+        // An unrecognised value is never echoed: it may be a key pasted into the wrong variable.
+        id: cfg?.gateway.id ?? 'unrecognised',
+        label: cfg?.gateway.label ?? 'an unrecognised gateway',
         usable: gatewayUsable(),
         ...(gatewayProblem() ? { problem: gatewayProblem() } : {}),
       }
@@ -785,17 +786,6 @@ export function runDoctor(options: {
   };
 }
 
-/** What `melchizedek-doctor --check` exits 1 on: a blocked syndicate, or any problem line. */
-export function doctorCheckFails(result: DoctorResult): boolean {
-  return (
-    result.counts.blocked > 0 ||
-    !!result.runtime.problem ||
-    !!result.oauth?.problems.length ||
-    !!result.credentials?.problems.length ||
-    !!result.chatgpt?.problems.length
-  );
-}
-
 /**
  * The Sign in with ChatGPT line (ADR 0126), when a credential file is present
  * or one of its variables is set. `served`: a serving variable is set, so
@@ -845,6 +835,26 @@ const PROBE_ID: Record<ProviderId, string> = {
   moonshot: 'kimi-x',
   ollama: 'ollama/x',
 };
+
+/**
+ * Why `melchizedek-doctor --check` exits non-zero, one line each; empty when
+ * it passes. A blocked syndicate, a runtime problem, the OAuth setup's and
+ * the credential allowlist's problems, and each grant whose hosts the OAuth
+ * host allowlist refuses (ADR 0114), and the Sign in with ChatGPT line's
+ * problems (ADR 0126). Names and hosts only, never a value.
+ */
+export function checkProblems(result: DoctorResult): string[] {
+  const problems: string[] = [];
+  if (result.counts.blocked > 0) problems.push(`${result.counts.blocked} syndicate(s) blocked`);
+  if (result.runtime.problem) problems.push(result.runtime.problem);
+  for (const p of result.oauth?.problems ?? []) problems.push(`oauth: ${p}`);
+  for (const p of result.credentials?.problems ?? []) problems.push(`credentials: ${p}`);
+  for (const p of result.chatgpt?.problems ?? []) problems.push(`chatgpt: ${p}`);
+  for (const s of result.syndicates) {
+    for (const g of s.grants ?? []) for (const p of g.hostProblems ?? []) problems.push(`${s.file}: ${g.agent} · ${g.provider}: ${p}`);
+  }
+  return problems;
+}
 
 function pad(s: string, n: number): string {
   return s.length >= n ? s.slice(0, n - 1) + '…' : s.padEnd(n);

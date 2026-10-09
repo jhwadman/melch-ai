@@ -109,13 +109,15 @@ export function gatewayConfig(): GatewayConfig | null {
 }
 
 /** A human-readable misconfiguration, or undefined when the gateway is
- *  either off or usable. */
+ *  either off or usable. An unrecognised value is named as such and never
+ *  repeated, since it may be a secret pasted into the wrong variable. */
 export function gatewayProblem(): string | undefined {
   const id = (process.env[GATEWAY_ENV] ?? '').trim();
   if (!id) return undefined;
   const cfg = gatewayConfig();
   if (!cfg) {
-    return `${GATEWAY_ENV}=${id} is not a known gateway (expected one of: ${Object.keys(GATEWAYS).join(', ')})`;
+    // The value is never echoed: a key pasted into the wrong variable is still a secret.
+    return `${GATEWAY_ENV} is set to an unrecognised value (not shown); it must be one of: ${Object.keys(GATEWAYS).join(', ')}`;
   }
   if (!cfg.keyPresent) return `${GATEWAY_ENV}=${cfg.gateway.id} is set but ${GATEWAY_KEY_ENV} is not`;
   return undefined;

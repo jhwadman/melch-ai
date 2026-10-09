@@ -3590,6 +3590,30 @@
       "note": "In part: only the consequence that a dispatch run is not resumed from inside an agent route; the cap is an addition. The checkpointing design of ADR 0113 stands."
     },
     {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "constrains",
+      "evidence": "lib/doctor.ts checkProblems: a grant whose hosts the OAuth host allowlist (ADR 0114) refuses is a problem `melchizedek-doctor --check` exits 1 on; tests/oauthHosts.test.ts runs the bin both ways.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "constrains",
+      "evidence": "lib/tools/auth.ts ToolCredentialError: a host_refused error with allowlist 'oauth' names MELCHIZEDEK_OAUTH_HOSTS, the allowlist ADR 0114 defines.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "constrains",
+      "evidence": "lib/tools/auth.ts ToolCredentialError: a host_refused error with allowlist 'credential' names MELCHIZEDEK_CREDENTIAL_HOSTS, the allowlist ADR 0122 defines; lib/tools/oauthTools.ts passes it where credentialCallProblem refuses a client secret.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
       "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
       "to": "module:lib/a2a/app.ts",
       "rel": "constrains",

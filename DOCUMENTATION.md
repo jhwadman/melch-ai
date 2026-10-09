@@ -432,7 +432,11 @@ reads every syndicate YAML, resolves each agent's model under your `.env`,
 and prints one table — agent, model, provider, which declared server-side
 tools that path runs natively (✓) or drops (✗), and whether the path is
 funded — with one verdict per syndicate and the variables that would
-unlock the most. Read-only; no key value is ever printed. Every
+unlock the most. Read-only; no key value is ever printed, and a
+`MODEL_GATEWAY` it does not recognise is named as such, never repeated.
+`--check` exits 1 on a blocked syndicate, a runtime problem, a problem
+with the server's OAuth or credential settings, or a tool's OAuth grant
+whose hosts `MELCHIZEDEK_OAUTH_HOSTS` refuses. Every
 starter-pack file opens with a `# tier:` header (`keyless`, one provider
 such as `gemini`, or `multi-provider`) the doctor checks against the
 models. `GOOGLE_GENAI_API_KEY` alone runs fourteen of the nineteen examples.

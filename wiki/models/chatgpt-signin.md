@@ -61,7 +61,7 @@ OpenAI documents a [Sign in with ChatGPT](https://developers.openai.com/siwc/tok
 
 `refuseChatGptSignInOnServedSurface(surface)` (`lib/chatgpt/state.ts`) marks the process served and throws while `chatGptSignInRoutesOpenAi()` holds. `createA2AApp`, `melchizedek-serve` (before any other startup step) and `melchizedek-worker` call it, so each refuses to start with a message naming the fixes: set `OPENAI_API_KEY` or Azure OpenAI, set `MELCHIZEDEK_CHATGPT_SIGNIN=off` for that process, or sign out. A new served surface calls the same function.
 
-The doctor prints a `chatgpt` line whenever a file is present or either variable is set: signed in or not, whether it carries OpenAI ids, and the file's path. The providers line shows OpenAI as `ChatGPT sign-in, local only`. With any serving variable set beside a sign-in that carries OpenAI ids, the line carries a problem and `melchizedek-doctor --check` exits 1 (`doctorCheckFails`).
+The doctor prints a `chatgpt` line whenever a file is present or either variable is set: signed in or not, whether it carries OpenAI ids, and the file's path. The providers line shows OpenAI as `ChatGPT sign-in, local only`. With any serving variable set beside a sign-in that carries OpenAI ids, the line carries a problem and `melchizedek-doctor --check` exits 1 (`checkProblems` lists it as `chatgpt: …`).
 
 `npm test` loads `tests/helpers/isolateLocalState.ts`, which points `MELCHIZEDEK_CHATGPT_SIGNIN_FILE` at a path that does not exist, so a developer's own sign-in never reaches the suite.
 

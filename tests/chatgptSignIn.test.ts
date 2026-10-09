@@ -49,7 +49,7 @@ import {
 } from '../lib/chatgpt/state.ts';
 import type { StoredSignIn } from '../lib/chatgpt/state.ts';
 import { writeStoredSignIn } from '../lib/chatgpt/store.ts';
-import { doctorCheckFails, renderDoctor, runDoctor } from '../lib/doctor.ts';
+import { checkProblems, renderDoctor, runDoctor } from '../lib/doctor.ts';
 import type { FinalModelResponse, ModelRequest, ModelResponse } from '../lib/models/contract.ts';
 import { GptAdapter } from '../lib/models/gptAdapter.ts';
 import { resolveAdapter } from '../lib/models/adapterResolver.ts';
@@ -591,7 +591,7 @@ test('the doctor reports the sign-in, and --check fails a served config that wou
   assert.equal(local.counts.blocked, 0, 'control: the keyless template is not blocked');
   assert.ok(local.chatgpt?.routesOpenAi);
   assert.deepEqual(local.chatgpt?.problems, []);
-  assert.equal(doctorCheckFails(local), false);
+  assert.deepEqual(checkProblems(local), []);
   assert.equal(local.providers.find((p) => p.provider === 'openai')?.credential, 'chatgpt-signin');
   const text = renderDoctor(local);
   assert.match(text, /chatgpt .*signed in · carries OpenAI ids · local only/);
@@ -599,7 +599,7 @@ test('the doctor reports the sign-in, and --check fails a served config that wou
 
   const served = withEnvSync({ ...NO_KEY, ...clear, MELCHIZEDEK_CHATGPT_SIGNIN_FILE: file, A2A_SERVER_SECRET: 'test-only-secret-test-only-secret-0000' }, () => runDoctor({ agentsDir }));
   assert.ok(served.chatgpt?.problems.some((p) => p.includes('local only')));
-  assert.equal(doctorCheckFails(served), true);
+  assert.ok(checkProblems(served).some((p) => p.startsWith('chatgpt: ')));
 
   // The bin: --check exits 1 on the served config, 0 locally.
   const run = (extra: Record<string, string>) => {
