@@ -24,8 +24,11 @@
 #       `mcp_auth: { oauth2 }` (ADR 0112): uncomment the block on Systems
 #       below. client_credentials gives the server's own token on every
 #       request. authorization_code (each person's own token, granted
-#       through the consent pause) needs the agent to run the turn
-#       itself: a dispatch route, not a delegated subagent like Systems.
+#       through the consent pause) works on Systems too: the first call
+#       for a person who has not connected pauses the turn with an
+#       authorization link, and their next message after the grant
+#       resumes Systems' call (ADR 0118). It also needs mcp_tools, the
+#       server's tool names, and an operator allowlist (ADR 0114).
 #       `npm run doctor` lists every tool that needs a grant.
 #       Loopback and private addresses are refused unless
 #       ALLOW_PRIVATE_MCP=true (local development).

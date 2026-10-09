@@ -113,6 +113,8 @@
  * Before each step, a credential request the latest user message answers
  * runs its paused call again (interrupts.ts grantedCalls, ADK's auth
  * preprocessor), ahead of the approval resume.
+ * Inside a delegated subagent the same pause leaves the caller's call open,
+ * and the grant's answer comes down through it (ADR 0118).
  *
  * NOT HERE (later tickets): transfer_to_agent (no compiled syndicate sets
  * subAgents). The run's spans (agent.invoke, model.call,
@@ -197,8 +199,9 @@ export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adap
   /**
    * The consent step (ADR 0085): a call whose provider the user has not
    * granted asks for it (`requestCredential`, or `accessToken` by itself),
-   * and the run pauses on ADK's `adk_request_credential` call. Not passed to
-   * a delegated subagent's loop.
+   * and the run pauses on ADK's `adk_request_credential` call. A delegated
+   * subagent's loop gets it too, its flows bound to the caller's app
+   * (delegate.ts consentPinnedTo, ADR 0118): its pause leaves the call open.
    */
   consent?: Pick<OAuthConsent, 'has' | 'begin'>;
   /**

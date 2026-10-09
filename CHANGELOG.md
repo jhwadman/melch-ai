@@ -43,6 +43,23 @@ the starter pack and the templates), not the repo's full history.
   `REASONING_ORDER`. `ChatCompletionsAdapter` gains the protected hooks
   `reasoningCeiling(model)` and `effortFor(model, setting)`.
 
+- **Skill scripts on a delegated subagent.** `skills.scripts: local` is no
+  longer a load error on a delegated subagent (or a nested delegate
+  syndicate's): a `run_skill_script` call there pauses the turn
+  `input-required` with `approval.path`, and the decision runs or refuses the
+  script in the subagent before its caller continues. An agent a map node
+  runs still may not carry scripts (ADR 0118).
+- **OAuth consent inside a delegated subagent.** A subagent's
+  `authorization_code` tool (an `mcp_auth` or OpenAPI `auth.oauth2` grant)
+  now asks for a missing grant instead of answering `not_connected`: the turn
+  ends `input-required` with `consent`, whose new optional `path` names the
+  agents from the turn's own down to the one that asked (`PendingConsent.path`;
+  the A2A `consent_request` data part carries `path` too). The callback stores
+  the grant under the conversation's app, and the next message resumes the
+  subagent's call. The host allowlist's checks are unchanged. The
+  systems_operator template's comment says authorization_code works on its
+  Systems subagent (ADR 0118).
+
 ### Changed
 
 - **`melchizedek-codemod` converts the rest of `generateContentConfig`**
@@ -53,6 +70,15 @@ the starter pack and the templates), not the repo's full history.
   reads it, and the Gemini adapter asks for the thought trace whenever
   reasoning is not `none` (a `true` gets a note). Only `toolConfig` mode
   `VALIDATED` and `thinkingBudget: -1` stay, with a note.
+
+- **The council example's Moderator consults both subagents in one step**
+  (`config/agents/examples/council.yaml`). Its instruction asks for the
+  Advocate and the Skeptic together, both function calls in one response,
+  each given the user's full claim verbatim, so the two run at once under
+  `max_concurrency` (ADR 0116). Its role, its three-part verdict and its
+  guardrails are unchanged; the YAML keeps its v2 keys. A project that
+  copied the example keeps the old prompt until it copies it again.
+
 
 ## 1.1.0 — 2026-10-09
 

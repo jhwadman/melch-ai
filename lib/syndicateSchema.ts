@@ -796,16 +796,10 @@ function crossFieldProblems(raw: unknown): Problem[] {
     });
   };
   // A skill script run pauses for approval the same way, so it is allowed in
-  // the same places; `skills.tools` may only unlock tools the agent does not
-  // already carry outright.
-  const skillProblems = (agent: Record<string, unknown>, path: (string | number)[], allowed: boolean) => {
+  // the same places, a delegated subagent included (ADR 0118); `skills.tools`
+  // may only unlock tools the agent does not already carry outright.
+  const skillProblems = (agent: Record<string, unknown>, path: (string | number)[]) => {
     if (!isObj(agent.skills)) return;
-    if (agent.skills.scripts === 'local' && !allowed) {
-      out.push({
-        path: [...path, 'skills', 'scripts'],
-        message: 'skill scripts on a delegated subagent are not supported yet; run them on the orchestrator or a plan-dispatch route (ADR 0110)',
-      });
-    }
     const tools = Array.isArray(agent.tools) ? agent.tools : [];
     (Array.isArray(agent.skills.tools) ? agent.skills.tools : []).forEach((name, j) => {
       if (typeof name === 'string' && tools.includes(name)) {
@@ -899,19 +893,17 @@ function crossFieldProblems(raw: unknown): Problem[] {
 
   if (isObj(raw.orchestrator)) {
     gateProblems(raw.orchestrator, ['orchestrator'], true);
-    skillProblems(raw.orchestrator, ['orchestrator'], true);
+    skillProblems(raw.orchestrator, ['orchestrator']);
     questionProblems(raw.orchestrator, ['orchestrator'], true);
   }
-  const dispatching = isObj(raw.dispatch);
   // A workflow's subagents are its nodes, not delegated tools: a gated call pauses its node, and
   // the walk resumes it (ADR 0098); a skill script run pauses on the same approval (ADR 0106). A map item cannot (workflowProblems).
-  const pausing = dispatching || isObj(raw.workflow);
 
   subs.forEach((sub, i) => {
     if (!isObj(sub)) return;
-    // A delegated subagent's gate and question pause the turn through the open call (ADR 0110); its skill scripts stay refused.
+    // A delegated subagent's gate, question and skill script run pause the turn through the open call (ADR 0110, ADR 0118).
     gateProblems(sub, ['subagents', i], true);
-    skillProblems(sub, ['subagents', i], pausing);
+    skillProblems(sub, ['subagents', i]);
     questionProblems(sub, ['subagents', i], true);
     const hasRef = typeof sub.yaml_reference === 'string';
     const hasRemote = typeof sub.a2a_agent_url === 'string';
