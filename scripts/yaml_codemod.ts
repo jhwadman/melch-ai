@@ -19,8 +19,18 @@
  *   generateContentConfig.thinkingConfig / reasoningEffort → reasoning:, ONLY
  *     when the engine reads the same ReasoningSetting before and after for
  *     the agent's model (reasoningOf over the old config equals reasoningOf
- *     over what reasoningConfig makes of the new key).
- *   generateContentConfig.thinkingConfig.includeThoughts: false → dropped (the default; read by nothing)
+ *     over what reasoningConfig makes of the new key). `xhigh` and `max`
+ *     included (ADR 0117).
+ *   generateContentConfig.thinkingConfig.includeThoughts → dropped: the
+ *     engine reads it nowhere, and the Gemini adapter asks for the thought
+ *     trace itself whenever reasoning is not `none` (ADR 0117); `true` gets a
+ *     note saying so.
+ *   generateContentConfig.toolConfig → tool_choice: (ADR 0117), when it holds
+ *     only functionCallingConfig (mode AUTO, NONE or ANY, and
+ *     allowedFunctionNames) and includeServerSideToolInvocations, which the
+ *     compiler sets on every agent: AUTO is `auto`, NONE `none`, ANY with
+ *     one name `{ name }`, and ANY with none or several `required`, which is
+ *     what the engine reads (genaiMapping toolChoiceOf) either way.
  *
  * Anything else stays under generateContentConfig with a note naming its key
  * path (never its value); an emptied generateContentConfig is removed. An
@@ -43,8 +53,9 @@ import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { isMap, isPair, isScalar, isSeq, parseDocument, type Document, type Pair, type YAMLMap } from 'yaml';
 
-import type { ReasoningSetting } from '../lib/models/contract.ts';
-import { reasoningOf } from '../lib/models/genaiMapping.ts';
+import { functionCallingConfigOf } from '../lib/agentDialect.ts';
+import type { ReasoningSetting, ToolChoice } from '../lib/models/contract.ts';
+import { reasoningOf, toolChoiceOf } from '../lib/models/genaiMapping.ts';
 import { reasoningConfig } from '../lib/models/reasoning.ts';
 
 export interface MigrateResult {
@@ -66,9 +77,11 @@ const SAMPLING: ReadonlyMap<string, { key: string; ok: (v: unknown) => boolean }
 ]);
 
 const OUTPUT_MIMES = new Set(['application/json', 'text/plain']);
-const THINKING_LEVEL: ReadonlyMap<unknown, string> = new Map([['MINIMAL', 'none'], ['LOW', 'low'], ['MEDIUM', 'medium'], ['HIGH', 'high']]);
-const EFFORT_WORD: ReadonlyMap<unknown, string> = new Map([['none', 'none'], ['minimal', 'none'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']]);
 const THINKING_KEYS = new Set(['thinkingLevel', 'thinkingBudget', 'includeThoughts']);
+/** toolConfig keys the codemod can account for: the choice, and the flag the compiler sets on every agent. */
+const TOOL_CONFIG_KEYS = new Set(['functionCallingConfig', 'includeServerSideToolInvocations']);
+const FUNCTION_CALLING_KEYS = new Set(['mode', 'allowedFunctionNames']);
+const FUNCTION_CALLING_MODES = new Set(['AUTO', 'NONE', 'ANY']);
 
 // ── The source, by line ──────────────────────────────────────────────────────
 
@@ -204,8 +217,9 @@ interface AgentPlan {
   mime?: Chunk;
   schema?: Pair;
   reasoning?: { setting: ReasoningSetting; remove: Chunk[] };
-  /** includeThoughts: false inside a block thinkingConfig that stays (or empties). */
+  /** includeThoughts inside a block thinkingConfig that stays (or empties). */
   dropInclude?: { tc: Chunk; inc: Pair; empties: boolean };
+  toolChoice?: { setting: ToolChoice; chunk: Chunk };
 }
 
 function scalarString(map: YAMLMap, key: string): string | undefined {
@@ -281,10 +295,15 @@ function planAgent(doc: Document, src: Source, map: YAMLMap, path: string, notes
       const re = chunks.find((c) => c.name === 'reasoningEffort');
       if (tc || re) planThinking(plan, map, tc, re, valueOf, notes);
 
+      // Tool choice.
+      const toolConfig = chunks.find((c) => c.name === 'toolConfig');
+      if (toolConfig) planToolChoice(plan, map, toolConfig, valueOf(toolConfig), notes);
+
       // Leftovers: everything not moved, converted or dropped.
       const handled = new Set<Chunk>([...plan.sampling, ...(plan.mime ? [plan.mime] : []), ...(plan.reasoning?.remove ?? [])]);
       if (plan.dropInclude?.empties) handled.add(plan.dropInclude.tc);
-      const noted = new Set(['thinkingConfig', 'reasoningEffort', 'responseMimeType', ...SAMPLING.keys()]);
+      if (plan.toolChoice) handled.add(plan.toolChoice.chunk);
+      const noted = new Set(['thinkingConfig', 'reasoningEffort', 'responseMimeType', 'toolConfig', ...SAMPLING.keys()]);
       for (const c of chunks) {
         if (handled.has(c) || noted.has(c.name)) continue;
         notes.push(`${gccPath}.${c.name || '(non-string key)'}: no v2 form; left under generateContentConfig`);
@@ -292,8 +311,43 @@ function planAgent(doc: Document, src: Source, map: YAMLMap, path: string, notes
     }
   }
 
-  const changes = plan.sampling.length > 0 || plan.mime || plan.schema || plan.reasoning || plan.dropInclude;
+  const changes = plan.sampling.length > 0 || plan.mime || plan.schema || plan.reasoning || plan.dropInclude || plan.toolChoice;
   return changes ? plan : undefined;
+}
+
+/**
+ * toolConfig → tool_choice, when the engine reads the same ToolChoice before
+ * and after (genaiMapping toolChoiceOf) and nothing else in it would be lost.
+ */
+function planToolChoice(plan: AgentPlan, map: YAMLMap, chunk: Chunk, value: unknown, notes: string[]): void {
+  const where = `${plan.path}.generateContentConfig.toolConfig`;
+  const leave = (why: string) => {
+    notes.push(`${where}: ${why}; left in place`);
+  };
+  if (findPair(map, 'tool_choice')) return leave(`${plan.path}.tool_choice is already set (the loader refuses both)`);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return leave('not a mapping');
+  const tc = value as Json;
+  if (Object.keys(tc).some((k) => !TOOL_CONFIG_KEYS.has(k))) return leave('it holds a key with no v2 form');
+  const fcc = tc.functionCallingConfig;
+  if (fcc !== undefined) {
+    if (!fcc || typeof fcc !== 'object' || Array.isArray(fcc)) return leave('functionCallingConfig is not a mapping');
+    const f = fcc as Json;
+    if (Object.keys(f).some((k) => !FUNCTION_CALLING_KEYS.has(k))) return leave('functionCallingConfig holds a key with no tool_choice form');
+    if (f.mode === 'VALIDATED') return leave('mode VALIDATED (strict tool schemas) has no tool_choice form');
+    if (!FUNCTION_CALLING_MODES.has(f.mode as string)) return leave('its mode is not AUTO, NONE or ANY');
+    const names = f.allowedFunctionNames;
+    if (names !== undefined && !(Array.isArray(names) && names.every((n) => typeof n === 'string'))) return leave('allowedFunctionNames is not a list of names');
+    if (f.mode === 'ANY' && Array.isArray(names) && names.length > 1) {
+      notes.push(`${where}.functionCallingConfig.allowedFunctionNames: several names, which the engine sends as required (any tool); tool_choice: required says the same`);
+    }
+  }
+  // What the engine reads today is the v2 setting; the proof is that the v2
+  // key's engine form reads back the same.
+  const before = toolChoiceOf({ toolConfig: tc } as never);
+  const setting: ToolChoice = before.toolChoice ?? 'auto';
+  const after = toolChoiceOf({ toolConfig: { functionCallingConfig: functionCallingConfigOf(setting) } } as never);
+  if (!isDeepStrictEqual(before, after)) return leave('tool_choice: would change what the engine reads');
+  plan.toolChoice = { setting, chunk };
 }
 
 function planThinking(
@@ -310,40 +364,43 @@ function planThinking(
   const tcObject = tcValue && typeof tcValue === 'object' && !Array.isArray(tcValue) ? (tcValue as Json) : undefined;
   const model = scalarString(map, 'model');
 
-  // includeThoughts: false is the default and read by nothing: drop it from a
-  // block thinkingConfig whatever else happens to the thinking keys.
+  // includeThoughts is read by nothing: the Gemini adapter asks for the
+  // thought trace whenever reasoning is not `none` (ADR 0117). Drop it from
+  // a block thinkingConfig whatever else happens to the thinking keys.
   const incPair = tc && isMap(tc.pair.value) && !tc.pair.value.flow ? findPair(tc.pair.value, 'includeThoughts') : undefined;
-  const incFalse = incPair && isScalar(incPair.value) && incPair.value.value === false;
+  const incValue = incPair && isScalar(incPair.value) ? incPair.value.value : undefined;
+  const incBool = typeof incValue === 'boolean';
+  if (incValue === true) {
+    notes.push(`${gccPath}.thinkingConfig.includeThoughts: read by nothing (the Gemini adapter asks for the thought trace whenever reasoning is not none); dropped`);
+  }
+  const dropInclude = () => {
+    if (tc && incBool) plan.dropInclude = { tc, inc: incPair!, empties: (tc.pair.value as YAMLMap).items.length === 1 };
+  };
 
   const leave = (why: string) => {
     notes.push(`${where}: ${why}; left in place`);
-    if (tc && incFalse) {
-      const tcMap = tc.pair.value as YAMLMap;
-      plan.dropInclude = { tc, inc: incPair!, empties: tcMap.items.length === 1 };
-    }
-    if (tcObject?.includeThoughts === true) notes.push(`${gccPath}.thinkingConfig.includeThoughts: no v2 form; left in place`);
+    dropInclude();
   };
 
   if (findPair(map, 'reasoning')) return leave(`${plan.path}.reasoning is already set (the loader refuses both)`);
   if (!model || model.includes('{{')) return leave('the agent names no model id, so no reasoning: form can be checked');
   if (tc && !tcObject) return leave('thinkingConfig is not a mapping');
   if (tcObject && Object.keys(tcObject).some((k) => !THINKING_KEYS.has(k))) return leave('thinkingConfig holds a key with no reasoning: form');
-  if (tcObject && tcObject.includeThoughts !== undefined && tcObject.includeThoughts !== false) return leave('includeThoughts has no reasoning: form');
 
   const v1 = {} as Json;
   if (tc) v1.thinkingConfig = tcValue;
   if (re) v1.reasoningEffort = valueOf(re);
-  let candidate: ReasoningSetting | undefined;
-  const level = THINKING_LEVEL.get(tcObject?.thinkingLevel);
-  const budget = tcObject?.thinkingBudget;
-  if (level) candidate = level as ReasoningSetting;
-  else if (typeof budget === 'number' && Number.isInteger(budget) && budget >= 0) candidate = { budget_tokens: budget };
-  else if (EFFORT_WORD.has(v1.reasoningEffort)) candidate = EFFORT_WORD.get(v1.reasoningEffort) as ReasoningSetting;
-  if (candidate === undefined) return leave('no reasoning: setting reads the same');
+  // The setting is what the engine reads today; it converts when the v2
+  // key's engine form reads back the same for the agent's model.
   const before = reasoningOf(v1 as never);
-  const after = reasoningOf(reasoningConfig(model, candidate) as never);
+  if (before === undefined) {
+    // A thinkingConfig holding includeThoughts alone: nothing to convert, and nothing left.
+    if (!re && tcObject && Object.keys(tcObject).every((k) => k === 'includeThoughts')) return dropInclude();
+    return leave('no reasoning: setting reads the same');
+  }
+  const after = reasoningOf(reasoningConfig(model, before) as never);
   if (!isDeepStrictEqual(before, after)) return leave(`reasoning: would change what the engine reads for ${providerWord(model)}`);
-  plan.reasoning = { setting: candidate, remove: [tc, re].filter((c): c is Chunk => !!c) };
+  plan.reasoning = { setting: before, remove: [tc, re].filter((c): c is Chunk => !!c) };
 }
 
 /** A model family word for a note: never the id's value beyond its prefix. */
@@ -352,6 +409,15 @@ function providerWord(model: string): string {
 }
 
 const reasoningText = (s: ReasoningSetting): string => (typeof s === 'string' ? s : `{ budget_tokens: ${s.budget_tokens} }`);
+
+/** A tool name YAML reads back as that string unquoted: an identifier that is not a YAML keyword. */
+const PLAIN_NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+const YAML_WORDS = new Set(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n']);
+const toolChoiceText = (s: ToolChoice): string => {
+  if (typeof s === 'string') return s;
+  const plain = PLAIN_NAME.test(s.name) && !YAML_WORDS.has(s.name.toLowerCase());
+  return `{ name: ${plain ? s.name : JSON.stringify(s.name)} }`;
+};
 
 // ── Rendering ────────────────────────────────────────────────────────────────
 
@@ -378,10 +444,11 @@ function renamed(src: Source, c: Chunk, key: string): string[] {
 function renderGcc(src: Source, plan: AgentPlan): Edit | undefined {
   const g = plan.gcc;
   if (!g) return undefined;
-  if (!(plan.sampling.length || plan.mime || plan.reasoning || plan.dropInclude)) return undefined;
+  if (!(plan.sampling.length || plan.mime || plan.reasoning || plan.dropInclude || plan.toolChoice)) return undefined;
   const pad = ' '.repeat(g.indent);
   const removed = new Set<Chunk>([...plan.sampling, ...(plan.mime ? [plan.mime] : []), ...(plan.reasoning?.remove ?? [])]);
   if (plan.dropInclude?.empties) removed.add(plan.dropInclude.tc);
+  if (plan.toolChoice) removed.add(plan.toolChoice.chunk);
   const leftovers = g.chunks.filter((c) => !removed.has(c));
   const out: string[] = [];
 
@@ -396,6 +463,11 @@ function renderGcc(src: Source, plan: AgentPlan): Edit | undefined {
   if (plan.reasoning) {
     for (const c of plan.reasoning.remove) for (const comment of commentsIn(src, c.from, c.to, c.pair)) out.push(pad + comment);
     out.push(`${pad}reasoning: ${reasoningText(plan.reasoning.setting)}`);
+  }
+  if (plan.toolChoice) {
+    const c = plan.toolChoice.chunk;
+    for (const comment of commentsIn(src, c.from, c.to, c.pair)) out.push(pad + comment);
+    out.push(`${pad}tool_choice: ${toolChoiceText(plan.toolChoice.setting)}`);
   }
   if (plan.mime && !plan.schema) {
     out.push(`${pad}output:`);
@@ -470,6 +542,10 @@ function expectAgent(agent: Json, plan: AgentPlan): void {
     for (const c of plan.reasoning.remove) delete gcc[c.name];
     agent.reasoning = plan.reasoning.setting;
   }
+  if (plan.toolChoice) {
+    delete gcc.toolConfig;
+    agent.tool_choice = plan.toolChoice.setting;
+  }
   if (plan.dropInclude) {
     const tc = gcc.thinkingConfig as Json;
     delete tc.includeThoughts;
@@ -541,7 +617,7 @@ function yamlFiles(path: string): string[] {
 
 const USAGE = `usage: yaml_codemod [--check] <file|dir>...
   Rewrites agent v1 spellings (generateContentConfig, outputSchema) into the
-  v2 keys (sampling, output, reasoning), in place. A directory means every
+  v2 keys (sampling, output, reasoning, tool_choice), in place. A directory means every
   *.yaml below it. --check writes nothing and exits 1 if any file would change.`;
 
 export function main(argv: string[]): number {

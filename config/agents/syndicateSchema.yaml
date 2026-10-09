@@ -365,7 +365,7 @@ orchestrator:
 
   # ── reasoning ─────────────────────────────────────────────
   # [optional] How hard the agent reasons, on any provider (ADR 0047):
-  #   none | low | medium | high, or { budget_tokens: <int> }.
+  #   none | low | medium | high | xhigh | max, or { budget_tokens: <int> }.
   # The compiler sends each provider the field it reads:
   #   gemini-3 and later    → thinkingConfig.thinkingLevel
   #                           (none = MINIMAL, then LOW, MEDIUM, HIGH)
@@ -382,6 +382,10 @@ orchestrator:
   # A budget is sent as-is to Gemini and to Claude 4.6 and earlier, and as
   # the smallest level that covers it everywhere else. Unset, each provider
   # keeps its default.
+  # xhigh and max (ADR 0117) reach the models that take them: both on later
+  # claude-*, max on kimi-k3 (xhigh rounds up to it), xhigh on gpt-5.2 and
+  # later and grok-4.7. Elsewhere the model's highest setting is sent and
+  # the span carries llm.reasoning.weakened; a gateway gets high.
   # Cannot be combined with generateContentConfig.thinkingConfig or
   # generateContentConfig.reasoningEffort, its deprecated v1 spelling.
   reasoning: medium
@@ -422,6 +426,14 @@ orchestrator:
     #     answer: { type: string }
     #   required: [answer]
 
+  # ── tool_choice ───────────────────────────────────────────
+  # [optional] Which tools the model may call, on any provider (ADR 0117):
+  #   auto (the default) | none | required (some tool)
+  #   | { name: <tool> } (that one tool).
+  # A provider that rejects forcing a tool gets a weaker choice, and the
+  # span carries llm.tool_choice.weakened.
+  # tool_choice: auto
+
   # ── model_overrides ───────────────────────────────────────
   # [optional] A prompt nuance for one provider (ADR 0115). Keys are the
   # providers a model id routes to: gemini, anthropic, openai, xai,
@@ -438,11 +450,11 @@ orchestrator:
   # The v1 spelling: @google/genai's GenerateContentConfig, with
   # outputSchema beside it. Still loads and behaves as before, with one
   # deprecation line per file; `npx melchizedek-codemod <file>` rewrites
-  # it into sampling, output and reasoning. A v2 key beside its v1
-  # spelling is a load error. Only a few fields have no v2 form yet:
-  # toolConfig (tool choice) and the effort words xhigh and max
-  # (reasoningEffort). topK, seed, the penalties, candidateCount,
-  # safetySettings and includeThoughts reach no provider.
+  # it into sampling, output, reasoning and tool_choice. A v2 key beside
+  # its v1 spelling is a load error. Only toolConfig's VALIDATED mode and
+  # Gemini's dynamic budget (thinkingBudget: -1) have no v2 form. topK,
+  # seed, the penalties, candidateCount, safetySettings and
+  # includeThoughts reach no provider.
 
 # ── Subagents ───────────────────────────────────────────────
 # Each entry is an agent the orchestrator calls as a tool (DELEGATE),

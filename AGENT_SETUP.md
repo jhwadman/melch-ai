@@ -26,7 +26,9 @@ Set up the melchizedek-agents framework on this machine.
    it. Never ask me to paste API keys into this chat, never read keys
    from elsewhere on my machine, and never commit .env.
 4. Run the offline test suite (`npm test`) and confirm every shipped
-   syndicate compiles.
+   syndicate compiles. Then run `npm run setup -- --auto`: it reports
+   which authentication level my environment is at, by variable name
+   only. Follow the melchizedek-onboard skill in skills/ to pick my level.
 5. Read README.md and QUICKSTART.md. Then report back with:
    - what you did and the test results,
    - the list of available syndicates (one line each, from the README

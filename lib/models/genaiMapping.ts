@@ -188,7 +188,7 @@ import type {
 } from './contract.ts';
 import { ERROR_RETRYABLE_KEY, ERROR_STATUS_KEY, errorText, withRetryVerdict } from './errorResponse.ts';
 import { CARRIED_PARTS_KIND, GEMINI_PROVIDER, GENAI_PART_KIND, MINTED_CALL_ID_PREFIX, THOUGHT_SIGNATURE_KIND } from './geminiState.ts';
-import { reasoningConfig } from './reasoning.ts';
+import { REASONING_BUDGETS, reasoningConfig } from './reasoning.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from './schemaNormalize.ts';
 import { MAX_VALUE_DEPTH, nestedDeeperThan } from '../runtime/valueDepth.ts';
 
@@ -617,7 +617,15 @@ export interface ModelRequestOptions {
 
 // Maps, not object literals: a config value such as `constructor` must read as nothing.
 const THINKING_LEVELS = new Map<unknown, ReasoningLevel>([['MINIMAL', 'none'], ['LOW', 'low'], ['MEDIUM', 'medium'], ['HIGH', 'high']]);
-const EFFORT_LEVELS = new Map<unknown, ReasoningLevel>([['none', 'none'], ['minimal', 'none'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']]);
+const EFFORT_LEVELS = new Map<unknown, ReasoningLevel>([
+  ['none', 'none'],
+  ['minimal', 'none'],
+  ['low', 'low'],
+  ['medium', 'medium'],
+  ['high', 'high'],
+  ['xhigh', 'xhigh'],
+  ['max', 'max'],
+]);
 
 /**
  * The ReasoningSetting a generateContentConfig asks for, where one is exact:
@@ -627,22 +635,28 @@ const EFFORT_LEVELS = new Map<unknown, ReasoningLevel>([['none', 'none'], ['mini
  *     which every adapter maps to what the budget maps to today (0 included).
  *   - else `reasoningEffort`: a level word is that level, and `minimal` is
  *     `none` (ADR 0047's rendering of it on the first GPT-5 generation).
+ * The words above `high` (`xhigh`, `max`) win over a thinkingConfig that
+ * says `high` (`HIGH`, or `high`'s budget of 16,384), which is what the
+ * compiler writes beside them (ADR 0117); a thinkingConfig that says less
+ * keeps its own reading.
  * Lossy, and absent: a budget of -1 (Gemini's dynamic thinking, which is
- * the provider's default), `THINKING_LEVEL_UNSPECIFIED`, the effort words
- * `xhigh` and `max`, and `includeThoughts`. The compiler writes the effort
- * word beside thinkingConfig from one setting, so preferring thinkingConfig
- * loses nothing it wrote; only the older spelling can set the two apart.
+ * the provider's default), `THINKING_LEVEL_UNSPECIFIED`, and
+ * `includeThoughts`. The compiler writes the effort word beside
+ * thinkingConfig from one setting, so preferring thinkingConfig loses
+ * nothing it wrote; only the older spelling can set the two apart.
  */
 export function reasoningOf(config: GenerateContentConfig | undefined): ReasoningSetting | undefined {
   const cfg = (config ?? {}) as Json;
+  const word = EFFORT_LEVELS.get(cfg.reasoningEffort);
+  const above = word === 'xhigh' || word === 'max' ? word : undefined;
   const thinking = cfg.thinkingConfig;
   if (isObject(thinking)) {
     const level = THINKING_LEVELS.get(thinking.thinkingLevel);
-    if (level) return level;
+    if (level) return above && level === 'high' ? above : level;
     const budget = thinking.thinkingBudget;
-    if (typeof budget === 'number' && Number.isInteger(budget) && budget >= 0) return { budget_tokens: budget };
+    if (typeof budget === 'number' && Number.isInteger(budget) && budget >= 0) return above && budget === REASONING_BUDGETS.high ? above : { budget_tokens: budget };
   }
-  return EFFORT_LEVELS.get(cfg.reasoningEffort);
+  return word;
 }
 
 function nativeToolsOf(llmRequest: LlmRequest): NativeTool[] {

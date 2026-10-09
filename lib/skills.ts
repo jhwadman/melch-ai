@@ -15,7 +15,7 @@
  * A SKILL.md's frontmatter is read by the skills harness's own parser
  * (lib/tools/skills/frontmatter.ts), the one an agent's `skills:` uses.
  */
-import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, constants as fsConstants, existsSync, fstatSync, ftruncateSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, readFileSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -189,4 +189,83 @@ export function installSkills(opts: InstallOptions = {}): InstallResult[] {
     results.push(result);
   }
   return results;
+}
+
+// ── The AGENTS.md pointer ────────────────────────────────────────────────────
+
+/** The markers that delimit the block this installer owns inside AGENTS.md. */
+export const AGENTS_MD_BEGIN = '<!-- melchizedek-skills:begin -->';
+export const AGENTS_MD_END = '<!-- melchizedek-skills:end -->';
+
+/** The pointer: where the skills are, and the onboarding entry point. */
+export function agentsMdBlock(destinations: string[], projectRoot: string): string {
+  const where = destinations.map((d) => `\`${relative(projectRoot, d) || '.'}/\``).join(' and ');
+  return [
+    AGENTS_MD_BEGIN,
+    '## Melchizedek agent skills',
+    '',
+    `The melchizedek-agents skills are installed in ${where}, one directory per skill with a SKILL.md.`,
+    'To onboard someone, start with `melchizedek-onboard/SKILL.md`, or run `npx melchizedek-setup --auto`.',
+    'Never ask for an API key in chat and never print a value from `.env`: the person types keys into `.env` themselves.',
+    AGENTS_MD_END,
+  ].join('\n');
+}
+
+export interface AgentsMdResult {
+  path: string;
+  status: 'created' | 'appended' | 'updated' | 'unchanged';
+}
+
+/**
+ * Write the pointer into `<projectRoot>/AGENTS.md`, the instructions file
+ * Codex and other agents read: create the file when absent, append the block
+ * when the file has none, or replace only the block between the markers.
+ * Nothing outside the markers is ever changed.
+ */
+export function writeAgentsMdPointer(
+  projectRoot: string,
+  destinations: string[],
+  opts: { dryRun?: boolean } = {},
+): AgentsMdResult {
+  const path = join(resolve(projectRoot), 'AGENTS.md');
+  const block = agentsMdBlock(destinations, resolve(projectRoot));
+  const plan = (text: string | undefined): { status: AgentsMdResult['status']; next: string } => {
+    if (text === undefined) return { status: 'created', next: `# AGENTS.md\n\n${block}\n` };
+    const start = text.indexOf(AGENTS_MD_BEGIN);
+    const end = text.indexOf(AGENTS_MD_END);
+    if (start !== -1 && end > start) {
+      const next = text.slice(0, start) + block + text.slice(end + AGENTS_MD_END.length);
+      return { status: next === text ? 'unchanged' : 'updated', next };
+    }
+    return { status: 'appended', next: `${text}${text.endsWith('\n') ? '' : '\n'}\n${block}\n` };
+  };
+  if (opts.dryRun) {
+    // Nothing is written, so a path check is enough to report what would happen.
+    if (existsSync(path) && lstatSync(path).isSymbolicLink()) throw new Error(`refusing to write through a symlink: ${path}`);
+    return { path, status: plan(existsSync(path) ? readFileSync(path, 'utf-8') : undefined).status };
+  }
+  // One handle for the read and the write, so the file read is the file written:
+  // created if absent, never followed through a symlink (O_NOFOLLOW).
+  let fd: number;
+  try {
+    fd = openSync(path, fsConstants.O_RDWR | fsConstants.O_CREAT | (fsConstants.O_NOFOLLOW ?? 0), 0o644);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ELOOP') throw new Error(`refusing to write through a symlink: ${path}`);
+    throw err;
+  }
+  let status: AgentsMdResult['status'];
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) throw new Error(`not a regular file: ${path}`);
+    const existing = stat.size > 0 ? readFileSync(fd, 'utf-8') : undefined;
+    const result = plan(existing);
+    status = result.status;
+    if (status !== 'unchanged') {
+      ftruncateSync(fd, 0);
+      writeSync(fd, result.next, 0);
+    }
+  } finally {
+    closeSync(fd);
+  }
+  return { path, status };
 }

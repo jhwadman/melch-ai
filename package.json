@@ -54,6 +54,7 @@
     "melchizedek-worker": "./dist/scripts/assistant_worker.js",
     "melchizedek-db": "./dist/scripts/db.js",
     "melchizedek-init": "./dist/scripts/init.js",
+    "melchizedek-setup": "./dist/scripts/setup.js",
     "melchizedek-registry": "./dist/scripts/registry.js",
     "melchizedek-codemod": "./dist/scripts/yaml_codemod.js"
   },
@@ -69,6 +70,7 @@
     ".env.example",
     "CHANGELOG.md",
     "QUICKSTART.md",
+    "ONBOARDING.md",
     "DOCUMENTATION.md",
     "AGENT_SETUP.md",
     "skills"
@@ -117,6 +119,7 @@
     "yaml:codemod": "node --disable-warning=DEP0040 --experimental-strip-types scripts/yaml_codemod.ts",
     "start:a2a": "node --disable-warning=DEP0040 --experimental-strip-types scripts/a2a_server.ts",
     "test": "node --disable-warning=DEP0040 --experimental-strip-types --test tests/**/*.test.ts",
+    "setup": "node --disable-warning=DEP0040 --experimental-strip-types scripts/setup.ts",
     "init": "node --disable-warning=DEP0040 --experimental-strip-types scripts/init.ts",
     "db": "node --disable-warning=DEP0040 --experimental-strip-types scripts/db.ts",
     "registry": "node --disable-warning=DEP0040 --experimental-strip-types scripts/registry.ts",

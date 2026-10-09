@@ -304,6 +304,25 @@ export function capabilityOf(
 }
 
 /**
+ * The reasoning levels above `high` (ADR 0117), per row: what `reasoning:
+ * xhigh` and `reasoning: max` reach the provider as. A level a model lacks
+ * goes as its highest setting, and the request's `llm.request` span carries
+ * `llm.reasoning.weakened` with the level asked for. Asserted against the
+ * request bodies in tests/toolChoiceEffort.test.ts; the direct adapters read
+ * lib/models/reasoning.ts effortCeiling.
+ */
+export const REASONING_ABOVE_HIGH: Readonly<Record<MatrixRow, string>> = {
+  gemini: 'xhigh and max go as thinkingLevel HIGH (a 16,384-token budget on Gemini 2.x), weakened',
+  anthropic:
+    'output_config.effort xhigh and max as asked on the adaptive generations (Opus 4.7 and later, Sonnet 5 and later, Haiku 5.5); a 16,384-token budget, weakened, on Claude 4.6 and earlier',
+  openai: 'xhigh as asked on GPT-5.2 and later, and max goes as xhigh there, weakened; high, weakened, on the o-series, GPT-5 and GPT-5.1',
+  xai: 'xhigh as asked on grok-4.7, and max goes as xhigh there, weakened; high, weakened, on grok-4.5 and grok-4.6',
+  moonshot: 'max as asked on kimi-k3, and xhigh rounds up to max; the K2 generation takes a thinking switch, which these leave on',
+  ollama: 'reasoning_effort high, weakened',
+  gateway: 'reasoning_effort high, weakened, whatever the id: the words above high are not accepted across gateways',
+};
+
+/**
  * Whether an outputSchema goes in the same request as the agent's tools, as
  * the provider's own structured-output field, on the path `model` takes
  * (ADR 0109). True only where the `structured_output_with_tools` cell is
@@ -442,6 +461,12 @@ export function renderCapabilityMatrix(): string {
   lines.push('✓ supported · ◐ degraded · ✗ unsupported. Every cell is asserted against the request the adapter sends; the Gemini column is the engine\'s own Gemini adapter.');
   lines.push('');
   notes.forEach((n, i) => lines.push(`${i + 1}. ${n}`));
+  lines.push('');
+  lines.push('**Reasoning above high** (ADR 0117): what `reasoning: xhigh` and `reasoning: max` reach each path as. "Weakened" means the model\'s highest setting is sent and the span carries `llm.reasoning.weakened`.');
+  lines.push('');
+  lines.push('| Path | xhigh and max |');
+  lines.push('|---|---|');
+  for (const r of rows) lines.push(`| ${label(r)} | ${REASONING_ABOVE_HIGH[r]} |`);
   lines.push('');
   lines.push('**Cloud platforms** (ADR 0023): the same adapter and request as the provider\'s own API, except as listed. These paths are tested against mocks, not against the live clouds.');
   lines.push('');

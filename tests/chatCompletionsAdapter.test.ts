@@ -534,6 +534,22 @@ test("tool choice: none sends no tools; the gateway sends required and a named t
   });
 });
 
+test('reasoning above high: K3 takes max, Ollama and the gateway hold it at high and the span says so (ADR 0117)', async () => {
+  const cases: Array<[() => ModelAdapter, string, 'xhigh' | 'max', string, string | undefined]> = [
+    [kimi(), 'kimi-k3', 'max', 'max', undefined],
+    [kimi(), 'kimi-k3', 'xhigh', 'max', undefined],
+    [ollama(), 'ollama/qwen3:8b', 'max', 'high', 'max'],
+    [gateway(), 'claude-sonnet-4-6', 'xhigh', 'high', 'xhigh'],
+  ];
+  const env = { MODEL_GATEWAY: 'openrouter', MODEL_GATEWAY_API_KEY: 'fixture-gateway-0123456789abcdef' }; // gitleaks:allow (test fixture)
+  for (const [adapter, model, reasoning, word, weakened] of cases) {
+    const request = req(model, { reasoning });
+    assert.equal((await bodyOf(adapter, request, env)).reasoning_effort, word, `${model} ${reasoning}`);
+    const span = await spanOf(adapter, request, env);
+    assert.equal(span.attributes['llm.reasoning.weakened'], weakened, `${model} ${reasoning}`);
+  }
+});
+
 test('tool choice: Ollama weakens required and a named tool to auto, and the span says so', async () => {
   for (const [toolChoice, mode] of [['required', 'required'], [{ name: 'Scout' }, 'named']] as const) {
     const request = req('ollama/qwen3:8b', { tools: [SCOUT], toolChoice });

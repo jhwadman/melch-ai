@@ -230,7 +230,7 @@ test('a subagent needs a description; generateContentConfig and outputSchema sta
 });
 
 test('reasoning takes a level or a budget, and names the near miss (ADR 0047)', () => {
-  for (const ok of ['none', 'low', 'medium', 'high', { budget_tokens: 0 }, { budget_tokens: 4096 }]) {
+  for (const ok of ['none', 'low', 'medium', 'high', 'xhigh', 'max', { budget_tokens: 0 }, { budget_tokens: 4096 }]) {
     const raw = base();
     raw.orchestrator.reasoning = ok;
     raw.subagents[0].reasoning = ok;
@@ -239,7 +239,7 @@ test('reasoning takes a level or a budget, and names the near miss (ADR 0047)', 
 
   const typo = base();
   typo.orchestrator.reasoning = 'hgih';
-  assertProblem(problemsOf(typo), /orchestrator\.reasoning — must be one of none \| low \| medium \| high, or \{ budget_tokens: <integer ≥ 0> \} \(got "hgih" — did you mean "high"\?\)/);
+  assertProblem(problemsOf(typo), /orchestrator\.reasoning — must be one of none \| low \| medium \| high \| xhigh \| max, or \{ budget_tokens: <integer ≥ 0> \} \(got "hgih" — did you mean "high"\?\)/);
   for (const bad of [{ budget_tokens: -1 }, { budget_tokens: 1.5 }, { budget: 1024 }, 3]) {
     const raw = base();
     raw.subagents[0].reasoning = bad;
