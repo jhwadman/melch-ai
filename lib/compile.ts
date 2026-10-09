@@ -337,6 +337,8 @@ export interface AgentSpec {
   context?: ContextConfig;
   /** `mode: task`. */
   mode?: 'task';
+  /** The syndicate's `max_concurrency`, on its orchestrator (ADR 0116): delegated calls one step runs at once. */
+  maxConcurrency?: number;
 }
 
 /** The agent fields a spec carries from YAML, orchestrator or subagent alike. */
@@ -618,7 +620,7 @@ export async function compileSpec(
   // The skills toolset goes last, after the delegations and the agent's own tools.
   const { instruction, tools } = await withSkills(config.orchestrator.instruction, own, config.orchestrator.skills, name, opts);
   logCapabilities(opts, name, config.orchestrator.model, config.orchestrator.tools);
-  return specOf(
+  const spec = specOf(
     config.orchestrator as AgentYaml,
     name,
     overrideDescription || config.orchestrator.description,
@@ -626,5 +628,8 @@ export async function compileSpec(
     [...delegated, ...asTools(tools)],
     opts,
   );
+  // The syndicate's own key: a nested syndicate's orchestrator runs its delegations under its own file's (ADR 0116).
+  if (config.max_concurrency !== undefined) spec.maxConcurrency = config.max_concurrency;
+  return spec;
 }
 

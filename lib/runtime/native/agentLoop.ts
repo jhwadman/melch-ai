@@ -140,8 +140,9 @@ import { MAX_VALUE_DEPTH, nestedDeeperThan } from '../valueDepth.ts';
 import { currentTurnSignal } from '../turnControl.ts';
 import { compactBeforeStep } from './compaction.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
-import { SubagentPause, resumeSubagent, resumeWorkflowSubagent, runSubagent, runWorkflowSubagent, subagentOf, workflowSubagentOf } from './delegate.ts';
+import { DEFAULT_MAX_CONCURRENCY, DelegationGate, SubagentPause, resumeSubagent, resumeWorkflowSubagent, runSubagent, runWorkflowSubagent, subagentOf, workflowSubagentOf } from './delegate.ts';
 import { approvedCalls, grantedCalls, resumedDelegations } from './interrupts.ts';
+import type { DelegationTicket } from './delegate.ts';
 import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
 import type { CallCorrection } from './selfCorrection.ts';
@@ -474,6 +475,7 @@ async function runCall(
   correction?: CallCorrection,
   confirmation?: ToolConfirmation,
   resume?: TurnPart[],
+  ticket?: DelegationTicket,
 ): Promise<CallOutcome> {
   const context = callContext(scope, call.id || undefined, confirmation);
   const name = call.name ?? '';
@@ -495,11 +497,13 @@ async function runCall(
   // Delegation (WS2-6): a subagent runs as its own child loop, a nested workflow as its own walk (ADR 0098), before the generic path (delegate.ts).
   const subagent = subagentOf(tool);
   const workflow = subagent ? undefined : workflowSubagentOf(tool);
-  const delegation = { ctx: scope.ctx, caller: scope.agent.name, stateBase: scope.stateBase, signal: scope.signal, runLoop: runAgentLoop, queue: scope };
+  const delegation = { ctx: scope.ctx, caller: scope.agent.name, stateBase: scope.stateBase, signal: scope.signal, runLoop: runAgentLoop };
 
   let response: unknown;
   let failure: unknown;
   try {
+    // ADR 0116: a delegated call waits for its turn in the step's gate, and frees it as soon as the child's run ends.
+    if (ticket && (subagent || workflow)) await ticket.ready;
     response = subagent
       ? resume
         ? await resumeSubagent(subagent, resume, context, delegation)
@@ -509,7 +513,9 @@ async function runCall(
           ? await resumeWorkflowSubagent(workflow, resume, context, delegation)
           : await runWorkflowSubagent(workflow, args, context, delegation)
         : await runOwnTool(tool, args, context);
+    ticket?.release();
   } catch (e) {
+    ticket?.release();
     failure = e instanceof Error ? e.message : e;
     // Self-correction answers a thrown Error with reflection guidance in its place; a call waiting on a grant is not a failure.
     const guided = isEmptyRecord(context.actions.requestedAuthConfigs) ? await correction?.failed(toolName, args, e) : undefined;
@@ -541,6 +547,14 @@ async function runCall(
  * The calls run, in parallel, as the one response event ADK stores for them
  * (not yet stored); undefined when none answered. `confirmations` holds the
  * person's answer for a pinned call an approval resumes, by call id.
+ *
+ * Delegated calls (a subagent, a nested workflow) run through the step's
+ * DelegationGate (ADR 0116): at most the agent's `maxConcurrency` at once,
+ * entered in call order, two calls to one subagent one after the other.
+ * Other calls start at once, as before. The event is built once every call
+ * has answered, its parts in call order, and the open calls a paused child
+ * left (scope.paused) are listed in call order too: neither depends on
+ * which call finished first.
  */
 async function runCalls(
   scope: CallScope,
@@ -550,15 +564,28 @@ async function runCalls(
   resumes?: ReadonlyMap<string, TurnPart[]>,
 ): Promise<TurnEvent | undefined> {
   const order = scope.selfCorrection?.forCalls(scope.ctx.invocationId, calls.length);
+  const gate = new DelegationGate(scope.agent.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY);
   const outcomes = (
     await Promise.all(
-      calls.map((call, i) =>
-        traceToolCall(call, tools.get(call.name ?? ''), () =>
-          runCall(scope, call, tools, order?.call(i), call.id ? confirmations?.get(call.id) : undefined, call.id ? resumes?.get(call.id) : undefined),
-        ).finally(() => order?.release(i)),
-      ),
+      calls.map((call, i) => {
+        const tool = tools.get(call.name ?? '');
+        // Entered here, synchronously and in call order, before any call runs (ADR 0116).
+        const delegated = subagentOf(tool) ?? workflowSubagentOf(tool);
+        const ticket = delegated ? gate.enter(delegated.name) : undefined;
+        return traceToolCall(call, tool, () =>
+          runCall(scope, call, tools, order?.call(i), call.id ? confirmations?.get(call.id) : undefined, call.id ? resumes?.get(call.id) : undefined, ticket),
+        ).finally(() => {
+          ticket?.release();
+          order?.release(i);
+        });
+      }),
     )
   ).filter((o): o is NonNullable<CallOutcome> => !!o);
+  // The open calls, in call order rather than the order their children paused in.
+  if (scope.paused && scope.paused.length > 1) {
+    const at = (id: string) => calls.findIndex((c) => c.id === id);
+    scope.paused.sort((a, b) => at(a) - at(b));
+  }
   if (outcomes.length === 0) return undefined;
   const base = { invocationId: scope.ctx.invocationId, author: scope.agent.name };
   const contentOf = (parts: TurnPart[]): TurnContent => ({ role: 'user', parts });

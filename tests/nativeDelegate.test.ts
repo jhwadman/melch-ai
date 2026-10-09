@@ -471,43 +471,51 @@ test('council: the Moderator consults the Advocate, then the Skeptic, and the lo
   assert.ok(native.models.moderator?.requests[0]?.tools?.some((t) => t.name === 'Skeptic'));
 });
 
-test('council: two delegations in one step run one after another, in call order, as ADK runs them', async () => {
+/** The council's Moderator calling both subagents in one step, then answering; each subagent's script records when it starts and ends. */
+function councilInOneStep(claim: string, order: string[]): Models {
+  return {
+    moderator: (_r, n) =>
+      n === 1
+        ? {
+            partial: false,
+            parts: [
+              { type: 'toolCall', id: 'call-advocate-1', name: 'Advocate', args: { request: claim } },
+              { type: 'toolCall', id: 'call-skeptic-1', name: 'Skeptic', args: { request: claim } },
+            ],
+            finishReason: 'tool_call',
+          }
+        : answer('THE VERDICT: unclear.'),
+    advocate: async () => {
+      order.push('advocate:start');
+      await new Promise((r) => setTimeout(r, 10));
+      order.push('advocate:end');
+      return answer('1. Rested people.');
+    },
+    skeptic: () => {
+      order.push('skeptic');
+      return answer('1. Coverage gaps.');
+    },
+  };
+}
+
+test('council: two delegations in one step run at once (ADR 0116), and every session holds what ADK stored', async () => {
   const claim = 'Four-day weeks raise output.';
   const order: string[] = [];
-  const { native } = await assertParity(
-    'council-two-in-one-step',
-    council(),
-    {
-      moderator: (_r, n) =>
-        n === 1
-          ? {
-              partial: false,
-              parts: [
-                { type: 'toolCall', id: 'call-advocate-1', name: 'Advocate', args: { request: claim } },
-                { type: 'toolCall', id: 'call-skeptic-1', name: 'Skeptic', args: { request: claim } },
-              ],
-              finishReason: 'tool_call',
-            }
-          : answer('THE VERDICT: unclear.'),
-      advocate: async () => {
-        order.push('advocate:start');
-        await new Promise((r) => setTimeout(r, 10));
-        order.push('advocate:end');
-        return answer('1. Rested people.');
-      },
-      skeptic: () => {
-        order.push('skeptic');
-        return answer('1. Coverage gaps.');
-      },
-    },
-    [{ parts: [{ text: claim }] }],
-  );
-  assert.deepEqual(order, ['advocate:start', 'advocate:end', 'skeptic'], 'the native run, sequential');
+  const { native } = await assertParity('council-two-in-one-step', council(), councilInOneStep(claim, order), [{ parts: [{ text: claim }] }]);
+  assert.deepEqual(order, ['advocate:start', 'skeptic', 'advocate:end'], 'the Skeptic runs while the Advocate is still working');
+  // The responses are stored in call order, though the Skeptic answered first.
   const responses = native.sessions[APP]?.[2]?.content?.parts?.map((p) => [p.functionResponse?.name, p.functionResponse?.response]);
   assert.deepEqual(responses, [
     ['Advocate', { result: '1. Rested people.' }],
     ['Skeptic', { result: '1. Coverage gaps.' }],
   ]);
+});
+
+test('council: max_concurrency: 1 runs a step\'s delegations one after another, in call order, as ADK ran them', async () => {
+  const claim = 'Four-day weeks raise output.';
+  const order: string[] = [];
+  await assertParity('council-two-in-one-step', { ...council(), max_concurrency: 1 }, councilInOneStep(claim, order), [{ parts: [{ text: claim }] }]);
+  assert.deepEqual(order, ['advocate:start', 'advocate:end', 'skeptic']);
 });
 
 // ── The subagent tool on its own ─────────────────────────────────────────────

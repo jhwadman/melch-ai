@@ -243,6 +243,8 @@ export interface SyndicateYamlConfig {
   memory_retention_days?: number;
   /** Optional hard limit on the turn's model calls, subagents included (LLM -> Tool cycles). */
   max_steps?: number;
+  /** Delegated calls from one model step that run at once (ADR 0116). Default 4. */
+  max_concurrency?: number;
   /**
    * The nested `yaml_reference:` syndicates this one reaches, raw, keyed by
    * reference: written by the registry publisher (`bundleReferences`) so a

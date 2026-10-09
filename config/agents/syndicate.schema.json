@@ -1474,6 +1474,12 @@
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991
     },
+    "max_concurrency": {
+      "description": "Subagent calls from one orchestrator step that run at once; the rest wait their turn, in call order. Default 4; 1 runs them one after another. A delegate syndicate only (ADR 0116).",
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 32
+    },
     "bundled_references": {
       "description": "Written by the registry publisher, not by hand: every nested yaml_reference this syndicate reaches, as it was when published, so a registry version is one unit (ADR 0018). Nested references load from here instead of from files.",
       "type": "object",

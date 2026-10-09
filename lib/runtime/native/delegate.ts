@@ -58,8 +58,15 @@
  * answer is the call's response), finishes, and its answer is the open
  * call's response. A child that pauses again leaves the call open again.
  *
- * Calls to subagents in one step run one after another, in call order, as
- * ADK runs them; running them concurrently is WS6.
+ * CALLS TO SUBAGENTS IN ONE STEP RUN CONCURRENTLY (ADR 0116), under the
+ * caller's `max_concurrency` (the syndicate's root key, default
+ * DEFAULT_MAX_CONCURRENCY): agentLoop.ts runs each delegated call through
+ * the step's DelegationGate, which starts them in call order as slots free
+ * up, and runs two calls to the same subagent (one child session) one after
+ * the other. The step's responses are stored once every call has answered,
+ * in call order, whatever order the children finished in; a child that
+ * pauses leaves its call open while the others finish and are stored. ADK
+ * ran them one after another; `max_concurrency: 1` keeps that order.
  *
  * NESTED SYNDICATES: a `yaml_reference` subagent is the nested syndicate's
  * orchestrator, named as the entry, listing its own subagent tools. It runs
@@ -235,24 +242,91 @@ export interface DelegationScope {
   signal?: AbortSignal;
   /** The loop the child runs on (agentLoop.ts passes its own runAgentLoop). */
   runLoop: (agent: NativeAgent, ctx: AgentLoopContext) => AsyncGenerator<TurnEvent, AgentLoopEnd>;
-  /** Calls sharing this key run one after another (agentLoop.ts passes the step's scope). */
-  queue: object;
 }
 
-const queues = new WeakMap<object, Promise<unknown>>();
+/** Delegated calls one step runs at once when the syndicate sets no `max_concurrency` (ADR 0116). */
+export const DEFAULT_MAX_CONCURRENCY = 4;
 
-/** Runs `run` after every earlier call queued under `key`, whether it succeeded or not. */
-function inTurn<T>(key: object, run: () => Promise<T>): Promise<T> {
-  const before = queues.get(key) ?? Promise.resolve();
-  const mine = before.then(run, run);
-  queues.set(
-    key,
-    mine.then(
-      () => undefined,
-      () => undefined,
-    ),
-  );
-  return mine;
+/** One delegated call's place in its step's DelegationGate. */
+export interface DelegationTicket {
+  /** Resolves once the call may start: a slot is free, and every earlier call under its key has released. */
+  readonly ready: Promise<void>;
+  /** Frees the slot and the key's lane. Idempotent; call it whether the call ran, failed or never started. */
+  release(): void;
+}
+
+/**
+ * The delegated calls of one step (ADR 0116): at most `limit` run at once,
+ * started in the order they entered (agentLoop.ts enters them in call
+ * order, synchronously, before any of them runs), and calls sharing a key
+ * (the subagent's name, so one child session) run one after another in
+ * that order. A slot is held from the call's start to its release, which
+ * comes as soon as the child's run ends: what the step does after (self-
+ * correction's bookkeeping, which waits on earlier calls) holds no slot. A
+ * call waiting on an earlier same-key call holds its slot meanwhile: the
+ * earlier call already holds one, so the wait always ends.
+ */
+export class DelegationGate {
+  readonly limit: number;
+  private active = 0;
+  private readonly waiting: Array<() => void> = [];
+  private readonly lanes = new Map<string, Promise<void>>();
+
+  constructor(limit: number = DEFAULT_MAX_CONCURRENCY) {
+    this.limit = Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_MAX_CONCURRENCY;
+  }
+
+  /** Enters one call under `key`, behind every call entered before it. */
+  enter(key: string): DelegationTicket {
+    let granted = false;
+    let released = false;
+    let freeLane!: () => void;
+    const laneDone = new Promise<void>((resolve) => (freeLane = resolve));
+    const slot = new Promise<void>((resolve) => {
+      this.waiting.push(() => {
+        granted = true;
+        resolve();
+      });
+      this.pump();
+    });
+    const before = this.lanes.get(key);
+    this.lanes.set(key, laneDone);
+    const ready = Promise.all([slot, before]).then(() => undefined);
+    const release = (): void => {
+      if (released) return;
+      released = true;
+      freeLane();
+      if (granted) {
+        this.active -= 1;
+        this.pump();
+      } else {
+        // Never started (a step that failed before reaching the child): the slot it would have taken is not held, and it never will be.
+        void slot.then(() => {
+          this.active -= 1;
+          this.pump();
+        });
+      }
+    };
+    return { ready, release };
+  }
+
+  /** Runs `run` under a ticket for `key`: once ready, the ticket released when it settles. */
+  async run<T>(key: string, run: () => Promise<T>): Promise<T> {
+    const ticket = this.enter(key);
+    try {
+      await ticket.ready;
+      return await run();
+    } finally {
+      ticket.release();
+    }
+  }
+
+  private pump(): void {
+    while (this.active < this.limit && this.waiting.length > 0) {
+      this.active += 1;
+      (this.waiting.shift() as () => void)();
+    }
+  }
 }
 
 /** ADK's AgentTool answer: the last event's non-thought text, joined by a newline; parsed under an output schema. */
@@ -332,7 +406,7 @@ function recordState(event: TurnEvent, context: ToolContext): void {
  * throws, and for an output-schema answer that does not parse.
  */
 export function runSubagent(agent: NativeAgent, args: Record<string, unknown>, context: ToolContext, scope: DelegationScope): Promise<unknown> {
-  return inTurn(scope.queue, () => runChild(agent, { role: 'user', parts: [{ text: args.request as string }] }, context, scope, false));
+  return runChild(agent, { role: 'user', parts: [{ text: args.request as string }] }, context, scope, false);
 }
 
 /**
@@ -343,7 +417,7 @@ export function runSubagent(agent: NativeAgent, args: Record<string, unknown>, c
  * when the child pauses again.
  */
 export function resumeSubagent(agent: NativeAgent, answer: TurnPart[], context: ToolContext, scope: DelegationScope): Promise<unknown> {
-  return inTurn(scope.queue, () => runChild(agent, { role: 'user', parts: answer }, context, scope, true));
+  return runChild(agent, { role: 'user', parts: answer }, context, scope, true);
 }
 
 async function runChild(agent: NativeAgent, content: TurnContent, context: ToolContext, scope: DelegationScope, resuming: boolean): Promise<unknown> {
@@ -402,7 +476,7 @@ async function runChild(agent: NativeAgent, content: TurnContent, context: ToolC
  * yielded event's text, '' for none. Throws what the walk throws.
  */
 export function runWorkflowSubagent(workflow: WorkflowSubagent, args: Record<string, unknown>, context: ToolContext, scope: DelegationScope): Promise<unknown> {
-  return inTurn(scope.queue, () => walkChild(workflow, [{ text: args.request as string }], context, scope, false));
+  return walkChild(workflow, [{ text: args.request as string }], context, scope, false);
 }
 
 /** The engine's ask_user tool name (lib/runtime/questions.ts ASK_USER). */
@@ -419,7 +493,7 @@ const ASK_USER_CALL = 'ask_user';
  */
 export function resumeWorkflowSubagent(workflow: WorkflowSubagent, answer: TurnPart[], context: ToolContext, scope: DelegationScope): Promise<unknown> {
   const parts = answer.map((p) => (p.functionResponse?.name === ASK_USER_CALL ? { functionResponse: { ...p.functionResponse, name: REQUEST_INPUT_CALL } } : p));
-  return inTurn(scope.queue, () => walkChild(workflow, parts, context, scope, true));
+  return walkChild(workflow, parts, context, scope, true);
 }
 
 async function walkChild(workflow: WorkflowSubagent, userParts: unknown[], context: ToolContext, scope: DelegationScope, resuming: boolean): Promise<unknown> {
