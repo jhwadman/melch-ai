@@ -450,11 +450,30 @@ function council(): SyndicateYamlConfig {
   return config;
 }
 
+/** The engine's preamble to an agent's instruction, as the recordings hold it. */
+const PREAMBLE = (name: string) => `You are an agent. Your internal name is "${name}".\n\n`;
+
+/**
+ * The council as ADK ran it for recorded case `name`: the shipped file, with
+ * the Moderator's instruction the one the recording was made with. The
+ * recordings cover the loop's behaviour for that prompt, not the prompt the
+ * example ships today (which asks for both subagents in one step); the case
+ * for that prompt is in tests/parallelDelegation.test.ts.
+ */
+async function councilAsRecorded(name: string): Promise<SyndicateYamlConfig> {
+  const config = council();
+  const system = String((((await reference<AdkRun>(name)).requests.moderator?.[0] ?? {}) as { system?: string }).system ?? '');
+  const preamble = PREAMBLE(config.orchestrator.name);
+  assert.ok(system.startsWith(preamble), `the recording of '${name}' holds the Moderator's instruction`);
+  config.orchestrator.instruction = system.slice(preamble.length);
+  return config;
+}
+
 test('council: the Moderator consults the Advocate, then the Skeptic, and the loop stores the events ADK stored', async () => {
   const claim = 'We should rewrite the billing service in Rust.';
   const { native } = await assertParity(
     'council-sequential-steps',
-    council(),
+    await councilAsRecorded('council-sequential-steps'),
     {
       moderator: (req, n) =>
         n === 1
@@ -501,7 +520,7 @@ function councilInOneStep(claim: string, order: string[]): Models {
 test('council: two delegations in one step run at once (ADR 0116), and every session holds what ADK stored', async () => {
   const claim = 'Four-day weeks raise output.';
   const order: string[] = [];
-  const { native } = await assertParity('council-two-in-one-step', council(), councilInOneStep(claim, order), [{ parts: [{ text: claim }] }]);
+  const { native } = await assertParity('council-two-in-one-step', await councilAsRecorded('council-two-in-one-step'), councilInOneStep(claim, order), [{ parts: [{ text: claim }] }]);
   assert.deepEqual(order, ['advocate:start', 'skeptic', 'advocate:end'], 'the Skeptic runs while the Advocate is still working');
   // The responses are stored in call order, though the Skeptic answered first.
   const responses = native.sessions[APP]?.[2]?.content?.parts?.map((p) => [p.functionResponse?.name, p.functionResponse?.response]);
@@ -514,7 +533,7 @@ test('council: two delegations in one step run at once (ADR 0116), and every ses
 test('council: max_concurrency: 1 runs a step\'s delegations one after another, in call order, as ADK ran them', async () => {
   const claim = 'Four-day weeks raise output.';
   const order: string[] = [];
-  await assertParity('council-two-in-one-step', { ...council(), max_concurrency: 1 }, councilInOneStep(claim, order), [{ parts: [{ text: claim }] }]);
+  await assertParity('council-two-in-one-step', { ...(await councilAsRecorded('council-two-in-one-step')), max_concurrency: 1 }, councilInOneStep(claim, order), [{ parts: [{ text: claim }] }]);
   assert.deepEqual(order, ['advocate:start', 'advocate:end', 'skeptic']);
 });
 

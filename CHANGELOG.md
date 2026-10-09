@@ -6,6 +6,8 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
 - **Skill scripts on a delegated subagent.** `skills.scripts: local` is no
   longer a load error on a delegated subagent (or a nested delegate
   syndicate's): a `run_skill_script` call there pauses the turn
@@ -22,6 +24,16 @@ the starter pack and the templates), not the repo's full history.
   subagent's call. The host allowlist's checks are unchanged. The
   systems_operator template's comment says authorization_code works on its
   Systems subagent (ADR 0118).
+
+### Changed
+
+- **The council example's Moderator consults both subagents in one step**
+  (`config/agents/examples/council.yaml`). Its instruction asks for the
+  Advocate and the Skeptic together, both function calls in one response,
+  each given the user's full claim verbatim, so the two run at once under
+  `max_concurrency` (ADR 0116). Its role, its three-part verdict and its
+  guardrails are unchanged; the YAML keeps its v2 keys. A project that
+  copied the example keeps the old prompt until it copies it again.
 
 ## 1.1.0 — 2026-10-09
 

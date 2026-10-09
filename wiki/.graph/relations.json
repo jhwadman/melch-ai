@@ -3118,6 +3118,14 @@
       "at": "2026-10-09"
     },
     {
+      "from": "syndicate:council",
+      "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "rel": "depends_on",
+      "evidence": "config/agents/examples/council.yaml, the Moderator's instruction: call the Advocate and the Skeptic \"together, both function calls in the same response, so they work at once\" — the at-once run is ADR 0116's concurrent delegation under max_concurrency.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
       "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "supersedes",
