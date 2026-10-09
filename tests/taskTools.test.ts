@@ -91,7 +91,7 @@ test('a background job runs queued → running → done and task_get shows the r
   assert.strictEqual(job?.id, 't1');
   assert.strictEqual(job?.status, 'running');
   assert.strictEqual(claimNextJob(), null, 'a running job is not claimed twice');
-  assert.match(await call(taskUpdateContract, { id: 't1', status: 'cancelled' }), /is running now/);
+  assert.match(await call(taskUpdateContract, { id: 't1', status: 'queued' }), /only a failed or cancelled job/);
 
   finishJob('t1', { result: '- one\n- two\n- three' });
   const full = await call(taskGetContract, { id: 't1' });
@@ -205,4 +205,87 @@ test('with a plugged-in backend each caller has their own list', async () => {
     setTaskBackend(fileTaskBackend);
   }
   assert.equal(getTaskBackend(), fileTaskBackend);
+});
+
+// ── Durable runs (ADR 0113) ─────────────────────────────────────────────────
+const worker = { workerId: 'w-test', leaseMs: 60_000 };
+
+async function runningJob() {
+  const { fileTaskBackend } = await import('../lib/tools/taskTools.ts');
+  await call(taskQueueContract, { title: 'Long job', instruction: 'Read ten pages and compare them.' });
+  const job = await fileTaskBackend.claimNext(worker);
+  assert.strictEqual(job?.status, 'running');
+  return { backend: fileTaskBackend, job: job! };
+}
+
+test('file backend: a checkpoint is saved beside the store and read back, never inside the record', async () => {
+  const { taskCheckpointPath } = await import('../lib/tools/taskTools.ts');
+  const { backend, job } = await runningJob();
+  assert.strictEqual(await backend.loadCheckpoint!(job), null);
+  assert.strictEqual(await backend.saveCheckpoint!(worker, job, { step: 1, notes: ['a'] }), true);
+  assert.strictEqual(await backend.saveCheckpoint!(worker, job, { step: 2, notes: ['a', 'b'] }), true);
+  assert.deepStrictEqual(await backend.loadCheckpoint!(job), { step: 2, notes: ['a', 'b'] });
+  assert.ok(!readFileSync(taskStorePath(), 'utf8').includes('step'), 'the task list never carries the checkpoint');
+  assert.ok(readFileSync(taskCheckpointPath(), 'utf8').includes('"step": 2'));
+  assert.doesNotMatch(await call(taskGetContract, { id: job.id }), /step/);
+  assert.strictEqual(await backend.renew(worker, job), true, 'a running job keeps its claim');
+});
+
+test('file backend: cancelling a running job is accepted and ends its claim and checkpoint', async () => {
+  const { backend, job } = await runningJob();
+  await backend.saveCheckpoint!(worker, job, { step: 1 });
+  assert.match(await call(taskUpdateContract, { id: job.id, status: 'cancelled' }), /\[cancelled · background\]/);
+  assert.strictEqual(await backend.renew(worker, job), false, 'renew reports the claim gone');
+  assert.strictEqual(await backend.saveCheckpoint!(worker, job, { step: 2 }), false, 'a cancelled run cannot checkpoint');
+  assert.strictEqual(await backend.loadCheckpoint!(job), null, 'cancel dropped the checkpoint');
+  await backend.finish(job, { result: 'late result' });
+  const t = store().tasks[0];
+  assert.strictEqual(t.status, 'cancelled', 'the late outcome leaves the cancelled record alone');
+  assert.strictEqual(t.result, undefined);
+  // Retried from scratch: no checkpoint comes back.
+  await call(taskUpdateContract, { id: job.id, status: 'queued' });
+  const again = await backend.claimNext(worker);
+  assert.strictEqual(await backend.loadCheckpoint!(again!), null);
+});
+
+test('file backend: a checkpoint survives an interrupted run being re-queued, and goes when the job finishes', async () => {
+  const { backend, job } = await runningJob();
+  await backend.saveCheckpoint!(worker, job, { step: 3 });
+  assert.deepStrictEqual(await backend.recover(), { requeued: [job.id], failed: [] });
+  assert.deepStrictEqual(await backend.loadCheckpoint!(job), { step: 3 }, 'kept while queued');
+  const resumed = await backend.claimNext(worker);
+  assert.deepStrictEqual(await backend.loadCheckpoint!(resumed!), { step: 3 }, 'the next claim resumes from it');
+  await backend.finish(resumed!, { result: 'ok' });
+  assert.strictEqual(await backend.loadCheckpoint!(resumed!), null, 'done drops it');
+  assert.strictEqual(await backend.saveCheckpoint!(worker, resumed!, { step: 4 }), false, 'a finished job cannot checkpoint');
+  assert.strictEqual(await backend.renew(worker, resumed!), false);
+});
+
+test('file backend: a job failed by its outcome or by recover drops its checkpoint', async () => {
+  const { taskCheckpointPath } = await import('../lib/tools/taskTools.ts');
+  const { backend, job } = await runningJob();
+  await backend.saveCheckpoint!(worker, job, { step: 1 });
+  await backend.finish(job, { error: 'boom' });
+  assert.strictEqual(await backend.loadCheckpoint!(job), null);
+
+  await call(taskQueueContract, { title: 'Crashy', instruction: 'Something that crashes the worker.' });
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const j = (await backend.claimNext(worker))!;
+    assert.strictEqual(j.id, 't2');
+    assert.strictEqual(await backend.saveCheckpoint!(worker, j, { attempt }), true);
+    await backend.recover();
+  }
+  assert.strictEqual(store().tasks[1].status, 'failed');
+  assert.strictEqual(await backend.loadCheckpoint!({ ...store().tasks[1], owner: '' }), null);
+  assert.deepStrictEqual(JSON.parse(readFileSync(taskCheckpointPath(), 'utf8')), {}, 'the sidecar keeps nothing for finished jobs');
+});
+
+test('file backend: an unreadable checkpoint sidecar is an empty one, never a broken store', async () => {
+  const { taskCheckpointPath } = await import('../lib/tools/taskTools.ts');
+  const { backend, job } = await runningJob();
+  writeFileSync(taskCheckpointPath(), '{ not json');
+  assert.strictEqual(await backend.loadCheckpoint!(job), null);
+  assert.match(await call(taskListContract, {}), /Long job/);
+  assert.strictEqual(await backend.saveCheckpoint!(worker, job, { step: 1 }), true);
+  assert.deepStrictEqual(await backend.loadCheckpoint!(job), { step: 1 });
 });
