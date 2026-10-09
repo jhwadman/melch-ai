@@ -137,13 +137,14 @@ Field reference:
 | `tools` | agent | Names resolved by the tool registry (§3). Long-term memory agents add `preload_memory` / `load_memory`. |
 | `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude 4.6 and earlier (2,048 / 8,192 / 16,384 tokens for low / medium / high), adaptive thinking with that effort on later Claude models ([ADR 0049](./wiki/decisions/0049-claude-requests-by-model-generation.md)), an effort word on GPT, Grok, Kimi, Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). Unset, each adapter keeps its own default. |
 | `generateContentConfig` | agent | Temperature, output caps. Its `thinkingConfig` and `reasoningEffort` are the older, provider-specific spelling of `reasoning`; setting either next to `reasoning` is a load error. |
-| `outputSchema` | agent | Structured-JSON contract. **Constraint:** an agent holding `outputSchema` cannot also hold transfer powers — structured output does not combine with delegation on one agent. Keep schema-holders as leaf agents (see `critic.yaml`'s header comment for the war story). |
+| `outputSchema` | agent | Structured-JSON contract: the agent ends its turn on one JSON object matching it. An orchestrator may hold one beside its subagents: it delegates first, then answers in the schema itself. The schema travels in the provider's own structured-output field beside the tools on Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on OpenAI, and on Gemini 2+ through Vertex AI, and as a `set_model_response` tool elsewhere (the capability matrix's `structured_output_with_tools`, [ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md)). A leaf that holds the schema (`critic.yaml`) and plan-dispatch remain the choices when the answer should be a specialist's. |
 | `yaml_reference` | subagent | Mount another syndicate file as a nested subagent. |
 | `a2a_agent_url` | subagent | A REMOTE agent over A2A (§6): the orchestrator delegates to it with one `request` argument; in plan-dispatch it can be a route. No `model`/`instruction` — the remote agent has its own. Credentials come from `A2A_AGENT_TOKENS`, never YAML. |
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
 | `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to the agent (spelled after ADK's `LlmAgent` fields). `includeContents: none` makes an agent see only the current message. |
 | `fallback_model` | any agent | A model, ideally on another provider, that answers when this agent's model fails provider-side (5xx, 429, a connection reset, after its own retries) before producing any output, or while that provider's circuit is open: after `MODEL_BREAKER_THRESHOLD` consecutive provider failures (default 5; 0 disables) the provider is skipped for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx and a canceled turn are never redirected, and a stream that already produced text is never replayed elsewhere ([ADR 0044](./wiki/decisions/0044-fallback-model-and-circuit-breaker.md)). |
 | `mcp_tools` | subagent | The MCP server's tools this agent may use; any other tool the server lists is not exposed. On a dispatch route `require_approval` may name them ([ADR 0041](./wiki/decisions/0041-tool-vendors-get-least-privilege.md)). |
+| `mcp_auth` | subagent | `{ oauth2 }`: the OAuth grant the MCP server takes, the same block as an OpenAPI `auth.oauth2`. `client_credentials` sends the server's own token; `authorization_code` sends each user's own token on their own connection (the consent pause asks for it) and needs `mcp_tools` ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)). |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
 | `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
@@ -182,7 +183,7 @@ function, and every adapter recognises it by marker
 | `inspect_image` | Contract | **Blind visual inventory** of a file under `outputs/`: subjects with exact counts, composition, light, palette, medium cues, artifacts — zero quality judgments. Its signature accepts *only* a file path, so an orchestrator cannot leak expectations into the observation (see `image_production.yaml`). |
 | `task_add` / `task_list` / `task_get` / `task_update` | Contract | A to-do list and job queue. Default: a single-user JSON file (`MELCHIZEDEK_TASKS_FILE`, default `outputs/tasks.json`), so every caller of a shared endpoint shares one list. With `DATABASE_URL` (migration 0009) each caller has its own list, scoped by the caller's scope key, and any number of workers take jobs safely. |
 | `ask_user` | Contract, long-running | Asks the person one question (optionally with `options`) and ends the turn `input-required`; the next message on the conversation is the call's result. Any agent but a workflow node's; inside a delegated subagent the question reaches the person with the agent path (§6, Questions). |
-| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. |
+| `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. |
 
 **MCP tools** are the exception to the registry: a subagent with
 `mcp_server_url:` in its YAML gets its tools from a remote MCP server at
@@ -221,8 +222,15 @@ without `operations`, only GET operations become tools, so anything that
 writes is exposed only by naming it, and a named operation can be listed
 under `require_approval` (as written under `operations`) so a person
 approves each call. `auth` names an environment variable, never a value
-(`bearer_env`, or `api_key` with `in: header | query` and `name`); an unset
-variable fails the compile, and so does one of the framework's own settings
+(`bearer_env`, or `api_key` with `in: header | query` and `name`), or
+declares an OAuth grant (`oauth2`: `provider`, `grant: authorization_code |
+client_credentials`, `authorization_url`, `token_url`, `client_id` or
+`client_id_env`, `client_secret_env`, `scopes`), whose token each call
+fetches: the run's user's own through the consent pause, or the server's own
+from the token endpoint ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)).
+`oauthClientsFor(configs)` (`melchizedek-agents/tools/oauthTools`) builds the
+consent step's clients from the same YAML, and `npm run doctor` lists every
+tool that needs a grant. An unset variable fails the compile, and so does one of the framework's own settings
 (the database URL, a provider key, an `A2A_` secret: anything `.env.example`
 documents), since the YAML chooses the host it goes to.
 `OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`
@@ -1084,7 +1092,7 @@ orchestrator:
   model: "gemini-3.5-flash-lite"
   instruction: |
     Name exactly ONE specialist for this message. ...
-  outputSchema:                        # a leaf holding a schema — no subagent tools
+  outputSchema:                        # the router's schema; dispatch gives it no subagent tools
     type: "OBJECT"
     properties:
       route:  { type: "STRING", description: "Exact specialist name" }
@@ -1104,13 +1112,17 @@ Plan-dispatch has no relay turn to fail, and the classifier's output
 shrinks from a whole relayed answer to ~15 tokens of JSON.
 
 **Why the classifier is tool-less.** An agent that holds an
-`outputSchema` answers with that JSON and nothing else, so the schema sits
-on a leaf that delegates nothing (see `config/agents/examples/critic.yaml`,
-whose header also tells how an orchestrator holding both deadlocked on
-ADK before 1.0.0).
-That constraint shapes the method: the classifier is a leaf, and the
+`outputSchema` ends its turn on that JSON. The router's JSON names a
+route for code to run, so the router holds no subagent tools, and the
 hand-off happens in code, where it can be logged, traced, and streamed
-to the user as progress.
+to the user as progress. This is a choice of method, not a limit of the
+engine: an orchestrator may hold an `outputSchema` beside its subagents,
+delegate, and answer in the schema itself
+([ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md));
+under ADK, before 1.0.0, an orchestrator holding both deadlocked (see
+`config/agents/examples/critic.yaml`'s header). Choose plan-dispatch when
+the answer is the specialist's, and a schema on the orchestrator when the
+answer is its own structured judgment of what its team returned.
 
 **Sessions.** Every *route* runs in the shared `<contextId>` session, so
 one transcript accumulates across routes and long-term memory ingests

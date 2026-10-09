@@ -54,6 +54,7 @@ import { buildSkillHarness } from './tools/skillToolset.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
 import { buildOpenApiTools, namesTool, openApiOperationId } from './tools/openapiTools.ts';
 import type { OpenApiConfig } from './tools/openapiTools.ts';
+import type { McpAuthConfig } from './tools/oauthTools.ts';
 
 export interface CompileOptions {
   /**
@@ -196,6 +197,7 @@ async function resolveAgentTools(
   openapi?: OpenApiConfig[],
   examples?: ExampleConfig[],
   mcpAllowed?: string[],
+  mcpAuth?: McpAuthConfig,
 ): Promise<unknown[]> {
   const tools = [...resolveNamedTools(toolNames, opts.onUnknownTool), ...examplesTool(examples)];
   // OpenAPI operations become tools here, so require_approval can name them.
@@ -209,7 +211,8 @@ async function resolveAgentTools(
   }
   if (mcpServerUrl) {
     opts.log?.(`Loading MCP tools: ${mcpServerUrl}`);
-    const offered = await createMcpTools(mcpServerUrl);
+    // An authorization_code server lists nothing at startup: its tools are the mcp_tools names, each on its user's own connection (ADR 0112).
+    const offered = await createMcpTools(mcpServerUrl, { ...(mcpAllowed ? { tools: mcpAllowed } : {}), ...(mcpAuth?.oauth2 ? { oauth2: mcpAuth.oauth2 } : {}) });
     // mcp_tools: only the named tools are exposed (a server's list is its
     // own to change); a name the server does not offer is reported, and a
     // gate on it fails the compile in gateTools.
@@ -553,7 +556,7 @@ export async function compileSubagentSpec(subCfg: SubagentYamlConfig, opts: Comp
     return compileSpec(nested, nestedOpts, subCfg.name, subCfg.description);
   }
 
-  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples, subCfg.mcp_tools), subCfg.require_approval, subCfg.name);
+  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples, subCfg.mcp_tools, subCfg.mcp_auth), subCfg.require_approval, subCfg.name);
   const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
   logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
   return specOf(subCfg as AgentYaml, subCfg.name, subCfg.description, instruction, asTools(tools), opts);
@@ -596,11 +599,19 @@ export async function compileSpec(
       );
 
   const name = overrideName || config.orchestrator.name;
-  // Orchestrator tools are registry names only — no entrypoint has ever
-  // attached an MCP server to an orchestrator, and this compiler preserves
-  // that exactly rather than widening the contract in passing.
+  // The orchestrator's own tools resolve as a subagent's do: registry
+  // names, OpenAPI operations, and the MCP server's tools (narrowed by
+  // mcp_tools, under its mcp_auth grant), so a one-agent syndicate can reach an MCP server.
   const own = gateTools(
-    await resolveAgentTools(config.orchestrator.tools, undefined, opts, config.orchestrator.openapi, config.orchestrator.examples),
+    await resolveAgentTools(
+      config.orchestrator.tools,
+      config.orchestrator.mcp_server_url,
+      opts,
+      config.orchestrator.openapi,
+      config.orchestrator.examples,
+      config.orchestrator.mcp_tools,
+      config.orchestrator.mcp_auth,
+    ),
     config.orchestrator.require_approval,
     name,
   );

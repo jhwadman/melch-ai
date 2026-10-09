@@ -87,6 +87,9 @@ import { collectGrounding, describeGrounding, newGroundingState, webSourcesLine 
 import { resolveGuards } from '../guards/index.ts';
 import { collectGuards, nestedLoader } from '../loadSyndicate.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from '../loadSyndicate.ts';
+import { context } from '@opentelemetry/api';
+import core from '@opentelemetry/core';
+const { suppressTracing } = core;
 import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
 import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
@@ -181,7 +184,13 @@ export interface SyndicateTurnOptions {
   maxLlmCalls?: number;
   /** Ask adapters for token-by-token partial events (the REPL's live view). */
   streaming?: boolean;
-  /** Root-span metadata; `false` disables tracing for the turn. */
+  /**
+   * Root-span metadata. `false` disables tracing for the turn: it records no
+   * span, so no row reaches the ledger (adk_telemetry, adk_turns,
+   * adk_payloads), the console exporter, the in-process listeners or an OTLP
+   * endpoint, and the turn does not start the tracer. The step budget and
+   * the usage in the result are unaffected. Default: traced.
+   */
   trace?: TraceOptions | false;
   events?: TurnEvents;
   /**
@@ -504,9 +513,15 @@ export async function runSyndicateTurn(opts: SyndicateTurnOptions): Promise<Synd
     maxLlmCalls: opts.maxLlmCalls ?? config.max_steps ?? DEFAULT_MAX_STEPS,
     deadlineMs: opts.deadlineMs,
     signal: opts.signal,
+    // `trace: false`: no span from anything the turn runs, to any sink.
+    untraced: opts.trace === false,
   });
   try {
-    return await runWithTurnControl(control, () => runTurnInner(opts, control, runtime));
+    const run = () => runWithTurnControl(control, () => runTurnInner(opts, control, runtime));
+    // A span a library opens through OpenTelemetry's own API (not the
+    // engine's, which read control.untraced) is suppressed too, while a
+    // registered tracer is there to read the suppression.
+    return await (control.untraced ? context.with(suppressTracing(context.active()), run) : run());
   } finally {
     control.dispose();
   }

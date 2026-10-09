@@ -10,7 +10,9 @@
  *   a list of records with a status — so both live in one store:
  *
  *     kind: todo        the user's own tasks. open → done | cancelled.
- *     kind: background  a job for the worker. queued → running → done | failed.
+ *     kind: background  a job for the worker. queued → running → done | failed,
+ *                       and cancelled from queued or running (a running job's
+ *                       worker sees it at its next renewal and stops).
  *
  *   The tools only WRITE the queue. They never run a job: a tool that
  *   orchestrates agents is exactly what the tool-contract doctrine refuses
@@ -28,11 +30,15 @@
  *     gitignored). Every operation re-reads the file, so the chat process
  *     and the worker see each other's writes. It is SINGLE-USER: every
  *     caller shares one list. Run ONE worker: the claim is a
- *     read-modify-write, not a lock.
+ *     read-modify-write, not a lock. A running job's step checkpoints
+ *     (ADR 0113) sit in a sidecar, <store>.checkpoints.json, keyed by id;
+ *     every write of the store drops those of jobs no longer running or
+ *     queued.
  *   - With Postgres (postgresStorage().taskQueue, migration 0009) each
  *     caller has its own list, scoped by the caller the tool call carries
  *     (the A2A server's scope key), and any number of workers claim jobs
- *     with FOR UPDATE SKIP LOCKED under a renewed lease (ADR 0021).
+ *     with FOR UPDATE SKIP LOCKED under a renewed lease (ADR 0021). The
+ *     checkpoint is a column beside the record (migration 0014).
  *
  * SECURITY:
  *   On the file store every caller of a shared endpoint shares one list: do
@@ -104,12 +110,30 @@ export interface TaskBackend {
   mutate<T>(owner: string, change: (store: TaskStore) => T): Promise<T>;
   /** The oldest queued background job of any owner, now running and leased. */
   claimNext(worker: WorkerLease): Promise<OwnedTask | null>;
-  /** Keeps a claimed job leased while it runs. */
-  renew(worker: WorkerLease, job: OwnedTask): Promise<void>;
+  /**
+   * Keeps a claimed job leased while it runs. Resolves false when the claim
+   * is gone (the job left `running`, for instance cancelled with
+   * task_update, or another worker holds it): the worker must stop the run.
+   * A backend that resolves void makes no such claim.
+   */
+  renew(worker: WorkerLease, job: OwnedTask): Promise<void | boolean>;
   /** Records a job's outcome; a record no longer running is left alone. */
   finish(job: OwnedTask, outcome: JobOutcome): Promise<void>;
   /** Jobs whose worker died: queued again, or failed after MAX_ATTEMPTS. */
   recover(): Promise<{ requeued: string[]; failed: string[] }>;
+  /**
+   * Durable runs (ADR 0113): stores the run's latest step checkpoint beside
+   * the job. Resolves false when the job is no longer this worker's running
+   * job (cancelled, finished, or re-leased): the run must stop.
+   *
+   * A checkpoint lives only while its job is `running` or `queued` (a job
+   * re-queued after an interruption keeps it, so the next claim resumes);
+   * any other status drops it, and so does a pruned or deleted record. It is
+   * kept beside the record, never in it, so task_get never shows it.
+   */
+  saveCheckpoint?(worker: WorkerLease, job: OwnedTask, checkpoint: object): Promise<boolean>;
+  /** The checkpoint a re-queued job left, or null. */
+  loadCheckpoint?(job: OwnedTask): Promise<object | null>;
 }
 
 /** Records kept at most; finished ones are pruned oldest-first to make room. */
@@ -141,11 +165,60 @@ function readStore(path = taskStorePath()): TaskStore {
   return { version: 1, next_id: parsed.next_id, tasks: parsed.tasks };
 }
 
-function writeStore(store: TaskStore, path = taskStorePath()): void {
+/** Atomic JSON write: temp file + rename, so a reader never sees half a file. */
+function writeJson(value: unknown, path: string): void {
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(store, null, 2)}\n`);
+  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
   renameSync(tmp, path);
+}
+
+function writeStore(store: TaskStore, path = taskStorePath()): void {
+  writeJson(store, path);
+}
+
+// Checkpoints of the file store (ADR 0113) live in a sidecar next to it,
+// keyed by task id, so the task list itself never carries them.
+interface CheckpointEntry {
+  checkpoint: object;
+  at: string;
+}
+type CheckpointFile = Record<string, CheckpointEntry>;
+
+/** Statuses a job's checkpoint survives in. */
+const CHECKPOINTED: TaskStatus[] = ['running', 'queued'];
+
+export function taskCheckpointPath(storePath = taskStorePath()): string {
+  return `${storePath}.checkpoints.json`;
+}
+
+/** The sidecar, or empty when missing or unreadable (a checkpoint is an optimisation, never the record). */
+function readCheckpoints(storePath: string): CheckpointFile {
+  const path = taskCheckpointPath(storePath);
+  if (!existsSync(path)) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as CheckpointFile) : {};
+  } catch {
+    return {};
+  }
+}
+
+const keepsCheckpoint = (t: TaskRecord | undefined) => !!t && t.kind === 'background' && CHECKPOINTED.includes(t.status);
+
+/** Drops sidecar entries whose job is gone or no longer running/queued. */
+function pruneCheckpoints(store: TaskStore, storePath: string): void {
+  if (!existsSync(taskCheckpointPath(storePath))) return;
+  const entries = readCheckpoints(storePath);
+  const byId = new Map(store.tasks.map((t) => [t.id, t]));
+  let changed = false;
+  for (const id of Object.keys(entries)) {
+    if (!keepsCheckpoint(byId.get(id))) {
+      delete entries[id];
+      changed = true;
+    }
+  }
+  if (changed) writeJson(entries, taskCheckpointPath(storePath));
 }
 
 /** Read, change, write — one synchronous step, so no await splits it. */
@@ -154,6 +227,7 @@ function mutate<T>(change: (store: TaskStore) => T): T {
   const store = readStore(path);
   const out = change(store);
   writeStore(store, path);
+  pruneCheckpoints(store, path);
   return out;
 }
 
@@ -286,9 +360,24 @@ export const fileTaskBackend: TaskBackend = {
     const job = claimNextJob();
     return job ? { ...job, owner: '' } : null;
   },
-  renew: async () => {},
+  // No leases on the single-user file: the claim holds while the record is running.
+  renew: async (_worker, job) => readStore().tasks.find((t) => t.id === job.id)?.status === 'running',
   finish: async (job, outcome) => finishJob(job.id, outcome),
   recover: async () => recoverInterruptedJobs(),
+  saveCheckpoint: async (_worker, job, checkpoint) => {
+    const path = taskStorePath();
+    const record = readStore(path).tasks.find((t) => t.id === job.id);
+    if (!record || record.kind !== 'background' || record.status !== 'running') return false;
+    const entries = readCheckpoints(path);
+    entries[job.id] = { checkpoint, at: now() };
+    writeJson(entries, taskCheckpointPath(path));
+    return true;
+  },
+  loadCheckpoint: async (job) => {
+    const path = taskStorePath();
+    if (!keepsCheckpoint(readStore(path).tasks.find((t) => t.id === job.id))) return null;
+    return readCheckpoints(path)[job.id]?.checkpoint ?? null;
+  },
 };
 
 let activeBackend: TaskBackend = fileTaskBackend;
@@ -424,7 +513,8 @@ export const taskUpdateContract = defineTool({
   name: 'task_update',
   description:
     'Change a task: mark it done, cancel it, reopen it, or edit its title, notes, or due date. ' +
-    'For a background job, "cancelled" withdraws it before it runs and "queued" retries a failed or cancelled job. ' +
+    'For a background job, "cancelled" withdraws it before it runs, or stops it if it is running now ' +
+      '(the worker stops at its next step and keeps no result); "queued" retries a failed or cancelled job. ' +
     'Call task_list first if you do not have the id.',
   schema: z.object({
     id: taskId,
@@ -447,9 +537,9 @@ export const taskUpdateContract = defineTool({
             return `Error: a ${task.kind} task cannot be set to "${status}". Allowed: ${allowed[task.kind].join(', ')}.`;
           }
           if (task.kind === 'background') {
-            if (task.status === 'running') {
-              return `Error: ${id} is running now. Wait for it to finish, then read it with task_get.`;
-            }
+            // Cancelling a running job is allowed: its worker's next lease
+            // renewal or checkpoint sees the record left `running` and stops
+            // the run, and the worker's outcome is then left alone (applyFinish).
             if (status === 'queued' && !['failed', 'cancelled'].includes(task.status)) {
               return `Error: only a failed or cancelled job can be queued again; ${id} is ${task.status}.`;
             }

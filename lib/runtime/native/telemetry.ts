@@ -38,13 +38,13 @@
  */
 
 import { SpanStatusCode, context, trace } from '@opentelemetry/api';
-import type { Context, Span } from '@opentelemetry/api';
+import type { Context, Span, SpanOptions } from '@opentelemetry/api';
 
 import type { ModelAdapter } from '../../models/contract.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import { RUNTIME_SPAN_SCOPE } from '../../observability/lineage.ts';
 import { payloadPolicyFromEnv } from '../../observability/supabaseSpanExporter.ts';
-import { initializeTracing } from '../../observability/tracer.ts';
+import { startEngineSpan } from '../../observability/tracer.ts';
 import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import type { AgentLoopContext, AgentLoopEnd } from './agentLoop.ts';
 import type { NativeAgent } from './request.ts';
@@ -54,7 +54,8 @@ import type { NodeResult, TracedNode } from '../../workflow/scheduler.ts';
 /** The most a payload attribute holds, as for a failed call's (lib/observability/tracer.ts). */
 const PAYLOAD_MAX_CHARS = 200_000;
 
-const runtimeTracer = () => trace.getTracer(RUNTIME_SPAN_SCOPE);
+/** A loop span in scope melchizedek.runtime; a non-recording one in a turn that opted out of tracing. */
+const startRuntimeSpan = (name: string, options: SpanOptions): Span => startEngineSpan(RUNTIME_SPAN_SCOPE, name, options);
 
 /** JSON that never throws and never exceeds the cap. */
 function payloadJson(value: unknown): string {
@@ -101,8 +102,7 @@ export async function* traceAgentInvocation(
   ctx: Pick<AgentLoopContext, 'session' | 'invocationId'>,
   run: () => AsyncGenerator<TurnEvent, AgentLoopEnd>,
 ): AsyncGenerator<TurnEvent, AgentLoopEnd> {
-  initializeTracing();
-  const span = runtimeTracer().startSpan(`agent.invoke ${agent.name}`, {
+  const span = startRuntimeSpan(`agent.invoke ${agent.name}`, {
     attributes: {
       'gen_ai.operation.name': 'invoke_agent',
       'gen_ai.agent.name': agent.name,
@@ -134,8 +134,7 @@ export async function* traceModelCall(
   ctx: AgentLoopContext,
   step: (traced: AgentLoopContext) => AsyncGenerator<TurnEvent, ModelStepResult>,
 ): AsyncGenerator<TurnEvent, ModelStepResult> {
-  initializeTracing();
-  const span = runtimeTracer().startSpan('model.call', {
+  const span = startRuntimeSpan('model.call', {
     attributes: {
       'gen_ai.operation.name': 'chat',
       'gen_ai.agent.name': agent.name,
@@ -187,7 +186,7 @@ function recordModelCall(span: Span, result: ModelStepResult, provider: string |
     span.setAttribute('llm.error_code', String(response.error.code));
     return;
   }
-  if (payloadPolicyFromEnv().mode === 'off') return;
+  if (!span.isRecording() || payloadPolicyFromEnv().mode === 'off') return;
   const { signal: _signal, ...request } = result.request;
   span.setAttribute('llm.payload.request', payloadJson(request));
   span.setAttribute('llm.payload.response', payloadJson(response));
@@ -199,10 +198,9 @@ export async function traceToolCall<O extends { part?: TurnPart } | undefined>(
   tool: unknown,
   run: () => Promise<O>,
 ): Promise<O> {
-  initializeTracing();
   const name = call.name || '<unnamed>';
   const description = tool && typeof tool === 'object' ? (tool as { description?: unknown }).description : undefined;
-  const span = runtimeTracer().startSpan(`tool.execute ${name}`, {
+  const span = startRuntimeSpan(`tool.execute ${name}`, {
     attributes: {
       'gen_ai.operation.name': 'execute_tool',
       'gen_ai.tool.name': name,
@@ -242,8 +240,7 @@ export async function traceWorkflowInvocation<T>(
   ctx: { sessionId: string; invocationId: string },
   run: () => Promise<T>,
 ): Promise<T> {
-  initializeTracing();
-  const span = runtimeTracer().startSpan(`workflow.invoke ${workflow.name}`, {
+  const span = startRuntimeSpan(`workflow.invoke ${workflow.name}`, {
     attributes: {
       'gen_ai.operation.name': 'invoke_workflow',
       'gen_ai.conversation.id': ctx.sessionId,
@@ -268,8 +265,7 @@ export async function traceWorkflowInvocation<T>(
  * attempts the run made.
  */
 export async function traceNodeExecution(node: TracedNode, run: () => Promise<NodeResult>): Promise<NodeResult> {
-  initializeTracing();
-  const span = runtimeTracer().startSpan(`node.execute ${node.name}`, {
+  const span = startRuntimeSpan(`node.execute ${node.name}`, {
     attributes: {
       'gen_ai.operation.name': 'execute_node',
       'adk.node.path': node.path,
@@ -294,9 +290,8 @@ export async function traceNodeExecution(node: TracedNode, run: () => Promise<No
 
 /** A tool node's call as a `tool.execute <name>` span, under its node's (ToolNodeContext.traceCall). */
 export async function traceToolNodeCall<T>(call: { id: string; name: string }, tool: unknown, run: () => Promise<T>): Promise<T> {
-  initializeTracing();
   const description = tool && typeof tool === 'object' ? (tool as { description?: unknown }).description : undefined;
-  const span = runtimeTracer().startSpan(`tool.execute ${call.name}`, {
+  const span = startRuntimeSpan(`tool.execute ${call.name}`, {
     attributes: {
       'gen_ai.operation.name': 'execute_tool',
       'gen_ai.tool.name': call.name,

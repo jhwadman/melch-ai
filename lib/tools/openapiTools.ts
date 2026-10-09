@@ -32,7 +32,10 @@
  *     OPENAPI_CREDENTIAL_ENVS, when the operator sets it, is the exact list
  *     of variables an `auth` may name. A credential is held by the tool,
  *     never written to session state, and its value never appears in an
- *     error the model reads.
+ *     error the model reads. An `auth: { oauth2 }` sends an OAuth token
+ *     instead, fetched per call: the run's user's own (authorization_code,
+ *     through `ctx.accessToken` and the consent pause) or the server's own
+ *     (client_credentials), lib/tools/oauthTools.ts, ADR 0112.
  *   - THE SSRF GUARD. Every server URL the tools will call must be http(s)
  *     and pass lib/net/addressGuard.ts: its literal rules at compile time
  *     (offline), and the full check with DNS before each call (a name can
@@ -66,6 +69,12 @@ import { callOperation, hostProblem } from './openapi/call.ts';
 import type { OpenApiCredential } from './openapi/call.ts';
 import { MAX_SPEC_BYTES, operationNamed, parseOpenApiSpec } from './openapi/parse.ts';
 import type { OpenApiOperation } from './openapi/parse.ts';
+import { ToolCredentialError } from './auth.ts';
+import { readCredentialEnv } from './credentialEnv.ts';
+import { oauthTokenSource, tokenTransportProblem } from './oauthTools.ts';
+import type { OAuth2AuthConfig, OAuthTokenSource } from './oauthTools.ts';
+
+export { credentialEnvProblem } from './credentialEnv.ts';
 
 export { namesTool, toSnake } from './openapi/parse.ts';
 
@@ -74,6 +83,8 @@ export interface OpenApiAuthConfig {
   bearer_env?: string;
   /** An API key from an environment variable, sent in a header or the query. */
   api_key?: { env: string; in: 'header' | 'query'; name: string };
+  /** An OAuth access token per call: the run's user's (authorization_code) or the server's (client_credentials). ADR 0112. */
+  oauth2?: OAuth2AuthConfig;
 }
 
 /** One entry of an agent's `openapi:` list. */
@@ -98,44 +109,16 @@ export const MAX_RESULT_CHARS = TOOL_RESULT_CHARS;
  */
 export const OPENAPI_TOOL = Symbol.for('melchizedek.openapiTool');
 
-/** Prefixes and names of variables the framework itself reads: never an API credential. */
-const FRAMEWORK_ENV_PREFIXES = [
-  'A2A_', 'SUPABASE_', 'DATABASE_', 'MCP_', 'MODEL_', 'MEMORY_', 'OTEL_', 'TELEMETRY_', 'MELCHIZEDEK_',
-  'GOOGLE_', 'GEMINI_', 'ANTHROPIC_', 'OPENAI_', 'AZURE_', 'AWS_', 'XAI_', 'MOONSHOT_', 'OLLAMA_', 'WIKI_',
-  'ALLOW_', 'OPENAPI_',
-];
-const FRAMEWORK_ENV_NAMES = new Set(['PUBLIC_URL', 'HOST', 'PORT', 'PATH', 'HOME', 'NODE_OPTIONS', 'WEB_EXTRACT_CHAR_LIMIT']);
-
-/**
- * Why an `auth` may not read this variable, or null. With
- * OPENAPI_CREDENTIAL_ENVS set, only the names it lists are allowed; without
- * it, anything but the framework's own variables is.
- */
-export function credentialEnvProblem(name: string, env: NodeJS.ProcessEnv = process.env): string | null {
-  const allow = env.OPENAPI_CREDENTIAL_ENVS?.split(',').map((s) => s.trim()).filter(Boolean);
-  if (allow?.length) {
-    return allow.includes(name) ? null : `${name} is not in OPENAPI_CREDENTIAL_ENVS (${allow.join(', ')})`;
-  }
-  if (FRAMEWORK_ENV_NAMES.has(name) || FRAMEWORK_ENV_PREFIXES.some((p) => name.startsWith(p))) {
-    return `${name} is one of the framework's own settings and may not be sent to an API; give the API its own variable (or list it in OPENAPI_CREDENTIAL_ENVS)`;
-  }
-  return null;
-}
-
 /**
  * The credential an `auth` names, read from the environment once, at
  * compile. Throws (failing the compile) on a variable the allowlist refuses
  * or one that is not set; the message names the variable, never its value.
+ * An `oauth2` block is not read here: its token is fetched per call
+ * (oauthTokenSource, lib/tools/oauthTools.ts).
  */
 function credentialFor(auth: OpenApiAuthConfig | undefined, spec: string): OpenApiCredential | undefined {
   if (!auth) return undefined;
-  const read = (env: string): string => {
-    const refused = credentialEnvProblem(env);
-    if (refused) throw new Error(`openapi ${spec}: ${refused}`);
-    const value = process.env[env]?.trim();
-    if (!value) throw new Error(`openapi ${spec}: ${env} is not set (auth reads it from the environment)`);
-    return value;
-  };
+  const read = (env: string): string => readCredentialEnv(env, `openapi ${spec}`);
   if (auth.bearer_env) return { kind: 'bearer', token: read(auth.bearer_env) };
   if (auth.api_key) return { kind: 'api_key', in: auth.api_key.in, name: auth.api_key.name, value: read(auth.api_key.env) };
   return undefined;
@@ -175,13 +158,27 @@ function readSpec(specPath: string, source: string): string {
   }
 }
 
-/** An own Tool that calls one operation (lib/tools/openapi/call.ts), its result cut to MAX_RESULT_CHARS. */
-function operationTool(op: OpenApiOperation, credential: OpenApiCredential | undefined): Tool {
+/**
+ * An own Tool that calls one operation (lib/tools/openapi/call.ts), its
+ * result cut to MAX_RESULT_CHARS. With `oauth`, each call fetches its token
+ * first; a token that cannot be had is answered as `{ error }` naming the
+ * provider and what to do, never a value (and, for a user who has not
+ * granted it, the run's consent step has already asked).
+ */
+function operationTool(op: OpenApiOperation, credential: OpenApiCredential | undefined, oauth?: OAuthTokenSource): Tool {
   const tool: Tool = {
     name: op.name,
     declaration: () => op.declaration,
     async execute(args: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
-      return capResult(await callOperation(op, args ?? {}, { credential, signal: ctx?.signal }));
+      let sent = credential;
+      if (oauth) {
+        try {
+          sent = { kind: 'bearer', token: await oauth(ctx) };
+        } catch (error) {
+          return { error: error instanceof ToolCredentialError ? error.message : 'The authorization for this API could not be obtained.' };
+        }
+      }
+      return capResult(await callOperation(op, args ?? {}, { credential: sent, signal: ctx?.signal }));
     },
   };
   Object.defineProperty(tool, OPENAPI_TOOL, { value: op.operationId });
@@ -221,7 +218,16 @@ export async function buildOpenApiOwnTools(entry: OpenApiConfig, baseDir: string
     const problem = await hostProblem(baseUrl, false);
     if (problem) throw new Error(`openapi ${entry.spec}: ${problem}`);
   }
-  return chosen.map((o) => operationTool(o, credential));
+  let oauth: OAuthTokenSource | undefined;
+  if (entry.auth?.oauth2 && chosen.length) {
+    // Every server the token goes to takes it over https (or loopback http).
+    for (const server of new Set(chosen.map((o) => o.baseUrl))) {
+      const problem = tokenTransportProblem(server);
+      if (problem) throw new Error(`openapi ${entry.spec}: ${problem}`);
+    }
+    oauth = oauthTokenSource(entry.auth.oauth2, `openapi ${entry.spec}`, chosen[0]!.baseUrl, { allowPrivate: process.env.ALLOW_PRIVATE_OPENAPI === 'true' });
+  }
+  return chosen.map((o) => operationTool(o, credential, oauth));
 }
 
 /**

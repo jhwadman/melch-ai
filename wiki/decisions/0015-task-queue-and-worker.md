@@ -34,5 +34,7 @@ A tool that runs a subagent is the composite the [tool contract](/tools/tool-con
 - One worker per store: the claim is a read-modify-write, not a lock. A second worker could claim the same job in a narrow race.
 
 > **Note (2026-10-02):** Both limits hold only for the default JSON file. On Postgres (migration `0009_task_queue.sql`, `postgresStorage().taskQueue`) each tool call is filed under its caller's scope key, which tool calls now carry (`ToolCallContext`), and workers claim jobs with `FOR UPDATE SKIP LOCKED` under a renewed lease, so a shared endpoint and several workers are both supported, see [ADR 0021](/decisions/0021-postgres-first-storage.md).
+
+> **Note (2026-10-09):** A job no longer starts over when its worker stops. The worker checkpoints the run's sessions beside the job at every step boundary (migration `0014_durable_runs.sql`), a re-claimed job resumes from its last checkpoint, SIGTERM re-queues the job instead of failing it, and a running job can be cancelled, see [ADR 0113](/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md).
 - The worker never sees the conversation. `task_queue`'s description and the Assistant's instruction both demand a self-contained instruction, and a job that needed context the Assistant left out produces a weaker result rather than an error.
 - The package gains a fifth bin and five registered tools, a versioned surface ([ADR 0007](/decisions/0007-engine-as-package.md)).

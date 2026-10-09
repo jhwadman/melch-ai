@@ -1,6 +1,6 @@
 /**
  * lib/storage/postgres/taskQueue.ts — the task tools' TaskBackend on
- * Postgres (migration 0009, ADR 0021).
+ * Postgres (migrations 0009 and 0014, ADR 0021, ADR 0113).
  *
  * Every rule stays in lib/tools/taskTools.ts and runs on a TaskStore
  * snapshot; this file only loads one owner's snapshot and writes the change
@@ -14,8 +14,20 @@
  *   claim   takes the oldest queued background job of ANY owner with
  *           FOR UPDATE SKIP LOCKED, so two workers never take one job, and
  *           leases it to the worker until the lease runs out.
+ *   renew   extends the lease while the job is still this worker's and
+ *           running; resolves false otherwise, so the worker stops the run
+ *           (a task_update cancel of a running job lands here).
  *   recover finds running jobs whose lease ran out (the worker died) and
- *           applies the same interrupted-job rule the file store uses.
+ *           applies the same interrupted-job rule the file store uses. It
+ *           never touches a queued job or a running one whose lease is live.
+ *
+ * Checkpoints (ADR 0113): a running job's latest step checkpoint is the
+ * `checkpoint` column beside `record`, never inside it, so the tools never
+ * read it. Only the worker holding the lease writes it (saveCheckpoint). It
+ * survives while the job is running or queued: recover's requeue keeps it,
+ * so the next claim resumes from it, and claimNext leaves it; a mutate that
+ * moves the job to any other status, or recover failing it, clears it; a
+ * deleted row takes it along.
  */
 import type { Pool, PoolClient } from 'pg';
 
@@ -65,13 +77,16 @@ export function postgresTaskBackend(pool: Pool): TaskBackend {
         for (const t of store.tasks) {
           if (before.get(t.id) === JSON.stringify(t)) continue;
           // Leaving `running` ends the job's lease; staying in it keeps it.
+          // A checkpoint survives only in running or queued.
           await client.query(
             `INSERT INTO melchizedek_tasks (owner, id, seq, kind, status, record, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())
              ON CONFLICT (owner, id) DO UPDATE
                SET kind = EXCLUDED.kind, status = EXCLUDED.status, record = EXCLUDED.record, updated_at = NOW(),
                    lease_owner = CASE WHEN EXCLUDED.status = 'running' THEN melchizedek_tasks.lease_owner END,
-                   lease_until = CASE WHEN EXCLUDED.status = 'running' THEN melchizedek_tasks.lease_until END`,
+                   lease_until = CASE WHEN EXCLUDED.status = 'running' THEN melchizedek_tasks.lease_until END,
+                   checkpoint = CASE WHEN EXCLUDED.status IN ('running', 'queued') THEN melchizedek_tasks.checkpoint END,
+                   checkpoint_at = CASE WHEN EXCLUDED.status IN ('running', 'queued') THEN melchizedek_tasks.checkpoint_at END`,
             [owner, t.id, seqOf(t.id), t.kind, t.status, JSON.stringify(t)],
           );
         }
@@ -108,11 +123,30 @@ export function postgresTaskBackend(pool: Pool): TaskBackend {
     },
 
     async renew(worker, job) {
-      await pool.query(
+      const r = await pool.query(
         `UPDATE melchizedek_tasks SET lease_until = NOW() + ($4::int * interval '1 millisecond')
           WHERE owner = $1 AND id = $2 AND lease_owner = $3 AND status = 'running'`,
         [job.owner, job.id, worker.workerId, worker.leaseMs],
       );
+      return (r.rowCount ?? 0) > 0;
+    },
+
+    async saveCheckpoint(worker, job, checkpoint) {
+      const r = await pool.query(
+        `UPDATE melchizedek_tasks SET checkpoint = $4::jsonb, checkpoint_at = NOW()
+          WHERE owner = $1 AND id = $2 AND lease_owner = $3 AND status = 'running'`,
+        [job.owner, job.id, worker.workerId, JSON.stringify(checkpoint)],
+      );
+      return (r.rowCount ?? 0) > 0;
+    },
+
+    async loadCheckpoint(job) {
+      const r = await pool.query(
+        `SELECT checkpoint FROM melchizedek_tasks
+          WHERE owner = $1 AND id = $2 AND status IN ('running', 'queued')`,
+        [job.owner, job.id],
+      );
+      return (r.rows[0]?.checkpoint as object | null | undefined) ?? null;
     },
 
     async finish(job: OwnedTask, outcome: JobOutcome) {
@@ -132,8 +166,11 @@ export function postgresTaskBackend(pool: Pool): TaskBackend {
           const t = row.record as TaskRecord;
           const outcome = applyInterrupted(t);
           (outcome === 'failed' ? failed : requeued).push(`${row.owner || '(shared)'}:${t.id}`);
+          // Requeued keeps the checkpoint (the next claim resumes); failed clears it.
           await client.query(
-            `UPDATE melchizedek_tasks SET status = $3, record = $4::jsonb, updated_at = NOW(), lease_owner = NULL, lease_until = NULL
+            `UPDATE melchizedek_tasks SET status = $3, record = $4::jsonb, updated_at = NOW(), lease_owner = NULL, lease_until = NULL,
+                    checkpoint = CASE WHEN $3::text = 'queued' THEN checkpoint END,
+                    checkpoint_at = CASE WHEN $3::text = 'queued' THEN checkpoint_at END
               WHERE owner = $1 AND id = $2`,
             [row.owner, row.id, t.status, JSON.stringify(t)],
           );

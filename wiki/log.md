@@ -27,6 +27,26 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ module:lib/storage/postgres/taskStore.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ table:melchizedek_tasks
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —constrains→ module:scripts/assistant_worker.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —explains→ module:lib/runtime/native/checkpoint.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md —depends_on→ /decisions/0015-task-queue-and-worker.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md —constrains→ module:lib/runtime/native/delegate.ts
 
 by claude-code/claude-opus-5-5
@@ -44,6 +64,46 @@ by claude-code/claude-opus-5-5
 by claude-code/claude-opus-5-5
 
 ## [2026-10-09] relate | /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md —supersedes→ /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | module:lib/tools/oauthTools.ts —depends_on→ module:lib/tools/credentialEnv.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —depends_on→ /decisions/0072-tool-credentials-sealed-per-user.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —depends_on→ /decisions/0085-oauth-consent-pauses-on-adks-credential-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —constrains→ module:lib/tools/mcpToolFactory.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0112-oauth-grants-declared-beside-the-tool.md —explains→ module:lib/tools/oauthTools.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0109-structured-output-beside-tools.md —depends_on→ /decisions/0066-native-step-sends-the-adk-request.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0109-structured-output-beside-tools.md —constrains→ module:lib/dispatch.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0109-structured-output-beside-tools.md —constrains→ module:lib/models/capabilities.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0109-structured-output-beside-tools.md —constrains→ module:lib/runtime/native/request.ts
 
 by claude-code/claude-opus-5-5
 

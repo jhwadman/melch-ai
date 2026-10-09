@@ -279,7 +279,7 @@ test('schema: auth is exactly one form from the environment; gates name listed o
     orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'x', openapi, ...extra },
   });
   assert.doesNotThrow(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', auth: { bearer_env: 'TOKEN' } }]), 't'));
-  assert.throws(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', auth: { bearer_env: 'TOKEN', api_key: { env: 'K', in: 'header', name: 'X' } } }]), 't'), /exactly one of bearer_env or api_key/);
+  assert.throws(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', auth: { bearer_env: 'TOKEN', api_key: { env: 'K', in: 'header', name: 'X' } } }]), 't'), /exactly one of bearer_env, api_key or oauth2/);
   assert.throws(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', auth: { bearer_env: 'sk-live-123' } }]), 't'), /environment variable name/);
   assert.throws(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', token: 'x' }]), 't'), /token/);
   assert.doesNotThrow(() => validateSyndicateConfig(raw([{ spec: 'a.yaml', operations: ['createPet'] }], { require_approval: ['createPet'] }), 't'));

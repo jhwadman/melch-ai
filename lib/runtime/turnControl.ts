@@ -39,6 +39,12 @@ export interface TurnControl {
   thinkingTokens: number;
   /** Ceiling on model calls for the whole turn; undefined = no ceiling. */
   readonly maxLlmCalls?: number;
+  /**
+   * The turn opted out of tracing (`runSyndicateTurn({ trace: false })`):
+   * nothing it runs opens a span or starts the tracer, so it reaches no
+   * sink. The budget and the token charge still apply.
+   */
+  readonly untraced?: boolean;
   /** Set once, by whichever control stopped the turn first. */
   stopReason?: TurnStopReason;
   /** Stop the turn. The first reason wins. */
@@ -53,6 +59,8 @@ export interface TurnControlOptions {
   deadlineMs?: number;
   /** An outer signal (a cancel request); aborting it cancels the turn. */
   signal?: AbortSignal;
+  /** The turn records no spans (TurnControl.untraced). */
+  untraced?: boolean;
 }
 
 /**
@@ -69,6 +77,7 @@ export function createTurnControl(opts: TurnControlOptions = {}): TurnControl & 
     outputTokens: 0,
     thinkingTokens: 0,
     maxLlmCalls: opts.maxLlmCalls && opts.maxLlmCalls > 0 ? opts.maxLlmCalls : undefined,
+    ...(opts.untraced ? { untraced: true } : {}),
     stopReason: undefined,
     stop(reason) {
       if (control.stopReason) return;
@@ -111,6 +120,16 @@ export function runWithTurnControl<T>(control: TurnControl, fn: () => T): T {
 /** The current turn's control, if this code is running inside a turn. */
 export function currentTurnControl(): TurnControl | undefined {
   return storage.getStore();
+}
+
+/**
+ * Whether the code running now belongs to a turn that opted out of tracing.
+ * Every span the engine opens checks this first (lib/observability/
+ * tracer.ts, lib/runtime/native/telemetry.ts): an untraced turn opens no
+ * span and does not start the tracer. Outside a turn: false.
+ */
+export function turnUntraced(): boolean {
+  return storage.getStore()?.untraced === true;
 }
 
 /** The current turn's abort signal, for adapters to pass to provider SDKs. */

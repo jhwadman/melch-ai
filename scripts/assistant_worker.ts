@@ -21,6 +21,16 @@
  *   instead of abandoning it while it keeps spending. Any syndicate and any
  *   subagent in it can serve as the worker.
  *
+ *   A run is durable (ADR 0113): runDurableTurn (lib/runtime/native/
+ *   checkpoint.ts) checkpoints the run's sessions at every step boundary
+ *   beside the job (TaskBackend.saveCheckpoint), and a job claimed again
+ *   after its worker stopped resumes from its last checkpoint instead of
+ *   starting over. SIGTERM aborts the step in flight and puts the job back
+ *   in the queue with its checkpoint; the next worker finishes it. A job
+ *   cancelled while it runs (task_update) loses its claim: the next lease
+ *   renewal or checkpoint save sees it, and the run is aborted without
+ *   writing a result over the cancellation.
+ *
  * Usage:
  *   npm run assistant:worker                      poll every 30 s until Ctrl-C
  *   npm run assistant:worker -- --once            drain the queue, then exit (cron)
@@ -37,17 +47,17 @@ import { randomUUID } from 'node:crypto';
 import { loadEnv } from '../lib/loadEnv.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
-import { runSyndicateTurn } from '../lib/runtime/syndicateTurn.ts';
+import { runDurableTurn } from '../lib/runtime/native/checkpoint.ts';
+import type { RunCheckpoint } from '../lib/runtime/native/checkpoint.ts';
 import { runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
-import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import {
   PROVIDERS,
   providerForModel,
   providerKeyPresent,
 } from '../lib/models/registry.ts';
-import { getTaskBackend, setTaskBackend, taskStorePath } from '../lib/tools/taskTools.ts';
-import type { OwnedTask, TaskRecord, WorkerLease } from '../lib/tools/taskTools.ts';
+import { applyInterrupted, getTaskBackend, setTaskBackend, taskStorePath } from '../lib/tools/taskTools.ts';
+import type { OwnedTask, WorkerLease } from '../lib/tools/taskTools.ts';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import { dbSchema } from '../lib/storage/schema.ts';
 import { hostname } from 'node:os';
@@ -120,25 +130,40 @@ const workerConfig: SyndicateYamlConfig = !sub
 
 /** The job in hand, so a signal can cancel it. */
 let current: AbortController | undefined;
+/** Set by SIGTERM: the job in hand goes back to the queue with its checkpoint. */
+let interrupted = false;
 
-// ── One job = one fresh single-turn session ─────────────────────────────────
-async function runJob(job: TaskRecord): Promise<string> {
-  current = new AbortController();
+/** The run lost its claim on the job (cancelled while it ran, or taken by another worker). */
+class ClaimLost extends Error {}
+/** SIGTERM stopped the run; the job is re-queued, not failed. */
+class Interrupted extends Error {}
+
+// ── One job = one durable single-turn run (ADR 0113) ────────────────────────
+async function runJob(job: OwnedTask): Promise<string> {
+  const controller = new AbortController();
+  current = controller;
   try {
-    const result = await runSyndicateTurn({
+    // A fresh in-process store per attempt, restored from the job's last
+    // checkpoint when an earlier attempt left one (ADR 0080, ADR 0113).
+    const result = await runDurableTurn({
       config: workerConfig,
       parts: [{ text: job.instruction ?? job.title }],
       appName: 'assistant-worker',
       userId: 'local-user',
-      sessionId: randomUUID(),
-      // A fresh in-process store per job, as the turn runner's signature
-      // names it (ADR 0080). The runtime follows MELCHIZEDEK_RUNTIME.
-      sessionService: new InProcessSessionService(),
+      runId: `${job.owner}:${job.id}`,
+      checkpoints: {
+        load: async () => ((await backend.loadCheckpoint?.(job)) ?? null) as RunCheckpoint | null,
+        save: async (checkpoint) => (backend.saveCheckpoint ? backend.saveCheckpoint(lease, job, checkpoint) : true),
+      },
+      onSaveError: (e) => log(`checkpoint not saved: ${e instanceof Error ? e.message : String(e)}`),
       compile: { log, onUnknownTool: (n) => log(`unknown tool '${n}' skipped`) },
-      signal: current.signal,
+      signal: controller.signal,
       deadlineMs: JOB_TIMEOUT_MS,
       events: { warn: (m) => log(`⚠ ${m}`) },
     });
+    if (result.resumedFromStep > 0) log(`${job.id} resumed from step ${result.resumedFromStep}`);
+    if (result.lostClaim || controller.signal.reason instanceof ClaimLost) throw new ClaimLost('the job was cancelled or claimed elsewhere');
+    if (interrupted) throw new Interrupted('stopped by SIGTERM');
     if (result.status !== 'completed') {
       throw new Error(`${result.error?.code ?? 'ERROR'}: ${result.error?.message ?? ''}`.trim());
     }
@@ -157,18 +182,36 @@ async function drain(): Promise<number> {
     const started = Date.now();
     const label = job.owner ? `${job.id} (${job.owner})` : job.id;
     log(`${label} started: ${job.title}`);
-    // Renew the lease while the job runs, so no other worker takes it back.
+    // Renew the lease while the job runs, so no other worker takes it back;
+    // a renewal that finds the claim gone (the job was cancelled) stops the run.
     const held: OwnedTask = job;
     const heartbeat = setInterval(() => {
-      backend.renew(lease, held).catch((e: unknown) => log(`lease renewal failed: ${e instanceof Error ? e.message : e}`));
+      backend
+        .renew(lease, held)
+        .then((kept) => {
+          if (kept === false) current?.abort(new ClaimLost('claim lost'));
+        })
+        .catch((e: unknown) => log(`lease renewal failed: ${e instanceof Error ? e.message : e}`));
     }, Math.floor(lease.leaseMs / 3));
     try {
       const result = await runJob(job);
       await backend.finish(job, { result });
       log(`${label} done in ${Math.round((Date.now() - started) / 1000)} s`);
     } catch (error: any) {
-      await backend.finish(job, { error: String(error?.message ?? error) });
-      log(`${label} failed: ${error?.message ?? error}`);
+      if (error instanceof ClaimLost) {
+        // Cancelled while it ran: the record already says so; nothing is written over it.
+        log(`${label} stopped: ${error.message}`);
+      } else if (error instanceof Interrupted) {
+        // Back to the queue with its checkpoint, or failed after MAX_ATTEMPTS interruptions.
+        const outcome = await backend.mutate(job.owner, (store) => {
+          const t = store.tasks.find((r) => r.id === held.id);
+          return t && t.status === 'running' ? applyInterrupted(t) : 'left as is';
+        });
+        log(`${label} interrupted: ${outcome}`);
+      } else {
+        await backend.finish(job, { error: String(error?.message ?? error) });
+        log(`${label} failed: ${error?.message ?? error}`);
+      }
     } finally {
       clearInterval(heartbeat);
     }
@@ -196,12 +239,13 @@ process.on('SIGINT', () => {
   stopping = true;
   log('stopping after the current job (Ctrl-C again to quit now)');
 });
-// A container stop: cancel the job in hand (it is recorded as failed and the
-// store stays consistent), then exit.
+// A container stop: abort the step in flight and put the job back in the
+// queue with its checkpoint, so the next worker resumes it (ADR 0113).
 process.on('SIGTERM', () => {
   stopping = true;
-  log('SIGTERM — canceling the current job');
-  current?.abort();
+  interrupted = true;
+  log('SIGTERM — stopping the current job; it resumes from its last checkpoint');
+  current?.abort(new Interrupted('SIGTERM'));
 });
 while (!stopping) {
   await drain();
