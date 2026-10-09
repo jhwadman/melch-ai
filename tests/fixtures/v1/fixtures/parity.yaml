@@ -1,0 +1,56 @@
+# The parity harness's syndicate (scripts/parity_check.ts, `npm run parity`).
+# One shape run unchanged against every funded provider: the model ids are
+# bindings the harness fills per provider, so the only thing that differs
+# between two rows of the report is the model.
+#
+#   Echo      delegation: repeats the code word its `request` argument carries
+#   Recorder  structured output: a leaf with an outputSchema (the critic.yaml
+#             pattern; a schema beside subagent tools is
+#             tests/fixtures/structured-critic.yaml, ADR 0109)
+#   parity_lookup  a client-side function tool the harness registers itself
+#
+# max_steps bounds what one turn can spend; the harness's turns need at most
+# three model calls each.
+syndicate_name: Parity
+max_steps: 12
+
+orchestrator:
+  name: ParityLead
+  model: "{{orchestrator_model}}"
+  instruction: |
+    You run a test of an agent framework. Do exactly what the user asks, no more.
+    To involve Echo or Recorder, call that tool with a request that carries
+    everything it needs: the code word, the city and the count, as written.
+    To look a value up, call parity_lookup with the key the user names.
+    Report what a tool returned verbatim and briefly. Never invent a value a
+    tool did not return.
+  tools:
+    - parity_lookup
+
+subagents:
+  - name: Echo
+    description: Repeats back the code word in its request.
+    model: "{{subagent_model}}"
+    instruction: |
+      Reply with the code word contained in the request, exactly as written,
+      and nothing else.
+
+  - name: Recorder
+    description: Files a record of a city, a code word and a count, as structured JSON.
+    model: "{{subagent_model}}"
+    instruction: |
+      Turn the request into a record: the city, the code word exactly as
+      written, and the count as an integer.
+    outputSchema:
+      type: "OBJECT"
+      properties:
+        city:
+          type: "STRING"
+          description: "The city named in the request."
+        code:
+          type: "STRING"
+          description: "The code word, exactly as written in the request."
+        count:
+          type: "INTEGER"
+          description: "The count named in the request."
+      required: ["city", "code", "count"]

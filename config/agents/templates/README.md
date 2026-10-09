@@ -14,7 +14,7 @@ first.
 | `research_brief.yaml` | Orchestration | A decision-ready brief with every claim traceable | three layers: Editor → nested ResearchDesk → Scout, Reader; Writer; tool-less Verifier | short-term | the open web |
 | `review_panel.yaml` | Orchestration | Ship, fix or hold a proposed change, from a coding harness | panel: Correctness, Risk, Operability → Chair | short-term | only the material it is given |
 | `draft_review.yaml` | Orchestration | Outbound writing checked against your policy | bounded loop: Drafter ↔ Reviewer | short-term | only the brief |
-| `intake_extractor.yaml` | Memory: short-term | Inbound document → structured JSON record, nothing kept | one agent with an `outputSchema` | short-term, `includeContents: none` | only the document |
+| `intake_extractor.yaml` | Memory: short-term | Inbound document → structured JSON record, nothing kept | one agent with an `output.schema` | short-term, `includeContents: none` | only the document |
 | `case_desk.yaml` | Memory: session | Work one operational case across many turns | Lead + Runbooks + Reader, a CASE STATE block every turn | session | your runbooks, pasted links |
 | `account_memory.yaml` | Memory: long-term | Remember every client's asks, decisions and commitments | Lead + Writer, `preload_memory` / `load_memory` | long-term, domain `memory_extraction_rules` | its own memory silo |
 | `research_desk.yaml` | Tools | Sourced notes from the open web (nested by `research_brief`) | Lead → Scout (`web_search`) + Reader (`web_extract`) | short-term | the open web |

@@ -139,30 +139,31 @@ orchestrator:
 
     Message: "Your support rep hung up on me twice yesterday."
     {"route":"handoff","reason":"bringing in a colleague","goal":"complain about a support call"}
-  outputSchema:
-    type: object
-    properties:
-      route:
-        type: string
-        enum:
-          - answer
-          - account
-          - handoff
-        description: The one route that closes this case.
-      reason:
-        type: string
-        description: At most eight plain words for the customer. Never mention routing, models, tools or yourself.
-      goal:
-        type: string
-        description: The customer's goal in at most twelve words.
-    required:
-      - route
-      - reason
-      - goal
+  output:
+    schema:
+      type: object
+      properties:
+        route:
+          type: string
+          enum:
+            - answer
+            - account
+            - handoff
+          description: The one route that closes this case.
+        reason:
+          type: string
+          description: At most eight plain words for the customer. Never mention routing, models, tools or yourself.
+        goal:
+          type: string
+          description: The customer's goal in at most twelve words.
+      required:
+        - route
+        - reason
+        - goal
+    mime: application/json
   reasoning: none
-  generateContentConfig:
-    maxOutputTokens: 256
-    responseMimeType: application/json
+  sampling:
+    max_output_tokens: 256
 subagents:
   - name: answer
     description: "How-to, feature, setting, limit and error-message questions answered from the documentation bundle. Replies to the customer; ends with the ESCALATION line where the documentation is silent."
@@ -195,8 +196,8 @@ subagents:
 
       Under 1200 characters.
     reasoning: low
-    generateContentConfig:
-      maxOutputTokens: 2048
+    sampling:
+      max_output_tokens: 2048
   - name: account
     description: "Looks up or changes this customer's own records through the tools your systems expose over MCP. Replies to the customer; proposes any change they did not ask for in words and makes it only after their yes."
     model: gemini-3.8-flash
@@ -232,8 +233,8 @@ subagents:
 
       Under 1200 characters.
     reasoning: low
-    generateContentConfig:
-      maxOutputTokens: 2048
+    sampling:
+      max_output_tokens: 2048
   - name: handoff
     description: "Hands the case to a person: complaints, legal or safety matters, exceptions, bug reports, requests for a person, and anything unclear. Replies with a customer sentence, a \"---\" line, then a structured note for the team."
     model: gemini-3.5-flash-lite
@@ -261,5 +262,5 @@ subagents:
       - Never put anything for the team before the "---" line, or anything for the customer after it.
       - Never end with the ESCALATION line; this reply is the handoff.
     reasoning: none
-    generateContentConfig:
-      maxOutputTokens: 1024
+    sampling:
+      max_output_tokens: 1024

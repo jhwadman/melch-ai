@@ -106,8 +106,8 @@ orchestrator:
   tools:
     - "google_search"             # names resolved via lib/toolRegistry.ts
   reasoning: medium               # none | low | medium | high, or { budget_tokens: 4096 }
-  generateContentConfig:
-    maxOutputTokens: 4096
+  sampling:
+    max_output_tokens: 4096
 
 subagents:
   - name: "Researcher"
@@ -136,8 +136,10 @@ Field reference:
 | `description` | subagent | **The delegation API.** The orchestrator reads this when deciding to hand off — write it like a function signature ("Use this subagent to…, pass it…"). |
 | `tools` | agent | Names resolved by the tool registry (§3). Long-term memory agents add `preload_memory` / `load_memory`. |
 | `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude 4.6 and earlier (2,048 / 8,192 / 16,384 tokens for low / medium / high), adaptive thinking with that effort on later Claude models ([ADR 0049](./wiki/decisions/0049-claude-requests-by-model-generation.md)), an effort word on GPT, Grok, Kimi, Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). Unset, each adapter keeps its own default. |
-| `generateContentConfig` | agent | Temperature, output caps. Its `thinkingConfig` and `reasoningEffort` are the older, provider-specific spelling of `reasoning`; setting either next to `reasoning` is a load error. |
-| `outputSchema` | agent | Structured-JSON contract: the agent ends its turn on one JSON object matching it. An orchestrator may hold one beside its subagents: it delegates first, then answers in the schema itself. The schema travels in the provider's own structured-output field beside the tools on Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on OpenAI, and on Gemini 2+ through Vertex AI, and as a `set_model_response` tool elsewhere (the capability matrix's `structured_output_with_tools`, [ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md)). A leaf that holds the schema (`critic.yaml`) and plan-dispatch remain the choices when the answer should be a specialist's. |
+| `sampling` | agent | `{ temperature, top_p, max_output_tokens, stop }`, the fields the engine sends to every provider; each adapter sends the ones its API takes ([ADR 0115](./wiki/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)). |
+| `output` | agent | `{ schema, mime }`. `mime` is `application/json` (JSON mode, with or without a schema) or `text/plain` (the default). `schema` is the structured-JSON contract: the agent ends its turn on one JSON object matching it. An orchestrator may hold one beside its subagents: it delegates first, then answers in the schema itself. The schema travels in the provider's own structured-output field beside the tools on Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on OpenAI, and on Gemini 2+ through Vertex AI, and as a `set_model_response` tool elsewhere (the capability matrix's `structured_output_with_tools`, [ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md)). A leaf that holds the schema (`critic.yaml`) and plan-dispatch remain the choices when the answer should be a specialist's. |
+| `model_overrides` | agent | A prompt nuance for one provider: keyed by `gemini`, `anthropic`, `openai`, `xai`, `moonshot` or `ollama`, each entry holds `instruction` (replaces the agent's instruction on that provider) or `instruction_append` (added after a blank line). The entry for the provider of the agent's `model` applies, before the skills index is appended; a `fallback_model` gets the primary's instruction. |
+| `generateContentConfig` / `outputSchema` | agent | The deprecated v1 spelling of `sampling`, `output.mime`, `reasoning` (as `thinkingConfig` / `reasoningEffort`) and `output.schema`. Both still load and behave the same; a load that finds either prints one deprecation line per file per process (`LoadSyndicateOptions.onWarning`, default `console.warn`), and a v2 key beside its v1 spelling on one agent is a load error. Only `toolConfig` and the effort words `xhigh` / `max` have no v2 form yet; `topK`, `seed`, the penalties, `candidateCount`, `safetySettings` and `includeThoughts` reach no provider. `npx melchizedek-codemod [--check] <file|dir>` rewrites a v1 file to v2, comments kept ([ADR 0115](./wiki/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)). |
 | `yaml_reference` | subagent | Mount another syndicate file as a nested subagent. |
 | `a2a_agent_url` | subagent | A REMOTE agent over A2A (§6): the orchestrator delegates to it with one `request` argument; in plan-dispatch it can be a route. No `model`/`instruction` — the remote agent has its own. Credentials come from `A2A_AGENT_TOKENS`, never YAML. |
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
@@ -149,7 +151,7 @@ Field reference:
 | `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
 | `context` | orchestrator | Compacts a long conversation: when the last request's prompt passed `compact_after_tokens`, earlier turns become one summary (written by `summary_model`, default the agent's own) and the last `keep_recent_events` stay verbatim. The full history stays stored; only what the model reads shrinks. The orchestrator of a delegate syndicate only: a dispatch route already reads a bounded projection, a workflow node sees only its input. |
-| `mode` | workflow node | `"task"`: the agent works with its tools until it calls `finish_task`, whose arguments (matching its `outputSchema`) become the node's output. Workflow nodes only. |
+| `mode` | workflow node | `"task"`: the agent works with its tools until it calls `finish_task`, whose arguments (matching its `output.schema`) become the node's output. Workflow nodes only. |
 | `examples` | any agent | Few-shot exchanges, `[{ input, output }]` (up to 20), added to every request's instruction as a few-shot block, the one ADK's `ExampleTool` wrote (an Instruction tool, `lib/tools/examples.ts`); the model never calls it. Keeps worked examples out of the prose of `instruction`. |
 | `skills` | any agent | Agent Skills (a directory of SKILL.md folders) the agent holds the way a coding harness does: every skill's name and description is appended to its instruction at compile time; `load_skill` reads one in full with the names of its files, `load_skill_resource` reads one file. `scripts: local` adds `run_skill_script`, which runs a skill's own scripts on this machine, each after a person approves (the `require_approval` pause), with PATH, HOME, the temp directory and the locale but none of the server's keys, plus the variable names listed under `env:` (or `secret_env:` for a secret-shaped name, ADR 0086), and stdout and stderr each cut at 20,000 characters; `tools:` names registry tools a skill's `allowed-tools` may unlock once loaded. Worked example: `examples/harness.yaml`; engine: `lib/tools/skillToolset.ts` over `lib/tools/skills/`. |
 
@@ -375,7 +377,7 @@ The xAI adapter carries the deepest capability surface: `grok-4.5`
 requests pin `reasoning.effort: "medium"` (`lib/config.ts`), SSE
 streaming works end-to-end (`runConfig: { streamingMode: 'sse' }` —
 partial delta events stream, one aggregated event persists with usage),
-structured outputs ride `outputSchema` → `text.format`, and two
+structured outputs ride `output.schema` → `text.format`, and two
 xAI-only tools — `x_search` and `collections_search` (§3) — turn on
 live X search and hosted-document RAG. All verified live on grok-4.5.
 
@@ -496,7 +498,7 @@ runs as a one-agent syndicate through `runSyndicateTurn`.
 
 Reasoning/thinking: scratchpads from every provider are surfaced as
 dimmed THINKING output and kept out of session history. On Claude, any
-`reasoning:` other than `none` (or the older
+`reasoning:` other than `none` (or the deprecated
 `generateContentConfig.thinkingConfig.thinkingBudget`) enables Anthropic
 extended thinking, tools included: the signed thinking blocks ride on the
 response's parts as `providerState` and are replayed verbatim within the
@@ -1106,7 +1108,7 @@ user:
 | | DELEGATE (default) | PLAN-DISPATCH (`dispatch:` present) |
 |---|---|---|
 | Subagents are | tools on the orchestrator | plain configs the server selects from |
-| Orchestrator holds | subagent tools, no `outputSchema` | an `outputSchema`, no subagent tools |
+| Orchestrator holds | subagent tools, no `output.schema` | an `output.schema`, no subagent tools |
 | Routing decision is | implicit in which tool it calls | an explicit value in code |
 | The final answer comes from | the orchestrator re-emitting the answer | **the specialist itself** |
 | LLM calls per request | classify + specialist + relay | classify + specialist |
@@ -1120,14 +1122,14 @@ orchestrator:
   model: "gemini-3.5-flash-lite"
   instruction: |
     Name exactly ONE specialist for this message. ...
-  outputSchema:                        # the router's schema; dispatch gives it no subagent tools
-    type: "OBJECT"
-    properties:
-      route:  { type: "STRING", description: "Exact specialist name" }
-      reason: { type: "STRING", description: "≤8 plain words for the waiting user" }
-    required: ["route"]
-  generateContentConfig:
-    responseMimeType: "application/json"
+  output:
+    mime: "application/json"
+    schema:                            # the router's schema; dispatch gives it no subagent tools
+      type: "OBJECT"
+      properties:
+        route:  { type: "STRING", description: "Exact specialist name" }
+        reason: { type: "STRING", description: "≤8 plain words for the waiting user" }
+      required: ["route"]
 ```
 
 **Why it exists.** In DELEGATE mode the orchestrator receives the
@@ -1140,11 +1142,11 @@ Plan-dispatch has no relay turn to fail, and the classifier's output
 shrinks from a whole relayed answer to ~15 tokens of JSON.
 
 **Why the classifier is tool-less.** An agent that holds an
-`outputSchema` ends its turn on that JSON. The router's JSON names a
+`output.schema` ends its turn on that JSON. The router's JSON names a
 route for code to run, so the router holds no subagent tools, and the
 hand-off happens in code, where it can be logged, traced, and streamed
 to the user as progress. This is a choice of method, not a limit of the
-engine: an orchestrator may hold an `outputSchema` beside its subagents,
+engine: an orchestrator may hold an `output.schema` beside its subagents,
 delegate, and answer in the schema itself
 ([ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md));
 under ADK, before 1.0.0, an orchestrator holding both deadlocked (see
@@ -1244,7 +1246,7 @@ name is an agent or a declared node; a list of names fans out (after one
 node) or fans in (before one node); a map `{ <route>: <node or nodes>,
 default: <node> }` ends a chain and routes on the output of the node
 before it — the `route_key` property of a JSON output (an agent with an
-`outputSchema`), else the trimmed text — with `default` catching what no
+`output.schema`), else the trimmed text — with `default` catching what no
 key matched. Every node receives the previous node's output as its
 message; a join hands on `{ <predecessor>: <output>, … }`.
 

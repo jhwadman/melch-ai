@@ -29,6 +29,7 @@ import { DEFAULT_ROUTE_KEY, NODE_KINDS, ROUTE_STEP_SUFFIX, START_NAME, elementNa
 import { isSecretShapedEnvName } from './tools/skills/env.ts';
 import { OAUTH_SCOPE, PROVIDER_NAME } from './tools/auth.ts';
 import type { EdgeElement, WorkflowNodeYaml } from './workflowConfig.ts';
+import { V2_AGENT_KEYS, conflictMessage, conflictsOf, toEngineAgent } from './agentDialect.ts';
 
 // ── Leaf rules ───────────────────────────────────────────────────────────────
 
@@ -103,7 +104,68 @@ const generateContentConfig = z
       .optional()
       .describe('Older spelling of `reasoning` for the chat-completions and Responses providers. Cannot be combined with `reasoning`.'),
   })
-  .describe('Model generation config (@google/genai GenerateContentConfig). Do not set tools here.');
+  .describe('Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType) and `reasoning` (thinkingConfig, reasoningEffort) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.')
+  .meta({ deprecated: true });
+
+// ── YAML v2 agent keys (ADR 0115) ────────────────────────────────────────────
+
+/** `sampling` and `output` must say something: an empty block is a leftover. */
+const nonEmpty = (o: object) => Object.keys(o).length > 0;
+/** Only when the block has no other problem: `sampling: { topP: 1 }` is a typo, not an empty block. */
+const quiet = (payload: { issues: readonly unknown[] }) => payload.issues.length === 0;
+
+const samplingSchema = z
+  .strictObject({
+    temperature: z.number().optional().describe('Sampling temperature. Replaces generateContentConfig.temperature.'),
+    top_p: z.number().optional().describe('Nucleus sampling. Replaces generateContentConfig.topP.'),
+    max_output_tokens: z.number().int().positive().optional().describe('Cap on the reply\'s tokens. Replaces generateContentConfig.maxOutputTokens.'),
+    stop: z.array(z.string()).min(1).optional().describe('Stop sequences. Replaces generateContentConfig.stopSequences.'),
+  })
+  .refine(nonEmpty, { message: 'must set at least one of temperature, top_p, max_output_tokens, stop', when: quiet })
+  .describe('How this agent samples, on any provider (ADR 0115). Replaces the same keys under generateContentConfig; cannot be combined with them.');
+
+export const OUTPUT_MIMES = ['application/json', 'text/plain'] as const;
+
+const outputSchemaV2 = z
+  .strictObject({
+    schema: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe('JSON Schema the final reply is one object of. Replaces outputSchema; same behaviour beside tools and subagents (ADR 0109).'),
+    mime: z.enum(OUTPUT_MIMES).optional().describe('application/json: JSON mode without a schema. Replaces generateContentConfig.responseMimeType.'),
+  })
+  .refine(nonEmpty, { message: 'must set schema or mime', when: quiet })
+  .describe('What this agent\'s final reply is (ADR 0115). Replaces outputSchema and generateContentConfig.responseMimeType; cannot be combined with them.');
+
+const modelOverrideEntry = z
+  .strictObject({
+    instruction: z.string().min(1).optional().describe('Replaces the agent\'s instruction on this provider.'),
+    instruction_append: z.string().min(1).optional().describe('Appended to the agent\'s instruction, after a blank line, on this provider.'),
+  })
+  .refine((o) => (o.instruction === undefined) !== (o.instruction_append === undefined), 'exactly one of instruction or instruction_append')
+  .describe('The instruction on one provider: exactly one of instruction or instruction_append.');
+
+const modelOverridesSchema = z
+  .strictObject({
+    gemini: modelOverrideEntry.optional(),
+    anthropic: modelOverrideEntry.optional(),
+    openai: modelOverrideEntry.optional(),
+    xai: modelOverrideEntry.optional(),
+    moonshot: modelOverrideEntry.optional(),
+    ollama: modelOverrideEntry.optional(),
+  })
+  .describe('Per-provider instruction, keyed by the provider of the agent\'s model id (lib/models/providerMap.ts). Applied at compile time before the skills index; not to fallback_model, and never to globalInstruction (ADR 0115).');
+
+/** Keys valid inside the v2 blocks, for did-you-mean (knownKeysAt). */
+function v2KnownKeysAt(key: string): readonly string[] {
+  const agentKey = key.replace(/^(orchestrator|subagents\/#)\//, '');
+  if (agentKey === key) return [];
+  if (agentKey === 'sampling') return Object.keys(samplingSchema.shape);
+  if (agentKey === 'output') return Object.keys(outputSchemaV2.shape);
+  if (agentKey === 'model_overrides') return Object.keys(modelOverridesSchema.shape);
+  if (agentKey.startsWith('model_overrides/') && !agentKey.slice('model_overrides/'.length).includes('/')) return Object.keys(modelOverrideEntry.shape);
+  return [];
+}
 
 // ── Skills ───────────────────────────────────────────────────────────────────
 
@@ -267,10 +329,14 @@ const agentFields = {
   outputKey: z.string().optional().describe('Session-state key the final reply is saved under.'),
   generateContentConfig: generateContentConfig.optional(),
   reasoning: reasoningSchema.optional(),
+  sampling: samplingSchema.optional(),
+  output: outputSchemaV2.optional(),
+  model_overrides: modelOverridesSchema.optional(),
   outputSchema: z
     .record(z.string(), z.unknown())
+    .meta({ deprecated: true })
     .optional()
-    .describe('JSON Schema for structured output: the agent answers with one JSON object matching it. An agent that also calls tools or delegates to subagents does that first, then ends its turn on that JSON: the schema travels beside the tools where the model takes both in one request, as a set_model_response tool elsewhere (the capability matrix\'s structured_output_with_tools, ADR 0109).'),
+    .describe('Deprecated v1 spelling (ADR 0115): write output.schema. JSON Schema for structured output: the agent answers with one JSON object matching it. An agent that also calls tools or delegates to subagents does that first, then ends its turn on that JSON: the schema travels beside the tools where the model takes both in one request, as a set_model_response tool elsewhere (the capability matrix\'s structured_output_with_tools, ADR 0109).'),
   mcp_server_url: z
     .string()
     .optional()
@@ -578,7 +644,7 @@ function knownKeysAt(p: Path): readonly string[] {
     case 'subagents/#/orchestration':
       return ['role', 'delegates'];
     default:
-      return [];
+      return v2KnownKeysAt(key);
   }
 }
 
@@ -792,6 +858,20 @@ function crossFieldProblems(raw: unknown): Problem[] {
   };
   if (isObj(raw.orchestrator)) reasoningProblems(raw.orchestrator, ['orchestrator']);
   for (const [i, sub] of subs.entries()) if (isObj(sub)) reasoningProblems(sub, ['subagents', i]);
+
+  // YAML v2 (ADR 0115): one spelling per setting, as for `reasoning` above;
+  // and the v2 keys belong to an inline agent, never to a nested or remote one.
+  const v2Problems = (agent: Record<string, unknown>, path: (string | number)[]) => {
+    if (typeof agent.yaml_reference === 'string' || typeof agent.a2a_agent_url === 'string') {
+      for (const key of V2_AGENT_KEYS) {
+        if (agent[key] === undefined) continue;
+        out.push({ path: [...path, key], message: 'applies to an inline agent; a nested syndicate (yaml_reference) or a remote agent (a2a_agent_url) sets its own' });
+      }
+    }
+    for (const clash of conflictsOf(agent)) out.push({ path: [...path, ...clash.v2], message: conflictMessage(clash) });
+  };
+  if (isObj(raw.orchestrator)) v2Problems(raw.orchestrator, ['orchestrator']);
+  for (const [i, sub] of subs.entries()) if (isObj(sub)) v2Problems(sub, ['subagents', i]);
 
   if (isObj(raw.orchestrator)) {
     gateProblems(raw.orchestrator, ['orchestrator'], true);
@@ -1056,6 +1136,9 @@ export function validateSyndicateConfig(raw: unknown, file?: string): SyndicateY
   }
   // A single-agent syndicate may omit `subagents`; callers always get a list.
   if (raw.subagents === undefined) raw.subagents = [];
+  // YAML v2 (ADR 0115): every loader hands downstream the engine form.
+  raw.orchestrator = toEngineAgent(raw.orchestrator as object);
+  raw.subagents = (raw.subagents as object[]).map((sub) => toEngineAgent(sub));
   return raw as unknown as SyndicateYamlConfig;
 }
 
@@ -1082,6 +1165,13 @@ export function syndicateJsonSchema(): Record<string, unknown> {
           { required: ['a2a_agent_url'] },
         ];
         ctx.jsonSchema.not = { required: ['yaml_reference', 'a2a_agent_url'] };
+      }
+      // YAML v2 (ADR 0115): the refinements, where JSON Schema can say them.
+      if (ctx.zodSchema === (samplingSchema as unknown) || ctx.zodSchema === (outputSchemaV2 as unknown)) {
+        ctx.jsonSchema.minProperties = 1;
+      }
+      if (ctx.zodSchema === (modelOverrideEntry as unknown)) {
+        ctx.jsonSchema.oneOf = [{ required: ['instruction'] }, { required: ['instruction_append'] }];
       }
     },
   }) as Record<string, unknown>;

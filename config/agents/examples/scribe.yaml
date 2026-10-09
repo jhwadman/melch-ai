@@ -36,7 +36,7 @@
 # the two lists lived apart they drifted, and drafts failed rules the
 # writer had never been given. Edit the rule in one place.
 #
-# WHY the orchestrator has no outputSchema: an agent that holds
+# WHY the orchestrator has no output schema: an agent that holds
 # one answers in that JSON and nothing else, and the Scribe's answer
 # is the document. So the JSON contract sits on the Auditor (the
 # leaf) and the Scribe returns plain text. See critic.yaml for the
@@ -161,46 +161,45 @@ orchestrator:
         Scribe: "I write documents from a brief: the audience, the kind of document, the facts, the identifiers and the limits. Send one and I will return the document."
       </examples>
     </prompt_instructions>
-  generateContentConfig:
+  sampling:
     temperature: 0.6
     # gemini-3.8-flash thinks by default and thinking tokens count against
     # this ceiling; a long skill file plus two audit rounds needs the room.
-    maxOutputTokens: 24576
-    thinkingConfig:
-      thinkingLevel: MEDIUM
-      includeThoughts: false
+    max_output_tokens: 24576
+  reasoning: medium
 
 subagents:
   - name: "Auditor"
     description: "Checks one draft against its brief and returns JSON: ok, and a list of violations, each with the rule broken, the offending quote, and the fix. Pass it the complete brief, then a line reading exactly '=== DRAFT ===', then the complete draft."
     model: "gemini-3.8-flash"
-    generateContentConfig:
-      responseMimeType: "application/json"
+    sampling:
       temperature: 0.1
-      maxOutputTokens: 8192
-    outputSchema:
-      type: "OBJECT"
-      properties:
-        ok:
-          type: "BOOLEAN"
-          description: "true when the draft passes every check; false when violations is non-empty."
-        violations:
-          type: "ARRAY"
-          description: "Every violation found, in document order. Empty when ok is true."
-          items:
-            type: "OBJECT"
-            properties:
-              rule:
-                type: "STRING"
-                description: "The check that failed, one of: fidelity, identifier, limit, structure, actor, antithesis, aphorism, rhythm, hedge, terminology, banned-word, punctuation, closing."
-              quote:
-                type: "STRING"
-                description: "The offending text, quoted exactly from the draft; for a missing identifier or fact, the identifier or fact that is missing."
-              fix:
-                type: "STRING"
-                description: "One sentence saying what the Scribe should change."
-            required: ["rule", "quote", "fix"]
-      required: ["ok", "violations"]
+      max_output_tokens: 8192
+    output:
+      schema:
+        type: "OBJECT"
+        properties:
+          ok:
+            type: "BOOLEAN"
+            description: "true when the draft passes every check; false when violations is non-empty."
+          violations:
+            type: "ARRAY"
+            description: "Every violation found, in document order. Empty when ok is true."
+            items:
+              type: "OBJECT"
+              properties:
+                rule:
+                  type: "STRING"
+                  description: "The check that failed, one of: fidelity, identifier, limit, structure, actor, antithesis, aphorism, rhythm, hedge, terminology, banned-word, punctuation, closing."
+                quote:
+                  type: "STRING"
+                  description: "The offending text, quoted exactly from the draft; for a missing identifier or fact, the identifier or fact that is missing."
+                fix:
+                  type: "STRING"
+                  description: "One sentence saying what the Scribe should change."
+              required: ["rule", "quote", "fix"]
+        required: ["ok", "violations"]
+      mime: "application/json"
     instruction: |
       You are the Auditor. You receive a brief, a line reading exactly
       "=== DRAFT ===", and a draft. You check the draft against the brief

@@ -43,6 +43,7 @@ import { loadSyndicate, nestedLoader } from './loadSyndicate.ts';
 import type { ReasoningSetting, SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import { REASONING_OLDER_SPELLING } from './syndicateSchema.ts';
 import { reasoningConfig } from './models/reasoning.ts';
+import { instructionFor, toEngineAgent } from './agentDialect.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
 import { requireApproval, toolOf } from './tools/tool.ts';
@@ -359,16 +360,25 @@ interface AgentYaml {
   generateContentConfig?: object;
 }
 
+/** The model an agent runs on, resolved once through CompileOptions.resolveModel, and its id. */
+interface ResolvedModel {
+  resolvedModel: unknown;
+  modelId: string | undefined;
+}
+
+function resolveAgentModel(model: string | undefined, opts: CompileOptions): ResolvedModel {
+  const resolvedModel = (opts.resolveModel ?? ((m) => m))(model);
+  return { resolvedModel, modelId: modelIdOf(model, resolvedModel) };
+}
+
 function specOf(
   yaml: AgentYaml,
   name: string,
   description: string | undefined,
   instruction: string,
   tools: SpecTool[],
-  opts: CompileOptions,
+  { resolvedModel, modelId }: ResolvedModel,
 ): AgentSpec {
-  const resolvedModel = (opts.resolveModel ?? ((m) => m))(yaml.model);
-  const modelId = modelIdOf(yaml.model, resolvedModel);
   const spec: AgentSpec = {
     name,
     instruction,
@@ -558,10 +568,14 @@ export async function compileSubagentSpec(subCfg: SubagentYamlConfig, opts: Comp
     return compileSpec(nested, nestedOpts, subCfg.name, subCfg.description);
   }
 
-  const gated = gateTools(await resolveAgentTools(subCfg.tools, subCfg.mcp_server_url, opts, subCfg.openapi, subCfg.examples, subCfg.mcp_tools, subCfg.mcp_auth), subCfg.require_approval, subCfg.name);
-  const { instruction, tools } = await withSkills(subCfg.instruction ?? '', gated, subCfg.skills, subCfg.name, opts);
-  logCapabilities(opts, subCfg.name, subCfg.model, subCfg.tools);
-  return specOf(subCfg as AgentYaml, subCfg.name, subCfg.description, instruction, asTools(tools), opts);
+  // YAML v2 (ADR 0115): the engine form, for a config built in code (a loaded one already is).
+  const agent = toEngineAgent(subCfg);
+  const gated = gateTools(await resolveAgentTools(agent.tools, agent.mcp_server_url, opts, agent.openapi, agent.examples, agent.mcp_tools, agent.mcp_auth), agent.require_approval, agent.name);
+  const model = resolveAgentModel(agent.model, opts);
+  // model_overrides for the provider the agent runs on, before the skills index is appended.
+  const { instruction, tools } = await withSkills(instructionFor(agent, model.modelId), gated, agent.skills, agent.name, opts);
+  logCapabilities(opts, agent.name, agent.model, agent.tools);
+  return specOf(agent as AgentYaml, agent.name, agent.description, instruction, asTools(tools), model);
 }
 
 /**
@@ -600,33 +614,36 @@ export async function compileSpec(
         }),
       );
 
-  const name = overrideName || config.orchestrator.name;
+  const orchestrator = toEngineAgent(config.orchestrator); // YAML v2 (ADR 0115), for a config built in code
+  const name = overrideName || orchestrator.name;
   // The orchestrator's own tools resolve as a subagent's do: registry
   // names, OpenAPI operations, and the MCP server's tools (narrowed by
   // mcp_tools, under its mcp_auth grant), so a one-agent syndicate can reach an MCP server.
   const own = gateTools(
     await resolveAgentTools(
-      config.orchestrator.tools,
-      config.orchestrator.mcp_server_url,
+      orchestrator.tools,
+      orchestrator.mcp_server_url,
       opts,
-      config.orchestrator.openapi,
-      config.orchestrator.examples,
-      config.orchestrator.mcp_tools,
-      config.orchestrator.mcp_auth,
+      orchestrator.openapi,
+      orchestrator.examples,
+      orchestrator.mcp_tools,
+      orchestrator.mcp_auth,
     ),
-    config.orchestrator.require_approval,
+    orchestrator.require_approval,
     name,
   );
-  // The skills toolset goes last, after the delegations and the agent's own tools.
-  const { instruction, tools } = await withSkills(config.orchestrator.instruction, own, config.orchestrator.skills, name, opts);
-  logCapabilities(opts, name, config.orchestrator.model, config.orchestrator.tools);
+  const model = resolveAgentModel(orchestrator.model, opts);
+  // The skills toolset goes last, after the delegations and the agent's own tools; the
+  // skills index goes after the instruction with its model_overrides entry applied.
+  const { instruction, tools } = await withSkills(instructionFor(orchestrator, model.modelId), own, orchestrator.skills, name, opts);
+  logCapabilities(opts, name, orchestrator.model, orchestrator.tools);
   const spec = specOf(
-    config.orchestrator as AgentYaml,
+    orchestrator as AgentYaml,
     name,
-    overrideDescription || config.orchestrator.description,
+    overrideDescription || orchestrator.description,
     instruction,
     [...delegated, ...asTools(tools)],
-    opts,
+    model,
   );
   // The syndicate's own key: a nested syndicate's orchestrator runs its delegations under its own file's (ADR 0116).
   if (config.max_concurrency !== undefined) spec.maxConcurrency = config.max_concurrency;

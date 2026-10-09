@@ -121,34 +121,33 @@ orchestrator:
     {"route": "define", "reason": "reading your question", "subject": null}
 
     Emit the JSON object only.
-  outputSchema:
-    type: object
-    properties:
-      route:
-        type: string
-        enum:
-          - define
-          - lookup
-          - landscape
-        description: The one route that answers this question.
-      reason:
-        type: string
-        description: At most eight plain words for the person waiting. Never mention routing, models, tools or yourself.
-      subject:
-        type:
-          - string
-          - "null"
-        description: The one thing the question is about, in the literature's vocabulary; null when it names none or several.
-    required:
-      - route
-      - reason
-      - subject
-  generateContentConfig:
-    maxOutputTokens: 512
-    responseMimeType: application/json
-    thinkingConfig:
-      thinkingLevel: MINIMAL
-      includeThoughts: false
+  output:
+    schema:
+      type: object
+      properties:
+        route:
+          type: string
+          enum:
+            - define
+            - lookup
+            - landscape
+          description: The one route that answers this question.
+        reason:
+          type: string
+          description: At most eight plain words for the person waiting. Never mention routing, models, tools or yourself.
+        subject:
+          type:
+            - string
+            - "null"
+          description: The one thing the question is about, in the literature's vocabulary; null when it names none or several.
+      required:
+        - route
+        - reason
+        - subject
+    mime: application/json
+  sampling:
+    max_output_tokens: 512
+  reasoning: none
 subagents:
   - name: define
     description: "What a term, endpoint, phase, design or statistic means, and how to read one. Needs no record."
@@ -168,11 +167,9 @@ subagents:
       3. If the question asks what is TRUE about an intervention rather than what a term means, say in one clause that answering it needs the record, which this route does not read.
 
       Under 900 characters.
-    generateContentConfig:
-      maxOutputTokens: 2048
-      thinkingConfig:
-        thinkingLevel: LOW
-        includeThoughts: false
+    sampling:
+      max_output_tokens: 2048
+    reasoning: low
   - name: lookup
     description: "ONE object: this trial, this paper, this identifier. Status, phase, arms, enrollment, what it registered, what it reported."
     model: gemini-3.5-flash-lite
@@ -204,11 +201,9 @@ subagents:
       BUDGET: at most six tool calls besides `check_retraction`, which runs on every DOI you cite and never counts against the six.
 
       Continuous prose with the source linked. Under 1800 characters.
-    generateContentConfig:
-      maxOutputTokens: 4096
-      thinkingConfig:
-        thinkingLevel: LOW
-        includeThoughts: false
+    sampling:
+      max_output_tokens: 4096
+    reasoning: low
   - name: landscape
     description: "A body of evidence across studies: what is known about an intervention, an exposure or a mechanism, including what is recent."
     model: gemini-3.8-flash
@@ -244,8 +239,6 @@ subagents:
       Before you write each entry, decide which rung of the ladder above its claim reaches, and say that rung in plain words in the entry. Your thinking stays hidden.
 
       One entry per claim, each linking the study it rests on and saying in plain words how far that study carries it. Under 3000 characters.
-    generateContentConfig:
-      maxOutputTokens: 16384
-      thinkingConfig:
-        thinkingLevel: MEDIUM
-        includeThoughts: false
+    sampling:
+      max_output_tokens: 16384
+    reasoning: medium

@@ -5,25 +5,25 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 897,
-    "edges": 3558,
+    "nodes": 903,
+    "edges": 3588,
     "byKind": {
-      "doc": 178,
+      "doc": 179,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 191,
+      "file": 193,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 183,
-      "script": 46,
+      "module": 185,
+      "script": 47,
       "external": 2
     },
     "byRelation": {
-      "links_to": 812,
+      "links_to": 820,
       "requires_env": 172,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 769,
+      "imports": 777,
       "reads_table": 28,
-      "runs": 67,
-      "derives_from": 944,
-      "constrains": 195,
+      "runs": 68,
+      "derives_from": 951,
+      "constrains": 198,
       "supersedes": 13,
-      "depends_on": 126,
-      "explains": 42,
+      "depends_on": 127,
+      "explains": 44,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3177,
-      "inferred": 381
+      "extracted": 3201,
+      "inferred": 387
     },
     "isolated": 4
   },
@@ -168,7 +168,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 222
+        "words": 224
       }
     },
     {
@@ -240,7 +240,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 255
+        "words": 257
       }
     },
     {
@@ -1744,6 +1744,18 @@
       }
     },
     {
+      "id": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "kind": "doc",
+      "label": "ADR 0115: YAML schema v2 says sampling, output and reasoning in provider-neutral keys, and generateContentConfig becomes a deprecated spelling behind a mapper",
+      "source": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1218
+      }
+    },
+    {
       "id": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
       "kind": "doc",
       "label": "ADR 0116: A step's subagent calls run at once under the syndicate's max_concurrency, stored in call order",
@@ -1908,7 +1920,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8010
+        "words": 8049
       }
     },
     {
@@ -1920,7 +1932,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4912
+        "words": 4947
       }
     },
     {
@@ -1944,7 +1956,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 528
+        "words": 531
       }
     },
     {
@@ -2016,7 +2028,7 @@
         "type": "overview",
         "status": "stable",
         "trust": "unverified",
-        "words": 279
+        "words": 280
       }
     },
     {
@@ -2028,7 +2040,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 7815
+        "words": 7833
       }
     },
     {
@@ -4413,6 +4425,12 @@
       "source": "tests/adkShim.test.ts"
     },
     {
+      "id": "file:tests/agentDialect.test.ts",
+      "kind": "file",
+      "label": "agentDialect.test.ts",
+      "source": "tests/agentDialect.test.ts"
+    },
+    {
       "id": "file:tests/agents.test.ts",
       "kind": "file",
       "label": "agents.test.ts",
@@ -5075,6 +5093,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/yamlCodemod.test.ts",
+      "kind": "file",
+      "label": "yamlCodemod.test.ts",
+      "source": "tests/yamlCodemod.test.ts"
+    },
+    {
       "id": "file:tsconfig.build.json",
       "kind": "file",
       "label": "tsconfig.build.json",
@@ -5227,12 +5251,21 @@
       }
     },
     {
+      "id": "module:lib/agentDialect.ts",
+      "kind": "module",
+      "label": "lib/agentDialect.ts",
+      "source": "lib/agentDialect.ts",
+      "attrs": {
+        "lines": 145
+      }
+    },
+    {
       "id": "module:lib/compile.ts",
       "kind": "module",
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 636
+        "lines": 653
       }
     },
     {
@@ -5322,7 +5355,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 716
+        "lines": 776
       }
     },
     {
@@ -6051,7 +6084,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1090
+        "lines": 1180
       }
     },
     {
@@ -6802,6 +6835,15 @@
       }
     },
     {
+      "id": "module:scripts/yaml_codemod.ts",
+      "kind": "module",
+      "label": "scripts/yaml_codemod.ts",
+      "source": "scripts/yaml_codemod.ts",
+      "attrs": {
+        "lines": 585
+      }
+    },
+    {
       "id": "provider:anthropic",
       "kind": "provider",
       "label": "Anthropic Claude",
@@ -7249,6 +7291,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/wiki/init.ts"
+      }
+    },
+    {
+      "id": "script:yaml:codemod",
+      "kind": "script",
+      "label": "npm run yaml:codemod",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/yaml_codemod.ts"
       }
     },
     {
@@ -8321,6 +8372,13 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/agents/intake_extractor.md"
+    },
+    {
+      "from": "/agents/intake_extractor.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/intake_extractor.md:19"
     },
     {
       "from": "/agents/librarian.md",
@@ -15610,6 +15668,76 @@
       "evidence": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md:30"
     },
     {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "file:tests/agentDialect.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md frontmatter"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "file:tests/yamlCodemod.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md frontmatter"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md frontmatter"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md frontmatter"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md frontmatter"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md frontmatter"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "module:scripts/yaml_codemod.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md frontmatter"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md:29"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "/decisions/0048-engine-owned-model-contract.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md:27"
+    },
+    {
+      "from": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "to": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md:27"
+    },
+    {
       "from": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
       "to": "file:tests/nativeDelegate.test.ts",
       "rel": "derives_from",
@@ -17277,6 +17405,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:421"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -17435,6 +17570,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:53"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:44"
     },
     {
       "from": "/models/provider-routing.md",
@@ -17663,6 +17805,13 @@
     {
       "from": "/operations/agent-skills.md",
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/agent-skills.md:29"
+    },
+    {
+      "from": "/operations/agent-skills.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/agent-skills.md:29"
@@ -18919,6 +19068,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:304"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:68"
     },
     {
       "from": "/overview/native-loop.md",
@@ -22267,6 +22423,27 @@
       "evidence": "lib/a2a/remoteAgent.ts"
     },
     {
+      "from": "module:lib/agentDialect.ts",
+      "to": "module:lib/loadSyndicate.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/agentDialect.ts"
+    },
+    {
+      "from": "module:lib/agentDialect.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/agentDialect.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
       "from": "module:lib/compile.ts",
       "to": "module:lib/dispatch.ts",
       "rel": "imports",
@@ -22762,6 +22939,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/loadEnv.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
     },
     {
       "from": "module:lib/loadSyndicate.ts",
@@ -25691,6 +25875,13 @@
     },
     {
       "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/syndicateSchema.ts",
       "to": "module:lib/loadSyndicate.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -28616,6 +28807,27 @@
       "evidence": "scripts/wiki/mcp_server.ts"
     },
     {
+      "from": "module:scripts/yaml_codemod.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/yaml_codemod.ts"
+    },
+    {
+      "from": "module:scripts/yaml_codemod.ts",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/yaml_codemod.ts"
+    },
+    {
+      "from": "module:scripts/yaml_codemod.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/yaml_codemod.ts"
+    },
+    {
       "from": "provider:anthropic",
       "to": "env:ANTHROPIC_API_KEY",
       "rel": "requires_env",
@@ -29115,6 +29327,13 @@
     {
       "from": "script:wiki:init",
       "to": "module:scripts/wiki/init.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:yaml:codemod",
+      "to": "module:scripts/yaml_codemod.ts",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"

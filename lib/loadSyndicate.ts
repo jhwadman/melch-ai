@@ -4,6 +4,7 @@ import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { hasSupabaseCredentials } from './persistence/supabaseProvider.ts';
 import { validateSyndicateConfig } from './syndicateSchema.ts';
+import { v1SpellingsOf } from './agentDialect.ts';
 import type { DispatchConfig } from './dispatch.ts';
 
 export type { DispatchConfig } from './dispatch.ts';
@@ -114,7 +115,9 @@ export interface AgentYamlConfig {
   outputKey?: string;
   /**
    * Model generation config (temperature, topP, safety, thinking, etc.)
-   * Maps to LlmAgentConfig.generateContentConfig.
+   * Maps to LlmAgentConfig.generateContentConfig. In YAML a v1 spelling,
+   * deprecated (ADR 0115): write `sampling`, `output` and `reasoning`. It
+   * stays the engine form the loader hands downstream.
    */
   generateContentConfig?: GenerateContentConfig;
   /**
@@ -125,9 +128,41 @@ export interface AgentYamlConfig {
   reasoning?: ReasoningSetting;
   /**
    * Output schema for structured JSON responses.
-   * Maps to LlmAgentConfig.outputSchema.
+   * Maps to LlmAgentConfig.outputSchema. In YAML a v1 spelling, deprecated
+   * (ADR 0115): write `output.schema`. It stays the engine form.
    */
   outputSchema?: Record<string, unknown>;
+
+  // ── YAML v2 (ADR 0115) ──
+  /**
+   * Sampling, provider-neutral (v2): replaces generateContentConfig's
+   * temperature, topP, maxOutputTokens and stopSequences. The loader folds it
+   * into generateContentConfig (lib/agentDialect.ts toEngineAgent), so a
+   * loaded config never carries it. Cannot be combined with the v1 key it replaces.
+   */
+  sampling?: {
+    temperature?: number;
+    top_p?: number;
+    max_output_tokens?: number;
+    stop?: string[];
+  };
+  /**
+   * Structured output (v2): `schema` replaces outputSchema, `mime` replaces
+   * generateContentConfig.responseMimeType. Folded into those by the loader.
+   */
+  output?: {
+    schema?: Record<string, unknown>;
+    mime?: 'application/json' | 'text/plain';
+  };
+  /**
+   * Per-provider instruction (v2), keyed by provider id (lib/models/providerMap.ts):
+   * `instruction` replaces the agent's instruction, `instruction_append` is
+   * appended after a blank line, for the provider of the model the agent runs
+   * on. Applied at compile time, before the skills index; not for fallback_model.
+   */
+  model_overrides?: Partial<
+    Record<'gemini' | 'anthropic' | 'openai' | 'xai' | 'moonshot' | 'ollama', { instruction?: string; instruction_append?: string }>
+  >;
 
   // ── Melchizedek-internal ──
   mcp_server_url?: string;
@@ -281,6 +316,11 @@ export interface LoadSyndicateOptions {
    * with the public example of the same name (ADR 0018).
    */
   shippedFallback?: boolean;
+  /**
+   * Where load-time warnings go (the deprecated v1 spellings of ADR 0115).
+   * Default console.warn. A warning names the file and key paths, never a value.
+   */
+  onWarning?: (message: string) => void;
 }
 
 // ── Variable Injection (private) ──────────────────────────
@@ -379,6 +419,8 @@ function resolveAndValidate(
 
   const interpolated = isPlainObject(raw) ? interpolateDeep(raw, merged) : raw;
 
+  warnV1Spellings(interpolated, label, options.onWarning);
+
   const unresolved = findUnresolvedTokens(interpolated);
   if (unresolved.length > 0) {
     console.warn(
@@ -398,6 +440,24 @@ function resolveAndValidate(
   }
 
   return config;
+}
+
+/** Labels already warned about, so a server loading one file per request warns once per process. */
+const warnedV1 = new Set<string>();
+
+/**
+ * One line per label when a file still uses the v1 spellings ADR 0115
+ * deprecates. Key paths and the label only: never a value (a prompt, a key).
+ */
+function warnV1Spellings(raw: unknown, label: string, onWarning: (message: string) => void = console.warn): void {
+  if (warnedV1.has(label)) return;
+  const paths = v1SpellingsOf(raw);
+  if (!paths.length) return;
+  warnedV1.add(label);
+  const fix = label.startsWith('registry:') || label.startsWith('bundled:')
+    ? 'Run npx melchizedek-codemod on the file it was published from, and republish'
+    : `Run npx melchizedek-codemod ${label} to rewrite them`;
+  onWarning(`⚠ ${label}: generateContentConfig and outputSchema are v1 spellings, deprecated (ADR 0115): ${paths.join(', ')}. ${fix}.`);
 }
 
 function applyOverrides(
@@ -540,9 +600,9 @@ export function loadSyndicate(
   filename: string,
   options: LoadSyndicateOptions = {},
 ): SyndicateYamlConfig {
-  const { bindings = {}, overrides } = options;
+  const { bindings = {}, overrides, onWarning } = options;
   const { raw, label, filePath } = readSyndicateFile(filename, options);
-  return anchorSpecPaths(resolveAndValidate(raw, label, { bindings, overrides }), path.dirname(filePath));
+  return anchorSpecPaths(resolveAndValidate(raw, label, { bindings, overrides, onWarning }), path.dirname(filePath));
 }
 
 /**

@@ -123,8 +123,8 @@ orchestrator:
     Best regards,
     Rests on: your note of 30 April.
   reasoning: low
-  generateContentConfig:
-    maxOutputTokens: 3072
+  sampling:
+    max_output_tokens: 3072
 subagents:
   - name: Writer
     description: "Drafts one client follow-up message from the facts it is given, and nothing else. Call it once per follow-up. Pass the recipient, the purpose, and each fact with its date. Returns the message text alone, with [NEEDS: …] where the purpose calls for a fact it was not given."
@@ -145,5 +145,5 @@ subagents:
       STYLE
       Under 150 words. Plain sentences, no lists unless there are three or more items. No "just checking in", no "hope this finds you well", no exclamation marks.
     reasoning: none
-    generateContentConfig:
-      maxOutputTokens: 1024
+    sampling:
+      max_output_tokens: 1024

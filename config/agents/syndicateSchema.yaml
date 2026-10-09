@@ -4,9 +4,10 @@
 # ============================================================
 #
 # This file documents ALL available properties for a syndicate
-# YAML definition. The agent fields keep the spelling of their
-# Google ADK counterparts (LlmAgent, GenerateContentConfig), so a file
-# written for ADK reads unchanged.
+# YAML definition, in the v2 spelling (ADR 0115): what an agent asks of
+# its model is said in provider-neutral keys (sampling, output,
+# reasoning, model_overrides). The other agent fields keep the spelling
+# of their Google ADK counterparts (LlmAgent).
 #
 # Runtime (ADR 0107): the engine's own agent loop (the NATIVE runtime)
 # runs every key below; 1.0.0 removed Google ADK, and nothing here
@@ -23,7 +24,6 @@
 # Where the spellings come from (a reference, not a dependency):
 #   LlmAgentConfig      → Google ADK 2.2 :: agents/llm_agent.d.ts
 #   BaseAgentConfig     → Google ADK 2.2 :: agents/base_agent.d.ts
-#   GenerateContentConfig → @google/genai :: GenerateContentConfig
 #
 # Legend:
 #   [required]  Must be provided
@@ -105,7 +105,7 @@ memory_extraction_model: "gemini-3.8-flash"
 #   the turn. Classification is implicit in which tool it calls.
 #
 #   PLAN-DISPATCH (declare it): the orchestrator holds NO subagent tools and
-#   instead carries an `outputSchema` naming one route. Code reads that name,
+#   instead carries an `output.schema` naming one route. Code reads that name,
 #   runs the matching subagent, and returns THAT agent's output as the answer.
 #   No relay turn, one fewer LLM call, and the hand-off is a value in code —
 #   so it can be logged, traced, and streamed to a waiting user as
@@ -113,10 +113,9 @@ memory_extraction_model: "gemini-3.8-flash"
 #
 # ⚠ The orchestrator is a leaf in this mode: it gets no subagent tools on
 #   any provider: the engine compiles it with no subagent tools, because an
-#   agent that holds an outputSchema answers in that JSON and nothing else
+#   agent that holds an output schema answers in that JSON and nothing else
 #   (see examples/critic.yaml).
-#   Pair the schema with generateContentConfig.responseMimeType:
-#   "application/json".
+#   Pair the schema with output.mime: "application/json".
 # Every surface runs it the same way: the A2A server and
 # scripts/syndicate_chat.ts both run turns through runSyndicateTurn.
 #
@@ -305,7 +304,7 @@ orchestrator:
   #   summary_model: "gemini-3.5-flash-lite"   # default: this agent's model
 
   # [optional] "task" on a WORKFLOW NODE: the agent works with its tools
-  # until it calls finish_task; its arguments (matching outputSchema) are
+  # until it calls finish_task; its arguments (matching output.schema) are
   # the node's output.
   # mode: "task"
 
@@ -384,18 +383,14 @@ orchestrator:
   # the smallest level that covers it everywhere else. Unset, each provider
   # keeps its default.
   # Cannot be combined with generateContentConfig.thinkingConfig or
-  # generateContentConfig.reasoningEffort, its older spelling.
+  # generateContentConfig.reasoningEffort, its deprecated v1 spelling.
   reasoning: medium
 
-  # ── generateContentConfig ─────────────────────────────────
-  # The model request's settings, in @google/genai's GenerateContentConfig
-  # spelling; every provider adapter reads the fields it supports.
-  # Maps to: generateContentConfig on LlmAgent
-  # ⚠ Do NOT set tools here — use the top-level `tools:` field. Set
-  #   reasoning with the `reasoning:` key above (the preferred spelling,
-  #   read the same way by every provider), not thinkingConfig.
-
-  generateContentConfig:
+  # ── sampling ──────────────────────────────────────────────
+  # [optional] How the model samples, on any provider (ADR 0115). Exactly
+  # the fields the engine sends to every provider; each adapter sends the
+  # ones its API takes.
+  sampling:
 
     # Sampling temperature. Lower = more deterministic. Range: [0.0, 2.0]
     # ⚠ Do NOT set this on current Gemini models — they are tuned for their
@@ -403,58 +398,51 @@ orchestrator:
     #   Set it only for claude-*, gpt-*, grok-*, kimi-*, or ollama/* agents.
     # temperature: 0.7
 
-    # Nucleus sampling. Tokens sampled until cumulative prob = topP.
-    topP: 0.95
-
-    # Top-K sampling. Only the top K tokens are considered per step.
-    topK: 40
+    # Nucleus sampling. Tokens sampled until cumulative prob = top_p.
+    top_p: 0.95
 
     # Maximum tokens the model may generate in one response.
-    maxOutputTokens: 2048
+    max_output_tokens: 2048
 
     # Stop generation if any of these strings are encountered.
-    stopSequences: []
+    # stop: ["END"]
 
-    # Number of response candidates to generate (usually 1).
-    candidateCount: 1
+  # ── output ────────────────────────────────────────────────
+  # [optional] What the agent answers in (ADR 0115).
+  #   schema: a JSON Schema; the agent ends its turn on one JSON object
+  #           matching it. Beside tools or subagents it calls them first
+  #           (ADR 0109).
+  #   mime:   "application/json" (JSON mode, with or without a schema) or
+  #           "text/plain" (the default).
+  output:
+    mime: "text/plain"
+    # schema:
+    #   type: object
+    #   properties:
+    #     answer: { type: string }
+    #   required: [answer]
 
-    # Penalize tokens that have already appeared (encourages diversity).
-    presencePenalty: 0.0
+  # ── model_overrides ───────────────────────────────────────
+  # [optional] A prompt nuance for one provider (ADR 0115). Keys are the
+  # providers a model id routes to: gemini, anthropic, openai, xai,
+  # moonshot, ollama. Each holds ONE of:
+  #   instruction:         replaces the instruction on that provider
+  #   instruction_append:  added after the instruction, after a blank line
+  # Applied for the provider of this agent's model, before the skills
+  # index; a fallback_model gets the same instruction.
+  # model_overrides:
+  #   ollama:
+  #     instruction_append: "Answer in at most three sentences."
 
-    # Penalize tokens proportional to their frequency (reduces repetition).
-    frequencyPenalty: 0.0
-
-    # Fixed seed for reproducible outputs. Remove for random behavior.
-    seed: 42
-
-    # Output MIME type. Use "application/json" for structured output.
-    # Must be paired with responseSchema when set to JSON.
-    responseMimeType: "text/plain"
-
-    # ── Safety settings ─────────────────────────────────────
-    # Each entry maps to a SafetySetting { category, threshold }.
-    # Thresholds: BLOCK_NONE | BLOCK_LOW_AND_ABOVE | BLOCK_MEDIUM_AND_ABOVE | BLOCK_HIGH_AND_ABOVE
-    safetySettings:
-      - category: "HARM_CATEGORY_HATE_SPEECH"
-        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-      - category: "HARM_CATEGORY_DANGEROUS_CONTENT"
-        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-      - category: "HARM_CATEGORY_HARASSMENT"
-        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-      - category: "HARM_CATEGORY_SEXUALLY_EXPLICIT"
-        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-
-    # ── Thinking config: the older spelling of `reasoning:` ─
-    # Prefer `reasoning:` in a new file. Provider-specific: Gemini and Claude read thinkingConfig, the
-    # chat-completions and Responses providers read reasoningEffort, and
-    # later Claude models read reasoningEffort first (ADR 0049).
-    # Still accepted, but not together with `reasoning:` (a load error).
-    # includeThoughts (stream Gemini's thinking trace) has no `reasoning:`
-    # form yet.
-    # thinkingConfig:
-    #   thinkingLevel: "MEDIUM"   # Gemini 3; thinkingBudget on 2.x and Claude
-    #   includeThoughts: true
-    # reasoningEffort: "medium"
+  # ── generateContentConfig (deprecated) ───────────────────
+  # The v1 spelling: @google/genai's GenerateContentConfig, with
+  # outputSchema beside it. Still loads and behaves as before, with one
+  # deprecation line per file; `npx melchizedek-codemod <file>` rewrites
+  # it into sampling, output and reasoning. A v2 key beside its v1
+  # spelling is a load error. Only a few fields have no v2 form yet:
+  # toolConfig (tool choice) and the effort words xhigh and max
+  # (reasoningEffort). topK, seed, the penalties, candidateCount,
+  # safetySettings and includeThoughts reach no provider.
 
 # ── Subagents ───────────────────────────────────────────────
 # Each entry is an agent the orchestrator calls as a tool (DELEGATE),
@@ -560,8 +548,8 @@ subagents:
     # [optional] Same key as on the orchestrator.
     reasoning: none             # As little thinking as the model allows, for speed
 
-    # ── generateContentConfig ───────────────────────────────
-    # Same fields as orchestrator above. Only set what you want to override.
+    # ── sampling / output / model_overrides ─────────────────
+    # Same keys as on the orchestrator above. Only set what you need.
 
-    generateContentConfig:
-      maxOutputTokens: 1024
+    sampling:
+      max_output_tokens: 1024

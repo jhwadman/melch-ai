@@ -78,23 +78,23 @@ subagents:
   - name: "CriticAgent"
     model: "gemini-3.8-flash"
     description: "Reviews one draft answer against the user's question. Pass it the QUESTION and the DRAFT. Returns JSON: the polished message, a confidence score from 0 to 100, and an issues list. A score below 85 sends the draft back to the Drafter with the issues."
-    generateContentConfig:
-      responseMimeType: "application/json"
-    outputSchema:
-      type: "OBJECT"
-      properties:
-        message:
-          type: "STRING"
-          description: "The draft with its wording polished: filler cut, phrasing corrected. It adds no fact the question and the draft do not contain."
-        confidence:
-          type: "INTEGER"
-          description: "A confidence score from 0 to 100 for the accuracy and completeness of the message. Score below 85 means the answer needs improvement."
-        issues:
-          type: "ARRAY"
-          items:
+    output:
+      schema:
+        type: "OBJECT"
+        properties:
+          message:
             type: "STRING"
-          description: "Each defect that keeps the message below 85, one per entry, quoting the words at fault. Empty when confidence is 85 or above."
-      required: ["message", "confidence", "issues"]
+            description: "The draft with its wording polished: filler cut, phrasing corrected. It adds no fact the question and the draft do not contain."
+          confidence:
+            type: "INTEGER"
+            description: "A confidence score from 0 to 100 for the accuracy and completeness of the message. Score below 85 means the answer needs improvement."
+          issues:
+            type: "ARRAY"
+            items:
+              type: "STRING"
+            description: "Each defect that keeps the message below 85, one per entry, quoting the words at fault. Empty when confidence is 85 or above."
+        required: ["message", "confidence", "issues"]
+      mime: "application/json"
     instruction: |
       You are the Critic. You receive the user's question and a draft answer from the Drafter. You grade the draft and polish its wording; you never answer the question yourself.
       TASK: return one JSON object with "message", "confidence", and "issues" for the draft you were passed.
