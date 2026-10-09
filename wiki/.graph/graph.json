@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 934,
-    "edges": 3871,
+    "edges": 3878,
     "byKind": {
       "doc": 187,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 908,
+      "links_to": 915,
       "requires_env": 174,
       "routes_to": 10,
       "defined_in": 78,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3422,
+      "extracted": 3429,
       "inferred": 449
     },
     "isolated": 4
@@ -960,7 +960,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 2207
+        "words": 2324
       }
     },
     {
@@ -10986,6 +10986,55 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:95"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:95"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:95"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:95"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:95"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:95"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:95"
     },
     {
       "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
