@@ -584,11 +584,19 @@ export async function compileSpec(
       );
 
   const name = overrideName || config.orchestrator.name;
-  // Orchestrator tools are registry names only — no entrypoint has ever
-  // attached an MCP server to an orchestrator, and this compiler preserves
-  // that exactly rather than widening the contract in passing.
+  // The orchestrator's own tools resolve as a subagent's do: registry
+  // names, OpenAPI operations, and the MCP server's tools (narrowed by
+  // mcp_tools, under its mcp_auth grant), so a one-agent syndicate can reach an MCP server.
   const own = gateTools(
-    await resolveAgentTools(config.orchestrator.tools, undefined, opts, config.orchestrator.openapi, config.orchestrator.examples),
+    await resolveAgentTools(
+      config.orchestrator.tools,
+      config.orchestrator.mcp_server_url,
+      opts,
+      config.orchestrator.openapi,
+      config.orchestrator.examples,
+      config.orchestrator.mcp_tools,
+      config.orchestrator.mcp_auth,
+    ),
     config.orchestrator.require_approval,
     name,
   );
