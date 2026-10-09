@@ -24,7 +24,7 @@ import { registerTool } from '../lib/toolRegistry.ts';
 import { toolsetOf } from '../lib/tools/tool.ts';
 import { defineTool } from '../lib/tools/toolContract.ts';
 import { HarnessSkillToolset, loadSkillSuite, skillsInstruction } from '../lib/tools/skillToolset.ts';
-import { SyndicateValidationError, validateSyndicateConfig } from '../lib/syndicateSchema.ts';
+import { validateSyndicateConfig } from '../lib/syndicateSchema.ts';
 import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
 import { ScriptedModel, answer, lastToolResult, shimResolver, toolCall } from './helpers/scriptedModel.ts';
@@ -170,13 +170,13 @@ test('a refused script run never executes and the model is told', async () => {
   assert.doesNotMatch(second.text, /version=9\.9\.9/);
 });
 
-test('schema: scripts pause only where a pause can reach the caller; skills.tools cannot repeat tools', () => {
+test('schema: scripts are allowed wherever a pause reaches the caller, a delegated subagent included (ADR 0118); skills.tools cannot repeat tools', () => {
   const base = () => ({
     syndicate_name: 'S',
     orchestrator: { name: 'Lead', model: 'gemini-3.5-flash-lite', instruction: 'x' },
     subagents: [{ name: 'Sub', description: 'd', model: 'gemini-3.5-flash-lite', instruction: 'y', skills: { dir: FIXTURES, scripts: 'local' } }],
   });
-  assert.throws(() => validateSyndicateConfig(base(), 't'), (e: unknown) => e instanceof SyndicateValidationError && /subagents\[0\]\.skills\.scripts.*not supported yet/.test(String(e.message)));
+  assert.doesNotThrow(() => validateSyndicateConfig(base(), 't'));
   const dispatching = { ...base(), dispatch: { default_route: 'Sub' } };
   assert.doesNotThrow(() => validateSyndicateConfig(dispatching, 't'));
   const overlap = { ...base(), subagents: [], orchestrator: { ...base().orchestrator, tools: ['web_extract'], skills: { dir: FIXTURES, tools: ['web_extract'] } } };

@@ -5,7 +5,8 @@
  * agent path in the pending record; the answer goes back down into the
  * child, the child finishes, and the caller continues. One level and two
  * levels deep (a nested syndicate), two pauses in one step, the schema and
- * the A2A surface. Scripted models, in-memory sessions, no network.
+ * the A2A surface. Skill scripts and OAuth consent in a child are
+ * tests/delegatedScriptsConsent.test.ts (ADR 0118). Scripted models, in-memory sessions, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 delete process.env.SUPABASE_URL;
@@ -301,12 +302,9 @@ test('two subagents pause in one step: each request is raised in turn, and the c
   assert.equal(third.text, 'done (2 results)');
 });
 
-test('the schema: a delegated subagent may gate and ask; skill scripts on one stay refused', () => {
+test('the schema: a delegated subagent may gate, ask, and run skill scripts (ADR 0118)', () => {
   assert.doesNotThrow(() => oneLevel());
-  assert.throws(
-    () => config({ syndicate_name: 'D', orchestrator: { name: 'B', model: 'm', instruction: 'i' }, subagents: [gatedScout({ skills: { scripts: 'local' } })] }),
-    /skill scripts on a delegated subagent are not supported yet/,
-  );
+  assert.doesNotThrow(() => config({ syndicate_name: 'D', orchestrator: { name: 'B', model: 'm', instruction: 'i' }, subagents: [gatedScout({ skills: { dir: 'skills', scripts: 'local' } })] }));
 });
 
 test('a dispatch route that delegates: a gate in the route’s subagent pauses the turn, and the decision resumes that route without classifying', async () => {

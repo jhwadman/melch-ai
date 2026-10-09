@@ -70,6 +70,8 @@ ADK 2.2 already has a credential interrupt. A tool calls `context.requestCredent
    - The audit trail gains the `consent.callback` event.
 6. **The ADK runtime does not resume it.** ADK's preprocessor would ignore a credential-free answer, and would need the secrets in the event to exchange a code itself. An open credential request on `runtime: 'adk'` throws `UnsupportedOnRuntimeError` before any model call. No own tool can raise one on ADK yet: its tool context has no `accessToken` until WS6-3c.
 
+> **Note (2026-10-09):** [ADR 0118](/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md) gives a delegated subagent's loop the consent step too, its flows bound to the caller's app, so a consent request inside a subagent pauses the turn through the open call and the grant's answer travels back down; the Consequences line on delegated subagents no longer holds.
+
 ## Alternatives considered
 
 - **A new interrupt name** (`melch_request_consent`). Rejected. ADK's name already means "this call waits for a credential", the native loop already stored it, and the history projection already hides it from the model on both runtimes. A new name would add a fifth stored shape to keep stable.
