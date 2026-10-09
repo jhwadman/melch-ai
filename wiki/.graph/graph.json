@@ -2,7 +2,7 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-08"
+    "at": "2026-10-09"
   },
   "stats": {
     "nodes": 876,
@@ -948,7 +948,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1973
+        "words": 2072
       }
     },
     {
