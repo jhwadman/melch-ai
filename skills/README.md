@@ -2,7 +2,7 @@
 
 ## What this is
 
-This directory contains a suite of six Agent Skills built to the open SKILL.md standard: one directory per skill, a SKILL.md file with `name` and `description` frontmatter, and optional supporting files. The skills teach a coding agent how to find, run, author, serve, remember with, and write with Melchizedek syndicates. They ship in the npm package melchizedek-agents and in the public repository, inside `skills/`.
+This directory contains a suite of eleven Agent Skills built to the open SKILL.md standard: one directory per skill, a SKILL.md file with `name` and `description` frontmatter, and optional supporting files. The skills teach a coding agent how to onboard a person from the credentials they have, and how to find, run, author, serve, remember with, and write with Melchizedek syndicates. They ship in the npm package melchizedek-agents and in the public repository, inside `skills/`.
 
 ## The skills
 
@@ -12,6 +12,14 @@ This directory contains a suite of six Agent Skills built to the open SKILL.md s
 - `melchizedek-memory`: Teaches Supabase sessions and long-term memory: modes, schema, tools, extraction rules, inspection, and erasure.
 - `melchizedek-models`: Teaches model ids and providers, keys, keyless Ollama, the gateway fallback, per-agent settings, and the errors.
 - `melchizedek-scribe`: Teaches writing documents from a brief with the Scribe syndicate.
+
+Five onboarding skills route a person by what they have and walk the startup guide for it (`npx melchizedek-setup --level <id>` prints each guide):
+
+- `melchizedek-onboard`: The triage. Asks what the person has and routes to one of nine authentication levels and the skill below that owns it.
+- `melchizedek-onboard-local`: No key: Ollama and the keyless syndicates.
+- `melchizedek-onboard-keys`: One provider's key, several, a gateway key, and the honest answer for a ChatGPT / Codex, Claude.ai or Gemini CLI sign-in.
+- `melchizedek-onboard-cloud`: Vertex AI, Amazon Bedrock and Azure OpenAI credentials.
+- `melchizedek-onboard-serve`: Serving to others: per-caller keys (BYOK), caller identities (`A2A_AUTH`), and OAuth tool grants.
 
 ## Install
 
@@ -37,6 +45,7 @@ The command accepts these flags:
 - `--only <names>` installs a subset.
 - `--force` overwrites a file that differs.
 - `--dry-run` prints without writing.
+- `--agents-md` also writes a pointer block into the project's `AGENTS.md` (created when absent; only the block between its markers is ever rewritten).
 
 You can inspect target paths and available skills:
 
@@ -69,6 +78,6 @@ Install by hand by copying any `skills/<name>/` directory into a target location
 
 ## How the prose was written
 
-The Scribe syndicate (`config/agents/examples/scribe.yaml`, a Gemini agent that writes a document from a technical brief and audits it against the brief) wrote each SKILL.md body from one brief per skill. A person then reviewed each file. The briefs carry the facts; the Scribe carries the voice. To change a skill, change the facts and rerun with the melchizedek-scribe skill.
+The five onboarding skills are short procedures written by hand: they print their facts from `melchizedek-setup` instead of restating them, so the facts live in one place (`lib/onboarding.ts`). The Scribe syndicate (`config/agents/examples/scribe.yaml`, a Gemini agent that writes a document from a technical brief and audits it against the brief) wrote every other SKILL.md body from one brief per skill. A person then reviewed each file. The briefs carry the facts; the Scribe carries the voice. To change a skill, change the facts and rerun with the melchizedek-scribe skill.
 
 The suite shares the MIT license of the package.

@@ -5,26 +5,26 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 921,
-    "edges": 3771,
+    "nodes": 928,
+    "edges": 3815,
     "byKind": {
-      "doc": 184,
+      "doc": 185,
       "provider": 6,
       "env": 106,
       "model": 10,
       "tool": 34,
-      "file": 198,
+      "file": 201,
       "syndicate": 33,
       "agent": 91,
       "mcp-server": 4,
       "table": 18,
-      "module": 187,
-      "script": 48,
+      "module": 189,
+      "script": 49,
       "external": 2
     },
     "byRelation": {
-      "links_to": 878,
-      "requires_env": 172,
+      "links_to": 890,
+      "requires_env": 174,
       "routes_to": 10,
       "defined_in": 78,
       "documents": 57,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 799,
+      "imports": 808,
       "reads_table": 28,
-      "runs": 70,
-      "derives_from": 1006,
-      "constrains": 216,
+      "runs": 71,
+      "derives_from": 1019,
+      "constrains": 219,
       "supersedes": 17,
-      "depends_on": 135,
+      "depends_on": 139,
       "explains": 52,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3346,
-      "inferred": 425
+      "extracted": 3383,
+      "inferred": 432
     },
     "isolated": 4
   },
@@ -1828,6 +1828,18 @@
       }
     },
     {
+      "id": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "kind": "doc",
+      "label": "ADR 0123: Onboarding by authentication level, from one generator, detected by the doctor",
+      "source": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 968
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1992,7 +2004,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 5195
+        "words": 5257
       }
     },
     {
@@ -2016,7 +2028,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 534
+        "words": 823
       }
     },
     {
@@ -2064,7 +2076,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1488
+        "words": 1742
       }
     },
     {
@@ -3291,7 +3303,8 @@
       "id": "env:A2A_KEY_MODE",
       "kind": "env",
       "label": "A2A_KEY_MODE",
-      "source": "scripts/a2a_server.ts"
+      "source": "scripts/a2a_server.ts",
+      "attrs": {}
     },
     {
       "id": "env:A2A_LOG_FORMAT",
@@ -3937,6 +3950,13 @@
       "source": ".github/workflows/release.yml"
     },
     {
+      "id": "file:AGENTS.md",
+      "kind": "file",
+      "label": "AGENTS.md",
+      "source": "AGENTS.md",
+      "attrs": {}
+    },
+    {
       "id": "file:CHANGELOG.md",
       "kind": "file",
       "label": "CHANGELOG.md",
@@ -4461,6 +4481,13 @@
       "source": "lib/tools/xSearchTool.ts"
     },
     {
+      "id": "file:ONBOARDING.md",
+      "kind": "file",
+      "label": "ONBOARDING.md",
+      "source": "ONBOARDING.md",
+      "attrs": {}
+    },
+    {
       "id": "file:package.json",
       "kind": "file",
       "label": "package.json",
@@ -4885,6 +4912,12 @@
       "label": "oauthTools.test.ts",
       "source": "tests/oauthTools.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/onboarding.test.ts",
+      "kind": "file",
+      "label": "onboarding.test.ts",
+      "source": "tests/onboarding.test.ts"
     },
     {
       "id": "file:tests/openapiTools.test.ts",
@@ -5431,7 +5464,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 864
+        "lines": 980
       }
     },
     {
@@ -5867,6 +5900,15 @@
       }
     },
     {
+      "id": "module:lib/onboarding.ts",
+      "kind": "module",
+      "label": "lib/onboarding.ts",
+      "source": "lib/onboarding.ts",
+      "attrs": {
+        "lines": 623
+      }
+    },
+    {
       "id": "module:lib/persistence/supabaseProvider.ts",
       "kind": "module",
       "label": "lib/persistence/supabaseProvider.ts",
@@ -6124,7 +6166,7 @@
       "label": "lib/skills.ts",
       "source": "lib/skills.ts",
       "attrs": {
-        "lines": 193
+        "lines": 253
       }
     },
     {
@@ -6844,7 +6886,7 @@
       "label": "scripts/doctor.ts",
       "source": "scripts/doctor.ts",
       "attrs": {
-        "lines": 107
+        "lines": 109
       }
     },
     {
@@ -6920,12 +6962,21 @@
       }
     },
     {
+      "id": "module:scripts/setup.ts",
+      "kind": "module",
+      "label": "scripts/setup.ts",
+      "source": "scripts/setup.ts",
+      "attrs": {
+        "lines": 173
+      }
+    },
+    {
       "id": "module:scripts/skills_install.ts",
       "kind": "module",
       "label": "scripts/skills_install.ts",
       "source": "scripts/skills_install.ts",
       "attrs": {
-        "lines": 136
+        "lines": 151
       }
     },
     {
@@ -7169,6 +7220,15 @@
       "source": "package.json",
       "attrs": {
         "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/db.ts prune-sessions"
+      }
+    },
+    {
+      "id": "script:setup",
+      "kind": "script",
+      "label": "npm run setup",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/setup.ts"
       }
     },
     {
@@ -16571,6 +16631,104 @@
       "evidence": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md:31"
     },
     {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "file:AGENTS.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md frontmatter"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "file:ONBOARDING.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md frontmatter"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "file:tests/onboarding.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md frontmatter"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md frontmatter"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "module:lib/onboarding.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md frontmatter"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "module:lib/skills.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md frontmatter"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "module:scripts/setup.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md frontmatter"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "module:scripts/skills_install.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md frontmatter"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0012-direct-adapters-canonical.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md:29"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0014-agent-skills-suite.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md:37"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md:29"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0025-built-in-authenticators.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md:29"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md:29"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md:29"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -18364,6 +18522,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:62"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18407,6 +18572,13 @@
     {
       "from": "/models/provider-routing.md",
       "to": "/operations/parity-harness.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:62"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/operations/setup.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:62"
@@ -18546,6 +18718,13 @@
     },
     {
       "from": "/operations/agent-skills.md",
+      "to": "file:AGENTS.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/agent-skills.md frontmatter"
+    },
+    {
+      "from": "/operations/agent-skills.md",
       "to": "file:config/agents/examples/scribe.yaml",
       "rel": "derives_from",
       "tier": "extracted",
@@ -18554,6 +18733,13 @@
     {
       "from": "/operations/agent-skills.md",
       "to": "file:skills/README.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/agent-skills.md frontmatter"
+    },
+    {
+      "from": "/operations/agent-skills.md",
+      "to": "module:lib/onboarding.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/operations/agent-skills.md frontmatter"
@@ -18577,77 +18763,91 @@
       "to": "/agents/scribe.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:30"
+      "evidence": "/operations/agent-skills.md:32"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/decisions/0014-agent-skills-suite.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:40"
+      "evidence": "/operations/agent-skills.md:49"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/decisions/0047-provider-neutral-reasoning-key.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:29"
+      "evidence": "/operations/agent-skills.md:31"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/decisions/0049-claude-requests-by-model-generation.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:29"
+      "evidence": "/operations/agent-skills.md:31"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:29"
+      "evidence": "/operations/agent-skills.md:31"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:29"
+      "evidence": "/operations/agent-skills.md:31"
+    },
+    {
+      "from": "/operations/agent-skills.md",
+      "to": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/agent-skills.md:43"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:28"
+      "evidence": "/operations/agent-skills.md:30"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:28"
+      "evidence": "/operations/agent-skills.md:30"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:29"
+      "evidence": "/operations/agent-skills.md:31"
+    },
+    {
+      "from": "/operations/agent-skills.md",
+      "to": "/operations/setup.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/agent-skills.md:33"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:27"
+      "evidence": "/operations/agent-skills.md:29"
     },
     {
       "from": "/operations/agent-skills.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/agent-skills.md:27"
+      "evidence": "/operations/agent-skills.md:29"
     },
     {
       "from": "/operations/failure-modes.md",
@@ -19064,7 +19264,21 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "file:ONBOARDING.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md frontmatter"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "file:QUICKSTART.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md frontmatter"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "module:lib/onboarding.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/operations/setup.md frontmatter"
@@ -19085,122 +19299,143 @@
     },
     {
       "from": "/operations/setup.md",
+      "to": "module:scripts/setup.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md frontmatter"
+    },
+    {
+      "from": "/operations/setup.md",
       "to": "/agents/council.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:32"
+      "evidence": "/operations/setup.md:39"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0012-direct-adapters-canonical.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:36"
+      "evidence": "/operations/setup.md:43"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0021-postgres-first-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:46"
+      "evidence": "/operations/setup.md:53"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0025-built-in-authenticators.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:40"
+      "evidence": "/operations/setup.md:47"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0038-graceful-stop-readiness-first.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:46"
+      "evidence": "/operations/setup.md:53"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0039-public-deployments-state-their-posture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:40"
+      "evidence": "/operations/setup.md:47"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0040-releases-from-tags-with-provenance.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:56"
+      "evidence": "/operations/setup.md:63"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0042-append-only-audit-trail.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:50"
+      "evidence": "/operations/setup.md:57"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0043-link-inbound-trace-context.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:54"
+      "evidence": "/operations/setup.md:61"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:52"
+      "evidence": "/operations/setup.md:59"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:28"
+      "evidence": "/operations/setup.md:35"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:52"
+      "evidence": "/operations/setup.md:59"
     },
     {
       "from": "/operations/setup.md",
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:52"
+      "evidence": "/operations/setup.md:59"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:29"
     },
     {
       "from": "/operations/setup.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:46"
+      "evidence": "/operations/setup.md:53"
     },
     {
       "from": "/operations/setup.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:28"
+      "evidence": "/operations/setup.md:35"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/operations/agent-skills.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:29"
     },
     {
       "from": "/operations/setup.md",
       "to": "/operations/failure-modes.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:48"
+      "evidence": "/operations/setup.md:55"
     },
     {
       "from": "/operations/setup.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/setup.md:40"
+      "evidence": "/operations/setup.md:47"
     },
     {
       "from": "/overview/architecture.md",
@@ -23761,6 +23996,20 @@
     },
     {
       "from": "module:lib/doctor.ts",
+      "to": "env:A2A_AUTH",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
+      "to": "env:A2A_KEY_MODE",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
       "to": "env:MELCHIZEDEK_AGENTS_DIR",
       "rel": "requires_env",
       "tier": "extracted",
@@ -25508,6 +25757,48 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/observability/tracer.ts"
+    },
+    {
+      "from": "module:lib/onboarding.ts",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/onboarding.ts"
+    },
+    {
+      "from": "module:lib/onboarding.ts",
+      "to": "module:lib/doctor.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/onboarding.ts"
+    },
+    {
+      "from": "module:lib/onboarding.ts",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/onboarding.ts"
+    },
+    {
+      "from": "module:lib/onboarding.ts",
+      "to": "module:lib/models/providerMap.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/onboarding.ts"
+    },
+    {
+      "from": "module:lib/onboarding.ts",
+      "to": "module:lib/tools/credentialCipher.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/onboarding.ts"
+    },
+    {
+      "from": "module:lib/onboarding.ts",
+      "to": "module:lib/tools/oauthHosts.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/onboarding.ts"
     },
     {
       "from": "module:lib/persistence/supabaseProvider.ts",
@@ -29507,6 +29798,27 @@
       "evidence": "scripts/science_mcp_server.ts"
     },
     {
+      "from": "module:scripts/setup.ts",
+      "to": "module:lib/doctor.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/setup.ts"
+    },
+    {
+      "from": "module:scripts/setup.ts",
+      "to": "module:lib/loadEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/setup.ts"
+    },
+    {
+      "from": "module:scripts/setup.ts",
+      "to": "module:lib/onboarding.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/setup.ts"
+    },
+    {
       "from": "module:scripts/skills_install.ts",
       "to": "module:lib/skills.ts",
       "rel": "imports",
@@ -30118,6 +30430,13 @@
     {
       "from": "script:sessions:prune",
       "to": "module:scripts/db.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:setup",
+      "to": "module:scripts/setup.ts",
       "rel": "runs",
       "tier": "extracted",
       "evidence": "package.json"

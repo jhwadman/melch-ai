@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: Setup paths
-description: Three ways in — local REPL in five minutes, keyless local models via Ollama, or the A2A HTTP server toward a container deployment — and which keys each one actually needs.
+description: The onboarding menu (melchizedek-setup) that routes a newcomer by the credentials they have, then three ways in — local REPL in five minutes, keyless local models via Ollama, or the A2A HTTP server toward a container deployment — and which keys each one actually needs.
 tags:
   - operations
   - setup
@@ -10,6 +10,9 @@ generated:
   at: 2026-07-26
 sources:
   - resource: QUICKSTART.md
+  - resource: ONBOARDING.md
+  - resource: lib/onboarding.ts
+  - resource: scripts/setup.ts
   - resource: .env.example
   - resource: scripts/a2a_server.ts
   - resource: scripts/db.ts
@@ -20,6 +23,10 @@ sources:
 # Setup paths
 
 Prereq everywhere: Node ≥ 22.6 (`--experimental-strip-types` runs the TypeScript directly; the npm package runs compiled JS), `npm install`, and a `.env` — `lib/loadEnv.ts` reads the one in the directory you run from, then the repo's own; real env vars always win, and `.env.example` placeholders (`your_..._here`) are ignored, so copying the template sets nothing.
+
+## Start from what you have — `melchizedek-setup`
+
+`npx melchizedek-setup` (`npm run setup` in a clone; bin `scripts/setup.ts`, levels and guides in `lib/onboarding.ts`) opens a menu of nine authentication levels: no key (local Ollama), one provider's key, several, a gateway key, cloud platform credentials (Vertex AI, Bedrock, Azure OpenAI), per-caller keys when serving (`A2A_KEY_MODE=byok`), caller identities (`A2A_AUTH`), OAuth tool grants, and an honest entry for consumer subscription sign-ins (ChatGPT / Codex, Claude.ai, Gemini CLI), which the engine does not use and which routes to each vendor's API key or cloud platform instead. Each level prints a startup guide: the variables to set (names and shapes, never values), the doctor command and what it shows when the level is set up, the shipped templates and examples that run there (read from the doctor's own tier diagnosis), and the first commands, spelled for a clone or an installed package. `--level <id|n>` prints one guide, `--list` the menu, and `--auto` reads the doctor's result (`runDoctor`: the providers line, the gateway, the cloud endpoints, and the `serving` and `oauth` lines) and prints which levels are detected, names and set/unset only, then the guide for the highest. `--write-env` creates `.env` from `.env.example` with the level's names appended blank; it never overwrites a `.env`, refuses unless `git check-ignore` confirms `.env` is ignored, and creates the file mode 600. `ONBOARDING.md` is the same guides, generated (`npm run setup -- --markdown`), and `tests/onboarding.test.ts` holds it equal to the generator ([ADR 0123](/decisions/0123-onboarding-levels-from-one-generator.md)). The [onboarding skills](/operations/agent-skills.md) let a coding agent run the same triage.
 
 ## Path A — local REPL (~5 min)
 

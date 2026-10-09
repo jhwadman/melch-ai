@@ -3416,6 +3416,63 @@
       "evidence": "ADR 0119 Decision 6: \"The A2A executor reads a paused route and a raised request the same way, so approve and reject work and the repeated request carries the path.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "module:lib/onboarding.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0123 Decisions 1, 2 and 3: the nine levels are data in lib/onboarding.ts, renderGuide feeds both the menu and ONBOARDING.md, and detectLevels reads only a DoctorResult.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0123 Decision 3: --auto reads runDoctor; the doctor gains providers (providerPaths) and the serving line (servingReport) so detection is never re-implemented.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "module:lib/skills.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0123 Decision 6: installs stay .claude/skills + .agents/skills by default; writeAgentsMdPointer is opt-in and rewrites only between its markers.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0014-agent-skills-suite.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0123 Decision 5: the onboarding skills join the ADR 0014 suite but are hand-written procedures over the generator rather than Scribe-written from briefs.",
+      "note": "onboarding skills only",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0025-built-in-authenticators.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0123 Decision 1: levels 6 and 7 are A2A_KEY_MODE=byok and the A2A_AUTH modes ADR 0025 defines.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0023-bring-your-own-endpoint.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0123 Decision 1: level 5 is the Vertex AI, Bedrock and Azure platforms of ADR 0023.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0123 Decision 1: level 8 lists MELCHIZEDEK_CREDENTIAL_KEY, OAUTH_REDIRECT_URI and MELCHIZEDEK_OAUTH_HOSTS as ADR 0114 binds them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

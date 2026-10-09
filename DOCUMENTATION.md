@@ -437,6 +437,17 @@ starter-pack file opens with a `# tier:` header (`keyless`, one provider
 such as `gemini`, or `multi-provider`) the doctor checks against the
 models. `GOOGLE_GENAI_API_KEY` alone runs fourteen of the nineteen examples.
 
+**Not sure where to start? `npx melchizedek-setup`** (`npm run setup` in a
+clone) opens a menu of authentication levels: no key (Ollama), one
+provider's key, several, a gateway key, Vertex AI / Bedrock / Azure,
+per-caller keys (BYOK), caller identities (`A2A_AUTH`), OAuth tool grants,
+and an honest entry for ChatGPT / Codex, Claude.ai and Gemini CLI sign-ins,
+which the engine does not use. Each prints a startup guide: variable names
+and shapes, the doctor check, the shipped files that run there, and the
+first commands. `--auto` reads the doctor's result and prints the guide
+for the highest level it detects, names only. The same guides, generated
+from the same code, are [`ONBOARDING.md`](./ONBOARDING.md).
+
 **One key instead of several — the gateway fallback.** Direct adapters
 are canonical: the native features above exist only on a provider's own
 endpoint. But with `MODEL_GATEWAY=vercel` (or `openrouter`) and

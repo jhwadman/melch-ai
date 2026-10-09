@@ -3,6 +3,16 @@
 From zero to a running syndicate in five minutes; to persistent memory in
 fifteen. The full reference is [`DOCUMENTATION.md`](./DOCUMENTATION.md).
 
+**Start with `npx melchizedek-setup`** (in a clone: `npm run setup`). It
+asks what you have (no key, one or several provider keys, a gateway key,
+Vertex AI / Bedrock / Azure access, a server to put in front of others, or
+a ChatGPT, Claude or Gemini sign-in) and prints the startup guide for that
+level: the variables to set (names only; you type the values into `.env`),
+the doctor check, the shipped syndicates that run, and the first command.
+`npm run setup -- --auto` detects your level without printing any value.
+The same guides are in [`ONBOARDING.md`](./ONBOARDING.md); the steps below
+are the two most common paths spelled out.
+
 ## 1. Prerequisites
 
 - **Node.js 22+** (the CLI uses `--experimental-strip-types` to run
@@ -182,6 +192,7 @@ own repo, the same engine is a typed dependency:
 
 ```bash
 npm install melchizedek-agents
+npx melchizedek-setup                        # what you have → the startup guide for it
 npx melchizedek-init                         # config/agents/conversational.yaml + .env; --list for others
 npx melchizedek-doctor                       # which keys it needs, and whether it is ready
 ```
@@ -229,11 +240,13 @@ console.log(result.text);
   section of [`CHANGELOG.md`](./CHANGELOG.md).
   `npx melchizedek-doctor` prints which runtime is in use.
 - **Your coding agent can learn all of this.** The package ships a
-  six-skill suite (`skills/`, the open SKILL.md standard) covering the
-  catalog, authoring, serving, memory, models, and the Scribe:
+  eleven-skill suite (`skills/`, the open SKILL.md standard) covering
+  onboarding (start with `melchizedek-onboard`), the catalog, authoring,
+  serving, memory, models, and the Scribe:
 
   ```bash
   npx melchizedek-skills install          # → .claude/skills + .agents/skills here
+  npx melchizedek-skills install --agents-md   # … and point AGENTS.md at them
   npx melchizedek-skills install --for all --global
   ```
 
