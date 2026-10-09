@@ -46,6 +46,7 @@ import { reasoningConfig } from './models/reasoning.ts';
 import { instructionFor, toEngineAgent } from './agentDialect.ts';
 import { resolveTools as resolveNamedTools } from './toolRegistry.ts';
 import { createMcpTools } from './tools/mcpToolFactory.ts';
+import type { McpServerConfig, McpTransportKind } from './tools/mcpToolFactory.ts';
 import { requireApproval, toolOf } from './tools/tool.ts';
 import type { ModelAdapter } from './models/contract.ts';
 import { examplesInstructionTool } from './tools/examples.ts';
@@ -191,18 +192,22 @@ export function examplesTool(examples: ExampleConfig[] | undefined): unknown[] {
   return tool ? [tool] : [];
 }
 
-async function resolveAgentTools(
-  toolNames: string[] | undefined,
-  mcpServerUrl: string | undefined,
-  opts: CompileOptions,
-  openapi?: OpenApiConfig[],
-  examples?: ExampleConfig[],
-  mcpAllowed?: string[],
-  mcpAuth?: McpAuthConfig,
-): Promise<unknown[]> {
-  const tools = [...resolveNamedTools(toolNames, opts.onUnknownTool), ...examplesTool(examples)];
+/** The keys of an agent its own tools are resolved from. */
+interface AgentToolSource {
+  tools?: string[];
+  mcp_server_url?: string;
+  mcp_tools?: string[];
+  mcp_auth?: McpAuthConfig;
+  mcp_transport?: McpTransportKind;
+  mcp_servers?: McpServerConfig[];
+  openapi?: OpenApiConfig[];
+  examples?: ExampleConfig[];
+}
+
+async function resolveAgentTools(agent: AgentToolSource, opts: CompileOptions): Promise<unknown[]> {
+  const tools = [...resolveNamedTools(agent.tools, opts.onUnknownTool), ...examplesTool(agent.examples)];
   // OpenAPI operations become tools here, so require_approval can name them.
-  for (const entry of openapi ?? []) {
+  for (const entry of agent.openapi ?? []) {
     const built = await buildOpenApiTools(entry);
     opts.log?.(`openapi · ${relative(process.cwd(), entry.spec) || entry.spec}: ${built.map((t) => t.name).join(', ') || '(no operations)'}`);
     for (const t of built) {
@@ -210,23 +215,36 @@ async function resolveAgentTools(
       tools.push(t);
     }
   }
-  if (mcpServerUrl) {
-    opts.log?.(`Loading MCP tools: ${mcpServerUrl}`);
-    // An authorization_code server lists nothing at startup: its tools are the mcp_tools names, each on its user's own connection (ADR 0112).
-    const offered = await createMcpTools(mcpServerUrl, { ...(mcpAllowed ? { tools: mcpAllowed } : {}), ...(mcpAuth?.oauth2 ? { oauth2: mcpAuth.oauth2 } : {}) });
-    // mcp_tools: only the named tools are exposed (a server's list is its
-    // own to change); a name the server does not offer is reported, and a
-    // gate on it fails the compile in gateTools.
-    const allowed = mcpAllowed ? new Set(mcpAllowed) : undefined;
-    const mcpTools = allowed ? offered.filter((t) => allowed.has(t.name)) : offered;
-    if (allowed) {
-      const missing = [...allowed].filter((n) => !offered.some((t) => t.name === n));
-      if (missing.length) opts.log?.(`MCP ${mcpServerUrl} does not offer ${missing.map((n) => `'${n}'`).join(', ')} (mcp_tools)`);
-      const hidden = offered.length - mcpTools.length;
-      if (hidden) opts.log?.(`MCP ${mcpServerUrl}: ${hidden} tool(s) not in mcp_tools are not exposed`);
-    }
-    for (const mcpTool of mcpTools) {
+  /** One server's tools, narrowed to the names the YAML allows (a server's list is its own to change). */
+  const offeredBy = async (label: string, url: string, allowedNames: string[] | undefined, oauth2: McpAuthConfig['oauth2'] | undefined, transport: McpTransportKind | undefined) => {
+    opts.log?.(`Loading MCP tools: ${label}`);
+    // An authorization_code server lists nothing at startup: its tools are the allowed names, each on its user's own connection (ADR 0112).
+    const offered = await createMcpTools(url, { ...(allowedNames ? { tools: allowedNames } : {}), ...(oauth2 ? { oauth2 } : {}), ...(transport ? { transport } : {}) });
+    if (!allowedNames) return offered;
+    // A name the server does not offer is reported, and a gate on it fails the compile in gateTools.
+    const allowed = new Set(allowedNames);
+    const kept = offered.filter((t) => allowed.has(t.name));
+    const missing = [...allowed].filter((n) => !offered.some((t) => t.name === n));
+    if (missing.length) opts.log?.(`MCP ${label} does not offer ${missing.map((n) => `'${n}'`).join(', ')}`);
+    const hidden = offered.length - kept.length;
+    if (hidden) opts.log?.(`MCP ${label}: ${hidden} tool(s) not named for this agent are not exposed`);
+    return kept;
+  };
+  if (agent.mcp_server_url) {
+    // The single-server form: a name the agent already has keeps the agent's tool.
+    for (const mcpTool of await offeredBy(agent.mcp_server_url, agent.mcp_server_url, agent.mcp_tools, agent.mcp_auth?.oauth2, agent.mcp_transport)) {
       if (!tools.some((t: any) => t.name === mcpTool.name)) tools.push(mcpTool);
+    }
+  }
+  // mcp_servers (ADR 0124): the loader refused a declared name twice; a
+  // server that answers with a name already taken is refused here too, so
+  // no server's tool can stand in for another's or the agent's own.
+  const servers = await Promise.all((agent.mcp_servers ?? []).map((server) => offeredBy(`${server.name} (${server.url})`, server.url, server.tools, server.auth?.oauth2, server.transport)));
+  for (const [i, offered] of servers.entries()) {
+    const server = agent.mcp_servers![i]!;
+    for (const mcpTool of offered) {
+      if (tools.some((t: any) => t?.name === mcpTool.name)) throw new Error(`mcp_servers ${server.name}: tool '${mcpTool.name}' collides with another of this agent's tools (ADR 0124)`);
+      tools.push(mcpTool);
     }
   }
   return tools;
@@ -611,7 +629,7 @@ export async function compileSubagentSpec(subCfg: SubagentYamlConfig, opts: Comp
 
   // YAML v2 (ADR 0115): the engine form, for a config built in code (a loaded one already is).
   const agent = toEngineAgent(subCfg);
-  const gated = gateTools(await resolveAgentTools(agent.tools, agent.mcp_server_url, opts, agent.openapi, agent.examples, agent.mcp_tools, agent.mcp_auth), agent.require_approval, agent.name);
+  const gated = gateTools(await resolveAgentTools(agent, opts), agent.require_approval, agent.name);
   const model = resolveAgentModel(agent.model, opts);
   // model_overrides for the provider the agent runs on, before the skills index is appended.
   const { instruction, tools } = await withSkills(instructionFor(agent, model.modelId), gated, agent.skills, agent.name, opts);
@@ -658,18 +676,10 @@ export async function compileSpec(
   const orchestrator = toEngineAgent(config.orchestrator); // YAML v2 (ADR 0115), for a config built in code
   const name = overrideName || orchestrator.name;
   // The orchestrator's own tools resolve as a subagent's do: registry
-  // names, OpenAPI operations, and the MCP server's tools (narrowed by
-  // mcp_tools, under its mcp_auth grant), so a one-agent syndicate can reach an MCP server.
+  // names, OpenAPI operations, and the MCP servers' tools (narrowed by
+  // mcp_tools or each mcp_servers entry's tools, under its grant), so a one-agent syndicate can reach an MCP server.
   const own = gateTools(
-    await resolveAgentTools(
-      orchestrator.tools,
-      orchestrator.mcp_server_url,
-      opts,
-      orchestrator.openapi,
-      orchestrator.examples,
-      orchestrator.mcp_tools,
-      orchestrator.mcp_auth,
-    ),
+    await resolveAgentTools(orchestrator, opts),
     orchestrator.require_approval,
     name,
   );

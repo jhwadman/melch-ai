@@ -3646,6 +3646,62 @@
       "at": "2026-10-09"
     },
     {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0124 Decision 1: \"Each connection (connectMcp in lib/tools/mcpToolFactory.ts) posts the initialize request over the SDK's StreamableHTTPClientTransport\" and falls back to SSE only on isSseFallbackSignal (a 4xx other than 401 or 403).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/oauthDiscovery.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0124 Decisions 3-5: dynamicOAuthClient discovers (RFC 9728, RFC 8414), requires S256, registers a public client (RFC 7591); \"Discovery never widens the allowlist\"; the registration is sealed under the app name oauth-client:dcr.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0124 Decision 2: \"A tool name listed on two servers, or shared with the agent's own tools or OpenAPI operations, is refused at load with the key path (mcpServersProblems in lib/syndicateSchema.ts)\"; Decision 3 limits client_registration: dynamic to MCP authorization_code grants.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0124 Decision 6: \"oauthConsent({ providers }) and oauthRefreshProviders accept, per provider, either a configured OAuthClientConfig ... or an OAuthClientSource\"; a failing source is ConsentError('registration_failed').",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0124 Decision 2: \"a config built in code that skipped the loader is refused at compile (resolveAgentTools in lib/compile.ts)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0124 Decision 4: every URL discovery fetches and every endpoint it returns \"must be a host the operator's allowlist binds to the provider\", the ADR 0114 allowlist, checked before any request.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0124 Decision 3: client_registration: dynamic is a key of the oauth2 block ADR 0112 declares beside the MCP server (mcp_auth, or an mcp_servers entry's auth).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
       "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
       "to": "module:lib/a2a/app.ts",
       "rel": "constrains",

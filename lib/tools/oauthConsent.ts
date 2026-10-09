@@ -59,11 +59,25 @@ export interface OAuthClientConfig {
   scopes?: string[];
   /** Extra authorization parameters the provider needs (`access_type=offline`, say). Never `state`, `redirect_uri` or the PKCE pair. */
   authorizationParams?: Record<string, string>;
+  /**
+   * The protected resource the token is for (RFC 8707): sent as `resource`
+   * on the authorization request, the code exchange and each refresh. An MCP
+   * server's canonical URI, for a client registered by discovery (ADR 0124).
+   */
+  resource?: string;
 }
 
+/**
+ * A client found when first needed rather than configured at boot: an MCP
+ * server's authorization server, discovered and registered at
+ * (lib/tools/oauthDiscovery.ts dynamicOAuthClient, ADR 0124). Throws when
+ * it cannot be had; the next call tries again.
+ */
+export type OAuthClientSource = () => Promise<OAuthClientConfig>;
+
 export interface OAuthConsentOptions {
-  /** Each provider's client, by provider name (lowercase, as the credential store names it). */
-  providers: Record<string, OAuthClientConfig>;
+  /** Each provider's client, by provider name (lowercase, as the credential store names it): configured, or found when first needed. */
+  providers: Record<string, OAuthClientConfig | OAuthClientSource>;
   /**
    * The server's callback URL, exactly as registered at every provider
    * (`https://agents.example.com/oauth/callback`). The A2A server mounts the
@@ -155,7 +169,9 @@ export type ConsentErrorCode =
   /** The grant could not be stored. */
   | 'store_failed'
   /** The provider has no client configured. */
-  | 'unknown_provider';
+  | 'unknown_provider'
+  /** A discovered client could not be found or registered (ADR 0124). */
+  | 'registration_failed';
 
 /** A consent step that cannot proceed. The message names the reason, never a value. */
 export class ConsentError extends Error {
@@ -178,7 +194,9 @@ export class ConsentError extends Error {
                   ? `The authorization at ${p} could not be completed.`
                   : code === 'store_failed'
                     ? `The authorization at ${p} could not be saved.`
-                    : `No OAuth client is configured for ${p}.`,
+                    : code === 'registration_failed'
+                      ? `The authorization at ${p} could not be set up.`
+                      : `No OAuth client is configured for ${p}.`,
     );
     this.name = 'ConsentError';
     this.code = code;
@@ -255,23 +273,42 @@ function checkEndpoint(value: string, what: string): URL {
   return url;
 }
 
-const RESERVED_PARAMS = new Set(['state', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'client_id', 'response_type', 'scope']);
+const RESERVED_PARAMS = new Set(['state', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'client_id', 'response_type', 'scope', 'resource']);
+
+/** A client's configuration, checked: the endpoints, the client id, the parameters. Throws, naming the provider. */
+function checkClient(name: string, client: OAuthClientConfig): OAuthClientConfig {
+  checkEndpoint(client.authorizationUrl, `${name}: authorizationUrl`);
+  checkEndpoint(client.tokenUrl, `${name}: tokenUrl`);
+  if (typeof client.clientId !== 'string' || !client.clientId) throw new Error(`${name}: clientId is required.`);
+  for (const key of Object.keys(client.authorizationParams ?? {})) {
+    if (RESERVED_PARAMS.has(key)) throw new Error(`${name}: authorizationParams may not set "${key}".`);
+  }
+  if (client.resource !== undefined) checkEndpoint(client.resource, `${name}: resource`);
+  return { ...client, scopes: [...(client.scopes ?? [])] };
+}
 
 /** The consent manager over a credential store. Validates the configuration at once: a bad URL throws here, at boot. */
 export function oauthConsent(options: OAuthConsentOptions): OAuthConsent {
   const redirect = checkEndpoint(options.redirectUri, 'The OAuth redirect URI');
   if (redirect.search || redirect.hash) throw new Error('The OAuth redirect URI must not carry a query or a fragment.');
-  const providers = new Map<string, OAuthClientConfig>();
+  const providers = new Map<string, OAuthClientConfig | OAuthClientSource>();
   for (const [name, client] of Object.entries(options.providers)) {
     if (!PROVIDER_NAME.test(name)) throw new Error(`OAuth provider "${name.slice(0, 64)}" must match ${PROVIDER_NAME}.`);
-    checkEndpoint(client.authorizationUrl, `${name}: authorizationUrl`);
-    checkEndpoint(client.tokenUrl, `${name}: tokenUrl`);
-    if (typeof client.clientId !== 'string' || !client.clientId) throw new Error(`${name}: clientId is required.`);
-    for (const key of Object.keys(client.authorizationParams ?? {})) {
-      if (RESERVED_PARAMS.has(key)) throw new Error(`${name}: authorizationParams may not set "${key}".`);
-    }
-    providers.set(name, { ...client, scopes: [...(client.scopes ?? [])] });
+    // A source is checked each time it answers; a configured client here, at boot.
+    providers.set(name, typeof client === 'function' ? client : checkClient(name, client));
   }
+  /** The provider's client now, or undefined; a source that fails is a ConsentError('registration_failed'). */
+  const clientOf = async (name: string): Promise<OAuthClientConfig | undefined> => {
+    const entry = providers.get(name);
+    if (typeof entry !== 'function') return entry;
+    try {
+      return checkClient(name, await entry());
+    } catch (err) {
+      // A discovery refusal names roles and hosts, never a value (lib/tools/oauthDiscovery.ts); anything else is named by kind only.
+      console.warn(`[OAuth] ${name}: the client could not be set up: ${err instanceof Error && err.name === 'OAuthDiscoveryError' ? err.message : err instanceof Error ? err.name : 'unknown error'}`);
+      throw new ConsentError('registration_failed', name);
+    }
+  };
   const states = options.states ?? memoryConsentStates({ ...(options.now ? { now: options.now } : {}) });
   const ttlMs = options.ttlMs ?? 10 * 60_000;
   const now = options.now ?? Date.now;
@@ -324,6 +361,7 @@ export function oauthConsent(options: OAuthConsentOptions): OAuthConsent {
       client_id: client.clientId,
       code_verifier: flow.codeVerifier,
     });
+    if (client.resource) body.set('resource', client.resource);
     if (client.clientSecret) {
       // The secret goes only to a host the operator binds its variable to (ADR 0122), checked now:
       // the allowlist can change after boot. Refused, nothing is sent.
@@ -367,8 +405,8 @@ export function oauthConsent(options: OAuthConsentOptions): OAuthConsent {
     has: (provider) => typeof provider === 'string' && providers.has(provider),
 
     async begin(binding) {
-      const client = providers.get(binding.provider);
-      if (!client) throw new ConsentError('unknown_provider', PROVIDER_NAME.test(binding.provider) ? binding.provider : undefined);
+      if (!providers.has(binding.provider)) throw new ConsentError('unknown_provider', PROVIDER_NAME.test(binding.provider) ? binding.provider : undefined);
+      const client = (await clientOf(binding.provider))!;
       for (const field of ['appName', 'userId', 'sessionId', 'functionCallId'] as const) {
         if (typeof binding[field] !== 'string' || !binding[field]) throw new Error(`A consent flow needs the paused call's ${field}.`);
       }
@@ -394,6 +432,7 @@ export function oauthConsent(options: OAuthConsentOptions): OAuthConsent {
       url.searchParams.set('state', state);
       url.searchParams.set('code_challenge', s256Challenge(codeVerifier));
       url.searchParams.set('code_challenge_method', 'S256');
+      if (client.resource) url.searchParams.set('resource', client.resource);
       const authUri = url.toString();
       const authConfig = {
         credentialKey: binding.provider,
@@ -436,7 +475,13 @@ export function oauthConsent(options: OAuthConsentOptions): OAuthConsent {
       if (input.error !== undefined) fail('denied');
       const code = input.code;
       if (typeof code !== 'string' || !CODE_FORMAT.test(code)) fail('invalid_request');
-      const client = providers.get(flow.provider);
+      if (!providers.has(flow.provider)) fail('unknown_provider');
+      let client: OAuthClientConfig | undefined;
+      try {
+        client = await clientOf(flow.provider);
+      } catch {
+        return fail('registration_failed');
+      }
       if (!client) fail('unknown_provider');
       let tokens: TokenSet;
       try {

@@ -28,14 +28,14 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 207 | a repo file that is not a source module (DDL, config, prose) |
-| `module` | `module:<name>` | 196 | one source module |
-| `doc` | `/dir/doc.md` | 191 | a concept document in the bundle — identity is its bundle path |
+| `file` | `file:<name>` | 210 | a repo file that is not a source module (DDL, config, prose) |
+| `module` | `module:<name>` | 198 | one source module |
+| `doc` | `/dir/doc.md` | 193 | a concept document in the bundle — identity is its bundle path |
 | `env` | `env:<name>` | 112 | an environment variable the code reads |
-| `agent` | `agent:<name>` | 91 | one orchestrator or subagent inside a syndicate |
+| `agent` | `agent:<name>` | 92 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 50 | an npm script entrypoint |
+| `syndicate` | `syndicate:<name>` | 34 | one agent-team definition (a YAML) |
 | `tool` | `tool:<name>` | 34 | a tool an agent may declare by name |
-| `syndicate` | `syndicate:<name>` | 33 | one agent-team definition (a YAML) |
 | `table` | `table:<name>` | 18 | a database table |
 | `external` | `external:<name>` | 13 | a resource outside the repo, named by URL |
 | `model` | `model:<name>` | 10 | a model id exactly as written in configuration |
@@ -50,23 +50,23 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1077 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 946 | a resolved markdown link between documents |
-| `imports` | extracted | A imports B | 859 | a static import edge between source files |
+| `derives_from` | extracted | A derives from B | 1095 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 954 | a resolved markdown link between documents |
+| `imports` | extracted | A imports B | 871 | a static import edge between source files |
 | `requires_env` | extracted | A requires B | 191 | this environment variable must be set for the node to work |
-| `contains` | extracted | A contains B | 91 | the first is composed of the second |
-| `uses_model` | extracted | A runs on B | 91 | the agent is configured with this model id |
-| `defined_in` | extracted | A is defined in B | 78 | where the thing is declared in source |
+| `contains` | extracted | A contains B | 92 | the first is composed of the second |
+| `uses_model` | extracted | A runs on B | 92 | the agent is configured with this model id |
+| `defined_in` | extracted | A is defined in B | 79 | where the thing is declared in source |
 | `runs` | extracted | A runs B | 72 | an entrypoint — a script, a process, a worker — executes this |
 | `uses_tool` | extracted | A calls B | 62 | the agent declares this tool by name |
-| `documents` | extracted | A documents B | 57 | the document derives from, and describes, this entity |
+| `documents` | extracted | A documents B | 58 | the document derives from, and describes, this entity |
 | `reads_table` | extracted | A reads or writes B | 28 | the module names this table |
 | `routes_to` | extracted | A routes to B | 10 | the model id resolves to this provider adapter |
-| `connects_mcp` | extracted | A dials B | 3 | the agent discovers tools from this MCP server at runtime |
+| `connects_mcp` | extracted | A dials B | 5 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
-| `constrains` | inferred | A constrains B | 240 | a decision or doctrine limits what the target may do |
-| `depends_on` | inferred | A depends on B | 142 | the first cannot do its job unless the second holds |
+| `constrains` | inferred | A constrains B | 245 | a decision or doctrine limits what the target may do |
+| `depends_on` | inferred | A depends on B | 144 | the first cannot do its job unless the second holds |
 | `explains` | inferred | A explains B | 53 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 21 | replaces an earlier decision or document |
 | `mitigates` | inferred | A mitigates B | 4 | the mechanism exists to contain the named failure |

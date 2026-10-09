@@ -24,6 +24,48 @@ the starter pack and the templates), not the repo's full history.
   `melchizedek-agents/mcp` export path (`createMcpServer`, `serveMcpStdio`,
   `mcpHttpApp`, `mcpBindProblem`, `toolNameFor`, `RESUME_TOOL`).
 
+- **MCP over Streamable HTTP, several MCP servers per agent, and dynamic
+  client registration** (ADR 0124). The MCP client posts the initialize
+  request over Streamable HTTP, the spec's current transport, and falls back
+  to the legacy SSE transport when the server answers with the spec's signal
+  (a 4xx other than 401/403); existing SSE URLs keep working unchanged.
+  `mcp_transport:` (beside `mcp_server_url`) or an entry's `transport:` pins
+  `auto`, `streamable_http` or `sse`. New `mcp_servers:` lists several
+  servers, `{ name, url, tools, auth?, transport? }`, each with the tools the
+  agent may use from it; a tool name on two servers or shared with the
+  agent's own tools is refused at load, and `require_approval` may name any
+  server's tool. An MCP server's `authorization_code` grant may say
+  `client_registration: dynamic` with no client id or endpoints: the
+  authorization server is discovered (RFC 9728, RFC 8414), the deployment
+  registers itself as a public PKCE client (RFC 7591) for
+  `OAUTH_REDIRECT_URI`, the MCP server's URI goes as the RFC 8707 `resource`
+  parameter, and the registration is kept sealed in the credential store
+  (no migration). Every discovered host must be on `MELCHIZEDEK_OAUTH_HOSTS`
+  before any request reaches it. Additive API: `lib/tools/oauthDiscovery.ts`
+  (under the existing `./tools/*` export), `isSseFallbackSignal` and
+  `McpServerConfig` in `mcpToolFactory`, `dynamicOAuthGrantsFor` in
+  `oauthTools`, `OAuthClientSource` (accepted by `oauthConsent({ providers })`
+  and `oauthRefreshProviders`), `OAuthClientConfig.resource`, and the
+  `registration_failed` consent error. `OAuth2AuthConfig.token_url` is
+  optional in its type (the schema still requires it unless the grant is
+  dynamic). New example: `config/agents/examples/connectors.yaml`.
+
+- **`melchizedek-mcp`: syndicates as MCP tools** (ADR 0125). A new bin
+  serves each loaded syndicate as one MCP tool (`{ message, session_id? }`;
+  the answer, then its `session_id`; `structuredContent.output` for a
+  syndicate with an output schema) plus `melch_resume { session_id,
+  approve?, answer? }` for a turn that paused on an approval, an `ask_user`
+  question or an OAuth consent. stdio by default (`claude mcp add melch --
+  npx melchizedek-mcp`, or a Codex `[mcp_servers]` table); `--http` serves
+  Streamable HTTP at `/mcp` on 127.0.0.1:4100 and refuses a bind beyond
+  loopback without `MCP_SERVER_SECRET` (32+ characters). Every call is one
+  task through the A2A executor, so budgets, caps, the turn lock, deadlines,
+  cancel (`notifications/cancelled`), guards and the ledger match
+  `melchizedek-serve`; an approval is answered only by `melch_resume`'s
+  explicit `approve`. Surface addition: the `melchizedek-mcp` bin and the
+  `melchizedek-agents/mcp` export path (`createMcpServer`, `serveMcpStdio`,
+  `mcpHttpApp`, `mcpBindProblem`, `toolNameFor`, `RESUME_TOOL`).
+
 - **Sign in with ChatGPT, on your own machine only** (ADR 0126). OpenAI's
   documented plan-usage flow for open-source apps that run locally:
   `melchizedek-setup --chatgpt-signin` (or `melchizedek-chat --chatgpt-signin`)

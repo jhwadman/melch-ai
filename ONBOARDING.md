@@ -67,7 +67,7 @@ The model id's prefix picks the provider, and that provider's key funds it. One 
 
 **Runs at this level:**
 
-- GOOGLE_GENAI_API_KEY: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), augustin (example), cartographers (example), critic (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example)
+- GOOGLE_GENAI_API_KEY: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), augustin (example), cartographers (example), connectors (example), critic (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example)
 - ANTHROPIC_API_KEY: claude (example), structured_critic (example)
 - OPENAI_API_KEY: no shipped file yet (change a `model:` line to use one)
 - XAI_API_KEY: no shipped file yet (change a `model:` line to use one)
@@ -139,7 +139,7 @@ One key serves every cloud model id whose direct key is absent, through the gate
 
 **Runs at this level:**
 
-- every cloud file: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), augustin (example), cartographers (example), critic (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example), claude (example), structured_critic (example), model_zoo (example)
+- every cloud file: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), augustin (example), cartographers (example), connectors (example), critic (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example), claude (example), structured_critic (example), model_zoo (example)
 
 **First commands:**
 
@@ -179,7 +179,7 @@ The model id still picks the provider; these variables pick the cloud it is reac
 
 **Runs at this level:**
 
-- Gemini on Vertex AI: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), augustin (example), cartographers (example), critic (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example)
+- Gemini on Vertex AI: account_memory (template), case_desk (template), draft_review (template), intake_extractor (template), research_brief (template), research_desk (template), review_panel (template), support_triage (template), systems_operator (template), ares (example), augustin (example), cartographers (example), connectors (example), critic (example), delegation (example), harness (example), hierarchical (example), image_production (example), librarian (example), patient_advocate (example), pipeline (example), research (example), scribe (example), scriptorium (example), style_council (example), syndicate (example), weather (example)
 - Claude on Bedrock or Vertex AI: claude (example), structured_critic (example)
 - GPT on Azure OpenAI: no shipped file yet (change a `model:` line to use one)
 
@@ -287,7 +287,7 @@ A tool declared with `auth: { oauth2 }` (or an MCP server with `mcp_auth`) sends
 **Runs at this level:**
 
 - declares a grant: no shipped file declares one active
-- carries a commented grant to uncomment: systems_operator (template)
+- carries a commented grant to uncomment: systems_operator (template), connectors (example)
 
 **First commands:**
 
