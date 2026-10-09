@@ -6,6 +6,8 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
 - **Static credentials go only to hosts the operator binds** (ADR 0122).
   `MELCHIZEDEK_CREDENTIAL_HOSTS="TRACKER_TOKEN=api.tracker.example.com;…"`,
   or `createA2AApp({ credentialHosts })`, binds each credential variable a
@@ -16,8 +18,19 @@ the starter pack and the templates), not the repo's full history.
   it compiles and before each send; a refused call sends nothing. New
   modules `melchizedek-agents/tools/credentialHosts` and
   `melchizedek-agents/tools/credentialUses` (through the existing
-  `./tools/*` export); `openApiServers` in `tools/openapiTools`; `DoctorResult.credentials`; the server's banner gains
-  a `creds` line, and `oauthServerSetup` returns `credentialSummary`.
+  `./tools/*` export); `openApiServers` in `tools/openapiTools`;
+  `DoctorResult.credentials`; the server's banner gains a `creds` line,
+  and `oauthServerSetup` returns `credentialSummary`.
+
+### Changed
+
+- **The council example's Moderator consults both subagents in one step**
+  (`config/agents/examples/council.yaml`). Its instruction asks for the
+  Advocate and the Skeptic together, both function calls in one response,
+  each given the user's full claim verbatim, so the two run at once under
+  `max_concurrency` (ADR 0116). Its role, its three-part verdict and its
+  guardrails are unchanged; the YAML keeps its v2 keys. A project that
+  copied the example keeps the old prompt until it copies it again.
 
 ## 1.1.0 — 2026-10-09
 

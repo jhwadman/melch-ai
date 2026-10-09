@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 915,
-    "edges": 3654,
+    "edges": 3656,
     "byKind": {
       "doc": 181,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 836,
+      "links_to": 837,
       "requires_env": 172,
       "routes_to": 10,
       "defined_in": 78,
@@ -39,14 +39,14 @@
       "derives_from": 968,
       "constrains": 204,
       "supersedes": 13,
-      "depends_on": 128,
+      "depends_on": 129,
       "explains": 47,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3257,
-      "inferred": 397
+      "extracted": 3258,
+      "inferred": 398
     },
     "isolated": 4
   },
@@ -156,7 +156,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 157
+        "words": 190
       }
     },
     {
@@ -8335,6 +8335,13 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/agents/council.md"
+    },
+    {
+      "from": "/agents/council.md",
+      "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/council.md:19"
     },
     {
       "from": "/agents/critic.md",
