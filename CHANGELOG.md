@@ -26,6 +26,37 @@ the starter pack and the templates), not the repo's full history.
   `outputSchemaBesideTools(model)` says whether a model's path takes both.
   `CAPABILITIES`, `Capability` and `CAPABILITY_MATRIX` gain the member, so
   code that builds a `Record<Capability, …>` must add it.
+- **OAuth grants in YAML (`auth: { oauth2 }`, `mcp_auth: { oauth2 }`;
+  ADR 0112).** An `openapi:` entry's `auth` takes a third form, `oauth2`,
+  and an agent with `mcp_server_url` may declare `mcp_auth: { oauth2 }`.
+  The block names a `provider`, a `grant` (`authorization_code` or
+  `client_credentials`), `authorization_url`, `token_url`, `client_id` or
+  `client_id_env`, `client_secret_env` and `scopes`; secrets are
+  environment variable names, never values, under the same rule as
+  `bearer_env`. `authorization_code` sends the run's user's own token
+  (`ctx.accessToken`, so the consent pause asks a user who has not granted
+  it); `client_credentials` sends the server's own token from the token
+  endpoint, held in memory until shortly before it expires. A token goes
+  only over https (or http to a loopback host). An authorization-code MCP
+  server needs `mcp_tools` and runs each user on their own connection.
+  `npm run doctor` lists every tool that needs a grant. New module
+  `melchizedek-agents/tools/oauthTools` (`oauthClientsFor`, which builds
+  `oauthConsent({ providers })` from the YAML, `oauthRefreshProviders`,
+  which gives `credentialStore({ providers })` the matching refresh hooks,
+  `clientCredentialsGrant`,
+  `oauthTokenSource`, `tokenTransportProblem`) and
+  `melchizedek-agents/tools/credentialEnv` (`credentialEnvProblem`, still
+  exported from `tools/openapiTools`), both under the existing `./tools/*`
+  export. `ToolCredentialError` gains the codes `unavailable` and
+  `grant_failed`, and `createMcpTools` / `loadMcpTools` an optional second
+  argument. The systems_operator template carries a commented
+  `mcp_auth` block.
+
+### Changed
+
+- **An OpenAPI `auth` that sets two forms** now reads "exactly one of
+  bearer_env, api_key or oauth2" (was "exactly one of bearer_env or
+  api_key").
 
 ## 1.0.3 — 2026-10-09
 

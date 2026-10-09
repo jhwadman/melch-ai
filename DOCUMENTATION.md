@@ -144,6 +144,7 @@ Field reference:
 | `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to the agent (spelled after ADK's `LlmAgent` fields). `includeContents: none` makes an agent see only the current message. |
 | `fallback_model` | any agent | A model, ideally on another provider, that answers when this agent's model fails provider-side (5xx, 429, a connection reset, after its own retries) before producing any output, or while that provider's circuit is open: after `MODEL_BREAKER_THRESHOLD` consecutive provider failures (default 5; 0 disables) the provider is skipped for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx and a canceled turn are never redirected, and a stream that already produced text is never replayed elsewhere ([ADR 0044](./wiki/decisions/0044-fallback-model-and-circuit-breaker.md)). |
 | `mcp_tools` | subagent | The MCP server's tools this agent may use; any other tool the server lists is not exposed. On a dispatch route `require_approval` may name them ([ADR 0041](./wiki/decisions/0041-tool-vendors-get-least-privilege.md)). |
+| `mcp_auth` | subagent | `{ oauth2 }`: the OAuth grant the MCP server takes, the same block as an OpenAPI `auth.oauth2`. `client_credentials` sends the server's own token; `authorization_code` sends each user's own token on their own connection (the consent pause asks for it) and needs `mcp_tools` ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)). |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
 | `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
@@ -221,8 +222,15 @@ without `operations`, only GET operations become tools, so anything that
 writes is exposed only by naming it, and a named operation can be listed
 under `require_approval` (as written under `operations`) so a person
 approves each call. `auth` names an environment variable, never a value
-(`bearer_env`, or `api_key` with `in: header | query` and `name`); an unset
-variable fails the compile, and so does one of the framework's own settings
+(`bearer_env`, or `api_key` with `in: header | query` and `name`), or
+declares an OAuth grant (`oauth2`: `provider`, `grant: authorization_code |
+client_credentials`, `authorization_url`, `token_url`, `client_id` or
+`client_id_env`, `client_secret_env`, `scopes`), whose token each call
+fetches: the run's user's own through the consent pause, or the server's own
+from the token endpoint ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)).
+`oauthClientsFor(configs)` (`melchizedek-agents/tools/oauthTools`) builds the
+consent step's clients from the same YAML, and `npm run doctor` lists every
+tool that needs a grant. An unset variable fails the compile, and so does one of the framework's own settings
 (the database URL, a provider key, an `A2A_` secret: anything `.env.example`
 documents), since the YAML chooses the host it goes to.
 `OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`
