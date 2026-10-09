@@ -3,6 +3,42 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —depends_on→ /decisions/0047-provider-neutral-reasoning-key.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —depends_on→ /decisions/0115-yaml-schema-v2-provider-neutral-keys.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —explains→ module:scripts/yaml_codemod.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —constrains→ module:lib/models/chatCompletionsAdapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —constrains→ module:lib/models/capabilities.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —constrains→ module:lib/models/genaiMapping.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —explains→ module:lib/models/reasoning.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0117-tool-choice-and-effort-above-high-in-v2.md —explains→ module:lib/agentDialect.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md —constrains→ module:lib/a2a/executor.ts
 
 by claude-code/claude-opus-5-5

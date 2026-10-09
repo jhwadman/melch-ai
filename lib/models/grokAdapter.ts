@@ -30,13 +30,14 @@ import type { ModelRequest, NativeTool, ReasoningSetting } from './contract.ts';
 import type { ProviderEndpoint } from './endpoints.ts';
 import { GptAdapter } from './gptAdapter.ts';
 import type { GptAdapterOptions, NativeToolPlan } from './gptAdapter.ts';
-import { reasoningConfig } from './reasoning.ts';
+import { effortWord } from './reasoning.ts';
 import {
   collectionIdsFromEnv,
   collectionsMaxResultsFromEnv,
   xaiWebSearchParamsFromEnv,
   xSearchParamsFromEnv,
 } from '../tools/xaiSearchParams.ts';
+import { setLlmSpanAttribute } from '../observability/tracer.ts';
 
 export const XAI_BASE_URL = 'https://api.x.ai/v1';
 
@@ -105,11 +106,16 @@ export class GrokAdapter extends GptAdapter {
    * `high`; xAI's own default is `high`, and reasoning cannot be turned off).
    * The request's setting maps through ADR 0047's table, which sends `none`
    * as `low`; with none set, DEFAULT_GROK_REASONING_EFFORT (medium) is pinned,
-   * since effort is part of the price. Other grok ids take no field.
+   * since effort is part of the price. grok-4.7 also takes `xhigh`; `max`,
+   * and `xhigh` on 4.5 and 4.6, go as the model's highest word, marked on the
+   * span (ADR 0117). Other grok ids take no field.
    */
   override reasoningParam(setting: ReasoningSetting | undefined, model: string = this.model): Record<string, unknown> | undefined {
     if (!GROK_REASONING_IDS.test(model)) return undefined;
-    return { effort: setting === undefined ? DEFAULT_GROK_REASONING_EFFORT : reasoningConfig(model, setting).reasoningEffort };
+    if (setting === undefined) return { effort: DEFAULT_GROK_REASONING_EFFORT };
+    const { word, weakened } = effortWord(model, setting);
+    if (weakened) setLlmSpanAttribute('llm.reasoning.weakened', weakened);
+    return { effort: word };
   }
 
   /**

@@ -487,8 +487,17 @@ test('LlmRequest: the reasoning fields map to a ReasoningSetting where it is exa
     [{ reasoningEffort: 'low' }, 'low'],
     [{ reasoningEffort: 'high' }, 'high'],
     [{ reasoningEffort: 'minimal' }, 'none'],
-    [{ reasoningEffort: 'xhigh' }, undefined],
-    [{ reasoningEffort: 'max' }, undefined],
+    // The words above high (ADR 0117): alone, or beside the thinkingConfig
+    // the compiler writes for them (HIGH, or high's budget); a thinkingConfig
+    // that says less keeps its own reading.
+    [{ reasoningEffort: 'xhigh' }, 'xhigh'],
+    [{ reasoningEffort: 'max' }, 'max'],
+    [{ thinkingConfig: { thinkingLevel: 'HIGH' }, reasoningEffort: 'max' }, 'max'],
+    [{ thinkingConfig: { thinkingBudget: 16384 }, reasoningEffort: 'xhigh' }, 'xhigh'],
+    [{ thinkingConfig: { includeThoughts: true }, reasoningEffort: 'max' }, 'max'],
+    [{ thinkingConfig: { thinkingLevel: 'LOW' }, reasoningEffort: 'max' }, 'low'],
+    [{ thinkingConfig: { thinkingBudget: 4096 }, reasoningEffort: 'max' }, { budget_tokens: 4096 }],
+    [{ reasoningEffort: 'ultra' }, undefined],
     [{}, undefined],
   ];
   for (const [config, expected] of cases) assert.deepEqual(reasoningOf(config as never), expected, JSON.stringify(config));

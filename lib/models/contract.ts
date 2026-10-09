@@ -204,9 +204,12 @@ export type ToolChoice = 'auto' | 'none' | 'required' | { name: string };
 /**
  * How hard an agent reasons, on any provider (ADR 0047): a level, or a token
  * budget. A budget of 0 is `none`, and `none` means as little reasoning as
- * the model allows.
+ * the model allows. `xhigh` and `max` are the levels above `high` that some
+ * models take (ADR 0117): an adapter whose model stops lower sends its
+ * highest setting and marks the span `llm.reasoning.weakened`; a budget
+ * never reads as either.
  */
-export type ReasoningLevel = 'none' | 'low' | 'medium' | 'high';
+export type ReasoningLevel = 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type ReasoningSetting = ReasoningLevel | { budget_tokens: number };
 
 // ── Request ──────────────────────────────────────────────────────────────────

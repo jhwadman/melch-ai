@@ -55,7 +55,7 @@ const thinkingConfig = z
   })
   .describe('Older spelling of `reasoning` for Gemini and Claude (thinkingLevel or thinkingBudget). Cannot be combined with `reasoning`.');
 
-export const REASONING_LEVELS = ['none', 'low', 'medium', 'high'] as const;
+export const REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 
 /**
  * The provider-neutral reasoning key (ADR 0047): a level, or a token budget.
@@ -76,7 +76,9 @@ const reasoningSchema = z
       },
     },
   )
-  .describe('How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047).');
+  .describe(
+    'How hard this agent reasons, on any provider: none | low | medium | high | xhigh | max, or { budget_tokens: <int> }. xhigh and max reach the models that take them; elsewhere they go as the model\'s highest setting (ADR 0117). Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047).',
+  );
 
 /**
  * Loose on purpose: provider-specific fields (e.g. `toolConfig`) pass through
@@ -104,7 +106,7 @@ const generateContentConfig = z
       .optional()
       .describe('Older spelling of `reasoning` for the chat-completions and Responses providers. Cannot be combined with `reasoning`.'),
   })
-  .describe('Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType) and `reasoning` (thinkingConfig, reasoningEffort) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.')
+  .describe('Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType), `reasoning` (thinkingConfig, reasoningEffort) and `tool_choice` (toolConfig.functionCallingConfig) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.')
   .meta({ deprecated: true });
 
 // ── YAML v2 agent keys (ADR 0115) ────────────────────────────────────────────
@@ -136,6 +138,27 @@ const outputSchemaV2 = z
   })
   .refine(nonEmpty, { message: 'must set schema or mime', when: quiet })
   .describe('What this agent\'s final reply is (ADR 0115). Replaces outputSchema and generateContentConfig.responseMimeType; cannot be combined with them.');
+
+export const TOOL_CHOICE_MODES = ['auto', 'none', 'required'] as const;
+
+const toolChoiceSchema = z
+  .union(
+    [
+      z.enum(TOOL_CHOICE_MODES),
+      z.strictObject({
+        name: z.string().min(1).describe('The one tool the model must call: a name from this agent\'s tools, subagents or MCP tools.'),
+      }),
+    ],
+    {
+      error: (iss) => {
+        const hint = typeof iss.input === 'string' ? suggest(iss.input, TOOL_CHOICE_MODES) : undefined;
+        return `must be one of ${TOOL_CHOICE_MODES.join(' | ')}, or { name: <tool> } (got ${describeValue(iss.input)}${hint ? ` — did you mean "${hint}"?` : ''})`;
+      },
+    },
+  )
+  .describe(
+    'Which tools the model may call, on any provider (ADR 0117): auto (the default), none, required (some tool), or { name: <tool> } (that tool). A provider that rejects forcing sends a weaker choice and marks the span llm.tool_choice.weakened. Replaces generateContentConfig.toolConfig.functionCallingConfig; cannot be combined with it.',
+  );
 
 const modelOverrideEntry = z
   .strictObject({
@@ -331,6 +354,7 @@ const agentFields = {
   reasoning: reasoningSchema.optional(),
   sampling: samplingSchema.optional(),
   output: outputSchemaV2.optional(),
+  tool_choice: toolChoiceSchema.optional(),
   model_overrides: modelOverridesSchema.optional(),
   outputSchema: z
     .record(z.string(), z.unknown())

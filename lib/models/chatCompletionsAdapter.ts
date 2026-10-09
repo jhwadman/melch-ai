@@ -64,6 +64,7 @@ import type {
   ModelResponse,
   NativeTool,
   OutputPart,
+  ReasoningLevel,
   ReasoningSetting,
   ToolCallPart,
   ToolChoice,
@@ -74,7 +75,7 @@ import type {
 } from './contract.ts';
 import { errorDecision, errorText, statusDecision } from './errorResponse.ts';
 import { currentTurnStart, providerStateOf } from './providerState.ts';
-import { reasoningConfig } from './reasoning.ts';
+import { effortCeiling as effortCeilingOf, effortWord } from './reasoning.ts';
 import { fetchWithRetry } from './retry.ts';
 import { toStrictJsonSchema } from './schemaNormalize.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
@@ -393,12 +394,27 @@ export abstract class ChatCompletionsAdapter implements ModelAdapter {
   /**
    * The body fields for the request's reasoning. Default: `reasoning_effort`
    * as the effort word ADR 0047 gives this model (lib/models/reasoning.ts),
-   * the field every chat-completions provider and gateway reads; nothing
-   * when the request sets no reasoning.
+   * the field every chat-completions provider and gateway reads, held at
+   * `reasoningCeiling(model)`; nothing when the request sets no reasoning.
    */
   protected reasoningFields(model: string, setting: ReasoningSetting | undefined): Record<string, unknown> {
-    const word = setting !== undefined ? (reasoningConfig(model, setting).reasoningEffort as string) : undefined;
-    return word !== undefined ? { reasoning_effort: word } : {};
+    return setting !== undefined ? { reasoning_effort: this.effortFor(model, setting) } : {};
+  }
+
+  /**
+   * The highest reasoning level this adapter sends as asked for `model`
+   * (ADR 0117). Default: the direct provider's (lib/models/reasoning.ts
+   * effortCeiling); the gateway holds every id at `high`.
+   */
+  protected reasoningCeiling(model: string): ReasoningLevel {
+    return effortCeilingOf(model);
+  }
+
+  /** The effort word for one setting, held at reasoningCeiling; a held level is marked on the span (`llm.reasoning.weakened`). */
+  protected effortFor(model: string, setting: ReasoningSetting): string {
+    const { word, weakened } = effortWord(model, setting, this.reasoningCeiling(model));
+    if (weakened) setLlmSpanAttribute('llm.reasoning.weakened', weakened);
+    return word;
   }
 
   /** Provider-specific body fields, merged last. */
