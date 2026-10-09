@@ -41,16 +41,17 @@ subagents:
     instruction: |
       Turn the request into a record: the city, the code word exactly as
       written, and the count as an integer.
-    outputSchema:
-      type: "OBJECT"
-      properties:
-        city:
-          type: "STRING"
-          description: "The city named in the request."
-        code:
-          type: "STRING"
-          description: "The code word, exactly as written in the request."
-        count:
-          type: "INTEGER"
-          description: "The count named in the request."
-      required: ["city", "code", "count"]
+    output:
+      schema:
+        type: "OBJECT"
+        properties:
+          city:
+            type: "STRING"
+            description: "The city named in the request."
+          code:
+            type: "STRING"
+            description: "The code word, exactly as written in the request."
+          count:
+            type: "INTEGER"
+            description: "The count named in the request."
+        required: ["city", "code", "count"]

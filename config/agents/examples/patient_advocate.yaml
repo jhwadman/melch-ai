@@ -136,11 +136,9 @@ orchestrator:
   tools:
     - "preload_memory"
     - "load_memory"
-  generateContentConfig:
-    maxOutputTokens: 8192
-    thinkingConfig:
-      thinkingLevel: "MEDIUM"
-      includeThoughts: false
+  sampling:
+    max_output_tokens: 8192
+  reasoning: medium
 
 subagents:
   - name: "MedScribe"
@@ -166,8 +164,6 @@ subagents:
       - A question that is not a clinical research question gets one line saying so, and no search.
     tools:
       - "google_search"
-    generateContentConfig:
-      maxOutputTokens: 4096
-      thinkingConfig:
-        thinkingLevel: "LOW"
-        includeThoughts: false
+    sampling:
+      max_output_tokens: 4096
+    reasoning: low

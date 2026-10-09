@@ -96,8 +96,8 @@ orchestrator:
         Tutor: "That is a fair ask after two tries, so here it is plainly: your passage says interest is computed on the principal plus the interest already accrued, which means each period's interest is calculated on a slightly larger base than the last. Reading that sentence now, which word tells you the base is growing?"
       </examples>
     </prompt_instructions>
-  generateContentConfig:
+  sampling:
     temperature: 0.6
-    maxOutputTokens: 2048
+    max_output_tokens: 2048
 
 subagents: []

@@ -225,11 +225,9 @@ orchestrator:
         - The cut-pipe photo shows a 2019 repair (@localeye, via image; contradicted by harwickherald.com)."
       </examples>
     </prompt_instructions>
-  generateContentConfig:
-    maxOutputTokens: 8192
-    thinkingConfig:
-      thinkingLevel: MEDIUM
-      includeThoughts: false
+  sampling:
+    max_output_tokens: 8192
+  reasoning: medium
 
 subagents:
   - name: "XResearcher"
@@ -295,11 +293,9 @@ subagents:
       verdicts, no advice. GAPS is the LAST line of your output — never
       append a summary, synthesis, or answer after it; the Arbiter is
       the only agent that writes answers.
-    generateContentConfig:
-      maxOutputTokens: 8192
-      thinkingConfig:
-        thinkingLevel: MEDIUM
-        includeThoughts: false
+    sampling:
+      max_output_tokens: 8192
+    reasoning: medium
 
   - name: "WebResearcher"
     description: "Web search + source reading: verifies specific claims and establishes the documented record from wire services, primary sources, and diverse outlets. Pass it the user's question verbatim, the [System Context] date line, and the claims XResearcher surfaced. MANDATORY second call for every substantive question. Returns a plain-text report in four sections, ESTABLISHED, CLAIM CHECK, CONTEXT and SOURCES, and no analysis."
@@ -344,8 +340,6 @@ subagents:
       or returns nothing, still emit every section, mark each handed
       claim UNVERIFIED with "no results", and say in SOURCES that the
       search failed or came back empty.
-    generateContentConfig:
-      maxOutputTokens: 8192
-      thinkingConfig:
-        thinkingLevel: MEDIUM
-        includeThoughts: false
+    sampling:
+      max_output_tokens: 8192
+    reasoning: medium

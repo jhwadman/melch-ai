@@ -103,38 +103,39 @@ subagents:
   - name: "SpecAuditor"
     description: "Compares an approved image spec (JSON payload) against a blind visual inventory (text). Pass BOTH verbatim in one message. Returns structured conformance JSON. It must NEVER receive the image itself."
     model: "gemini-3.8-flash"
-    generateContentConfig:
-      responseMimeType: "application/json"
-      maxOutputTokens: 4096
-    outputSchema:
-      type: "OBJECT"
-      properties:
-        fields:
-          type: "ARRAY"
-          description: "One entry per checkable spec field."
-          items:
-            type: "OBJECT"
-            properties:
-              field:
-                type: "STRING"
-                description: "The spec field checked, e.g. 'subject_matter.primary_focus'."
-              expected:
-                type: "STRING"
-                description: "What the approved spec demands, briefly."
-              observed:
-                type: "STRING"
-                description: "What the blind inventory reports, briefly."
-              verdict:
-                type: "STRING"
-                description: "match | mismatch | unverifiable (inventory is silent on it)."
-            required: ["field", "expected", "observed", "verdict"]
-        conformance:
-          type: "INTEGER"
-          description: "0-100: the share of checkable (non-unverifiable) fields that match."
-        recommendation:
-          type: "STRING"
-          description: "'accept', or 'regenerate' plus the single most important spec field to reinforce, or 'missing input: spec|inventory'."
-      required: ["fields", "conformance", "recommendation"]
+    sampling:
+      max_output_tokens: 4096
+    output:
+      schema:
+        type: "OBJECT"
+        properties:
+          fields:
+            type: "ARRAY"
+            description: "One entry per checkable spec field."
+            items:
+              type: "OBJECT"
+              properties:
+                field:
+                  type: "STRING"
+                  description: "The spec field checked, e.g. 'subject_matter.primary_focus'."
+                expected:
+                  type: "STRING"
+                  description: "What the approved spec demands, briefly."
+                observed:
+                  type: "STRING"
+                  description: "What the blind inventory reports, briefly."
+                verdict:
+                  type: "STRING"
+                  description: "match | mismatch | unverifiable (inventory is silent on it)."
+              required: ["field", "expected", "observed", "verdict"]
+          conformance:
+            type: "INTEGER"
+            description: "0-100: the share of checkable (non-unverifiable) fields that match."
+          recommendation:
+            type: "STRING"
+            description: "'accept', or 'regenerate' plus the single most important spec field to reinforce, or 'missing input: spec|inventory'."
+        required: ["fields", "conformance", "recommendation"]
+      mime: "application/json"
     instruction: |
       You are the SpecAuditor. You receive two texts: an approved image spec (JSON payload) and a blind visual inventory of the generated image. You never see the image, by design, and you must not ask for it. You judge conformance only; you do not judge beauty or suggest artistic changes.
       TASK: return one JSON verdict in the output schema, covering every spec field the inventory can speak to, then stop.

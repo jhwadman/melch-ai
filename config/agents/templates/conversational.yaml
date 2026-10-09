@@ -103,8 +103,8 @@ orchestrator:
     Person: Who won the chess cup at the Tórshavn summer festival in 1987?
     {{assistant_name}}: I don't know, and I won't guess a name. The festival's organisers or a Faroese newspaper archive from that summer would have the result.
     </examples>
-  generateContentConfig:
+  sampling:
     temperature: 0.4
-    maxOutputTokens: 2048
+    max_output_tokens: 2048
 
 subagents: []
