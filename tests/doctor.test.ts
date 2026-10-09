@@ -246,10 +246,11 @@ test('capability gaps: each agent row names what its path cannot fully do (ADR 0
       // tool loop (ADR 0046), so the path has no gap.
       assert.deepEqual(byAgent.Lead.gaps, []);
       // Ollama enforces the schema (json_schema, ADR 0096), so structured
-      // output is no gap; a thinking model with tools re-reasons each step.
+      // output alone is no gap; beside a tool it is a set_model_response call
+      // (ADR 0109), and a thinking model with tools re-reasons each step.
       assert.deepEqual(
         byAgent.Looker.gaps.map((g) => `${g.capability}:${g.support}`),
-        ['thinking_with_tools:degraded'],
+        ['structured_output_with_tools:degraded', 'thinking_with_tools:degraded'],
       );
       // A local model has no native search: the sentinel is dropped.
       assert.deepEqual(

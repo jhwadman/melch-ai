@@ -137,7 +137,7 @@ Field reference:
 | `tools` | agent | Names resolved by the tool registry (§3). Long-term memory agents add `preload_memory` / `load_memory`. |
 | `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude 4.6 and earlier (2,048 / 8,192 / 16,384 tokens for low / medium / high), adaptive thinking with that effort on later Claude models ([ADR 0049](./wiki/decisions/0049-claude-requests-by-model-generation.md)), an effort word on GPT, Grok, Kimi, Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). Unset, each adapter keeps its own default. |
 | `generateContentConfig` | agent | Temperature, output caps. Its `thinkingConfig` and `reasoningEffort` are the older, provider-specific spelling of `reasoning`; setting either next to `reasoning` is a load error. |
-| `outputSchema` | agent | Structured-JSON contract. **Constraint:** an agent holding `outputSchema` cannot also hold transfer powers — structured output does not combine with delegation on one agent. Keep schema-holders as leaf agents (see `critic.yaml`'s header comment for the war story). |
+| `outputSchema` | agent | Structured-JSON contract: the agent ends its turn on one JSON object matching it. An orchestrator may hold one beside its subagents: it delegates first, then answers in the schema itself. The schema travels in the provider's own structured-output field beside the tools on Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on OpenAI, and on Gemini 2+ through Vertex AI, and as a `set_model_response` tool elsewhere (the capability matrix's `structured_output_with_tools`, [ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md)). A leaf that holds the schema (`critic.yaml`) and plan-dispatch remain the choices when the answer should be a specialist's. |
 | `yaml_reference` | subagent | Mount another syndicate file as a nested subagent. |
 | `a2a_agent_url` | subagent | A REMOTE agent over A2A (§6): the orchestrator delegates to it with one `request` argument; in plan-dispatch it can be a route. No `model`/`instruction` — the remote agent has its own. Credentials come from `A2A_AGENT_TOKENS`, never YAML. |
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
@@ -1070,7 +1070,7 @@ orchestrator:
   model: "gemini-3.5-flash-lite"
   instruction: |
     Name exactly ONE specialist for this message. ...
-  outputSchema:                        # a leaf holding a schema — no subagent tools
+  outputSchema:                        # the router's schema; dispatch gives it no subagent tools
     type: "OBJECT"
     properties:
       route:  { type: "STRING", description: "Exact specialist name" }
@@ -1090,13 +1090,17 @@ Plan-dispatch has no relay turn to fail, and the classifier's output
 shrinks from a whole relayed answer to ~15 tokens of JSON.
 
 **Why the classifier is tool-less.** An agent that holds an
-`outputSchema` answers with that JSON and nothing else, so the schema sits
-on a leaf that delegates nothing (see `config/agents/examples/critic.yaml`,
-whose header also tells how an orchestrator holding both deadlocked on
-ADK before 1.0.0).
-That constraint shapes the method: the classifier is a leaf, and the
+`outputSchema` ends its turn on that JSON. The router's JSON names a
+route for code to run, so the router holds no subagent tools, and the
 hand-off happens in code, where it can be logged, traced, and streamed
-to the user as progress.
+to the user as progress. This is a choice of method, not a limit of the
+engine: an orchestrator may hold an `outputSchema` beside its subagents,
+delegate, and answer in the schema itself
+([ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md));
+under ADK, before 1.0.0, an orchestrator holding both deadlocked (see
+`config/agents/examples/critic.yaml`'s header). Choose plan-dispatch when
+the answer is the specialist's, and a schema on the orchestrator when the
+answer is its own structured judgment of what its team returned.
 
 **Sessions.** Every *route* runs in the shared `<contextId>` session, so
 one transcript accumulates across routes and long-term memory ingests

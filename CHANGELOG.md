@@ -6,6 +6,27 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **An orchestrator that delegates can answer in its own `outputSchema`**
+  (ADR 0109). An agent holding an `outputSchema` beside subagents or tools
+  calls them first, then ends its turn on one JSON object matching the
+  schema; no relay leaf or `dispatch:` block is needed (plan-dispatch stays
+  available). On Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on every
+  OpenAI id, and on Gemini 2 and later through Vertex AI, the schema now
+  travels in the provider's own structured-output field in the same request
+  as the tools (`output_config.format`, `text.format`, `responseJsonSchema`)
+  instead of as a `set_model_response` tool, on the agent's `fallback_model`
+  too; every other path keeps `set_model_response`. No YAML key changes.
+- **The capability matrix gains `structured_output_with_tools`**
+  (`melchizedek-agents/models/capabilities`): supported on Anthropic and
+  OpenAI (and Gemini on Vertex AI), degraded (`set_model_response`) on the
+  Gemini API, xAI, Moonshot, Ollama and the gateway. `npm run doctor` names
+  it as a gap for an agent with a schema beside tools on a degraded path.
+  `outputSchemaBesideTools(model)` says whether a model's path takes both.
+  `CAPABILITIES`, `Capability` and `CAPABILITY_MATRIX` gain the member, so
+  code that builds a `Record<Capability, …>` must add it.
+
 ## 1.0.2 — 2026-10-09
 
 A test and documentation patch. Nothing a consumer imports, configures or
