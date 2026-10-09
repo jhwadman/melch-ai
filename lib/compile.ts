@@ -392,12 +392,6 @@ function specOf(
 
 const asTools = (tools: unknown[]): SpecTool[] => tools.map((tool) => ({ kind: 'tool', tool }));
 
-/**
- * A nested `yaml_reference:` syndicate, loaded. A nested syndicate runs
- * inside a tool call (or as a route whose own subagents do): a pause there
- * cannot reach the caller (ADR 0028), so one that declares approval gates is
- * refused.
- */
 /** Where the yaml_reference chain a compile is inside is kept: an own symbol on the options, so a spread copy keeps it. */
 const NESTING = Symbol('melchizedek.compile.nesting');
 
@@ -418,13 +412,29 @@ function nestedOptions(ref: string, opts: CompileOptions): CompileOptions {
   return { ...opts, [NESTING]: [...chain, ref] } as CompileOptions;
 }
 
-function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlConfig {
+/**
+ * A nested `yaml_reference:` syndicate, loaded, with the approval gates that
+ * cannot pause where it runs refused by name (ADR 0110, ADR 0111):
+ *   - a nested delegate syndicate's gates pause the turn through the open
+ *     call, wherever it runs;
+ *   - a nested dispatch syndicate runs its classifier alone (compileSpec
+ *     lists no route on it), so its orchestrator may gate, and a gate on a
+ *     route, which never runs nested, is refused;
+ *   - a nested workflow's gates pause the walk, which reaches the caller
+ *     only through a delegated call's open call (`delegated`): as a
+ *     dispatch route or a workflow node, its pause cannot reach the turn
+ *     yet, so they are refused there.
+ */
+function loadNestedSyndicate(ref: string, opts: CompileOptions, delegated = false): SyndicateYamlConfig {
   opts.log?.(`Loading nested syndicate: ${ref}`);
   const nested = (opts.loadNested ?? loadSyndicate)(ref);
-  // A nested delegate syndicate's gates pause the turn through the open call (ADR 0110). A nested workflow's
-  // pause cannot reach its caller yet, and a nested dispatch syndicate runs its classifier alone.
-  if (declaresApprovals(nested) && (isWorkflowSyndicate(nested) || isDispatchSyndicate(nested))) {
-    throw new Error(`${ref}: approval gates (require_approval) are not supported inside a nested ${isWorkflowSyndicate(nested) ? 'workflow' : 'dispatch'} syndicate.`);
+  if (isDispatchSyndicate(nested)) {
+    const gated = (nested.subagents ?? []).find((s) => agentGates(s));
+    if (gated) {
+      throw new Error(`${ref}: approval gates (require_approval, or skill scripts) on the route '${gated.name}' never run: a nested dispatch syndicate runs its classifier alone. Gate the classifier, or run the syndicate as its own.`);
+    }
+  } else if (isWorkflowSyndicate(nested) && !delegated && declaresApprovals(nested)) {
+    throw new Error(`${ref}: approval gates (require_approval, or skill scripts) in a workflow run as a dispatch route or a workflow node cannot pause the turn yet; delegate to the workflow as a subagent, or run it as its own syndicate.`);
   }
   return nested;
 }
@@ -435,9 +445,10 @@ function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlCo
  * lookup for its tool nodes. `name` and `description` name a nested one
  * after its subagent entry (ADR 0098); `ref` is the file it came from.
  *
- * A nested workflow runs inside its caller's tool call, so a pause inside it
- * could not reach the caller (ADR 0028, as for any nested syndicate): an
- * `ask_user` node is refused by name here.
+ * A nested workflow delegated to as a subagent (`delegated`) pauses through
+ * its caller's open call (ADR 0111). Run as a dispatch route or a workflow
+ * node, its pause cannot reach the turn yet: an `ask_user` node is refused
+ * by name there.
  */
 export async function compileWorkflowSpec(
   config: SyndicateYamlConfig,
@@ -445,13 +456,14 @@ export async function compileWorkflowSpec(
   name?: string,
   description?: string,
   ref?: string,
+  delegated = false,
 ): Promise<WorkflowSpec> {
   if (!isWorkflowSyndicate(config)) throw new Error(`${config.syndicate_name}: no workflow block`);
-  if (name) {
+  if (name && !delegated) {
     const asking = Object.entries(config.workflow.nodes ?? {}).find(([, node]) => nodeKind(node) === 'ask_user');
     if (asking) {
       throw new Error(
-        `${ref ?? config.syndicate_name}: the ask_user node '${asking[0]}' pauses for a person, which a workflow nested in another syndicate (${name}) cannot carry to its caller; run the workflow as its own syndicate, or remove the node.`,
+        `${ref ?? config.syndicate_name}: the ask_user node '${asking[0]}' pauses for a person, which a workflow run as a dispatch route or a workflow node (${name}) cannot carry to the turn yet; delegate to the workflow as a subagent, run it as its own syndicate, or remove the node.`,
       );
     }
   }
@@ -496,13 +508,15 @@ export type EntrySpec = { kind: 'agent'; spec: AgentSpec } | { kind: 'workflow';
  * as its whole graph under the entry's name and description. A delegated
  * subagent, a dispatch route and a workflow node all compile through here,
  * so the graph a file describes is the graph that runs (ADR 0106).
+ * `delegated` marks a delegated subagent's entry, whose nested workflow may
+ * pause (ADR 0111).
  */
-export async function compileEntrySpec(subCfg: SubagentYamlConfig, opts: CompileOptions = {}): Promise<EntrySpec> {
+export async function compileEntrySpec(subCfg: SubagentYamlConfig, opts: CompileOptions = {}, delegated = false): Promise<EntrySpec> {
   if (subCfg.yaml_reference && !subCfg.a2a_agent_url) {
     const nestedOpts = nestedOptions(subCfg.yaml_reference, opts);
-    const nested = loadNestedSyndicate(subCfg.yaml_reference, nestedOpts);
+    const nested = loadNestedSyndicate(subCfg.yaml_reference, nestedOpts, delegated);
     if (isWorkflowSyndicate(nested)) {
-      return { kind: 'workflow', workflow: await compileWorkflowSpec(nested, nestedOpts, subCfg.name, subCfg.description, subCfg.yaml_reference) };
+      return { kind: 'workflow', workflow: await compileWorkflowSpec(nested, nestedOpts, subCfg.name, subCfg.description, subCfg.yaml_reference, delegated) };
     }
     return { kind: 'agent', spec: await compileSpec(nested, nestedOpts, subCfg.name, subCfg.description) };
   }
@@ -578,7 +592,8 @@ export async function compileSpec(
             opts.log?.(`Remote A2A agent: ${subCfg.name} → ${subCfg.a2a_agent_url}`);
             return { kind: 'remote', name: subCfg.name, description: subCfg.description, url: subCfg.a2a_agent_url };
           }
-          const entry = await compileEntrySpec(subCfg, opts);
+          // A delegated subagent: a pause inside it, a nested workflow's included, reaches the caller (ADR 0110, ADR 0111).
+          const entry = await compileEntrySpec(subCfg, opts, true);
           return entry.kind === 'workflow' ? entry : { kind: 'agent', agent: entry.spec };
         }),
       );

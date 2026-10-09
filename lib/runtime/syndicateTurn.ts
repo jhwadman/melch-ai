@@ -630,7 +630,7 @@ async function runTurnInner(
   // must name the request still open in this conversation.
   const decision = approvalDecisionIn(parts);
   // Pauses inside delegated subagents (ADR 0110): what waits below a call an agent of this conversation left open.
-  const delegationKey = { sessions: sessionService, userId, sessionId };
+  const delegationKey = { sessions: sessionService, userId, sessionId, appName };
   /** The first pause waiting below an open delegated call in this conversation, `author`'s calls only when given. */
   const pauseBelow = async (events: readonly TurnEvent[], author?: string): Promise<DelegatedPause | undefined> =>
     isWorkflowSyndicate(config) ? undefined : (await delegatedPauses(delegationKey, events, author))[0];

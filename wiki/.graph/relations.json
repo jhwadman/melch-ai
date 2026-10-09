@@ -2954,6 +2954,55 @@
       "evidence": "lib/tools/oauthHosts.ts header: a registry-stored YAML could name a provider another syndicate users granted and point a tool at its own host; the allowlist is the binding that closes this (ADR 0112 Consequences).",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0111 Context and Decision 3: ADR 0110's propagation carried through yaml_reference; a paused walk resolves to a SubagentPause and resumes through resumedDelegations.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0074: \"ADR 0111 supersedes Decision 1's session key: the child session is filed under the agent path\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 1's session key only"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0111 Decision 3: resumeWorkflowSubagent walks the graph again on the answer, and \"The walk's own resume binds it\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0111 Decisions 3, 5 and 6: walkChild resolves a paused walk to a SubagentPause; childAppName and legacyChild key the child session.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0111 Decisions 2 to 4: loadNestedSyndicate refuses a nested dispatch route gate; compileEntrySpec and compileWorkflowSpec take delegated.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0111 Decision 3: delegatedPauses finds a nested walk by the workflow's own pause record and reports the node's request or question.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

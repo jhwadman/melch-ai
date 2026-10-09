@@ -52,6 +52,8 @@ Running ADK 2.2 showed:
 8. **ADK refuses a gated workflow.** `runSyndicateTurn` throws `UnsupportedOnRuntimeError` on ADK for a workflow syndicate that declares approvals, before the session is touched.
 9. **The schema lifts the refusal, except under a map.** `require_approval` is allowed on a workflow node's agent. It is refused on an agent a `map` node runs, because a map item cannot pause the walk (ADR 0094). `lib/workflow/graph.ts` keeps the same rule and message. Skill scripts stay refused inside a workflow.
 
+> **Note (2026-10-09):** [ADR 0111](/decisions/0111-pauses-inside-nested-syndicates.md) lifts the refusal of a nested workflow's `ask_user` node and gates when the workflow is a delegated subagent; as a dispatch route or a workflow node they stay refused.
+
 ## Alternatives considered
 
 - **Wrap the Workflow in a tool of the engine's own on ADK.** It would let ADK answer with the terminal node's `output` rather than the last event's text. But ADK's `AgentTool` already runs a `Workflow`, and ADK is the specification where it runs. The two answers agree whenever the last event is the terminal node's.

@@ -140,7 +140,7 @@ import { MAX_VALUE_DEPTH, nestedDeeperThan } from '../valueDepth.ts';
 import { currentTurnSignal } from '../turnControl.ts';
 import { compactBeforeStep } from './compaction.ts';
 import { ADK_CALL_ID_PREFIX } from './history.ts';
-import { SubagentPause, resumeSubagent, runSubagent, runWorkflowSubagent, subagentOf, workflowSubagentOf } from './delegate.ts';
+import { SubagentPause, resumeSubagent, resumeWorkflowSubagent, runSubagent, runWorkflowSubagent, subagentOf, workflowSubagentOf } from './delegate.ts';
 import { approvedCalls, grantedCalls, resumedDelegations } from './interrupts.ts';
 import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
@@ -196,6 +196,12 @@ export interface AgentLoopContext extends Omit<ModelStepOptions, 'agent' | 'adap
    * a delegated subagent's loop.
    */
   consent?: Pick<OAuthConsent, 'has' | 'begin'>;
+  /**
+   * The run is a delegated subagent's, on its own child session filed under
+   * its agent path (lib/runtime/native/delegate.ts childAppName, ADR 0111):
+   * its own delegations are filed below that path. Set by runChild only.
+   */
+  delegated?: boolean;
 }
 
 /** How the run ended. */
@@ -489,7 +495,7 @@ async function runCall(
   // Delegation (WS2-6): a subagent runs as its own child loop, a nested workflow as its own walk (ADR 0098), before the generic path (delegate.ts).
   const subagent = subagentOf(tool);
   const workflow = subagent ? undefined : workflowSubagentOf(tool);
-  const delegation = { ctx: scope.ctx, stateBase: scope.stateBase, signal: scope.signal, runLoop: runAgentLoop, queue: scope };
+  const delegation = { ctx: scope.ctx, caller: scope.agent.name, stateBase: scope.stateBase, signal: scope.signal, runLoop: runAgentLoop, queue: scope };
 
   let response: unknown;
   let failure: unknown;
@@ -499,7 +505,9 @@ async function runCall(
         ? await resumeSubagent(subagent, resume, context, delegation)
         : await runSubagent(subagent, args, context, delegation)
       : workflow
-        ? await runWorkflowSubagent(workflow, args, context, delegation)
+        ? resume
+          ? await resumeWorkflowSubagent(workflow, resume, context, delegation)
+          : await runWorkflowSubagent(workflow, args, context, delegation)
         : await runOwnTool(tool, args, context);
   } catch (e) {
     failure = e instanceof Error ? e.message : e;
@@ -672,7 +680,10 @@ async function resumeDelegations(
 ): Promise<{ response?: TurnEvent; paused: string[] } | 'stopped' | undefined> {
   const resumed = await resumedDelegations(agent, ctx, ctx.sessions);
   if (!resumed) return undefined;
-  const calls = resumed.calls.filter((c) => subagentOf(resumed.tools.get(c.name ?? '')));
+  const calls = resumed.calls.filter((c) => {
+    const tool = resumed.tools.get(c.name ?? '');
+    return subagentOf(tool) || workflowSubagentOf(tool);
+  });
   if (calls.length === 0) return undefined;
   const signal = eitherSignal(ctx.signal, currentTurnSignal());
   const scope: CallScope = { agent, ctx, stateBase, selfCorrection, ...(signal ? { signal } : {}) };

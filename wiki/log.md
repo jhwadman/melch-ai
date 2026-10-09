@@ -3,6 +3,30 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —constrains→ module:lib/runtime/native/delegate.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —depends_on→ /decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —supersedes→ /decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0111-pauses-inside-nested-syndicates.md —depends_on→ /decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | module:lib/tools/oauthHosts.ts —mitigates→ /decisions/0112-oauth-grants-declared-beside-the-tool.md
 
 by claude-code/claude-opus-5-5

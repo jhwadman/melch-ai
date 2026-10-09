@@ -122,7 +122,7 @@ test('approve in a child: the turn pauses with the path, the answer runs the pin
   assert.match(first.text, /^Approval needed: Scout wants to run dp_send/);
   assert.deepEqual(sent, [], 'nothing ran before the decision');
   // The request lives in the child's session, in the shape the engine always stored; the caller's holds the open call.
-  assert.deepEqual(callNames(await c.events('Scout')), ['dp_send', 'adk_request_confirmation']);
+  assert.deepEqual(callNames(await c.events('app/Boss/Scout')), ['dp_send', 'adk_request_confirmation']);
   assert.deepEqual(callNames(await c.events('app')), ['Scout']);
 
   const second = await c.turn([approvalResponsePart(first.approval!.id, true) as MessagePart]);
@@ -231,7 +231,7 @@ test('two levels deep: a gate in a nested syndicate’s subagent pauses the turn
   assert.deepEqual(first.approval?.path, ['Boss', 'Team', 'Scout']);
   assert.equal(first.approval?.agent, 'Scout');
   assert.deepEqual(callNames(await c.events('app')), ['Team']);
-  assert.deepEqual(callNames(await c.events('Team')), ['Scout']);
+  assert.deepEqual(callNames(await c.events('app/Boss/Team')), ['Scout']);
 
   const second = await c.turn([approvalResponsePart(first.approval!.id, true) as MessagePart]);
   assert.equal(second.status, 'completed', second.error?.message);

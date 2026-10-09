@@ -268,7 +268,7 @@ test('a nested workflow with an ask_user node is refused by name as a route and 
     const models = Object.fromEntries(Object.entries(scripts()).map(([key, s]) => [key, new ScriptedModel(`scripted/${key}`, s)]));
     await assert.rejects(
       runSyndicateTurn({ config: cfg, parts: [{ text: 'cats' }], appName: 'app', userId: 'u', sessionId: 's', sessionService: new InProcessSessionService(), compile: { resolveModel: shimResolver(models), loadNested: () => asking, log: () => {} }, trace: false }),
-      /pipeline\.yaml: the ask_user node 'Confirm' pauses for a person, which a workflow nested in another syndicate \(Writer\) cannot carry to its caller/,
+      /pipeline\.yaml: the ask_user node 'Confirm' pauses for a person, which a workflow run as a dispatch route or a workflow node \(Writer\) cannot carry to the turn yet/,
     );
   }
 });

@@ -178,11 +178,181 @@ the starter pack and the templates), not the repo's full history.
   engine does: a non-recording one, without starting the tracer, inside an
   untraced turn.
 
+- **An orchestrator that delegates can answer in its own `outputSchema`**
+  (ADR 0109). An agent holding an `outputSchema` beside subagents or tools
+  calls them first, then ends its turn on one JSON object matching the
+  schema; no relay leaf or `dispatch:` block is needed (plan-dispatch stays
+  available). On Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on every
+  OpenAI id, and on Gemini 2 and later through Vertex AI, the schema now
+  travels in the provider's own structured-output field in the same request
+  as the tools (`output_config.format`, `text.format`, `responseJsonSchema`)
+  instead of as a `set_model_response` tool, on the agent's `fallback_model`
+  too; every other path keeps `set_model_response`. No YAML key changes.
+- **The capability matrix gains `structured_output_with_tools`**
+  (`melchizedek-agents/models/capabilities`): supported on Anthropic and
+  OpenAI (and Gemini on Vertex AI), degraded (`set_model_response`) on the
+  Gemini API, xAI, Moonshot, Ollama and the gateway. `npm run doctor` names
+  it as a gap for an agent with a schema beside tools on a degraded path.
+  `outputSchemaBesideTools(model)` says whether a model's path takes both.
+  `CAPABILITIES`, `Capability` and `CAPABILITY_MATRIX` gain the member, so
+  code that builds a `Record<Capability, …>` must add it.
+- **OAuth grants in YAML (`auth: { oauth2 }`, `mcp_auth: { oauth2 }`;
+  ADR 0112).** An `openapi:` entry's `auth` takes a third form, `oauth2`,
+  and an agent with `mcp_server_url` may declare `mcp_auth: { oauth2 }`.
+  The block names a `provider`, a `grant` (`authorization_code` or
+  `client_credentials`), `authorization_url`, `token_url`, `client_id` or
+  `client_id_env`, `client_secret_env` and `scopes`; secrets are
+  environment variable names, never values, under the same rule as
+  `bearer_env`. `authorization_code` sends the run's user's own token
+  (`ctx.accessToken`, so the consent pause asks a user who has not granted
+  it); `client_credentials` sends the server's own token from the token
+  endpoint, held in memory until shortly before it expires. A token goes
+  only over https (or http to a loopback host). An authorization-code MCP
+  server needs `mcp_tools` and runs each user on their own connection.
+  `npm run doctor` lists every tool that needs a grant. New module
+  `melchizedek-agents/tools/oauthTools` (`oauthClientsFor`, which builds
+  `oauthConsent({ providers })` from the YAML, `oauthRefreshProviders`,
+  which gives `credentialStore({ providers })` the matching refresh hooks,
+  `clientCredentialsGrant`,
+  `oauthTokenSource`, `tokenTransportProblem`) and
+  `melchizedek-agents/tools/credentialEnv` (`credentialEnvProblem`, still
+  exported from `tools/openapiTools`), both under the existing `./tools/*`
+  export. `ToolCredentialError` gains the codes `unavailable` and
+  `grant_failed`, and `createMcpTools` / `loadMcpTools` an optional second
+  argument. The systems_operator template carries a commented
+  `mcp_auth` block.
+
+- **A pause inside a delegated subagent reaches the turn** (WS6-2a,
+  [ADR 0110](./wiki/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md)).
+  `require_approval` and `ask_user` are allowed on a delegated subagent, and
+  gates inside a nested delegate syndicate (`yaml_reference`) no longer fail
+  to load. The turn ends `input-required` with the request or question; the
+  decision or answer goes back down to the subagent, which finishes before
+  its caller continues. Before, a gate there was a load error and a pause
+  answered the call with an empty text.
+- `PendingApproval.path` and `PendingInput.path` (optional): the agents from
+  the turn's own agent down to the one that asked, set only for a pause
+  inside a delegated subagent. The A2A `approval_request` and
+  `input_request` data parts carry `path` beside their fields when it is set.
+- `delegatedPauses`, `openCalls`, `resumedDelegations` in
+  `lib/runtime/native/interrupts.ts` and `resumeSubagent`, `SubagentPause` in
+  `lib/runtime/native/delegate.ts` (engine internals; no exports map entry).
+- **Pauses inside nested syndicates reach the turn** (WS6-2b,
+  [ADR 0111](./wiki/decisions/0111-pauses-inside-nested-syndicates.md)). An
+  approval request or `ask_user` question raised inside a `yaml_reference`
+  subagent ends the turn `input-required` with the agent path, over
+  `runSyndicateTurn` and A2A, and the answer resumes it. A nested dispatch
+  syndicate may gate its classifier (a gate on one of its routes, which never
+  run nested, is refused by name). A nested workflow delegated to as a
+  subagent may hold `ask_user` nodes and gated agent nodes; the path ends at
+  the node. As a dispatch route or a workflow node, a nested workflow's
+  pauses stay refused, with a message that says so.
+- `resumeWorkflowSubagent`, `childAppName`, `legacyChild` in
+  `lib/runtime/native/delegate.ts` (engine internals; no exports map entry).
+
+- **An orchestrator that delegates can answer in its own `outputSchema`**
+  (ADR 0109). An agent holding an `outputSchema` beside subagents or tools
+  calls them first, then ends its turn on one JSON object matching the
+  schema; no relay leaf or `dispatch:` block is needed (plan-dispatch stays
+  available). On Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on every
+  OpenAI id, and on Gemini 2 and later through Vertex AI, the schema now
+  travels in the provider's own structured-output field in the same request
+  as the tools (`output_config.format`, `text.format`, `responseJsonSchema`)
+  instead of as a `set_model_response` tool, on the agent's `fallback_model`
+  too; every other path keeps `set_model_response`. No YAML key changes.
+- **The capability matrix gains `structured_output_with_tools`**
+  (`melchizedek-agents/models/capabilities`): supported on Anthropic and
+  OpenAI (and Gemini on Vertex AI), degraded (`set_model_response`) on the
+  Gemini API, xAI, Moonshot, Ollama and the gateway. `npm run doctor` names
+  it as a gap for an agent with a schema beside tools on a degraded path.
+  `outputSchemaBesideTools(model)` says whether a model's path takes both.
+  `CAPABILITIES`, `Capability` and `CAPABILITY_MATRIX` gain the member, so
+  code that builds a `Record<Capability, …>` must add it.
+- **OAuth grants in YAML (`auth: { oauth2 }`, `mcp_auth: { oauth2 }`;
+  ADR 0112).** An `openapi:` entry's `auth` takes a third form, `oauth2`,
+  and an agent with `mcp_server_url` may declare `mcp_auth: { oauth2 }`.
+  The block names a `provider`, a `grant` (`authorization_code` or
+  `client_credentials`), `authorization_url`, `token_url`, `client_id` or
+  `client_id_env`, `client_secret_env` and `scopes`; secrets are
+  environment variable names, never values, under the same rule as
+  `bearer_env`. `authorization_code` sends the run's user's own token
+  (`ctx.accessToken`, so the consent pause asks a user who has not granted
+  it); `client_credentials` sends the server's own token from the token
+  endpoint, held in memory until shortly before it expires. A token goes
+  only over https (or http to a loopback host). An authorization-code MCP
+  server needs `mcp_tools` and runs each user on their own connection.
+  `npm run doctor` lists every tool that needs a grant. New module
+  `melchizedek-agents/tools/oauthTools` (`oauthClientsFor`, which builds
+  `oauthConsent({ providers })` from the YAML, `oauthRefreshProviders`,
+  which gives `credentialStore({ providers })` the matching refresh hooks,
+  `clientCredentialsGrant`,
+  `oauthTokenSource`, `tokenTransportProblem`) and
+  `melchizedek-agents/tools/credentialEnv` (`credentialEnvProblem`, still
+  exported from `tools/openapiTools`), both under the existing `./tools/*`
+  export. `ToolCredentialError` gains the codes `unavailable` and
+  `grant_failed`, and `createMcpTools` / `loadMcpTools` an optional second
+  argument. The systems_operator template carries a commented
+  `mcp_auth` block.
+
+- **A pause inside a delegated subagent reaches the turn** (WS6-2a,
+  [ADR 0110](./wiki/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md)).
+  `require_approval` and `ask_user` are allowed on a delegated subagent, and
+  gates inside a nested delegate syndicate (`yaml_reference`) no longer fail
+  to load. The turn ends `input-required` with the request or question; the
+  decision or answer goes back down to the subagent, which finishes before
+  its caller continues. Before, a gate there was a load error and a pause
+  answered the call with an empty text.
+- `PendingApproval.path` and `PendingInput.path` (optional): the agents from
+  the turn's own agent down to the one that asked, set only for a pause
+  inside a delegated subagent. The A2A `approval_request` and
+  `input_request` data parts carry `path` beside their fields when it is set.
+- `delegatedPauses`, `openCalls`, `resumedDelegations` in
+  `lib/runtime/native/interrupts.ts` and `resumeSubagent`, `SubagentPause` in
+  `lib/runtime/native/delegate.ts` (engine internals; no exports map entry).
+
+- **An orchestrator that delegates can answer in its own `outputSchema`**
+  (ADR 0109). An agent holding an `outputSchema` beside subagents or tools
+  calls them first, then ends its turn on one JSON object matching the
+  schema; no relay leaf or `dispatch:` block is needed (plan-dispatch stays
+  available). On Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on every
+  OpenAI id, and on Gemini 2 and later through Vertex AI, the schema now
+  travels in the provider's own structured-output field in the same request
+  as the tools (`output_config.format`, `text.format`, `responseJsonSchema`)
+  instead of as a `set_model_response` tool, on the agent's `fallback_model`
+  too; every other path keeps `set_model_response`. No YAML key changes.
+- **The capability matrix gains `structured_output_with_tools`**
+  (`melchizedek-agents/models/capabilities`): supported on Anthropic and
+  OpenAI (and Gemini on Vertex AI), degraded (`set_model_response`) on the
+  Gemini API, xAI, Moonshot, Ollama and the gateway. `npm run doctor` names
+  it as a gap for an agent with a schema beside tools on a degraded path.
+  `outputSchemaBesideTools(model)` says whether a model's path takes both.
+  `CAPABILITIES`, `Capability` and `CAPABILITY_MATRIX` gain the member, so
+  code that builds a `Record<Capability, …>` must add it.
+- **`turnUntraced()`** (`melchizedek-agents/runtime/turnControl`) says
+  whether the running code belongs to a turn that opted out of tracing;
+  `createTurnControl` takes `untraced`, and `TurnControl` carries it.
+  **`startEngineSpan(tracerName, name, options?)`**
+  (`melchizedek-agents/observability/tracer`) starts a span the way the
+  engine does: a non-recording one, without starting the tracer, inside an
+  untraced turn.
+
 ### Changed
 
 - **`OAuthTokenSource` takes the call's destination** (`(ctx,
   destination)`), and `oauthTokenSource` accepts several servers; both are
   new in this release (ADR 0112).
+- **An OpenAPI `auth` that sets two forms** now reads "exactly one of
+  bearer_env, api_key or oauth2" (was "exactly one of bearer_env or
+  api_key").
+
+- **A delegated subagent's own session is filed under its agent path**
+  (WS6-2b, ADR 0111): `<app>/<caller>/<subagent>`, and below a nested
+  syndicate `<app>/<caller>/<subagent>/<inner>`, instead of the subagent's
+  name alone, so two syndicates with a same-named subagent on one
+  conversation no longer share it. A conversation stored before keeps its
+  subagents' sessions under the old key: they are still read, continued and
+  resumed. Code that read a subagent's session directly by its name reads
+  the path instead. The stored events do not change.
 - **An OpenAPI `auth` that sets two forms** now reads "exactly one of
   bearer_env, api_key or oauth2" (was "exactly one of bearer_env or
   api_key").

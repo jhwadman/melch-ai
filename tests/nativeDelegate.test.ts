@@ -95,8 +95,16 @@ const nativeGraphOf = (config: SyndicateYamlConfig, nested: Nested): Promise<Nat
   compileNativeGraph(config, { log: () => {}, loadNested: (ref) => nested[ref] as SyndicateYamlConfig });
 
 /** Every agent name a subagent session may be kept under. */
-function agentNames(config: SyndicateYamlConfig, nested: Nested): string[] {
-  return (config.subagents ?? []).flatMap((s) => [s.name, ...(s.yaml_reference ? agentNames(nested[s.yaml_reference] as SyndicateYamlConfig, nested) : [])]);
+/**
+ * Each subagent's session: the name ADK filed it under, and the agent path
+ * the engine files it under (delegate.ts childAppName, ADR 0111), which a
+ * nested syndicate's own subagents extend.
+ */
+function agentKeys(config: SyndicateYamlConfig, nested: Nested, parent = `${APP}/${config.orchestrator.name}`): Array<[string, string]> {
+  return (config.subagents ?? []).flatMap((s): Array<[string, string]> => {
+    const key = `${parent}/${s.name}`;
+    return [[s.name, key], ...(s.yaml_reference ? agentKeys(nested[s.yaml_reference] as SyndicateYamlConfig, nested, key) : [])];
+  });
 }
 
 // ── ADK's recorded side and the native run ───────────────────────────────────
@@ -183,8 +191,9 @@ async function runNative(config: SyndicateYamlConfig, nested: Nested, scripts: M
     }
   }
   const sessions: Record<string, TurnEvent[]> = {};
-  for (const app of [APP, ...agentNames(config, nested)]) {
-    const s = await store.get({ appName: app, userId: USER, sessionId: 's1' });
+  // Each session under the name ADK's recording files it under: the stored events are the same, only the key moved (ADR 0111).
+  for (const [app, key] of [[APP, APP] as [string, string], ...agentKeys(config, nested)]) {
+    const s = await store.get({ appName: key, userId: USER, sessionId: 's1' });
     if (s) sessions[app] = plain(s.events);
   }
   return { ends, sessions, models };

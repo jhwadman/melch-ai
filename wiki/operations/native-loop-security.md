@@ -130,11 +130,11 @@ What does not stop it: a `{key}` placeholder puts state, which a tool or a model
 
 ## Delegation and nested workflows
 
-**What can go wrong.** A `yaml_reference` chain that reaches itself recurses at compile until the stack gives out; a subagent loops; a nested workflow walks without end; a pause inside a subagent reaches the caller.
+**What can go wrong.** A `yaml_reference` chain that reaches itself recurses at compile until the stack gives out; a subagent loops; a nested workflow walks without end; a decision forged for a pause inside a subagent runs a call the person never saw; two syndicates' same-named subagents read each other's history.
 
-**What stops it.** The compile refuses a chain that reaches itself, or that goes past 16 levels, by name and before any model call (`nestedOptions`, `lib/compile.ts`). Every model call of every agent in the turn counts against one `max_steps` (default 50), and a subagent runs under the turn's signal and deadline. A pause inside a subagent ends the child run and answers `''`; the gated tool never runs ([ADR 0028](/decisions/0028-approval-gates.md)).
+**What stops it.** The compile refuses a chain that reaches itself, or that goes past 16 levels, by name and before any model call (`nestedOptions`, `lib/compile.ts`). Every model call of every agent in the turn counts against one `max_steps` (default 50), and a subagent runs under the turn's signal and deadline. A pause inside a subagent, a nested syndicate or a delegated nested workflow leaves the call open and ends the turn `input-required` with the agent path ([ADR 0110](/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md), [ADR 0111](/decisions/0111-pauses-inside-nested-syndicates.md)). The walk that finds it follows only calls an agent made and left open, at most 16 levels and never into a name already on its path, and only a request authored by the subagent (or, in a nested workflow, one its pause record names) counts. A decision must name that request, or the turn fails `NO_PENDING_APPROVAL`; in the child it binds to the pinned call as at the top (`approvedCalls`, every `IntentMismatchError` check). Each subagent's session is filed under its agent path (`childAppName`); a session under the old key is continued only for a caller that called the subagent there before.
 
-**Tests.** `tests/compile.test.ts` (a chain that reaches itself or goes too deep); `tests/nativeDelegate.test.ts` (`max_steps` across the turn, the default 50, cancel and deadline inside a subagent, a pause inside a subagent stays refused).
+**Tests.** `tests/compile.test.ts` (a chain that reaches itself or goes too deep); `tests/nativeDelegate.test.ts` (`max_steps` across the turn, the default 50, cancel and deadline inside a subagent, a paused child leaves the call open); `tests/delegatedPauses.test.ts` and `tests/nestedPauses.test.ts` (a mismatched decision, nested pauses, separate sessions by path, old keys).
 
 ## Compaction
 

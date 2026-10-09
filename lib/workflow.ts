@@ -41,16 +41,20 @@
  * A delegated `yaml_reference` to a workflow syndicate is the whole graph,
  * walked under the subagent entry's name and description on a child
  * session (lib/compileNative.ts workflowSubagentOf); its answer is the
- * graph's last event's text. A nested workflow with an
- * `ask_user` node is refused by name (lib/compile.ts compileWorkflowSpec): a
- * pause inside a tool call cannot reach the caller (ADR 0028).
+ * graph's last event's text. A walk that pauses (an `ask_user` node, a
+ * gated agent node) leaves the call open, and the turn ends input-required
+ * with the agent path down to the node; the answer walks the graph again
+ * (lib/runtime/native/delegate.ts resumeWorkflowSubagent, ADR 0111).
  *
  * ── As a dispatch route or a workflow node (ADR 0106) ────────────────────
  * A `yaml_reference` to a workflow syndicate runs its whole graph there too,
  * on the child session filed under the entry's name, as a subagent does. A
  * route's answer is what the graph would answer as its own syndicate
  * (lib/runtime/syndicateTurn.ts); a node's is the nested walk's
- * (lib/workflow/turn.ts). A map over one is refused (lib/compile.ts).
+ * (lib/workflow/turn.ts). A map over one is refused (lib/compile.ts), and
+ * so are its pauses (an `ask_user` node, a gate): they cannot reach the
+ * turn from a route or a node yet (lib/compile.ts compileWorkflowSpec,
+ * loadNestedSyndicate).
  *
  * ── Approval gates (ADR 0098, ADR 0106) ──────────────────────────────────
  * A tool in a node agent's `require_approval`, and a skill script
