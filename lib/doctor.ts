@@ -48,6 +48,9 @@ import { PROVIDERS } from './models/providerMap.ts';
 import type { ProviderId } from './models/providerMap.ts';
 import { describeRuntime } from './runtime/runtimeFlag.ts';
 import { agentOAuthGrants, oauthEnvNames } from './tools/oauthTools.ts';
+import { grantHostProblems, OAUTH_REDIRECT_URI_ENV, oauthEnvProblems } from './a2a/oauthSetup.ts';
+import { CREDENTIAL_KEY_ENV } from './tools/credentialCipher.ts';
+import { OAUTH_HOSTS_ENV } from './tools/oauthHosts.ts';
 import type { RuntimeName, RuntimeSource } from './runtime/runtimeFlag.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -90,6 +93,19 @@ export interface DoctorGrant {
   scopes: string[];
   /** The variables the grant reads that are not set here. */
   missingEnv: string[];
+  /** Why the operator's OAuth host allowlist refuses this grant here (ADR 0114); empty when it is permitted. */
+  hostProblems: string[];
+}
+
+/**
+ * The server's OAuth setup under this environment (ADR 0114): which of its
+ * variables are set, and what is wrong, names only. Present when a
+ * syndicate declares a grant or any of the variables is set.
+ */
+export interface DoctorOAuth {
+  /** Which of MELCHIZEDEK_CREDENTIAL_KEY, OAUTH_REDIRECT_URI and MELCHIZEDEK_OAUTH_HOSTS are set. */
+  set: Record<string, boolean>;
+  problems: string[];
 }
 
 export interface DoctorSyndicate {
@@ -147,6 +163,8 @@ export interface DoctorResult {
   /** Every provider not on its default endpoint: a cloud platform or a proxy (ADR 0023). */
   endpoints: DoctorEndpoint[];
   counts: Record<VerdictState, number>;
+  /** The OAuth setup, when any syndicate declares a grant or its variables are set. */
+  oauth?: DoctorOAuth;
 }
 
 export interface DoctorEndpoint {
@@ -307,6 +325,7 @@ function grantsOf(agent: Parameters<typeof agentOAuthGrants>[0], prefix: string)
     grant: use.oauth2.grant,
     scopes: [...(use.oauth2.scopes ?? [])],
     missingEnv: oauthEnvNames(use.oauth2).filter((name) => !process.env[name]?.trim()),
+    hostProblems: grantHostProblems(use),
   }));
 }
 
@@ -573,7 +592,12 @@ export function runDoctor(options: {
 
   flagMemoryNamespaces(syndicates);
 
-  return { agentsDir, runtime: runtimeReport(), syndicates, unlocks, gateway, endpoints: endpointRows(), counts };
+  // The server's OAuth setup (ADR 0114): the key, the redirect URI and the allowlist, names only.
+  const grants = syndicates.flatMap((s) => s.grants ?? []).map((g) => ({ agent: g.agent, tools: g.tools, oauth2: { provider: g.provider, grant: g.grant, token_url: '' } }));
+  const set = Object.fromEntries([CREDENTIAL_KEY_ENV, OAUTH_REDIRECT_URI_ENV, OAUTH_HOSTS_ENV].map((name) => [name, !!process.env[name]?.trim()]));
+  const oauth = grants.length || Object.values(set).some(Boolean) ? { set, problems: oauthEnvProblems(grants) } : undefined;
+
+  return { agentsDir, runtime: runtimeReport(), syndicates, unlocks, gateway, endpoints: endpointRows(), counts, ...(oauth ? { oauth } : {}) };
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
@@ -652,6 +676,13 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
         : `gateway     ${c.yellow}◇${c.reset} ${result.gateway.label} fills in for any provider whose direct key is absent ${c.dim}(native search is lost on that path)${c.reset}`,
     );
   }
+  if (result.oauth) {
+    // Names only: which variables are set, never their values (ADR 0114).
+    const set = Object.entries(result.oauth.set).map(([name, on]) => `${name} ${on ? 'set' : 'unset'}`).join(' · ');
+    const mark = result.oauth.problems.length ? `${c.red}✗${c.reset}` : `${c.green}✓${c.reset}`;
+    lines.push(`oauth       ${mark} ${c.dim}${set}${c.reset}`);
+    for (const p of result.oauth.problems) lines.push(`            ${c.red}✗ ${p}${c.reset}`);
+  }
   lines.push('');
 
   // The table: one line per syndicate (name, verdict, run command), then
@@ -688,6 +719,7 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
           : `needs a grant: the server's own ${g.provider} token (client_credentials) for ${g.tools}`;
       const missing = g.missingEnv.length ? ` ${c.red}✗ ${g.missingEnv.join(', ')} not set${c.reset}` : '';
       lines.push(`  ${c.cyan}⚿ ${g.agent}${c.reset} ${what}${scopes}${missing}`);
+      for (const p of g.hostProblems ?? []) lines.push(`    ${c.red}✗ ${p}${c.reset}`);
     }
     if (s.declaredTier && s.declaredTier !== s.tier) {
       lines.push(`  ${c.yellow}⚠ header says "tier: ${s.declaredTier}" but the models say ${s.tier}${c.reset}`);

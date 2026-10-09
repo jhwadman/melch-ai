@@ -56,7 +56,7 @@ import { InProcessSessionService } from '../runtime/sessions.ts';
 import { runtimeSetting } from '../runtime/runtimeFlag.ts';
 import { geminiAdapterSetting } from '../models/adapterResolver.ts';
 
-import { loadSyndicate, loadSyndicateFromRegistry } from '../loadSyndicate.ts';
+import { loadSyndicate, loadSyndicateFromRegistry, nestedLoader } from '../loadSyndicate.ts';
 import type { SyndicateYamlConfig } from '../loadSyndicate.ts';
 import { providerForModel, resolveModel } from '../models/registry.ts';
 import type { ProviderEndpoint, ProviderId } from '../models/registry.ts';
@@ -91,6 +91,8 @@ import { createMetrics } from '../observability/metrics.ts';
 import type { TaskRecord } from '../observability/metrics.ts';
 import { ConsentError } from '../tools/oauthConsent.ts';
 import type { OAuthConsent, ToolCredentials } from '../tools/oauthConsent.ts';
+import { setOAuthHosts } from '../tools/oauthHosts.ts';
+import { syndicateOAuthHostProblems } from '../tools/oauthTools.ts';
 const SURFACE_HEADERS = [
   ['x-surface', 'name'],
   ['x-surface-guild', 'guild'],
@@ -315,6 +317,17 @@ export interface A2AAppOptions {
    * request carries a credential the authenticator accepts, the caller must
    * be the user the flow is for.
    */
+  /**
+   * The OAuth host allowlist (ADR 0114): each provider a YAML-declared grant
+   * may name, and the hosts its tokens (and client secret) may be sent to,
+   * e.g. `{ tracker: ['api.tracker.example.com', 'auth.tracker.example.com'] }`
+   * (`*.example.com` matches any subdomain). Wins over
+   * MELCHIZEDEK_OAUTH_HOSTS; it is set for this process. With neither, an
+   * authorization_code grant is refused and a client_credentials one
+   * allowed. A syndicate whose grant names a provider or host outside it is
+   * refused when loaded, when compiled, and at each call.
+   */
+  oauthHosts?: Record<string, string[]>;
   toolCredentials?: ToolCredentials & {
     /** Callback requests per window per client IP. Default 30 per 15 minutes. */
     callbackLimit?: { windowMs: number; max: number };
@@ -576,10 +589,31 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     throw new Error('A trusted-header authenticator needs serverSecret: without it any client could set the header.');
   }
 
+  // ── The OAuth host allowlist (ADR 0114) ────────────────────────────────────
+  if (options.oauthHosts) setOAuthHosts(options.oauthHosts);
+  /** A served syndicate whose OAuth grant names a provider or host outside the allowlist is refused at load. */
+  const checkOAuthHosts = (cfg: SyndicateYamlConfig, label: string): SyndicateYamlConfig => {
+    const nested = nestedLoader(cfg, (ref) => loadSyndicate(ref, { bindings: bindings() }));
+    const problems = syndicateOAuthHostProblems([cfg], {
+      load: (ref) => {
+        try {
+          return nested(ref);
+        } catch {
+          return {}; // A nested file that cannot load fails its own compile.
+        }
+      },
+    });
+    if (problems.length) throw new Error(`${label}: refusing an OAuth grant the operator's host allowlist does not permit:\n  - ${problems.join('\n  - ')}`);
+    return cfg;
+  };
+
   // ── The default syndicate ──────────────────────────────────────────────────
-  const config = options.defaultSyndicate.startsWith('registry:')
-    ? await loadSyndicateFromRegistry(options.defaultSyndicate.slice('registry:'.length), { bindings: bindings() })
-    : loadSyndicate(options.defaultSyndicate, { bindings: bindings() });
+  const config = checkOAuthHosts(
+    options.defaultSyndicate.startsWith('registry:')
+      ? await loadSyndicateFromRegistry(options.defaultSyndicate.slice('registry:'.length), { bindings: bindings() })
+      : loadSyndicate(options.defaultSyndicate, { bindings: bindings() }),
+    options.defaultSyndicate,
+  );
 
   // ── Persistence ────────────────────────────────────────────────────────────
   let durableSessions: SessionService | undefined;
@@ -1219,7 +1253,8 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     const registryId = agentId.startsWith('registry:') ? agentId.slice('registry:'.length) : registryIds.has(agentId) ? agentId : undefined;
     if (registryId) {
       try {
-        return { config: await loadSyndicateFromRegistry(registryId, { bindings: bindings() }), source: `registry:${registryId}` };
+        const loaded = await loadSyndicateFromRegistry(registryId, { bindings: bindings() });
+        return { config: checkOAuthHosts(loaded, `registry:${registryId}`), source: `registry:${registryId}` };
       } catch (err: unknown) {
         const why = err instanceof Error ? err.message : String(err);
         if (/not found/i.test(why)) throw new AgentNotFound(`registry has no row '${registryId}'`);
@@ -1229,7 +1264,7 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
     const file = agentId.endsWith('.yaml') ? agentId : `${agentId}.yaml`;
     try {
       return {
-        config: loadSyndicate(file, { bindings: bindings(), shippedFallback: !!served?.has(agentId) }),
+        config: checkOAuthHosts(loadSyndicate(file, { bindings: bindings(), shippedFallback: !!served?.has(agentId) }), file),
         source: `file:${file}`,
       };
     } catch (err: unknown) {

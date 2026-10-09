@@ -38,6 +38,7 @@ The point, taught by the [Librarian](/agents/librarian.md) example: the agent's 
 
 - **`client_credentials`**: the server's own token, on one connection opened at startup, as before.
 - **`authorization_code`**: each user's own token, so nothing is listed at startup and `mcp_tools` is required. Each named tool reads the run's user's token at call time (`ctx.accessToken`, which raises the [consent pause](/tools/tool-contracts.md#the-consent-step) for a user who has not granted it) and runs on that user's own connection, at most 64 of them per server, the least recently used closed first. The parameters come from the first listing any user's connection makes; until then a tool declares none, and its first call connects and tells the model to call again with the parameters it now has, rather than call the server blind. A failed call closes that user's connection, and the next call opens a fresh one. The consent pause is raised only by an agent the turn runs directly (a dispatch route), not by a delegated subagent.
+- **Either grant** sends its token only to a host the operator binds to the provider ([ADR 0114](/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md)): the server URL at compile, and every request where it actually goes (the stream, and the message endpoint the server names) before the token is attached. A refused request carries no token.
 
 ## Serving outward
 

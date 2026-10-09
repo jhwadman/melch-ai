@@ -230,7 +230,9 @@ fetches: the run's user's own through the consent pause, or the server's own
 from the token endpoint ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)).
 `oauthClientsFor(configs)` (`melchizedek-agents/tools/oauthTools`) builds the
 consent step's clients from the same YAML, and `npm run doctor` lists every
-tool that needs a grant. An unset variable fails the compile, and so does one of the framework's own settings
+tool that needs a grant. The hosts a grant's token goes to must be ones the
+operator binds to its provider (`MELCHIZEDEK_OAUTH_HOSTS`, [ADR 0114](./wiki/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md));
+with no allowlist, `authorization_code` is refused. An unset variable fails the compile, and so does one of the framework's own settings
 (the database URL, a provider key, an `A2A_` secret: anything `.env.example`
 documents), since the YAML chooses the host it goes to.
 `OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`
@@ -898,6 +900,32 @@ log line or the model's context. The pending flows live in the process: run
 one replica, or route the callback to the instance that paused the call. In
 code, `runSyndicateTurn({ …, toolCredentials })` returns
 `status: 'input-required'` with `consent`.
+
+**From the environment (`melchizedek-serve`).** The server binary builds the
+store and the consent step itself, with the clients taken from the grants the
+served syndicate files declare (`auth.oauth2`, `mcp_auth`; a registry row may
+name a provider they declare, never define one):
+
+| Variable | Shape | What it does |
+|---|---|---|
+| `MELCHIZEDEK_CREDENTIAL_KEY` | 32 random bytes, base64 or 64 hex (`openssl rand -base64 32`) | Seals each user's tokens. Unset: no store, and an authorization-code tool answers `unavailable`. Rows live in Postgres with `DATABASE_URL`, else in process memory |
+| `OAUTH_REDIRECT_URI` | `https://agents.example.com/oauth/callback` (no query) | The callback, as registered at every provider. Mounts it and lets a run ask a user to connect. Needs the key |
+| `OAUTH_CALLBACK_IDENTITY` | `required` (default) or `state` | `required`: the browser that completes a grant carries the flow's user's identity, which only `A2A_AUTH=header` behind a gateway gives it. `state`: the single-use state alone binds the flow (a forwarded link can connect the wrong account) |
+| `MELCHIZEDEK_OAUTH_HOSTS` | `provider=host,host;provider=host` | Which hosts each provider's tokens and client secret may be sent to. A host is a hostname, `*.domain` (subdomains only), IPv4 or `[IPv6]` |
+
+**The host allowlist** ([ADR 0114](./wiki/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md))
+is the operator's binding, never the YAML's: `MELCHIZEDEK_OAUTH_HOSTS`, or
+`createA2AApp({ oauthHosts: { tracker: ['api.tracker.example.com'] } })`,
+which wins. Unset, an `authorization_code` grant is refused (a user's token
+never goes to a host nobody bound) and a `client_credentials` grant is
+allowed (its secret is the operator's, as `bearer_env`'s is). Set, it is the
+whole list: every grant's provider must be on it, and its API or MCP server,
+token endpoint and authorization endpoint must be that provider's hosts. A
+syndicate that breaks the rule is refused when the server loads it to serve,
+again when its tools compile, and every call checks the host it sends a
+token to. The server refuses to start on a malformed key, allowlist or
+redirect URI, or on a redirect URI without a key; `npm run doctor` reports
+each of these, and a declared grant with no key or redirect URI, by name.
 
 #### Limits
 
