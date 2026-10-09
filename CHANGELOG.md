@@ -92,6 +92,22 @@ the starter pack and the templates), not the repo's full history.
   Codex CLI's login) and routes OpenAI to level 9. `ONBOARDING.md` and the
   onboarding skills follow.
 
+### Changed
+
+- **Server-side logs name tools, never their arguments.** The turn runner's
+  `log` line for a tool call (what `melchizedek-serve`, `melchizedek-mcp` and
+  `melchizedek-worker` print) is `→ Tool: <tool> by <agent> — args: <key
+  names> (<n> bytes)` instead of the arguments cut to 60 characters. A
+  question logs `⏸ <node> asks a question` without its text, a dispatch
+  route logs without the classifier's reason (the caller's progress line
+  keeps it), and a router fallback reason measures the router's text instead
+  of quoting it. The worker logs a job's size, not its title; the image,
+  inspect-image and X API tools and the memory service log sizes and ids
+  instead of prompts, paths, queries and facts. A consumer that parsed the
+  old `→ Tool: name(args)` line reads the tool name before ` by `. Results,
+  the ledger, the A2A status updates and `melchizedek-chat`'s own rendering
+  are unchanged.
+
 ## 1.2.0 — 2026-10-09
 
 Release 1.2.0 carries pauses and consent further down a turn and gives the

@@ -3,6 +3,14 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /protocols/a2a.md —constrains→ module:lib/dispatch.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /protocols/a2a.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /models/chatgpt-signin.md —explains→ module:lib/chatgpt/oauth.ts
 
 by claude-code/claude-opus-5-5

@@ -135,6 +135,9 @@ function matchSubagent(
   return subagents.find(sub => norm(sub.name) === target);
 }
 
+/** What a subagent name can look like: one token, linear to test. */
+const ROUTE_SHAPED = /^[A-Za-z0-9_.-]{1,64}$/;
+
 /**
  * Turn the router's raw output into a route that definitely exists.
  *
@@ -175,7 +178,8 @@ export function resolveRoute(
   try {
     parsed = JSON.parse(unfence(rawOutput));
   } catch {
-    return defaultResolution(`router output was not JSON: ${rawOutput.trim().slice(0, 80)}`);
+    // The reason reaches the server log: the size, never the text (the router can echo the person).
+    return defaultResolution(`router output was not JSON (${rawOutput.trim().length} chars)`);
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -190,7 +194,8 @@ export function resolveRoute(
 
   const matched = matchSubagent(rawRoute, subagents);
   if (!matched) {
-    return defaultResolution(`router chose unknown route '${rawRoute}'`);
+    // A route-shaped value is named; anything else is model text and is only measured.
+    return defaultResolution(ROUTE_SHAPED.test(rawRoute) ? `router chose unknown route '${rawRoute}'` : `router chose an unknown route (${rawRoute.length} chars)`);
   }
 
   const rawReason = record[reasonKey];

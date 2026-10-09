@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 974,
-    "edges": 4078,
+    "edges": 4080,
     "byKind": {
       "doc": 193,
       "provider": 6,
@@ -37,7 +37,7 @@
       "reads_table": 28,
       "runs": 72,
       "derives_from": 1095,
-      "constrains": 245,
+      "constrains": 247,
       "supersedes": 21,
       "depends_on": 144,
       "explains": 53,
@@ -46,7 +46,7 @@
     },
     "byTier": {
       "extracted": 3610,
-      "inferred": 468
+      "inferred": 470
     },
     "isolated": 4
   },
@@ -2232,7 +2232,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 5369
+        "words": 5382
       }
     },
     {
@@ -2244,7 +2244,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2645
+        "words": 2795
       }
     },
     {
@@ -2256,7 +2256,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 968
+        "words": 995
       }
     },
     {
@@ -2328,7 +2328,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 667
+        "words": 704
       }
     },
     {
@@ -5771,7 +5771,7 @@
       "label": "lib/dispatch.ts",
       "source": "lib/dispatch.ts",
       "attrs": {
-        "lines": 262
+        "lines": 267
       }
     },
     {
@@ -6446,7 +6446,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1523
+        "lines": 1537
       }
     },
     {
@@ -6662,7 +6662,7 @@
       "label": "lib/tools/generateImageTool.ts",
       "source": "lib/tools/generateImageTool.ts",
       "attrs": {
-        "lines": 127
+        "lines": 128
       }
     },
     {
@@ -7184,7 +7184,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 283
+        "lines": 284
       }
     },
     {

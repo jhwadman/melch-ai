@@ -344,3 +344,28 @@ test('the contract requires a query or a post', async () => {
   const both = await executeContract(xApiSearchContract, { query: '', post: '' });
   assert.match(both, /^Error: invalid arguments/);
 });
+
+test('the console line names the search and the lookup, never the query or the post id', async () => {
+  const printed: string[] = [];
+  const original = console.log;
+  console.log = (...a: unknown[]) => { printed.push(a.map(String).join(' ')); };
+  try {
+    await runXApiSearch({ query: 'airport strike', days: 3 }, fakeDeps());
+    const one = { data: [{ ...PAGE.data[0], id: '2101559363584381365' }], includes: PAGE.includes };
+    const deps = fakeDeps({
+      fetch: async (input) => {
+        const url = String(input);
+        if (url.startsWith('https://api.x.com/2/tweets?')) return new Response(JSON.stringify(one), { status: 200 });
+        return new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/jpeg' } });
+      },
+    });
+    await runXApiSearch({ post: 'https://x.com/wire_desk/status/2101559363584381365' }, deps);
+  } finally {
+    console.log = original;
+  }
+  const lines = printed.filter((l) => l.startsWith('[x_api_search]'));
+  assert.strictEqual(lines.length, 2, printed.join('\n'));
+  assert.match(lines[0]!, /^\[x_api_search\] search \(\d+ chars\) → 3 post\(s\)/);
+  assert.match(lines[1]!, /^\[x_api_search\] lookup → 1 post/);
+  for (const l of lines) assert.ok(!l.includes('airport') && !l.includes('2101559363584381365'), l);
+});

@@ -524,7 +524,7 @@ export class SupabaseVectorMemoryService implements MemoryService {
 				console.error(`[MemoryService] Dedup probe failed (storing anyway):`, err instanceof Error ? err.message : err);
 			}
 			if (near && isSemanticDuplicate(record, near)) {
-				console.log(`[MemoryService] Duplicate skipped [${record.tag}]: "${record.line.slice(0, 70)}..."`);
+				console.log(`[MemoryService] Duplicate skipped [${record.tag}] (${record.line.length} chars)`);
 				continue;
 			}
 
@@ -604,7 +604,7 @@ export class SupabaseVectorMemoryService implements MemoryService {
 				if (!retire) continue;
 				taken.add(row.id);
 				out.push({ id: row.id, byFact: correction.line });
-				console.log(`[MemoryService] Supersedes: "${row.fact.slice(0, 60)}..."`);
+				console.log(`[MemoryService] Supersedes ${row.id}`);
 			}
 		}
 		return out;

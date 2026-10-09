@@ -515,7 +515,7 @@ async function lookupPost(id: string, token: string, input: XApiSearchInput, dep
   const picked = wantImages ? pickImages(posts, imageMax(deps.env)) : [];
   const readings = picked.length ? await readImages(picked, deps) : new Map<string, ImageReading>();
   const imagesRead = [...readings.values()].filter((r) => r.ok).length;
-  console.log(`[x_api_search] lookup ${id} → ${posts.length} post (≈$${PRICE.postRead.toFixed(3)}), ${imagesRead}/${picked.length} image(s) transcribed on ${visionModel(deps.env)}${imageFailures(readings)}`);
+  console.log(`[x_api_search] lookup → ${posts.length} post (≈$${PRICE.postRead.toFixed(3)}), ${imagesRead}/${picked.length} image(s) transcribed on ${visionModel(deps.env)}${imageFailures(readings)}`);
   const photos = (posts[0]!.media ?? []).filter((m) => m.type === 'photo').length;
   return [
     `${head} — the post itself, as the API returns it.${photos ? ` ${photos} photo${photos === 1 ? '' : 's'} attached, ${imagesRead} transcribed beneath it.` : ''} For the replies and quotes around it, search conversation_id:${id}.`,
@@ -596,7 +596,7 @@ export async function runXApiSearch(input: XApiSearchInput, deps: XApiDeps = DEF
   const readings = picked.length ? await readImages(picked, deps) : new Map<string, ImageReading>();
   const imagesRead = [...readings.values()].filter((r) => r.ok).length;
   console.log(
-    `[x_api_search] "${query}" → ${posts.length} post(s) (≈$${(max * PRICE.postRead).toFixed(3)} at the ${max}-slot ceiling), ` +
+    `[x_api_search] search (${query.length} chars) → ${posts.length} post(s) (≈$${(max * PRICE.postRead).toFixed(3)} at the ${max}-slot ceiling), ` +
       `${imagesRead}/${picked.length} image(s) transcribed on ${visionModel(deps.env)}${imageFailures(readings)}`,
   );
   return renderBlock({ ...outcome, ok: true, posts }, readings, new Set(picked.map((p) => p.media.key)), imagesRead);

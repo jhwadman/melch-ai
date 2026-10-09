@@ -3765,6 +3765,22 @@
       "evidence": "wiki/models/chatgpt-signin.md \"Signing in\" and \"Refresh\" describe signIn, freshAccessToken and signOut in lib/chatgpt/oauth.ts step by step.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "a2a.md, Limits and lifecycle: the server log lines come from the turn runner's log and warn and \"name things, never what a person or a model wrote\": a tool call is logged by tool, agent, argument key names and byte size.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "module:lib/dispatch.ts",
+      "rel": "constrains",
+      "evidence": "a2a.md, Limits and lifecycle: \"a router fallback measures the router's text instead of quoting it (resolveRoute in lib/dispatch.ts)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

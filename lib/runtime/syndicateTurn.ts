@@ -309,14 +309,27 @@ export { DEFAULT_MODEL_ERROR_RETRIES, DEFAULT_TOOL_ERROR_RETRIES } from './nativ
 
 // ── Draining one agent's stream ──────────────────────────────────────────────
 
-function formatToolArgs(args: Record<string, unknown> | undefined): string {
-  if (!args || Object.keys(args).length === 0) return '';
-  return Object.entries(args)
-    .map(([k, v]) => {
-      const raw = typeof v === 'string' ? v : JSON.stringify(v);
-      return `${k}=${raw.length > 60 ? `${raw.slice(0, 60)}...` : raw}`;
-    })
-    .join(', ');
+/**
+ * The shape of a tool call's arguments for a log line: the key names and the
+ * size, never a value. Arguments are model-chosen and routinely carry the
+ * person's words, and a server log is not where those belong (the ledger is
+ * the deliberate record, with its own retention).
+ */
+function describeToolArgs(args: Record<string, unknown> | undefined): string {
+  const keys = args ? Object.keys(args) : [];
+  if (!keys.length) return 'no args';
+  let bytes: number;
+  try {
+    bytes = Buffer.byteLength(JSON.stringify(args), 'utf8');
+  } catch {
+    return `args: ${keys.join(', ')}`;
+  }
+  return `args: ${keys.join(', ')} (${bytes.toLocaleString()} bytes)`;
+}
+
+/** A pending question for a log line: who asks, never what. */
+function describeInputForLog(input: { node: string; path?: string[] }): string {
+  return `${input.node} asks a question${input.path?.length ? ` (${input.path.join(' → ')})` : ''}`;
 }
 
 /**
@@ -431,14 +444,14 @@ export async function drainAgentStream(
       if (inputRequest) {
         // An ask_user node: the workflow waits for the person (lib/workflow.ts).
         d.inputRequests.push(inputRequest);
-        ev.log?.(`⏸ ${describeInput(inputRequest)}`);
+        ev.log?.(`⏸ ${describeInputForLog(inputRequest)}`);
         continue;
       }
       if (!name) continue;
       d.invokedToolNames.add(name);
       if (opts.subagentNames?.has(name)) d.delegations.push(name);
       d.toolCalls.push({ agent: e.author ?? 'unknown', name, args });
-      ev.log?.(`→ Tool: ${name}(${formatToolArgs(args)})`);
+      ev.log?.(`→ Tool: ${name} by ${e.author ?? 'unknown'} — ${describeToolArgs(args)}`);
       if (opts.publishToolStatus) ev.onProgress?.(`Invoking tool: ${name}`);
     }
 
@@ -855,7 +868,7 @@ async function runTurnInner(
     result.status = 'input-required';
     result.input = input;
     result.text = input.message;
-    ev.log?.(`⏸ Input needed: ${describeInput(input)}`);
+    ev.log?.(`⏸ Input needed: ${describeInputForLog(input)}`);
     return finish();
   };
   /** After the answering run: does a pause wait inside a delegated call `agentName` left open (ADR 0110)? */
@@ -868,7 +881,7 @@ async function runTurnInner(
       result.status = 'input-required';
       result.input = below.question;
       result.text = below.question.message;
-      ev.log?.(`⏸ Input needed: ${describeInput(below.question)} (${below.path.join(' → ')})`);
+      ev.log?.(`⏸ Input needed: ${describeInputForLog({ node: below.question.node, path: below.path })}`);
       return finish();
     }
     return undefined;
@@ -885,7 +898,7 @@ async function runTurnInner(
     result.status = 'input-required';
     result.input = input;
     result.text = input.message;
-    ev.log?.(`⏸ Input needed: ${describeInput(input)}${input.path ? ` (${input.path.join(' → ')})` : ''}`);
+    ev.log?.(`⏸ Input needed: ${describeInputForLog(input)}`);
     return finish();
   };
   /** A nested workflow's walk, or a nested dispatch syndicate's turn, paused below a route (ADR 0119, ADR 0120): its approval request, its consent request, else its question. */
@@ -1209,7 +1222,8 @@ async function runTurnInner(
     if (!routeCfg) throw new Error(`Dispatch failed: no subagent named '${resolution.route}' is declared.`);
     result.route = { ...resolution, decidedBy };
     const routeNote = resolution.reason ? ` — ${resolution.reason}` : '';
-    ev.log?.(`⇄ Route: ${resolution.route}${routeNote}`);
+    // The classifier's reason can paraphrase the person: progress (to the caller) carries it, the log does not.
+    ev.log?.(`⇄ Route: ${resolution.route}`);
     ev.onProgress?.(`Routed to ${resolution.route}${routeNote}`);
 
     // ══ DISPATCH ═════════════════════════════════════════════════════════
