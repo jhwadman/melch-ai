@@ -11,6 +11,10 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-09] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —depends_on→ /decisions/0036-redirects-under-the-ssrf-guard.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /models/chatgpt-signin.md —explains→ module:lib/chatgpt/oauth.ts
 
 by claude-code/claude-opus-5-5

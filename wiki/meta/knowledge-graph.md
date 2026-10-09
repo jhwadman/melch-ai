@@ -66,7 +66,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
 | `constrains` | inferred | A constrains B | 247 | a decision or doctrine limits what the target may do |
-| `depends_on` | inferred | A depends on B | 144 | the first cannot do its job unless the second holds |
+| `depends_on` | inferred | A depends on B | 145 | the first cannot do its job unless the second holds |
 | `explains` | inferred | A explains B | 53 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 21 | replaces an earlier decision or document |
 | `mitigates` | inferred | A mitigates B | 4 | the mechanism exists to contain the named failure |
