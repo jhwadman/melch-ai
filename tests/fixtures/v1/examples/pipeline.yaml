@@ -1,0 +1,120 @@
+# tier: gemini  — needs only GOOGLE_GENAI_API_KEY; `npm run doctor` shows what each key unlocks.
+# ============================================================
+# Editorial Pipeline — a syndicate as a graph
+# ============================================================
+#
+# WHY: The third orchestration method. DELEGATE lets an orchestrator
+# call subagents as tools; PLAN-DISPATCH lets a classifier pick one
+# subagent to answer. Neither can say "run these two at once, join
+# what they produce, edit it, ask the person, then publish". A
+# `workflow:` block says exactly that: the agents below are the
+# nodes of a graph, and `edges` says what runs after what
+# (lib/workflow.ts; the engine's own scheduler, lib/workflow/, runs it).
+#
+#   START → Planner ─(article)→ Writer ──┐
+#                    │                  ├→ Both → Editor → Confirm → Publisher
+#                    │          Checker ─┘
+#                    └(default)→ Answerer
+#
+# Read it top to bottom:
+#   - Planner answers in JSON; `route_key: kind` makes its `kind`
+#     field the route. `article` fans out to the Writer and the
+#     Checker, who run at the same time on the same brief; anything
+#     else (`default`) goes to the Answerer, who replies directly.
+#   - Both is a join: it waits for the Writer and the Checker and
+#     hands the Editor `{ "Writer": ..., "Checker": ... }`.
+#   - Confirm pauses the turn with a question. The person's next
+#     message is the answer, and the Publisher receives
+#     `{ "reply": <the answer>, "input": <the Editor's draft> }`.
+#   - Editor retries once on a model error; nothing else does.
+#
+# Every node receives the previous node's output as its message and,
+# unless its YAML sets `includeContents`, sees nothing else of the
+# conversation. That is what makes a graph legible: each agent's
+# input is one value a person can read in the trace.
+#
+# Run it:  npm run syndicate:pipeline   (needs a Gemini key)
+#   You › Write an article on why small teams ship faster.
+#   … the Writer and the Checker run, the Editor merges …
+#   ❓ Confirm asks: Publish this draft? Reply yes, or say what to change.
+#   You › yes
+# ============================================================
+
+syndicate_name: "Editorial Pipeline"
+memory_system: "internal-only"
+
+workflow:
+  edges:
+    - [START, Planner, { article: [Writer, Checker], default: Answerer }]
+    - [[Writer, Checker], Both, Editor, Confirm, Publisher]
+  nodes:
+    Planner: { route_key: "kind" }
+    Both: { join: true }
+    Editor: { retry: { max_attempts: 2, initial_delay: 1 } }
+    Confirm: { ask_user: "Publish this draft? Reply yes, or say what to change." }
+
+orchestrator:
+  name: "Planner"
+  model: "gemini-3.8-flash"
+  instruction: |
+    You are the Planner of an editorial desk. You read one request and decide what the desk does with it.
+    Task: answer with one JSON object and nothing else: {"kind": "article" | "answer", "brief": "<text>"}.
+    - "article" when the request asks for a written piece: an article, a post, a guide, an explainer, a page. Then `brief` is the writing brief: the subject, the audience, the angle, and the length in words (300 unless the request says otherwise), in two to four sentences.
+    - "answer" for anything else: a question, a conversation, a request too small for an article. Then `brief` is the request itself, restated in one sentence.
+    Decide from what the request asks for, never from its topic. Never write the piece yourself.
+  generateContentConfig:
+    responseMimeType: "application/json"
+    maxOutputTokens: 512
+  outputSchema:
+    type: "OBJECT"
+    properties:
+      kind: { type: "STRING", enum: ["article", "answer"] }
+      brief: { type: "STRING" }
+    required: ["kind", "brief"]
+
+subagents:
+  - name: "Writer"
+    description: "Writes the draft from the Planner's brief."
+    model: "gemini-3.8-flash"
+    instruction: |
+      You are the Writer. You receive a JSON object with a `brief`. Write the piece it describes, at the length it names, for the audience it names.
+      Plain prose with a title on the first line. No preface, no notes to the editor, no sign-off. Where you would need a figure, a date or a name you do not know, write it as [NEEDS FACT: what] rather than inventing one.
+    generateContentConfig:
+      maxOutputTokens: 2048
+
+  - name: "Checker"
+    description: "Lists the claims a piece on this brief would have to get right."
+    model: "gemini-3.8-flash"
+    instruction: |
+      You are the Checker. You receive a JSON object with a `brief`. Before the piece is written you list what it must get right.
+      Reply with at most eight lines, each one claim, figure or definition a piece on this brief will rest on, in the form "- <claim>: <what would make it wrong>". No preface. If the brief rests on nothing checkable, reply "- Nothing to check: the brief is opinion or instruction."
+    generateContentConfig:
+      maxOutputTokens: 1024
+
+  - name: "Editor"
+    description: "Merges the Writer's draft and the Checker's list into the final draft."
+    model: "gemini-3.8-flash"
+    instruction: |
+      You are the Editor. You receive a JSON object with two fields: `Writer`, a draft, and `Checker`, a list of claims the draft must get right and what would make each wrong.
+      Task: return the draft, edited. For every claim on the Checker's list, make sure the draft states it carefully: hedge what is uncertain, cut what is unsupported, keep every [NEEDS FACT: …] marker the Writer left. Keep the Writer's title, length and voice. Return only the edited draft, no notes.
+    generateContentConfig:
+      maxOutputTokens: 2048
+
+  - name: "Publisher"
+    description: "Applies the person's decision to the draft and returns the published text."
+    model: "gemini-3.5-flash-lite"
+    instruction: |
+      You are the Publisher. You receive a JSON object with `input`, the final draft, and `reply`, what the person said when asked whether to publish it.
+      - If the reply means yes (yes, publish, go ahead, fine, ok), return the draft exactly as it is.
+      - Otherwise the reply names a change: make that change and only that change, then return the whole draft.
+      Return only the draft. No preface, no commentary.
+    generateContentConfig:
+      maxOutputTokens: 2048
+
+  - name: "Answerer"
+    description: "Answers a request that is not an article."
+    model: "gemini-3.5-flash-lite"
+    instruction: |
+      You are the Answerer of an editorial desk. You receive a JSON object with a `brief`: a request restated in one sentence. Answer it directly in at most four sentences. If it asks for something only a written piece could give, say in one sentence that the desk writes articles and ask what the piece should cover.
+    generateContentConfig:
+      maxOutputTokens: 512

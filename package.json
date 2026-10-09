@@ -54,7 +54,8 @@
     "melchizedek-worker": "./dist/scripts/assistant_worker.js",
     "melchizedek-db": "./dist/scripts/db.js",
     "melchizedek-init": "./dist/scripts/init.js",
-    "melchizedek-registry": "./dist/scripts/registry.js"
+    "melchizedek-registry": "./dist/scripts/registry.js",
+    "melchizedek-codemod": "./dist/scripts/yaml_codemod.js"
   },
   "files": [
     "dist",
@@ -112,6 +113,7 @@
     "wiki:build": "node --disable-warning=DEP0040 --experimental-strip-types scripts/wiki/build.ts",
     "wiki:check": "node --disable-warning=DEP0040 --experimental-strip-types scripts/wiki/check.ts",
     "schema:gen": "node --disable-warning=DEP0040 --experimental-strip-types scripts/gen_syndicate_schema.ts",
+    "yaml:codemod": "node --disable-warning=DEP0040 --experimental-strip-types scripts/yaml_codemod.ts",
     "start:a2a": "node --disable-warning=DEP0040 --experimental-strip-types scripts/a2a_server.ts",
     "test": "node --disable-warning=DEP0040 --experimental-strip-types --test tests/**/*.test.ts",
     "init": "node --disable-warning=DEP0040 --experimental-strip-types scripts/init.ts",
