@@ -6,6 +6,74 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **An orchestrator that delegates can answer in its own `outputSchema`**
+  (ADR 0109). An agent holding an `outputSchema` beside subagents or tools
+  calls them first, then ends its turn on one JSON object matching the
+  schema; no relay leaf or `dispatch:` block is needed (plan-dispatch stays
+  available). On Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on every
+  OpenAI id, and on Gemini 2 and later through Vertex AI, the schema now
+  travels in the provider's own structured-output field in the same request
+  as the tools (`output_config.format`, `text.format`, `responseJsonSchema`)
+  instead of as a `set_model_response` tool, on the agent's `fallback_model`
+  too; every other path keeps `set_model_response`. No YAML key changes.
+- **The capability matrix gains `structured_output_with_tools`**
+  (`melchizedek-agents/models/capabilities`): supported on Anthropic and
+  OpenAI (and Gemini on Vertex AI), degraded (`set_model_response`) on the
+  Gemini API, xAI, Moonshot, Ollama and the gateway. `npm run doctor` names
+  it as a gap for an agent with a schema beside tools on a degraded path.
+  `outputSchemaBesideTools(model)` says whether a model's path takes both.
+  `CAPABILITIES`, `Capability` and `CAPABILITY_MATRIX` gain the member, so
+  code that builds a `Record<Capability, …>` must add it.
+- **OAuth grants in YAML (`auth: { oauth2 }`, `mcp_auth: { oauth2 }`;
+  ADR 0112).** An `openapi:` entry's `auth` takes a third form, `oauth2`,
+  and an agent with `mcp_server_url` may declare `mcp_auth: { oauth2 }`.
+  The block names a `provider`, a `grant` (`authorization_code` or
+  `client_credentials`), `authorization_url`, `token_url`, `client_id` or
+  `client_id_env`, `client_secret_env` and `scopes`; secrets are
+  environment variable names, never values, under the same rule as
+  `bearer_env`. `authorization_code` sends the run's user's own token
+  (`ctx.accessToken`, so the consent pause asks a user who has not granted
+  it); `client_credentials` sends the server's own token from the token
+  endpoint, held in memory until shortly before it expires. A token goes
+  only over https (or http to a loopback host). An authorization-code MCP
+  server needs `mcp_tools` and runs each user on their own connection.
+  `npm run doctor` lists every tool that needs a grant. New module
+  `melchizedek-agents/tools/oauthTools` (`oauthClientsFor`, which builds
+  `oauthConsent({ providers })` from the YAML, `oauthRefreshProviders`,
+  which gives `credentialStore({ providers })` the matching refresh hooks,
+  `clientCredentialsGrant`,
+  `oauthTokenSource`, `tokenTransportProblem`) and
+  `melchizedek-agents/tools/credentialEnv` (`credentialEnvProblem`, still
+  exported from `tools/openapiTools`), both under the existing `./tools/*`
+  export. `ToolCredentialError` gains the codes `unavailable` and
+  `grant_failed`, and `createMcpTools` / `loadMcpTools` an optional second
+  argument. The systems_operator template carries a commented
+  `mcp_auth` block.
+
+- **A pause inside a delegated subagent reaches the turn** (WS6-2a,
+  [ADR 0110](./wiki/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md)).
+  `require_approval` and `ask_user` are allowed on a delegated subagent, and
+  gates inside a nested delegate syndicate (`yaml_reference`) no longer fail
+  to load. The turn ends `input-required` with the request or question; the
+  decision or answer goes back down to the subagent, which finishes before
+  its caller continues. Before, a gate there was a load error and a pause
+  answered the call with an empty text.
+- `PendingApproval.path` and `PendingInput.path` (optional): the agents from
+  the turn's own agent down to the one that asked, set only for a pause
+  inside a delegated subagent. The A2A `approval_request` and
+  `input_request` data parts carry `path` beside their fields when it is set.
+- `delegatedPauses`, `openCalls`, `resumedDelegations` in
+  `lib/runtime/native/interrupts.ts` and `resumeSubagent`, `SubagentPause` in
+  `lib/runtime/native/delegate.ts` (engine internals; no exports map entry).
+
+### Changed
+
+- **An OpenAPI `auth` that sets two forms** now reads "exactly one of
+  bearer_env, api_key or oauth2" (was "exactly one of bearer_env or
+  api_key").
+
 ### Durable long-running runs (WS6-5, ADR 0113)
 
 Apply migration `0014_durable_runs` (`melchizedek-db apply`) before
@@ -47,6 +115,47 @@ store writes `adk_a2a_tasks.cancel_requested_at`, and the worker writes
 - **A2A task cancelled during the turn-lock wait:** a task cancelled while
   waiting for its conversation's turn lock now ends `canceled`, not
   `rejected`.
+
+## 1.0.3 — 2026-10-09
+
+Dependency updates and one packaging fix. No export, bin, YAML key or
+adapter behaviour changes; no source file under `lib/` changes.
+
+### Fixed
+
+- **`config/agents/syndicate.schema.json` ships in the package.** The
+  shipped `config/agents/syndicateSchema.yaml` names it in its
+  `yaml-language-server` modeline, and `melchizedek-init` locates the
+  package root by it; it was missing from `files`, so editors could not
+  resolve the schema and, in an installed package, `melchizedek-init`
+  stopped with "config/agents/ not found next to this package".
+  `tests/packageSurface.test.ts` now checks that `files` ships it and
+  every shipped modeline's target.
+
+### Changed — dependencies
+
+- `@anthropic-ai/sdk` ^0.129.0 → ^0.131.0. Additive (Admin and Managed
+  Agents endpoints). The SDK now marks `claude-sonnet-4-5` and
+  `claude-sonnet-4-5-20250929` deprecated (end of life 2026-11-30) and
+  logs a `console.warn` when a request names them; no shipped syndicate
+  uses either id.
+- `openai` ^7.23.0 → ^7.28.0. Additive (Agents, Realtime, Responses
+  WebSocket features). The client now keeps a base URL's query string
+  when joining endpoints; this reaches the GPT adapter only when
+  an `OPENAI_BASE_URL` carries a query (the Azure and xAI base URLs carry none;
+  the Kimi, Ollama and gateway adapters do not use the SDK).
+- `@modelcontextprotocol/sdk` ^1.29.0 → ^1.32.1 (lock 1.31.0 → 1.32.1).
+  The SDK's HTTP client transports now follow redirects only within the
+  endpoint's origin unless `redirectPolicy: 'follow'` is set. The MCP
+  client's own fetch (`mcpFetch`, `lib/net/redirects.ts`) already follows
+  every hop itself under `MCP_REDIRECTS`, so the SDK sees the final
+  response and redirect behaviour is unchanged.
+- `@google/genai` 2.25.0 → 2.27.0, still pinned exact. Additive
+  (`continuation_token` in GenerateContent and Interactions, new model
+  enum values).
+- `@types/node` ^22 → ^25 (dev only). `engines.node` stays `>=22.6.0`; the
+  source type-checks against both the Node 22 and Node 25 types.
+- Dockerfile base image `node:22-slim` → `node:25-slim`, pinned by digest.
 
 ## 1.0.2 — 2026-10-09
 

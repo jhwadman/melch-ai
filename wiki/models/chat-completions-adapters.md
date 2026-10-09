@@ -54,7 +54,7 @@ Every failure is a final with `error` set, never a throw: a missing key or gatew
 
 ## The caller and the stored event
 
-The native loop's model step calls the adapters directly: it charges the turn and opens the `llm.request` span ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), and stores each final as the event ADK would store, in Gemini's usage meanings ([model contract](/models/model-contract.md#the-response)). The adapters take the contract's `ModelRequest` alone: 1.0.0 removed the `olderSpelling` extension ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), so an effort word that is no level (Kimi K3's `max`, `xhigh`) is not sent. Events that ADK's `OllamaLlm`, `KimiLlm` and `GatewayLlm` stored before 1.0.0 count reasoning inside `candidatesTokenCount`.
+The native loop's model step calls the adapters directly: it charges the turn and opens the `llm.request` span ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), and stores each final as an event in ADK's shape, in Gemini's usage meanings ([model contract](/models/model-contract.md#the-response)). The adapters take the contract's `ModelRequest` alone: 1.0.0 removed the `olderSpelling` extension ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), so an effort word that is no level (Kimi K3's `max`, `xhigh`) is not sent. Events that ADK's `OllamaLlm`, `KimiLlm` and `GatewayLlm` stored before 1.0.0 count reasoning inside `candidatesTokenCount`.
 
 ## What only a live run can confirm
 

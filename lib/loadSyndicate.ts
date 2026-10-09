@@ -9,6 +9,7 @@ import type { DispatchConfig } from './dispatch.ts';
 export type { DispatchConfig } from './dispatch.ts';
 import type { SkillsConfig } from './tools/skillToolset.ts';
 import type { OpenApiConfig } from './tools/openapiTools.ts';
+import type { McpAuthConfig } from './tools/oauthTools.ts';
 import type { ContextConfig, ExampleConfig } from './compile.ts';
 export type { OpenApiConfig } from './tools/openapiTools.ts';
 export type { SkillsConfig } from './tools/skillToolset.ts';
@@ -132,6 +133,8 @@ export interface AgentYamlConfig {
   mcp_server_url?: string;
   /** The MCP server's tools this agent may use; the rest are not exposed. */
   mcp_tools?: string[];
+  /** The OAuth grant the MCP server takes (ADR 0112): each user's, or the server's own. */
+  mcp_auth?: McpAuthConfig;
   /** Answers when `model` fails provider-side, or its provider's circuit is open (ADR 0044). */
   fallback_model?: string;
   /**

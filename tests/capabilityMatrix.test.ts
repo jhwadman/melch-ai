@@ -21,6 +21,7 @@ import {
   CAPABILITY_MATRIX,
   capabilityGaps,
   capabilityOf,
+  outputSchemaBesideTools,
   renderCapabilityMatrix,
   requiredCapabilities,
 } from '../lib/models/capabilities.ts';
@@ -37,6 +38,8 @@ import {
   SCHEMA,
   SIGNED_THINKING,
   capture,
+  captureExchange,
+  captureSchemaBesideTools,
   delegationTools,
   geminiCandidate,
   geminiDeclaration,
@@ -44,13 +47,14 @@ import {
   geminiRequest,
   geminiThinkingToolLoop,
   request,
+  schemaBesideToolsRequest,
   thinkingToolLoop,
   visionRequest,
   withDelegationTools,
 } from './helpers/capabilityInputs.ts';
 import type { AdapterRow } from './helpers/capabilityInputs.ts';
 import type { Message, ModelRequest } from '../lib/models/contract.ts';
-import { CARRIED_PARTS_KIND } from '../lib/models/geminiAdapter.ts';
+import { CARRIED_PARTS_KIND, GeminiAdapter } from '../lib/models/geminiAdapter.ts';
 import { contentToMessage, modelResponseToLlmResponse } from '../lib/models/genaiMapping.ts';
 import { GEMINI_PROVIDER, THOUGHT_SIGNATURE_KIND } from '../lib/models/geminiState.ts';
 import { nativeToolOf } from '../lib/models/schemaNormalize.ts';
@@ -70,6 +74,18 @@ function toolSchema(row: AdapterRow, body: any, name: string): any {
       return tools.find((t) => t.name === name)?.parameters;
     case 'chat':
       return tools.find((t) => t.function?.name === name)?.function?.parameters;
+  }
+}
+
+/** The output schema in the dialect's own structured-output field, or undefined. */
+function nativeSchemaOf(row: AdapterRow, body: any): any {
+  switch (DIALECT[row]) {
+    case 'anthropic':
+      return body.output_config?.format?.type === 'json_schema' ? body.output_config.format.schema : undefined;
+    case 'responses':
+      return body.text?.format?.type === 'json_schema' ? body.text.format.schema : undefined;
+    case 'chat':
+      return body.response_format?.type === 'json_schema' ? body.response_format.json_schema?.schema : undefined;
   }
 }
 
@@ -121,6 +137,27 @@ const CHECKS: Record<Capability, (row: AdapterRow) => Promise<Observed>> = {
         return f?.type === 'json_object' ? 'degraded' : 'unsupported';
       }
     }
+  },
+
+  async structured_output_with_tools(row) {
+    // The request the native loop builds for an agent that delegates and holds a schema (ADR 0109),
+    // through the row's adapter: the schema in the provider's own field beside the tools, or the
+    // set_model_response tool beside them and no schema field.
+    const judge = (body: any): Observed => {
+      if (!toolSchema(row, body, 'Scout')) return 'unsupported';
+      const tool = toolSchema(row, body, 'set_model_response');
+      const field = nativeSchemaOf(row, body);
+      if (field?.properties?.verdict && !tool) return 'supported';
+      if (tool?.properties?.verdict && !field) return 'degraded';
+      return 'unsupported';
+    };
+    if (row === 'anthropic') {
+      // Current generations take output_config.format beside the tools; Claude 4.6 gets set_model_response.
+      const current = judge(await captureSchemaBesideTools(row, ANTHROPIC_CURRENT));
+      const budget = judge(await captureSchemaBesideTools(row));
+      return current === 'supported' && budget === 'degraded' ? 'supported' : 'unsupported';
+    }
+    return judge(await captureSchemaBesideTools(row));
   },
 
   async thinking_with_tools(row) {
@@ -243,6 +280,38 @@ const GEMINI_CHECKS: Record<Capability, () => Promise<Observed>> = {
     const both = await geminiExchange(geminiRequest({ outputSchema: SCHEMA, tools: delegationTools() }));
     assert.ok(geminiDeclaration(both.body, 'Scout') && both.body.generationConfig.responseJsonSchema, 'schema and tools in one request');
     return 'supported';
+  },
+
+  async structured_output_with_tools() {
+    // On the Gemini API: the request the native loop builds declares set_model_response beside
+    // Scout, and sends no response schema (ADR 0109).
+    const { requests } = await captureExchange('gemini', async function* () {
+      yield* new GeminiAdapter({ model: GEMINI_MODEL }).generate(await schemaBesideToolsRequest(GEMINI_MODEL));
+    });
+    const body = requests[0]?.body;
+    assert.ok(geminiDeclaration(body, 'Scout'), 'Scout declared');
+    assert.equal(geminiDeclaration(body, 'set_model_response')?.parametersJsonSchema?.properties?.verdict?.type, 'string');
+    assert.equal(body.generationConfig?.responseJsonSchema, undefined, 'no response schema beside the tools on the Gemini API');
+    // On Vertex AI (the platform cell), Gemini 2 and later take the schema beside the tools: the request
+    // carries both, as the structured_output check above shows the adapter sends them.
+    // Read inside a capture, so the fixture env holds and is restored after.
+    const { yielded } = await captureExchange('gemini', async function* () {
+      process.env.GOOGLE_GENAI_USE_VERTEXAI = 'true';
+      yield {
+        cell: capabilityOf(GEMINI_MODEL, 'structured_output_with_tools').support,
+        current: outputSchemaBesideTools(GEMINI_MODEL),
+        gemini1: outputSchemaBesideTools('gemini-1.5-pro'),
+        request: await schemaBesideToolsRequest(GEMINI_MODEL),
+      };
+    });
+    const [vertex] = yielded;
+    assert.ok(vertex, 'the Vertex AI request was built');
+    assert.equal(vertex.cell, 'supported');
+    assert.equal(vertex.current, true);
+    assert.equal(vertex.gemini1, false, 'Gemini 1 never');
+    assert.equal((vertex.request.outputSchema as any)?.properties?.verdict?.type, 'string');
+    assert.deepEqual(vertex.request.tools?.map((t) => t.name), ['Scout', 'load_memory']);
+    return 'degraded';
   },
 
   async thinking_with_tools() {
@@ -448,8 +517,11 @@ test('requiredCapabilities reads what an agent asks of its model', () => {
   assert.deepEqual(requiredCapabilities({}), []);
   assert.deepEqual(
     requiredCapabilities({ delegates: true, tools: ['load_memory', 'web_search'], outputSchema: {} }).sort(),
-    ['delegation', 'memory_tools', 'native_search', 'structured_output'],
+    ['delegation', 'memory_tools', 'native_search', 'structured_output', 'structured_output_with_tools'],
   );
+  // A schema needs a path that takes it beside tools only when the agent calls tools or delegates (ADR 0109).
+  assert.deepEqual(requiredCapabilities({ outputSchema: {} }), ['structured_output']);
+  assert.deepEqual(requiredCapabilities({ outputSchema: {}, delegates: true }).sort(), ['delegation', 'structured_output', 'structured_output_with_tools']);
   // Thinking matters only alongside tools or delegation; a zero budget is off.
   assert.deepEqual(requiredCapabilities({ generateContentConfig: { thinkingConfig: { thinkingBudget: 1024 } } }), []);
   assert.ok(

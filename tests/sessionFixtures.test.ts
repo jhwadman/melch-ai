@@ -18,6 +18,7 @@ import type { MessagePart } from '../lib/runtime/syndicateTurn.ts';
 import { APPROVAL_REQUEST, approvalResponsePart, pendingApproval } from '../lib/runtime/approvals.ts';
 import { ASK_USER, pendingQuestion } from '../lib/runtime/questions.ts';
 import type { SessionService } from '../lib/runtime/sessions.ts';
+import { delegatedPauses } from '../lib/runtime/native/interrupts.ts';
 import { DEFAULT_MAX_STORED_PAYLOAD_CHARS, SKIP_SIGNATURE } from '../lib/session/transcript.ts';
 import { INPUT_REQUEST } from '../lib/workflow.ts';
 import { APP, FETCH_FILING, FILING, SEND_NOTE, THOUGHT_SIGNATURE, USER, scenario, scenarios, sentNotes } from './fixtures/sessions/scenarios.ts';
@@ -191,6 +192,20 @@ test('05 workflow paused at ask_user: found in the stored events, and the next n
   assert.equal(models.publisher!.calls, 1);
   const after = await sessionService.get({ appName: APP, userId: USER, sessionId: scenario(f.fixture).sessionId });
   assert.equal(pendingWorkflowInput(after!.events), undefined, 'answered');
+});
+
+test('01 and 02, written before delegated pauses (ADR 0110): no pause is found below their calls, and the next turn runs', async () => {
+  for (const name of ['01-delegate', '02-plan-dispatch']) {
+    const f = loadFixture(name);
+    const s = scenario(f.fixture);
+    const store = await seedSessions(f);
+    const events = (await store.get({ appName: APP, userId: USER, sessionId: s.sessionId }))?.events ?? [];
+    assert.deepEqual(await delegatedPauses({ sessions: store, userId: USER, sessionId: s.sessionId }, events), [], name);
+    const { result } = await resume(f, [{ text: 'and then?' }]);
+    assert.equal(result.status, 'completed', `${name}: ${result.error?.message}`);
+    const stray = await resume(f, [approvalResponsePart('adk-none', true) as MessagePart]);
+    assert.equal(stray.result.error?.code, 'NO_PENDING_APPROVAL', name);
+  }
 });
 
 test('a completed conversation reads back: the answering agent sees what was said', async () => {

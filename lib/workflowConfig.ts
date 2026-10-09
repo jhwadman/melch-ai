@@ -97,6 +97,12 @@ export interface PendingInput {
   payload?: unknown;
   /** JSON Schema a structured answer must satisfy, when the node declared one. */
   schema?: unknown;
+  /**
+   * For a question asked inside a delegated subagent (ADR 0110): the agents
+   * from the turn's own agent down to the one that asked, `node` last.
+   * Absent when the turn's own agent (or a workflow node) asked.
+   */
+  path?: string[];
 }
 
 /** ADK's function-call name for a workflow input request. */

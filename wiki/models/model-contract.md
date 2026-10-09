@@ -81,10 +81,10 @@ A final response's parts are `OutputPart`s: text, toolCall and blob.
 
 - **`contractToolDeclaration(tool, { strict? })`** returns a `ToolDeclaration`, or undefined for a tool that declares nothing.
   - An own Tool ([tool contracts](/tools/tool-contracts.md), `lib/tools/tool.ts`) is declared by its own `declaration()`. A `defineTool` contract builds that from its zod schema through `zodToolParameters`, from the same `zodInputJsonSchema` step the MCP surface uses and never through Gemini's dialect: the schema's input side (`io: 'input'`), so a field with a default is optional, without the `default` keyword or an `additionalProperties` that is only `true` or `false`, and with a record's value schema kept. `toGeminiSchema` (Gemini's dialect, which the MCP parameters pass through) makes the same choices, walking by keyword as this path does.
-  - A tool object that is not an own Tool but has a `_getDeclaration()` (a declaration-only entry in an `LlmRequest`'s `toolsDict`, ADK's tool shape) is read from it: its `parameters`, or else its `parametersJsonSchema`. Gemini's dialect is converted once, here: types are lowercased, and the int64 bounds Gemini spells as strings (`minLength: '2'`) become integers. OpenAPI's `nullable: true` becomes a schema that admits null. A plain typed node gains `null` in its type (`['number', 'null']`) and in any `enum`. A bare `anyOf` gains a `{ type: 'null' }` branch. A node built otherwise (`$ref`, `allOf`, `oneOf`, `const`) moves into an `anyOf` beside `{ type: 'null' }`, with its description staying on the node.
+  - A tool object that is not an own Tool but has a `_getDeclaration()` (a declaration-only entry in an `LlmRequest`'s `toolsDict`, in the tool shape ADK had) is read from it: its `parameters`, or else its `parametersJsonSchema`. Gemini's dialect is converted once, here: types are lowercased, and the int64 bounds Gemini spells as strings (`minLength: '2'`) become integers. OpenAPI's `nullable: true` becomes a schema that admits null. A plain typed node gains `null` in its type (`['number', 'null']`) and in any `enum`. A bare `anyOf` gains a `{ type: 'null' }` branch. A node built otherwise (`$ref`, `allOf`, `oneOf`, `const`) moves into an `anyOf` beside `{ type: 'null' }`, with its description staying on the node.
   - The walk follows only the keywords that hold schemas (`properties`, `items`, `prefixItems`, `anyOf`, `oneOf`, `allOf`, `$defs`, and the rest), so a parameter named `type`, `enum` or `default` is converted like any other, and `enum`, `const` and `examples` stay data.
   - With `strict`, every object node that has properties, at any depth, lists all of them as `required` and sets `additionalProperties: false`, and the declaration carries `strict: true`. An optional property becomes required as it is, not widened to null, because the contract's zod schema would refuse a null. An object without properties (a map) is left open, so a strict provider refuses it rather than receive a field the model can never fill. `toContractJsonSchema(schema, { strict? })` is the same conversion for any schema, such as an `outputSchema`.
-- **`nativeToolOf(tool)`** returns the `NativeTool` a tool object stands for, by marker rather than by class or shape, and every marker lives in the global symbol registry, so a second copy of a module still matches ([ADR 0062](/decisions/0062-server-side-tools-as-markers.md)). The engine's own marker (`melchizedek.nativeTool`) names it on a NativeToolMarker. The markers ADK sets on its built-in code executor and on its `GOOGLE_SEARCH` and `URL_CONTEXT` read as `code_execution`, `google_search` and `url_context`. A client-side tool registered under one of those names carries no marker and stays client-side, as does a tool that merely declares nothing.
+- **`nativeToolOf(tool)`** returns the `NativeTool` a tool object stands for, by marker rather than by class or shape, and every marker lives in the global symbol registry, so a second copy of a module still matches ([ADR 0062](/decisions/0062-server-side-tools-as-markers.md)). The engine's own marker (`melchizedek.nativeTool`) names it on a NativeToolMarker, the only marker read; `google_search` and `url_context` have markers of their own (`lib/tools/nativeTools.ts`), and `code_execution` is the agent's `code_execution: gemini`, never a listed tool. A client-side tool registered under one of those names carries no marker and stays client-side, as does a tool that merely declares nothing.
 
 Every tool the registry resolves is one or the other, except `preload_memory`, which writes memory into the instruction and declares nothing (`tests/contractToolDeclarations.test.ts`). `toLowercaseJsonSchema` and `toStrictJsonSchema` are the lower-level steps the adapters share.
 
@@ -137,7 +137,7 @@ The codes keep the spelling ADK's model classes used, so a caller matching on a 
 | `<ID>_MAX_TOKENS` | Kimi, Ollama, gateway | Out of tokens before any reply or tool call (ADR 0027). |
 | `<ID>_EMPTY_RESPONSE` | Kimi, Ollama, gateway | Stopped after thinking with nothing to say (ADR 0027). |
 | `GATEWAY_NOT_CONFIGURED`, `GATEWAY_KEY_MISSING` | gateway | `MODEL_GATEWAY` unknown, or its key absent. |
-| `MAX_TOKENS`, `SAFETY`, `RECITATION`, `LANGUAGE`, `OTHER`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, `MALFORMED_FUNCTION_CALL`, `IMAGE_SAFETY`, `UNEXPECTED_TOOL_CALL`, `TOO_MANY_TOOL_CALLS`, `IMAGE_PROHIBITED_CONTENT`, `NO_IMAGE`, `IMAGE_RECITATION`, `IMAGE_OTHER` | Gemini | A candidate with no parts: its finish reason is the code, as ADK reports it. |
+| `MAX_TOKENS`, `SAFETY`, `RECITATION`, `LANGUAGE`, `OTHER`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, `MALFORMED_FUNCTION_CALL`, `IMAGE_SAFETY`, `UNEXPECTED_TOOL_CALL`, `TOO_MANY_TOOL_CALLS`, `IMAGE_PROHIBITED_CONTENT`, `NO_IMAGE`, `IMAGE_RECITATION`, `IMAGE_OTHER` | Gemini | A candidate with no parts: its finish reason is the code, as ADK's Gemini reported it. |
 | `SAFETY`, `OTHER`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `IMAGE_SAFETY`, `MODEL_ARMOR`, `JAILBREAK` | Gemini | The prompt was blocked: its block reason is the code. |
 | `UNKNOWN_ERROR` | Gemini | A response with neither candidates nor prompt feedback. |
 | `GEMINI_ERROR` | Gemini | The call failed. The contract never throws, so the failure is this code. |
@@ -172,7 +172,7 @@ The Gemini API (`generateContent`, `streamGenerateContent`), on Google AI or Ver
 | user / assistant / tool message | `contents[]` with `role: 'user'` / `'model'` / `'user'` |
 | `TextPart` | `{ text }` |
 | `ThinkingPart` | not sent. Received as `{ text, thought: true }`. |
-| `ToolCallPart` | `{ functionCall: { id, name, args } }`. Ids the adapter made start with `adk-`, as ADK's do, so stored history reads the same, and are left off the wire, as are the ids the genai mapping minted (`genai-noid-`). |
+| `ToolCallPart` | `{ functionCall: { id, name, args } }`. Ids the adapter made start with `adk-`, as ADK's did, so stored history reads the same, and are left off the wire, as are the ids the genai mapping minted (`genai-noid-`). |
 | `ToolResultPart` | `{ functionResponse: { id, name, response } }`. `response` is the result when it is an object, else `{ result }`; with `isError`, `{ error: result }`. |
 | `BlobPart` | `{ inlineData: { mimeType, data } }`, or `{ fileData: { mimeType, fileUri } }` for a URL |
 | `providerState` | `{ provider: 'gemini', kind: 'thought_signature', model, payload }` ↔ the part's `thoughtSignature`, on the same part, replayed within the current turn. A signature on a thought part moves to the next output part, since a final holds no thinking, and is replayed on that part. `{ provider: 'gemini', kind: 'carried_parts', model, payload: { before, signature? } }` ↔ the `executableCode`, `codeExecutionResult` and server-side `toolCall` and `toolResponse` parts before the part, whole, and the part's own signature; replayed before it within the current turn ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)). The genai mapping (`partsToGenai`) writes such a part out as the carried parts, verbatim, then the part with its own signature, so a stored event holds what Gemini sent; read back, each is `genai_part` state, which the Gemini adapter replays as the part itself within the current turn ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)). |
@@ -294,7 +294,7 @@ The chat-completions adapters take the contract's `ModelRequest` alone; an effor
 
 ## From genai Content
 
-Stored sessions, in ADK's event shape, hold `@google/genai` `Content`, and the native loop builds each step's request as an `LlmRequest` (the engine's own type for the request ADK would build, defined in `lib/models/genaiMapping.ts`) before it reaches an adapter as a `ModelRequest`. `lib/models/genaiMapping.ts` converts between genai and the contract both ways, as pure functions that never mutate their input:
+Stored sessions, in ADK's event shape, hold `@google/genai` `Content`, and the native loop builds each step's request as an `LlmRequest` (the engine's own type, in the shape of the request ADK built, defined in `lib/models/genaiMapping.ts`) before it reaches an adapter as a `ModelRequest`. `lib/models/genaiMapping.ts` converts between genai and the contract both ways, as pure functions that never mutate their input:
 
 - `contentsToMessages(contents, systemInstruction?)` and its inverse `messagesToContents({ system, messages })`, for a history;
 - `contentToMessage` and `messageToContent`, for one content;
@@ -308,7 +308,7 @@ The Gemini ids, `GEMINI_PROVIDER` (`gemini`), `THOUGHT_SIGNATURE_KIND` (`thought
 
 ### Contents and messages
 
-Content → contract → Content gives back the same JSON for every content ADK and the adapters store, keys aside: both event tables are jsonb, which keeps no key order. That holds for each content alone and for a whole history, in the stored form and in the form an `LlmRequest` carries.
+Content → contract → Content gives back the same JSON for every content ADK stored and the adapters store, keys aside: both event tables are jsonb, which keeps no key order. That holds for each content alone and for a whole history, in the stored form and in the form an `LlmRequest` carries.
 
 | genai | Contract |
 |---|---|
@@ -329,16 +329,16 @@ Content → contract → Content gives back the same JSON for every content ADK 
 **Parts carried whole.** A part the contract cannot hold exactly, or that its message cannot hold, keeps the original genai part in `providerState: { provider: 'gemini', kind: 'genai_part', payload: <the part> }`, and that state comes back as the part, verbatim. The contract part that carries it is the nearest one its message allows:
 
 - **Gemini code execution.** `executableCode` is a text part holding the code in a fenced block. `codeExecutionResult` is a text part holding its output, and the outcome when it failed. A signature on either stays inside the carried part.
-- **ADK's confirmation and credential requests.** ADK writes `adk_request_confirmation` and `adk_request_credential` as a `functionCall` in a `user` content. Each is a text part describing the call, in a user message. ADK leaves these events out of every model request.
+- **The confirmation and credential requests.** The loop writes `adk_request_confirmation` and `adk_request_credential` as a `functionCall` in a `user` content, as ADK did. Each is a text part describing the call, in a user message. The loop leaves these events out of every model request (`lib/runtime/native/history.ts`).
 - **A field the contract has no place for.** `videoMetadata`, a blob's `displayName`, a call's `willContinue`, a call with no `args`, `thought: false`. The part keeps its own contract kind, and the carried part supplies the rest.
 - **Two states on one part.** A signature beside another adapter's state, or a stored state of one of the mapping's own two kinds.
 - **A part with no data the contract knows.** A signature alone, or a Gemini server-side `toolCall`, is an empty text part.
 
 Only the Gemini adapter (provider `gemini`) replays a carried part. Every other adapter sees only the contract part.
 
-**Tool results.** `response` is the result when it is an object. A response of exactly `{ result: <not an object> }` is that value, and a response of exactly `{ error: <not null or false> }` is that value with `isError: true`, the shape in which ADK reports a tool that threw. They come back as the Gemini table above writes them: `{ error: result }` for an error, the result when it is an object, else `{ result }`. A tool's successful object result shaped `{ error }` therefore reads back as a failure: the genai bytes cannot tell the two apart.
+**Tool results.** `response` is the result when it is an object. A response of exactly `{ result: <not an object> }` is that value, and a response of exactly `{ error: <not null or false> }` is that value with `isError: true`, the shape in which the loop reports a tool that threw, as ADK did. They come back as the Gemini table above writes them: `{ error: result }` for an error, the result when it is an object, else `{ result }`. A tool's successful object result shaped `{ error }` therefore reads back as a failure: the genai bytes cannot tell the two apart.
 
-**Ids.** A call without an id gets `genai-noid-<content>-<part>`, from its position. Gemini returns calls without ids, and ADK strips its own `adk-` ids from every request it builds. A result without an id takes the id of the latest open minted call of the same name, earliest first among parallel calls, else an id of its own. A minted id is left off on the way back, so the round trip restores its absence. Stored events keep the ids ADK assigned, which pass through unchanged.
+**Ids.** A call without an id gets `genai-noid-<content>-<part>`, from its position. Gemini returns calls without ids, and the loop strips its own `adk-` ids from every request it builds, as ADK did. A result without an id takes the id of the latest open minted call of the same name, earliest first among parallel calls, else an id of its own. A minted id is left off on the way back, so the round trip restores its absence. Stored events keep the ids ADK assigned, which pass through unchanged.
 
 ### The request
 
@@ -385,7 +385,7 @@ The stored Event JSON keeps its shape ([ADR 0045](/decisions/0045-own-runtime-be
 
 ### The reverse directions
 
-`modelRequestToLlmRequest` builds the LlmRequest ADK would build for a Gemini model:
+`modelRequestToLlmRequest` builds an LlmRequest in the shape ADK built for a Gemini model:
 
 | ModelRequest | LlmRequest |
 |---|---|
@@ -409,7 +409,7 @@ Through `llmRequestToModelRequest` a request comes back the same, except: `googl
 |---|---|
 | `partial: true` | a partial: its non-empty text parts as text and thinking deltas. Other parts wait for the final. |
 | any other | a final. `content.parts` map as an assistant message's (above), with ids minted from `index`, the answer's place in its conversation. Thinking is left out, and a signature on it moves to the next part that has no state of its own, or stays with the last part when no part follows. `model`, when given, is set on every `thought_signature` state. |
-| `errorCode` | `error`: the code; `errorMessage` with key-shaped text scrubbed, or `The model call ended with <code>.`; `retryable` and `status` from `customMetadata['error.retryable']` and `['error.status']`, so a verdict an adapter stamped reads back. ADK's `STOP` is no error. |
+| `errorCode` | `error`: the code; `errorMessage` with key-shaped text scrubbed, or `The model call ended with <code>.`; `retryable` and `status` from `customMetadata['error.retryable']` and `['error.status']`, so a verdict an adapter stamped reads back. A `STOP` code, as ADK's Gemini reported it, is no error. |
 | `finishReason` | the Gemini table's: `tool_call` whenever a call is there. With no finish reason, an error is `content_filter` for a policy reason (a blocked prompt), else `error`; no error is `stop`. |
 | `usageMetadata` | `usage`, through `usageFromMetadata` |
 | `groundingMetadata` | `grounding`: each `groundingChunks[].web` page once, with its title, and `webSearchQueries` attributed to `searchTool` (default `web_search`) |

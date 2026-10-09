@@ -47,7 +47,7 @@
           }
         },
         "require_approval": {
-          "description": "Tools from this agent's `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on the orchestrator and on plan-dispatch routes.",
+          "description": "Tools from this agent's `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on any agent but one a workflow map node runs; inside a delegated subagent the pause reaches the caller through its open call (ADR 0110).",
           "type": "array",
           "items": {
             "type": "string",
@@ -188,7 +188,7 @@
           "description": "How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047)."
         },
         "outputSchema": {
-          "description": "JSON Schema for structured output: the agent answers with one JSON object matching it. Hold it on a leaf; an agent that delegates and holds one ends its turn on that JSON.",
+          "description": "JSON Schema for structured output: the agent answers with one JSON object matching it. An agent that also calls tools or delegates to subagents does that first, then ends its turn on that JSON: the schema travels beside the tools where the model takes both in one request, as a set_model_response tool elsewhere (the capability matrix's structured_output_with_tools, ADR 0109).",
           "type": "object",
           "propertyNames": {
             "type": "string"
@@ -207,6 +207,88 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "mcp_auth": {
+          "description": "The OAuth grant the MCP server takes (ADR 0112). With authorization_code, each user's own token on their own connection, and mcp_tools is required. Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.",
+          "type": "object",
+          "properties": {
+            "oauth2": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+                  "description": "The credential store's name for the provider (e.g. github). Every tool naming it shares one grant."
+                },
+                "grant": {
+                  "type": "string",
+                  "enum": [
+                    "authorization_code",
+                    "client_credentials"
+                  ],
+                  "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
+                },
+                "authorization_url": {
+                  "description": "The provider's authorization endpoint (https). authorization_code only.",
+                  "type": "string",
+                  "format": "uri"
+                },
+                "token_url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "The provider's token endpoint (https)."
+                },
+                "client_id": {
+                  "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "client_id_env": {
+                  "description": "Environment variable holding the client id. Or client_id.",
+                  "type": "string",
+                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                },
+                "client_secret_env": {
+                  "description": "Environment variable NAME holding the client secret, never the value. Required for client_credentials; omit for a public client (PKCE alone).",
+                  "type": "string",
+                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                },
+                "scopes": {
+                  "description": "The scopes the grant asks for.",
+                  "maxItems": 64,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[\\x21\\x23-\\x5b\\x5d-\\x7e]{1,256}$"
+                  }
+                },
+                "authorization_params": {
+                  "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+                  },
+                  "additionalProperties": {
+                    "type": "string",
+                    "maxLength": 512
+                  }
+                }
+              },
+              "required": [
+                "provider",
+                "grant",
+                "token_url"
+              ],
+              "additionalProperties": false,
+              "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
+            }
+          },
+          "required": [
+            "oauth2"
+          ],
+          "additionalProperties": false
         },
         "skills": {
           "type": "object",
@@ -320,6 +402,78 @@
                       "name"
                     ],
                     "additionalProperties": false
+                  },
+                  "oauth2": {
+                    "type": "object",
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+                        "description": "The credential store's name for the provider (e.g. github). Every tool naming it shares one grant."
+                      },
+                      "grant": {
+                        "type": "string",
+                        "enum": [
+                          "authorization_code",
+                          "client_credentials"
+                        ],
+                        "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
+                      },
+                      "authorization_url": {
+                        "description": "The provider's authorization endpoint (https). authorization_code only.",
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "token_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "The provider's token endpoint (https)."
+                      },
+                      "client_id": {
+                        "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      "client_id_env": {
+                        "description": "Environment variable holding the client id. Or client_id.",
+                        "type": "string",
+                        "pattern": "^[A-Z_][A-Z0-9_]*$"
+                      },
+                      "client_secret_env": {
+                        "description": "Environment variable NAME holding the client secret, never the value. Required for client_credentials; omit for a public client (PKCE alone).",
+                        "type": "string",
+                        "pattern": "^[A-Z_][A-Z0-9_]*$"
+                      },
+                      "scopes": {
+                        "description": "The scopes the grant asks for.",
+                        "maxItems": 64,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[\\x21\\x23-\\x5b\\x5d-\\x7e]{1,256}$"
+                        }
+                      },
+                      "authorization_params": {
+                        "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+                        },
+                        "additionalProperties": {
+                          "type": "string",
+                          "maxLength": 512
+                        }
+                      }
+                    },
+                    "required": [
+                      "provider",
+                      "grant",
+                      "token_url"
+                    ],
+                    "additionalProperties": false,
+                    "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
                   }
                 },
                 "additionalProperties": false
@@ -465,7 +619,7 @@
             }
           },
           "require_approval": {
-            "description": "Tools from this agent's `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on the orchestrator and on plan-dispatch routes.",
+            "description": "Tools from this agent's `tools` that run only after a person approves the exact call (ADR 0028): the A2A task ends input-required until the caller answers approve or reject. Allowed on any agent but one a workflow map node runs; inside a delegated subagent the pause reaches the caller through its open call (ADR 0110).",
             "type": "array",
             "items": {
               "type": "string",
@@ -606,7 +760,7 @@
             "description": "How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047)."
           },
           "outputSchema": {
-            "description": "JSON Schema for structured output: the agent answers with one JSON object matching it. Hold it on a leaf; an agent that delegates and holds one ends its turn on that JSON.",
+            "description": "JSON Schema for structured output: the agent answers with one JSON object matching it. An agent that also calls tools or delegates to subagents does that first, then ends its turn on that JSON: the schema travels beside the tools where the model takes both in one request, as a set_model_response tool elsewhere (the capability matrix's structured_output_with_tools, ADR 0109).",
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -625,6 +779,88 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "mcp_auth": {
+            "description": "The OAuth grant the MCP server takes (ADR 0112). With authorization_code, each user's own token on their own connection, and mcp_tools is required. Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.",
+            "type": "object",
+            "properties": {
+              "oauth2": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+                    "description": "The credential store's name for the provider (e.g. github). Every tool naming it shares one grant."
+                  },
+                  "grant": {
+                    "type": "string",
+                    "enum": [
+                      "authorization_code",
+                      "client_credentials"
+                    ],
+                    "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
+                  },
+                  "authorization_url": {
+                    "description": "The provider's authorization endpoint (https). authorization_code only.",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "token_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "The provider's token endpoint (https)."
+                  },
+                  "client_id": {
+                    "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "client_id_env": {
+                    "description": "Environment variable holding the client id. Or client_id.",
+                    "type": "string",
+                    "pattern": "^[A-Z_][A-Z0-9_]*$"
+                  },
+                  "client_secret_env": {
+                    "description": "Environment variable NAME holding the client secret, never the value. Required for client_credentials; omit for a public client (PKCE alone).",
+                    "type": "string",
+                    "pattern": "^[A-Z_][A-Z0-9_]*$"
+                  },
+                  "scopes": {
+                    "description": "The scopes the grant asks for.",
+                    "maxItems": 64,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[\\x21\\x23-\\x5b\\x5d-\\x7e]{1,256}$"
+                    }
+                  },
+                  "authorization_params": {
+                    "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 512
+                    }
+                  }
+                },
+                "required": [
+                  "provider",
+                  "grant",
+                  "token_url"
+                ],
+                "additionalProperties": false,
+                "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
+              }
+            },
+            "required": [
+              "oauth2"
+            ],
+            "additionalProperties": false
           },
           "skills": {
             "type": "object",
@@ -738,6 +974,78 @@
                         "name"
                       ],
                       "additionalProperties": false
+                    },
+                    "oauth2": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+                          "description": "The credential store's name for the provider (e.g. github). Every tool naming it shares one grant."
+                        },
+                        "grant": {
+                          "type": "string",
+                          "enum": [
+                            "authorization_code",
+                            "client_credentials"
+                          ],
+                          "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
+                        },
+                        "authorization_url": {
+                          "description": "The provider's authorization endpoint (https). authorization_code only.",
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "token_url": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "The provider's token endpoint (https)."
+                        },
+                        "client_id": {
+                          "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        },
+                        "client_id_env": {
+                          "description": "Environment variable holding the client id. Or client_id.",
+                          "type": "string",
+                          "pattern": "^[A-Z_][A-Z0-9_]*$"
+                        },
+                        "client_secret_env": {
+                          "description": "Environment variable NAME holding the client secret, never the value. Required for client_credentials; omit for a public client (PKCE alone).",
+                          "type": "string",
+                          "pattern": "^[A-Z_][A-Z0-9_]*$"
+                        },
+                        "scopes": {
+                          "description": "The scopes the grant asks for.",
+                          "maxItems": 64,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[\\x21\\x23-\\x5b\\x5d-\\x7e]{1,256}$"
+                          }
+                        },
+                        "authorization_params": {
+                          "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.",
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+                          },
+                          "additionalProperties": {
+                            "type": "string",
+                            "maxLength": 512
+                          }
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "grant",
+                        "token_url"
+                      ],
+                      "additionalProperties": false,
+                      "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
                     }
                   },
                   "additionalProperties": false
