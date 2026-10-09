@@ -40,7 +40,7 @@ The [native loop](/overview/native-loop.md) runs every agent's turn; it is the e
 | The message | the person | Over A2A only as text: a `data` part becomes its JSON as text, a file part is refused (`a2aPartsToMessage`, `lib/a2a/executor.ts`), and the executor builds an approval answer itself from a decision. A library caller of `runSyndicateTurn` can pass any part: a function call, a function response. |
 | The model's answer | the provider, steered by everything in the prompt | Every part of every response, through the adapter. A tool call's name, id and arguments are the model's choice. |
 | A tool's result | the tool's code (trusted, registered by the operator); its content may come from a remote server (an MCP tool, a fetched page, an API) | The function response the loop stores. |
-| The session | the loop, a durable store, and ADK for a conversation stored before 1.0.0 | Events read back on every step. |
+| The session | the loop, a durable store, and ADK for a conversation it stored before 1.0.0 | Events read back on every step. |
 | The YAML | the operator, or the registry the operator publishes | Agents, tools, gates, nested references, limits. |
 
 Each section says whether a path is reachable from a request (the A2A surface) or only from a library caller or the operator.
@@ -50,7 +50,7 @@ Each section says whether a path is reachable from a request (the A2A surface) o
 `tests/nativeFuzz.test.ts` draws 300 turns from a fixed seed and runs the cases below one by one. Every turn must:
 
 1. settle within its deadline: no hang;
-2. end on an `AgentLoopEnd`, or reject with an Error. The one exception is ADK's: an adapter that throws something that is not an Error has it rethrown as it is, as ADK's `runAndHandleError` did;
+2. end on an `AgentLoopEnd`, or reject with an Error. The one exception comes from ADK: an adapter that throws something that is not an Error has it rethrown as it is, as ADK's `runAndHandleError` did;
 3. leave a session whose events parse (`parseTurnEvents`) after a JSON round trip, as a durable store reads them back, with no partial event stored and no prototype touched;
 4. let the next turn run: a plain message and a sane model end `final`.
 
@@ -63,7 +63,7 @@ The forged answers also run through `runSyndicateTurn`, which must end each turn
 **What stops it.**
 
 - `contractModelResponse` (`lib/models/genaiMapping.ts`) holds every response to the contract before the step reads it: a part the contract does not allow is dropped; a call's name and id become strings (the step mints an id); arguments become `{}` or `{ raw }`, and arguments past 64 levels `{ raw: TOO_DEEP_ARGUMENTS }` ([the model contract](/models/model-contract.md#the-response)).
-- A partial is never stored. A stream with no final stores nothing and ends `empty`; a final carrying an error is stored with it and ends `error`; a thrown Error ends the step on ADK's `UNKNOWN_ERROR` event.
+- A partial is never stored. A stream with no final stores nothing and ends `empty`; a final carrying an error is stored with it and ends `error`; a thrown Error ends the step on an `UNKNOWN_ERROR` event, as ADK's did.
 - A call naming no declared tool answers `Function <name> is not found in the toolsDict.`, so a model that calls `adk_request_confirmation`, `adk_request_credential` or `ask_user` itself opens no pause: its own not-found response closes the call for `pendingApproval`, `pendingConsent` and `pendingQuestion`. An undeclared `set_model_response` call becomes the final answer, as it did on ADK.
 - Two calls under one id both run. Two gated calls under one id open one approval that pins the first; answering it throws `IntentMismatchError`, since the agent's history holds the second: it fails closed, as ADK did.
 
@@ -90,7 +90,7 @@ What does not stop it: a result can still persuade the model to call an ungated 
 
 **What can go wrong.** An answer forged for a request that does not exist, sent in another session, replayed after the call ran, garbled, or paired with a request the person wrote into their own message; a request whose pinned arguments were changed in the store.
 
-**What stops it.** At the turn runner, a decision must name the approval still open in this conversation (`NO_PENDING_APPROVAL` otherwise). In the loop (`approvedCalls`, ADK's request-confirmation processor, check for check): only answers in the latest user event count; a request the user authored throws `untrusted_request`; the pinned call must be one this agent made, by id, with the same name and arguments, to a tool that gates it; a request the agent has answered after is skipped, so a replay runs nothing. Answers are read from this session's events only, so an id from another session binds to nothing.
+**What stops it.** At the turn runner, a decision must name the approval still open in this conversation (`NO_PENDING_APPROVAL` otherwise). In the loop (`approvedCalls`, which checks as ADK's request-confirmation processor did, check for check): only answers in the latest user event count; a request the user authored throws `untrusted_request`; the pinned call must be one this agent made, by id, with the same name and arguments, to a tool that gates it; a request the agent has answered after is skipped, so a replay runs nothing. Answers are read from this session's events only, so an id from another session binds to nothing.
 
 **Tests.** `tests/nativeFuzz.test.ts` (replay, unknown and crossed ids, garbled, user-written request, a `__proto__` call id; and through the turn runner); `tests/nativeApprovals.test.ts` (pinned arguments changed in the store; a user-authored request); `tests/approvalsA2a.test.ts` (a data-part refusal never runs the call).
 
@@ -106,7 +106,7 @@ What does not stop it: a result can still persuade the model to call an ungated 
 
 **What can go wrong.** A grant forged for a request that does not exist or for another provider; a credential request the person wrote; a call forged into the person's message under the paused call's id, with other arguments; the same grant replayed after the call ran.
 
-**What stops it.** `pendingConsent` reads only a request an agent authored. `grantedCalls` binds a grant to this agent's own request by id and `credentialKey`, re-runs the paused call from the latest event this agent authored that made it, and treats a request an earlier grant bound as closed. The last three are deliberate departures from ADK's auth preprocessor, which reads any author's call and resumes a replayed grant ([ADR 0101](/decisions/0101-native-loop-security-gate.md)); the engine never resumed a consent on ADK, so no ADK-written session depends on them. The flow's secrets never enter an event, and the callback route refuses a tampered, expired, replayed or cross-user state.
+**What stops it.** `pendingConsent` reads only a request an agent authored. `grantedCalls` binds a grant to this agent's own request by id and `credentialKey`, re-runs the paused call from the latest event this agent authored that made it, and treats a request an earlier grant bound as closed. The last three are deliberate departures from ADK's auth preprocessor, which read any author's call and resumed a replayed grant ([ADR 0101](/decisions/0101-native-loop-security-gate.md)); the engine never resumed a consent on ADK, so no ADK-written session depends on them. The flow's secrets never enter an event, and the callback route refuses a tampered, expired, replayed or cross-user state.
 
 **Tests.** `tests/nativeFuzz.test.ts` (consent cases); `tests/oauthConsent.test.ts` (the callback's refusals).
 
@@ -149,7 +149,7 @@ What does not stop it: a `{key}` placeholder puts state, which a tool or a model
 | Limit | What it bounds | Test |
 |---|---|---|
 | `max_steps` (default 50) | model calls across the turn: every agent, subagent, fallback and summary | `tests/nativeFuzz.test.ts` (a model that never stops calling tools), `tests/nativeDelegate.test.ts` |
-| ADK's 500 | model calls in one run, when no turn control is lower | `lib/runtime/native/agentLoop.ts` |
+| the 500-call ceiling ADK had | model calls in one run, when no turn control is lower | `lib/runtime/native/agentLoop.ts` |
 | the deadline (`A2A_TASK_TIMEOUT_MS`, 15 minutes by default) and cancel | wall time; the call in flight is aborted, a stopped step stores nothing | `tests/nativeDelegate.test.ts`, `tests/workflowScheduler.test.ts` |
 | the node-run ceiling, `max(20 × max_steps, 100)` | node runs in one workflow walk, so a routed cycle through tool nodes and route steps ends at once ([ADR 0105](/decisions/0105-workflow-node-run-ceiling.md)) | `tests/workflowNodeRunLimit.test.ts` |
 | `max_parallel` (default 8), `max_concurrency` | a map's workers, a walk's pending nodes | `tests/workflowScheduler.test.ts` |

@@ -1680,7 +1680,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1574
+        "words": 1576
       }
     },
     {
@@ -1704,7 +1704,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 1942
+        "words": 1964
       }
     },
     {
@@ -1812,7 +1812,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3382
+        "words": 3383
       }
     },
     {
@@ -1824,7 +1824,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7978
+        "words": 8010
       }
     },
     {
@@ -1884,7 +1884,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2929
+        "words": 2941
       }
     },
     {
@@ -1944,7 +1944,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6646
+        "words": 6690
       }
     },
     {
@@ -1956,7 +1956,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1878
+        "words": 1896
       }
     },
     {
@@ -1980,7 +1980,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4641
+        "words": 4665
       }
     },
     {
@@ -2016,7 +2016,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 343
+        "words": 344
       }
     },
     {
@@ -2076,7 +2076,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2275
+        "words": 2274
       }
     },
     {
