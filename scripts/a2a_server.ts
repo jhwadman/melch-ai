@@ -81,6 +81,11 @@
  *   MELCHIZEDEK_OAUTH_HOSTS   provider=host,host;…: the hosts each provider's tokens may
  *                             be sent to. Unset: authorization_code grants are refused,
  *                             client_credentials allowed (ADR 0114)
+ *   MELCHIZEDEK_CREDENTIAL_HOSTS  VARIABLE=host,host;…: the hosts each static credential
+ *                             variable a YAML sends (bearer_env, api_key.env,
+ *                             client_secret_env) may be sent to. Set, it is the whole
+ *                             list. Unset: sent where the YAML says, and the boot names
+ *                             each unbound variable (ADR 0122)
  */
 import { randomBytes } from 'node:crypto';
 import { readdirSync, realpathSync, writeFileSync } from 'node:fs';
@@ -116,6 +121,7 @@ import { callbackIdentity, callbackIdentityProblem, oauthServerSetup } from '../
 import type { OAuthServerSetup } from '../lib/a2a/oauthSetup.ts';
 import { postgresCredentialRows } from '../lib/storage/postgres/credentialStore.ts';
 import { setOAuthHosts } from '../lib/tools/oauthHosts.ts';
+import { setCredentialHosts } from '../lib/tools/credentialHosts.ts';
 import type { AuditSink } from '../lib/observability/audit.ts';
 import type { CredentialRows } from '../lib/tools/credentialStore.ts';
 
@@ -229,8 +235,8 @@ export interface ServerOAuth extends OAuthServerSetup {
 
 /**
  * Tool credentials and the consent step for the served syndicates, from
- * MELCHIZEDEK_CREDENTIAL_KEY, OAUTH_REDIRECT_URI, OAUTH_CALLBACK_IDENTITY
- * and MELCHIZEDEK_OAUTH_HOSTS (lib/a2a/oauthSetup.ts). Throws, naming
+ * MELCHIZEDEK_CREDENTIAL_KEY, OAUTH_REDIRECT_URI, OAUTH_CALLBACK_IDENTITY,
+ * MELCHIZEDEK_OAUTH_HOSTS and MELCHIZEDEK_CREDENTIAL_HOSTS (lib/a2a/oauthSetup.ts). Throws, naming
  * variables only, on a configuration that is unsafe or cannot work.
  */
 export function serverOAuth(options: {
@@ -455,6 +461,7 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   try {
     // An extension's allowlist wins over the environment's here too, as createA2AApp applies it.
     if (extensions.options?.oauthHosts) setOAuthHosts(extensions.options.oauthHosts);
+    if (extensions.options?.credentialHosts) setCredentialHosts(extensions.options.credentialHosts);
     oauth = serverOAuth({
       syndicateName,
       servedAgents,
@@ -536,6 +543,7 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   }
   if (budgetLabel) emit('info', `[A2A]   budgets  ${budgetLabel}`);
   emit('info', `[A2A]   oauth    ${oauth.summary}`);
+  emit('info', `[A2A]   creds    ${oauth.credentialSummary}`);
   if (metricsToken) emit('info', `[A2A]   metrics  ${base}/metrics (bearer A2A_METRICS_TOKEN)`);
   emit('info', `[A2A]   health   ${base}/healthz  ${base}/readyz`);
 

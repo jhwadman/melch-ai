@@ -51,6 +51,9 @@ import { agentOAuthGrants, oauthEnvNames } from './tools/oauthTools.ts';
 import { grantHostProblems, OAUTH_REDIRECT_URI_ENV, oauthEnvProblems } from './a2a/oauthSetup.ts';
 import { CREDENTIAL_KEY_ENV } from './tools/credentialCipher.ts';
 import { OAUTH_HOSTS_ENV } from './tools/oauthHosts.ts';
+import { CREDENTIAL_HOSTS_ENV, credentialHosts } from './tools/credentialHosts.ts';
+import { syndicateCredentialUses } from './tools/credentialUses.ts';
+import { credentialHostEnvProblems, unboundCredentialWarning } from './a2a/oauthSetup.ts';
 import type { RuntimeName, RuntimeSource } from './runtime/runtimeFlag.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -108,6 +111,22 @@ export interface DoctorOAuth {
   problems: string[];
 }
 
+/**
+ * The static credential variables the syndicates send, under the operator's
+ * credential host allowlist (ADR 0122). Present when any syndicate sends one
+ * or MELCHIZEDEK_CREDENTIAL_HOSTS is set. Names and hosts only.
+ */
+export interface DoctorCredentials {
+  /** Whether MELCHIZEDEK_CREDENTIAL_HOSTS is set. */
+  set: boolean;
+  /** Every variable the syndicates send (bearer_env, api_key.env, client_secret_env), sorted. */
+  envs: string[];
+  /** With no allowlist: the variables sent wherever the YAML says, named. Not a --check failure. */
+  warning?: string;
+  /** A malformed allowlist, and each use it refuses (`file: agent · tools · role: why`). A --check failure. */
+  problems: string[];
+}
+
 export interface DoctorSyndicate {
   /** Path relative to the agents dir, e.g. "examples/council.yaml". */
   file: string;
@@ -132,6 +151,8 @@ export interface DoctorSyndicate {
   memory?: { namespace: string; declared: boolean; issue?: string };
   /** The tools that need an OAuth grant (ADR 0112), when any do. */
   grants?: DoctorGrant[];
+  /** The static credential variables its tools send (ADR 0122), and what the allowlist refuses; when it sends any. */
+  credentials?: { envs: string[]; problems: string[] };
 }
 
 export interface Unlock {
@@ -165,6 +186,8 @@ export interface DoctorResult {
   counts: Record<VerdictState, number>;
   /** The OAuth setup, when any syndicate declares a grant or its variables are set. */
   oauth?: DoctorOAuth;
+  /** The credential host allowlist (ADR 0122), when any syndicate sends a static credential or it is set. */
+  credentials?: DoctorCredentials;
 }
 
 export interface DoctorEndpoint {
@@ -465,6 +488,16 @@ export function diagnoseSyndicate(
     const nestedErrors: string[] = [];
     const grants: DoctorGrant[] = [];
     walk(config, '', { load, seen: new Set([file, path.basename(file)]), nestedErrors, grants }, rows);
+    // Static credentials and the credential host allowlist (ADR 0122); a nested file that cannot load is reported above.
+    const loadQuiet = (ref: string) => {
+      try {
+        return load(ref);
+      } catch {
+        return {};
+      }
+    };
+    const credentialEnvs = [...new Set(syndicateCredentialUses([config], loadQuiet).map((u) => u.env))].sort();
+    const credentials = credentialEnvs.length ? { envs: credentialEnvs, problems: credentialHostEnvProblems([config], process.env, loadQuiet) } : undefined;
     const memory =
       config.memory_system === 'long-term'
         ? {
@@ -485,6 +518,7 @@ export function diagnoseSyndicate(
       ...(nestedErrors.length ? { error: nestedErrors.join('\n') } : {}),
       ...(memory ? { memory } : {}),
       ...(grants.length ? { grants } : {}),
+      ...(credentials ? { credentials } : {}),
     };
   } catch (err) {
     // A schema failure is the author's to fix and names the key; anything
@@ -597,7 +631,23 @@ export function runDoctor(options: {
   const set = Object.fromEntries([CREDENTIAL_KEY_ENV, OAUTH_REDIRECT_URI_ENV, OAUTH_HOSTS_ENV].map((name) => [name, !!process.env[name]?.trim()]));
   const oauth = grants.length || Object.values(set).some(Boolean) ? { set, problems: oauthEnvProblems(grants) } : undefined;
 
-  return { agentsDir, runtime: runtimeReport(), syndicates, unlocks, gateway, endpoints: endpointRows(), counts, ...(oauth ? { oauth } : {}) };
+  // The credential host allowlist (ADR 0122): unbound variables named, refusals listed, names and hosts only.
+  const credentialSet = !!process.env[CREDENTIAL_HOSTS_ENV]?.trim();
+  const envs = [...new Set(syndicates.flatMap((s) => s.credentials?.envs ?? []))].sort();
+  let credentials: DoctorCredentials | undefined;
+  if (envs.length || credentialSet) {
+    const problems: string[] = [];
+    try {
+      credentialHosts();
+    } catch (err) {
+      problems.push(err instanceof Error ? err.message : `${CREDENTIAL_HOSTS_ENV} is malformed`);
+    }
+    if (!problems.length) for (const s of syndicates) for (const p of s.credentials?.problems ?? []) problems.push(`${s.file}: ${p}`);
+    const warning = unboundCredentialWarning(envs);
+    credentials = { set: credentialSet, envs, ...(warning ? { warning } : {}), problems };
+  }
+
+  return { agentsDir, runtime: runtimeReport(), syndicates, unlocks, gateway, endpoints: endpointRows(), counts, ...(oauth ? { oauth } : {}), ...(credentials ? { credentials } : {}) };
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
@@ -682,6 +732,14 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
     const mark = result.oauth.problems.length ? `${c.red}✗${c.reset}` : `${c.green}✓${c.reset}`;
     lines.push(`oauth       ${mark} ${c.dim}${set}${c.reset}`);
     for (const p of result.oauth.problems) lines.push(`            ${c.red}✗ ${p}${c.reset}`);
+  }
+  if (result.credentials) {
+    // Names only: which variables are sent, never their values (ADR 0122).
+    const cr = result.credentials;
+    const mark = cr.problems.length ? `${c.red}✗${c.reset}` : cr.warning ? `${c.yellow}⚠${c.reset}` : `${c.green}✓${c.reset}`;
+    lines.push(`credentials ${mark} ${c.dim}${CREDENTIAL_HOSTS_ENV} ${cr.set ? 'set' : 'unset'}${cr.envs.length ? ` · sent: ${cr.envs.join(', ')}` : ''}${c.reset}`);
+    if (cr.warning) lines.push(`            ${c.yellow}⚠ ${cr.warning}${c.reset}`);
+    for (const p of cr.problems) lines.push(`            ${c.red}✗ ${p}${c.reset}`);
   }
   lines.push('');
 
