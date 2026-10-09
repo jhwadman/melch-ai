@@ -121,6 +121,16 @@ export async function startMcpServer(argv: string[] = process.argv.slice(2)): Pr
 
   const { loadEnv, isPlaceholderValue } = await import('../lib/loadEnv.ts');
   loadEnv(import.meta.url);
+  // Sign in with ChatGPT is local only (ADR 0126). Over stdio this bin is one person's process, spawned by
+  // their own MCP client; --http can be reached by others, so it refuses like melchizedek-serve.
+  if (args.http) {
+    const { refuseChatGptSignInOnServedSurface } = await import('../lib/chatgpt/state.ts');
+    try {
+      refuseChatGptSignInOnServedSurface('melchizedek-mcp --http');
+    } catch (err: unknown) {
+      fatal(err instanceof Error ? err.message : String(err));
+    }
+  }
   if (process.env.OTEL_CONSOLE_SPANS === undefined) process.env.OTEL_CONSOLE_SPANS = 'false';
   const { setLogLevel } = await import('../lib/runtime/logging.ts');
   setLogLevel('warn');

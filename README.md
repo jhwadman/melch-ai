@@ -23,7 +23,7 @@ Gemini, Claude, GPT, Grok, and Kimi each run on the engine's own adapter for the
 
 ## Quick Start
 
-Start with `npx melchizedek-setup` (in a clone, `npm run setup`). Tell it what you have (no key, one or several provider keys, a gateway key, Vertex AI / Bedrock / Azure access, a server to put in front of other people, or a ChatGPT, Claude or Gemini sign-in) and it prints the startup guide for that level: which variables to set, the doctor check, which shipped syndicates run, and the first command. `npx melchizedek-setup --auto` detects the level from your environment without printing any value. The guides are also in [ONBOARDING.md](./ONBOARDING.md).
+Start with `npx melchizedek-setup` (in a clone, `npm run setup`). Tell it what you have (no key, one or several provider keys, a gateway key, Vertex AI / Bedrock / Azure access, a server to put in front of other people, a ChatGPT plan to use on your own machine, or a Claude or Gemini sign-in) and it prints the startup guide for that level: which variables to set, the doctor check, which shipped syndicates run, and the first command. `npx melchizedek-setup --auto` detects the level from your environment without printing any value. The guides are also in [ONBOARDING.md](./ONBOARDING.md).
 
 ### 1. Local-only (no API keys)
 

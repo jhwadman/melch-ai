@@ -6,7 +6,7 @@ fifteen. The full reference is [`DOCUMENTATION.md`](./DOCUMENTATION.md).
 **Start with `npx melchizedek-setup`** (in a clone: `npm run setup`). It
 asks what you have (no key, one or several provider keys, a gateway key,
 Vertex AI / Bedrock / Azure access, a server to put in front of others, or
-a ChatGPT, Claude or Gemini sign-in) and prints the startup guide for that
+a ChatGPT plan, or a Claude or Gemini sign-in) and prints the startup guide for that
 level: the variables to set (names only; you type the values into `.env`),
 the doctor check, the shipped syndicates that run, and the first command.
 `npm run setup -- --auto` detects your level without printing any value.

@@ -16,7 +16,8 @@ In a clone, the commands are spelled as npm scripts (`npm run doctor`, `npm run 
 | 6 | Serving over A2A where each caller brings its own model key (BYOK) | `--level byok` |
 | 7 | Serving to other backends or users with their own tokens (A2A_AUTH) | `--level caller-tokens` |
 | 8 | Tools that act for end users on third-party APIs (OAuth grants) | `--level oauth-grants` |
-| 9 | A ChatGPT / Codex, Claude.ai or Gemini CLI sign-in (no API key) | `--level subscription-signin` |
+| 9 | A ChatGPT plan, on your own machine (Sign in with ChatGPT, local only) | `--level chatgpt-signin` |
+| 10 | A Claude.ai or Gemini CLI sign-in, or a Codex CLI login (no API key) | `--level subscription-signin` |
 
 ## 1. No keys: local models only
 
@@ -304,23 +305,61 @@ npx melchizedek-serve systems_operator.yaml
 
 **Onboarding skill:** `melchizedek-onboard-serve` (`npx melchizedek-setup --level oauth-grants` prints this guide)
 
-## 9. Subscription sign-ins (ChatGPT / Codex, Claude.ai, Gemini CLI)
+## 9. Sign in with ChatGPT (local only)
 
-Not supported, on purpose. A consumer subscription sign-in authorizes that vendor's own apps. The engine does not read, reuse or relay those tokens: Anthropic and Google say third-party apps may not use them, and OpenAI's plan-usage sign-in is a preview for approved or locally hosted apps that this engine has not integrated. Use the same vendor's sanctioned route instead.
+OpenAI's own Sign in with ChatGPT lets an open-source app that runs on your machine use your ChatGPT plan for OpenAI requests. `melchizedek-setup --chatgpt-signin` opens your browser; once you approve, OpenAI model ids (`gpt-*`, `o<digit>*`) run on your plan whenever OPENAI_API_KEY is not set. The engine registers as its own app with OpenAI and never reads another app's sign-in. Local only: the A2A server, the worker and every other served surface refuse to start while it is the OpenAI path.
+
+**Set in `.env`** (names and shapes only; you type the values yourself):
+
+| Variable | Shape | What it does |
+|---|---|---|
+| `MELCHIZEDEK_CHATGPT_SIGNIN_FILE` | a path outside any git repository (default ~/.melchizedek/chatgpt-signin.json) | optional: where the sign-in is stored, mode 600 |
+| `MELCHIZEDEK_CHATGPT_SIGNIN` | off | optional: ignore a stored sign-in in this process |
+| `OPENAI_API_KEY` | leave blank | a key, when set, wins over the sign-in |
+
+**Confirm:** `npx melchizedek-doctor`: the providers line shows `✓ OpenAI ChatGPT sign-in, local only`, and the `chatgpt` line reads `signed in · carries OpenAI ids · local only`.
+
+**Runs at this level:**
+
+- OpenAI files: no shipped file yet (change a `model:` line to use one)
+- with no key at all: conversational (template), assistant (example), council (example), tutor (example)
+
+**First commands:**
+
+```bash
+npx melchizedek-setup --chatgpt-signin
+npx melchizedek-doctor
+npx melchizedek-init --template research_brief
+# change its model: lines to a GPT id your ChatGPT account offers, then:
+npx melchizedek-chat --syndicate research_brief
+```
+
+**Notes:**
+
+- OpenAI documents this flow for open-source and personal projects that run locally (https://developers.openai.com/siwc/token-sharing-open-source). It is a preview: requests go to the Responses API on api.openai.com, streamed and not stored, without temperature, top_p or an output-token cap, and only models your account lists answer.
+- Your ChatGPT plan's usage limits apply. A limit reached is reported as an OpenAI error and is not retried.
+- `melchizedek-setup --chatgpt-status` shows where the sign-in is; `--chatgpt-signout` removes the tokens and revokes them at OpenAI. A stored sign-in is never copied into `.env` or the repository.
+- To serve on the same machine, set OPENAI_API_KEY (or Azure OpenAI), or `MELCHIZEDEK_CHATGPT_SIGNIN=off` for the served process; `doctor --check` fails a served configuration that would run on the sign-in.
+
+**Onboarding skill:** `melchizedek-onboard-keys` (`npx melchizedek-setup --level chatgpt-signin` prints this guide)
+
+## 10. Subscription sign-ins (Claude.ai, Gemini CLI, Codex CLI)
+
+Not supported, on purpose. A consumer subscription sign-in authorizes that vendor's own apps. The engine does not read, reuse or relay those tokens: Anthropic and Google say third-party apps may not use them, and the Codex CLI's login belongs to the Codex CLI. OpenAI's own Sign in with ChatGPT is the exception, and it is level 9, on your own machine only. Otherwise use the same vendor's sanctioned route.
 
 **Use instead** (names and shapes only):
 
 | Variable | Shape | What it does |
 |---|---|---|
-| `OPENAI_API_KEY` | an API key from https://platform.openai.com/api-keys | instead of a ChatGPT / Codex sign-in (or Azure OpenAI: level 5) |
+| `OPENAI_API_KEY` | an API key from https://platform.openai.com/api-keys | instead of a Codex CLI login (or Sign in with ChatGPT: level 9; Azure OpenAI: level 5) |
 | `ANTHROPIC_API_KEY` | an API key from https://console.anthropic.com | instead of a Claude.ai sign-in (or Bedrock / Vertex AI: level 5) |
 | `GOOGLE_GENAI_API_KEY` | an API key from https://aistudio.google.com (free tier) | instead of a Gemini CLI sign-in (or Vertex AI: level 5) |
 
-**Confirm:** `npx melchizedek-doctor`: the provider you chose shows a ✓; nothing reads a subscription sign-in.
+**Confirm:** `npx melchizedek-doctor`: the provider you chose shows a ✓; nothing reads another app's sign-in.
 
 **Runs at this level:**
 
-- as level 2 (one key) or level 5 (cloud platform)
+- as level 2 (one key), level 5 (cloud platform) or, for OpenAI on your own machine, level 9
 
 **First commands:**
 
@@ -333,7 +372,7 @@ npx melchizedek-chat --syndicate research_brief
 
 - Anthropic: Claude.ai (Pro/Max) OAuth is for Claude Code and its own apps; third-party developers may not offer Claude.ai login or route requests through those credentials. Use an API key, Bedrock or Vertex AI.
 - Google: reaching Gemini CLI's services with its sign-in from third-party software is against Gemini CLI's terms. Use an AI Studio key or Vertex AI.
-- OpenAI: an API key or Azure OpenAI. OpenAI's Sign in with ChatGPT plan-usage flow is a documented preview for open-source, locally hosted apps; the engine does not implement it, and reusing the Codex CLI's own token is not that flow.
+- OpenAI: an API key, Azure OpenAI, or on your own machine Sign in with ChatGPT (level 9), which is the engine's own registration with OpenAI. The engine never reads the Codex CLI's stored login or uses its client id.
 - A coding agent signed in with a subscription (Claude Code, Codex, Gemini CLI) can still drive this repository: the sign-in pays for the coding agent, and the engine runs on the keys above.
 
 **Onboarding skill:** `melchizedek-onboard-keys` (`npx melchizedek-setup --level subscription-signin` prints this guide)

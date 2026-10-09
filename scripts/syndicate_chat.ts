@@ -17,6 +17,8 @@ import { runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
 import { randomUUID } from 'node:crypto';
 import { loadEnv } from '../lib/loadEnv.ts';
+import { runChatGptSignIn } from '../lib/chatgpt/cli.ts';
+import { chatGptSignInRoutesOpenAi } from '../lib/chatgpt/state.ts';
 
 // ── Model routing ─────────────────────────────────────────────────────────────
 // A model id resolves when an agent first calls it (lib/models/registry.ts),
@@ -145,6 +147,11 @@ async function main(): Promise<void> {
 	// MELCHIZEDEK_RUNTIME=adk (removed in 1.0.0) stops the chat here, naming the release.
 	runtimeSetting();
 
+	// --chatgpt-signin: the browser sign-in first, then the chat (ADR 0126, local only).
+	if (process.argv.includes('--chatgpt-signin')) {
+		if ((await runChatGptSignIn()) !== 0) process.exit(1);
+	}
+
 	const apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
 	if (apiKey) {
 		process.env.GEMINI_API_KEY = apiKey;
@@ -202,13 +209,14 @@ async function main(): Promise<void> {
 	);
 	if (!config.orchestrator.model) requiredProviders.add('gemini');
 	const missingKeys = [...requiredProviders].filter(
-		(p) => !providerKeyPresent(p),
+		(p) => !providerKeyPresent(p) && !(p === 'openai' && chatGptSignInRoutesOpenAi()),
 	);
 	if (missingKeys.length > 0) {
 		for (const p of missingKeys) {
 			console.error(
 				`${c.yellow}⚠ ${PROVIDERS[p].label} requires ${PROVIDERS[p].keyEnv}, which is not set.${c.reset}`,
 			);
+			if (p === 'openai') console.error(`${c.dim}  (Or sign in with ChatGPT on this machine: add --chatgpt-signin, or run melchizedek-setup --chatgpt-signin.)${c.reset}`);
 		}
 		console.error(`${c.dim}  (Only syndicates whose every agent uses an ollama/* model run keyless.)${c.reset}`);
 		process.exit(1);
@@ -266,7 +274,7 @@ async function main(): Promise<void> {
 	const rawArgs = process.argv.slice(2);
 	const queryParts: string[] = [];
 	for (let i = 0; i < rawArgs.length; i++) {
-		if (rawArgs[i] === '--') continue; // drop bare separator
+		if (rawArgs[i] === '--' || rawArgs[i] === '--chatgpt-signin') continue; // drop bare separator and the sign-in flag
 		if ((rawArgs[i] === '--bind' || rawArgs[i] === '--bindings' || rawArgs[i] === '--syndicate') && i + 1 < rawArgs.length) {
 			i++; // skip the value
 		} else {

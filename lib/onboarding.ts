@@ -4,7 +4,8 @@
  * WHY this file exists:
  *   A newcomer arrives with something: no key, one provider's key, several, a
  *   gateway key, a cloud account, a server to put in front of other people,
- *   or a ChatGPT / Claude.ai / Gemini CLI sign-in. Each of those is a
+ *   a ChatGPT plan on their own machine (Sign in with ChatGPT, ADR 0126), or
+ *   a Claude.ai / Gemini CLI / Codex CLI sign-in. Each of those is a
  *   different first ten minutes. This module names those levels once, from
  *   what the engine actually supports (lib/models/providerMap.ts,
  *   endpoints.ts, gateway.ts, the A2A server's identity modes and the OAuth
@@ -39,6 +40,7 @@ import type { ProviderId } from './models/providerMap.ts';
 import { CREDENTIAL_KEY_ENV } from './tools/credentialCipher.ts';
 import { OAUTH_HOSTS_ENV } from './tools/oauthHosts.ts';
 import { OAUTH_REDIRECT_URI_ENV } from './a2a/oauthSetup.ts';
+import { CHATGPT_SIGNIN_ENV, CHATGPT_SIGNIN_FILE_ENV } from './chatgpt/state.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,7 @@ export type LevelId =
   | 'byok'
   | 'caller-tokens'
   | 'oauth-grants'
+  | 'chatgpt-signin'
   | 'subscription-signin';
 
 /** How a command is spelled: in a project that installed the package, or in a clone of the repository. */
@@ -79,7 +82,7 @@ export interface Level {
   notes: string[];
   /** The onboarding skill a coding agent follows for this level. */
   skill: string;
-  /** False for an entry that is not a way to run the engine (subscription sign-ins). */
+  /** False for an entry that is not a way to run the engine (the unsupported subscription sign-ins). */
   detectable: boolean;
 }
 
@@ -404,18 +407,44 @@ export const LEVELS: readonly Level[] = [
     detectable: true,
   },
   {
-    id: 'subscription-signin',
-    menu: 'A ChatGPT / Codex, Claude.ai or Gemini CLI sign-in (no API key)',
-    title: 'Subscription sign-ins (ChatGPT / Codex, Claude.ai, Gemini CLI)',
+    id: 'chatgpt-signin',
+    menu: 'A ChatGPT plan, on your own machine (Sign in with ChatGPT, local only)',
+    title: 'Sign in with ChatGPT (local only)',
     summary:
-      "Not supported, on purpose. A consumer subscription sign-in authorizes that vendor's own apps. The engine does not read, reuse or relay those tokens: Anthropic and Google say third-party apps may not use them, and OpenAI's plan-usage sign-in is a preview for approved or locally hosted apps that this engine has not integrated. Use the same vendor's sanctioned route instead.",
+      "OpenAI's own Sign in with ChatGPT lets an open-source app that runs on your machine use your ChatGPT plan for OpenAI requests. `melchizedek-setup --chatgpt-signin` opens your browser; once you approve, OpenAI model ids (`gpt-*`, `o<digit>*`) run on your plan whenever OPENAI_API_KEY is not set. The engine registers as its own app with OpenAI and never reads another app's sign-in. Local only: the A2A server, the worker and every other served surface refuse to start while it is the OpenAI path.",
     env: [
-      { name: 'OPENAI_API_KEY', shape: 'an API key from https://platform.openai.com/api-keys', purpose: 'instead of a ChatGPT / Codex sign-in (or Azure OpenAI: level 5)' },
+      { name: CHATGPT_SIGNIN_FILE_ENV, shape: 'a path outside any git repository (default ~/.melchizedek/chatgpt-signin.json)', purpose: 'optional: where the sign-in is stored, mode 600' },
+      { name: CHATGPT_SIGNIN_ENV, shape: 'off', purpose: 'optional: ignore a stored sign-in in this process' },
+      { name: 'OPENAI_API_KEY', shape: 'leave blank', purpose: 'a key, when set, wins over the sign-in' },
+    ],
+    confirm: 'the providers line shows `✓ OpenAI ChatGPT sign-in, local only`, and the `chatgpt` line reads `signed in · carries OpenAI ids · local only`.',
+    runs: (s) => [`OpenAI files: ${list(s.byTier.openai)}`, `with no key at all: ${list(s.byTier.keyless)}`],
+    first: {
+      package: ['npx melchizedek-setup --chatgpt-signin', 'npx melchizedek-doctor', init('package', 'research_brief'), '# change its model: lines to a GPT id your ChatGPT account offers, then:', chat('package', 'research_brief')],
+      clone: ['npm run setup -- --chatgpt-signin', 'npm run doctor', "# change a syndicate's model: lines to a GPT id your ChatGPT account offers, then:", 'npm run chat:syndicate'],
+    },
+    notes: [
+      'OpenAI documents this flow for open-source and personal projects that run locally (https://developers.openai.com/siwc/token-sharing-open-source). It is a preview: requests go to the Responses API on api.openai.com, streamed and not stored, without temperature, top_p or an output-token cap, and only models your account lists answer.',
+      "Your ChatGPT plan's usage limits apply. A limit reached is reported as an OpenAI error and is not retried.",
+      '`melchizedek-setup --chatgpt-status` shows where the sign-in is; `--chatgpt-signout` removes the tokens and revokes them at OpenAI. A stored sign-in is never copied into `.env` or the repository.',
+      'To serve on the same machine, set OPENAI_API_KEY (or Azure OpenAI), or `MELCHIZEDEK_CHATGPT_SIGNIN=off` for the served process; `doctor --check` fails a served configuration that would run on the sign-in.',
+    ],
+    skill: 'melchizedek-onboard-keys',
+    detectable: true,
+  },
+  {
+    id: 'subscription-signin',
+    menu: 'A Claude.ai or Gemini CLI sign-in, or a Codex CLI login (no API key)',
+    title: 'Subscription sign-ins (Claude.ai, Gemini CLI, Codex CLI)',
+    summary:
+      "Not supported, on purpose. A consumer subscription sign-in authorizes that vendor's own apps. The engine does not read, reuse or relay those tokens: Anthropic and Google say third-party apps may not use them, and the Codex CLI's login belongs to the Codex CLI. OpenAI's own Sign in with ChatGPT is the exception, and it is level 9, on your own machine only. Otherwise use the same vendor's sanctioned route.",
+    env: [
+      { name: 'OPENAI_API_KEY', shape: 'an API key from https://platform.openai.com/api-keys', purpose: 'instead of a Codex CLI login (or Sign in with ChatGPT: level 9; Azure OpenAI: level 5)' },
       { name: 'ANTHROPIC_API_KEY', shape: 'an API key from https://console.anthropic.com', purpose: 'instead of a Claude.ai sign-in (or Bedrock / Vertex AI: level 5)' },
       { name: 'GOOGLE_GENAI_API_KEY', shape: 'an API key from https://aistudio.google.com (free tier)', purpose: 'instead of a Gemini CLI sign-in (or Vertex AI: level 5)' },
     ],
-    confirm: 'the provider you chose shows a ✓; nothing reads a subscription sign-in.',
-    runs: () => ['as level 2 (one key) or level 5 (cloud platform)'],
+    confirm: "the provider you chose shows a ✓; nothing reads another app's sign-in.",
+    runs: () => ['as level 2 (one key), level 5 (cloud platform) or, for OpenAI on your own machine, level 9'],
     first: {
       package: [init('package', 'research_brief'), chat('package', 'research_brief')],
       clone: ['npm run chat:syndicate'],
@@ -423,7 +452,7 @@ export const LEVELS: readonly Level[] = [
     notes: [
       'Anthropic: Claude.ai (Pro/Max) OAuth is for Claude Code and its own apps; third-party developers may not offer Claude.ai login or route requests through those credentials. Use an API key, Bedrock or Vertex AI.',
       "Google: reaching Gemini CLI's services with its sign-in from third-party software is against Gemini CLI's terms. Use an AI Studio key or Vertex AI.",
-      "OpenAI: an API key or Azure OpenAI. OpenAI's Sign in with ChatGPT plan-usage flow is a documented preview for open-source, locally hosted apps; the engine does not implement it, and reusing the Codex CLI's own token is not that flow.",
+      "OpenAI: an API key, Azure OpenAI, or on your own machine Sign in with ChatGPT (level 9), which is the engine's own registration with OpenAI. The engine never reads the Codex CLI's stored login or uses its client id.",
       'A coding agent signed in with a subscription (Claude Code, Codex, Gemini CLI) can still drive this repository: the sign-in pays for the coding agent, and the engine runs on the keys above.',
     ],
     skill: 'melchizedek-onboard-keys',
@@ -503,7 +532,7 @@ export interface LevelDetection {
  * Local is always available (whether Ollama is running is not checked).
  */
 export function detectLevels(result: DoctorResult): LevelDetection[] {
-  const direct = result.providers.filter((p) => p.platform === 'direct' && p.funded && p.transport === 'direct');
+  const direct = result.providers.filter((p) => p.platform === 'direct' && p.funded && p.transport === 'direct' && p.credential !== 'chatgpt-signin');
   const names = direct.map((p) => `${p.label} (${p.keyEnv})`);
   const cloud = result.endpoints.filter((e) => e.platform === 'vertex' || e.platform === 'bedrock' || e.platform === 'azure' || e.platform === 'invalid');
   const serving = result.serving;
@@ -550,6 +579,18 @@ export function detectLevels(result: DoctorResult): LevelDetection[] {
       detected: oauthSet.length > 0,
       evidence: oauthSet.length ? `set: ${oauthSet.join(', ')}` : `${CREDENTIAL_KEY_ENV} unset`,
       problems: result.oauth?.problems ?? [],
+    },
+    'chatgpt-signin': {
+      detected: !!result.chatgpt?.routesOpenAi,
+      // Presence only: the file's path stays on the doctor's own line.
+      evidence: !result.chatgpt?.present
+        ? 'no ChatGPT sign-in stored'
+        : !result.chatgpt.signedIn
+          ? 'a sign-in file without tokens (signed out)'
+          : result.chatgpt.routesOpenAi
+            ? 'signed in; carries OpenAI ids (local only)'
+            : 'signed in; not used (OPENAI_API_KEY, another OpenAI endpoint, or switched off)',
+      problems: result.chatgpt?.problems ?? [],
     },
   };
   return LEVELS.filter((l) => l.detectable).map((l) => ({ id: l.id, ...out[l.id as Exclude<LevelId, 'subscription-signin'>] }));

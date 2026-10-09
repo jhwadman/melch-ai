@@ -121,7 +121,7 @@
     "schema:gen": "node --disable-warning=DEP0040 --experimental-strip-types scripts/gen_syndicate_schema.ts",
     "yaml:codemod": "node --disable-warning=DEP0040 --experimental-strip-types scripts/yaml_codemod.ts",
     "start:a2a": "node --disable-warning=DEP0040 --experimental-strip-types scripts/a2a_server.ts",
-    "test": "node --disable-warning=DEP0040 --experimental-strip-types --test tests/**/*.test.ts",
+    "test": "node --disable-warning=DEP0040 --experimental-strip-types --import ./tests/helpers/isolateLocalState.ts --test tests/**/*.test.ts",
     "setup": "node --disable-warning=DEP0040 --experimental-strip-types scripts/setup.ts",
     "init": "node --disable-warning=DEP0040 --experimental-strip-types scripts/init.ts",
     "db": "node --disable-warning=DEP0040 --experimental-strip-types scripts/db.ts",

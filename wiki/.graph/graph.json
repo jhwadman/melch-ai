@@ -5,26 +5,26 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 954,
-    "edges": 4003,
+    "nodes": 974,
+    "edges": 4078,
     "byKind": {
-      "doc": 191,
+      "doc": 193,
       "provider": 6,
-      "env": 111,
+      "env": 112,
       "model": 10,
       "tool": 34,
-      "file": 209,
+      "file": 210,
       "syndicate": 34,
       "agent": 92,
       "mcp-server": 4,
       "table": 18,
-      "module": 193,
+      "module": 198,
       "script": 50,
-      "external": 2
+      "external": 13
     },
     "byRelation": {
-      "links_to": 941,
-      "requires_env": 188,
+      "links_to": 954,
+      "requires_env": 191,
       "routes_to": 10,
       "defined_in": 79,
       "documents": 58,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 5,
       "delegates_to": 1,
-      "imports": 848,
+      "imports": 871,
       "reads_table": 28,
       "runs": 72,
-      "derives_from": 1067,
-      "constrains": 239,
-      "supersedes": 20,
+      "derives_from": 1095,
+      "constrains": 245,
+      "supersedes": 21,
       "depends_on": 144,
-      "explains": 52,
+      "explains": 53,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3543,
-      "inferred": 460
+      "extracted": 3610,
+      "inferred": 468
     },
     "isolated": 4
   },
@@ -1900,6 +1900,18 @@
       }
     },
     {
+      "id": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "kind": "doc",
+      "label": "ADR 0126: Sign in with ChatGPT as a local-only OpenAI credential",
+      "source": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1282
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2020,6 +2032,18 @@
       }
     },
     {
+      "id": "/models/chatgpt-signin.md",
+      "kind": "doc",
+      "label": "Sign in with ChatGPT",
+      "source": "/models/chatgpt-signin.md",
+      "attrs": {
+        "type": "model-provider",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1254
+      }
+    },
+    {
       "id": "/models/claude-adapter.md",
       "kind": "doc",
       "label": "Claude adapter",
@@ -2064,7 +2088,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 5321
+        "words": 5411
       }
     },
     {
@@ -2076,7 +2100,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1636
+        "words": 1655
       }
     },
     {
@@ -2088,7 +2112,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 823
+        "words": 833
       }
     },
     {
@@ -2100,7 +2124,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1438
+        "words": 1542
       }
     },
     {
@@ -2136,7 +2160,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1761
+        "words": 1773
       }
     },
     {
@@ -2220,7 +2244,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 2601
+        "words": 2645
       }
     },
     {
@@ -3810,7 +3834,14 @@
       "id": "env:OPENAI_BASE_URL",
       "kind": "env",
       "label": "OPENAI_BASE_URL",
-      "source": "lib/models/endpoints.ts"
+      "source": "lib/models/endpoints.ts",
+      "attrs": {}
+    },
+    {
+      "id": "env:OPENAI_PLATFORM",
+      "kind": "env",
+      "label": "OPENAI_PLATFORM",
+      "source": "lib/chatgpt/state.ts"
     },
     {
       "id": "env:OPENAPI_CREDENTIAL_ENVS",
@@ -4021,6 +4052,66 @@
       "source": "lib/models/grokAdapter.ts"
     },
     {
+      "id": "external:https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt",
+      "kind": "external",
+      "label": "developers.openai.com/cookbook/articles/sign-in-with-chatgpt",
+      "source": "https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc",
+      "kind": "external",
+      "label": "developers.openai.com/siwc",
+      "source": "https://developers.openai.com/siwc"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc/token-sharing-open-source",
+      "kind": "external",
+      "label": "developers.openai.com/siwc/token-sharing-open-source",
+      "source": "https://developers.openai.com/siwc/token-sharing-open-source"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery",
+      "kind": "external",
+      "label": "developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery",
+      "source": "https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference",
+      "kind": "external",
+      "label": "developers.openai.com/siwc/token-sharing-open-source/models-and-inference",
+      "source": "https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations",
+      "kind": "external",
+      "label": "developers.openai.com/siwc/token-sharing-open-source/preview-limitations",
+      "source": "https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions",
+      "kind": "external",
+      "label": "developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions",
+      "source": "https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc/token-sharing-open-source/self-hosted-vms",
+      "kind": "external",
+      "label": "developers.openai.com/siwc/token-sharing-open-source/self-hosted-vms",
+      "source": "https://developers.openai.com/siwc/token-sharing-open-source/self-hosted-vms"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc/token-sharing-open-source/sign-in",
+      "kind": "external",
+      "label": "developers.openai.com/siwc/token-sharing-open-source/sign-in",
+      "source": "https://developers.openai.com/siwc/token-sharing-open-source/sign-in"
+    },
+    {
+      "id": "external:https://developers.openai.com/siwc/token-sharing-open-source/token-reference",
+      "kind": "external",
+      "label": "developers.openai.com/siwc/token-sharing-open-source/token-reference",
+      "source": "https://developers.openai.com/siwc/token-sharing-open-source/token-reference"
+    },
+    {
       "id": "external:https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f",
       "kind": "external",
       "label": "gist.github.com/karpathy/442a6bf555914893e9891c11519de94f",
@@ -4031,6 +4122,12 @@
       "kind": "external",
       "label": "github.com/GoogleCloudPlatform/knowledge-catalog",
       "source": "https://github.com/GoogleCloudPlatform/knowledge-catalog"
+    },
+    {
+      "id": "external:https://github.com/openai/sign-in-with-chatgpt-devkit",
+      "kind": "external",
+      "label": "github.com/openai/sign-in-with-chatgpt-devkit",
+      "source": "https://github.com/openai/sign-in-with-chatgpt-devkit"
     },
     {
       "id": "file:.env.example",
@@ -4691,6 +4788,13 @@
       "kind": "file",
       "label": "chatCompletionsAdapter.test.ts",
       "source": "tests/chatCompletionsAdapter.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/chatgptSignIn.test.ts",
+      "kind": "file",
+      "label": "chatgptSignIn.test.ts",
+      "source": "tests/chatgptSignIn.test.ts",
       "attrs": {}
     },
     {
@@ -5514,7 +5618,7 @@
       "label": "lib/a2a/app.ts",
       "source": "lib/a2a/app.ts",
       "attrs": {
-        "lines": 1358
+        "lines": 1361
       }
     },
     {
@@ -5590,6 +5694,51 @@
       }
     },
     {
+      "id": "module:lib/chatgpt/adapter.ts",
+      "kind": "module",
+      "label": "lib/chatgpt/adapter.ts",
+      "source": "lib/chatgpt/adapter.ts",
+      "attrs": {
+        "lines": 125
+      }
+    },
+    {
+      "id": "module:lib/chatgpt/cli.ts",
+      "kind": "module",
+      "label": "lib/chatgpt/cli.ts",
+      "source": "lib/chatgpt/cli.ts",
+      "attrs": {
+        "lines": 87
+      }
+    },
+    {
+      "id": "module:lib/chatgpt/oauth.ts",
+      "kind": "module",
+      "label": "lib/chatgpt/oauth.ts",
+      "source": "lib/chatgpt/oauth.ts",
+      "attrs": {
+        "lines": 503
+      }
+    },
+    {
+      "id": "module:lib/chatgpt/state.ts",
+      "kind": "module",
+      "label": "lib/chatgpt/state.ts",
+      "source": "lib/chatgpt/state.ts",
+      "attrs": {
+        "lines": 189
+      }
+    },
+    {
+      "id": "module:lib/chatgpt/store.ts",
+      "kind": "module",
+      "label": "lib/chatgpt/store.ts",
+      "source": "lib/chatgpt/store.ts",
+      "attrs": {
+        "lines": 92
+      }
+    },
+    {
       "id": "module:lib/compile.ts",
       "kind": "module",
       "label": "lib/compile.ts",
@@ -5631,7 +5780,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 999
+        "lines": 1071
       }
     },
     {
@@ -5757,7 +5906,7 @@
       "label": "lib/models/adapterResolver.ts",
       "source": "lib/models/adapterResolver.ts",
       "attrs": {
-        "lines": 202
+        "lines": 208
       }
     },
     {
@@ -5847,7 +5996,7 @@
       "label": "lib/models/gateway.ts",
       "source": "lib/models/gateway.ts",
       "attrs": {
-        "lines": 202
+        "lines": 204
       }
     },
     {
@@ -6081,7 +6230,7 @@
       "label": "lib/onboarding.ts",
       "source": "lib/onboarding.ts",
       "attrs": {
-        "lines": 636
+        "lines": 677
       }
     },
     {
@@ -7026,7 +7175,7 @@
       "label": "scripts/a2a_server.ts",
       "source": "scripts/a2a_server.ts",
       "attrs": {
-        "lines": 655
+        "lines": 662
       }
     },
     {
@@ -7035,7 +7184,7 @@
       "label": "scripts/assistant_worker.ts",
       "source": "scripts/assistant_worker.ts",
       "attrs": {
-        "lines": 275
+        "lines": 283
       }
     },
     {
@@ -7116,7 +7265,7 @@
       "label": "scripts/mcp_server.ts",
       "source": "scripts/mcp_server.ts",
       "attrs": {
-        "lines": 327
+        "lines": 337
       }
     },
     {
@@ -7170,7 +7319,7 @@
       "label": "scripts/setup.ts",
       "source": "scripts/setup.ts",
       "attrs": {
-        "lines": 173
+        "lines": 200
       }
     },
     {
@@ -7188,7 +7337,7 @@
       "label": "scripts/syndicate_chat.ts",
       "source": "scripts/syndicate_chat.ts",
       "attrs": {
-        "lines": 491
+        "lines": 499
       }
     },
     {
@@ -17428,6 +17577,167 @@
       "evidence": "/decisions/0125-syndicates-as-mcp-tools.md:24"
     },
     {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc/token-sharing-open-source",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc/token-sharing-open-source/self-hosted-vms",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc/token-sharing-open-source/sign-in",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://developers.openai.com/siwc/token-sharing-open-source/token-reference",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "external:https://github.com/openai/sign-in-with-chatgpt-devkit",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "file:tests/chatgptSignIn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/chatgpt/adapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/chatgpt/cli.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/chatgpt/oauth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/chatgpt/store.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/onboarding.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md frontmatter"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md:44"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -18415,6 +18725,76 @@
       "evidence": "/models/chat-completions-adapters.md:22"
     },
     {
+      "from": "/models/chatgpt-signin.md",
+      "to": "file:tests/chatgptSignIn.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md frontmatter"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "module:lib/chatgpt/adapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md frontmatter"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "module:lib/chatgpt/cli.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md frontmatter"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "module:lib/chatgpt/oauth.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md frontmatter"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md frontmatter"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "module:lib/chatgpt/store.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md frontmatter"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md:24"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "/models/provider-routing.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md:48"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "/models/responses-adapters.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md:52"
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "/operations/setup.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chatgpt-signin.md:24"
+    },
+    {
       "from": "/models/claude-adapter.md",
       "to": "file:tests/claudeAdapter.test.ts",
       "rel": "derives_from",
@@ -19242,10 +19622,24 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:38"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:22"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/models/chatgpt-signin.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:38"
     },
     {
       "from": "/models/provider-routing.md",
@@ -19421,6 +19815,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/responses-adapters.md:48"
+    },
+    {
+      "from": "/models/responses-adapters.md",
+      "to": "/models/chatgpt-signin.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:23"
     },
     {
       "from": "/models/responses-adapters.md",
@@ -19644,28 +20045,42 @@
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:56"
+      "evidence": "/operations/failure-modes.md:58"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:80"
+      "evidence": "/operations/failure-modes.md:82"
+    },
+    {
+      "from": "/operations/failure-modes.md",
+      "to": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md:56"
+    },
+    {
+      "from": "/operations/failure-modes.md",
+      "to": "/models/chatgpt-signin.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/failure-modes.md:56"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:66"
+      "evidence": "/operations/failure-modes.md:68"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/operations/native-loop-security.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:74"
+      "evidence": "/operations/failure-modes.md:76"
     },
     {
       "from": "/operations/failure-modes.md",
@@ -19679,7 +20094,7 @@
       "to": "/overview/native-loop.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:58"
+      "evidence": "/operations/failure-modes.md:60"
     },
     {
       "from": "/operations/failure-modes.md",
@@ -19693,14 +20108,14 @@
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:84"
+      "evidence": "/operations/failure-modes.md:86"
     },
     {
       "from": "/operations/failure-modes.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/operations/failure-modes.md:84"
+      "evidence": "/operations/failure-modes.md:86"
     },
     {
       "from": "/operations/native-loop-security.md",
@@ -20135,6 +20550,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:53"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/models/chatgpt-signin.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:29"
     },
     {
       "from": "/operations/setup.md",
@@ -21626,6 +22048,20 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/protocols/a2a.md:63"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:27"
+    },
+    {
+      "from": "/protocols/a2a.md",
+      "to": "/models/chatgpt-signin.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/a2a.md:27"
     },
     {
       "from": "/protocols/a2a.md",
@@ -24226,6 +24662,13 @@
     },
     {
       "from": "module:lib/a2a/app.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/app.ts"
+    },
+    {
+      "from": "module:lib/a2a/app.ts",
       "to": "module:lib/compile.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24645,6 +25088,104 @@
       "evidence": "lib/agentDialect.ts"
     },
     {
+      "from": "module:lib/chatgpt/adapter.ts",
+      "to": "module:lib/chatgpt/oauth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/adapter.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/adapter.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/adapter.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/adapter.ts",
+      "to": "module:lib/models/contract.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/adapter.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/adapter.ts",
+      "to": "module:lib/models/endpoints.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/adapter.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/adapter.ts",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/adapter.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/cli.ts",
+      "to": "module:lib/chatgpt/oauth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/cli.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/cli.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/cli.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/oauth.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/oauth.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/oauth.ts",
+      "to": "module:lib/chatgpt/store.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/oauth.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/oauth.ts",
+      "to": "module:lib/models/urls.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/oauth.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/state.ts",
+      "to": "env:OPENAI_API_KEY",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/state.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/state.ts",
+      "to": "env:OPENAI_BASE_URL",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/state.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/state.ts",
+      "to": "env:OPENAI_PLATFORM",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/state.ts"
+    },
+    {
+      "from": "module:lib/chatgpt/store.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/chatgpt/store.ts"
+    },
+    {
       "from": "module:lib/compile.ts",
       "to": "module:lib/agentDialect.ts",
       "rel": "imports",
@@ -24850,6 +25391,13 @@
     {
       "from": "module:lib/doctor.ts",
       "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
+      "to": "module:lib/chatgpt/state.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/doctor.ts"
@@ -25689,6 +26237,20 @@
     },
     {
       "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/chatgpt/adapter.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/adapterResolver.ts"
+    },
+    {
+      "from": "module:lib/models/adapterResolver.ts",
       "to": "module:lib/models/claudeAdapter.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -26106,6 +26668,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/fallbackAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/gateway.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/gateway.ts"
     },
     {
       "from": "module:lib/models/gateway.ts",
@@ -26817,6 +27386,13 @@
     {
       "from": "module:lib/onboarding.ts",
       "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/onboarding.ts"
+    },
+    {
+      "from": "module:lib/onboarding.ts",
+      "to": "module:lib/chatgpt/state.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/onboarding.ts"
@@ -29952,6 +30528,13 @@
     },
     {
       "from": "module:scripts/a2a_server.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/a2a_server.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -30250,6 +30833,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/a2a_server.ts"
+    },
+    {
+      "from": "module:scripts/assistant_worker.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/assistant_worker.ts"
     },
     {
       "from": "module:scripts/assistant_worker.ts",
@@ -30694,6 +31284,13 @@
     },
     {
       "from": "module:scripts/mcp_server.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/mcp_server.ts",
       "to": "module:lib/loadEnv.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -31121,6 +31718,13 @@
     },
     {
       "from": "module:scripts/setup.ts",
+      "to": "module:lib/chatgpt/cli.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/setup.ts"
+    },
+    {
+      "from": "module:scripts/setup.ts",
       "to": "module:lib/doctor.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -31146,6 +31750,20 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "scripts/skills_install.ts"
+    },
+    {
+      "from": "module:scripts/syndicate_chat.ts",
+      "to": "module:lib/chatgpt/cli.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/syndicate_chat.ts"
+    },
+    {
+      "from": "module:scripts/syndicate_chat.ts",
+      "to": "module:lib/chatgpt/state.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/syndicate_chat.ts"
     },
     {
       "from": "module:scripts/syndicate_chat.ts",

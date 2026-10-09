@@ -24,7 +24,7 @@
  *   native search. lib/models/capabilities.ts turns that into a per-agent
  *   report the doctor, the A2A startup log and the ledger all read.
  *
- * WHY a leaf (imports providerMap and endpoints only):
+ * WHY a leaf (imports providerMap, endpoints and lib/chatgpt/state.ts only):
  *   The registry, the gateway adapter, the capability report and the
  *   doctor all need this decision; keeping it free of adapter imports
  *   avoids the cycle model-routing warns about.
@@ -38,6 +38,7 @@
  *                          for ids the default mapper gets wrong
  */
 
+import { chatGptSignInRoutesOpenAi } from '../chatgpt/state.ts';
 import { providerReady } from './endpoints.ts';
 import { PROVIDERS, providerForModel } from './providerMap.ts';
 import type { ProviderId } from './providerMap.ts';
@@ -189,7 +190,8 @@ export function planTransport(
 ): TransportPlan {
   const provider = providerForModel(model);
   const keyEnv = PROVIDERS[provider].keyEnv;
-  const direct = providerReady(provider) || !!opts.callerKey;
+  // A Sign in with ChatGPT credential funds OpenAI directly when no key does (ADR 0126).
+  const direct = providerReady(provider) || !!opts.callerKey || (provider === 'openai' && chatGptSignInRoutesOpenAi());
   if (direct || provider === 'ollama') {
     return { provider, transport: 'direct', funded: true, keyEnv };
   }

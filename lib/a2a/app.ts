@@ -54,6 +54,7 @@ import type { SessionService } from '../runtime/sessions.ts';
 import type { MemoryService } from '../runtime/memoryService.ts';
 import { InProcessSessionService } from '../runtime/sessions.ts';
 import { runtimeSetting } from '../runtime/runtimeFlag.ts';
+import { refuseChatGptSignInOnServedSurface } from '../chatgpt/state.ts';
 import { geminiAdapterSetting } from '../models/adapterResolver.ts';
 
 import { loadSyndicate, loadSyndicateFromRegistry, nestedLoader } from '../loadSyndicate.ts';
@@ -587,6 +588,8 @@ export async function createA2AApp(options: A2AAppOptions): Promise<A2AApp> {
   // A deployment still configured for the removed adk runtime fails here, naming 1.0.0 (ADR 0107).
   runtimeSetting();
   geminiAdapterSetting();
+  // Sign in with ChatGPT is local only (ADR 0126): a served app never runs OpenAI ids on it.
+  refuseChatGptSignInOnServedSurface('The A2A server');
   const log = options.log ?? ((m: string) => console.log(`[A2A] ${m}`));
   const warn = options.warn ?? ((m: string) => console.warn(`[A2A] ⚠ ${m}`));
   const bindings = options.bindings ?? (() => ({

@@ -50,6 +50,48 @@ the starter pack and the templates), not the repo's full history.
   optional in its type (the schema still requires it unless the grant is
   dynamic). New example: `config/agents/examples/connectors.yaml`.
 
+- **`melchizedek-mcp`: syndicates as MCP tools** (ADR 0125). A new bin
+  serves each loaded syndicate as one MCP tool (`{ message, session_id? }`;
+  the answer, then its `session_id`; `structuredContent.output` for a
+  syndicate with an output schema) plus `melch_resume { session_id,
+  approve?, answer? }` for a turn that paused on an approval, an `ask_user`
+  question or an OAuth consent. stdio by default (`claude mcp add melch --
+  npx melchizedek-mcp`, or a Codex `[mcp_servers]` table); `--http` serves
+  Streamable HTTP at `/mcp` on 127.0.0.1:4100 and refuses a bind beyond
+  loopback without `MCP_SERVER_SECRET` (32+ characters). Every call is one
+  task through the A2A executor, so budgets, caps, the turn lock, deadlines,
+  cancel (`notifications/cancelled`), guards and the ledger match
+  `melchizedek-serve`; an approval is answered only by `melch_resume`'s
+  explicit `approve`. Surface addition: the `melchizedek-mcp` bin and the
+  `melchizedek-agents/mcp` export path (`createMcpServer`, `serveMcpStdio`,
+  `mcpHttpApp`, `mcpBindProblem`, `toolNameFor`, `RESUME_TOOL`).
+
+- **Sign in with ChatGPT, on your own machine only** (ADR 0126). OpenAI's
+  documented plan-usage flow for open-source apps that run locally:
+  `melchizedek-setup --chatgpt-signin` (or `melchizedek-chat --chatgpt-signin`)
+  opens your browser, registers the engine as its own app with OpenAI
+  (PKCE S256, a 127.0.0.1 callback), and stores the tokens mode 600 at
+  `~/.melchizedek/chatgpt-signin.json` (`MELCHIZEDEK_CHATGPT_SIGNIN_FILE`),
+  never inside a git repository. With no `OPENAI_API_KEY`, `gpt-*` and
+  `o<digit>*` ids then run on your ChatGPT plan through the Responses API:
+  streamed, not stored, without `temperature`, `top_p` or `max_output_tokens`,
+  ranked above a gateway. Tokens refresh as they near expiry;
+  `--chatgpt-signout` revokes them and `--chatgpt-status` shows where they are.
+  `MELCHIZEDEK_CHATGPT_SIGNIN=off` ignores a stored sign-in. The engine never
+  reads another app's sign-in (the Codex CLI's included).
+- **Served surfaces refuse a ChatGPT sign-in.** `createA2AApp`,
+  `melchizedek-serve` and `melchizedek-worker` refuse to start while a stored
+  sign-in would carry OpenAI ids, naming the fixes; a call that reaches it on
+  a served process anyway ends in `CHATGPT_SIGNIN_LOCAL_ONLY`.
+  `melchizedek-doctor` prints a `chatgpt` line (`DoctorResult.chatgpt`, and
+  `credential: 'chatgpt-signin'` on the OpenAI provider path), and `--check`
+  fails when serving variables are set beside such a sign-in.
+- **Onboarding level 9, `chatgpt-signin`.** `melchizedek-setup` lists ten
+  levels: Sign in with ChatGPT is level 9 and detected by `--auto`; the
+  unsupported subscription entry is now level 10 (Claude.ai, Gemini CLI, the
+  Codex CLI's login) and routes OpenAI to level 9. `ONBOARDING.md` and the
+  onboarding skills follow.
+
 ## 1.2.0 — 2026-10-09
 
 Release 1.2.0 carries pauses and consent further down a turn and gives the

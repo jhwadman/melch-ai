@@ -451,8 +451,9 @@ models. `GOOGLE_GENAI_API_KEY` alone runs fourteen of the nineteen examples.
 clone) opens a menu of authentication levels: no key (Ollama), one
 provider's key, several, a gateway key, Vertex AI / Bedrock / Azure,
 per-caller keys (BYOK), caller identities (`A2A_AUTH`), OAuth tool grants,
-and an honest entry for ChatGPT / Codex, Claude.ai and Gemini CLI sign-ins,
-which the engine does not use. Each prints a startup guide: variable names
+Sign in with ChatGPT on your own machine (local only, ADR 0126), and an
+honest entry for Codex CLI, Claude.ai and Gemini CLI sign-ins, which the
+engine does not use. Each prints a startup guide: variable names
 and shapes, the doctor check, the shipped files that run there, and the
 first commands. `--auto` reads the doctor's result and prints the guide
 for the highest level it detects, names only. The same guides, generated

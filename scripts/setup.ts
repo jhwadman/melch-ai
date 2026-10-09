@@ -16,6 +16,8 @@
  *   npx melchizedek-setup --level 2 --write-env   # also create .env from .env.example
  *   npx melchizedek-setup --list
  *   npx melchizedek-setup --markdown          # ONBOARDING.md, regenerated
+ *   npx melchizedek-setup --chatgpt-signin    # Sign in with ChatGPT, local only (ADR 0126)
+ *   npx melchizedek-setup --chatgpt-signout | --chatgpt-status
  *
  * Never prints a value. `--write-env` never overwrites `.env`, leaves every
  * name blank, and refuses unless `git check-ignore` confirms `.env` is ignored.
@@ -26,6 +28,7 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadEnv } from '../lib/loadEnv.ts';
+import { runChatGptSignIn, runChatGptSignOut, runChatGptStatus } from '../lib/chatgpt/cli.ts';
 import { runDoctor } from '../lib/doctor.ts';
 import {
   detectLevels,
@@ -47,6 +50,12 @@ const USAGE = `melchizedek-setup — start from what you have
   melchizedek-setup --level <id|number>   print one level's startup guide
   melchizedek-setup --list                the levels
   melchizedek-setup --markdown            every guide as Markdown (ONBOARDING.md)
+
+  melchizedek-setup --chatgpt-signin [--port <n>]
+                                          sign in with ChatGPT in your browser; OpenAI ids then run
+                                          on your ChatGPT plan on this machine (local only)
+  melchizedek-setup --chatgpt-signout     remove the stored tokens and revoke them at OpenAI
+  melchizedek-setup --chatgpt-status      where the sign-in is stored, and whether it is used
 
   --write-env   with --level or --auto: create .env from .env.example with the level's
                 names left blank (never overwrites; requires git to ignore .env)
@@ -96,6 +105,24 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (args.includes('--list')) {
     console.log(renderMenu());
     return 0;
+  }
+  if (args.includes('--chatgpt-signin')) {
+    loadEnv();
+    const port = flag('port');
+    const n = port === undefined ? undefined : Number(port);
+    if (n !== undefined && !(Number.isInteger(n) && n >= 0 && n <= 65535)) {
+      console.error('✗ --port must be a port number (0 picks a free one)');
+      return 2;
+    }
+    return runChatGptSignIn(n !== undefined ? { port: n } : {});
+  }
+  if (args.includes('--chatgpt-signout')) {
+    loadEnv();
+    return runChatGptSignOut();
+  }
+  if (args.includes('--chatgpt-status')) {
+    loadEnv();
+    return runChatGptStatus();
   }
   if (args.includes('--markdown')) {
     process.stdout.write(renderOnboardingDoc());

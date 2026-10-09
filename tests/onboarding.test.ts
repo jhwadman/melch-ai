@@ -45,6 +45,17 @@ import { main as setupMain } from '../scripts/setup.ts';
 const ROOT = process.cwd();
 const AGENTS = join(ROOT, 'config', 'agents');
 
+/** A signed-in Sign in with ChatGPT credential (fake tokens) in a temporary directory, for level 9. */
+const SIGNIN_DIR = mkdtempSync(join(tmpdir(), 'melch-onboard-chatgpt-'));
+const SIGNIN_FILE = join(SIGNIN_DIR, 'chatgpt-signin.json');
+writeFileSync(
+  SIGNIN_FILE,
+  JSON.stringify({ version: 1, issuer: 'https://auth.openai.com', hostId: 'urn:uuid:test', clientId: 'test-client', subject: 'test-subject', scopes: ['openid', 'offline_access', 'chatgpt.tokens.use.direct'], accessToken: 'test-only-access', refreshToken: 'test-only-refresh', expiresAt: Date.now() + 3_600_000 }),
+  { mode: 0o600 },
+);
+/** No sign-in: a path that does not exist, so a developer's own sign-in never reaches a detection. */
+const NO_SIGNIN = join(SIGNIN_DIR, 'absent', 'chatgpt-signin.json');
+
 /** Every variable a level is detected from, cleared before each environment is set. */
 const ENV_KEYS = [
   ...new Set([
@@ -65,6 +76,7 @@ function withEnv<T>(vars: Record<string, string>, fn: () => T): T {
     saved[k] = process.env[k];
     delete process.env[k];
   }
+  process.env.MELCHIZEDEK_CHATGPT_SIGNIN_FILE = NO_SIGNIN;
   Object.assign(process.env, vars);
   const restore = () => {
     for (const k of ENV_KEYS) {
@@ -102,6 +114,7 @@ const ENV_FOR: Record<Exclude<LevelId, 'subscription-signin'>, Record<string, st
   byok: { A2A_KEY_MODE: 'byok', A2A_SERVER_SECRET: 'test-only-secret-test-only-secret-0000' },
   'caller-tokens': { A2A_AUTH: 'callers', A2A_CALLERS: 'backend:' + '0'.repeat(64) },
   'oauth-grants': { MELCHIZEDEK_CREDENTIAL_KEY: 'test-only-credential-key' },
+  'chatgpt-signin': { MELCHIZEDEK_CHATGPT_SIGNIN_FILE: SIGNIN_FILE },
 };
 
 test('every detectable level is detected from the doctor\'s result, and is then the highest', () => {
@@ -112,8 +125,25 @@ test('every detectable level is detected from the doctor\'s result, and is then 
     assert.ok(d.find((x) => x.id === id)!.detected, `${id} is detected from its own environment`);
     assert.strictEqual(highestLevel(d).id, id, `${id} is the highest level for its environment`);
   }
-  // The subscription entry is never detected: nothing reads a sign-in.
+  // The subscription entry is never detected: nothing reads another app's sign-in.
   assert.strictEqual(levelById('subscription-signin')!.detectable, false);
+});
+
+test('Sign in with ChatGPT: detected only while it carries OpenAI ids, never as a provider key, and its line names no token', () => {
+  const on = detected({ MELCHIZEDEK_CHATGPT_SIGNIN_FILE: SIGNIN_FILE });
+  const row = (d: typeof on, id: string) => d.find((x) => x.id === id)!;
+  assert.ok(row(on, 'chatgpt-signin').detected);
+  assert.strictEqual(row(on, 'one-provider').detected, false, 'a sign-in is not a provider key');
+  // A key wins; switched off, nothing uses it.
+  assert.strictEqual(row(detected({ MELCHIZEDEK_CHATGPT_SIGNIN_FILE: SIGNIN_FILE, OPENAI_API_KEY: 'test-only-openai' }), 'chatgpt-signin').detected, false);
+  assert.strictEqual(row(detected({ MELCHIZEDEK_CHATGPT_SIGNIN_FILE: SIGNIN_FILE, MELCHIZEDEK_CHATGPT_SIGNIN: 'off' }), 'chatgpt-signin').detected, false);
+  const text = withEnv({ MELCHIZEDEK_CHATGPT_SIGNIN_FILE: SIGNIN_FILE }, () => renderAuto(runDoctor({ agentsDir: AGENTS }), 'package'));
+  assert.match(text, /Highest level detected: 9\. Sign in with ChatGPT \(local only\)/);
+  for (const token of ['test-only-access', 'test-only-refresh']) assert.ok(!text.includes(token), 'a token appears in --auto');
+  // The unsupported entry routes OpenAI to level 9 and still refuses another app's login.
+  const sub = renderGuide(levelById('subscription-signin')!, 'package');
+  assert.match(sub, /level 9/);
+  assert.match(sub, /never reads the Codex CLI's stored login/);
 });
 
 test('detection agrees with the doctor\'s own lines', () => {
