@@ -3116,6 +3116,14 @@
       "evidence": "config/agents/examples/structured_critic.yaml header: \"the critic as ONE agent (ADR 0109). The orchestrator delegates to a Drafter, then grades the draft and answers in its own `output.schema`, with no relay leaf and no plan-dispatch block.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "syndicate:council",
+      "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "rel": "depends_on",
+      "evidence": "config/agents/examples/council.yaml, the Moderator's instruction: call the Advocate and the Skeptic \"together, both function calls in the same response, so they work at once\" — the at-once run is ADR 0116's concurrent delegation under max_concurrency.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

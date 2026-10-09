@@ -3,6 +3,10 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | syndicate:council —depends_on→ /decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0109-structured-output-beside-tools.md —explains→ syndicate:structured_critic
 
 by claude-code/claude-opus-5-5
