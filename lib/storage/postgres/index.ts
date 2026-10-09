@@ -31,7 +31,7 @@ import { POSTGRES_RLS_QUERY, evaluatePostgresRls } from '../rlsStatus.ts';
 import { postgresAuditSink } from '../../observability/audit.ts';
 import type { AuditSink } from '../../observability/audit.ts';
 import type { RlsHardeningStatus, RlsRow } from '../rlsStatus.ts';
-import type { TaskBackend } from '../../tools/taskTools.ts';
+import type { TaskBackend, TaskBackendOptions } from '../../tools/taskTools.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
 import type { ReleaseTurnLock, TurnLock } from '../../a2a/turnLock.ts';
@@ -83,6 +83,11 @@ export interface PostgresStorageOptions {
    * go to this storage's audit trail.
    */
   credentials?: Omit<CredentialStoreOptions, 'rows' | 'audit'>;
+  /**
+   * The job queue's checkpoints (ADR 0113): the largest one stored, in bytes
+   * of JSON (default 5 MiB), and where a skipped save is logged.
+   */
+  taskQueue?: TaskBackendOptions;
 }
 
 export interface PostgresStorage {
@@ -231,7 +236,7 @@ export function postgresStorage(options: PostgresStorageOptions): PostgresStorag
       reap: () => reapExpiredTasks(pool),
       cancelRequested: () => cancelRequestedTasks(pool, lease),
     },
-    taskQueue: postgresTaskBackend(pool),
+    taskQueue: postgresTaskBackend(pool, options.taskQueue),
     async schemaVersion() {
       try {
         const r = await pool.query('SELECT max(version) AS v FROM melchizedek_schema_version');

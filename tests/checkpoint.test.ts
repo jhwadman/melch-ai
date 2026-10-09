@@ -191,7 +191,7 @@ test('kill mid-step: the resumed run makes only the remaining model calls and st
   assert.deepEqual(boss2.requests[0]!.messages, boss3.requests[2]!.messages);
 });
 
-test('dispatch: a checkpoint taken inside an agent route is not resumed; the run starts fresh, classifies again and stores what an uninterrupted run stores', async () => {
+test('dispatch: a run killed mid-step inside an agent route resumes from its checkpoint, classifies again and stores what an uninterrupted run stores', async () => {
   const route = () => new ScriptedModel('scripted/router', () => answer('{"route":"Chat","reason":"lookups"}'));
   const controller = new AbortController();
   const router1 = route();
@@ -199,25 +199,129 @@ test('dispatch: a checkpoint taken inside an agent route is not resumed; the run
   const store = memorySink();
   const r1 = await durable(dispatchConfig(), { router: router1, boss: boss1 }, store.sink, { signal: controller.signal }).run;
   assert.equal(r1.status, 'canceled');
+  assert.equal(boss1.calls, 3);
   assert.equal(store.saved.length, 2, 'the route checkpoints its steps');
+  assert.equal(store.latest()!.sessions.find((s) => s.id === r1.sessionId)!.events.length, 5);
 
   const router2 = route();
   const boss2 = lookupModel();
   const resumed = durable(dispatchConfig(), { router: router2, boss: boss2 }, store.sink);
   const r2 = await resumed.run;
   assert.equal(r2.status, 'completed', r2.error?.message);
-  assert.equal(r2.resumedFromStep, 0);
-  assert.notEqual(r2.sessionId, r1.sessionId);
+  assert.equal(r2.resumedFromStep, 2);
+  assert.equal(r2.sessionId, r1.sessionId);
+  assert.equal(r2.resumedSession, false, 'the runner sees a fresh session, as on a fresh run');
   assert.equal(r2.route?.route, 'Chat');
-  assert.equal(router2.calls, 1, 'the classifier runs again');
-  assert.equal(boss2.calls, 3, 'the route starts over: its history is read through the projection');
+  assert.equal(router2.calls, 1, 'the classifier runs again: its lane is not checkpointed');
+  assert.equal(boss2.calls, 1, 'only the step that was in flight runs again');
+  assert.equal(r2.text, 'done: value of b');
 
   const router3 = route();
   const boss3 = lookupModel();
   const fresh = durable(dispatchConfig(), { router: router3, boss: boss3 }, memorySink().sink);
   const r3 = await fresh.run;
+  assert.equal(boss3.calls, 3);
   assert.equal(r3.text, r2.text);
-  assert.deepEqual(await history(resumed.sessions, APP, r2.sessionId), await history(fresh.sessions, APP, r3.sessionId));
+  const resumedEvents = await history(resumed.sessions, APP, r2.sessionId);
+  assert.deepEqual(resumedEvents, await history(fresh.sessions, APP, r3.sessionId));
+  assert.equal(resumedEvents.filter((e) => e.author === 'user').length, 1, 'the opening message is stored once');
+  // The route's last request read the restored steps raw, as the uninterrupted route read its own.
+  assert.deepEqual(boss2.requests[0]!.messages, boss3.requests[2]!.messages);
+  // The classifier was asked what it was asked the first time.
+  assert.deepEqual(router2.requests[0]!.messages, router1.requests[0]!.messages);
+});
+
+test('nested dispatch: a run killed mid-step inside a nested dispatch syndicate’s route resumes from its checkpoint and stores what an uninterrupted run stores (ADR 0121)', async () => {
+  // Front routes to Team, a nested dispatch syndicate whose own classifier routes to its agent route Chat (ADR 0120).
+  const front = (): SyndicateYamlConfig =>
+    ({
+      syndicate_name: 'Front',
+      orchestrator: { name: 'Front', model: 'scripted/front', instruction: 'Classify.' },
+      subagents: [
+        { name: 'Small', model: 'scripted/small', instruction: 'Chat.', description: 'small talk' },
+        { name: 'Team', description: 'lookups', yaml_reference: 'desk.yaml' },
+      ],
+      dispatch: { default_route: 'Small' },
+    }) as any;
+  const loadNested = (ref: string) => {
+    if (ref !== 'desk.yaml') throw new Error(`no nested syndicate ${ref}`);
+    return dispatchConfig();
+  };
+  const NESTED = `${APP}/route:Team`;
+  const models = (boss: ScriptedModel) => ({
+    front: new ScriptedModel('scripted/front', () => answer('{"route":"Team","reason":"lookups"}')),
+    small: new ScriptedModel('scripted/small', () => answer('small')),
+    router: new ScriptedModel('scripted/router', () => answer('{"route":"Chat","reason":"lookups"}')),
+    boss,
+  });
+  const compileWith = (m: Record<string, ScriptedModel>) => ({ compile: { resolveModel: shimResolver(m), log: () => {}, loadNested } });
+
+  const controller = new AbortController();
+  const boss1 = lookupModel(killOnThird(controller));
+  const m1 = models(boss1);
+  const store = memorySink();
+  const r1 = await durable(front(), m1, store.sink, { signal: controller.signal, ...compileWith(m1) }).run;
+  assert.equal(r1.status, 'canceled');
+  assert.equal(boss1.calls, 3);
+  assert.equal(store.saved.length, 2, 'the nested route checkpoints its steps');
+  assert.equal(store.latest()!.sessions.find((s) => s.appName === NESTED)!.events.length, 5);
+
+  const boss2 = lookupModel();
+  const m2 = models(boss2);
+  const resumed = durable(front(), m2, store.sink, compileWith(m2));
+  const r2 = await resumed.run;
+  assert.equal(r2.status, 'completed', r2.error?.message);
+  assert.equal(r2.resumedFromStep, 2);
+  assert.equal(r2.route?.route, 'Team');
+  assert.equal(boss2.calls, 1, 'only the step that was in flight runs again');
+  assert.equal(r2.text, 'done: value of b');
+
+  const boss3 = lookupModel();
+  const m3 = models(boss3);
+  const fresh = durable(front(), m3, memorySink().sink, compileWith(m3));
+  const r3 = await fresh.run;
+  assert.equal(boss3.calls, 3);
+  assert.equal(r3.text, r2.text);
+  for (const appName of [APP, NESTED]) {
+    const got = await history(resumed.sessions, appName, r2.sessionId);
+    assert.deepEqual(got, await history(fresh.sessions, appName, r3.sessionId), `${appName} holds what an uninterrupted run stores`);
+    assert.equal(got.filter((e) => e.author === 'user').length, 1, `${appName}: the message is stored once`);
+  }
+  assert.deepEqual(boss2.requests[0]!.messages, boss3.requests[2]!.messages, 'the nested route read the restored steps');
+});
+
+test('dispatch: a checkpoint saved inside an agent route in the 1.1.0 format restores', async () => {
+  // The checkpoint as 1.1.0 stored it (version 1, the same fields), which 1.1.0's runDurableTurn set aside.
+  const sessionId = 'old-route';
+  const at = (n: number) => ({ invocationId: 'e-old', actions: {}, timestamp: n });
+  const events = [
+    { id: 'open0001', author: 'user', content: { role: 'user', parts: MESSAGE }, ...at(1) },
+    { id: 'call0001', author: 'Chat', content: { role: 'model', parts: [{ functionCall: { id: 'call-a', name: 'ckpt_lookup', args: { key: 'a' } } }] }, ...at(2) },
+    { id: 'resp0001', author: 'Chat', content: { role: 'user', parts: [{ functionResponse: { id: 'call-a', name: 'ckpt_lookup', response: { result: 'value of a' } } }] }, ...at(3) },
+  ];
+  const cp = JSON.parse(
+    JSON.stringify({
+      version: 1,
+      runId: 'owner:job-1',
+      sessionId,
+      openingHash: openingHashOf(MESSAGE),
+      steps: 1,
+      savedAt: new Date(0).toISOString(),
+      sessions: [{ appName: APP, userId: USER, id: sessionId, createdState: {}, events, opening: true }],
+    }),
+  ) as RunCheckpoint;
+  const router = new ScriptedModel('scripted/router', () => answer('{"route":"Chat"}'));
+  const boss = lookupModel();
+  const resumed = durable(dispatchConfig(), { router, boss }, memorySink(cp).sink);
+  const r = await resumed.run;
+  assert.equal(r.status, 'completed', r.error?.message);
+  assert.equal(r.resumedFromStep, 1);
+  assert.equal(r.sessionId, sessionId);
+  assert.equal(boss.calls, 2, 'the lookup of b and the answer; the lookup of a is restored');
+  assert.equal(r.text, 'done: value of b');
+  const stored = (await resumed.sessions.get({ appName: APP, userId: USER, sessionId }))!.events;
+  assert.deepEqual(stored.slice(0, 3).map((e) => e.id), ['open0001', 'call0001', 'resp0001'], 'the restored events keep their ids');
+  assert.equal(stored.filter((e) => e.author === 'user').length, 1, 'the opening message is stored once');
 });
 
 test('dispatch: a checkpoint whose run session holds only the message (as a workflow route leaves it) is restored, the message stored once, and the classifier runs again', async () => {

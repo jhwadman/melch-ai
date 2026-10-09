@@ -105,6 +105,69 @@ the starter pack and the templates), not the repo's full history.
   on, by name. `--json` gains `providers` (the providers line as data) and
   `serving`.
 
+- **Skill scripts on a delegated subagent.** `skills.scripts: local` is no
+  longer a load error on a delegated subagent (or a nested delegate
+  syndicate's): a `run_skill_script` call there pauses the turn
+  `input-required` with `approval.path`, and the decision runs or refuses the
+  script in the subagent before its caller continues. An agent a map node
+  runs still may not carry scripts (ADR 0118).
+- **OAuth consent inside a delegated subagent.** A subagent's
+  `authorization_code` tool (an `mcp_auth` or OpenAPI `auth.oauth2` grant)
+  now asks for a missing grant instead of answering `not_connected`: the turn
+  ends `input-required` with `consent`, whose new optional `path` names the
+  agents from the turn's own down to the one that asked (`PendingConsent.path`;
+  the A2A `consent_request` data part carries `path` too). The callback stores
+  the grant under the conversation's app, and the next message resumes the
+  subagent's call. The host allowlist's checks are unchanged. The
+  systems_operator template's comment says authorization_code works on its
+  Systems subagent (ADR 0118).
+
+- **Static credentials go only to hosts the operator binds** (ADR 0122).
+  `MELCHIZEDEK_CREDENTIAL_HOSTS="TRACKER_TOKEN=api.tracker.example.com;…"`,
+  or `createA2AApp({ credentialHosts })`, binds each credential variable a
+  YAML sends (`bearer_env`, `api_key.env`, `client_secret_env`) to its hosts.
+  Unset, nothing changes: `melchizedek-serve` warns at boot and
+  `melchizedek-doctor` shows a `credentials` warning naming each unbound
+  variable. Set, it is the whole list, checked when a syndicate loads, when
+  it compiles and before each send; a refused call sends nothing. New
+  modules `melchizedek-agents/tools/credentialHosts` and
+  `melchizedek-agents/tools/credentialUses` (through the existing
+  `./tools/*` export); `openApiServers` in `tools/openapiTools`;
+  `DoctorResult.credentials`; the server's banner gains a `creds` line,
+  and `oauthServerSetup` returns `credentialSummary`.
+- **Nested dispatch syndicates route as at the top**
+  ([ADR 0120](./wiki/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md)).
+  A `yaml_reference` to a plan-dispatch syndicate runs as a turn of its own
+  on its own conversation, wherever it appears (a delegated subagent, a
+  dispatch route, a workflow node): its classifier picks one of its routes
+  and the route answers, under the turn's `max_steps`, deadline and cancel.
+  Approvals, `ask_user` questions and OAuth consent on its routes, and
+  inside a route's own delegation, pause the turn `input-required` with
+  the path (`["Boss", "Team", "Ops"]` delegated, `["Team", "Ops"]` as a
+  route), over `runSyndicateTurn` and A2A; the answer resumes that route
+  without classifying again. Its grants are stored under the root's app.
+  As a workflow node it fails on a consent pause. A route carrying the
+  entry's own name, a `map` node over one, and a reference cycle below it
+  are refused by name before any model call. Surface:
+  `melchizedek-agents/compile` gains the `DispatchSpec` type, a
+  `{ kind: 'dispatch'; dispatch: DispatchSpec }` variant on `EntrySpec` and
+  `SpecTool`, and an optional `WorkflowSpec.dispatches`; `melchizedek-agents/runtime/turnControl`
+  gains the optional `TurnControl.nestedDispatch` hook and the
+  `NestedDispatchRun` and `NestedDispatchEnd` types. The generated
+  `syndicate.schema.json` describes `yaml_reference` accordingly.
+- **A cap on a background job's checkpoint**
+  ([ADR 0121](./wiki/decisions/0121-checkpoint-cap-and-dispatch-route-resume.md)).
+  A checkpoint above `MELCHIZEDEK_CHECKPOINT_MAX_BYTES` (the worker's
+  variable; a positive whole number of bytes of JSON, default 5 MiB) is
+  not stored: the job keeps its previous checkpoint, the save still reports
+  whether the claim holds (a cancel still stops the run), and one log line
+  names the job id and the sizes. New in `melchizedek-agents/tools/taskTools`:
+  `TaskBackendOptions` (`checkpointMaxBytes`, `log`), `fileTaskBackendWith`,
+  `checkpointJson`, `checkpointMaxBytesSetting`, `DEFAULT_CHECKPOINT_MAX_BYTES`
+  and `CHECKPOINT_MAX_BYTES_ENV`; `PostgresStorageOptions.taskQueue` passes
+  the options to the Postgres queue. The file store's checkpoint sidecar is
+  written compact; one written by 1.1.0 still reads.
+
 ### Changed
 
 - **A nested workflow run as a dispatch route or a workflow node pauses the
@@ -156,6 +219,57 @@ the starter pack and the templates), not the repo's full history.
   guardrails are unchanged; the YAML keeps its v2 keys. A project that
   copied the example keeps the old prompt until it copies it again.
 
+- **A nested dispatch syndicate answers with its route's text, not its
+  classifier's JSON** (ADR 0120). A `yaml_reference` to a plan-dispatch
+  syndicate used to compile to its classifier alone, so its caller got the
+  routing verdict and its routes never ran; a prompt or parser that relied
+  on that verdict sees the specialist's answer now. A gate or skill scripts
+  on one of its routes is no longer a load error. `compileSubagentSpec`
+  refuses a reference to a dispatch syndicate by name: compile it with
+  `compileEntrySpec`.
+- **Child session keys for routes and nodes carry their kind** (ADR 0120):
+  a nested syndicate run as a dispatch route is filed under
+  `<app>/route:<route>`, and as a workflow node under
+  `<walk's app>/node:<node>`, so neither can share a key with a delegated
+  subagent's (`<app>/<caller>/<subagent>`, unchanged). A session filed
+  under `<app>/<entry>`, or under the entry's name alone, is still continued
+  when the entry ran in that conversation before; nothing stored is
+  rewritten. Code that read a route's or node's walk at `<app>/<entry>`
+  reads it at the kind key now.
+
+- **A nested workflow run as a dispatch route or a workflow node pauses the
+  turn** ([ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)).
+  Its `ask_user` nodes and gated agent nodes (`require_approval`, skill
+  scripts) are no longer a load error there: the turn ends `input-required`
+  with `result.input` or `result.approval`, whose `path` runs from the route
+  or node down to the node that asked (`["Writer", "Send"]`, and further
+  down through a node that is itself a nested workflow), over
+  `runSyndicateTurn` and A2A. The next message answers it: a decision, or a
+  plain-text reply to the question, resumes a paused route without running
+  the classifier (`route.decidedBy` `approval` or `answer`); any other
+  message while an approval waits repeats the request and runs nothing. A
+  workflow node resumes inside the caller's walk. The conversation of a
+  paused route ends on the route's pause record (no content, the walk's
+  open interrupt ids in `longRunningToolIds`) in place of its answer.
+- **The child session of a nested workflow run as a route or a node is
+  filed under the agent path** (ADR 0119, with the kind segment of
+  ADR 0120 below): `<app>/route:<route>`, and `<walk's app>/node:<node>`
+  for a node (`app/route:Writer/node:Inner` two levels down), no longer
+  under the entry's name alone, so it no longer shares a row with a
+  same-named entry of another syndicate. A session 1.1.0 stored under the
+  entry's name is still continued when the entry ran in that conversation
+  before; nothing stored is rewritten. Code that read the walk's events at
+  `{ appName: '<entry>' }` reads them at the path now.
+- `compileEntrySpec` and `compileWorkflowSpec` still accept their
+  `delegated` argument; it no longer changes what compiles.
+- **The council example's Moderator consults both subagents in one step**
+  (`config/agents/examples/council.yaml`). Its instruction asks for the
+  Advocate and the Skeptic together, both function calls in one response,
+  each given the user's full claim verbatim, so the two run at once under
+  `max_concurrency` (ADR 0116). Its role, its three-part verdict and its
+  guardrails are unchanged; the YAML keeps its v2 keys. A project that
+  copied the example keeps the old prompt until it copies it again.
+
 ### Breaking — read before upgrading
 
 - **Breaking: `ReasoningLevel` (`melchizedek-agents/models/contract`) gains
@@ -174,6 +288,15 @@ the starter pack and the templates), not the repo's full history.
 - ChatGPT / Codex, Claude.ai and Gemini CLI subscription sign-ins are not a
   way to fund the engine, and nothing reads their tokens. The setup menu's
   level 9 says so and routes to each vendor's API key or cloud platform.
+
+### Fixed
+
+- **A durable dispatch run resumes inside its agent route** (ADR 0121). A
+  background job killed mid-step inside a plan-dispatch route used to start
+  over (its checkpoint was set aside); it now resumes from its checkpoint,
+  classifying again and storing what an uninterrupted run stores. A nested
+  dispatch syndicate's route resumes the same way, and checkpoints 1.1.0
+  saved inside a route restore.
 
 ## 1.1.0 — 2026-10-09
 

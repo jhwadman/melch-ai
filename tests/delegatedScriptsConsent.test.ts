@@ -445,6 +445,94 @@ test('a dispatch route that delegates: consent inside the route\'s subagent paus
   assert.match(second.text, /^Lead: "Found: T-1 is open \(for gina\)"$/);
 });
 
+// ── Inside a nested dispatch syndicate's route (ADR 0120) ───────────────────
+
+/** A nested dispatch syndicate whose route Ops works the tracker under the user's own grant. */
+const dispatchDesk = (user: string) =>
+  config({
+    syndicate_name: 'Team',
+    orchestrator: { name: 'Router', model: 'scripted/router', instruction: 'Classify.' },
+    subagents: [{ name: 'Chat', model: 'scripted/chat', instruction: 'Chat.', description: 'small talk' }, opsAgent(user)],
+    dispatch: { default_route: 'Chat' },
+  });
+
+test('a nested dispatch syndicate delegated to: consent inside its route pauses with the path; the grant resumes that route on the nested conversation', async () => {
+  const team = dispatchDesk('ivan');
+  const top = config({ syndicate_name: 'Desk', orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Delegate to Team.' }, subagents: [{ name: 'Team', description: 'works the tracker', yaml_reference: 'team.yaml' }] });
+  const rows = memoryCredentialRows();
+  const store = credentialStore({ rows, cipher: aesGcmCipher(randomBytes(32)) });
+  const consent = oauthConsent({ providers: oauthClientsFor([team]), redirectUri: 'http://127.0.0.1:9/oauth/callback', credentials: store });
+  const c = converse(
+    top,
+    { boss: delegating('Boss', 'Team', { request: 'is T-1 open?' }, 'call-team-1'), router: () => answer('{"route":"Ops","reason":"tracker"}'), chat: () => answer('chat'), ops: opsScript },
+    { toolCredentials: { store, consent } },
+    'ivan',
+    { 'team.yaml': team },
+  );
+  const callsBefore = mcpCalls.length;
+  const first = await c.turn([{ text: 'is T-1 open?' }]);
+  assert.equal(first.status, 'input-required', first.error?.message ?? first.text);
+  assert.equal(first.consent?.agent, 'Ops');
+  assert.deepEqual(first.consent?.path, ['Boss', 'Team', 'Ops']);
+  assert.deepEqual(callNames(await c.events('app/Boss/Team')), ['lookup', 'adk_request_credential'], 'the request lives in the nested conversation, where its route answered');
+  const early = await c.turn([{ text: 'done?' }]);
+  assert.equal(early.status, 'input-required');
+  assert.equal(early.consent?.id, first.consent!.id);
+  const res = await fetch(first.consent!.authUri, { redirect: 'manual' });
+  const back = new URL(res.headers.get('location')!);
+  await consent.complete({ state: back.searchParams.get('state'), code: back.searchParams.get('code'), callerUserId: 'ivan' });
+  assert.deepEqual(rows.all().map((r) => r.appName), ['app'], 'stored under the root app');
+  const second = await c.turn([{ text: 'done' }]);
+  assert.equal(second.status, 'completed', second.error?.message ?? second.text);
+  assert.match(second.text, /^Boss: "Found: T-1 is open \(for ivan\)"$/);
+  assert.equal(c.models.router!.calls, 1, 'the nested syndicate does not classify again');
+  const calls = mcpCalls.slice(callsBefore);
+  assert.deepEqual(calls.map((x) => x.name), ['lookup']);
+  assert.equal(userTokens.get(calls[0]!.token), 'ivan', 'the user\'s own token');
+});
+
+test('a nested dispatch syndicate as a route: consent inside its route pauses with the path from the route down; the next message after the grant resumes it without classifying', async () => {
+  const team = dispatchDesk('judy');
+  const top = config({
+    syndicate_name: 'Front',
+    orchestrator: { name: 'Front', model: 'scripted/front', instruction: 'Classify.' },
+    subagents: [
+      { name: 'Small', model: 'scripted/small', instruction: 'Chat.', description: 'small talk' },
+      { name: 'Team', description: 'works the tracker', yaml_reference: 'team.yaml' },
+    ],
+    dispatch: { default_route: 'Small' },
+  });
+  const rows = memoryCredentialRows();
+  const store = credentialStore({ rows, cipher: aesGcmCipher(randomBytes(32)) });
+  const consent = oauthConsent({ providers: oauthClientsFor([team]), redirectUri: 'http://127.0.0.1:9/oauth/callback', credentials: store });
+  const c = converse(
+    top,
+    { front: () => answer('{"route":"Team","reason":"tracker"}'), small: () => answer('small'), router: () => answer('{"route":"Ops","reason":"tracker"}'), chat: () => answer('chat'), ops: opsScript },
+    { toolCredentials: { store, consent } },
+    'judy',
+    { 'team.yaml': team },
+  );
+  const first = await c.turn([{ text: 'is T-1 open?' }]);
+  assert.equal(first.status, 'input-required', first.error?.message ?? first.text);
+  assert.deepEqual(first.consent?.path, ['Team', 'Ops']);
+  const stored = (await c.events('app')).length;
+  const early = await c.turn([{ text: 'done?' }]);
+  assert.equal(early.status, 'input-required');
+  assert.equal(early.consent?.id, first.consent!.id);
+  assert.equal((await c.events('app')).length, stored, 'a message before the grant stores nothing');
+  const res = await fetch(first.consent!.authUri, { redirect: 'manual' });
+  const back = new URL(res.headers.get('location')!);
+  await consent.complete({ state: back.searchParams.get('state'), code: back.searchParams.get('code'), callerUserId: 'judy' });
+  assert.deepEqual(rows.all().map((r) => r.appName), ['app'], 'stored under the root app');
+  const second = await c.turn([{ text: 'done' }]);
+  assert.equal(second.status, 'completed', second.error?.message ?? second.text);
+  assert.equal(second.route?.decidedBy, 'consent');
+  assert.equal(second.route?.route, 'Team');
+  assert.equal(c.models.front!.calls, 1, 'the top does not classify again');
+  assert.equal(c.models.router!.calls, 1, 'the nested syndicate does not classify again');
+  assert.equal(second.text, 'Found: T-1 is open (for judy)');
+});
+
 test('two levels deep: consent inside a nested syndicate\'s subagent pauses with the full path, and the grant travels down both open calls', async () => {
   const team = config({ syndicate_name: 'Team', orchestrator: { name: 'Lead', model: 'scripted/lead', instruction: 'Ask Ops.' }, subagents: [opsAgent('hank')] });
   const top = config({ syndicate_name: 'Desk', orchestrator: { name: 'Boss', model: 'scripted/boss', instruction: 'Delegate to Team.' }, subagents: [{ name: 'Team', description: 'works the tracker', yaml_reference: 'team.yaml' }] });

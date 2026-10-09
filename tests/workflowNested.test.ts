@@ -2,7 +2,7 @@
  * tests/workflowNested.test.ts — a workflow syndicate as a plan-dispatch
  * route or as a node of another workflow (ADR 0106). Either way the
  * `yaml_reference` runs the whole graph, as a delegated subagent does (ADR
- * 0098): on the child session filed under the agent path (`app/Writer`,
+ * 0098): on the child session filed under the agent path (`app/route:Writer`,
  * ADR 0119), the graph's last yielded event's text the route's answer or the
  * node's output. Its pauses: tests/workflowChildPauses.test.ts.
  *
@@ -147,7 +147,7 @@ test('a dispatch route that is a workflow syndicate runs the whole graph; its la
   for (const key of ['plan', 'write', 'check', 'edit']) assert.equal(models[key]!.calls, 1, `${key} ran once`);
   assert.equal(lastText(models.plan!.requests[0]!), 'write me something on cats', 'the first node gets the message');
   // The walk is the route's child session, every node path rooted at the entry's name.
-  const child = await events('app/Writer');
+  const child = await events('app/route:Writer');
   assert.deepEqual([...new Set(child.map((e) => e.nodeInfo?.path).filter(Boolean))].sort(), ['Writer.Both', 'Writer.Check', 'Writer.Edit', 'Writer.Plan', 'Writer.Write']);
   // The conversation holds the message and the route's answer, as any route's exchange.
   const shared = await events('app');
@@ -175,7 +175,7 @@ test('a workflow route stores the same sessions and sends the same requests as A
   const run = async () => {
     const c = conversation(desk());
     const result = await c.turn('write me something on cats');
-    return { result, models: c.models, shared: await c.events('app'), child: await c.events('app/Writer') };
+    return { result, models: c.models, shared: await c.events('app'), child: await c.events('app/route:Writer') };
   };
   const adk = await reference<{ status: string; text: string; shared: TurnEvent[]; child: TurnEvent[]; requests: Record<string, unknown> }>('workflow-route-sessions-and-requests');
   const native = await run();
@@ -206,7 +206,7 @@ test('native: a workflow node that is a workflow syndicate runs the whole graph;
   assert.equal(lastText(models.plan!.requests[0]!), 'brief(cats)', 'the nested graph gets the node’s input');
   assert.equal(result.text, `published(${edited('brief(cats)')})`);
   for (const key of ['brief', 'plan', 'write', 'check', 'edit', 'publish']) assert.equal(models[key]!.calls, 1, `${key} ran once`);
-  const child = await events('app/Writer');
+  const child = await events('app/node:Writer');
   assert.deepEqual([...new Set(child.map((e) => e.nodeInfo?.path).filter(Boolean))].sort(), ['Writer.Both', 'Writer.Check', 'Writer.Edit', 'Writer.Plan', 'Writer.Write']);
   // The caller's walk stores one event for the node, carrying its output, so a resume completes it.
   const node = (await events('app')).filter((e) => e.nodeInfo?.path === 'Newsroom.Writer');

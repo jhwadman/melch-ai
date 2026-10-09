@@ -77,7 +77,7 @@ What a hostile model answer, tool result, message or store can do to the native 
 - **`No function call event found for function responses ids: <id>`**: the message carried a function response to a call no agent made, from a library caller's parts. The turn fails; the next message runs.
 - **`NO_PENDING_APPROVAL`**: the answer names no approval open in this conversation (a replay, or another session's id).
 
-A nested syndicate that reaches itself fails at compile with `<ref>: a nested syndicate reaches itself (<chain>)`; fix the `yaml_reference` chain.
+A nested syndicate that reaches itself fails at compile with `<ref>: a nested syndicate reaches itself (<chain>)`; fix the `yaml_reference` chain. A nested plan-dispatch syndicate is checked the same way, through every reference below it, when its entry compiles. One whose route carries the name its caller gives the syndicate fails with `<ref>: the route '<name>' has the name its caller gives the nested syndicate`; rename one of them. A `map` node over one fails by name: make it a node of its own ([ADR 0120](/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md)).
 
 ## Silent degradations worth knowing
 

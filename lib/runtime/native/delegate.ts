@@ -108,7 +108,7 @@ import { randomUUID } from 'node:crypto';
 import type { ModelAdapter, ToolDeclaration } from '../../models/contract.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import type { Tool, ToolContext } from '../../tools/tool.ts';
-import type { TurnContent, TurnEvent, TurnPart } from '../events.ts';
+import type { TurnContent, TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import { createTurnEvent } from '../events.ts';
 import { TEMP_STATE_PREFIX } from '../sessions.ts';
 import type { Session, SessionService } from '../sessions.ts';
@@ -116,6 +116,8 @@ import type { AgentLoopContext, AgentLoopEnd } from './agentLoop.ts';
 import { REQUEST_INPUT_CALL } from './history.ts';
 import type { NativeAgent } from './request.ts';
 import { SelfCorrection } from './selfCorrection.ts';
+import { currentTurnControl } from '../turnControl.ts';
+import type { NestedDispatchEnd } from '../turnControl.ts';
 
 // ── The subagent tool ────────────────────────────────────────────────────────
 
@@ -171,6 +173,12 @@ export interface WorkflowSubagentEnd {
   /** The walk's result; `interruptIds` holds what it paused on. */
   run?: { interruptIds: readonly string[] };
   stopped?: boolean;
+  /**
+   * The request calls it paused on, by id, when they are not in its own
+   * session: a nested dispatch syndicate's (ADR 0120) may wait in a route's
+   * delegation below it. A workflow node raises these again on its caller's walk.
+   */
+  requests?: TurnFunctionCall[];
 }
 
 /** A workflow syndicate delegated to as a subagent (ADR 0098): its name and description, and the walk one call runs. */
@@ -354,18 +362,34 @@ function answerOf(agent: Pick<NativeAgent, 'outputSchema'>, last: TurnEvent | un
  * never hold a `/`.
  */
 export function childAppName(parent: { appName: string; delegated?: boolean }, caller: string, name: string): string {
-  return parent.delegated ? entryAppName(parent.appName, name) : `${parent.appName}/${caller}/${name}`;
+  return parent.delegated ? `${parent.appName}/${name}` : `${parent.appName}/${caller}/${name}`;
 }
 
 /**
- * The app name a nested workflow run as a dispatch route or a workflow node
- * walks under (ADR 0119): the session that runs it, and the entry's name
- * (`<app>/<route>`, `<walk's app>/<node>`). A route answers in the
- * conversation itself and a node's walk is one session, so the entry's name
- * is unique below either; ADR 0106 filed it under the entry's name alone,
- * which legacyChild still reads.
+ * What runs a child session filed below a route or a node (ADR 0120): a
+ * dispatch route, or a workflow node. Its segment carries the kind, so a
+ * route's or a node's session never shares a key with a delegated call's.
  */
-export function entryAppName(parentAppName: string, name: string): string {
+export type EntryKind = 'route' | 'node';
+
+/**
+ * The app name a nested syndicate run as a dispatch route or a workflow
+ * node is filed under (ADR 0119, ADR 0120): the session that runs it, and
+ * the entry's name behind its kind (`<app>/route:<route>`,
+ * `<walk's app>/node:<node>`). Agent names are identifiers, so a `:` never
+ * occurs in one, and a delegated call's key (childAppName: names only)
+ * never equals a route's or a node's: a delegate orchestrator `X` calling
+ * `Y` files `<app>/X/Y`, a route `X` with a nested node `Y` files
+ * `<app>/route:X/node:Y`. F3 (ADR 0119) filed it under `<app>/<entry>`
+ * (entryAppNameF3) and ADR 0106 under the entry's name alone; entrySession
+ * and the pause walk still read both.
+ */
+export function entryAppName(parentAppName: string, name: string, kind: EntryKind): string {
+  return `${parentAppName}/${kind}:${name}`;
+}
+
+/** Where ADR 0119 filed a route's or a node's session before the kind segment (ADR 0120): `<app>/<entry>`. */
+export function entryAppNameF3(parentAppName: string, name: string): string {
   return `${parentAppName}/${name}`;
 }
 
@@ -387,23 +411,40 @@ export async function legacyChild(
 }
 
 /**
- * The child session a nested workflow run as a dispatch route or a workflow
- * node walks on (ADR 0119): the one filed under entryAppName, else, when
- * the entry ran in `parent` before (an event it authored there) or a pause
- * was found waiting below it (`resuming`), the one ADR 0106 filed under its
- * name alone (legacyChild), else a new one from `state`.
+ * The session a route's or a node's entry ran in before the kind segment
+ * (ADR 0120), when it is the one to continue (`continues`): the one F3
+ * filed under `<app>/<entry>`, else the one ADR 0106 filed under the
+ * entry's name alone. Read only when none exists under entryAppName.
+ */
+export async function legacyEntry(
+  sessions: Pick<SessionService, 'get'>,
+  key: { appName: string; userId: string; sessionId: string },
+  name: string,
+  continues: boolean,
+): Promise<Session | undefined> {
+  if (!continues) return undefined;
+  return (await sessions.get({ appName: entryAppNameF3(key.appName, name), userId: key.userId, sessionId: key.sessionId })) ?? (await legacyChild(sessions, key, name, true));
+}
+
+/**
+ * The child session a nested syndicate run as a dispatch route or a
+ * workflow node runs on (ADR 0119, ADR 0120): the one filed under
+ * entryAppName, else, when the entry ran in `parent` before (an event it
+ * authored there) or a pause was found waiting below it (`resuming`), the
+ * one filed under an older key (legacyEntry), else a new one from `state`.
  */
 export async function entrySession(
   sessions: Pick<SessionService, 'get' | 'create'>,
   parent: { appName: string; userId: string; sessionId: string; events: readonly TurnEvent[] },
   name: string,
+  kind: EntryKind,
   state: Record<string, unknown>,
   resuming = false,
 ): Promise<Session> {
-  const key = { appName: entryAppName(parent.appName, name), userId: parent.userId, sessionId: parent.sessionId };
+  const key = { appName: entryAppName(parent.appName, name, kind), userId: parent.userId, sessionId: parent.sessionId };
   const own = await sessions.get(key);
   if (own) return own;
-  const legacy = await legacyChild(sessions, key, name, resuming || parent.events.some((e) => e.author === name));
+  const legacy = await legacyEntry(sessions, parent, name, resuming || parent.events.some((e) => e.author === name));
   return legacy ?? (await sessions.create({ ...key, state }));
 }
 
@@ -436,7 +477,7 @@ async function childSession(name: string, context: ToolContext, scope: Delegatio
  * the child session's agent path. A grandchild pins its caller's pinned
  * step again; the first pin is applied last, so the root's app wins.
  */
-function consentPinnedTo(consent: NonNullable<AgentLoopContext['consent']>, appName: string): NonNullable<AgentLoopContext['consent']> {
+export function consentPinnedTo(consent: NonNullable<AgentLoopContext['consent']>, appName: string): NonNullable<AgentLoopContext['consent']> {
   return {
     has: (provider) => consent.has(provider),
     begin: (binding) => consent.begin({ ...binding, appName }),
@@ -585,4 +626,106 @@ async function walkChild(workflow: WorkflowSubagent, userParts: unknown[], conte
     last = event;
   }
   return answerOf({}, last);
+}
+
+// ── Nested dispatch syndicates (ADR 0120) ────────────────────────────────────
+
+/** A nested dispatch syndicate as its entry runs it: its name, the loaded file, and the options its routes compile with (lib/compile.ts DispatchSpec). */
+export interface NestedDispatchEntry {
+  name: string;
+  config: unknown;
+  compile: unknown;
+}
+
+/** The engine's approval request call (lib/runtime/approvals.ts APPROVAL_REQUEST). */
+const APPROVAL_REQUEST_CALL = 'adk_request_confirmation';
+
+/**
+ * The message a nested dispatch syndicate's turn reads (ADR 0120): the
+ * parts as they came, except an answer to a question, which comes down as
+ * an `ask_user` reply (a delegated call's resume) or an `adk_request_input`
+ * reply (a workflow node's), and goes in as the plain text it was, as a
+ * person's answer reaches a turn at the top.
+ */
+function dispatchParts(parts: readonly unknown[]): unknown[] {
+  return parts.map((p) => {
+    const r = (p as TurnPart).functionResponse;
+    if (!r || (r.name !== ASK_USER_CALL && r.name !== REQUEST_INPUT_CALL)) return p;
+    const result = (r.response as Record<string, unknown> | undefined)?.result;
+    return { text: typeof result === 'string' ? result : JSON.stringify(result ?? '') };
+  });
+}
+
+/**
+ * The request call a paused nested dispatch syndicate's turn waits on, as a
+ * workflow node raises it again on its caller's walk: an approval request
+ * pinned to the gated call, or an input request carrying the question.
+ * Undefined for a consent request, which a walk cannot raise (ADR 0119).
+ */
+function requestCallOf(end: NestedDispatchEnd): TurnFunctionCall | undefined {
+  const id = end.interruptId;
+  if (!id) return undefined;
+  const approval = end.approval as { tool?: string; args?: Record<string, unknown>; callId?: string } | undefined;
+  if (approval) {
+    return {
+      id,
+      name: APPROVAL_REQUEST_CALL,
+      args: { originalFunctionCall: { name: approval.tool ?? '', args: approval.args ?? {}, ...(approval.callId ? { id: approval.callId } : {}) }, toolConfirmation: { confirmed: false } },
+    };
+  }
+  const input = end.input as { message?: string; payload?: unknown; schema?: unknown } | undefined;
+  if (input) {
+    return {
+      id,
+      name: REQUEST_INPUT_CALL,
+      args: {
+        interruptId: id,
+        message: input.message ?? '',
+        ...(input.payload !== undefined ? { payload: input.payload } : {}),
+        ...(input.schema !== undefined ? { response_schema: input.schema } : {}),
+      },
+    };
+  }
+  return undefined;
+}
+
+/**
+ * Runs a nested dispatch syndicate as a walk (ADR 0120): its own turn, on
+ * the conversation its caller opened (`run`), through the turn runner the
+ * current turn carries (TurnControl.nestedDispatch), under the turn's
+ * controls. Completed, it yields one event, never stored, that carries the
+ * route's final text and the conversation's state writes: the caller reads
+ * the answer and records the writes from it, as from a walk's last event.
+ * Paused, it ends with the request's id, and the request call itself for a
+ * workflow node to raise again. Failed, it throws the turn's error. A
+ * delegated call, a dispatch route and a workflow node all run it.
+ */
+export async function* nestedDispatchWalk(
+  entry: NestedDispatchEntry,
+  run: Pick<WorkflowSubagentRun, 'sessions' | 'appName' | 'userId' | 'sessionId' | 'userParts' | 'signal'>,
+): AsyncGenerator<TurnEvent, WorkflowSubagentEnd | undefined> {
+  const runner = currentTurnControl()?.nestedDispatch;
+  if (!runner) throw new Error(`'${entry.name}' is a nested dispatch syndicate, which runs only inside a syndicate turn (runSyndicateTurn).`);
+  const end = await runner({
+    config: entry.config,
+    compile: entry.compile,
+    name: entry.name,
+    sessions: run.sessions,
+    appName: run.appName,
+    userId: run.userId,
+    sessionId: run.sessionId,
+    parts: dispatchParts(run.userParts),
+  });
+  if (end.status === 'canceled' || run.signal?.aborted || currentTurnControl()?.stopReason) return { stopped: true };
+  if (end.status === 'failed') throw new Error(end.error?.message ?? `${entry.name} failed.`);
+  if (end.status === 'input-required' && end.interruptId) {
+    const request = requestCallOf(end);
+    return { run: { interruptIds: [end.interruptId] }, ...(request ? { requests: [request] } : {}) };
+  }
+  yield createTurnEvent({
+    author: entry.name,
+    content: { role: 'model', parts: [{ text: end.text }] },
+    ...(Object.keys(end.stateDelta).length ? { actions: { stateDelta: end.stateDelta } } : {}),
+  });
+  return { run: { interruptIds: [] } };
 }

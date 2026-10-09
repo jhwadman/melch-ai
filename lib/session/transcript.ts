@@ -414,13 +414,30 @@ export class ProjectedSessionService implements SessionService {
    * The event lands in the projected session the runtime holds and, through
    * the store, in the real one `get` read. A session `get` did not hand out
    * is the real one, and the store alone applies the event to it.
+   *
+   * A store may answer an append with events of its own: a durable run's
+   * store restoring a checkpoint (lib/runtime/native/checkpoint.ts, ADR 0113)
+   * answers the opening message with the run's stored events, the stored
+   * opening returned in place of the one given. The projected session then
+   * takes, in place of the event given, every event the real session gained,
+   * unprojected: they are the current turn, which is never projected. The
+   * agent loop thereby reads the restored steps, as it would on the store's
+   * own session.
    */
   async append(session: EngineSession, event: TurnEvent): Promise<TurnEvent> {
     if (event.partial) return event;
     const real = this.stored.get(this.key(session.appName, session.userId, session.id)) as EngineSession | undefined;
     if (!real || real === session) return this.own.append(session, event);
+    const before = real.events.length;
+    const at = session.events.length;
     applyEvent(session, event);
-    return this.own.append(real, event);
+    const stored = await this.own.append(real, event);
+    if (stored.id !== event.id) {
+      // The store answered with its own events: they replace the one applied above.
+      if (session.events[at]?.id === event.id) session.events.splice(at, 1);
+      for (const gained of real.events.slice(before)) applyEvent(session, gained);
+    }
+    return stored;
   }
 
 }

@@ -27,12 +27,15 @@
  * survives while the job is running or queued: recover's requeue keeps it,
  * so the next claim resumes from it, and claimNext leaves it; a mutate that
  * moves the job to any other status, or recover failing it, clears it; a
- * deleted row takes it along.
+ * deleted row takes it along. A checkpoint whose JSON is above the cap
+ * (TaskBackendOptions.checkpointMaxBytes, default 5 MiB) is not written:
+ * the column keeps the previous one, the save still reports the claim, and
+ * one line names the job id and the sizes.
  */
 import type { Pool, PoolClient } from 'pg';
 
-import { applyFinish, applyInterrupted } from '../../tools/taskTools.ts';
-import type { JobOutcome, OwnedTask, TaskBackend, TaskRecord, TaskStore, WorkerLease } from '../../tools/taskTools.ts';
+import { applyFinish, applyInterrupted, checkpointJson } from '../../tools/taskTools.ts';
+import type { JobOutcome, OwnedTask, TaskBackend, TaskBackendOptions, TaskRecord, TaskStore, WorkerLease } from '../../tools/taskTools.ts';
 
 const seqOf = (id: string) => Number(id.slice(1)) || 0;
 
@@ -60,7 +63,8 @@ async function inTransaction<T>(pool: Pool, run: (client: PoolClient) => Promise
   }
 }
 
-export function postgresTaskBackend(pool: Pool): TaskBackend {
+/** The task backend on `pool`; `options` caps the checkpoint a save stores (TaskBackendOptions). */
+export function postgresTaskBackend(pool: Pool, options: TaskBackendOptions = {}): TaskBackend {
   return {
     read: (owner) => loadOwner(pool, owner, false),
 
@@ -132,10 +136,19 @@ export function postgresTaskBackend(pool: Pool): TaskBackend {
     },
 
     async saveCheckpoint(worker, job, checkpoint) {
+      const json = checkpointJson(job, checkpoint, options);
+      if (json === null) {
+        // Over the cap: the previous checkpoint is kept; the answer is still whether the claim holds.
+        const held = await pool.query(
+          `SELECT 1 FROM melchizedek_tasks WHERE owner = $1 AND id = $2 AND lease_owner = $3 AND status = 'running'`,
+          [job.owner, job.id, worker.workerId],
+        );
+        return (held.rowCount ?? 0) > 0;
+      }
       const r = await pool.query(
         `UPDATE melchizedek_tasks SET checkpoint = $4::jsonb, checkpoint_at = NOW()
           WHERE owner = $1 AND id = $2 AND lease_owner = $3 AND status = 'running'`,
-        [job.owner, job.id, worker.workerId, JSON.stringify(checkpoint)],
+        [job.owner, job.id, worker.workerId, json],
       );
       return (r.rowCount ?? 0) > 0;
     },

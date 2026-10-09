@@ -33,7 +33,10 @@
  *     read-modify-write, not a lock. A running job's step checkpoints
  *     (ADR 0113) sit in a sidecar, <store>.checkpoints.json, keyed by id;
  *     every write of the store drops those of jobs no longer running or
- *     queued.
+ *     queued. A checkpoint above the cap (TaskBackendOptions.
+ *     checkpointMaxBytes, default 5 MiB of JSON) is not saved, on either
+ *     store: the job keeps its previous one and one line names the job id
+ *     and the sizes.
  *   - With Postgres (postgresStorage().taskQueue, migration 0009) each
  *     caller has its own list, scoped by the caller the tool call carries
  *     (the A2A server's scope key), and any number of workers claim jobs
@@ -136,6 +139,52 @@ export interface TaskBackend {
   loadCheckpoint?(job: OwnedTask): Promise<object | null>;
 }
 
+/**
+ * The largest checkpoint a backend stores by default: 5 MiB of serialized
+ * JSON (ADR 0113). A save above the cap is skipped and the job's previous
+ * checkpoint kept, so a huge run resumes from an older step boundary instead
+ * of failing or bloating the table.
+ */
+export const DEFAULT_CHECKPOINT_MAX_BYTES = 5 * 1024 * 1024;
+/** The worker's variable that moves the cap, in bytes (scripts/assistant_worker.ts). */
+export const CHECKPOINT_MAX_BYTES_ENV = 'MELCHIZEDEK_CHECKPOINT_MAX_BYTES';
+
+/** How a backend stores checkpoints (fileTaskBackendWith, postgresTaskBackend). */
+export interface TaskBackendOptions {
+  /** The largest checkpoint stored, in bytes of serialized JSON. Default DEFAULT_CHECKPOINT_MAX_BYTES; a value that is not a positive integer is the default. */
+  checkpointMaxBytes?: number;
+  /** Where a skipped save is reported: one line naming the job id and the sizes, never the checkpoint. Default console.warn. */
+  log?: (line: string) => void;
+}
+
+const validCap = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n > 0;
+
+/** The cap a variable's value sets: a positive whole number of bytes, else the default. */
+export function checkpointMaxBytesSetting(raw: string | undefined): number {
+  const value = raw?.trim() ?? '';
+  if (!/^\d+$/.test(value)) return DEFAULT_CHECKPOINT_MAX_BYTES;
+  const n = Number(value);
+  return validCap(n) ? n : DEFAULT_CHECKPOINT_MAX_BYTES;
+}
+
+/**
+ * The checkpoint serialized once, as the backend stores it, or null when it
+ * is above the cap: then one line is logged with the job id and the sizes
+ * only (the checkpoint carries the user's text and tool results), and the
+ * caller keeps the previous checkpoint.
+ */
+export function checkpointJson(job: Pick<OwnedTask, 'id'>, checkpoint: object, options: TaskBackendOptions = {}): string | null {
+  const cap = validCap(options.checkpointMaxBytes) ? options.checkpointMaxBytes : DEFAULT_CHECKPOINT_MAX_BYTES;
+  const json = JSON.stringify(checkpoint);
+  // One UTF-16 unit is at most three UTF-8 bytes: a short string is under the cap without counting.
+  if (json.length * 3 <= cap) return json;
+  const bytes = Buffer.byteLength(json, 'utf8');
+  if (bytes <= cap) return json;
+  const log = options.log ?? ((line: string) => console.warn(`[tasks] ${line}`));
+  log(`checkpoint for job ${job.id} not saved: ${bytes} bytes is over the ${cap}-byte cap; the previous checkpoint is kept`);
+  return null;
+}
+
 /** Records kept at most; finished ones are pruned oldest-first to make room. */
 export const MAX_TASKS = 500;
 /** A worker result is stored up to this length, then cut with a marker. */
@@ -165,12 +214,17 @@ function readStore(path = taskStorePath()): TaskStore {
   return { version: 1, next_id: parsed.next_id, tasks: parsed.tasks };
 }
 
-/** Atomic JSON write: temp file + rename, so a reader never sees half a file. */
-function writeJson(value: unknown, path: string): void {
+/** Atomic write: temp file + rename, so a reader never sees half a file. */
+function writeText(text: string, path: string): void {
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
+  writeFileSync(tmp, text);
   renameSync(tmp, path);
+}
+
+/** Atomic JSON write. */
+function writeJson(value: unknown, path: string): void {
+  writeText(`${JSON.stringify(value, null, 2)}\n`, path);
 }
 
 function writeStore(store: TaskStore, path = taskStorePath()): void {
@@ -352,33 +406,50 @@ export function applyInterrupted(t: TaskRecord): 'requeued' | 'failed' {
   return 'requeued';
 }
 
-/** The single-user JSON file (the default backend). */
-export const fileTaskBackend: TaskBackend = {
-  read: async () => readStore(),
-  mutate: async (_owner, change) => mutate(change),
-  claimNext: async () => {
-    const job = claimNextJob();
-    return job ? { ...job, owner: '' } : null;
-  },
-  // No leases on the single-user file: the claim holds while the record is running.
-  renew: async (_worker, job) => readStore().tasks.find((t) => t.id === job.id)?.status === 'running',
-  finish: async (job, outcome) => finishJob(job.id, outcome),
-  recover: async () => recoverInterruptedJobs(),
-  saveCheckpoint: async (_worker, job, checkpoint) => {
-    const path = taskStorePath();
-    const record = readStore(path).tasks.find((t) => t.id === job.id);
-    if (!record || record.kind !== 'background' || record.status !== 'running') return false;
-    const entries = readCheckpoints(path);
-    entries[job.id] = { checkpoint, at: now() };
-    writeJson(entries, taskCheckpointPath(path));
-    return true;
-  },
-  loadCheckpoint: async (job) => {
-    const path = taskStorePath();
-    if (!keepsCheckpoint(readStore(path).tasks.find((t) => t.id === job.id))) return null;
-    return readCheckpoints(path)[job.id]?.checkpoint ?? null;
-  },
-};
+/**
+ * The sidecar with one job's checkpoint set from its serialized JSON, which
+ * is spliced in as it is rather than parsed and serialized again. The other
+ * entries are written compact; both shapes read back the same.
+ */
+function writeCheckpointEntry(storePath: string, id: string, json: string): void {
+  const { [id]: _replaced, ...rest } = readCheckpoints(storePath);
+  const others = JSON.stringify(rest);
+  const entry = `${JSON.stringify(id)}:{"checkpoint":${json},"at":${JSON.stringify(now())}}`;
+  writeText(`${others === '{}' ? `{${entry}}` : `${others.slice(0, -1)},${entry}}`}\n`, taskCheckpointPath(storePath));
+}
+
+/** The single-user JSON file, its checkpoints capped by `options` (the default backend is fileTaskBackend). */
+export function fileTaskBackendWith(options: TaskBackendOptions = {}): TaskBackend {
+  return {
+    read: async () => readStore(),
+    mutate: async (_owner, change) => mutate(change),
+    claimNext: async () => {
+      const job = claimNextJob();
+      return job ? { ...job, owner: '' } : null;
+    },
+    // No leases on the single-user file: the claim holds while the record is running.
+    renew: async (_worker, job) => readStore().tasks.find((t) => t.id === job.id)?.status === 'running',
+    finish: async (job, outcome) => finishJob(job.id, outcome),
+    recover: async () => recoverInterruptedJobs(),
+    saveCheckpoint: async (_worker, job, checkpoint) => {
+      const path = taskStorePath();
+      const record = readStore(path).tasks.find((t) => t.id === job.id);
+      if (!record || record.kind !== 'background' || record.status !== 'running') return false;
+      // Over the cap: nothing written, the previous checkpoint kept, the claim still held.
+      const json = checkpointJson(job, checkpoint, options);
+      if (json !== null) writeCheckpointEntry(path, job.id, json);
+      return true;
+    },
+    loadCheckpoint: async (job) => {
+      const path = taskStorePath();
+      if (!keepsCheckpoint(readStore(path).tasks.find((t) => t.id === job.id))) return null;
+      return readCheckpoints(path)[job.id]?.checkpoint ?? null;
+    },
+  };
+}
+
+/** The single-user JSON file (the default backend), checkpoints capped at DEFAULT_CHECKPOINT_MAX_BYTES. */
+export const fileTaskBackend: TaskBackend = fileTaskBackendWith();
 
 let activeBackend: TaskBackend = fileTaskBackend;
 

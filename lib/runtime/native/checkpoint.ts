@@ -50,11 +50,18 @@
  *     its model call is not checkpointed and runs again on resume.
  *   - A dispatch route that is an agent answers through the transcript
  *     projection (ProjectedSessionService, lib/session/transcript.ts), which
- *     copies the session when the route opens it and applies only the
- *     route's own appends to that copy. Restored events cannot reach that
- *     copy through the store, so a checkpoint taken inside such a route is
- *     not resumed: runDurableTurn starts that run fresh. A workflow route
- *     writes its own child session and resumes.
+ *     copies the session when the route opens it. The held opening session
+ *     is empty at that open, so the copy is too; the route's append of the
+ *     message is answered with the stored events, and the projection takes
+ *     every event the real session gained, unprojected (the current turn),
+ *     so the route resumes like a single agent. A workflow route writes its
+ *     own child session and resumes. Checkpoints saved before this, which
+ *     1.1.0 set aside, restore the same way.
+ *   - A task backend stores a checkpoint only up to its cap
+ *     (TaskBackendOptions.checkpointMaxBytes, lib/tools/taskTools.ts,
+ *     default 5 MiB of JSON); a save above it keeps the previous checkpoint
+ *     and still answers whether the claim holds, so a huge run resumes from
+ *     an older boundary.
  *   - Each resumed attempt has its own step budget (max_steps, the loop's
  *     call ceiling); attempts are bounded by the queue's MAX_ATTEMPTS.
  *   - `temp:` state lasts one invocation and is never stored, so it does not
@@ -69,7 +76,6 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 
-import { isDispatchSyndicate } from '../../dispatch.ts';
 import { getFunctionCalls, getFunctionResponses, parseTurnEvents } from '../events.ts';
 import type { TurnEvent } from '../events.ts';
 import { InProcessSessionService } from '../sessions.ts';
@@ -414,17 +420,6 @@ export type DurableTurnResult = SyndicateTurnResult & {
 };
 
 /**
- * A dispatch route's checkpoint the store cannot resume: the run's own
- * session holds route events past the message, which the route reads
- * through the transcript projection (see LIMITS in the header).
- */
-function projectedRouteCheckpoint(config: SyndicateTurnOptions['config'], cp: RunCheckpoint, appName: string, userId: string): boolean {
-  if (!isDispatchSyndicate(config)) return false;
-  const own = cp.sessions.find((s) => s.appName === appName && s.userId === userId && s.id === cp.sessionId);
-  return !!own && own.events.length > 1;
-}
-
-/**
  * runSyndicateTurn, durable: the run's sessions live in a fresh in-process
  * store, restored from the sink's checkpoint when it is this run's for this
  * message, and checkpointed at every step boundary. A save that resolves
@@ -433,8 +428,7 @@ function projectedRouteCheckpoint(config: SyndicateTurnOptions['config'], cp: Ru
  */
 export async function runDurableTurn(opts: DurableTurnOptions): Promise<DurableTurnResult> {
   const { runId, checkpoints, onLost, onSaveError, sessions: inner, signal, ...turn } = opts;
-  const loaded = usableCheckpoint(await checkpoints.load(), runId, turn.parts);
-  const from = loaded && !projectedRouteCheckpoint(turn.config, loaded, turn.appName, turn.userId) ? loaded : null;
+  const from = usableCheckpoint(await checkpoints.load(), runId, turn.parts);
   const sessionId = from ? from.sessionId : randomUUID();
 
   const controller = new AbortController();

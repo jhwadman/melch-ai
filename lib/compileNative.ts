@@ -35,11 +35,11 @@
 
 import { remoteAgentOwnTool } from './a2a/remoteAgent.ts';
 import { compileSpec, compileSubagentSpec, workflowAgentSpecs } from './compile.ts';
-import type { AgentSpec, CompileOptions, WorkflowSpec } from './compile.ts';
+import type { AgentSpec, CompileOptions, DispatchSpec, WorkflowSpec } from './compile.ts';
 import type { SubagentYamlConfig, SyndicateYamlConfig } from './loadSyndicate.ts';
 import type { ModelAdapter } from './models/contract.ts';
 import { resolveAdapter } from './models/registry.ts';
-import { subagentTool, workflowSubagentTool } from './runtime/native/delegate.ts';
+import { nestedDispatchWalk, subagentTool, workflowSubagentTool } from './runtime/native/delegate.ts';
 import type { WorkflowSubagent } from './runtime/native/delegate.ts';
 import type { NativeAgent } from './runtime/native/request.ts';
 import { unsupportedOnNative } from './runtime/runtimeFlag.ts';
@@ -48,6 +48,7 @@ import { instructionToolOf, toolOf, toolsetOf } from './tools/tool.ts';
 import { buildWorkflowGraph } from './workflow/graph.ts';
 import type { WorkflowGraph } from './workflow/graph.ts';
 import { refuseUnrunnableNodes, runNativeWorkflow } from './workflow/turn.ts';
+import type { NestedRun, NestedRunParams } from './workflow/turn.ts';
 
 /**
  * A resolved tool as the loop holds it: the own Tool, InstructionTool or
@@ -122,6 +123,7 @@ export function compileNative(spec: AgentSpec): NativeAgent {
   for (const entry of spec.tools) {
     if (entry.kind === 'agent') tools.push(subagentTool(compileNative(entry.agent)));
     else if (entry.kind === 'workflow') tools.push(workflowSubagentTool(workflowSubagentOf(compileNativeWorkflow(entry.workflow))));
+    else if (entry.kind === 'dispatch') tools.push(workflowSubagentTool(dispatchSubagentOf(entry.dispatch)));
     else if (entry.kind === 'remote') tools.push(remoteAgentOwnTool({ name: entry.name, description: entry.description, url: entry.url }));
     else tools.push(nativeTool(entry.tool));
   }
@@ -177,8 +179,8 @@ export interface NativeWorkflow {
   graph: WorkflowGraph;
   agents: Map<string, NativeAgent>;
   resolveTool: (name: string) => unknown;
-  /** The nodes that are a nested workflow syndicate, each compiled the same way, by YAML name (ADR 0106). */
-  workflows: Map<string, NativeWorkflow>;
+  /** The nodes that are a nested workflow syndicate, each compiled the same way (ADR 0106), or a nested dispatch syndicate, its own turn (ADR 0120), by YAML name. */
+  workflows: Map<string, NativeWorkflow | NestedRun>;
 }
 
 /**
@@ -190,8 +192,9 @@ export function compileNativeWorkflow(spec: WorkflowSpec): NativeWorkflow {
   const graph = buildWorkflowGraph(spec.config);
   const agents = new Map<string, NativeAgent>();
   for (const { yaml, spec: agentSpec } of spec.agents) agents.set(yaml.name, compileNative(agentSpec));
-  const workflows = new Map<string, NativeWorkflow>();
+  const workflows = new Map<string, NativeWorkflow | NestedRun>();
   for (const { yaml, workflow } of spec.workflows) workflows.set(yaml.name, compileNativeWorkflow(workflow));
+  for (const { yaml, dispatch } of spec.dispatches ?? []) workflows.set(yaml.name, dispatchSubagentOf(dispatch));
   refuseUnrunnableNodes(graph, spec.resolveTool);
   return { name: spec.name, description: spec.description, graph, agents, resolveTool: spec.resolveTool, workflows };
 }
@@ -224,6 +227,20 @@ export function workflowSubagentOf(workflow: NativeWorkflow): WorkflowSubagent {
         ...(run.log ? { log: run.log } : {}),
         ...(run.credentials ? { credentials: run.credentials } : {}),
       }),
+  };
+}
+
+/**
+ * A nested dispatch syndicate as the delegated subagent the native loop
+ * calls, or the node a walk runs (ADR 0120): one call runs it as its own
+ * turn (nestedDispatchWalk) on the child session lib/runtime/native/delegate.ts
+ * (or lib/workflow/turn.ts) opened.
+ */
+export function dispatchSubagentOf(dispatch: DispatchSpec): WorkflowSubagent & NestedRun {
+  return {
+    name: dispatch.name,
+    ...(dispatch.description ? { description: dispatch.description } : {}),
+    walk: (run: NestedRunParams) => nestedDispatchWalk({ name: dispatch.name, config: dispatch.config, compile: dispatch.compile }, run),
   };
 }
 

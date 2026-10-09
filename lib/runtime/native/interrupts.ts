@@ -108,10 +108,23 @@
  * a nested workflow raises its walk's open requests again on its caller's
  * walk, on one event of its own (lib/workflow/turn.ts), so the caller's
  * walk pauses on the same ids; deepestPause follows such a request down,
- * by id, through each child session filed under entryAppName (else the
- * entry's name alone) to the node that asked. A dispatch route that is one
- * leaves its pause record as the conversation's last event (routePause).
- * A delegated nested workflow's node that is one is followed the same way.
+ * by id, through each child session filed under entryAppName (its kind in
+ * the key: `route:`, `node:`, ADR 0120; else an older key, legacyEntry) to
+ * the node that asked. A dispatch route that is one leaves its pause
+ * record as the conversation's last event (routePause). A delegated nested
+ * workflow's node that is one is followed the same way.
+ *
+ * NESTED DISPATCH SYNDICATES (ADR 0120). One runs as a turn of its own on
+ * its own conversation (the child session of a delegated call, a route or
+ * a node), its routes answering there as a turn's routes answer in the
+ * turn's conversation. conversationPause finds what it waits on as the
+ * turn finds it at the top: a route's pause record, a route's open
+ * request, question or consent request, else a pause inside a call a route
+ * left open (filed `<conversation>/<route>/<subagent>`). pauseBelow falls
+ * to it when the subagent's own checks find nothing; nestedWorkflowPause
+ * when the child session is not a walk. The answer goes down the open
+ * call, the route's pause record or the node's raised request, and the
+ * nested turn reads it as a message at the top.
  *
  * CONSENT AND SKILL SCRIPTS INSIDE DELEGATED SUBAGENTS (ADR 0118). A skill
  * script run asks for approval through the same `adk_request_confirmation`
@@ -142,7 +155,8 @@ import { getFunctionCalls, getFunctionResponses } from '../events.ts';
 import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import { ASK_USER, pendingQuestion } from '../questions.ts';
 import type { Session, SessionService } from '../sessions.ts';
-import { childAppName, entryAppName, legacyChild } from './delegate.ts';
+import { childAppName, entryAppName, legacyChild, legacyEntry } from './delegate.ts';
+import type { EntryKind } from './delegate.ts';
 import { REQUEST_CONFIRMATION_CALL, REQUEST_CREDENTIAL_CALL, REQUEST_INPUT_CALL, isSegmentPrefix } from './history.ts';
 import { isToolset } from './request.ts';
 import type { NativeAgent } from './request.ts';
@@ -471,16 +485,96 @@ async function pauseBelow(key: DelegationKey, caller: string, call: TurnFunction
   const consent = pendingConsent(child.events);
   if (consent && consent.agent === name) return { path: here, callIds: [id], consent: { ...consent, path: here } };
   const [first] = await delegatedPauses({ ...key, appName: child.appName, delegated: true }, child.events, name, depth + 1, new Set([...seen, name]));
-  if (!first) return undefined;
-  const path = [caller, ...first.path];
+  if (first) {
+    const path = [caller, ...first.path];
+    return {
+      path,
+      callIds: [id, ...first.callIds],
+      ...(first.approval ? { approval: { ...first.approval, path } } : {}),
+      ...(first.question ? { question: { ...first.question, path } } : {}),
+      ...(first.consent ? { consent: { ...first.consent, path } } : {}),
+    };
+  }
+  // A nested dispatch syndicate delegated to (ADR 0120): its routes answer in the child session, as routes answer in a turn's.
+  const routed = await conversationPause(key, child, name, undefined, depth + 1, new Set([...seen, name]));
+  if (!routed) return undefined;
+  const path = [caller, ...routed.path];
   return {
     path,
-    callIds: [id, ...first.callIds],
+    callIds: [id],
+    ...(routed.approval ? { approval: { ...routed.approval, path } } : {}),
+    ...(routed.question ? { question: { ...routed.question, path } } : {}),
+    ...(routed.consent ? { consent: { ...routed.consent, path } } : {}),
+  };
+}
+
+/** The id a pause found below waits on. */
+const idOf = (pause: { approval?: { id: string }; question?: { id: string }; consent?: { id: string } }): string | undefined =>
+  pause.approval?.id ?? pause.question?.id ?? pause.consent?.id;
+
+/**
+ * What a nested dispatch syndicate's conversation (`child`, filed for the
+ * entry `name`) waits on (ADR 0120): what its own turn would report at the
+ * top. Its routes answer there as a turn's routes answer in the turn's
+ * conversation, so it is found as the turn finds it: a route's pause record
+ * (a nested workflow or a nested dispatch syndicate run as a route, followed
+ * down), a route's open approval request, question or consent request, else
+ * a pause inside a call a route left open, its child filed under the
+ * route's name (`<child>/<route>/<subagent>`, as a turn's route files its
+ * own). The path runs from `name` down to the agent that asked. With `id`,
+ * only that request counts. Calls `name` made itself are not a route's.
+ */
+async function conversationPause(
+  key: DelegationKey,
+  child: Session,
+  name: string,
+  id: string | undefined,
+  depth: number,
+  seen: ReadonlySet<string> = new Set(),
+): Promise<NestedWorkflowPause | undefined> {
+  if (depth >= MAX_DELEGATION_DEPTH) return undefined;
+  const at = { ...key, appName: child.appName, delegated: false };
+  const wanted = (found: string | undefined): boolean => !!found && (id === undefined || found === id);
+  const down = (path: string[]) => [name, ...path];
+  const routed = await routePause(at, child.events, undefined, depth + 1);
+  if (routed && wanted(idOf(routed))) {
+    const path = down(routed.path);
+    return {
+      path,
+      ...(routed.approval ? { approval: { ...routed.approval, path } } : {}),
+      ...(routed.question ? { question: { ...routed.question, path } } : {}),
+      ...(routed.consent ? { consent: { ...routed.consent, path } } : {}),
+    };
+  }
+  const approval = pendingApproval(child.events);
+  if (approval && approval.agent && approval.agent !== 'user' && approval.agent !== name && wanted(approval.id)) {
+    const path = down([approval.agent]);
+    return { path, approval: { ...approval, path } };
+  }
+  const question = pendingQuestion(child.events);
+  if (question && question.node && question.node !== 'user' && question.node !== name && wanted(question.id)) {
+    const path = down([question.node]);
+    return { path, question: { ...question, path } };
+  }
+  const consent = pendingConsent(child.events);
+  if (consent && consent.agent && consent.agent !== name && wanted(consent.id)) {
+    const path = down([consent.agent]);
+    return { path, consent: { ...consent, path } };
+  }
+  const below = await delegatedPauses(at, child.events, undefined, depth + 1, seen);
+  const first = below.find((p) => p.path[0] !== name && wanted(interruptIdOf(p)));
+  if (!first) return undefined;
+  const path = down(first.path);
+  return {
+    path,
     ...(first.approval ? { approval: { ...first.approval, path } } : {}),
     ...(first.question ? { question: { ...first.question, path } } : {}),
     ...(first.consent ? { consent: { ...first.consent, path } } : {}),
   };
 }
+
+/** A walk's session: its node events carry a dotted node path (`<workflow>.<node>`). */
+const isWalk = (session: Session): boolean => session.events.some((e) => typeof e.nodeInfo?.path === 'string' && e.nodeInfo.path.includes('.'));
 
 /**
  * The pause a nested workflow's walk holds in its child session (ADR 0111):
@@ -522,6 +616,8 @@ export interface NestedWorkflowPause {
   approval?: PendingApproval;
   /** The question, its `node` the node that asked and its `path` set. */
   question?: PendingInput;
+  /** The OAuth consent request, inside a nested dispatch syndicate's route (ADR 0120); its `path` set. */
+  consent?: PendingConsent;
 }
 
 /**
@@ -534,7 +630,7 @@ async function workflowPauseIn(key: DelegationKey, child: Session, name: string,
   const walked = workflowPause(child.events, name, id);
   if (!walked) return undefined;
   const found = (walked.approval?.id ?? walked.question?.id) as string;
-  const deeper = await nestedWorkflowPause({ ...key, appName: child.appName }, walked.asker, found, depth + 1);
+  const deeper = await nestedWorkflowPause({ ...key, appName: child.appName }, walked.asker, 'node', found, depth + 1);
   const path = deeper ? [name, ...deeper.path] : [name, walked.asker];
   const approval = deeper ? deeper.approval : walked.approval;
   const question = deeper ? deeper.question : walked.question;
@@ -549,12 +645,15 @@ async function workflowPauseIn(key: DelegationKey, child: Session, name: string,
  * node that asked. With `id`, only that interrupt counts: a request a node
  * raised again on its caller's walk names the one its own walk waits on.
  */
-export async function nestedWorkflowPause(key: DelegationKey & { appName: string }, name: string, id?: string, depth = 0): Promise<NestedWorkflowPause | undefined> {
+export async function nestedWorkflowPause(key: DelegationKey & { appName: string }, name: string, kind: EntryKind, id?: string, depth = 0): Promise<NestedWorkflowPause | undefined> {
   if (depth >= MAX_DELEGATION_DEPTH) return undefined;
-  const own = await key.sessions.get({ appName: entryAppName(key.appName, name), userId: key.userId, sessionId: key.sessionId });
-  const child = own ?? (await legacyChild(key.sessions, key, name, true));
+  const own = await key.sessions.get({ appName: entryAppName(key.appName, name, kind), userId: key.userId, sessionId: key.sessionId });
+  const child = own ?? (await legacyEntry(key.sessions, key, name, true));
   if (!child) return undefined;
-  return workflowPauseIn(key, child, name, id, depth);
+  const walked = await workflowPauseIn(key, child, name, id, depth);
+  if (walked || isWalk(child)) return walked;
+  // A nested dispatch syndicate run as the route or the node (ADR 0120): its own conversation, as its turn reads it.
+  return conversationPause(key, child, name, id, depth + 1);
 }
 
 /**
@@ -566,13 +665,18 @@ export async function nestedWorkflowPause(key: DelegationKey & { appName: string
  * Anything stored after the record closes it. `routes`, when given, are the
  * names a record may carry.
  */
-export async function routePause(key: DelegationKey & { appName: string }, events: readonly TurnEvent[], routes?: ReadonlySet<string>): Promise<(NestedWorkflowPause & { route: string }) | undefined> {
+export async function routePause(
+  key: DelegationKey & { appName: string },
+  events: readonly TurnEvent[],
+  routes?: ReadonlySet<string>,
+  depth = 0,
+): Promise<(NestedWorkflowPause & { route: string }) | undefined> {
   const record = events[events.length - 1];
   const route = record?.author;
   if (!record || !route || route === 'user' || (record.content?.parts ?? []).length > 0 || record.nodeInfo?.path !== route) return undefined;
   if (routes && !routes.has(route)) return undefined;
   for (const id of record.longRunningToolIds ?? []) {
-    const pause = await nestedWorkflowPause(key, route, id);
+    const pause = await nestedWorkflowPause(key, route, 'route', id, depth);
     if (pause) return { ...pause, route };
   }
   return undefined;
@@ -588,7 +692,7 @@ export async function routePause(key: DelegationKey & { appName: string }, event
 export async function deepestPause<T extends PendingApproval | PendingInput>(key: DelegationKey & { appName: string }, pending: T): Promise<T> {
   const raisedBy = 'agent' in pending ? pending.agent : pending.node;
   if (!raisedBy || pending.path) return pending;
-  const below = await nestedWorkflowPause(key, raisedBy, pending.id);
+  const below = await nestedWorkflowPause(key, raisedBy, 'node', pending.id);
   const found = 'agent' in pending ? below?.approval : below?.question;
   return (found as T | undefined) ?? pending;
 }

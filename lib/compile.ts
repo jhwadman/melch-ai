@@ -275,7 +275,29 @@ export type SpecTool =
   | { kind: 'tool'; tool: unknown }
   | { kind: 'agent'; agent: AgentSpec }
   | { kind: 'remote'; name: string; description: string; url: string }
-  | { kind: 'workflow'; workflow: WorkflowSpec };
+  | { kind: 'workflow'; workflow: WorkflowSpec }
+  | { kind: 'dispatch'; dispatch: DispatchSpec };
+
+/**
+ * A nested dispatch (plan-dispatch) syndicate (ADR 0120): it runs as it
+ * runs at the top, as a turn of its own on its own conversation (its
+ * classifier picks a route, the route answers), so what it compiles to is
+ * the file and the options its turn loads its routes with. The turn runner
+ * runs it (lib/runtime/syndicateTurn.ts, TurnControl.nestedDispatch), as a
+ * delegated call, a dispatch route or a workflow node.
+ */
+export interface DispatchSpec {
+  /** The entry's name, under which its caller lists it. */
+  name: string;
+  /** The entry's description: the tool's, when delegated to. */
+  description: string;
+  /** The nested syndicate, as loaded. */
+  config: SyndicateYamlConfig;
+  /** The file it came from. */
+  ref: string;
+  /** The options its routes compile with: the caller's, its nesting chain extended by `ref`. */
+  compile: CompileOptions;
+}
 
 /**
  * A workflow syndicate, compiled: lib/compileNative.ts builds the walk's
@@ -298,6 +320,8 @@ export interface WorkflowSpec {
    * walk runs it as the node, on its own child session.
    */
   workflows: Array<{ yaml: SubagentYamlConfig; workflow: WorkflowSpec }>;
+  /** Every node that is a `yaml_reference` to a dispatch syndicate, with its YAML entry: the walk runs it as the node, as its own turn (ADR 0120). */
+  dispatches?: Array<{ yaml: SubagentYamlConfig; dispatch: DispatchSpec }>;
   /** The registry entry for a tool node's tool name, or undefined (CompileOptions.onUnknownTool applies). */
   resolveTool: (name: string) => unknown;
 }
@@ -425,28 +449,45 @@ function nestedOptions(ref: string, opts: CompileOptions): CompileOptions {
 }
 
 /**
- * A nested `yaml_reference:` syndicate, loaded, with the approval gates that
- * cannot pause where it runs refused by name (ADR 0110, ADR 0111):
- *   - a nested delegate syndicate's gates pause the turn through the open
- *     call, wherever it runs;
- *   - a nested dispatch syndicate runs its classifier alone (compileSpec
- *     lists no route on it), so its orchestrator may gate, and a gate on a
- *     route, which never runs nested, is refused;
- *   - a nested workflow's gates pause its walk, which reaches the turn
- *     wherever it runs: through a delegated call's open call (ADR 0111), a
- *     dispatch route's pause record, or a workflow node's own pause
- *     (ADR 0119).
+ * A nested `yaml_reference:` syndicate, loaded. Every pause inside one
+ * reaches the turn wherever it runs (ADR 0110, ADR 0111, ADR 0119,
+ * ADR 0120): a nested delegate syndicate's through the open call, a nested
+ * workflow's through its walk, a nested dispatch syndicate's through its
+ * own turn, whose routes run as they run at the top. Nothing is refused
+ * here any more.
  */
 function loadNestedSyndicate(ref: string, opts: CompileOptions): SyndicateYamlConfig {
   opts.log?.(`Loading nested syndicate: ${ref}`);
-  const nested = (opts.loadNested ?? loadSyndicate)(ref);
-  if (isDispatchSyndicate(nested)) {
-    const gated = (nested.subagents ?? []).find((s) => agentGates(s));
-    if (gated) {
-      throw new Error(`${ref}: approval gates (require_approval, or skill scripts) on the route '${gated.name}' never run: a nested dispatch syndicate runs its classifier alone. Gate the classifier, or run the syndicate as its own.`);
+  return (opts.loadNested ?? loadSyndicate)(ref);
+}
+
+/**
+ * A nested dispatch syndicate as its entry runs it (ADR 0120). Its routes
+ * compile when its turn routes to one, as at the top, so a route that
+ * cannot compile fails that turn; the references below it are followed
+ * here (loaded, not compiled: no tool is resolved and no MCP server is
+ * reached), so a reference cycle or a depth past the limit is refused at
+ * load, by name, before any model call. A route may not carry the entry's
+ * name: the pause walk tells the nested syndicate from its routes by name.
+ */
+function compileDispatchEntry(subCfg: SubagentYamlConfig, nested: SyndicateYamlConfig, nestedOpts: CompileOptions): DispatchSpec {
+  const ref = subCfg.yaml_reference as string;
+  for (const route of nested.subagents ?? []) {
+    if (route.name === subCfg.name) {
+      throw new Error(`${ref}: the route '${route.name}' has the name its caller gives the nested syndicate; rename the route or the entry.`);
     }
   }
-  return nested;
+  followReferences(nested, nestedOpts);
+  return { name: subCfg.name, description: subCfg.description ?? '', config: nested, ref, compile: nestedOpts };
+}
+
+/** Loads every `yaml_reference` below `config`, depth first, through nestedOptions: a cycle or a chain past the limit throws by name. */
+function followReferences(config: SyndicateYamlConfig, opts: CompileOptions): void {
+  for (const entry of config.subagents ?? []) {
+    if (!entry.yaml_reference || entry.a2a_agent_url) continue;
+    const below = nestedOptions(entry.yaml_reference, opts);
+    followReferences(loadNestedSyndicate(entry.yaml_reference, below), below);
+  }
 }
 
 /**
@@ -471,17 +512,21 @@ export async function compileWorkflowSpec(
   const workflowName = name || config.syndicate_name;
   const agents: WorkflowSpec['agents'] = [];
   const workflows: WorkflowSpec['workflows'] = [];
+  const dispatches: WorkflowSpec['dispatches'] = [];
   for (const yaml of [{ description: '', ...config.orchestrator } as SubagentYamlConfig, ...(config.subagents ?? [])]) {
     const entry = await compileEntrySpec(yaml, opts);
     if (entry.kind === 'workflow') workflows.push({ yaml, workflow: entry.workflow });
+    else if (entry.kind === 'dispatch') dispatches.push({ yaml, dispatch: entry.dispatch });
     else agents.push({ yaml, spec: entry.spec });
   }
-  // A map runs one agent per item; a nested graph is not an agent a map item can be (ADR 0106).
+  // A map runs one agent per item; a nested graph or a nested dispatch syndicate is not an agent a map item can be (ADR 0106, ADR 0120).
   for (const [node, entry] of Object.entries(config.workflow.nodes ?? {})) {
-    const mapped = nodeKind(entry) === 'map' ? workflows.find((w) => w.yaml.name === entry.map) : undefined;
+    if (nodeKind(entry) !== 'map') continue;
+    const mapped = workflows.find((w) => w.yaml.name === entry.map) ?? dispatches.find((d) => d.yaml.name === entry.map);
     if (mapped) {
+      const what = 'workflow' in mapped ? 'a workflow syndicate' : 'a dispatch syndicate';
       throw new Error(
-        `${ref ?? config.syndicate_name}: the map node '${node}' runs '${mapped.yaml.name}', a workflow syndicate (${mapped.yaml.yaml_reference}); a map runs one agent per item, so make the workflow a node of its own.`,
+        `${ref ?? config.syndicate_name}: the map node '${node}' runs '${mapped.yaml.name}', ${what} (${mapped.yaml.yaml_reference}); a map runs one agent per item, so make it a node of its own.`,
       );
     }
   }
@@ -491,6 +536,7 @@ export async function compileWorkflowSpec(
     config: { ...config, syndicate_name: workflowName },
     agents,
     workflows,
+    dispatches,
     resolveTool: (tool) => resolveNamedTools([tool], opts.onUnknownTool)[0],
   };
 }
@@ -500,8 +546,8 @@ export function workflowAgentSpecs(spec: WorkflowSpec): AgentSpec[] {
   return [...spec.agents.map((a) => a.spec), ...spec.workflows.flatMap((w) => workflowAgentSpecs(w.workflow))];
 }
 
-/** A subagent entry, compiled: one agent, or a nested workflow syndicate's whole graph (ADR 0098, ADR 0106). */
-export type EntrySpec = { kind: 'agent'; spec: AgentSpec } | { kind: 'workflow'; workflow: WorkflowSpec };
+/** A subagent entry, compiled: one agent, a nested workflow syndicate's whole graph (ADR 0098, ADR 0106), or a nested dispatch syndicate's own turn (ADR 0120). */
+export type EntrySpec = { kind: 'agent'; spec: AgentSpec } | { kind: 'workflow'; workflow: WorkflowSpec } | { kind: 'dispatch'; dispatch: DispatchSpec };
 
 /**
  * A subagent entry as what it runs: an inline agent or a nested syndicate's
@@ -520,6 +566,8 @@ export async function compileEntrySpec(subCfg: SubagentYamlConfig, opts: Compile
     if (isWorkflowSyndicate(nested)) {
       return { kind: 'workflow', workflow: await compileWorkflowSpec(nested, nestedOpts, subCfg.name, subCfg.description, subCfg.yaml_reference, delegated) };
     }
+    // A nested dispatch syndicate classifies and routes as at the top (ADR 0120), wherever it runs.
+    if (isDispatchSyndicate(nested)) return { kind: 'dispatch', dispatch: compileDispatchEntry(subCfg, nested, nestedOpts) };
     return { kind: 'agent', spec: await compileSpec(nested, nestedOpts, subCfg.name, subCfg.description) };
   }
   return { kind: 'agent', spec: await compileSubagentSpec(subCfg, opts) };
@@ -554,6 +602,9 @@ export async function compileSubagentSpec(subCfg: SubagentYamlConfig, opts: Comp
     const nested = loadNestedSyndicate(subCfg.yaml_reference, nestedOpts);
     if (isWorkflowSyndicate(nested)) {
       throw new Error(`${subCfg.yaml_reference}: '${subCfg.name}' is a workflow syndicate, which runs as its whole graph, not as one agent; compile the entry with compileEntrySpec (ADR 0106).`);
+    }
+    if (isDispatchSyndicate(nested)) {
+      throw new Error(`${subCfg.yaml_reference}: '${subCfg.name}' is a dispatch syndicate, which runs as its own turn (its classifier, then a route), not as one agent; compile the entry with compileEntrySpec (ADR 0120).`);
     }
     return compileSpec(nested, nestedOpts, subCfg.name, subCfg.description);
   }
@@ -600,7 +651,7 @@ export async function compileSpec(
           }
           // A delegated subagent: a pause inside it, a nested workflow's included, reaches the caller (ADR 0110, ADR 0111).
           const entry = await compileEntrySpec(subCfg, opts, true);
-          return entry.kind === 'workflow' ? entry : { kind: 'agent', agent: entry.spec };
+          return entry.kind === 'agent' ? { kind: 'agent', agent: entry.spec } : entry;
         }),
       );
 
