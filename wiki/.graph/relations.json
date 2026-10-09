@@ -3765,6 +3765,14 @@
       "evidence": "wiki/models/chatgpt-signin.md \"Signing in\" and \"Refresh\" describe signIn, freshAccessToken and signOut in lib/chatgpt/oauth.ts step by step.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0124 Context: \"every request passes the SSRF guard and the redirect rule (ADR 0036)\"; its 2026-10-09 note holds the protected-resource metadata URL a 401's WWW-Authenticate header names to the SSRF guard and the allowlist before any request.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

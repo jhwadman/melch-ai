@@ -14,8 +14,15 @@
  *   does the discovery and the registration, and keeps the registered client.
  *
  * WHAT IT GUARANTEES:
+ *   - The MCP server is asked first, as the MCP authorization spec has a
+ *     client do: an unauthenticated initialize request, and on a 401 the
+ *     Bearer challenge's `resource_metadata` (and `scope`) parameters in its
+ *     WWW-Authenticate header (RFC 9728 5.1). The URL it names is read first;
+ *     the well-known URLs are the fallback. The header is read by a linear,
+ *     length-bounded tokenizer (no regular expression), and never logged.
  *   - Discovery never widens the operator's OAuth host allowlist (ADR 0114):
- *     every URL it fetches (the metadata documents, the registration
+ *     every URL it fetches (the MCP server's challenge, the metadata
+ *     documents, including one the header names, the registration
  *     endpoint) and every endpoint it returns (authorization, token) must be
  *     a host the allowlist binds to the provider, checked before the request
  *     and again whenever the client is used. A discovered host outside it is
@@ -41,7 +48,7 @@
 import { createHash } from 'node:crypto';
 
 import { checkHost } from '../net/addressGuard.ts';
-import { PROVIDER_NAME } from './auth.ts';
+import { OAUTH_SCOPE, PROVIDER_NAME } from './auth.ts';
 import type { CredentialKey } from './auth.ts';
 import type { CredentialCipher } from './credentialCipher.ts';
 import { credentialContext } from './credentialStore.ts';
@@ -70,6 +77,11 @@ export interface DiscoveredAuthorization {
   authorizationEndpoint: string;
   tokenEndpoint: string;
   registrationEndpoint: string;
+  /**
+   * The scopes the MCP server's 401 challenge named (its `scope` parameter),
+   * when it named any: the MCP spec's first choice when the grant names none.
+   */
+  challengeScopes?: string[];
 }
 
 export interface DiscoveryOptions {
@@ -115,19 +127,16 @@ export function canonicalResource(serverUrl: string): string {
 /** Two identifiers equal but for a trailing slash. */
 const sameId = (a: string, b: string): boolean => (a.endsWith('/') ? a.slice(0, -1) : a) === (b.endsWith('/') ? b.slice(0, -1) : b);
 
+/** The options every guarded request reads. */
+type GuardOptions = Required<Pick<DiscoveryOptions, 'provider'>> & DiscoveryOptions & { list: OAuthHostAllowlist | null };
+
 /**
  * Discovery and registration's one way out: the URL checked against the
- * transport rule, the operator's allowlist for the provider and the SSRF
- * guard first, then one request with no redirect, a time limit and a bounded
- * JSON body. Refusal throws; a non-2xx answer or an unusable body is
- * `undefined` for a metadata candidate, so the next one can be tried.
+ * operator's allowlist for the provider and the SSRF guard first (refusal
+ * throws, and no request is made), then one request with no redirect and a
+ * time limit. `undefined` when the host could not be reached.
  */
-async function guardedJson(
-  url: URL,
-  role: string,
-  options: Required<Pick<DiscoveryOptions, 'provider'>> & DiscoveryOptions & { list: OAuthHostAllowlist | null },
-  init: RequestInit = {},
-): Promise<{ status: number; json: Record<string, unknown> | undefined }> {
+async function guardedFetch(url: URL, role: string, options: GuardOptions, init: RequestInit = {}): Promise<Response | undefined> {
   const { provider } = options;
   const refused = oauthHostProblem({ provider, grant: 'authorization_code' }, url.href, role, options.list);
   if (refused) throw new OAuthDiscoveryError(provider, `${refused} (discovery never widens the allowlist)`);
@@ -135,9 +144,8 @@ async function guardedJson(
     const reason = await checkHost(url.hostname);
     if (reason) throw new OAuthDiscoveryError(provider, `refusing the ${role} ${url.hostname}: ${reason}`);
   }
-  let res: Response;
   try {
-    res = await (options.fetch ?? fetch)(url.href, {
+    return await (options.fetch ?? fetch)(url.href, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers as Record<string, string> | undefined) },
       // A redirect would take the request (and, for registration, the redirect URI) wherever it points.
@@ -145,8 +153,18 @@ async function guardedJson(
       signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
     });
   } catch {
-    throw new OAuthDiscoveryError(provider, `the ${role} (${url.hostname}) could not be reached`);
+    return undefined;
   }
+}
+
+/**
+ * A guarded request with a bounded JSON body. Refusal or an unreachable host
+ * throws; a non-2xx answer or an unusable body is `undefined` for a metadata
+ * candidate, so the next one can be tried.
+ */
+async function guardedJson(url: URL, role: string, options: GuardOptions, init: RequestInit = {}): Promise<{ status: number; json: Record<string, unknown> | undefined }> {
+  const res = await guardedFetch(url, role, options, init);
+  if (!res) throw new OAuthDiscoveryError(options.provider, `the ${role} (${url.hostname}) could not be reached`);
   const reader = res.body?.getReader();
   if (!reader) return { status: res.status, json: undefined };
   const chunks: Uint8Array[] = [];
@@ -168,6 +186,164 @@ async function guardedJson(
   } catch {
     return { status: res.status, json: undefined };
   }
+}
+
+// ── The MCP server's 401 challenge (RFC 9728 5.1, RFC 6750 3, RFC 9110 11.6.1) ──
+
+/** A WWW-Authenticate header longer than this is ignored whole. */
+export const MAX_CHALLENGE_HEADER = 8 * 1024;
+/** A parameter value longer than this is ignored. */
+const MAX_CHALLENGE_VALUE = 2048;
+const MAX_CHALLENGE_SCOPES = 64;
+
+/** What a Bearer challenge tells a client that has no token yet. */
+export interface BearerChallenge {
+  /** The `resource_metadata` parameter: the protected-resource metadata URL (RFC 9728 5.1), unparsed. */
+  resourceMetadata?: string;
+  /** The `scope` parameter, split, each a valid scope token (RFC 6750 3). */
+  scopes?: string[];
+}
+
+/** RFC 9110 tchar, by code point: no regular expression on header input. */
+function isTchar(c: number): boolean {
+  if ((c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a)) return true;
+  // ! # $ % & ' * + - . ^ _ ` | ~
+  return c === 0x21 || (c >= 0x23 && c <= 0x27) || c === 0x2a || c === 0x2b || c === 0x2d || c === 0x2e || c === 0x5e || c === 0x5f || c === 0x60 || c === 0x7c || c === 0x7e;
+}
+
+/**
+ * The first Bearer challenge's parameters in a WWW-Authenticate header, or
+ * undefined (no Bearer challenge, or a header that is too long or malformed:
+ * either is ignored whole, and discovery falls back to the well-known URLs).
+ * One pass over the header, each step advancing: linear in its length, with
+ * no regular expression. Several challenges in one header, quoted-string
+ * values with escapes, case-insensitive scheme and parameter names, and a
+ * token68 credential on another scheme are understood. A parameter given
+ * twice in the Bearer challenge makes it ambiguous, and malformed.
+ */
+export function parseBearerChallenge(header: string | null | undefined): BearerChallenge | undefined {
+  if (typeof header !== 'string' || header.length === 0 || header.length > MAX_CHALLENGE_HEADER) return undefined;
+  const h = header;
+  const n = h.length;
+  let i = 0;
+  const ws = () => {
+    while (i < n && (h[i] === ' ' || h[i] === '\t')) i++;
+  };
+  /** A token, or a token68 (which adds `/`); empty when none starts here. */
+  const word = () => {
+    const start = i;
+    while (i < n && (isTchar(h.charCodeAt(i)) || h[i] === '/')) i++;
+    return h.slice(start, i);
+  };
+  let current = ''; // the scheme the parameters belong to, lowercased
+  let afterScheme = false; // a scheme was read, and no comma since: a bare word is its token68
+  let bearer: Map<string, string> | undefined;
+  while (i < n) {
+    ws();
+    if (i >= n) break;
+    if (h[i] === ',') {
+      i++;
+      afterScheme = false;
+      continue;
+    }
+    const name = word();
+    if (!name) return undefined; // a character no challenge can hold here
+    ws();
+    if (h[i] !== '=') {
+      if (afterScheme) continue; // the scheme's token68 credential
+      if (bearer) break; // the Bearer challenge is complete
+      current = name.toLowerCase();
+      afterScheme = true;
+      if (current === 'bearer') bearer = new Map();
+      continue;
+    }
+    // `=`: an auth-param, or the padding of a token68.
+    let eq = 0;
+    while (i < n && h[i] === '=') {
+      i++;
+      eq++;
+    }
+    ws();
+    if (eq > 1 || i >= n || h[i] === ',') {
+      if (!afterScheme) return undefined; // padding with no scheme before it
+      continue; // token68 padding
+    }
+    if (name.includes('/')) return undefined; // not a parameter name
+    let value: string;
+    if (h[i] === '"') {
+      i++;
+      const parts: string[] = [];
+      let length = 0;
+      let closed = false;
+      while (i < n) {
+        const ch = h[i]!;
+        if (ch === '"') {
+          i++;
+          closed = true;
+          break;
+        }
+        if (ch === '\\') {
+          i++;
+          if (i >= n) break;
+        }
+        if (length <= MAX_CHALLENGE_VALUE) {
+          parts.push(h[i]!);
+          length++;
+        }
+        i++;
+      }
+      if (!closed) return undefined;
+      value = parts.join('');
+    } else {
+      value = word();
+      if (!value) return undefined;
+    }
+    ws();
+    if (i < n && h[i] !== ',') return undefined; // a parameter runs into something else
+    afterScheme = false;
+    if (current === 'bearer' && bearer) {
+      const key = name.toLowerCase();
+      if (bearer.has(key)) return undefined;
+      bearer.set(key, value);
+    }
+  }
+  if (!bearer) return undefined;
+  const out: BearerChallenge = {};
+  const metadata = bearer.get('resource_metadata');
+  if (metadata && metadata.length <= MAX_CHALLENGE_VALUE) out.resourceMetadata = metadata;
+  const scope = bearer.get('scope');
+  if (scope && scope.length <= MAX_CHALLENGE_VALUE) {
+    const scopes = [...new Set(scope.split(' ').filter((s) => s && OAUTH_SCOPE.test(s)))].slice(0, MAX_CHALLENGE_SCOPES);
+    if (scopes.length) out.scopes = scopes;
+  }
+  return out;
+}
+
+/** The request that draws the challenge: an MCP initialize with no token, as any client's first request is. */
+const PROBE_BODY = JSON.stringify({
+  jsonrpc: '2.0',
+  id: 0,
+  method: 'initialize',
+  params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'melchizedek-oauth-discovery', version: '1' } },
+});
+
+/**
+ * The MCP server's Bearer challenge, when an unauthenticated initialize is
+ * answered 401 with one. Refused like every request (allowlist, SSRF guard)
+ * before it is sent; any other answer, or no answer, is undefined and
+ * discovery uses the well-known URLs. The body is never read, and the header
+ * is never logged.
+ */
+async function serverChallenge(server: URL, options: GuardOptions): Promise<BearerChallenge | undefined> {
+  const res = await guardedFetch(server, 'MCP server', options, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: PROBE_BODY,
+  });
+  if (!res) return undefined;
+  await res.body?.cancel().catch(() => {});
+  if (res.status !== 401) return undefined;
+  return parseBearerChallenge(res.headers.get('www-authenticate'));
 }
 
 /** RFC 9728 3.1: the protected-resource metadata URLs for a server, path-specific first. */
@@ -193,11 +369,14 @@ export function authorizationServerMetadataUrls(issuer: string): URL[] {
 
 /**
  * The MCP server's authorization server, as the MCP authorization spec finds
- * it: the server's protected-resource metadata names it (RFC 9728; a server
- * with none is its own, as the 2025-03-26 revision had it), and its own
- * metadata (RFC 8414, or OpenID discovery) names the endpoints. Every host
- * involved passes the provider's allowlist; PKCE S256 and a registration
- * endpoint are required. Throws OAuthDiscoveryError.
+ * it: the protected-resource metadata URL named by the server's 401 challenge
+ * (WWW-Authenticate, RFC 9728 5.1), then the well-known URLs (RFC 9728 3.1);
+ * the metadata names the authorization server (a server with none is its
+ * own, as the 2025-03-26 revision had it), and its own metadata (RFC 8414, or
+ * OpenID discovery) names the endpoints. Every host involved, the one the
+ * header names included, passes the provider's allowlist before any request;
+ * PKCE S256 and a registration endpoint are required. Throws
+ * OAuthDiscoveryError.
  */
 export async function discoverAuthorization(serverUrl: string, options: DiscoveryOptions): Promise<DiscoveredAuthorization> {
   const { provider } = options;
@@ -207,9 +386,26 @@ export async function discoverAuthorization(serverUrl: string, options: Discover
   const server = endpointUrl(provider, serverUrl, 'MCP server');
   const resource = canonicalResource(server.href);
 
+  const challenge = await serverChallenge(server, opts);
+  const candidates: Array<{ url: URL; role: string }> = [];
+  if (challenge?.resourceMetadata) {
+    // A value that is no URL at all is a malformed challenge, ignored; a URL is held to every rule, and refused by name.
+    let parsed: URL | undefined;
+    try {
+      parsed = new URL(challenge.resourceMetadata);
+    } catch {
+      parsed = undefined;
+    }
+    const role = 'protected-resource metadata named by the 401';
+    if (parsed) candidates.push({ url: endpointUrl(provider, parsed.href, role), role });
+  }
+  for (const url of protectedResourceMetadataUrls(server.href)) {
+    if (!candidates.some((c) => c.url.href === url.href)) candidates.push({ url, role: 'protected-resource metadata' });
+  }
+
   let issuer: string | undefined;
-  for (const candidate of protectedResourceMetadataUrls(server.href)) {
-    const { json } = await guardedJson(candidate, 'protected-resource metadata', opts);
+  for (const { url: candidate, role } of candidates) {
+    const { json } = await guardedJson(candidate, role, opts);
     if (!json) continue;
     if (typeof json.resource === 'string' && !sameId(json.resource, resource)) {
       throw new OAuthDiscoveryError(provider, `the protected-resource metadata at ${candidate.hostname} names another resource than the MCP server (RFC 9728 3.3)`);
@@ -259,6 +455,7 @@ export async function discoverAuthorization(serverUrl: string, options: Discover
     authorizationEndpoint: endpoints.authorizationEndpoint.href,
     tokenEndpoint: endpoints.tokenEndpoint.href,
     registrationEndpoint: endpoints.registrationEndpoint.href,
+    ...(challenge?.scopes ? { challengeScopes: challenge.scopes } : {}),
   };
 }
 
@@ -427,6 +624,8 @@ export function dynamicOAuthClient(grant: DynamicOAuthGrant, options: DynamicCli
       ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
       ...(options.fetch ? { fetch: options.fetch } : {}),
     });
+    // The YAML's scopes are the operator's choice; with none, the server's 401 challenge names them (MCP scope selection).
+    const scopes = grant.scopes.length ? grant.scopes : (discovered.challengeScopes ?? []);
     const key = registeredClientKey(grant.provider, discovered.resource, options.redirectUri);
     const kept = await options.registry?.get(key);
     const current =
@@ -446,7 +645,7 @@ export function dynamicOAuthClient(grant: DynamicOAuthGrant, options: DynamicCli
       const registered = await registerOAuthClient(discovered, {
         provider: grant.provider,
         redirectUri: options.redirectUri,
-        scopes: grant.scopes,
+        scopes,
         ...(options.clientName ? { clientName: options.clientName } : {}),
         ...(options.allowPrivate ? { allowPrivate: true } : {}),
         ...(options.allowlist !== undefined ? { allowlist: options.allowlist } : {}),
@@ -474,7 +673,7 @@ export function dynamicOAuthClient(grant: DynamicOAuthGrant, options: DynamicCli
       tokenUrl: discovered.tokenEndpoint,
       clientId,
       ...(clientSecret ? { clientSecret } : {}),
-      scopes: [...grant.scopes],
+      scopes: [...scopes],
       ...(grant.authorizationParams ? { authorizationParams: { ...grant.authorizationParams } } : {}),
       resource: discovered.resource,
     };
