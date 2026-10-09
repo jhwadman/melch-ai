@@ -5,26 +5,26 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 878,
-    "edges": 3354,
+    "nodes": 885,
+    "edges": 3420,
     "byKind": {
-      "doc": 172,
+      "doc": 174,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 183,
+      "file": 186,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
       "table": 18,
-      "module": 178,
+      "module": 180,
       "script": 46,
       "external": 2
     },
     "byRelation": {
-      "links_to": 755,
-      "requires_env": 167,
+      "links_to": 772,
+      "requires_env": 168,
       "routes_to": 8,
       "defined_in": 77,
       "documents": 56,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 729,
+      "imports": 744,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 879,
-      "constrains": 177,
+      "derives_from": 902,
+      "constrains": 182,
       "supersedes": 11,
-      "depends_on": 114,
-      "explains": 38,
+      "depends_on": 118,
+      "explains": 39,
       "mitigates": 3,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3010,
-      "inferred": 344
+      "extracted": 3066,
+      "inferred": 354
     },
     "isolated": 4
   },
@@ -408,7 +408,7 @@
         "type": "syndicate",
         "status": "stable",
         "trust": "unverified",
-        "words": 300
+        "words": 357
       }
     },
     {
@@ -1672,6 +1672,18 @@
       }
     },
     {
+      "id": "/decisions/0109-structured-output-beside-tools.md",
+      "kind": "doc",
+      "label": "ADR 0109: An output schema beside tools travels in the provider's own field where the path takes both, as set_model_response elsewhere",
+      "source": "/decisions/0109-structured-output-beside-tools.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 986
+      }
+    },
+    {
       "id": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "kind": "doc",
       "label": "ADR 0110: A pause inside a delegated subagent reaches the turn through the open call, and the answer travels back down",
@@ -1684,6 +1696,18 @@
       }
     },
     {
+      "id": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "kind": "doc",
+      "label": "ADR 0112: OAuth grants are declared beside the tool they protect, and an authorization-code MCP server is reached on each user's own connection",
+      "source": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 989
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1692,7 +1716,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1574
+        "words": 1576
       }
     },
     {
@@ -1716,7 +1740,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 1942
+        "words": 1964
       }
     },
     {
@@ -1812,7 +1836,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1485
+        "words": 1525
       }
     },
     {
@@ -1824,7 +1848,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3382
+        "words": 3437
       }
     },
     {
@@ -1836,7 +1860,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 7978
+        "words": 8010
       }
     },
     {
@@ -1848,7 +1872,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4396
+        "words": 4912
       }
     },
     {
@@ -1896,7 +1920,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 2929
+        "words": 2941
       }
     },
     {
@@ -1956,7 +1980,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6953
+        "words": 7086
       }
     },
     {
@@ -1968,7 +1992,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 1878
+        "words": 1896
       }
     },
     {
@@ -1992,7 +2016,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 4641
+        "words": 4665
       }
     },
     {
@@ -2016,7 +2040,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 599
+        "words": 812
       }
     },
     {
@@ -2028,7 +2052,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 386
+        "words": 387
       }
     },
     {
@@ -2052,7 +2076,7 @@
         "type": "tool",
         "status": "stable",
         "trust": "unverified",
-        "words": 697
+        "words": 792
       }
     },
     {
@@ -2088,7 +2112,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 2275
+        "words": 2585
       }
     },
     {
@@ -3184,7 +3208,8 @@
       "id": "env:ALLOW_PRIVATE_OPENAPI",
       "kind": "env",
       "label": "ALLOW_PRIVATE_OPENAPI",
-      "source": "lib/tools/openapi/call.ts"
+      "source": "lib/tools/openapiTools.ts",
+      "attrs": {}
     },
     {
       "id": "env:ALLOW_SCHEMA_MISMATCH",
@@ -3520,7 +3545,7 @@
       "id": "env:OPENAPI_CREDENTIAL_ENVS",
       "kind": "env",
       "label": "OPENAPI_CREDENTIAL_ENVS",
-      "source": "lib/tools/openapiTools.ts"
+      "source": "lib/tools/credentialEnv.ts"
     },
     {
       "id": "env:OTEL_CONSOLE_ALL_SPANS",
@@ -4441,6 +4466,12 @@
       "source": "tests/fixtures/sessions/scenarios.ts"
     },
     {
+      "id": "file:tests/fixtures/structured-critic.yaml",
+      "kind": "file",
+      "label": "structured-critic.yaml",
+      "source": "tests/fixtures/structured-critic.yaml"
+    },
+    {
       "id": "file:tests/geminiAdapter.test.ts",
       "kind": "file",
       "label": "geminiAdapter.test.ts",
@@ -4657,6 +4688,13 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/oauthTools.test.ts",
+      "kind": "file",
+      "label": "oauthTools.test.ts",
+      "source": "tests/oauthTools.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/openapiTools.test.ts",
       "kind": "file",
       "label": "openapiTools.test.ts",
@@ -4813,6 +4851,12 @@
       "label": "skillScriptEnv.test.ts",
       "source": "tests/skillScriptEnv.test.ts",
       "attrs": {}
+    },
+    {
+      "id": "file:tests/structuredOrchestrator.test.ts",
+      "kind": "file",
+      "label": "structuredOrchestrator.test.ts",
+      "source": "tests/structuredOrchestrator.test.ts"
     },
     {
       "id": "file:tests/surfacesOffAdk.test.ts",
@@ -5095,7 +5139,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 605
+        "lines": 608
       }
     },
     {
@@ -5122,7 +5166,7 @@
       "label": "lib/dispatch.ts",
       "source": "lib/dispatch.ts",
       "attrs": {
-        "lines": 257
+        "lines": 262
       }
     },
     {
@@ -5131,7 +5175,7 @@
       "label": "lib/doctor.ts",
       "source": "lib/doctor.ts",
       "attrs": {
-        "lines": 726
+        "lines": 774
       }
     },
     {
@@ -5185,7 +5229,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 711
+        "lines": 714
       }
     },
     {
@@ -5257,7 +5301,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 403
+        "lines": 461
       }
     },
     {
@@ -5680,7 +5724,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 711
+        "lines": 736
       }
     },
     {
@@ -5905,7 +5949,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1015
+        "lines": 1069
       }
     },
     {
@@ -5923,7 +5967,7 @@
       "label": "lib/tools/auth.ts",
       "source": "lib/tools/auth.ts",
       "attrs": {
-        "lines": 157
+        "lines": 164
       }
     },
     {
@@ -5933,6 +5977,15 @@
       "source": "lib/tools/credentialCipher.ts",
       "attrs": {
         "lines": 133
+      }
+    },
+    {
+      "id": "module:lib/tools/credentialEnv.ts",
+      "kind": "module",
+      "label": "lib/tools/credentialEnv.ts",
+      "source": "lib/tools/credentialEnv.ts",
+      "attrs": {
+        "lines": 54
       }
     },
     {
@@ -5986,7 +6039,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 218
+        "lines": 379
       }
     },
     {
@@ -6017,6 +6070,15 @@
       }
     },
     {
+      "id": "module:lib/tools/oauthTools.ts",
+      "kind": "module",
+      "label": "lib/tools/oauthTools.ts",
+      "source": "lib/tools/oauthTools.ts",
+      "attrs": {
+        "lines": 396
+      }
+    },
+    {
       "id": "module:lib/tools/openapi/call.ts",
       "kind": "module",
       "label": "lib/tools/openapi/call.ts",
@@ -6040,7 +6102,7 @@
       "label": "lib/tools/openapiTools.ts",
       "source": "lib/tools/openapiTools.ts",
       "attrs": {
-        "lines": 246
+        "lines": 252
       }
     },
     {
@@ -6490,7 +6552,7 @@
       "label": "scripts/doctor.ts",
       "source": "scripts/doctor.ts",
       "attrs": {
-        "lines": 104
+        "lines": 107
       }
     },
     {
@@ -8414,6 +8476,13 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/agents/systems_operator.md"
+    },
+    {
+      "from": "/agents/systems_operator.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/systems_operator.md:17"
     },
     {
       "from": "/agents/tutor.md",
@@ -14877,6 +14946,83 @@
       "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md:39"
     },
     {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/fixtures/structured-critic.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/structuredOrchestrator.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/dispatch.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:50"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:30"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:32"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:30"
+    },
+    {
       "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "to": "file:tests/delegatedPauses.test.ts",
       "rel": "derives_from",
@@ -14980,6 +15126,83 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md:35"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "file:config/agents/templates/systems_operator.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md frontmatter"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "file:tests/oauthTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md frontmatter"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md frontmatter"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md frontmatter"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/tools/credentialEnv.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md frontmatter"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md frontmatter"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md frontmatter"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md frontmatter"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md:33"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md:29"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0112-oauth-grants-declared-beside-the-tool.md:29"
     },
     {
       "from": "/memory/architecture.md",
@@ -16040,6 +16263,13 @@
     },
     {
       "from": "/models/claude-adapter.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:49"
+    },
+    {
+      "from": "/models/claude-adapter.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -16240,6 +16470,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/gemini-adapter.md:132"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:151"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -16610,7 +16847,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:135"
+      "evidence": "/models/provider-routing.md:143"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16624,7 +16861,7 @@
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:115"
+      "evidence": "/models/provider-routing.md:123"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16645,14 +16882,14 @@
       "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:131"
+      "evidence": "/models/provider-routing.md:139"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:156"
+      "evidence": "/models/provider-routing.md:164"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16666,14 +16903,14 @@
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:161"
+      "evidence": "/models/provider-routing.md:169"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:155"
+      "evidence": "/models/provider-routing.md:163"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16681,6 +16918,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:20"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:53"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16701,7 +16945,7 @@
       "to": "/models/gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:111"
+      "evidence": "/models/provider-routing.md:119"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16715,7 +16959,7 @@
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:131"
+      "evidence": "/models/provider-routing.md:139"
     },
     {
       "from": "/models/provider-routing.md",
@@ -18091,6 +18335,13 @@
     },
     {
       "from": "/overview/native-loop.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:80"
+    },
+    {
+      "from": "/overview/native-loop.md",
       "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -18735,6 +18986,13 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "file:tests/oauthTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "module:lib/tools/mcpServe.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -18743,6 +19001,13 @@
     {
       "from": "/protocols/mcp.md",
       "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "module:lib/tools/oauthTools.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md frontmatter"
@@ -18773,42 +19038,49 @@
       "to": "/agents/librarian.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:27"
+      "evidence": "/protocols/mcp.md:29"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:29"
+      "evidence": "/protocols/mcp.md:31"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:29"
+      "evidence": "/protocols/mcp.md:31"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:35"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:39"
+      "evidence": "/protocols/mcp.md:46"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:25"
+      "evidence": "/protocols/mcp.md:27"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:38"
+      "evidence": "/protocols/mcp.md:45"
     },
     {
       "from": "/tools/ask-user.md",
@@ -18959,7 +19231,28 @@
     },
     {
       "from": "/tools/openapi-tools.md",
+      "to": "file:tests/oauthTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
       "to": "file:tests/openapiTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "module:lib/tools/credentialEnv.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md frontmatter"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "module:lib/tools/oauthTools.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/tools/openapi-tools.md frontmatter"
@@ -18990,49 +19283,63 @@
       "to": "/agents/weather.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:40"
+      "evidence": "/tools/openapi-tools.md:43"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:42"
+      "evidence": "/tools/openapi-tools.md:45"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0032-openapi-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:42"
+      "evidence": "/tools/openapi-tools.md:45"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:46"
+      "evidence": "/tools/openapi-tools.md:51"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:44"
+      "evidence": "/tools/openapi-tools.md:47"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0063-openapi-parser-on-the-engines-own-types.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:21"
+      "evidence": "/tools/openapi-tools.md:24"
     },
     {
       "from": "/tools/openapi-tools.md",
       "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/openapi-tools.md:23"
+      "evidence": "/tools/openapi-tools.md:26"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:49"
+    },
+    {
+      "from": "/tools/openapi-tools.md",
+      "to": "/tools/tool-contracts.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/openapi-tools.md:49"
     },
     {
       "from": "/tools/skill-harness.md",
@@ -19253,6 +19560,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "file:tests/oauthTools.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "file:tests/toolBaseRest.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19316,6 +19630,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/credentialEnv.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "module:lib/tools/credentialStore.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19351,6 +19672,13 @@
     },
     {
       "from": "/tools/tool-contracts.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md frontmatter"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
       "to": "module:lib/tools/tool.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -19368,154 +19696,168 @@
       "to": "/decisions/0028-approval-gates.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:44"
+      "evidence": "/tools/tool-contracts.md:47"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0051-own-tool-base-behind-an-adk-wrapper.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:41"
+      "evidence": "/tools/tool-contracts.md:44"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0059-memory-on-the-engines-own-interfaces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:44"
+      "evidence": "/tools/tool-contracts.md:47"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0062-server-side-tools-as-markers.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:76"
+      "evidence": "/tools/tool-contracts.md:88"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0067-openapi-calls-on-the-engines-own-caller.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:48"
+      "evidence": "/tools/tool-contracts.md:51"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:56"
+      "evidence": "/tools/tool-contracts.md:59"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0083-skills-harness-on-the-own-tool-base.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:46"
+      "evidence": "/tools/tool-contracts.md:49"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:64"
+      "evidence": "/tools/tool-contracts.md:67"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0101-native-loop-security-gate.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:69"
+      "evidence": "/tools/tool-contracts.md:72"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0107-release-1-0-0-removes-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:52"
+      "evidence": "/tools/tool-contracts.md:55"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:77"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:98"
+      "evidence": "/tools/tool-contracts.md:110"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/memory/schema.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:59"
+      "evidence": "/tools/tool-contracts.md:62"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:36"
+      "evidence": "/tools/tool-contracts.md:39"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:84"
+      "evidence": "/tools/tool-contracts.md:96"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:90"
+      "evidence": "/tools/tool-contracts.md:102"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/mcp.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:84"
+      "evidence": "/tools/tool-contracts.md:77"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/ask-user.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:49"
+      "evidence": "/tools/tool-contracts.md:52"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:90"
+      "evidence": "/tools/tool-contracts.md:102"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/tools/openapi-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:77"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/skill-harness.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:47"
+      "evidence": "/tools/tool-contracts.md:50"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:90"
+      "evidence": "/tools/tool-contracts.md:102"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:90"
+      "evidence": "/tools/tool-contracts.md:102"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:90"
+      "evidence": "/tools/tool-contracts.md:102"
     },
     {
       "from": "/tools/web-tools.md",
@@ -21248,6 +21590,13 @@
     },
     {
       "from": "module:lib/compile.ts",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/compile.ts"
+    },
+    {
+      "from": "module:lib/compile.ts",
       "to": "module:lib/tools/openapiTools.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -21417,6 +21766,13 @@
     {
       "from": "module:lib/doctor.ts",
       "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/doctor.ts"
+    },
+    {
+      "from": "module:lib/doctor.ts",
+      "to": "module:lib/tools/oauthTools.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/doctor.ts"
@@ -21669,6 +22025,13 @@
     {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/tools/oauthTools.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -23607,6 +23970,13 @@
     },
     {
       "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
       "to": "module:lib/models/contract.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24517,6 +24887,13 @@
     },
     {
       "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/syndicateSchema.ts",
       "to": "module:lib/tools/skills/env.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24612,6 +24989,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/toolRegistry.ts"
+    },
+    {
+      "from": "module:lib/tools/credentialEnv.ts",
+      "to": "env:OPENAPI_CREDENTIAL_ENVS",
+      "rel": "requires_env",
+      "tier": "extracted",
+      "evidence": "lib/tools/credentialEnv.ts"
     },
     {
       "from": "module:lib/tools/credentialStore.ts",
@@ -24734,6 +25118,20 @@
     },
     {
       "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
       "to": "module:lib/tools/tool.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24803,6 +25201,41 @@
       "evidence": "lib/tools/oauthConsent.ts"
     },
     {
+      "from": "module:lib/tools/oauthTools.ts",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthTools.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthTools.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthTools.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthTools.ts",
+      "to": "module:lib/tools/credentialEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthTools.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthTools.ts",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthTools.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthTools.ts",
+      "to": "module:lib/tools/tool.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthTools.ts"
+    },
+    {
       "from": "module:lib/tools/openapi/call.ts",
       "to": "module:lib/net/addressGuard.ts",
       "rel": "imports",
@@ -24846,6 +25279,27 @@
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/tools/credentialEnv.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/openapiTools.ts"
+    },
+    {
+      "from": "module:lib/tools/openapiTools.ts",
       "to": "module:lib/tools/openapi/call.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24867,7 +25321,7 @@
     },
     {
       "from": "module:lib/tools/openapiTools.ts",
-      "to": "env:OPENAPI_CREDENTIAL_ENVS",
+      "to": "env:ALLOW_PRIVATE_OPENAPI",
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "lib/tools/openapiTools.ts"

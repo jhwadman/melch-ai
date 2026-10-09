@@ -67,7 +67,7 @@ The contract's Gemini table holds, with these choices inside it:
   - An empty text part is sent only to carry a signature.
   - A content left with no parts is not sent, because Vertex AI rejects the whole request for one.
   - `providerState` itself never reaches the wire.
-- **Call ids.** An id that starts with `adk-` (the engine's, and ADK's) or `genai-noid-` (minted by the [genai mapping](/models/model-contract.md#the-reverse-directions); `MINTED_CALL_ID_PREFIX` in `lib/models/geminiState.ts`) is left off the wire, on the call and on its `functionResponse`. Gemini's own ids go back.
+- **Call ids.** An id that starts with `adk-` (the engine's, as ADK's did) or `genai-noid-` (minted by the [genai mapping](/models/model-contract.md#the-reverse-directions); `MINTED_CALL_ID_PREFIX` in `lib/models/geminiState.ts`) is left off the wire, on the call and on its `functionResponse`. Gemini's own ids go back.
 - **The signal** is `request.signal` alone, sent in `config.abortSignal`. The adapter reads no turn state: its caller, the native loop's model step, passes the turn's signal ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)).
 
 ## The response
@@ -76,7 +76,7 @@ The contract's Gemini table holds, with these choices inside it:
 - **Non-streaming.** The adapter yields one thinking partial (when the model thought) before the final, and no text partials.
 - **Tool calls.** `functionCall` becomes a `toolCall`. A call that comes without an id gets `adk-<conversation length>-<call index>-<name>`, so the same response always gets the same ids.
 - **Blobs.** `inlineData` and `fileData` parts become blob parts.
-- **Carried parts.** `executableCode`, `codeExecutionResult` and server-side `toolCall` and `toolResponse` parts have no contract type. Each is kept whole, as Gemini sent it, and the run of them rides on the next output part as `providerState` of kind `carried_parts` ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)). They are not streamed, and the final's text does not show them. A run with no output part after it rides on an empty text part of its own. When the final becomes an event, the genai mapping writes the run back out as the parts Gemini sent, before the part that carried them, so a stored session holds `executableCode` and `codeExecutionResult` parts as ADK's Gemini stores them; an empty text part that only carried them is not stored ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)).
+- **Carried parts.** `executableCode`, `codeExecutionResult` and server-side `toolCall` and `toolResponse` parts have no contract type. Each is kept whole, as Gemini sent it, and the run of them rides on the next output part as `providerState` of kind `carried_parts` ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)). They are not streamed, and the final's text does not show them. A run with no output part after it rides on an empty text part of its own. When the final becomes an event, the genai mapping writes the run back out as the parts Gemini sent, before the part that carried them, so a stored session holds `executableCode` and `codeExecutionResult` parts as ADK's Gemini stored them; an empty text part that only carried them is not stored ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)).
 - **Usage.** Input is `promptTokenCount` plus `toolUsePromptTokenCount`, and output is `candidatesTokenCount` plus `thoughtsTokenCount`. Thinking is `thoughtsTokenCount` and cache read is `cachedContentTokenCount`, each when reported. The usage is that of the last chunk that carried it.
 - **Grounding.** The final's `grounding` holds:
   - **Search queries.** `webSearchQueries`, attributed to `web_search`, or to `google_search` when the request named only that.
@@ -131,11 +131,11 @@ On the native runtime the adapter receives the request the [native step](/overvi
 
 For the same agent, the request differs from the one ADK's `Gemini` sent, as recorded in `tests/fixtures/adk-reference/` ([ADR 0108](/decisions/0108-adk-reference-recorded-by-the-parity-suites.md)), in three places. Each is a choice that changes nothing Gemini does, and nothing stored depends on any of them ([ADR 0100](/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md)):
 
-- **Schemas** are JSON Schema in `parametersJsonSchema` and `responseJsonSchema`, where ADK sends Gemini's `Schema` in `parameters` and `responseSchema`, with upper-case types. A YAML schema written in Gemini's dialect (`type: OBJECT`) reaches this adapter lowercased.
-- **The system instruction** carries no `role`. ADK's sets `role: 'user'` on it.
-- **`includeServerSideToolInvocations`** goes only beside native tools and function declarations together, on the Gemini API. ADK's path sets it on every Gemini agent ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)).
+- **Schemas** are JSON Schema in `parametersJsonSchema` and `responseJsonSchema`, where ADK sent Gemini's `Schema` in `parameters` and `responseSchema`, with upper-case types. A YAML schema written in Gemini's dialect (`type: OBJECT`) reaches this adapter lowercased.
+- **The system instruction** carries no `role`. ADK's set `role: 'user'` on it.
+- **`includeServerSideToolInvocations`** goes only beside native tools and function declarations together, on the Gemini API. ADK's path set it on every Gemini agent ([ADR 0065](/decisions/0065-gemini-carried-parts-and-server-side-invocations.md)).
 
-Two more differences show only on some requests: the tools' order (ADK's code executor puts `codeExecution` first, this adapter puts function declarations first; Gemini reads them as a set), and an earlier turn's code execution parts, which ADK's Gemini sends as stored and this adapter leaves out (ADR 0065).
+Two more differences show only on some requests: the tools' order (ADK's code executor put `codeExecution` first, this adapter puts function declarations first; Gemini reads them as a set), and an earlier turn's code execution parts, which ADK's Gemini sent as stored and this adapter leaves out (ADR 0065).
 
 `tests/geminiTurnParity.test.ts` runs a Gemini agent, a workflow node, code execution, and code execution beside a function tool through `runSyndicateTurn` with this adapter, and holds the requests to ADK's recorded ones apart from these differences, and the stored events to ADK's in full, the `executableCode` and `codeExecutionResult` parts included.
 
@@ -148,6 +148,7 @@ The matrix's Gemini column ([ADR 0019](/decisions/0019-multi-model-parity-matrix
 | delegation | a subagent tool's declaration in `parametersJsonSchema`, with no `parameters` beside it |
 | memory tools | `load_memory` declared, and its call and result sent back as `functionCall` and `functionResponse` with the engine's id left off |
 | structured output | `responseMimeType` and `responseJsonSchema` as written, no `responseSchema`; JSON mode as the MIME type alone; a schema beside tools |
+| structured output beside tools | degraded on the Gemini API: the request the native loop builds for an agent with tools and a schema declares `set_model_response` beside them and sends no `responseJsonSchema`; with `GOOGLE_GENAI_USE_VERTEXAI` the platform cell is supported and the same agent's request carries the schema and the tools ([ADR 0109](/decisions/0109-structured-output-beside-tools.md)) |
 | thinking with tools | `thinkingLevel` for each level on a Gemini 3 id, a budget on request and on Gemini 2.x, `includeThoughts` unless `none`; the call's signature replayed on the call, another model's not; a response's thought as a partial and its call's signature written as `providerState` |
 | streaming | the `streamGenerateContent?alt=sse` endpoint, thinking and text partials, one final with the joined text and usage (tool-use prompt, thoughts and cached tokens counted); `generateContent` when not streaming |
 | image input | an inline image as `inlineData`, a URL image as `fileData` |

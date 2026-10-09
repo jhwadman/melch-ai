@@ -11,6 +11,12 @@
  * The server is an untrusted tool vendor (ADR 0041): its URL passes the
  * SSRF guard, a credential goes only to its exact host, and its
  * descriptions and results are cut to a bound.
+ *
+ * A server that takes an OAuth token declares it in YAML (`mcp_auth:
+ * { oauth2 }`, ADR 0112): the server's own token (client_credentials) on one
+ * shared connection, or each user's (authorization_code) on that user's own
+ * connection, read through `ctx.accessToken` so a user who has not granted
+ * it is asked (ADR 0085).
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
@@ -19,8 +25,11 @@ import { toContractJsonSchema } from '../models/schemaNormalize.ts';
 import { checkHost } from '../net/addressGuard.ts';
 import { fetchWithRedirectPolicy } from '../net/redirects.ts';
 import type { RedirectPolicy } from '../net/redirects.ts';
+import { ToolCredentialError } from './auth.ts';
+import { oauthTokenSource } from './oauthTools.ts';
+import type { OAuth2AuthConfig } from './oauthTools.ts';
 import { MAX_RESULT_CHARS } from './tool.ts';
-import type { Tool } from './tool.ts';
+import type { Tool, ToolContext } from './tool.ts';
 import { toGeminiSchema } from './toolContract.ts';
 
 // Security (SSRF): mcp_server_url can arrive from a registry-stored syndicate
@@ -121,6 +130,7 @@ const openTransports = new Set<SSEClientTransport>();
 export async function closeMcpConnections(): Promise<void> {
   const all = [...openTransports];
   openTransports.clear();
+  for (const pool of userPools) pool.clear();
   await Promise.all(all.map((t) => t.close().catch(() => {})));
 }
 
@@ -141,19 +151,85 @@ export function mcpToolParameters(inputSchema: { properties?: Record<string, unk
   return toContractJsonSchema(toGeminiSchema({ type: 'object', properties, required }));
 }
 
+/** What the server says about one tool, as the contract declares it (description bounded). */
+function declarationOf(tool: { name: string; description?: string; inputSchema?: { properties?: Record<string, unknown>; required?: string[] } }): ToolDeclaration {
+  return {
+    name: tool.name,
+    description: bounded(tool.description || `MCP Tool: ${tool.name}`, MAX_MCP_DESCRIPTION_CHARS, 'description'),
+    parameters: mcpToolParameters(tool.inputSchema),
+  };
+}
+
+/** A callTool result's text parts, joined and bounded. */
+function resultText(result: unknown): string {
+  // MCP callTool returns { content: [{ type: 'text', text: '...' }] }
+  const content = ((result as { content?: Array<{ type: string; text?: string }> })?.content ?? []);
+  const texts = content.filter((c) => c.type === 'text').map((c) => c.text ?? '');
+  return bounded(texts.join('\n'), MAX_MCP_RESULT_CHARS, 'result');
+}
+
+/** A message with every occurrence of `secret` cut out: an SDK error can quote a request. */
+const redact = (message: string, secret: string | undefined): string => (secret ? message.split(secret).join('[redacted]') : message);
+
+/**
+ * The fetch an MCP transport uses when the server takes an OAuth token
+ * (ADR 0112): every request (the SSE stream and each POST) carries the
+ * token `token()` returns now, and every redirect hop is checked, a hop off
+ * the server's origin losing the header (MCP_REDIRECTS).
+ */
+function bearerFetch(token: () => Promise<string>) {
+  return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const headers = new Headers(init?.headers);
+    headers.set('Authorization', `Bearer ${await token()}`);
+    return mcpFetch(input, { ...init, headers });
+  };
+}
+
+/** How an agent reaches its MCP server: which tools it may use, and the OAuth grant the server takes. */
+export interface McpToolOptions {
+  /** `mcp_tools`: the names this agent may use. Required with an authorization_code grant. */
+  tools?: string[];
+  /** `mcp_auth.oauth2` (ADR 0112). Without it, MCP_BEARER_TOKENS applies. */
+  oauth2?: OAuth2AuthConfig;
+}
+
+/** Per-user connections at most per authorization-code server; the least recently used is closed first. */
+export const MAX_MCP_USER_CONNECTIONS = 64;
+
+/** Every per-user pool, so closeMcpConnections can empty them. */
+const userPools = new Set<Map<string, unknown>>();
+
 /**
  * The tools a remote MCP server offers, as own Tools, or none when the
  * server cannot be reached or refuses (logged, never thrown). The
  * connection stays open for the tools' calls; closeMcpConnections ends it.
+ *
+ * With `oauth2` (ADR 0112):
+ *   - client_credentials: one connection, every request carrying the
+ *     server's own token for the provider (lib/tools/oauthTools.ts).
+ *   - authorization_code: the token is each user's, so there is no
+ *     connection at compile time. Each name in `tools` becomes a Tool whose
+ *     call reads the run's user's token (`ctx.accessToken`, which asks for
+ *     consent when the user has not granted it) and runs on that user's own
+ *     connection. The parameters are the server's, learned from the first
+ *     listing any user's connection makes; until then a call connects and
+ *     asks the model to call again with them, rather than call blind.
+ * A missing variable or a refused URL fails the compile (thrown), naming
+ * the variable, never a value.
  */
-export async function loadMcpTools(mcpServerUrl: string): Promise<Tool[]> {
+export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions = {}): Promise<Tool[]> {
+  const oauth2 = options.oauth2;
+  if (oauth2?.grant === 'authorization_code') return userGrantMcpTools(mcpServerUrl, oauth2, options.tools);
+  const tokenSource = oauth2 ? oauthTokenSource(oauth2, `mcp ${mcpServerUrl}`, mcpServerUrl, { allowPrivate: process.env.ALLOW_PRIVATE_MCP === 'true' }) : undefined;
   let transport: SSEClientTransport | undefined;
   try {
     const url = await assertSafeMcpUrl(mcpServerUrl);
-    transport = new SSEClientTransport(url, {
-      requestInit: { headers: mcpAuthHeaders(url) },
-      fetch: mcpFetch,
-    });
+    transport = new SSEClientTransport(
+      url,
+      tokenSource
+        ? { fetch: bearerFetch(() => tokenSource(undefined)) }
+        : { requestInit: { headers: mcpAuthHeaders(url) }, fetch: mcpFetch },
+    );
     const client = new Client({
       name: 'melchizedek-a2a-client',
       version: '1.0.0'
@@ -170,39 +246,22 @@ export async function loadMcpTools(mcpServerUrl: string): Promise<Tool[]> {
     return toolsResponse.tools.map((tool): Tool => {
       // MCP servers describe tools in standard lowercase JSON Schema, which
       // is the contract's dialect; mcpToolParameters derives the parameters.
-      const declaration: ToolDeclaration = {
-        name: tool.name,
-        description: bounded(tool.description || `MCP Tool: ${tool.name}`, MAX_MCP_DESCRIPTION_CHARS, 'description'),
-        parameters: mcpToolParameters(tool.inputSchema),
-      };
+      const declaration = declarationOf(tool);
       return {
         name: tool.name,
         declaration: () => declaration,
         execute: async (input: Record<string, unknown>): Promise<string> => {
           try {
-            const result = await client.callTool({
-              name: tool.name,
-              arguments: input
-            });
-            // MCP callTool returns { content: [{ type: 'text', text: '...' }] }
-            interface McpCallToolResult {
-              content: Array<{
-                type: string;
-                text?: string;
-                [key: string]: unknown;
-              }>;
-            }
-            const content = (result as McpCallToolResult).content;
-            const texts = content.filter(c => c.type === 'text').map(c => c.text ?? '');
-            return bounded(texts.join('\n'), MAX_MCP_RESULT_CHARS, 'result');
+            return resultText(await client.callTool({ name: tool.name, arguments: input }));
           } catch (error: any) {
-            return `[MCP ERROR] Tool ${tool.name} failed: ${error.message}`;
+            return `[MCP ERROR] Tool ${tool.name} failed: ${error instanceof ToolCredentialError ? error.message : error?.message}`;
           }
         },
       };
     });
   } catch (error) {
-    console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, error);
+    // A token that cannot be had is reported by kind; the rest as before.
+    console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, error instanceof ToolCredentialError ? error.message : error);
     // A failed connect leaves the SSE stream's reconnect timer running; close
     // it, or every unreachable server keeps retrying for the process's life.
     if (transport) openTransports.delete(transport);
@@ -211,7 +270,109 @@ export async function loadMcpTools(mcpServerUrl: string): Promise<Tool[]> {
   }
 }
 
+/** One user's connection to an authorization-code server, and the token its requests carry now. */
+interface UserConnection {
+  holder: { token: string };
+  /** Set once the URL has passed the guard. */
+  transport?: SSEClientTransport;
+  ready: Promise<Client>;
+}
+
+/** The tools of a server whose calls carry each user's own OAuth token (authorization_code). */
+function userGrantMcpTools(mcpServerUrl: string, oauth2: OAuth2AuthConfig, names: string[] | undefined): Tool[] {
+  const where = `mcp ${mcpServerUrl}`;
+  if (!names?.length) throw new Error(`${where}: an authorization_code mcp_auth needs mcp_tools, the names this agent may use (no user's grant exists to list them at startup)`);
+  const source = oauthTokenSource(oauth2, where, mcpServerUrl);
+  const provider = oauth2.provider;
+  /** The server's declarations, from the first listing any user's connection made. */
+  const known = new Map<string, ToolDeclaration>();
+  let listed = false;
+  const pool = new Map<string, UserConnection>();
+  userPools.add(pool as Map<string, unknown>);
+
+  const drop = (key: string, conn: UserConnection) => {
+    if (pool.get(key) === conn) pool.delete(key);
+    if (!conn.transport) return;
+    openTransports.delete(conn.transport);
+    void conn.transport.close().catch(() => {});
+  };
+
+  const connectionFor = (key: string, token: string): Promise<Client> => {
+    const held = pool.get(key);
+    if (held) {
+      held.holder.token = token;
+      // Most recently used last.
+      pool.delete(key);
+      pool.set(key, held);
+      return held.ready;
+    }
+    const holder = { token };
+    const conn = {} as UserConnection;
+    conn.holder = holder;
+    conn.ready = (async () => {
+      const url = await assertSafeMcpUrl(mcpServerUrl);
+      const transport = new SSEClientTransport(url, { fetch: bearerFetch(async () => holder.token) });
+      conn.transport = transport;
+      const client = new Client({ name: 'melchizedek-a2a-client', version: '1.0.0' }, { capabilities: {} });
+      await client.connect(transport);
+      openTransports.add(transport);
+      if (!listed) {
+        const offered = await client.listTools();
+        for (const tool of offered.tools) if (names.includes(tool.name)) known.set(tool.name, declarationOf(tool));
+        listed = true;
+      }
+      return client;
+    })();
+    conn.ready.catch(() => drop(key, conn));
+    pool.set(key, conn);
+    while (pool.size > MAX_MCP_USER_CONNECTIONS) {
+      const [oldestKey, oldest] = pool.entries().next().value as [string, UserConnection];
+      drop(oldestKey, oldest);
+    }
+    return conn.ready;
+  };
+
+  return names.map((name): Tool => {
+    const placeholder: ToolDeclaration = {
+      name,
+      description: `${name}, a tool on the ${provider} MCP server. Its parameters are known once this person has connected ${provider}; until then, call it with no arguments to connect.`,
+      parameters: mcpToolParameters(undefined),
+    };
+    return {
+      name,
+      declaration: () => known.get(name) ?? placeholder,
+      execute: async (input: Record<string, unknown>, ctx: ToolContext): Promise<string> => {
+        let token: string;
+        try {
+          token = await source(ctx);
+        } catch (error) {
+          return `[MCP ERROR] Tool ${name}: ${error instanceof ToolCredentialError ? error.message : `the ${provider} authorization could not be read.`}`;
+        }
+        if (!ctx?.appName || !ctx?.userId) return `[MCP ERROR] Tool ${name}: ${new ToolCredentialError('no_user', provider).message}`;
+        const key = `${ctx.appName}\0${ctx.userId}`;
+        const blind = !known.has(name);
+        let client: Client;
+        try {
+          client = await connectionFor(key, token);
+        } catch {
+          return `[MCP ERROR] Tool ${name}: the ${provider} MCP server could not be reached with this person's authorization.`;
+        }
+        if (!known.has(name)) return `[MCP ERROR] Tool ${name}: the ${provider} MCP server does not offer it.`;
+        if (blind) return `Connected to ${provider}. ${name}'s parameters are now known: call it again with them.`;
+        try {
+          return resultText(await client.callTool({ name, arguments: input }));
+        } catch (error: any) {
+          // The connection may be dead (or its token refused): the next call opens a fresh one.
+          const conn = pool.get(key);
+          if (conn) drop(key, conn);
+          return `[MCP ERROR] Tool ${name} failed: ${redact(String(error?.message ?? error), token)}`;
+        }
+      },
+    };
+  });
+}
+
 /** The server's tools, as the compiler lists them on an agent: loadMcpTools' own Tools. */
-export async function createMcpTools(mcpServerUrl: string): Promise<Tool[]> {
-  return loadMcpTools(mcpServerUrl);
+export async function createMcpTools(mcpServerUrl: string, options: McpToolOptions = {}): Promise<Tool[]> {
+  return loadMcpTools(mcpServerUrl, options);
 }

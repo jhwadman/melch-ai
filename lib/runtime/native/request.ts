@@ -13,8 +13,12 @@
  *
  * THE REQUEST, in the order ADK built it:
  *   1. The agent's generateContentConfig, and its output schema when it has
- *      no tools (or the model takes a schema beside tools: Gemini 2 and
- *      later on Vertex AI).
+ *      no tools, or when every model the step may call (its own and its
+ *      fallback_model) takes a schema beside tools in one request: Claude
+ *      from Opus 4.8, Sonnet 5 and Haiku 5.5 on, OpenAI, Gemini 2 and later
+ *      on Vertex AI (outputSchemaBesideTools, lib/models/capabilities.ts,
+ *      ADR 0109). That is how an orchestrator that delegates answers in a
+ *      schema without a set_model_response call.
  *   2. The system prompt, each piece joined to the last by a blank line:
  *      - the identity lines ("You are an agent. Your internal name is …"),
  *        unless the agent may transfer to no one (an output schema rules
@@ -68,6 +72,7 @@
 
 import type { JsonSchema, Message, ModelRequest, NativeTool, ToolDeclaration } from '../../models/contract.ts';
 import { contentsToMessages, reasoningOf, samplingOf, systemText, toolChoiceOf } from '../../models/genaiMapping.ts';
+import { outputSchemaBesideTools } from '../../models/capabilities.ts';
 import { providerForModel } from '../../models/providerMap.ts';
 import { contractToolDeclaration, nativeToolOf, toContractJsonSchema } from '../../models/schemaNormalize.ts';
 import type { MemoryService } from '../memoryService.ts';
@@ -245,9 +250,26 @@ function vertexAi(): boolean {
   return envFlag('GOOGLE_GENAI_USE_VERTEXAI');
 }
 
-/** Whether the model takes an output schema beside tools in one request (ADK: Vertex AI, Gemini 2 and later). */
+/**
+ * ADK's rule for whether the model takes an output schema beside tools in one
+ * request (Vertex AI, Gemini 2 and later). `mode: task` keeps it as it is,
+ * for the instruction line ADK's processor writes there.
+ */
 export function outputSchemaWithTools(model: string): boolean {
   return vertexAi() && isGemini2OrAbove(model);
+}
+
+/**
+ * Whether the agent's output schema travels beside its tools as the
+ * provider's own structured-output field (ADR 0109): on every model the step
+ * may call, its own and its fallback_model, since a fallback answers the same
+ * request. ADK's Gemini rule still holds; the capability matrix's
+ * `structured_output_with_tools` adds Claude's current generations and
+ * OpenAI. Anywhere else the schema is the set_model_response tool.
+ */
+function schemaBesideTools(agent: Pick<NativeAgent, 'model' | 'fallbackModel'>): boolean {
+  const models = agent.fallbackModel ? [agent.model, agent.fallbackModel] : [agent.model];
+  return models.every((m) => outputSchemaWithTools(m) || outputSchemaBesideTools(m));
 }
 
 // ── Session state in an instruction (ADK's injectSessionState) ───────────────
@@ -560,7 +582,10 @@ export async function buildModelRequest(agent: NativeAgent, ctx: RequestContext)
 
   const listed = agent.tools ?? [];
   const taskMode = agent.mode === 'task';
-  const schemaWithTools = !!agent.outputSchema && listed.length > 0 && !outputSchemaWithTools(model);
+  // An output schema beside tools: set_model_response unless the step's models take both in one request
+  // (ADR 0109). Task mode keeps ADK's rule: finish_task carries the schema there.
+  const besideTools = !!agent.outputSchema && listed.length > 0;
+  const schemaWithTools = besideTools && !(taskMode ? outputSchemaWithTools(model) : schemaBesideTools(agent));
   // 1. Basic: the config, and the output schema where the model takes it (never in task mode: finish_task carries it).
   if (agent.outputSchema && !schemaWithTools && !taskMode) {
     cfg.responseSchema = agent.outputSchema;

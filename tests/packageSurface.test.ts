@@ -260,3 +260,33 @@ test('the build loads from CommonJS: require() of the main entry and ./model (no
   assert.equal(r.status, 0, r.stderr.slice(-2000));
   assert.deepEqual(lastJson(r.stdout), { runSyndicateTurn: 'function', resolveAdapter: 'function' });
 });
+
+// ── What `files` ships ───────────────────────────────────────────────────────
+
+/** Whether the package.json `files` list ships `rel` (a path from the repo root). */
+function shipped(files: string[], rel: string): boolean {
+  return files.some((entry) => rel === entry || rel.startsWith(`${entry}/`));
+}
+
+test('`files` ships the generated schema: melchizedek-init finds the package root by it, and every shipped modeline points at it', () => {
+  const files = (PKG as unknown as { files: string[] }).files;
+  // scripts/init.ts packageRoot() walks up to the directory holding this file;
+  // without it an installed package's melchizedek-init cannot find its own templates.
+  assert.ok(shipped(files, 'config/agents/syndicate.schema.json'), 'config/agents/syndicate.schema.json is not in files');
+
+  const agents = path.join(ROOT, 'config', 'agents');
+  const yamls = [
+    path.join(agents, 'syndicateSchema.yaml'),
+    ...['examples', 'templates'].flatMap((dir) =>
+      fs.readdirSync(path.join(agents, dir)).filter((f) => f.endsWith('.yaml')).map((f) => path.join(agents, dir, f)),
+    ),
+  ].filter((file) => shipped(files, path.relative(ROOT, file).split(path.sep).join('/')));
+  const unshipped: string[] = [];
+  for (const file of yamls) {
+    const modeline = /^# yaml-language-server: \$schema=(\S+)/m.exec(fs.readFileSync(file, 'utf8'));
+    if (!modeline || /^[a-z]+:\/\//.test(modeline[1])) continue;
+    const target = path.relative(ROOT, path.resolve(path.dirname(file), modeline[1])).split(path.sep).join('/');
+    if (!shipped(files, target)) unshipped.push(`${path.relative(ROOT, file)} → ${target}`);
+  }
+  assert.deepEqual(unshipped, []);
+});

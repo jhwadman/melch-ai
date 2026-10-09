@@ -2722,6 +2722,86 @@
       "at": "2026-10-08"
     },
     {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0109 Decision 3: buildModelRequest sends the schema beside the tools when outputSchemaBesideTools (or ADK's Gemini rule) holds for the agent's model AND its fallback_model; otherwise it declares set_model_response exactly as before; mode: task is unchanged.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0109 Decision 2-3: the capability matrix gains structured_output_with_tools (supported on Anthropic's current generations, OpenAI and Gemini on Vertex AI; degraded elsewhere), and outputSchemaBesideTools(model) reads that cell for the request builder.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/dispatch.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0109 Decision 4: plan-dispatch stays, as a choice, for a turn whose answer IS the specialist's; a schema on a delegating orchestrator is the alternative, and neither is forced. lib/dispatch.ts states this under \"Why the router is tool-less\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0109 Context: the native request builder handles a schema beside tools as ADK's request processors did (ADR 0066), with set_model_response on every model but Gemini 2+ on Vertex AI; ADR 0109 widens which models take the schema beside tools and keeps set_model_response for the rest.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "explains",
+      "evidence": "ADR 0112 Decision 1-6: the oauth2 block, the two grants, the token transport rule and oauthClientsFor live in lib/tools/oauthTools.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0112 Decision 5: an authorization-code MCP server lists nothing at startup; each mcp_tools name runs on its user's own connection, at most 64 per server.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0112 Decision 1: auth.oauth2 is exclusive with bearer_env and api_key; mcp_auth needs mcp_server_url, and an authorization_code mcp_auth needs mcp_tools.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0112 Decision 2: authorization_code reads ctx.accessToken, so the consent pause of ADR 0085 asks for a grant the user has not given.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "to": "/decisions/0072-tool-credentials-sealed-per-user.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0112 Context: the per-user tokens an authorization_code grant sends are the sealed store of ADR 0072.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "module:lib/tools/oauthTools.ts",
+      "to": "module:lib/tools/credentialEnv.ts",
+      "rel": "depends_on",
+      "evidence": "lib/tools/oauthTools.ts header: the variable names pass credentialEnvProblem (lib/tools/credentialEnv.ts), so a YAML cannot send a framework secret to a token endpoint.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
       "from": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
       "to": "/decisions/0074-native-delegation-runs-a-child-loop-as-agent-tool-does.md",
       "rel": "supersedes",

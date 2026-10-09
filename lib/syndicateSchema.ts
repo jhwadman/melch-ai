@@ -27,6 +27,7 @@ import { z } from 'zod';
 import type { SyndicateYamlConfig } from './loadSyndicate.ts';
 import { DEFAULT_ROUTE_KEY, NODE_KINDS, ROUTE_STEP_SUFFIX, START_NAME, elementNames, nodeKind } from './workflowConfig.ts';
 import { isSecretShapedEnvName } from './tools/skills/env.ts';
+import { OAUTH_SCOPE, PROVIDER_NAME } from './tools/auth.ts';
 import type { EdgeElement, WorkflowNodeYaml } from './workflowConfig.ts';
 
 // ── Leaf rules ───────────────────────────────────────────────────────────────
@@ -153,6 +154,48 @@ const skillsSchema = z
   })
   .describe('Agent Skills (SKILL.md directories) this agent reads the way a coding harness does.');
 
+// ── OAuth (ADR 0112) ─────────────────────────────────────────────────────────
+
+const oauth2Auth = z
+  .strictObject({
+    provider: z
+      .string()
+      .regex(PROVIDER_NAME, 'a provider name: lowercase letters, digits, and . _ - inside, at most 64 characters')
+      .describe('The credential store\'s name for the provider (e.g. github). Every tool naming it shares one grant.'),
+    grant: z
+      .enum(['authorization_code', 'client_credentials'])
+      .describe('authorization_code: each user\'s own token, granted through the consent pause (ADR 0085). client_credentials: the server\'s own token, from the token endpoint.'),
+    authorization_url: z.string().url().optional().describe('The provider\'s authorization endpoint (https). authorization_code only.'),
+    token_url: z.string().url().describe('The provider\'s token endpoint (https).'),
+    client_id: z.string().min(1).max(512).optional().describe('The OAuth client id, written out (it is not a secret). Or client_id_env.'),
+    client_id_env: envName.optional().describe('Environment variable holding the client id. Or client_id.'),
+    client_secret_env: envName
+      .optional()
+      .describe('Environment variable NAME holding the client secret, never the value. Required for client_credentials; omit for a public client (PKCE alone).'),
+    scopes: z.array(z.string().regex(OAUTH_SCOPE, 'an OAuth scope: visible ASCII, no space, quote or backslash')).max(64).optional().describe('The scopes the grant asks for.'),
+    authorization_params: z
+      .record(z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/), z.string().max(512))
+      .optional()
+      .describe('Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.'),
+  })
+  .superRefine((o, ctx) => {
+    if (!!o.client_id === !!o.client_id_env) ctx.addIssue({ code: 'custom', path: ['client_id'], message: 'exactly one of client_id or client_id_env' });
+    if (o.grant === 'authorization_code' && !o.authorization_url) {
+      ctx.addIssue({ code: 'custom', path: ['authorization_url'], message: 'an authorization_code grant needs authorization_url' });
+    }
+    if (o.grant === 'client_credentials') {
+      if (!o.client_secret_env) ctx.addIssue({ code: 'custom', path: ['client_secret_env'], message: 'a client_credentials grant needs client_secret_env' });
+      for (const key of ['authorization_url', 'authorization_params'] as const) {
+        if (o[key] !== undefined) ctx.addIssue({ code: 'custom', path: [key], message: `${key} is for authorization_code only` });
+      }
+    }
+    const reserved = ['state', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'client_id', 'response_type', 'scope'];
+    for (const key of Object.keys(o.authorization_params ?? {})) {
+      if (reserved.includes(key)) ctx.addIssue({ code: 'custom', path: ['authorization_params', key], message: `authorization_params may not set "${key}"` });
+    }
+  })
+  .describe('An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values.');
+
 // ── OpenAPI ──────────────────────────────────────────────────────────────────
 
 const openapiEntry = z
@@ -172,8 +215,9 @@ const openapiEntry = z
           .strictObject({ env: envName, in: z.enum(['header', 'query']), name: z.string().min(1) })
           .optional()
           .describe('An API key read from `env`, sent in a header or the query under `name`.'),
+        oauth2: oauth2Auth.optional(),
       })
-      .refine((a) => !!a.bearer_env !== !!a.api_key, 'exactly one of bearer_env or api_key')
+      .refine((a) => [a.bearer_env, a.api_key, a.oauth2].filter((x) => x !== undefined).length === 1, 'exactly one of bearer_env, api_key or oauth2')
       .optional()
       .describe('Credentials, always from the environment, never written in YAML.'),
   })
@@ -223,7 +267,7 @@ const agentFields = {
   outputSchema: z
     .record(z.string(), z.unknown())
     .optional()
-    .describe('JSON Schema for structured output: the agent answers with one JSON object matching it. Hold it on a leaf; an agent that delegates and holds one ends its turn on that JSON.'),
+    .describe('JSON Schema for structured output: the agent answers with one JSON object matching it. An agent that also calls tools or delegates to subagents does that first, then ends its turn on that JSON: the schema travels beside the tools where the model takes both in one request, as a set_model_response tool elsewhere (the capability matrix\'s structured_output_with_tools, ADR 0109).'),
   mcp_server_url: z
     .string()
     .optional()
@@ -233,6 +277,10 @@ const agentFields = {
     .min(1)
     .optional()
     .describe('The MCP server\'s tools this agent may use, by name; any other tool the server lists is not exposed. Without it, every listed tool is. require_approval may name these. Needs mcp_server_url.'),
+  mcp_auth: z
+    .strictObject({ oauth2: oauth2Auth })
+    .optional()
+    .describe('The OAuth grant the MCP server takes (ADR 0112). With authorization_code, each user\'s own token on their own connection, and mcp_tools is required. Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.'),
   skills: skillsSchema.optional(),
   openapi: z.array(openapiEntry).min(1).optional(),
   code_execution: z
@@ -693,6 +741,12 @@ function crossFieldProblems(raw: unknown): Problem[] {
     }
     if (agent.mcp_tools !== undefined && typeof agent.mcp_server_url !== 'string') {
       out.push({ path: [...path, 'mcp_tools'], message: 'mcp_tools chooses among an MCP server\'s tools; it needs mcp_server_url' });
+    }
+    if (agent.mcp_auth !== undefined && typeof agent.mcp_server_url !== 'string') {
+      out.push({ path: [...path, 'mcp_auth'], message: 'mcp_auth is the grant an MCP server takes; it needs mcp_server_url' });
+    }
+    if (isObj(agent.mcp_auth) && isObj(agent.mcp_auth.oauth2) && agent.mcp_auth.oauth2.grant === 'authorization_code' && agent.mcp_tools === undefined) {
+      out.push({ path: [...path, 'mcp_auth'], message: 'an authorization_code mcp_auth needs mcp_tools: no user\'s grant exists at startup to list the server\'s tools' });
     }
   };
   if (isObj(raw.orchestrator)) executionProblems(raw.orchestrator, ['orchestrator'], true);

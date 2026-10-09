@@ -13,7 +13,10 @@ sources:
   - resource: lib/tools/openapi/parse.ts
   - resource: lib/tools/openapi/call.ts
   - resource: config/agents/examples/weather.yaml
+  - resource: lib/tools/oauthTools.ts
+  - resource: lib/tools/credentialEnv.ts
   - resource: tests/openapiTools.test.ts
+  - resource: tests/oauthTools.test.ts
 ---
 
 # OpenAPI tools
@@ -41,7 +44,9 @@ Only OpenAPI 3.x is read: a Swagger 2.0 spec, or one without an `openapi` versio
 
 Exposure is the engine's part ([ADR 0032](/decisions/0032-openapi-tools.md)). Without `operations`, only GET operations become tools; a write is exposed by naming it. A named operation can be listed under `require_approval`, by its operationId or its tool name, so a person approves each call ([ADR 0028](/decisions/0028-approval-gates.md)). It takes the gate every registry tool takes, and nothing is sent until the call is approved.
 
-`auth` names an environment variable (`bearer_env`, or `api_key: { env, in, name }`), never a value. An unset variable fails the compile, and a credential is held by the tool, never stored in session state. Because the YAML (possibly registry-stored) chooses both the variable and the host, it may never name one of the framework's own settings (`credentialEnvProblem`: the `A2A_`, `SUPABASE_`, `DATABASE_`, provider and other prefixes, which a test checks against every variable in `.env.example`); `OPENAPI_CREDENTIAL_ENVS` makes the rule an exact allowlist ([ADR 0041](/decisions/0041-tool-vendors-get-least-privilege.md)). When an operation's spec requires a credential and the entry sets no `auth`, the call returns an error and sends nothing. A credential's value, plain or URL-encoded, is replaced with `[redacted]` in every error the model reads.
+`auth` names an environment variable (`bearer_env`, or `api_key: { env, in, name }`), never a value, or declares an OAuth grant (`oauth2`). An unset variable fails the compile, and a credential is held by the tool, never stored in session state. Because the YAML (possibly registry-stored) chooses both the variable and the host, it may never name one of the framework's own settings (`credentialEnvProblem`: the `A2A_`, `SUPABASE_`, `DATABASE_`, provider and other prefixes, which a test checks against every variable in `.env.example`); `OPENAPI_CREDENTIAL_ENVS` makes the rule an exact allowlist ([ADR 0041](/decisions/0041-tool-vendors-get-least-privilege.md)). When an operation's spec requires a credential and the entry sets no `auth`, the call returns an error and sends nothing. A credential's value, plain or URL-encoded, is replaced with `[redacted]` in every error the model reads.
+
+`auth: { oauth2 }` sends an OAuth access token as the bearer, fetched for each call ([ADR 0112](/decisions/0112-oauth-grants-declared-beside-the-tool.md); [tool contracts](/tools/tool-contracts.md#grants-declared-in-yaml)): the run's user's own token (`grant: authorization_code`, through `ctx.accessToken` and the consent pause) or the server's own (`grant: client_credentials`, from the token endpoint). Its `client_id_env` and `client_secret_env` follow the same variable rule. Every server the token goes to must be https, or http on a loopback host. A token that cannot be had answers the call with an error naming the provider and what to do, never a value.
 
 Every server must be http(s) and pass `lib/net/addressGuard.ts`: its literal rules at compile, the full check with DNS before each call. `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for local development. A call follows redirects by hand under `lib/net/redirects.ts` ([ADR 0036](/decisions/0036-redirects-under-the-ssrf-guard.md)). A hop on the same origin gets the server's own check. A hop to another origin must pass the full guard (with no development exception) and keeps only content-negotiation headers, so a credential never follows it. More than five hops is an error. At most 8 MiB of a response is read, a result over 20,000 characters is cut and marked, and a network failure returns an error to the model. The turn's abort signal reaches the request.
 

@@ -5,7 +5,8 @@
 #
 #   Echo      delegation: repeats the code word its `request` argument carries
 #   Recorder  structured output: a leaf with an outputSchema (the critic.yaml
-#             pattern — outputSchema never shares an agent with AgentTools)
+#             pattern; a schema beside subagent tools is
+#             tests/fixtures/structured-critic.yaml, ADR 0109)
 #   parity_lookup  a client-side function tool the harness registers itself
 #
 # max_steps bounds what one turn can spend; the harness's turns need at most
