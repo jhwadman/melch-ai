@@ -5,48 +5,48 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 903,
-    "edges": 3588,
+    "nodes": 911,
+    "edges": 3610,
     "byKind": {
-      "doc": 179,
+      "doc": 180,
       "provider": 6,
       "env": 106,
-      "model": 8,
+      "model": 10,
       "tool": 34,
-      "file": 193,
-      "syndicate": 32,
-      "agent": 89,
+      "file": 194,
+      "syndicate": 33,
+      "agent": 91,
       "mcp-server": 4,
       "table": 18,
       "module": 185,
-      "script": 47,
+      "script": 48,
       "external": 2
     },
     "byRelation": {
-      "links_to": 820,
+      "links_to": 830,
       "requires_env": 172,
-      "routes_to": 8,
-      "defined_in": 77,
-      "documents": 56,
-      "contains": 89,
-      "uses_model": 89,
+      "routes_to": 10,
+      "defined_in": 78,
+      "documents": 57,
+      "contains": 91,
+      "uses_model": 91,
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
       "imports": 777,
       "reads_table": 28,
-      "runs": 68,
-      "derives_from": 951,
+      "runs": 70,
+      "derives_from": 952,
       "constrains": 198,
       "supersedes": 13,
       "depends_on": 127,
-      "explains": 44,
+      "explains": 45,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3201,
-      "inferred": 387
+      "extracted": 3222,
+      "inferred": 388
     },
     "isolated": 4
   },
@@ -361,6 +361,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 165
+      }
+    },
+    {
+      "id": "/agents/structured_critic.md",
+      "kind": "doc",
+      "label": "Structured Critic",
+      "source": "/agents/structured_critic.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 224
       }
     },
     {
@@ -948,7 +960,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 2072
+        "words": 2207
       }
     },
     {
@@ -3003,6 +3015,28 @@
       }
     },
     {
+      "id": "agent:structured_critic/Critic",
+      "kind": "agent",
+      "label": "Critic",
+      "source": "config/agents/examples/structured_critic.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "structured_critic",
+        "description": "Asks a Drafter for a draft, then grades it in its own JSON schema: a polished message, a confidence score and the issues."
+      }
+    },
+    {
+      "id": "agent:structured_critic/DrafterAgent",
+      "kind": "agent",
+      "label": "DrafterAgent",
+      "source": "config/agents/examples/structured_critic.yaml",
+      "attrs": {
+        "role": "subagent",
+        "syndicate": "structured_critic",
+        "description": "Writes one complete draft answer to the question it is passed, and nothing else."
+      }
+    },
+    {
       "id": "agent:style_council/Analyst",
       "kind": "agent",
       "label": "Analyst",
@@ -3991,6 +4025,13 @@
       "kind": "file",
       "label": "scriptorium.yaml",
       "source": "config/agents/examples/scriptorium.yaml",
+      "attrs": {}
+    },
+    {
+      "id": "file:config/agents/examples/structured_critic.yaml",
+      "kind": "file",
+      "label": "structured_critic.yaml",
+      "source": "config/agents/examples/structured_critic.yaml",
       "attrs": {}
     },
     {
@@ -5129,6 +5170,18 @@
       "kind": "mcp-server",
       "label": "http://localhost:8934/sse",
       "source": "scripts/science_mcp_server.ts"
+    },
+    {
+      "id": "model:claude-haiku-5-5",
+      "kind": "model",
+      "label": "claude-haiku-5-5",
+      "source": "config/agents/examples/structured_critic.yaml"
+    },
+    {
+      "id": "model:claude-opus-5-5",
+      "kind": "model",
+      "label": "claude-opus-5-5",
+      "source": "config/agents/examples/structured_critic.yaml"
     },
     {
       "id": "model:claude-sonnet-4-6",
@@ -7195,6 +7248,15 @@
       }
     },
     {
+      "id": "script:syndicate:structured-critic",
+      "kind": "script",
+      "label": "npm run syndicate:structured-critic",
+      "source": "package.json",
+      "attrs": {
+        "command": "node --disable-warning=DEP0040 --experimental-strip-types scripts/syndicate_chat.ts --syndicate structured_critic"
+      }
+    },
+    {
       "id": "script:syndicate:style",
       "kind": "script",
       "label": "npm run syndicate:style",
@@ -7586,6 +7648,17 @@
       "attrs": {
         "memory": "internal-only",
         "agents": 3,
+        "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:structured_critic",
+      "kind": "syndicate",
+      "label": "Structured Critic",
+      "source": "config/agents/examples/structured_critic.yaml",
+      "attrs": {
+        "memory": "session-only",
+        "agents": 2,
         "mode": "delegate"
       }
     },
@@ -8589,6 +8662,34 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/agents/scriptorium.md:17"
+    },
+    {
+      "from": "/agents/structured_critic.md",
+      "to": "file:config/agents/examples/structured_critic.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/structured_critic.md frontmatter"
+    },
+    {
+      "from": "/agents/structured_critic.md",
+      "to": "syndicate:structured_critic",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/structured_critic.md"
+    },
+    {
+      "from": "/agents/structured_critic.md",
+      "to": "/agents/critic.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/structured_critic.md:19"
+    },
+    {
+      "from": "/agents/structured_critic.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/structured_critic.md:17"
     },
     {
       "from": "/agents/style_council.md",
@@ -10591,6 +10692,62 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:60"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
+    },
+    {
+      "from": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0045-own-runtime-behind-the-seam.md:94"
     },
     {
       "from": "/decisions/0046-provider-reasoning-state-on-the-part.md",
@@ -21807,6 +21964,20 @@
       "evidence": "config/agents/examples/scriptorium.yaml"
     },
     {
+      "from": "agent:structured_critic/Critic",
+      "to": "model:claude-opus-5-5",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/structured_critic.yaml"
+    },
+    {
+      "from": "agent:structured_critic/DrafterAgent",
+      "to": "model:claude-haiku-5-5",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/structured_critic.yaml"
+    },
+    {
       "from": "agent:style_council/Analyst",
       "to": "model:gemini-3.8-flash",
       "rel": "uses_model",
@@ -21966,6 +22137,20 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "scripts/science_mcp_server.ts"
+    },
+    {
+      "from": "model:claude-haiku-5-5",
+      "to": "provider:anthropic",
+      "rel": "routes_to",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/structured_critic.yaml"
+    },
+    {
+      "from": "model:claude-opus-5-5",
+      "to": "provider:anthropic",
+      "rel": "routes_to",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/structured_critic.yaml"
     },
     {
       "from": "model:claude-sonnet-4-6",
@@ -29227,6 +29412,20 @@
       "evidence": "package.json"
     },
     {
+      "from": "script:syndicate:structured-critic",
+      "to": "module:scripts/syndicate_chat.ts",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
+      "from": "script:syndicate:structured-critic",
+      "to": "syndicate:structured_critic",
+      "rel": "runs",
+      "tier": "extracted",
+      "evidence": "package.json"
+    },
+    {
       "from": "script:syndicate:style",
       "to": "module:scripts/syndicate_chat.ts",
       "rel": "runs",
@@ -30044,6 +30243,27 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/examples/scriptorium.yaml"
+    },
+    {
+      "from": "syndicate:structured_critic",
+      "to": "agent:structured_critic/Critic",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/structured_critic.yaml"
+    },
+    {
+      "from": "syndicate:structured_critic",
+      "to": "agent:structured_critic/DrafterAgent",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/structured_critic.yaml"
+    },
+    {
+      "from": "syndicate:structured_critic",
+      "to": "file:config/agents/examples/structured_critic.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/structured_critic.yaml"
     },
     {
       "from": "syndicate:style_council",

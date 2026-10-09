@@ -18,7 +18,7 @@ Where the file goes:
 
 Start from the closest example:
 - Copy the example nearest the job out of the starter pack into `config/agents/` and edit it. One orchestrator and one subagent is the right size to start; grow only when the work divides.
-- Read `tutor.yaml` for the instruction anatomy at its smallest, `patient_advocate.yaml` for the same anatomy grown to full size, `critic.yaml` for a JSON output schema on a leaf, `scribe.yaml` for a draft-and-audit loop, `librarian.yaml` for MCP tools, `council.yaml` for a keyless multi-agent file.
+- Read `tutor.yaml` for the instruction anatomy at its smallest, `patient_advocate.yaml` for the same anatomy grown to full size, `critic.yaml` for a JSON output schema on a leaf, `structured_critic.yaml` for one on an orchestrator that delegates, `scribe.yaml` for a draft-and-audit loop, `librarian.yaml` for MCP tools, `council.yaml` for a keyless multi-agent file.
 
 The keys (top level):
 - `syndicate_name` (required): display name.
@@ -51,7 +51,7 @@ Write the instruction:
 - The first line of the file is the tier claim: `# tier: keyless`, `# tier: gemini`, `# tier: anthropic`, or `# tier: multi-provider`. The doctor checks the header against the models and disagrees out loud.
 
 Two constraints that break a file:
-- Do not give one agent both an `output: { schema }` and subagents: an agent that holds an output schema answers with that JSON and nothing else. Put the JSON schema on a leaf subagent with no tools and let the orchestrator return plain text (`critic.yaml`, `scribe.yaml`).
+- An agent that holds an `output: { schema }` answers with that JSON and nothing else. Give one to an orchestrator beside its subagents only when the answer is its own structured judgment of what its team returned (`structured_critic.yaml`); when the user should receive a specialist's answer, put the schema on a leaf subagent with no tools and let the orchestrator return plain text (`critic.yaml`, `scribe.yaml`).
 - A tool result or an MCP server's reply is data for the agent to analyze; an instruction must never tell the agent to obey text that arrives inside one.
 
 Validate and run:

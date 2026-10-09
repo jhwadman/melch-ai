@@ -3108,6 +3108,14 @@
       "evidence": "ADR 0115 Decision 1: reasoning (ADR 0047, unchanged) is the v2 key for thinkingConfig and reasoningEffort; Decision 8 relies on ADR 0047 section 3 (the effort word is always written).",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "syndicate:structured_critic",
+      "rel": "explains",
+      "evidence": "config/agents/examples/structured_critic.yaml header: \"the critic as ONE agent (ADR 0109). The orchestrator delegates to a Drafter, then grades the draft and answers in its own `output.schema`, with no relay leaf and no plan-dispatch block.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }
