@@ -575,6 +575,14 @@ test('served surfaces refuse to start while the sign-in is the OpenAI path', () 
     assert.match(r.stdout + r.stderr, /Sign in with ChatGPT is local only/, `${script} names the reason`);
     assert.ok(!(r.stdout + r.stderr).includes('fake-access-stored') && !(r.stdout + r.stderr).includes('fake-refresh-stored'), `${script} prints no token`);
   }
+  // melchizedek-mcp refuses under --http (reachable by others) and not over stdio (one person's own client).
+  const mcpArgs = ['--disable-warning=ExperimentalWarning', '--experimental-strip-types', join(ROOT, 'scripts/mcp_server.ts'), '--syndicate', 'tutor'];
+  const http = spawnSync(process.execPath, [...mcpArgs, '--http'], { cwd: ROOT, env, encoding: 'utf8', timeout: 60_000 });
+  assert.equal(http.status, 1, 'melchizedek-mcp --http exits 1');
+  assert.match(http.stdout + http.stderr, /Sign in with ChatGPT is local only/, 'melchizedek-mcp --http names the reason');
+  assert.ok(!(http.stdout + http.stderr).includes('fake-access-stored'), 'melchizedek-mcp --http prints no token');
+  const stdio = spawnSync(process.execPath, mcpArgs, { cwd: ROOT, env, encoding: 'utf8', timeout: 60_000, input: '' });
+  assert.doesNotMatch(stdio.stdout + stdio.stderr, /Sign in with ChatGPT is local only/, 'melchizedek-mcp over stdio does not refuse');
 });
 
 // ── The doctor ───────────────────────────────────────────────────────────────

@@ -29,6 +29,7 @@
     "./a2a/identity": "./dist/lib/a2a/identity.js",
     "./a2a/policy": "./dist/lib/a2a/policy.js",
     "./a2a/limits": "./dist/lib/a2a/redisLimits.js",
+    "./mcp": "./dist/lib/mcp/server.js",
     "./registry": "./dist/lib/registry.js",
     "./server": "./dist/scripts/a2a_server.js",
     "./guards": "./dist/lib/guards/index.js",
@@ -48,6 +49,7 @@
   },
   "bin": {
     "melchizedek-serve": "./dist/scripts/a2a_server.js",
+    "melchizedek-mcp": "./dist/scripts/mcp_server.js",
     "melchizedek-chat": "./dist/scripts/syndicate_chat.js",
     "melchizedek-doctor": "./dist/scripts/doctor.js",
     "melchizedek-skills": "./dist/scripts/skills_install.js",
@@ -112,6 +114,7 @@
     "mcp:demo": "node --disable-warning=DEP0040 --experimental-strip-types scripts/demo_mcp_server.ts",
     "mcp:wiki": "node --disable-warning=DEP0040 --experimental-strip-types scripts/wiki/mcp_server.ts",
     "mcp:science": "node --disable-warning=DEP0040 --experimental-strip-types scripts/science_mcp_server.ts",
+    "mcp:serve": "node --disable-warning=DEP0040 --experimental-strip-types scripts/mcp_server.ts",
     "wiki:init": "node --disable-warning=DEP0040 --experimental-strip-types scripts/wiki/init.ts",
     "wiki:build": "node --disable-warning=DEP0040 --experimental-strip-types scripts/wiki/build.ts",
     "wiki:check": "node --disable-warning=DEP0040 --experimental-strip-types scripts/wiki/check.ts",
