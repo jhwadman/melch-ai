@@ -603,7 +603,7 @@ export function writeEnvForLevel(
 ): EnvWriteResult {
   const cwd = resolve(opts.cwd ?? process.cwd());
   const target = join(cwd, '.env');
-  if (existsSync(target)) return { status: 'exists', path: target };
+  // An existing .env is never touched: the exclusive open below refuses it (EEXIST → 'exists').
   const ignore = (opts.checkIgnored ?? gitIgnoresEnv)(cwd);
   if (!ignore.ignored) return { status: 'not-ignored', path: target, reason: ignore.reason };
   const source = join(opts.root ?? packageRoot(), '.env.example');
