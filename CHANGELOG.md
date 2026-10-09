@@ -6,6 +6,54 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Breaking — read before upgrading
+
+- **Breaking: `ReasoningLevel` (`melchizedek-agents/models/contract`) gains
+  `xhigh` and `max`**, and `REASONING_BUDGETS` gains both keys (16,384 each,
+  `high`'s budget). An exhaustive `Record<ReasoningLevel, …>` or a `switch`
+  over the levels no longer type-checks without them (ADR 0117).
+- **Breaking: the older spelling's `reasoningEffort: xhigh` and `max` now
+  reach the provider.** Since 1.0.0 they were read by nothing and sent
+  nowhere; an agent that still carries one now asks its model for that
+  effort (or the model's highest, see Added), and beside a `thinkingConfig`
+  that says `high` the word wins. Such an agent thinks harder and costs
+  more. Remove the word to keep the old behaviour.
+
+### Added
+
+- **`tool_choice:`**, a v2 agent key (ADR 0117): `auto` (the default),
+  `none`, `required` (some tool) or `{ name: <tool> }` (that tool). It
+  replaces `generateContentConfig.toolConfig.functionCallingConfig`, may not
+  sit beside it, and is refused on a `yaml_reference` or `a2a_agent_url`
+  subagent. Each provider sends it as before, weakening a forced choice
+  where it must (`llm.tool_choice.weakened`).
+- **`reasoning: xhigh` and `reasoning: max`** (ADR 0117). They reach the
+  models that take them: both as `output_config.effort` on Claude's adaptive
+  generations, `max` on Kimi K3 (and `xhigh` rounds up to it, so K3 can be
+  sent `max` again), `xhigh` on GPT-5.2 and later and on grok-4.7. Every
+  other path sends the model's highest setting (`high`, Gemini's `HIGH`,
+  or `high`'s 16,384-token budget on Claude 4.6 and earlier and Gemini 2.x;
+  `high` on a gateway for any id) and marks the `llm.request` span
+  `llm.reasoning.weakened` with the level asked for. The capability
+  matrix states each path: `REASONING_ABOVE_HIGH`
+  (`melchizedek-agents/models/capabilities`), rendered under
+  `npm run doctor -- --matrix`.
+- `melchizedek-agents/models/reasoning` exports `effortCeiling(model)`,
+  `effortWord(model, setting, ceiling?)`, `isAboveHigh` and
+  `REASONING_ORDER`. `ChatCompletionsAdapter` gains the protected hooks
+  `reasoningCeiling(model)` and `effortFor(model, setting)`.
+
+### Changed
+
+- **`melchizedek-codemod` converts the rest of `generateContentConfig`**
+  (ADR 0117): `toolConfig` becomes `tool_choice:` (mode `ANY` with several
+  allowed names becomes `required`, which is what the engine already sent,
+  with a note), `reasoningEffort: xhigh | max` becomes `reasoning:`, and
+  `thinkingConfig.includeThoughts` is dropped whatever its value: nothing
+  reads it, and the Gemini adapter asks for the thought trace whenever
+  reasoning is not `none` (a `true` gets a note). Only `toolConfig` mode
+  `VALIDATED` and `thinkingBudget: -1` stay, with a note.
+
 ## 1.1.0 — 2026-10-09
 
 Release 1.1.0 closes workstream 6 of the ADK-independence plan (ADRs

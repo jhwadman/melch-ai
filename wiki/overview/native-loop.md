@@ -65,7 +65,7 @@ What a hostile model, tool, message or store can do to the loop, what stops it a
 
 ## The agent
 
-`NativeAgent` (`lib/runtime/native/request.ts`) is what a compiled agent gives a model request, in the engine form the loader writes (`toEngineAgent` in `lib/agentDialect.ts` folds the YAML's `sampling:` and `output:` into `generateContentConfig` and `outputSchema`, [ADR 0115](/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)): name, description, model id, instruction, `globalInstruction`, tools in list order, output schema, `generateContentConfig` (with `reasoning:` mapped in, as `withReasoning` maps it), `includeContents`, `codeExecution`, `mode` (see [Task mode](#task-mode)), `context` (compaction, see [Compaction](#compaction)) and the transfer flags. A tool may be:
+`NativeAgent` (`lib/runtime/native/request.ts`) is what a compiled agent gives a model request, in the engine form the loader writes (`toEngineAgent` in `lib/agentDialect.ts` folds the YAML's `sampling:`, `output:` and `tool_choice:` into `generateContentConfig` and `outputSchema`, [ADR 0115](/decisions/0115-yaml-schema-v2-provider-neutral-keys.md), [ADR 0117](/decisions/0117-tool-choice-and-effort-above-high-in-v2.md)): name, description, model id, instruction, `globalInstruction`, tools in list order, output schema, `generateContentConfig` (with `reasoning:` mapped in, as `withReasoning` maps it), `includeContents`, `codeExecution`, `mode` (see [Task mode](#task-mode)), `context` (compaction, see [Compaction](#compaction)) and the transfer flags. A tool may be:
 
 - an own Tool or a `defineTool` contract;
 - a subagent tool (`subagentTool(agent)`, `lib/runtime/native/delegate.ts`), which runs another `NativeAgent`;

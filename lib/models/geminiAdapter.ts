@@ -97,7 +97,7 @@ import {
 import { currentTurnStart, providerStateOf } from './providerState.ts';
 import type { ProviderState } from './providerState.ts';
 import { classifyError, errorStatus, retryUntilFirstYield } from './retry.ts';
-import { reasoningConfig } from './reasoning.ts';
+import { isAboveHigh, reasoningConfig } from './reasoning.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
 
 /**
@@ -557,10 +557,15 @@ function toolConfigFor(request: ModelRequest): ToolConfig | undefined {
   return mode ? { functionCallingConfig: { mode } } : undefined;
 }
 
-/** ADR 0047's mapping for this model, with the thoughts asked for unless the setting is `none`. */
+/**
+ * ADR 0047's mapping for this model, with the thoughts asked for unless the
+ * setting is `none`. Gemini's top is `HIGH` (or `high`'s budget on 2.x), so
+ * `xhigh` and `max` go as that, marked on the span (ADR 0117).
+ */
 function thinkingConfigFor(model: string, setting: ReasoningSetting): ThinkingConfig | undefined {
   const mapped = reasoningConfig(model, setting).thinkingConfig as ThinkingConfig | undefined;
   if (!mapped) return undefined;
+  if (isAboveHigh(setting)) setLlmSpanAttribute('llm.reasoning.weakened', setting);
   const none = setting === 'none' || (typeof setting === 'object' && setting.budget_tokens <= 0);
   return none ? { ...mapped } : { ...mapped, includeThoughts: true };
 }

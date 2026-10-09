@@ -34,7 +34,7 @@ A subclass gives the endpoint and headers, the wire model name (`ollama/` stripp
 The reasoning field comes from the request's `reasoning`, mapped with `reasoningConfig` ([ADR 0047](/decisions/0047-provider-neutral-reasoning-key.md)) for the request's model, so a fallback model gets its own mapping:
 
 - **Ollama and the gateway:** `reasoning_effort` as that model's word. Through a gateway it is the upstream's word, `minimal` for `none` on the first GPT-5 generation.
-- **Kimi K3:** `reasoning_effort`, `none` sent as `low`, `medium` as `high`, a budget as the level that covers it, and `DEFAULT_KIMI_REASONING_EFFORT` when the request has none.
+- **Kimi K3:** `reasoning_effort`, `none` sent as `low`, `medium` as `high`, `xhigh` and `max` as `max` (Moonshot's costliest effort, ADR 0117), a budget as the level that covers it, and `DEFAULT_KIMI_REASONING_EFFORT` when the request has none.
 - **Kimi K2.x:** `thinking: { type: 'disabled' }` for `none`, and nothing otherwise; K2.7 Code (and its highspeed variant) sends nothing for `none` too, since it cannot switch thinking off and Moonshot refuses `disabled` for it.
 
 Structured output is `response_format`: a schema goes as strict `json_schema`, in its strict form (`toStrictJsonSchema`), on all three. Ollama enforces it with grammar-constrained decoding from 0.5.0 and ignores `strict`; an older server ignores the schema and answers in free text, so 0.5.0 is the minimum for structured output, and Ollama Cloud accepts the schema without enforcing it ([ADR 0096](/decisions/0096-ollama-structured-output-sends-json-schema.md)). Tools travel beside a schema. `outputFormat: 'json'` without a schema is JSON mode, `json_object`, on all three ([ADR 0061](/decisions/0061-json-mode-on-the-contract.md)). The retry without thinking keeps it.
@@ -54,7 +54,7 @@ Every failure is a final with `error` set, never a throw: a missing key or gatew
 
 ## The caller and the stored event
 
-The native loop's model step calls the adapters directly: it charges the turn and opens the `llm.request` span ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), and stores each final as an event in ADK's shape, in Gemini's usage meanings ([model contract](/models/model-contract.md#the-response)). The adapters take the contract's `ModelRequest` alone: 1.0.0 removed the `olderSpelling` extension ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), so an effort word that is no level (Kimi K3's `max`, `xhigh`) is not sent. Events that ADK's `OllamaLlm`, `KimiLlm` and `GatewayLlm` stored before 1.0.0 count reasoning inside `candidatesTokenCount`.
+The native loop's model step calls the adapters directly: it charges the turn and opens the `llm.request` span ([ADR 0053](/decisions/0053-adapter-caller-charges-and-traces.md)), and stores each final as an event in ADK's shape, in Gemini's usage meanings ([model contract](/models/model-contract.md#the-response)). The adapters take the contract's `ModelRequest` alone: 1.0.0 removed the `olderSpelling` extension ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)). The effort word is held at `reasoningCeiling(model)` ([ADR 0117](/decisions/0117-tool-choice-and-effort-above-high-in-v2.md)): `max` on Kimi K3, `high` on Ollama and on the gateway, whatever the id; a held level marks the span `llm.reasoning.weakened`. Events that ADK's `OllamaLlm`, `KimiLlm` and `GatewayLlm` stored before 1.0.0 count reasoning inside `candidatesTokenCount`.
 
 ## What only a live run can confirm
 

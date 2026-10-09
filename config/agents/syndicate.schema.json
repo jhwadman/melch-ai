@@ -156,7 +156,7 @@
             }
           },
           "additionalProperties": {},
-          "description": "Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType) and `reasoning` (thinkingConfig, reasoningEffort) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.",
+          "description": "Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType), `reasoning` (thinkingConfig, reasoningEffort) and `tool_choice` (toolConfig.functionCallingConfig) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.",
           "deprecated": true
         },
         "reasoning": {
@@ -167,7 +167,9 @@
                 "none",
                 "low",
                 "medium",
-                "high"
+                "high",
+                "xhigh",
+                "max"
               ]
             },
             {
@@ -186,7 +188,7 @@
               "additionalProperties": false
             }
           ],
-          "description": "How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047)."
+          "description": "How hard this agent reasons, on any provider: none | low | medium | high | xhigh | max, or { budget_tokens: <int> }. xhigh and max reach the models that take them; elsewhere they go as the model's highest setting (ADR 0117). Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047)."
         },
         "sampling": {
           "type": "object",
@@ -241,6 +243,33 @@
           "additionalProperties": false,
           "description": "What this agent's final reply is (ADR 0115). Replaces outputSchema and generateContentConfig.responseMimeType; cannot be combined with them.",
           "minProperties": 1
+        },
+        "tool_choice": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "auto",
+                "none",
+                "required"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The one tool the model must call: a name from this agent's tools, subagents or MCP tools."
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          ],
+          "description": "Which tools the model may call, on any provider (ADR 0117): auto (the default), none, required (some tool), or { name: <tool> } (that tool). A provider that rejects forcing sends a weaker choice and marks the span llm.tool_choice.weakened. Replaces generateContentConfig.toolConfig.functionCallingConfig; cannot be combined with it."
         },
         "model_overrides": {
           "type": "object",
@@ -965,7 +994,7 @@
               }
             },
             "additionalProperties": {},
-            "description": "Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType) and `reasoning` (thinkingConfig, reasoningEffort) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.",
+            "description": "Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType), `reasoning` (thinkingConfig, reasoningEffort) and `tool_choice` (toolConfig.functionCallingConfig) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.",
             "deprecated": true
           },
           "reasoning": {
@@ -976,7 +1005,9 @@
                   "none",
                   "low",
                   "medium",
-                  "high"
+                  "high",
+                  "xhigh",
+                  "max"
                 ]
               },
               {
@@ -995,7 +1026,7 @@
                 "additionalProperties": false
               }
             ],
-            "description": "How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047)."
+            "description": "How hard this agent reasons, on any provider: none | low | medium | high | xhigh | max, or { budget_tokens: <int> }. xhigh and max reach the models that take them; elsewhere they go as the model's highest setting (ADR 0117). Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047)."
           },
           "sampling": {
             "type": "object",
@@ -1050,6 +1081,33 @@
             "additionalProperties": false,
             "description": "What this agent's final reply is (ADR 0115). Replaces outputSchema and generateContentConfig.responseMimeType; cannot be combined with them.",
             "minProperties": 1
+          },
+          "tool_choice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "none",
+                  "required"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The one tool the model must call: a name from this agent's tools, subagents or MCP tools."
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            ],
+            "description": "Which tools the model may call, on any provider (ADR 0117): auto (the default), none, required (some tool), or { name: <tool> } (that tool). A provider that rejects forcing sends a weaker choice and marks the span llm.tool_choice.weakened. Replaces generateContentConfig.toolConfig.functionCallingConfig; cannot be combined with it."
           },
           "model_overrides": {
             "type": "object",

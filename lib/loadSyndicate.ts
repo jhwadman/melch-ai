@@ -155,6 +155,13 @@ export interface AgentYamlConfig {
     mime?: 'application/json' | 'text/plain';
   };
   /**
+   * Which tools the model may call (v2, ADR 0117): `auto`, `none`,
+   * `required`, or `{ name }` for one tool. Replaces
+   * generateContentConfig.toolConfig.functionCallingConfig; folded into it
+   * by the loader (lib/agentDialect.ts toEngineAgent).
+   */
+  tool_choice?: 'auto' | 'none' | 'required' | { name: string };
+  /**
    * Per-provider instruction (v2), keyed by provider id (lib/models/providerMap.ts):
    * `instruction` replaces the agent's instruction, `instruction_append` is
    * appended after a blank line, for the provider of the model the agent runs

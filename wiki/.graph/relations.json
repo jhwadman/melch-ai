@@ -3116,6 +3116,78 @@
       "evidence": "config/agents/examples/structured_critic.yaml header: \"the critic as ONE agent (ADR 0109). The orchestrator delegates to a Drafter, then grades the draft and answers in its own `output.schema`, with no relay leaf and no plan-dispatch block.\"",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "explains",
+      "evidence": "ADR 0117 Decision 1: toEngineAgent (lib/agentDialect.ts) folds tool_choice into generateContentConfig.toolConfig.functionCallingConfig (functionCallingConfigOf), as one more row of the V2_SPELLINGS table.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0117 Decisions 1 and 2: tool_choice is auto | none | required | { name }, refused beside toolConfig.functionCallingConfig and on a yaml_reference or a2a_agent_url subagent; REASONING_LEVELS gains xhigh and max.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "explains",
+      "evidence": "ADR 0117 Decision 2: reasoningConfig writes xhigh and max as asked (Kimi xhigh as max); effortCeiling and effortWord hold the word at each model's ceiling and report the level weakened.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0117 Decision 2: reasoningOf reads xhigh and max as levels and prefers them to a thinkingConfig that says high (HIGH or 16,384), which is what the compiler writes beside them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0117 Decision 2: REASONING_ABOVE_HIGH states, per matrix row, what xhigh and max reach the provider as; renderCapabilityMatrix renders it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0117 Decision 2: reasoning_effort is held at reasoningCeiling(model) through effortFor, which marks the span llm.reasoning.weakened; the gateway holds every id at high.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:scripts/yaml_codemod.ts",
+      "rel": "explains",
+      "evidence": "ADR 0117 Decisions 3 and 4: the codemod converts toolConfig to tool_choice and xhigh/max to reasoning: where the engine reads the same, and drops includeThoughts, which nothing reads.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0117 Context: ADR 0115 left toolConfig, the effort words xhigh and max, and includeThoughts with no v2 form; ADR 0117 extends its spelling table and its codemod rule.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0117 Decision 2: xhigh and max extend ADR 0047's reasoning levels; Kimi's xhigh rounds up to max under ADR 0047 section 4, and the 16,384 budget cap keeps ADR 0047's SDK-ceiling reasoning.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

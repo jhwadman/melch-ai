@@ -29,7 +29,7 @@
  *   for Claude's signed blocks or OpenAI's reasoning items.
  */
 
-import type { ToolChoiceMode } from './contract.ts';
+import type { ReasoningLevel, ToolChoiceMode } from './contract.ts';
 import { ChatCompletionsAdapter } from './chatCompletionsAdapter.ts';
 import type { ChatFailure } from './chatCompletionsAdapter.ts';
 import { GATEWAY_ENV, GATEWAY_KEY_ENV, GATEWAY_MODEL_MAP_ENV, gatewayConfig, gatewayWireModel } from './gateway.ts';
@@ -66,6 +66,15 @@ export class GatewayAdapter extends ChatCompletionsAdapter {
 
   protected override wireModelName(model: string): string {
     return this.#cfg ? gatewayWireModel(model, this.#cfg.gateway) : model;
+  }
+
+  /**
+   * A gateway reads `reasoning_effort` up to `high` whatever the id: the
+   * words above it (`xhigh`, `max`) are not accepted across gateways, so
+   * they go as `high`, marked on the span (ADR 0117).
+   */
+  protected override reasoningCeiling(): ReasoningLevel {
+    return 'high';
   }
 
   /** A gateway passes tool_choice to the upstream as asked. */

@@ -5,15 +5,15 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 911,
-    "edges": 3610,
+    "nodes": 913,
+    "edges": 3647,
     "byKind": {
-      "doc": 180,
+      "doc": 181,
       "provider": 6,
       "env": 106,
       "model": 10,
       "tool": 34,
-      "file": 194,
+      "file": 195,
       "syndicate": 33,
       "agent": 91,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 830,
+      "links_to": 840,
       "requires_env": 172,
       "routes_to": 10,
       "defined_in": 78,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 777,
+      "imports": 779,
       "reads_table": 28,
       "runs": 70,
-      "derives_from": 952,
-      "constrains": 198,
+      "derives_from": 968,
+      "constrains": 202,
       "supersedes": 13,
-      "depends_on": 127,
-      "explains": 45,
+      "depends_on": 129,
+      "explains": 48,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3222,
-      "inferred": 388
+      "extracted": 3250,
+      "inferred": 397
     },
     "isolated": 4
   },
@@ -1780,6 +1780,18 @@
       }
     },
     {
+      "id": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "kind": "doc",
+      "label": "ADR 0117: tool_choice and the effort levels xhigh and max get v2 keys; includeThoughts is dropped as read by nothing",
+      "source": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1269
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -1896,7 +1908,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1187
+        "words": 1212
       }
     },
     {
@@ -1908,7 +1920,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1525
+        "words": 1553
       }
     },
     {
@@ -1920,7 +1932,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3437
+        "words": 3458
       }
     },
     {
@@ -1932,7 +1944,7 @@
         "type": "schema",
         "status": "stable",
         "trust": "unverified",
-        "words": 8049
+        "words": 8124
       }
     },
     {
@@ -1944,7 +1956,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4947
+        "words": 5195
       }
     },
     {
@@ -1956,7 +1968,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1581
+        "words": 1636
       }
     },
     {
@@ -1968,7 +1980,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 531
+        "words": 534
       }
     },
     {
@@ -2052,7 +2064,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 7833
+        "words": 7836
       }
     },
     {
@@ -5022,6 +5034,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/toolChoiceEffort.test.ts",
+      "kind": "file",
+      "label": "toolChoiceEffort.test.ts",
+      "source": "tests/toolChoiceEffort.test.ts"
+    },
+    {
       "id": "file:tests/toolContract.test.ts",
       "kind": "file",
       "label": "toolContract.test.ts",
@@ -5137,7 +5155,8 @@
       "id": "file:tests/yamlCodemod.test.ts",
       "kind": "file",
       "label": "yamlCodemod.test.ts",
-      "source": "tests/yamlCodemod.test.ts"
+      "source": "tests/yamlCodemod.test.ts",
+      "attrs": {}
     },
     {
       "id": "file:tsconfig.build.json",
@@ -5309,7 +5328,7 @@
       "label": "lib/agentDialect.ts",
       "source": "lib/agentDialect.ts",
       "attrs": {
-        "lines": 145
+        "lines": 163
       }
     },
     {
@@ -5408,7 +5427,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 776
+        "lines": 783
       }
     },
     {
@@ -5480,7 +5499,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 461
+        "lines": 486
       }
     },
     {
@@ -5489,7 +5508,7 @@
       "label": "lib/models/chatCompletionsAdapter.ts",
       "source": "lib/models/chatCompletionsAdapter.ts",
       "attrs": {
-        "lines": 945
+        "lines": 961
       }
     },
     {
@@ -5507,7 +5526,7 @@
       "label": "lib/models/claudeAdapter.ts",
       "source": "lib/models/claudeAdapter.ts",
       "attrs": {
-        "lines": 738
+        "lines": 741
       }
     },
     {
@@ -5525,7 +5544,7 @@
       "label": "lib/models/contract.ts",
       "source": "lib/models/contract.ts",
       "attrs": {
-        "lines": 480
+        "lines": 483
       }
     },
     {
@@ -5570,7 +5589,7 @@
       "label": "lib/models/gatewayAdapter.ts",
       "source": "lib/models/gatewayAdapter.ts",
       "attrs": {
-        "lines": 102
+        "lines": 111
       }
     },
     {
@@ -5579,7 +5598,7 @@
       "label": "lib/models/geminiAdapter.ts",
       "source": "lib/models/geminiAdapter.ts",
       "attrs": {
-        "lines": 985
+        "lines": 990
       }
     },
     {
@@ -5597,7 +5616,7 @@
       "label": "lib/models/genaiMapping.ts",
       "source": "lib/models/genaiMapping.ts",
       "attrs": {
-        "lines": 1115
+        "lines": 1129
       }
     },
     {
@@ -5606,7 +5625,7 @@
       "label": "lib/models/gptAdapter.ts",
       "source": "lib/models/gptAdapter.ts",
       "attrs": {
-        "lines": 917
+        "lines": 922
       }
     },
     {
@@ -5615,7 +5634,7 @@
       "label": "lib/models/grokAdapter.ts",
       "source": "lib/models/grokAdapter.ts",
       "attrs": {
-        "lines": 163
+        "lines": 169
       }
     },
     {
@@ -5660,7 +5679,7 @@
       "label": "lib/models/reasoning.ts",
       "source": "lib/models/reasoning.ts",
       "attrs": {
-        "lines": 73
+        "lines": 127
       }
     },
     {
@@ -6137,7 +6156,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1180
+        "lines": 1204
       }
     },
     {
@@ -6893,7 +6912,7 @@
       "label": "scripts/yaml_codemod.ts",
       "source": "scripts/yaml_codemod.ts",
       "attrs": {
-        "lines": 585
+        "lines": 661
       }
     },
     {
@@ -15986,6 +16005,132 @@
       "evidence": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md:28"
     },
     {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "file:tests/toolChoiceEffort.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "file:tests/yamlCodemod.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/claudeAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/contract.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/gatewayAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/geminiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/gptAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/grokAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/kimiAdapter.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:scripts/yaml_codemod.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md frontmatter"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "/decisions/0107-release-1-0-0-removes-adk.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md:39"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md:36"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -16939,6 +17084,13 @@
     },
     {
       "from": "/models/chat-completions-adapters.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/chat-completions-adapters.md:57"
+    },
+    {
+      "from": "/models/chat-completions-adapters.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -17062,6 +17214,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/claude-adapter.md:49"
+    },
+    {
+      "from": "/models/claude-adapter.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:43"
     },
     {
       "from": "/models/claude-adapter.md",
@@ -17272,6 +17431,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/gemini-adapter.md:151"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:62"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -17569,6 +17735,13 @@
     },
     {
       "from": "/models/model-contract.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/model-contract.md:105"
+    },
+    {
+      "from": "/models/model-contract.md",
       "to": "/memory/sessions.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -17649,7 +17822,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:143"
+      "evidence": "/models/provider-routing.md:155"
     },
     {
       "from": "/models/provider-routing.md",
@@ -17663,7 +17836,7 @@
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:123"
+      "evidence": "/models/provider-routing.md:135"
     },
     {
       "from": "/models/provider-routing.md",
@@ -17684,14 +17857,14 @@
       "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:139"
+      "evidence": "/models/provider-routing.md:151"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:164"
+      "evidence": "/models/provider-routing.md:176"
     },
     {
       "from": "/models/provider-routing.md",
@@ -17705,14 +17878,14 @@
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:169"
+      "evidence": "/models/provider-routing.md:181"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:163"
+      "evidence": "/models/provider-routing.md:175"
     },
     {
       "from": "/models/provider-routing.md",
@@ -17737,6 +17910,13 @@
     },
     {
       "from": "/models/provider-routing.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:44"
+    },
+    {
+      "from": "/models/provider-routing.md",
       "to": "/models/chat-completions-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -17754,7 +17934,7 @@
       "to": "/models/gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:119"
+      "evidence": "/models/provider-routing.md:131"
     },
     {
       "from": "/models/provider-routing.md",
@@ -17768,7 +17948,7 @@
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:139"
+      "evidence": "/models/provider-routing.md:151"
     },
     {
       "from": "/models/provider-routing.md",
@@ -17905,6 +18085,13 @@
     },
     {
       "from": "/models/responses-adapters.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/responses-adapters.md:48"
+    },
+    {
+      "from": "/models/responses-adapters.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -17969,6 +18156,13 @@
     {
       "from": "/operations/agent-skills.md",
       "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/agent-skills.md:29"
+    },
+    {
+      "from": "/operations/agent-skills.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/agent-skills.md:29"
@@ -19239,6 +19433,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:296"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:68"
     },
     {
       "from": "/overview/native-loop.md",
@@ -23750,6 +23951,13 @@
     },
     {
       "from": "module:lib/models/claudeAdapter.ts",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/claudeAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/claudeAdapter.ts",
       "to": "module:lib/models/schemaNormalize.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24205,6 +24413,13 @@
     },
     {
       "from": "module:lib/models/grokAdapter.ts",
+      "to": "module:lib/observability/tracer.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/models/grokAdapter.ts"
+    },
+    {
+      "from": "module:lib/models/grokAdapter.ts",
       "to": "module:lib/tools/xaiSearchParams.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24241,13 +24456,6 @@
     {
       "from": "module:lib/models/kimiAdapter.ts",
       "to": "module:lib/models/contract.ts",
-      "rel": "imports",
-      "tier": "extracted",
-      "evidence": "lib/models/kimiAdapter.ts"
-    },
-    {
-      "from": "module:lib/models/kimiAdapter.ts",
-      "to": "module:lib/models/reasoning.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/models/kimiAdapter.ts"
@@ -28990,6 +29198,13 @@
       "rel": "requires_env",
       "tier": "extracted",
       "evidence": "scripts/wiki/mcp_server.ts"
+    },
+    {
+      "from": "module:scripts/yaml_codemod.ts",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "scripts/yaml_codemod.ts"
     },
     {
       "from": "module:scripts/yaml_codemod.ts",

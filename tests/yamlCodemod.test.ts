@@ -119,8 +119,8 @@ test('thinking the engine would read differently under reasoning: is left, with 
   assert.match(noModel.notes[0]!, /^orchestrator\.generateContentConfig\.reasoningEffort: the agent names no model id/);
 });
 
-test('includeThoughts: false is dropped; true stays, and keeps the thinking where it is', () => {
-  const kept = migrateYaml(
+test('includeThoughts is dropped either way, and true gets a note saying why (ADR 0117)', () => {
+  const shown = migrateYaml(
     syndicate(`  model: gemini-3.8-flash
   generateContentConfig:
     thinkingConfig:
@@ -128,12 +128,97 @@ test('includeThoughts: false is dropped; true stays, and keeps the thinking wher
       includeThoughts: true
 `),
   );
-  assert.equal(kept.changed, false);
-  assert.deepEqual(orchestratorOf(kept.text).generateContentConfig, { thinkingConfig: { thinkingLevel: 'LOW', includeThoughts: true } });
-  assert.ok(kept.notes.includes('orchestrator.generateContentConfig.thinkingConfig.includeThoughts: no v2 form; left in place'));
+  assert.equal(shown.changed, true);
+  assert.equal(orchestratorOf(shown.text).reasoning, 'low');
+  assert.equal(orchestratorOf(shown.text).generateContentConfig, undefined);
+  assert.deepEqual(shown.notes, [
+    'orchestrator.generateContentConfig.thinkingConfig.includeThoughts: read by nothing (the Gemini adapter asks for the thought trace whenever reasoning is not none); dropped',
+  ]);
 
   const alone = migrateYaml(syndicate(`  model: claude-sonnet-4-6\n  generateContentConfig:\n    thinkingConfig:\n      includeThoughts: false\n`));
   assert.equal(orchestratorOf(alone.text).generateContentConfig, undefined);
+  assert.deepEqual(alone.notes, []);
+
+  // Thinking that stays (Gemini's dynamic budget has no v2 form) still loses the flag.
+  const dynamic = migrateYaml(syndicate(`  model: gemini-3.8-flash\n  generateContentConfig:\n    thinkingConfig:\n      thinkingBudget: -1\n      includeThoughts: true\n`));
+  assert.deepEqual(orchestratorOf(dynamic.text).generateContentConfig, { thinkingConfig: { thinkingBudget: -1 } });
+});
+
+test('the effort words above high become reasoning: where the engine reads the same (ADR 0117)', () => {
+  for (const [model, word] of [
+    ['kimi-k3', 'max'],
+    ['claude-opus-5-5', 'xhigh'],
+    ['gpt-5.4', 'xhigh'],
+    ['grok-4.7', 'max'],
+  ] as const) {
+    const r = migrateYaml(syndicate(`  model: ${model}\n  generateContentConfig:\n    reasoningEffort: ${word}\n`));
+    assert.equal(orchestratorOf(r.text).reasoning, word, model);
+    assert.equal(orchestratorOf(r.text).generateContentConfig, undefined, model);
+  }
+  // Kimi has no xhigh: the compiler writes max for it, so the v1 word stays, with a note.
+  const kimi = migrateYaml(syndicate(`  model: kimi-k3\n  generateContentConfig:\n    reasoningEffort: xhigh\n`));
+  assert.equal(kimi.changed, false);
+  assert.match(kimi.notes[0]!, /reasoning: would change what the engine reads/);
+});
+
+test('toolConfig becomes tool_choice: in the form the engine reads (ADR 0117)', () => {
+  const cases: Array<[string, unknown]> = [
+    ['{ functionCallingConfig: { mode: AUTO } }', 'auto'],
+    ['{ functionCallingConfig: { mode: NONE } }', 'none'],
+    ['{ functionCallingConfig: { mode: ANY } }', 'required'],
+    ['{ functionCallingConfig: { mode: ANY, allowedFunctionNames: [lookup] } }', { name: 'lookup' }],
+    ['{ functionCallingConfig: { mode: ANY, allowedFunctionNames: ["true"] } }', { name: 'true' }],
+    ['{ includeServerSideToolInvocations: true }', 'auto'],
+  ];
+  for (const [flow, expected] of cases) {
+    const r = migrateYaml(syndicate(`  model: gemini-3.8-flash\n  generateContentConfig:\n    toolConfig: ${flow}\n`));
+    const a = orchestratorOf(r.text);
+    assert.deepEqual(a.tool_choice, expected, flow);
+    assert.equal(a.generateContentConfig, undefined, flow);
+  }
+
+  // Block style, with comments kept, beside other keys.
+  const block = migrateYaml(
+    syndicate(`  model: claude-opus-5-5
+  generateContentConfig:
+    maxOutputTokens: 512
+    # always look it up
+    toolConfig:
+      functionCallingConfig:
+        mode: ANY  # forced
+        allowedFunctionNames:
+          - lookup
+`),
+  );
+  assert.equal(
+    block.text,
+    syndicate(`  model: claude-opus-5-5
+  sampling:
+    max_output_tokens: 512
+  # always look it up
+  # forced
+  tool_choice: { name: lookup }
+`),
+  );
+
+  // Several names: the engine already reads them as required.
+  const several = migrateYaml(syndicate(`  generateContentConfig:\n    toolConfig: { functionCallingConfig: { mode: ANY, allowedFunctionNames: [a, b] } }\n`));
+  assert.equal(orchestratorOf(several.text).tool_choice, 'required');
+  assert.match(several.notes[0]!, /allowedFunctionNames: several names, which the engine sends as required/);
+
+  // No tool_choice form: left in place, each with a note.
+  for (const [flow, why] of [
+    ['{ functionCallingConfig: { mode: VALIDATED } }', /mode VALIDATED/],
+    ['{ functionCallingConfig: { mode: any } }', /its mode is not AUTO, NONE or ANY/],
+    ['{ retrievalConfig: { languageCode: en } }', /a key with no v2 form/],
+  ] as const) {
+    const r = migrateYaml(syndicate(`  generateContentConfig:\n    toolConfig: ${flow}\n`));
+    assert.equal(r.changed, false, flow);
+    assert.match(r.notes[0]!, why, flow);
+  }
+  const taken = migrateYaml(syndicate(`  tool_choice: none\n  generateContentConfig:\n    toolConfig: { functionCallingConfig: { mode: ANY } }\n`));
+  assert.equal(taken.changed, false);
+  assert.match(taken.notes[0]!, /tool_choice is already set/);
 });
 
 // ── Comments, leftovers, conflicts ───────────────────────────────────────────
