@@ -90,7 +90,7 @@ The adapters open no span and charge no turn ([ADR 0053](/decisions/0053-adapter
 
 ## The stored event
 
-The native step stores each final as the event ADK would store, in Gemini's usage meanings ([model contract](/models/model-contract.md#the-response)): `candidatesTokenCount` is output less reasoning, with the reasoning in `thoughtsTokenCount`. The event carries `finishReason`, and `groundingMetadata` from the adapter's grounding, so the A2A server lists the answer's web sources, as it does for Gemini. Events that ADK's `GptLlm` and `GrokLlm` stored before 1.0.0 count reasoning inside `candidatesTokenCount` and may carry the server-side calls as `customMetadata['responses.server_tool_calls']`, which the tracer still reads ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)).
+The native step stores each final as an event in ADK's shape, in Gemini's usage meanings ([model contract](/models/model-contract.md#the-response)): `candidatesTokenCount` is output less reasoning, with the reasoning in `thoughtsTokenCount`. The event carries `finishReason`, and `groundingMetadata` from the adapter's grounding, so the A2A server lists the answer's web sources, as it does for Gemini. Events that ADK's `GptLlm` and `GrokLlm` stored before 1.0.0 count reasoning inside `candidatesTokenCount` and may carry the server-side calls as `customMetadata['responses.server_tool_calls']`, which the tracer still reads ([ADR 0056](/decisions/0056-responses-usage-meaning-on-the-adk-path.md)).
 
 ## What the offline tests assert
 
