@@ -27,10 +27,10 @@
  * mode the choice is only ever implicit in a tool call.
  *
  * ── Why the router MUST be tool-less ──────────────────────────────────────
- * ADK refuses to combine `outputSchema` with agent transfer/AgentTool on the
- * same agent (see config/agents/critic.yaml — an orchestrator holding both
- * deadlocks). That constraint is what shapes this design rather than limiting
- * it: the classifier is a leaf, and dispatch happens in code where it belongs.
+ * The classifier holds an `outputSchema`, and an agent holding one answers
+ * with that JSON and nothing else (see config/agents/examples/critic.yaml; ADK
+ * refused the combination outright). So the classifier is a leaf with no
+ * subagent tools, and dispatch happens in code where it belongs.
  *
  * ── Fail-static ───────────────────────────────────────────────────────────
  * Every failure mode here resolves to `default_route` and answers the user.

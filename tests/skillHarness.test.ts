@@ -355,7 +355,10 @@ test('parity: a binary resource reaches the next request as inline data, as ADK 
 });
 
 test('the harness.yaml example runs with a scripted model, storing what ADK stored', async () => {
-  const config = loadSyndicate(join(process.cwd(), 'config', 'agents', 'examples', 'harness.yaml'), { bindings: { skills_dir: FIXTURES } });
+  const config = loadSyndicate(join(process.cwd(), 'config', 'agents', 'examples', 'harness.yaml'), {
+    // The recording was made on 2026-10-08; pin {{current_date}} so the comparison does not move with the clock.
+    bindings: { skills_dir: FIXTURES, current_date: 'October 8, 2026' },
+  });
   const { native } = await assertParity('harness-example', config, {
     'gemini-3.8-flash': (req, n) =>
       n === 1

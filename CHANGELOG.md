@@ -6,6 +6,43 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.0.2 — 2026-10-09
+
+A test and documentation patch. Nothing a consumer imports, configures or
+runs changes behaviour, and no YAML key is added, removed or renamed.
+
+### Fixed
+
+- **`npm test`, and so `npm publish`, pass again from 2026-10-09.** The
+  harness-example parity test (`tests/skillHarness.test.ts`) compared a
+  native run against a recording made on 2026-10-08, and the
+  `{{current_date}}` the example's instruction resolves moved with the
+  clock, so from 2026-10-09 the comparison failed. The test now pins
+  `current_date` to the recording's date.
+- **The SIGTERM test holds under load.** `tests/serverShutdown.test.ts`
+  waits up to 30 seconds for the server to start, polls for readiness to
+  fail after the signal instead of checking once after a fixed 300 ms,
+  and runs with a 3-second delay and a 6-second grace budget, so a busy
+  machine no longer fails it on timing.
+
+### Changed
+
+- **Wording only: the shipped files describe the engine, not ADK.** The
+  example syndicates' comments (`critic.yaml`, `scribe.yaml`,
+  `research.yaml`, `image_production.yaml`, `librarian.yaml`,
+  `weather.yaml`, `pipeline.yaml`), `config/agents/syndicateSchema.yaml`,
+  `DOCUMENTATION.md` and the `melchizedek-author` skill no longer describe
+  Google ADK as running or enforcing anything; ADK appears only as history
+  or as the origin of a key's spelling. The rule that an `outputSchema`
+  belongs on a leaf is stated as what it is: the engine accepts the schema
+  on an agent that delegates, and that agent then answers with the JSON
+  instead of relaying a subagent's answer. The same wording reaches the
+  schema descriptions in `lib/syndicateSchema.ts` and the generated
+  `config/agents/syndicate.schema.json` (`outputSchema`, the root agent,
+  the workflow `retry` defaults, `retries`), and the reserved-name message
+  for an agent called `user`. No key, default or behaviour changes;
+  `thinkingBudget` and the other older spellings are still accepted.
+
 ## 1.0.1 — 2026-10-08
 
 ### Fixed

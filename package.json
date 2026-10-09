@@ -1,6 +1,6 @@
 {
   "name": "melchizedek-agents",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A multi-model, multi-agent orchestration framework — YAML-defined syndicates on the engine's own agent loop, Supabase or Postgres session persistence, pgvector long-term memory. Companion repo to the lyceumagents.com curriculum.",
   "type": "module",
   "license": "MIT",
