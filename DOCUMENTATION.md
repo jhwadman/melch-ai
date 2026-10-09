@@ -147,8 +147,10 @@ Field reference:
 | `includeContents` / `outputKey` / `globalInstruction` / `disallowTransferToParent` / `disallowTransferToPeers` | agent | Passed through to the agent (spelled after ADK's `LlmAgent` fields). `includeContents: none` makes an agent see only the current message. |
 | `fallback_model` | any agent | A model, ideally on another provider, that answers when this agent's model fails provider-side (5xx, 429, a connection reset, after its own retries) before producing any output, or while that provider's circuit is open: after `MODEL_BREAKER_THRESHOLD` consecutive provider failures (default 5; 0 disables) the provider is skipped for `MODEL_BREAKER_COOLDOWN_MS` (default 30 s). A 4xx and a canceled turn are never redirected, and a stream that already produced text is never replayed elsewhere ([ADR 0044](./wiki/decisions/0044-fallback-model-and-circuit-breaker.md)). |
 | `mcp_tools` | subagent | The MCP server's tools this agent may use; any other tool the server lists is not exposed. On a dispatch route `require_approval` may name them ([ADR 0041](./wiki/decisions/0041-tool-vendors-get-least-privilege.md)). |
-| `mcp_auth` | subagent | `{ oauth2 }`: the OAuth grant the MCP server takes, the same block as an OpenAPI `auth.oauth2`. `client_credentials` sends the server's own token; `authorization_code` sends each user's own token on their own connection (the consent pause asks for it) and needs `mcp_tools` ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)). |
+| `mcp_auth` | subagent | `{ oauth2 }`: the OAuth grant the MCP server takes, the same block as an OpenAPI `auth.oauth2`. `client_credentials` sends the server's own token; `authorization_code` sends each user's own token on their own connection (the consent pause asks for it) and needs `mcp_tools` ([ADR 0112](./wiki/decisions/0112-oauth-grants-declared-beside-the-tool.md)). With `client_registration: dynamic` and no client id or endpoints, the authorization server is discovered from the MCP server and this deployment registers itself as a client, every discovered host held to `MELCHIZEDEK_OAUTH_HOSTS` (ADR 0124). |
 | `mcp_server_url` | subagent | Discover this subagent's tools from a remote MCP server at load time (§3). SSRF-guarded; `ALLOW_PRIVATE_MCP=true` permits localhost for development. |
+| `mcp_transport` | subagent | How `mcp_server_url` is reached: `auto` (default: Streamable HTTP, falling back to the legacy SSE transport on the spec's signal), `streamable_http` or `sse` ([ADR 0124](./wiki/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md)). |
+| `mcp_servers` | any agent | Several MCP servers: a list of `{ name, url, tools, auth?, transport? }`. `tools` is required on each; a tool name on two servers, or shared with the agent's own tools, is refused at load. `require_approval` may name any server's tool. Not with `mcp_server_url` (ADR 0124). |
 | `openapi` | any agent | HTTP APIs as tools, each from an OpenAPI 3 spec file (§3, OpenAPI tools): `spec`, and optionally `operations` (default: the GET operations only), `auth` (from environment variables), `base_url`, `prefix`. |
 | `code_execution` | any Gemini agent | `"gemini"`: the model writes Python and Gemini runs it in Google's server-side sandbox, returning the output to the model; nothing runs on this host. For arithmetic, data and checks a model gets wrong in its head. Gemini models only ([ADR 0033](./wiki/decisions/0033-context-task-code.md)). |
 | `context` | orchestrator | Compacts a long conversation: when the last request's prompt passed `compact_after_tokens`, earlier turns become one summary (written by `summary_model`, default the agent's own) and the last `keep_recent_events` stay verbatim. The full history stays stored; only what the model reads shrinks. The orchestrator of a delegate syndicate only: a dispatch route already reads a bounded projection, a workflow node sees only its input. |
@@ -189,11 +191,15 @@ function, and every adapter recognises it by marker
 | `task_queue` | Contract | Queues a background job (a self-contained instruction). The tool only writes the queue; `npm run assistant:worker` (`melchizedek-worker`) claims each job, runs it through one agent compiled from YAML (default: the Assistant's Worker), and writes the result back for `task_get`. `--once` drains and exits, for cron. A run is durable (ADR 0113): it is checkpointed beside the job at every step boundary (migration 0014 on Postgres), a job claimed again resumes from its last checkpoint (inside a dispatch route too, ADR 0121), a checkpoint above `MELCHIZEDEK_CHECKPOINT_MAX_BYTES` (default 5 MiB of JSON; `TaskBackendOptions.checkpointMaxBytes`, `postgresStorage({ taskQueue })`) is skipped and the previous one kept, SIGTERM re-queues the job in hand, and `task_update` can cancel a running job. |
 
 **MCP tools** are the exception to the registry: a subagent with
-`mcp_server_url:` in its YAML gets its tools from a remote MCP server at
-load time. `lib/tools/mcpToolFactory.ts` dials the server over SSE,
-lists its tools, and makes each one an own Tool (`loadMcpTools`) — the
+`mcp_server_url:` (or several servers under `mcp_servers:`) in its YAML
+gets its tools from remote MCP servers at load time.
+`lib/tools/mcpToolFactory.ts` dials each server over Streamable HTTP,
+falling back to the legacy SSE transport when the server answers with
+the spec's signal, lists its tools, and makes each one an own Tool (`loadMcpTools`) — the
 agent's reach is decided by the server, not compiled in.
-`config/agents/examples/librarian.yaml` plus the demo catalog server
+`config/agents/examples/connectors.yaml` reaches two servers at once
+and shows, commented, an official remote server with dynamic client
+registration. `config/agents/examples/librarian.yaml` plus the demo catalog server
 (`npm run mcp:demo`, `scripts/demo_mcp_server.ts`) are the worked
 example: read tools *and* write tools, so the agent demonstrably
 modifies data on the far side of the protocol. The factory refuses

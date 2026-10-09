@@ -462,7 +462,7 @@
           "deprecated": true
         },
         "mcp_server_url": {
-          "description": "MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.",
+          "description": "MCP server (Streamable HTTP, or legacy SSE) whose tools are discovered at runtime and merged with `tools`. For more than one server, use mcp_servers.",
           "type": "string"
         },
         "mcp_tools": {
@@ -494,15 +494,20 @@
                   ],
                   "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
                 },
+                "client_registration": {
+                  "description": "\"dynamic\": an MCP server's authorization_code grant with no pre-issued client. The authorization server is discovered from the MCP server (RFC 9728, RFC 8414) and this deployment registers itself as a public PKCE client (RFC 7591), once per server and redirect URI, sealed in the credential store (ADR 0124). Every discovered host must be on the operator's OAuth host allowlist. MCP servers only; no client id, client secret or endpoint URL beside it.",
+                  "type": "string",
+                  "const": "dynamic"
+                },
                 "authorization_url": {
-                  "description": "The provider's authorization endpoint (https). authorization_code only.",
+                  "description": "The provider's authorization endpoint (https). authorization_code only; discovered with client_registration: dynamic.",
                   "type": "string",
                   "format": "uri"
                 },
                 "token_url": {
+                  "description": "The provider's token endpoint (https). Required, except with client_registration: dynamic, which discovers it.",
                   "type": "string",
-                  "format": "uri",
-                  "description": "The provider's token endpoint (https)."
+                  "format": "uri"
                 },
                 "client_id": {
                   "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
@@ -530,7 +535,7 @@
                   }
                 },
                 "authorization_params": {
-                  "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.",
+                  "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id, resource or the PKCE pair.",
                   "type": "object",
                   "propertyNames": {
                     "type": "string",
@@ -544,8 +549,7 @@
               },
               "required": [
                 "provider",
-                "grant",
-                "token_url"
+                "grant"
               ],
               "additionalProperties": false,
               "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
@@ -555,6 +559,147 @@
             "oauth2"
           ],
           "additionalProperties": false
+        },
+        "mcp_transport": {
+          "description": "How mcp_server_url is reached: auto (the default), streamable_http or sse (ADR 0124). Needs mcp_server_url.",
+          "type": "string",
+          "enum": [
+            "auto",
+            "streamable_http",
+            "sse"
+          ]
+        },
+        "mcp_servers": {
+          "description": "Several MCP servers, each with the tools this agent may use from it, its grant and its transport (ADR 0124). Cannot be combined with mcp_server_url.",
+          "minItems": 1,
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                "description": "A short name for the server, unique on this agent: logs and errors name it."
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The MCP server's URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard."
+              },
+              "tools": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": "The server's tools this agent may use, by name; any other tool it lists is not exposed. A name may appear on one server only, and never among the agent's own tools. require_approval may name these."
+              },
+              "auth": {
+                "description": "The OAuth grant this server takes (ADR 0112, ADR 0124). Without it, MCP_BEARER_TOKENS applies.",
+                "type": "object",
+                "properties": {
+                  "oauth2": {
+                    "type": "object",
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+                        "description": "The credential store's name for the provider (e.g. github). Every tool naming it shares one grant."
+                      },
+                      "grant": {
+                        "type": "string",
+                        "enum": [
+                          "authorization_code",
+                          "client_credentials"
+                        ],
+                        "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
+                      },
+                      "client_registration": {
+                        "description": "\"dynamic\": an MCP server's authorization_code grant with no pre-issued client. The authorization server is discovered from the MCP server (RFC 9728, RFC 8414) and this deployment registers itself as a public PKCE client (RFC 7591), once per server and redirect URI, sealed in the credential store (ADR 0124). Every discovered host must be on the operator's OAuth host allowlist. MCP servers only; no client id, client secret or endpoint URL beside it.",
+                        "type": "string",
+                        "const": "dynamic"
+                      },
+                      "authorization_url": {
+                        "description": "The provider's authorization endpoint (https). authorization_code only; discovered with client_registration: dynamic.",
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "token_url": {
+                        "description": "The provider's token endpoint (https). Required, except with client_registration: dynamic, which discovers it.",
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "client_id": {
+                        "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      "client_id_env": {
+                        "description": "Environment variable holding the client id. Or client_id.",
+                        "type": "string",
+                        "pattern": "^[A-Z_][A-Z0-9_]*$"
+                      },
+                      "client_secret_env": {
+                        "description": "Environment variable NAME holding the client secret, never the value. Required for client_credentials; omit for a public client (PKCE alone).",
+                        "type": "string",
+                        "pattern": "^[A-Z_][A-Z0-9_]*$"
+                      },
+                      "scopes": {
+                        "description": "The scopes the grant asks for.",
+                        "maxItems": 64,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[\\x21\\x23-\\x5b\\x5d-\\x7e]{1,256}$"
+                        }
+                      },
+                      "authorization_params": {
+                        "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id, resource or the PKCE pair.",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+                        },
+                        "additionalProperties": {
+                          "type": "string",
+                          "maxLength": 512
+                        }
+                      }
+                    },
+                    "required": [
+                      "provider",
+                      "grant"
+                    ],
+                    "additionalProperties": false,
+                    "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
+                  }
+                },
+                "required": [
+                  "oauth2"
+                ],
+                "additionalProperties": false
+              },
+              "transport": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "streamable_http",
+                  "sse"
+                ],
+                "description": "How the MCP server is reached: auto (the default) tries Streamable HTTP and falls back to the legacy SSE transport on the spec's signal; streamable_http or sse use that one only (ADR 0124)."
+              }
+            },
+            "required": [
+              "name",
+              "url",
+              "tools"
+            ],
+            "additionalProperties": false,
+            "description": "One MCP server among several (ADR 0124)."
+          }
         },
         "skills": {
           "type": "object",
@@ -685,15 +830,20 @@
                         ],
                         "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
                       },
+                      "client_registration": {
+                        "description": "\"dynamic\": an MCP server's authorization_code grant with no pre-issued client. The authorization server is discovered from the MCP server (RFC 9728, RFC 8414) and this deployment registers itself as a public PKCE client (RFC 7591), once per server and redirect URI, sealed in the credential store (ADR 0124). Every discovered host must be on the operator's OAuth host allowlist. MCP servers only; no client id, client secret or endpoint URL beside it.",
+                        "type": "string",
+                        "const": "dynamic"
+                      },
                       "authorization_url": {
-                        "description": "The provider's authorization endpoint (https). authorization_code only.",
+                        "description": "The provider's authorization endpoint (https). authorization_code only; discovered with client_registration: dynamic.",
                         "type": "string",
                         "format": "uri"
                       },
                       "token_url": {
+                        "description": "The provider's token endpoint (https). Required, except with client_registration: dynamic, which discovers it.",
                         "type": "string",
-                        "format": "uri",
-                        "description": "The provider's token endpoint (https)."
+                        "format": "uri"
                       },
                       "client_id": {
                         "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
@@ -721,7 +871,7 @@
                         }
                       },
                       "authorization_params": {
-                        "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.",
+                        "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id, resource or the PKCE pair.",
                         "type": "object",
                         "propertyNames": {
                           "type": "string",
@@ -735,8 +885,7 @@
                     },
                     "required": [
                       "provider",
-                      "grant",
-                      "token_url"
+                      "grant"
                     ],
                     "additionalProperties": false,
                     "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
@@ -1300,7 +1449,7 @@
             "deprecated": true
           },
           "mcp_server_url": {
-            "description": "MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.",
+            "description": "MCP server (Streamable HTTP, or legacy SSE) whose tools are discovered at runtime and merged with `tools`. For more than one server, use mcp_servers.",
             "type": "string"
           },
           "mcp_tools": {
@@ -1332,15 +1481,20 @@
                     ],
                     "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
                   },
+                  "client_registration": {
+                    "description": "\"dynamic\": an MCP server's authorization_code grant with no pre-issued client. The authorization server is discovered from the MCP server (RFC 9728, RFC 8414) and this deployment registers itself as a public PKCE client (RFC 7591), once per server and redirect URI, sealed in the credential store (ADR 0124). Every discovered host must be on the operator's OAuth host allowlist. MCP servers only; no client id, client secret or endpoint URL beside it.",
+                    "type": "string",
+                    "const": "dynamic"
+                  },
                   "authorization_url": {
-                    "description": "The provider's authorization endpoint (https). authorization_code only.",
+                    "description": "The provider's authorization endpoint (https). authorization_code only; discovered with client_registration: dynamic.",
                     "type": "string",
                     "format": "uri"
                   },
                   "token_url": {
+                    "description": "The provider's token endpoint (https). Required, except with client_registration: dynamic, which discovers it.",
                     "type": "string",
-                    "format": "uri",
-                    "description": "The provider's token endpoint (https)."
+                    "format": "uri"
                   },
                   "client_id": {
                     "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
@@ -1368,7 +1522,7 @@
                     }
                   },
                   "authorization_params": {
-                    "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.",
+                    "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id, resource or the PKCE pair.",
                     "type": "object",
                     "propertyNames": {
                       "type": "string",
@@ -1382,8 +1536,7 @@
                 },
                 "required": [
                   "provider",
-                  "grant",
-                  "token_url"
+                  "grant"
                 ],
                 "additionalProperties": false,
                 "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
@@ -1393,6 +1546,147 @@
               "oauth2"
             ],
             "additionalProperties": false
+          },
+          "mcp_transport": {
+            "description": "How mcp_server_url is reached: auto (the default), streamable_http or sse (ADR 0124). Needs mcp_server_url.",
+            "type": "string",
+            "enum": [
+              "auto",
+              "streamable_http",
+              "sse"
+            ]
+          },
+          "mcp_servers": {
+            "description": "Several MCP servers, each with the tools this agent may use from it, its grant and its transport (ADR 0124). Cannot be combined with mcp_server_url.",
+            "minItems": 1,
+            "maxItems": 16,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                  "description": "A short name for the server, unique on this agent: logs and errors name it."
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "The MCP server's URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard."
+                },
+                "tools": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "The server's tools this agent may use, by name; any other tool it lists is not exposed. A name may appear on one server only, and never among the agent's own tools. require_approval may name these."
+                },
+                "auth": {
+                  "description": "The OAuth grant this server takes (ADR 0112, ADR 0124). Without it, MCP_BEARER_TOKENS applies.",
+                  "type": "object",
+                  "properties": {
+                    "oauth2": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+                          "description": "The credential store's name for the provider (e.g. github). Every tool naming it shares one grant."
+                        },
+                        "grant": {
+                          "type": "string",
+                          "enum": [
+                            "authorization_code",
+                            "client_credentials"
+                          ],
+                          "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
+                        },
+                        "client_registration": {
+                          "description": "\"dynamic\": an MCP server's authorization_code grant with no pre-issued client. The authorization server is discovered from the MCP server (RFC 9728, RFC 8414) and this deployment registers itself as a public PKCE client (RFC 7591), once per server and redirect URI, sealed in the credential store (ADR 0124). Every discovered host must be on the operator's OAuth host allowlist. MCP servers only; no client id, client secret or endpoint URL beside it.",
+                          "type": "string",
+                          "const": "dynamic"
+                        },
+                        "authorization_url": {
+                          "description": "The provider's authorization endpoint (https). authorization_code only; discovered with client_registration: dynamic.",
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "token_url": {
+                          "description": "The provider's token endpoint (https). Required, except with client_registration: dynamic, which discovers it.",
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "client_id": {
+                          "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        },
+                        "client_id_env": {
+                          "description": "Environment variable holding the client id. Or client_id.",
+                          "type": "string",
+                          "pattern": "^[A-Z_][A-Z0-9_]*$"
+                        },
+                        "client_secret_env": {
+                          "description": "Environment variable NAME holding the client secret, never the value. Required for client_credentials; omit for a public client (PKCE alone).",
+                          "type": "string",
+                          "pattern": "^[A-Z_][A-Z0-9_]*$"
+                        },
+                        "scopes": {
+                          "description": "The scopes the grant asks for.",
+                          "maxItems": 64,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[\\x21\\x23-\\x5b\\x5d-\\x7e]{1,256}$"
+                          }
+                        },
+                        "authorization_params": {
+                          "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id, resource or the PKCE pair.",
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+                          },
+                          "additionalProperties": {
+                            "type": "string",
+                            "maxLength": 512
+                          }
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "grant"
+                      ],
+                      "additionalProperties": false,
+                      "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."
+                    }
+                  },
+                  "required": [
+                    "oauth2"
+                  ],
+                  "additionalProperties": false
+                },
+                "transport": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "streamable_http",
+                    "sse"
+                  ],
+                  "description": "How the MCP server is reached: auto (the default) tries Streamable HTTP and falls back to the legacy SSE transport on the spec's signal; streamable_http or sse use that one only (ADR 0124)."
+                }
+              },
+              "required": [
+                "name",
+                "url",
+                "tools"
+              ],
+              "additionalProperties": false,
+              "description": "One MCP server among several (ADR 0124)."
+            }
           },
           "skills": {
             "type": "object",
@@ -1523,15 +1817,20 @@
                           ],
                           "description": "authorization_code: each user's own token, granted through the consent pause (ADR 0085). client_credentials: the server's own token, from the token endpoint."
                         },
+                        "client_registration": {
+                          "description": "\"dynamic\": an MCP server's authorization_code grant with no pre-issued client. The authorization server is discovered from the MCP server (RFC 9728, RFC 8414) and this deployment registers itself as a public PKCE client (RFC 7591), once per server and redirect URI, sealed in the credential store (ADR 0124). Every discovered host must be on the operator's OAuth host allowlist. MCP servers only; no client id, client secret or endpoint URL beside it.",
+                          "type": "string",
+                          "const": "dynamic"
+                        },
                         "authorization_url": {
-                          "description": "The provider's authorization endpoint (https). authorization_code only.",
+                          "description": "The provider's authorization endpoint (https). authorization_code only; discovered with client_registration: dynamic.",
                           "type": "string",
                           "format": "uri"
                         },
                         "token_url": {
+                          "description": "The provider's token endpoint (https). Required, except with client_registration: dynamic, which discovers it.",
                           "type": "string",
-                          "format": "uri",
-                          "description": "The provider's token endpoint (https)."
+                          "format": "uri"
                         },
                         "client_id": {
                           "description": "The OAuth client id, written out (it is not a secret). Or client_id_env.",
@@ -1559,7 +1858,7 @@
                           }
                         },
                         "authorization_params": {
-                          "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.",
+                          "description": "Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id, resource or the PKCE pair.",
                           "type": "object",
                           "propertyNames": {
                             "type": "string",
@@ -1573,8 +1872,7 @@
                       },
                       "required": [
                         "provider",
-                        "grant",
-                        "token_url"
+                        "grant"
                       ],
                       "additionalProperties": false,
                       "description": "An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values."

@@ -3,6 +3,34 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —depends_on→ /decisions/0112-oauth-grants-declared-beside-the-tool.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —depends_on→ /decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —constrains→ module:lib/compile.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —constrains→ module:lib/tools/oauthConsent.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —constrains→ module:lib/tools/oauthDiscovery.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —constrains→ module:lib/tools/mcpToolFactory.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0125-syndicates-as-mcp-tools.md —depends_on→ /decisions/0024-adk-behind-the-runtime-seam.md
 
 by claude-code/claude-opus-5-5

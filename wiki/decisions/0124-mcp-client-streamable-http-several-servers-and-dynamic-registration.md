@@ -1,0 +1,70 @@
+---
+type: decision
+title: "ADR 0124: The MCP client speaks Streamable HTTP, reaches several servers per agent, and registers itself where no client is issued"
+description: "An agent's MCP client posts the initialize request over Streamable HTTP and falls back to the legacy SSE transport on the spec's signal (a 4xx other than 401/403), or uses the one transport the YAML names. `mcp_servers:` lists several servers, each with the tools the agent may use from it; a tool name on two servers or shared with the agent's own tools is refused at load. `client_registration: dynamic` on an MCP server's authorization_code grant discovers its authorization server (RFC 9728, RFC 8414) and registers a public PKCE client (RFC 7591) for the redirect URI, every discovered host held to the operator's OAuth host allowlist, the registration sealed in the existing credential store with no migration. SSE-first probing, transport by URL suffix, namespacing tool names, optional per-server tool lists, YAML-written endpoints beside dynamic registration, the SDK's own auth provider, and a new table were rejected."
+tags:
+  - decision
+  - protocols
+  - tools
+  - security
+status: stable
+generated:
+  by: claude-code/claude-opus-5-5
+  at: 2026-10-09
+sources:
+  - resource: lib/tools/mcpToolFactory.ts
+  - resource: lib/tools/mcpTransports.ts
+  - resource: lib/tools/oauthDiscovery.ts
+  - resource: lib/tools/oauthConsent.ts
+  - resource: lib/tools/oauthTools.ts
+  - resource: lib/tools/credentialUses.ts
+  - resource: lib/a2a/oauthSetup.ts
+  - resource: lib/syndicateSchema.ts
+  - resource: lib/compile.ts
+  - resource: config/agents/examples/connectors.yaml
+  - resource: tests/mcpStreamable.test.ts
+  - resource: tests/oauthDiscovery.test.ts
+---
+
+# ADR 0124: The MCP client speaks Streamable HTTP, reaches several servers per agent, and registers itself where no client is issued
+
+## Context
+
+The hosted MCP servers that chat apps and coding agents offer as connectors (an issue tracker's, a wiki's, a code host's, a payments provider's) share three traits the engine's client did not meet. They speak Streamable HTTP, the transport the MCP spec has made its default; `lib/tools/mcpToolFactory.ts` spoke only the older HTTP+SSE transport. A useful agent reaches several of them; an agent took one `mcp_server_url`. And most take each user's own OAuth token without issuing a client id in advance: the MCP authorization spec has a client discover the authorization server from the MCP server (protected-resource metadata, RFC 9728; authorization-server metadata, RFC 8414 or OpenID discovery) and register itself (RFC 7591). The engine's `authorization_code` grant ([ADR 0112](/decisions/0112-oauth-grants-declared-beside-the-tool.md)) needed a client id and both endpoints written in the YAML.
+
+The constraints stand: existing SSE YAMLs keep working unchanged; every request passes the SSRF guard and the redirect rule ([ADR 0036](/decisions/0036-redirects-under-the-ssrf-guard.md)); a user's token goes only to hosts the operator binds to its provider ([ADR 0114](/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md)); a server's tools are exposed only by name ([ADR 0041](/decisions/0041-tool-vendors-get-least-privilege.md)).
+
+## Decision
+
+1. **Streamable HTTP first, SSE on the spec's signal.** Each connection (`connectMcp` in `lib/tools/mcpToolFactory.ts`) posts the initialize request over the SDK's `StreamableHTTPClientTransport`. When that POST is answered with a 4xx other than 401 or 403 (`isSseFallbackSignal`: 404 and 405 are what an SSE-only server gives), the attempt's transport is closed and the legacy `SSEClientTransport` is tried once against the same URL, as the spec's backwards-compatibility section describes. A 401 or 403 is the server refusing the credential, which another transport would not change, and a 5xx or a network failure is not a transport question either: neither falls back. The YAML may pin one transport: `mcp_transport:` beside `mcp_server_url`, `transport:` on an `mcp_servers` entry, each `auto` (the default), `streamable_http` or `sse`. Both transports run through the same fetch (`mcpFetch`, or `bearerFetch` inside it with an OAuth grant), so the SSRF guard, the redirect rule, the per-request allowlist check and the credential header are identical; a transport that fails to connect is closed before the error leaves, so nothing keeps reconnecting; every open transport is closed by `closeMcpConnections()`. An existing SSE URL connects in `auto` with one extra POST.
+2. **Several servers per agent: `mcp_servers:`.** A list of `{ name, url, tools, auth?, transport? }`, at most 16, beside the single-server keys, which stay valid. `tools` is required on every entry: the agent's reach is the names it lists, and so is the collision check. A tool name listed on two servers, or shared with the agent's own `tools` or OpenAPI `operations`, is refused **at load** with the key path (`mcpServersProblems` in `lib/syndicateSchema.ts`); a config built in code that skipped the loader is refused at compile (`resolveAgentTools` in `lib/compile.ts`). `mcp_servers` cannot stand beside `mcp_server_url` on one agent. `require_approval` may name any server's tool. Each entry's grant is its own `auth: { oauth2 }`, the same block as `mcp_auth`, and every place that reads grants and credential uses (the consent clients, the boot-time allowlist check, the credential host check, the doctor) reads the entries too. The single-server form keeps its own rule: a discovered name the agent already has keeps the agent's tool.
+3. **Dynamic client registration: `client_registration: dynamic`.** On an MCP server's `authorization_code` grant (under `mcp_auth` or an entry's `auth`), with no `client_id`, `client_id_env`, `client_secret_env`, `authorization_url` or `token_url` beside it; refused on an OpenAPI entry, which has no MCP server to discover from, and with `client_credentials`. When the consent step first needs the client, `dynamicOAuthClient` (`lib/tools/oauthDiscovery.ts`):
+   - reads the MCP server's protected-resource metadata (path-specific well-known URL, then the root), which must name the MCP server as its resource, and takes its first authorization server; a server with none is its own authorization server, as the 2025-03-26 spec revision had it;
+   - reads the authorization server's metadata (RFC 8414 with the path inserted, OpenID discovery inserted, OpenID discovery appended), whose `issuer` must match; it must advertise PKCE `S256` and a `registration_endpoint`, or the grant is refused;
+   - registers a public client (`token_endpoint_auth_method: none`) for the one configured redirect URI, with the `authorization_code` and `refresh_token` grants and the YAML's scopes;
+   - sends the MCP server's canonical URI as the RFC 8707 `resource` parameter on the authorization request, the code exchange and every refresh (`OAuthClientConfig.resource`).
+4. **Discovery never widens the allowlist.** Every URL discovery fetches (the two metadata documents, the registration endpoint) and every endpoint it returns (authorization, token) must be a host the operator's allowlist binds to the provider, checked before any request is made: a discovered host outside it is refused by name, not skipped, and no request reaches it. The same holds for the SSRF guard unless private hosts are allowed (`ALLOW_PRIVATE_MCP`). No request follows a redirect; each has a time limit and a bounded body. The allowlist in force is checked again each time the cached client is used, and the token endpoint again at each refresh (`oauthCallProblem`).
+5. **The registered client is kept in the existing credential store, with no migration.** One row per provider, MCP server (its canonical URI) and redirect URI, in `melchizedek_tool_credentials`, sealed by the credential cipher (`MELCHIZEDEK_CREDENTIAL_KEY`) under the same AAD binding as a user's token. Its app name is `oauth-client:dcr`, which carries `:`, a character no memory namespace (the app a run pins) can hold, so no run's credential key reaches the row and no tool call can read it as a token; its user id is a SHA-256 of the server and the redirect URI. A row this key cannot open, a client secret past `client_secret_expires_at`, or discovered endpoints that moved are registered again and overwritten: a registration holds no user's data, so failing open to a fresh registration loses nothing. Without a credential key there is no consent step and nothing registers.
+6. **The consent step takes a client source.** `oauthConsent({ providers })` and `oauthRefreshProviders` accept, per provider, either a configured `OAuthClientConfig` (checked at boot, as before) or an `OAuthClientSource`, a function that answers the client when first needed (checked each time it answers). A source that fails is `ConsentError('registration_failed')`, logged for the operator by host and role, never a value, and is tried again on the next use. `oauthClientsFor` returns the configured clients as before; `dynamicOAuthGrantsFor` returns the dynamic grants, and `oauthServerSetup` makes each one a source for the configured redirect URI. One provider declared twice must still agree, dynamic or not.
+
+## Alternatives considered
+
+- **SSE first, Streamable HTTP on failure.** Rejected: the spec makes Streamable HTTP the default and keeps SSE for backwards compatibility, and an SSE-first probe would leave a GET stream half-open against every modern server.
+- **Pick the transport from the URL** (`/sse` means SSE). Rejected: a convention, not the protocol; servers mount either transport at any path, and some serve both.
+- **Fall back on any failure,** as the SDK's own example does. Rejected: a 401 or a network failure would then be retried over a transport that cannot succeed, and the operator would read the SSE error instead of the real one.
+- **Namespace tool names by server** (`tracker__lookup`). Rejected for now: the model reads the name, `require_approval` and `tool_choice` name it, and a rewritten name differs from the one the server's own documentation uses. Refusal by name is the conservative default; a namespacing option can be added later without changing what refuses today.
+- **Make `tools` optional on an `mcp_servers` entry** (everything the server lists, as `mcp_server_url` without `mcp_tools`). Rejected: the collision check would move from load to whatever the servers list at startup, so a server adding a tool could stop an agent from compiling, and the agent's reach would not be readable in the file.
+- **Allow `mcp_servers` beside `mcp_server_url`.** Rejected: two spellings of one thing on one agent, with different collision rules. The single-server form stays for the files that use it.
+- **Endpoints written in the YAML beside dynamic registration** (register at a named `registration_url`). Rejected for now: the spec's discovery is what the hosted servers publish, and a YAML that writes endpoints can write a client id too. A static client stays the way to pin endpoints.
+- **The SDK's `OAuthClientProvider` and `auth()`.** Rejected: its flow runs inside the transport and redirects a browser the A2A server does not have, and its discovery fetches whatever the metadata names; the engine's consent pause, sealed store and allowlist would have to be rebuilt around it. Discovery here is a few hundred lines that check every host first.
+- **A new table for registered clients** (migration 0015). Rejected: the credential store already seals, keys and audits rows per provider, and its rows suffice under an app name no run can hold; a migration would also collide with sibling changes numbering theirs.
+- **Register a confidential client and keep its secret.** Not chosen: the spec's clients are public PKCE clients, and a secret the server issues anyway is kept sealed and sent in the token request body.
+
+## Consequences
+
+- `tests/mcpStreamable.test.ts` proves, against a Streamable HTTP and a legacy SSE server in the process: `auto` over Streamable HTTP; the fallback to SSE after the 404, with an existing `/sse` URL unchanged; a pinned transport using that one only; no fallback on 401; an OAuth grant's token on Streamable HTTP requests; `mcp_servers` merging three servers' named tools with `require_approval` gating one; every load-time refusal by key path; and the compile-time refusal for a config built in code.
+- `tests/oauthDiscovery.test.ts` proves, against a fake authorization server: discovery through protected-resource metadata and from the origin; a foreign issuer, a foreign token endpoint, an MCP server off the allowlist, a missing allowlist and a provider not on it refused by name with no request reaching the foreign host and nothing registered; no S256, no registration endpoint and a mismatched resource refused; the consent flow end to end with the registered client, PKCE S256, the `resource` parameter and no client secret; the registration sealed, reused, and per redirect URI; and the server setup offering the dynamic grant's consent.
+- An agent may now reach several MCP servers; each listed tool is still a deliberate act in the YAML.
+- `OAuth2AuthConfig.token_url` is optional in the type (required by the schema unless the grant is dynamic). `OAuthConsentOptions.providers` and `oauthRefreshProviders` take a client source too; `OAuthClientConfig` gains `resource`; `ConsentErrorCode` gains `registration_failed`. These are additive for callers that pass configured clients.
+- A dynamic grant registers once per deployment (redirect URI) and server. The registration is not erased with a user's data: it holds none.
+- The protected-resource metadata URL a server names in its 401 `WWW-Authenticate` header is not read; the well-known URLs are. A server that publishes its metadata only through the header is not discovered.

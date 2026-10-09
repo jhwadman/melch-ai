@@ -12,7 +12,7 @@ Gemini, Claude, GPT, Grok, and Kimi each run on the engine's own adapter for the
 
 - **Declarative YAML configuration** — Orchestrators, subagents, routing, output schemas, and tool assignments in one readable document. Tools and guards are registered in code; YAML names them.
 - **Multi-model routing** — Mix providers within the same agent graph (`gemini-*`, `claude-*`, `gpt-*`, `grok-*`, `kimi-*`, and local `ollama/*`). Switching an agent's model is a one-line change.
-- **MCP integration** — Give a subagent an `mcp_server_url:` and the server's tools are discovered and wrapped as agent tools at runtime. URLs are SSRF-guarded. In the other direction, `melchizedek-mcp` serves your syndicates as MCP tools to Claude Code, Codex and other MCP clients.
+- **MCP integration** — Give an agent an `mcp_server_url:`, or several servers under `mcp_servers:`, and their tools are discovered over Streamable HTTP (or legacy SSE) and wrapped as agent tools at runtime. URLs are SSRF-guarded; an OAuth server with no pre-issued client is discovered and registered at, within the operator's host allowlist. In the other direction, `melchizedek-mcp` serves your syndicates as MCP tools to Claude Code, Codex and other MCP clients.
 - **Persistent sessions & long-term memory** — Optional Supabase backend for session persistence and pgvector memory: transcripts are distilled into structured records and recalled by similarity in later sessions. Without it, sessions run in memory.
 - **Native tools** — Web search, image generation, and a blind image-inventory tool that accepts only a file path, so the expected result can never reach the observer.
 - **Agent-to-Agent (A2A) serving** — Serve any syndicate over HTTP as a JSON-RPC endpoint with bearer auth and rate limiting.

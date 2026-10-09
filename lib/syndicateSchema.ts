@@ -30,6 +30,7 @@ import { isSecretShapedEnvName } from './tools/skills/env.ts';
 import { OAUTH_SCOPE, PROVIDER_NAME } from './tools/auth.ts';
 import type { EdgeElement, WorkflowNodeYaml } from './workflowConfig.ts';
 import { V2_AGENT_KEYS, conflictMessage, conflictsOf, toEngineAgent } from './agentDialect.ts';
+import { MCP_TRANSPORTS } from './tools/mcpTransports.ts';
 
 // ── Leaf rules ───────────────────────────────────────────────────────────────
 
@@ -253,8 +254,14 @@ const oauth2Auth = z
     grant: z
       .enum(['authorization_code', 'client_credentials'])
       .describe('authorization_code: each user\'s own token, granted through the consent pause (ADR 0085). client_credentials: the server\'s own token, from the token endpoint.'),
-    authorization_url: z.string().url().optional().describe('The provider\'s authorization endpoint (https). authorization_code only.'),
-    token_url: z.string().url().describe('The provider\'s token endpoint (https).'),
+    client_registration: z
+      .literal('dynamic')
+      .optional()
+      .describe(
+        '"dynamic": an MCP server\'s authorization_code grant with no pre-issued client. The authorization server is discovered from the MCP server (RFC 9728, RFC 8414) and this deployment registers itself as a public PKCE client (RFC 7591), once per server and redirect URI, sealed in the credential store (ADR 0124). Every discovered host must be on the operator\'s OAuth host allowlist. MCP servers only; no client id, client secret or endpoint URL beside it.',
+      ),
+    authorization_url: z.string().url().optional().describe('The provider\'s authorization endpoint (https). authorization_code only; discovered with client_registration: dynamic.'),
+    token_url: z.string().url().optional().describe('The provider\'s token endpoint (https). Required, except with client_registration: dynamic, which discovers it.'),
     client_id: z.string().min(1).max(512).optional().describe('The OAuth client id, written out (it is not a secret). Or client_id_env.'),
     client_id_env: envName.optional().describe('Environment variable holding the client id. Or client_id.'),
     client_secret_env: envName
@@ -264,12 +271,20 @@ const oauth2Auth = z
     authorization_params: z
       .record(z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/), z.string().max(512))
       .optional()
-      .describe('Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id or the PKCE pair.'),
+      .describe('Extra authorization parameters (e.g. access_type: offline). authorization_code only; never state, redirect_uri, scope, client_id, resource or the PKCE pair.'),
   })
   .superRefine((o, ctx) => {
-    if (!!o.client_id === !!o.client_id_env) ctx.addIssue({ code: 'custom', path: ['client_id'], message: 'exactly one of client_id or client_id_env' });
-    if (o.grant === 'authorization_code' && !o.authorization_url) {
-      ctx.addIssue({ code: 'custom', path: ['authorization_url'], message: 'an authorization_code grant needs authorization_url' });
+    if (o.client_registration === 'dynamic') {
+      if (o.grant !== 'authorization_code') ctx.addIssue({ code: 'custom', path: ['client_registration'], message: 'client_registration: dynamic is for an authorization_code grant' });
+      for (const key of ['client_id', 'client_id_env', 'client_secret_env', 'authorization_url', 'token_url'] as const) {
+        if (o[key] !== undefined) ctx.addIssue({ code: 'custom', path: [key], message: `${key} cannot be combined with client_registration: dynamic, which discovers the endpoints and registers the client (ADR 0124)` });
+      }
+    } else {
+      if (!!o.client_id === !!o.client_id_env) ctx.addIssue({ code: 'custom', path: ['client_id'], message: 'exactly one of client_id or client_id_env' });
+      if (o.token_url === undefined) ctx.addIssue({ code: 'custom', path: ['token_url'], message: 'token_url is required (on an MCP server, client_registration: dynamic discovers it)' });
+      if (o.grant === 'authorization_code' && !o.authorization_url) {
+        ctx.addIssue({ code: 'custom', path: ['authorization_url'], message: 'an authorization_code grant needs authorization_url' });
+      }
     }
     if (o.grant === 'client_credentials') {
       if (!o.client_secret_env) ctx.addIssue({ code: 'custom', path: ['client_secret_env'], message: 'a client_credentials grant needs client_secret_env' });
@@ -277,12 +292,40 @@ const oauth2Auth = z
         if (o[key] !== undefined) ctx.addIssue({ code: 'custom', path: [key], message: `${key} is for authorization_code only` });
       }
     }
-    const reserved = ['state', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'client_id', 'response_type', 'scope'];
+    const reserved = ['state', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'client_id', 'response_type', 'scope', 'resource'];
     for (const key of Object.keys(o.authorization_params ?? {})) {
       if (reserved.includes(key)) ctx.addIssue({ code: 'custom', path: ['authorization_params', key], message: `authorization_params may not set "${key}"` });
     }
   })
   .describe('An OAuth 2 access token sent as a bearer token on every call (lib/tools/oauthTools.ts). Secrets come from environment variable names, never values.');
+
+// ── MCP (ADR 0124) ───────────────────────────────────────────────────────────
+
+const mcpTransport = z
+  .enum(MCP_TRANSPORTS)
+  .describe('How the MCP server is reached: auto (the default) tries Streamable HTTP and falls back to the legacy SSE transport on the spec\'s signal; streamable_http or sse use that one only (ADR 0124).');
+
+/** An `mcp_servers` entry's name: lowercase, bounded, one character class (no backtracking). */
+export const MCP_SERVER_NAME = /^[a-z][a-z0-9_-]{0,63}$/;
+
+const mcpServerEntry = z
+  .strictObject({
+    name: z
+      .string()
+      .regex(MCP_SERVER_NAME, 'lowercase letters, digits, _ and -, starting with a letter (at most 64)')
+      .describe('A short name for the server, unique on this agent: logs and errors name it.'),
+    url: z.string().url().describe('The MCP server\'s URL: its Streamable HTTP endpoint, or a legacy SSE endpoint. Checked by the SSRF guard.'),
+    tools: z
+      .array(z.string().min(1))
+      .min(1)
+      .describe('The server\'s tools this agent may use, by name; any other tool it lists is not exposed. A name may appear on one server only, and never among the agent\'s own tools. require_approval may name these.'),
+    auth: z
+      .strictObject({ oauth2: oauth2Auth })
+      .optional()
+      .describe('The OAuth grant this server takes (ADR 0112, ADR 0124). Without it, MCP_BEARER_TOKENS applies.'),
+    transport: mcpTransport.optional(),
+  })
+  .describe('One MCP server among several (ADR 0124).');
 
 // ── OpenAPI ──────────────────────────────────────────────────────────────────
 
@@ -364,7 +407,7 @@ const agentFields = {
   mcp_server_url: z
     .string()
     .optional()
-    .describe('MCP server (SSE) whose tools are discovered at runtime and merged with `tools`.'),
+    .describe('MCP server (Streamable HTTP, or legacy SSE) whose tools are discovered at runtime and merged with `tools`. For more than one server, use mcp_servers.'),
   mcp_tools: z
     .array(z.string().min(1))
     .min(1)
@@ -374,6 +417,13 @@ const agentFields = {
     .strictObject({ oauth2: oauth2Auth })
     .optional()
     .describe('The OAuth grant the MCP server takes (ADR 0112). With authorization_code, each user\'s own token on their own connection, and mcp_tools is required. Needs mcp_server_url; replaces MCP_BEARER_TOKENS for this server.'),
+  mcp_transport: mcpTransport.optional().describe('How mcp_server_url is reached: auto (the default), streamable_http or sse (ADR 0124). Needs mcp_server_url.'),
+  mcp_servers: z
+    .array(mcpServerEntry)
+    .min(1)
+    .max(16)
+    .optional()
+    .describe('Several MCP servers, each with the tools this agent may use from it, its grant and its transport (ADR 0124). Cannot be combined with mcp_server_url.'),
   skills: skillsSchema.optional(),
   openapi: z.array(openapiEntry).min(1).optional(),
   code_execution: z
@@ -754,6 +804,56 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
 /** Same normalisation lib/dispatch.ts uses to match a route to a subagent. */
 const routeNorm = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
 
+/** Every tool name an agent's `mcp_servers` entries list. */
+function mcpServerTools(agent: Record<string, unknown>): string[] {
+  return (Array.isArray(agent.mcp_servers) ? agent.mcp_servers : []).flatMap((e) => (isObj(e) && Array.isArray(e.tools) ? e.tools.filter((t): t is string => typeof t === 'string') : []));
+}
+
+/**
+ * An agent's `mcp_servers` against itself and its other keys (ADR 0124):
+ * not beside `mcp_server_url`; names unique; a tool name on one server only
+ * and never among the agent's own `tools` or OpenAPI `operations`, so no
+ * server can shadow another's tool or the agent's own; and dynamic client
+ * registration only here or under `mcp_auth`, never on an OpenAPI entry.
+ */
+function mcpServersProblems(agent: Record<string, unknown>, path: (string | number)[]): Problem[] {
+  const out: Problem[] = [];
+  (Array.isArray(agent.openapi) ? agent.openapi : []).forEach((e, i) => {
+    if (isObj(e) && isObj(e.auth) && isObj(e.auth.oauth2) && e.auth.oauth2.client_registration !== undefined) {
+      out.push({ path: [...path, 'openapi', i, 'auth', 'oauth2', 'client_registration'], message: 'client_registration: dynamic discovers its endpoints from an MCP server; an OpenAPI entry names its own (ADR 0124)' });
+    }
+  });
+  if (!Array.isArray(agent.mcp_servers)) return out;
+  if (agent.mcp_server_url !== undefined) {
+    out.push({ path: [...path, 'mcp_servers'], message: 'cannot be combined with mcp_server_url: list that server as one more mcp_servers entry (ADR 0124)' });
+  }
+  const own = new Set<string>([
+    ...(Array.isArray(agent.tools) ? agent.tools.filter((t): t is string => typeof t === 'string') : []),
+    ...(Array.isArray(agent.openapi) ? agent.openapi : []).flatMap((e) => (isObj(e) && Array.isArray(e.operations) ? e.operations.filter((t): t is string => typeof t === 'string') : [])),
+  ]);
+  const names = new Map<string, number>();
+  const owner = new Map<string, string>();
+  agent.mcp_servers.forEach((entry, i) => {
+    if (!isObj(entry)) return;
+    const name = typeof entry.name === 'string' ? entry.name : `#${i}`;
+    if (typeof entry.name === 'string') {
+      if (names.has(entry.name)) out.push({ path: [...path, 'mcp_servers', i, 'name'], message: `'${entry.name}' names mcp_servers entry ${names.get(entry.name)} too; each server's name is unique on the agent` });
+      else names.set(entry.name, i);
+    }
+    (Array.isArray(entry.tools) ? entry.tools : []).forEach((tool, j) => {
+      if (typeof tool !== 'string') return;
+      if (own.has(tool)) {
+        out.push({ path: [...path, 'mcp_servers', i, 'tools', j], message: `'${tool}' is also one of this agent's own tools; an MCP server's tool may not share a name with it (ADR 0124)` });
+      } else if (owner.has(tool) && owner.get(tool) !== name) {
+        out.push({ path: [...path, 'mcp_servers', i, 'tools', j], message: `'${tool}' is also listed on MCP server '${owner.get(tool)}'; a tool name may come from one server only (ADR 0124)` });
+      } else {
+        owner.set(tool, name);
+      }
+    });
+  });
+  return out;
+}
+
 /**
  * Rules that span fields, which a JSON Schema an editor reads cannot express
  * cleanly. Defensive about shape: runs on raw input alongside zod, so a file
@@ -788,10 +888,10 @@ function crossFieldProblems(raw: unknown): Problem[] {
     // An OpenAPI operation can be gated once it is named under `operations`,
     // and an MCP tool once it is named under `mcp_tools`.
     const operations = (Array.isArray(agent.openapi) ? agent.openapi : []).flatMap((e) => (isObj(e) && Array.isArray(e.operations) ? e.operations : []));
-    const mcpTools = Array.isArray(agent.mcp_tools) ? agent.mcp_tools : [];
+    const mcpTools = [...(Array.isArray(agent.mcp_tools) ? agent.mcp_tools : []), ...mcpServerTools(agent)];
     (Array.isArray(agent.require_approval) ? agent.require_approval : []).forEach((name, j) => {
       if (typeof name === 'string' && !tools.includes(name) && !operations.includes(name) && !mcpTools.includes(name)) {
-        out.push({ path: [...path, 'require_approval', j], message: `'${name}' is not in this agent's tools, its openapi operations or its mcp_tools` });
+        out.push({ path: [...path, 'require_approval', j], message: `'${name}' is not in this agent's tools, its openapi operations or its mcp_tools (or an mcp_servers entry's tools)` });
       }
     });
   };
@@ -844,6 +944,10 @@ function crossFieldProblems(raw: unknown): Problem[] {
     if (isObj(agent.mcp_auth) && isObj(agent.mcp_auth.oauth2) && agent.mcp_auth.oauth2.grant === 'authorization_code' && agent.mcp_tools === undefined) {
       out.push({ path: [...path, 'mcp_auth'], message: 'an authorization_code mcp_auth needs mcp_tools: no user\'s grant exists at startup to list the server\'s tools' });
     }
+    if (agent.mcp_transport !== undefined && typeof agent.mcp_server_url !== 'string') {
+      out.push({ path: [...path, 'mcp_transport'], message: 'mcp_transport is how mcp_server_url is reached; it needs mcp_server_url (an mcp_servers entry names its own transport)' });
+    }
+    out.push(...mcpServersProblems(agent, path));
   };
   if (isObj(raw.orchestrator)) executionProblems(raw.orchestrator, ['orchestrator'], true);
   // max_concurrency bounds an orchestrator's delegated calls (ADR 0116): a workflow bounds its nodes under workflow:, and a dispatch classifier delegates nothing.
