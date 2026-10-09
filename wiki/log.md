@@ -31,9 +31,21 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
-## [2026-10-09] build | structural build: 1 created, 1 updated
+## [2026-10-09] relate | /decisions/0125-syndicates-as-mcp-tools.md —depends_on→ /decisions/0024-adk-behind-the-runtime-seam.md
 
-by process:wiki-build
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | module:lib/mcp/server.ts —depends_on→ module:lib/a2a/executor.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0125-syndicates-as-mcp-tools.md —constrains→ module:scripts/mcp_server.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0125-syndicates-as-mcp-tools.md —constrains→ module:lib/mcp/server.ts
+
+by claude-code/claude-opus-5-5
 
 ## [2026-10-09] relate | /decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md —constrains→ module:lib/tools/auth.ts
 

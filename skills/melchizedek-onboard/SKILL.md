@@ -44,6 +44,26 @@ Levels 6 to 8 sit on top of a model level (1 to 5): settle how models are paid f
 
 4. Print the level's guide with `--level <id>` and walk it step by step: the person sets the variables, you run the doctor command the guide names and read its verdicts back to them, then you run the first command.
 
+## Use melch from Claude Code or Codex
+
+Once a level is confirmed, the person can call their syndicates from inside their coding agent: `melchizedek-mcp` makes each syndicate an MCP tool (`{ message, session_id? }`), plus `melch_resume` for a turn that pauses. Register it from the project directory, where `.env` and `config/agents/` live:
+
+```bash
+claude mcp add melch -- npx melchizedek-mcp --syndicate <id>
+```
+
+For Codex, add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.melch]
+command = "npx"
+args = ["-y", "-p", "melchizedek-agents", "melchizedek-mcp", "--syndicate", "<id>"]
+cwd = "/path/to/the/project"
+tool_timeout_sec = 900
+```
+
+When a result says an approval is waiting, ask the person and pass their decision to `melch_resume` with `approve`; never approve on their behalf. Keys stay in `.env`: the MCP registration names no key.
+
 ## Done when
 
 The doctor shows the level's confirmation (the guide's **Confirm** line), and the first command has answered once. Then hand over to the `melchizedek` skill for the catalog of syndicates.
