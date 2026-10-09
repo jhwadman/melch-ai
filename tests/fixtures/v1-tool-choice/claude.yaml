@@ -1,0 +1,30 @@
+syndicate_name: "Claude tool choice"
+orchestrator:
+  name: "Planner"
+  model: "claude-opus-5-5"
+  instruction: |
+    Plan the work, then call the tools you need.
+  generateContentConfig:
+    temperature: 1
+    toolConfig:
+      functionCallingConfig:
+        mode: AUTO
+      includeServerSideToolInvocations: true
+    reasoningEffort: max
+
+subagents:
+  - name: "Checker"
+    description: "Checks one claim with the lookup tool."
+    model: "claude-sonnet-4-6"
+    instruction: |
+      Check the claim; call lookup once.
+    generateContentConfig:
+      toolConfig:
+        functionCallingConfig:
+          mode: ANY
+          allowedFunctionNames:
+            - lookup
+      thinkingConfig:
+        thinkingBudget: 16384
+        includeThoughts: true
+      reasoningEffort: xhigh

@@ -66,6 +66,7 @@ import type { ProviderEndpoint } from './endpoints.ts';
 import { currentTurnStart, providerStateOf, withProviderState } from './providerState.ts';
 import { errorDecision, errorText } from './errorResponse.ts';
 import { adaptiveThinkingFor, claudeGeneration, claudeReasoningOf, claudeUrlImagesOn, THINKING_BINDING_BETA } from './claudeModels.ts';
+import { isAboveHigh } from './reasoning.ts';
 
 /** The provider id this adapter reports and writes its state under (lib/models/providerMap.ts). */
 export const ANTHROPIC_PROVIDER = 'anthropic';
@@ -464,6 +465,8 @@ export class ClaudeAdapter implements ModelAdapter {
     } else {
       const requestedBudget = reasoning.budget;
       thinkingConfigured = typeof requestedBudget === 'number' && requestedBudget > 0;
+      // The budget generations stop at `high`'s budget (ADR 0117).
+      if (isAboveHigh(request.reasoning)) setLlmSpanAttribute('llm.reasoning.weakened', request.reasoning);
       if (thinkingConfigured && continuesUnsignedToolLoop(messages)) {
         // The tool call this step answers carries no signed thinking (another
         // provider or model made it, or its state was lost), and Anthropic

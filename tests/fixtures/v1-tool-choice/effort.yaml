@@ -1,0 +1,50 @@
+syndicate_name: "Effort words"
+orchestrator:
+  name: "Lead"
+  model: "kimi-k3"
+  instruction: |
+    Think as hard as the model allows, then answer.
+  generateContentConfig:
+    # Moonshot's costliest effort, on purpose.
+    reasoningEffort: max
+    toolConfig: { functionCallingConfig: { mode: ANY, allowedFunctionNames: [lookup] } }
+
+subagents:
+  - name: "Coder"
+    description: "Writes the code."
+    model: "gpt-5.4"
+    instruction: |
+      Write the code.
+    generateContentConfig:
+      reasoningEffort: xhigh
+      toolConfig:
+        functionCallingConfig:
+          mode: NONE
+  - name: "Older"
+    description: "Reviews on an older GPT."
+    model: "gpt-5-mini"
+    instruction: |
+      Review the code.
+    generateContentConfig:
+      reasoningEffort: max
+  - name: "Scout"
+    description: "Searches X."
+    model: "grok-4.7"
+    instruction: |
+      Search, then report.
+    generateContentConfig:
+      reasoningEffort: max
+      toolConfig:
+        functionCallingConfig:
+          mode: ANY
+  - name: "Local"
+    description: "Runs locally."
+    model: "ollama/qwen3:8b"
+    instruction: |
+      Answer briefly.
+    generateContentConfig:
+      reasoningEffort: xhigh
+      toolConfig:
+        functionCallingConfig:
+          mode: ANY
+          allowedFunctionNames: [lookup, fetch]

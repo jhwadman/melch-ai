@@ -105,4 +105,4 @@ if (json) {
   console.log(renderDoctor(result, { color: !noColor }));
 }
 
-if (check && (result.counts.blocked > 0 || result.runtime.problem || result.oauth?.problems.length)) process.exit(1);
+if (check && (result.counts.blocked > 0 || result.runtime.problem || result.oauth?.problems.length || result.credentials?.problems.length)) process.exit(1);

@@ -48,6 +48,8 @@ Reading ADK 2.2 showed:
 
 > **Note (2026-10-09):** [ADR 0111](/decisions/0111-pauses-inside-nested-syndicates.md) lifts the refusal of a nested workflow's `ask_user` node and gates when the workflow is a delegated subagent; as a dispatch route or a workflow node they stay refused.
 
+> **Note (2026-10-09):** [ADR 0119](/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md) lifts those refusals too, and files a route's or node's child session under the agent path (`<app>/<entry>`) instead of the entry's name.
+
 ## Alternatives considered
 
 - **Run a nested workflow node inline, as ADK's own `Workflow` node does.** ADK is the specification where it runs a case ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)), and inline would keep one session. But the native walk would need ADK's nested-path rehydration, and a pause inside the nested graph would then be a pause of the caller: that is WS6-2, not this record. The child session is the shape ADR 0098 already gives a nested workflow, so one nested workflow behaves one way wherever it appears; the adk runtime refuses the node rather than store a different session.

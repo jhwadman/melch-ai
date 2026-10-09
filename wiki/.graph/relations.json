@@ -3118,6 +3118,306 @@
       "at": "2026-10-09"
     },
     {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/agentDialect.ts",
+      "rel": "explains",
+      "evidence": "ADR 0117 Decision 1: toEngineAgent (lib/agentDialect.ts) folds tool_choice into generateContentConfig.toolConfig.functionCallingConfig (functionCallingConfigOf), as one more row of the V2_SPELLINGS table.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0117 Decisions 1 and 2: tool_choice is auto | none | required | { name }, refused beside toolConfig.functionCallingConfig and on a yaml_reference or a2a_agent_url subagent; REASONING_LEVELS gains xhigh and max.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/reasoning.ts",
+      "rel": "explains",
+      "evidence": "ADR 0117 Decision 2: reasoningConfig writes xhigh and max as asked (Kimi xhigh as max); effortCeiling and effortWord hold the word at each model's ceiling and report the level weakened.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/genaiMapping.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0117 Decision 2: reasoningOf reads xhigh and max as levels and prefers them to a thinkingConfig that says high (HIGH or 16,384), which is what the compiler writes beside them.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0117 Decision 2: REASONING_ABOVE_HIGH states, per matrix row, what xhigh and max reach the provider as; renderCapabilityMatrix renders it.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:lib/models/chatCompletionsAdapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0117 Decision 2: reasoning_effort is held at reasoningCeiling(model) through effortFor, which marks the span llm.reasoning.weakened; the gateway holds every id at high.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "module:scripts/yaml_codemod.ts",
+      "rel": "explains",
+      "evidence": "ADR 0117 Decisions 3 and 4: the codemod converts toolConfig to tool_choice and xhigh/max to reasoning: where the engine reads the same, and drops includeThoughts, which nothing reads.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "/decisions/0115-yaml-schema-v2-provider-neutral-keys.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0117 Context: ADR 0115 left toolConfig, the effort words xhigh and max, and includeThoughts with no v2 form; ADR 0117 extends its spelling table and its codemod rule.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0117-tool-choice-and-effort-above-high-in-v2.md",
+      "to": "/decisions/0047-provider-neutral-reasoning-key.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0117 Decision 2: xhigh and max extend ADR 0047's reasoning levels; Kimi's xhigh rounds up to max under ADR 0047 section 4, and the 16,384 budget cap keeps ADR 0047's SDK-ceiling reasoning.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "syndicate:council",
+      "to": "/decisions/0116-a-steps-subagent-calls-run-at-once-under-max-concurrency.md",
+      "rel": "depends_on",
+      "evidence": "config/agents/examples/council.yaml, the Moderator's instruction: call the Advocate and the Skeptic \"together, both function calls in the same response, so they work at once\" — the at-once run is ADR 0116's concurrent delegation under max_concurrency.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0110: ADR 0118 lifts item 8's refusal of skill scripts on a delegated subagent and carries an OAuth consent request inside one through the open call.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "item 8's skill-script refusal only"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0118 Decision 1 and 5: the script approval and the grant's answer use ADR 0110's walk (delegatedPauses) and resume (resumedDelegations, resumeSubagent).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0085: a delegated subagent's loop gets the consent step too; the Consequences line on delegated subagents no longer holds.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "the delegated-subagent consequence only"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0118 Decision 6: ADR 0114's host checks stay at load, compile and each call; a resumed child call is a call like any other.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "explains",
+      "evidence": "ADR 0118 Decision 2: runChild passes the caller's consent step with begin pinned to the caller's app (consentPinnedTo).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0118 Decisions 4 and 5: delegatedPauses reports a child's own open consent request with the path, and resumedDelegations carries adk_request_credential answers down by interrupt id.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0118 Decision 1: skills.scripts: local is allowed on a delegated subagent; an agent a map node runs still may not carry scripts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "syndicate:systems_operator",
+      "rel": "explains",
+      "evidence": "config/agents/templates/systems_operator.yaml header: authorization_code \"works on Systems too: the first call for a person who has not connected pauses the turn with an authorization link ... (ADR 0118)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/credentialHosts.ts",
+      "rel": "explains",
+      "evidence": "ADR 0122 Decision 1-4: the credential host allowlist, its format, what it covers and the rule (unset: as before; set: the whole list) live in lib/tools/credentialHosts.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/credentialUses.ts",
+      "rel": "explains",
+      "evidence": "ADR 0122 Decision 3 and 5: syndicateCredentialUses lists every variable a served YAML sends, and syndicateCredentialHostProblems refuses one the allowlist does not bind at load.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: buildOpenApiOwnTools refuses a bearer_env or api_key aimed at a host its variable is not bound to, and each call checks again and sends nothing when refused.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: oauthTokenSource and oauthClientsFor refuse a client_secret_env whose token_url is off its binding, and the token request and refresh hook check again before sending.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: the consent step's code exchange checks the client secret's variable against the allowlist before sending it, failing as exchange_failed.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: createA2AApp takes credentialHosts and refuses a syndicate that sends a credential the allowlist does not permit when it loads one to serve.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 3 and 5: oauthServerSetup refuses a served file the credential allowlist refuses, throws on a malformed one, and warns naming each unbound variable.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 3: the doctor shows a credentials line naming each unbound variable as a warning, and each refusal as a --check failure.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0122 Context and Decision 1: it extends ADR 0114's operator binding, in the same host format, from OAuth providers to static credential variables.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0119 Decision 1 lifts ADR 0111 Decision 4 (a nested workflow's gates and ask_user nodes refused as a dispatch route or a workflow node); dated note on ADR 0111.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 4 only"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0119 Decisions 1 and 2: the refusals of ADR 0106 Decision 5 are lifted, and the route's and node's child session moves from the entry's name to entryAppName; dated note on ADR 0106.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "Decision 5 and the child session key"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0094-workflow-resume-rebuilds-node-states-from-the-events.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0119 Decision 5: the caller's own resume reruns the waiting node with the answers; \"Raising the requests again on the node's event satisfies both rules unchanged\" (raisedInterrupt, assertResumable).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "/decisions/0098-workflow-subagent-and-node-approvals.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0119 Decision 5: the node raises its walk's requests again \"as waitAgain does for an agent node\"; Decision 4 repeats a waiting approval \"as a workflow turn answers it (ADR 0098)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 5: runWorkflowNode raises a paused walk's open requests again on the caller's walk and walks the graph again on the answered ids.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 4: a route walk that ends paused stores the route's pause record; a decision or plain-text answer resumes the route without classifying.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decisions 4 and 6: routePause, nestedWorkflowPause and deepestPause find a route's or node's pause by id down to the node that asked.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decisions 2 and 3: entryAppName and entrySession file the child session under the agent path, continuing a 1.1.0 session under the entry's name.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/compile.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 1: loadNestedSyndicate and compileWorkflowSpec no longer refuse a nested workflow's gates and ask_user nodes; delegated no longer changes what compiles.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "to": "module:lib/a2a/executor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0119 Decision 6: \"The A2A executor reads a paused route and a raised request the same way, so approve and reject work and the repeated request carries the path.\"",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
       "from": "/decisions/0123-onboarding-levels-from-one-generator.md",
       "to": "module:lib/onboarding.ts",
       "rel": "constrains",

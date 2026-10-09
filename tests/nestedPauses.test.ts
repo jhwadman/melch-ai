@@ -7,6 +7,8 @@
  * workflow's ask_user node and gated agent node; what stays refused, with
  * its reason; child sessions filed under the agent path, and conversations
  * stored under the old key resuming. Over runSyndicateTurn and over A2A.
+ * A nested workflow run as a dispatch route or a workflow node:
+ * tests/workflowChildPauses.test.ts (ADR 0119).
  * Scripted models, in-memory sessions, no network.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
@@ -245,26 +247,6 @@ test('a nested workflow’s gated agent node: reject never runs the call; the no
   assert.equal(second.status, 'completed', second.error?.message);
   assert.deepEqual(sent, []);
   assert.match(second.text, /^Boss: "report\(send saw .*rejected/);
-});
-
-test('a nested workflow’s gates stay refused where its pause cannot reach the turn: as a dispatch route and as a workflow node', async () => {
-  const route = config({
-    syndicate_name: 'Front',
-    orchestrator: { name: 'Router', model: 'scripted/router', instruction: 'Classify.' },
-    subagents: [agent('Chat'), { name: 'Writer', description: 'Writes.', yaml_reference: 'pipeline.yaml' }],
-    dispatch: { default_route: 'Chat' },
-  });
-  const node = config({
-    syndicate_name: 'Room',
-    memory_system: 'internal-only',
-    orchestrator: agent('Lead'),
-    subagents: [{ name: 'Writer', description: 'Writes.', yaml_reference: 'pipeline.yaml' }],
-    workflow: { edges: [['START', 'Lead', 'Writer']] },
-  });
-  for (const cfg of [route, node]) {
-    const c = converse(cfg, { router: () => answer('{"route":"Writer"}'), lead: () => answer('go') }, { 'pipeline.yaml': gatedFlow() });
-    await assert.rejects(c.turn([{ text: 'go' }]), /pipeline\.yaml: approval gates \(require_approval, or skill scripts\) in a workflow run as a dispatch route or a workflow node cannot pause the turn yet/);
-  }
 });
 
 // ── Child sessions by agent path ─────────────────────────────────────────────

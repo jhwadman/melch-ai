@@ -68,7 +68,8 @@
  *   goes as its Kimi word (`medium` → `high`, a budget → the level that
  *   covers it), `none` as `low` since K3 cannot switch thinking off, and a
  *   request with none pins DEFAULT_KIMI_REASONING_EFFORT (lib/config.ts).
- *   `max` has no contract level, so no request sends it.
+ *   `reasoning: max` sends `max`, and `xhigh` rounds up to it (ADR 0117):
+ *   Moonshot's costliest effort, and its default, which the pin avoids.
  *   K2.x models take no reasoning_effort: a `thinking: { type }` switch
  *   instead, so `none` (or a budget of 0) sends `disabled` and any other
  *   setting sends nothing. K2.7 Code (and its highspeed variant) cannot
@@ -121,7 +122,6 @@ import type { ReasoningSetting, ToolChoiceMode } from './contract.ts';
 import { DEFAULT_KIMI_REASONING_EFFORT } from '../config.ts';
 import { ChatCompletionsAdapter, reasonsNotAtAll } from './chatCompletionsAdapter.ts';
 import type { ChatFailure } from './chatCompletionsAdapter.ts';
-import { reasoningConfig } from './reasoning.ts';
 import { trimTrailingSlashes } from './urls.ts';
 
 export const MOONSHOT_BASE_URL = 'https://api.moonshot.ai/v1';
@@ -215,7 +215,7 @@ export class KimiAdapter extends ChatCompletionsAdapter {
   protected override reasoningFields(model: string, setting: ReasoningSetting | undefined): Record<string, unknown> {
     if (isKimiK3(model)) {
       if (setting === undefined) return { reasoning_effort: DEFAULT_KIMI_REASONING_EFFORT };
-      const word = reasoningConfig(model, setting).reasoningEffort;
+      const word = this.effortFor(model, setting);
       return { reasoning_effort: word === 'none' ? 'low' : word }; // K3 cannot switch thinking off
     }
     // K2.7 Code always thinks, and Moonshot refuses `disabled` for it.

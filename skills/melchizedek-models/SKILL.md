@@ -107,7 +107,7 @@ The runtime telemetry attributes every call to the upstream provider and records
 
 ## Settings per agent
 
-Set how hard an agent reasons with `reasoning:` on the agent block, beside `model:`. It takes `none`, `low`, `medium`, `high`, or `{ budget_tokens: 4096 }`, and reads the same on every provider. Leave it unset to keep the provider's default. The compiler sends each provider the field that provider reads:
+Set how hard an agent reasons with `reasoning:` on the agent block, beside `model:`. It takes `none`, `low`, `medium`, `high`, `xhigh`, `max`, or `{ budget_tokens: 4096 }`, and reads the same on every provider. Leave it unset to keep the provider's default. The compiler sends each provider the field that provider reads:
 
 | Provider | What `reasoning:` becomes |
 | --- | --- |
@@ -115,6 +115,8 @@ Set how hard an agent reasons with `reasoning:` on the agent block, beside `mode
 | Gemini 2.x, and Claude 4.6 or older | a thinking budget of 0, 2048, 8192 or 16384 tokens |
 | Every later Claude model | adaptive thinking at an effort of `low`, `medium` or `high`; `none` is the model's own off switch, sent at `low` effort |
 | Every other provider, and the gateway | an effort word; where the provider lacks that word, its nearest setting above |
+
+`xhigh` and `max` ask for more thought than `high`. They reach the models that take them: both on every later Claude model, `max` on Kimi K3 (where `xhigh` rounds up to it), and `xhigh` on GPT-5.2 and later and on grok-4.7. Every other model gets its highest setting instead, and the request's span carries `llm.reasoning.weakened`; the gateway gets `high` for any id. `npm run doctor -- --matrix` lists each path. Both cost more: `max` is Kimi K3's costliest effort.
 
 A `budget_tokens` value goes as written to Gemini and to Claude 4.6 or older, and as the smallest level that covers it everywhere else, later Claude models included. Because the gateway can serve any cloud id, the effort word is always sent as well, and a direct provider ignores the field it does not read. Change the `model:` line and the setting carries over. Unset, a later Claude model keeps its own default: it thinks, except Opus 4.7 and 4.8, which think only when asked.
 
@@ -125,9 +127,11 @@ You can configure sampling under `sampling:` on any agent in the syndicate YAML,
 - `top_p` and `stop`: nucleus sampling and stop sequences.
 - `max_output_tokens`: caps total token generation. Thinking tokens count against it, so a reasoning agent with long output needs room. The Claude adapter raises its own ceiling to the thinking budget plus 2048 tokens, on every Claude model. A level counts as its budget (2048, 8192 or 16384), so `high`, or a later Claude model that thinks by default, gets at least 18432.
 
+`tool_choice:` says which tools the model may call: `auto` (the default), `none`, `required` (some tool), or `{ name: lookup }` (that one tool). It reads the same on every provider. Where a provider rejects forcing a tool, the adapter sends a weaker choice and the span carries `llm.tool_choice.weakened`.
+
 `model_overrides:` gives one provider its own prompt nuance. Key it by `gemini`, `anthropic`, `openai`, `xai`, `moonshot`, or `ollama`; each entry holds `instruction`, which replaces the agent instruction on that provider, or `instruction_append`, which adds text after it. The entry for the provider of the agent `model:` applies, and a `fallback_model` gets the same instruction.
 
-`generateContentConfig:` is the deprecated, Gemini-shaped spelling of `sampling:`, `output.mime`, and `reasoning:` (as `thinkingConfig` and `reasoningEffort`). It still loads and behaves the same, with one deprecation line per file, but a `thinkingLevel` written for Gemini does nothing on Claude. An agent that sets a v2 key beside its v1 spelling fails to load. `npx melchizedek-codemod <file|dir>` rewrites a file to the v2 keys. Only `toolConfig` and the effort words `xhigh` and `max` still need `generateContentConfig:`. `topK`, `seed`, the penalties, `candidateCount`, `safetySettings`, and `includeThoughts` reach no provider; the Gemini adapter asks for the thought trace itself whenever `reasoning:` is not `none`.
+`generateContentConfig:` is the deprecated, Gemini-shaped spelling of `sampling:`, `tool_choice:`, `output.mime`, and `reasoning:` (as `thinkingConfig` and `reasoningEffort`). It still loads and behaves the same, with one deprecation line per file, but a `thinkingLevel` written for Gemini does nothing on Claude. An agent that sets a v2 key beside its v1 spelling fails to load. `npx melchizedek-codemod <file|dir>` rewrites a file to the v2 keys. Only `toolConfig.functionCallingConfig.mode: VALIDATED` and Gemini's dynamic budget (`thinkingBudget: -1`) still need `generateContentConfig:`; the codemod drops `includeThoughts`. `topK`, `seed`, the penalties, `candidateCount`, `safetySettings`, and `includeThoughts` reach no provider; the Gemini adapter asks for the thought trace itself whenever `reasoning:` is not `none`.
 
 The framework's own pattern places data-gathering subagents on a lite model with `reasoning: none` and a tight output cap, while synthesis runs on a stronger model with `reasoning: low` or higher and room to reason. The templates in `config/agents/templates/` follow it.
 

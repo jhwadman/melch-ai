@@ -68,7 +68,7 @@ import type { ProviderEndpoint } from './endpoints.ts';
 import { errorDecision, errorText, statusDecision } from './errorResponse.ts';
 import { currentTurnStart, providerStateOf } from './providerState.ts';
 import type { ProviderState } from './providerState.ts';
-import { reasoningConfig } from './reasoning.ts';
+import { effortWord } from './reasoning.ts';
 import type { RetryDecision } from './retry.ts';
 import { toContractJsonSchema } from './schemaNormalize.ts';
 import { setLlmSpanAttribute } from '../observability/tracer.ts';
@@ -533,12 +533,17 @@ export class GptAdapter implements ModelAdapter {
    * The `reasoning` request field for one setting (ADR 0047), or undefined to
    * send none. OpenAI's reasoning ids ask for summaries, plus the effort in
    * that model's own word (`reasoningConfig`: `none` is `minimal` on the
-   * first GPT-5 generation and `low` on the o-series). Other ids: nothing. A
-   * 400 on the field is retried once without it.
+   * first GPT-5 generation and `low` on the o-series), held at the model's
+   * ceiling (`xhigh` from GPT-5.2, else `high`; ADR 0117), a held level
+   * marked on the span. Other ids: nothing. A 400 on the field is retried
+   * once without it.
    */
   reasoningParam(setting: ReasoningSetting | undefined, model: string = this.model): Record<string, unknown> | undefined {
     if (!isOpenAiReasoningModel(model)) return undefined;
-    return { summary: 'auto', ...(setting !== undefined ? { effort: reasoningConfig(model, setting).reasoningEffort } : {}) };
+    if (setting === undefined) return { summary: 'auto' };
+    const { word, weakened } = effortWord(model, setting);
+    if (weakened) setLlmSpanAttribute('llm.reasoning.weakened', weakened);
+    return { summary: 'auto', effort: word };
   }
 
   /**

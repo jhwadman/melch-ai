@@ -17,6 +17,7 @@ sources:
   - resource: lib/workflow/pause.ts
   - resource: lib/workflow/resume.ts
   - resource: lib/workflow/turn.ts
+  - resource: tests/workflowChildPauses.test.ts
   - resource: lib/runtime/native/telemetry.ts
   - resource: tests/workflowScheduler.test.ts
   - resource: tests/helpers/virtualClock.ts
@@ -202,10 +203,17 @@ A DELEGATE syndicate's `yaml_reference` to a workflow syndicate is the whole gra
 
 A `yaml_reference` to a workflow syndicate is its whole graph wherever it appears ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)): `compileEntrySpec` (`lib/compile.ts`) compiles an entry as one agent or as a `WorkflowSpec`, and `compileSubagentSpec` refuses a workflow reference by name.
 
-- **A plan-dispatch route**: `runSyndicateTurn` walks the graph on the child session `{ <route>, userId, sessionId }` (created from the conversation's state, `temp:` keys dropped, and kept) with `runNativeWorkflow`, and drains it through the workflow reader at the `dispatch` stage. The conversation stores the message and one event authored by the route with the answer and the walk's state writes. A node that gave up fails the turn `NODE_FAILED`, the ceiling `NODE_RUN_LIMIT`.
-- **A workflow node**: `agentNodeRuntime` hands the node to `runWorkflowNode` (`lib/workflow/turn.ts`), which walks the nested graph on `{ <node>, userId, sessionId }` with the node's input as its message, and stores one event for the node in the caller's walk carrying the last yielded text as its output and the walk's state writes, so a resumed walk completes the node from it.
+The nested walk's child session is filed under the agent path ([ADR 0119](/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)): the app name of the session that runs the entry, then the entry's name (`entryAppName`, `lib/runtime/native/delegate.ts`), so `<app>/<route>` for a route and `<walk's app>/<node>` for a node, `app/Writer/Inner` two levels down. `entrySession` opens it from the caller's state (`temp:` keys dropped) the first time and keeps it. A session filed under the entry's name alone, where 1.1.0 filed it, is continued when no session exists under the path and the entry ran in the caller's session before (an event it authored there) or a pause was found there.
 
-Each walk keeps its own node-run ceiling ([ADR 0105](/decisions/0105-workflow-node-run-ceiling.md)): the root's, a route's and each nested node's are separate `runWorkflowGraph` calls, while every model call counts once against the turn's `max_steps`. A `map` over a nested workflow is refused by name. So are an `ask_user` node and an approval gate inside a nested workflow run as a route or a node (`compileWorkflowSpec`, `loadNestedSyndicate`): its pause has no open call to reach the turn through. `tests/workflowNested.test.ts` holds the route's sessions and requests equal to ADK's recorded ones.
+- **A plan-dispatch route**: `runSyndicateTurn` walks the graph on the route's child session with `runNativeWorkflow`, and drains it through the workflow reader at the `dispatch` stage. The conversation stores the message and one event authored by the route with the answer and the walk's state writes. A node that gave up fails the turn `NODE_FAILED`, the ceiling `NODE_RUN_LIMIT`.
+- **A workflow node**: `agentNodeRuntime` hands the node to `runWorkflowNode` (`lib/workflow/turn.ts`), which walks the nested graph on the node's child session with the node's input as its message, and stores one event for the node in the caller's walk carrying the last yielded text as its output and the walk's state writes, so a resumed walk completes the node from it.
+
+Its pauses reach the turn ([ADR 0119](/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)). A walk that ends paused on an `ask_user` node or a gated agent node (or on a node of its own that is a nested workflow, paused):
+
+- **as a route**, stores the route's pause record in the conversation in place of the answer: authored by the route at its own path, no content, the walk's open interrupts in `longRunningToolIds`, its state writes so far. The turn ends `input-required` with the request or the question, its `path` running from the route down to the node that asked (`['Writer', 'Send']`). While the record is the conversation's last event (`routePause`, `lib/runtime/native/interrupts.ts`) a decision naming the request, or a plain-text message answering the question, resumes the route without classifying (`decidedBy: approval` or `answer`): the conversation stores the message, and the walk reads it as the explicit reply to the node's request, an `ask_user` answer as `{ result }` under `adk_request_input`. Any other message while a request waits repeats it, storing and running nothing.
+- **as a node**, raises the walk's open requests again on the caller's walk, as one event of the node's: a copy of each request call, the node's path, the ids in `longRunningToolIds`, the node's input in `agentState`, the walk's state writes so far. The node waits on those ids and the caller's walk ends paused, so the caller's own resume reruns the node with the answers. Rerun, the node waits again without walking while none of its ids has an answer (a decision, for an approval request); walks its graph again on the answered ones, each as its explicit reply, which the nested walk's own resume reads; and, once an earlier resume finished it, answers its stored output. The turn reads the request from the caller's walk (`pendingApproval`, the drained input requests) and `deepestPause` follows it down by id to the node that asked.
+
+Each walk keeps its own node-run ceiling ([ADR 0105](/decisions/0105-workflow-node-run-ceiling.md)): the root's, a route's and each nested node's are separate `runWorkflowGraph` calls, while every model call counts once against the turn's `max_steps`. A `map` over a nested workflow is refused by name. `tests/workflowNested.test.ts` holds the route's sessions and requests equal to ADK's recorded ones; `tests/workflowChildPauses.test.ts` covers approve, reject and `ask_user` as a route and as a node, two levels deep, sessions under the old key continuing, and both pauses over A2A.
 
 ### The spans
 
@@ -223,7 +231,7 @@ ADK also opened `execute_node_attempt` per attempt of a node with a retry config
 
 ## What it does not do yet
 
-A pause inside an agent node other than an approval (an OAuth consent) is refused by `runAgentNode`, a map item's interrupts are not carried, and a session paused on either is refused by `workflowResume`. A pause inside a nested workflow run as a route or a node is not carried to the turn; one inside a delegated nested workflow is. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)).
+A pause inside an agent node other than an approval (an OAuth consent) is refused by `runAgentNode`, a map item's interrupts are not carried, and a session paused on either is refused by `workflowResume`. A pause inside a nested workflow reaches the turn wherever the workflow runs. A task-mode agent node needs nothing of the scheduler: its run ends inside `runNode` on `finish_task`'s answer ([Workflow agent node](/overview/workflow-agent-node.md)).
 
 ## Parity with ADK
 

@@ -135,11 +135,12 @@ Field reference:
 | `name` / `model` / `instruction` | agent | The agent triple. Any Gemini id, `claude-*`, or `ollama/*` for open-weight local models (see §5). |
 | `description` | subagent | **The delegation API.** The orchestrator reads this when deciding to hand off — write it like a function signature ("Use this subagent to…, pass it…"). |
 | `tools` | agent | Names resolved by the tool registry (§3). Long-term memory agents add `preload_memory` / `load_memory`. |
-| `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude 4.6 and earlier (2,048 / 8,192 / 16,384 tokens for low / medium / high), adaptive thinking with that effort on later Claude models ([ADR 0049](./wiki/decisions/0049-claude-requests-by-model-generation.md)), an effort word on GPT, Grok, Kimi, Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). Unset, each adapter keeps its own default. |
+| `reasoning` | agent | How hard the agent reasons, on any provider: `none`, `low`, `medium`, `high`, `xhigh`, `max`, or `{ budget_tokens: <int> }`. The compiler sends each provider the field it reads: a thinking level on Gemini 3, a thinking budget on Claude 4.6 and earlier (2,048 / 8,192 / 16,384 tokens for low / medium / high), adaptive thinking with that effort on later Claude models ([ADR 0049](./wiki/decisions/0049-claude-requests-by-model-generation.md)), an effort word on GPT, Grok, Kimi, Ollama and the gateway ([ADR 0047](./wiki/decisions/0047-provider-neutral-reasoning-key.md)). `xhigh` and `max` reach the models that take them (both on Claude from Opus 4.7 and Sonnet 5, `max` on Kimi K3, `xhigh` on GPT-5.2 and later and grok-4.7); elsewhere the model's highest setting is sent and the span carries `llm.reasoning.weakened` (`npm run doctor -- --matrix` lists each path, [ADR 0117](./wiki/decisions/0117-tool-choice-and-effort-above-high-in-v2.md)). Unset, each adapter keeps its own default. |
 | `sampling` | agent | `{ temperature, top_p, max_output_tokens, stop }`, the fields the engine sends to every provider; each adapter sends the ones its API takes ([ADR 0115](./wiki/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)). |
 | `output` | agent | `{ schema, mime }`. `mime` is `application/json` (JSON mode, with or without a schema) or `text/plain` (the default). `schema` is the structured-JSON contract: the agent ends its turn on one JSON object matching it. An orchestrator may hold one beside its subagents: it delegates first, then answers in the schema itself. The schema travels in the provider's own structured-output field beside the tools on Claude from Opus 4.8, Sonnet 5 and Haiku 5.5, on OpenAI, and on Gemini 2+ through Vertex AI, and as a `set_model_response` tool elsewhere (the capability matrix's `structured_output_with_tools`, [ADR 0109](./wiki/decisions/0109-structured-output-beside-tools.md)). Worked example: `examples/structured_critic.yaml`. A leaf that holds the schema (`critic.yaml`) and plan-dispatch remain the choices when the answer should be a specialist's. |
 | `model_overrides` | agent | A prompt nuance for one provider: keyed by `gemini`, `anthropic`, `openai`, `xai`, `moonshot` or `ollama`, each entry holds `instruction` (replaces the agent's instruction on that provider) or `instruction_append` (added after a blank line). The entry for the provider of the agent's `model` applies, before the skills index is appended; a `fallback_model` gets the primary's instruction. |
-| `generateContentConfig` / `outputSchema` | agent | The deprecated v1 spelling of `sampling`, `output.mime`, `reasoning` (as `thinkingConfig` / `reasoningEffort`) and `output.schema`. Both still load and behave the same; a load that finds either prints one deprecation line per file per process (`LoadSyndicateOptions.onWarning`, default `console.warn`), and a v2 key beside its v1 spelling on one agent is a load error. Only `toolConfig` and the effort words `xhigh` / `max` have no v2 form yet; `topK`, `seed`, the penalties, `candidateCount`, `safetySettings` and `includeThoughts` reach no provider. `npx melchizedek-codemod [--check] <file|dir>` rewrites a v1 file to v2, comments kept ([ADR 0115](./wiki/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)). |
+| `tool_choice` | agent | Which tools the model may call: `auto` (the default), `none`, `required` (some tool), or `{ name: <tool> }` (that tool). A provider that rejects forcing sends a weaker choice and marks the span `llm.tool_choice.weakened` ([ADR 0117](./wiki/decisions/0117-tool-choice-and-effort-above-high-in-v2.md)). |
+| `generateContentConfig` / `outputSchema` | agent | The deprecated v1 spelling of `sampling`, `output.mime`, `reasoning` (as `thinkingConfig` / `reasoningEffort`), `tool_choice` (as `toolConfig.functionCallingConfig`) and `output.schema`. Both still load and behave the same; a load that finds either prints one deprecation line per file per process (`LoadSyndicateOptions.onWarning`, default `console.warn`), and a v2 key beside its v1 spelling on one agent is a load error. Only `toolConfig.functionCallingConfig.mode: VALIDATED` and Gemini's dynamic budget (`thinkingBudget: -1`) have no v2 form; `topK`, `seed`, the penalties, `candidateCount`, `safetySettings` and `includeThoughts` reach no provider, and the codemod drops `includeThoughts`. `npx melchizedek-codemod [--check] <file|dir>` rewrites a v1 file to v2, comments kept ([ADR 0115](./wiki/decisions/0115-yaml-schema-v2-provider-neutral-keys.md)). |
 | `yaml_reference` | subagent | Mount another syndicate file as a nested subagent. |
 | `a2a_agent_url` | subagent | A REMOTE agent over A2A (§6): the orchestrator delegates to it with one `request` argument; in plan-dispatch it can be a route. No `model`/`instruction` — the remote agent has its own. Credentials come from `A2A_AGENT_TOKENS`, never YAML. |
 | `max_steps` | root | Cap on model calls per turn, counted across every agent the turn reaches (orchestrator, subagents, nested syndicates). Exceeding it fails the turn with `STEP_LIMIT`. |
@@ -238,7 +239,12 @@ with no allowlist, `authorization_code` is refused. An unset variable fails the 
 (the database URL, a provider key, an `A2A_` secret: anything `.env.example`
 documents), since the YAML chooses the host it goes to.
 `OPENAPI_CREDENTIAL_ENVS`, when set, is the exact list of variables an `auth`
-may name. A refused or unset variable fails the compile, and a static token is applied to the request,
+may name. `MELCHIZEDEK_CREDENTIAL_HOSTS` binds each such variable to the hosts
+its value may reach (`TRACKER_TOKEN=api.tracker.example.com;…`, or
+`createA2AApp({ credentialHosts })`, [ADR 0122](./wiki/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md)):
+unset, a credential goes where the YAML says and the server and the doctor
+name it as unbound; set, it is the whole list, checked when a syndicate
+loads, when it compiles and before each call. A refused or unset variable fails the compile, and a static token is applied to the request,
 never stored in session state. Every server must be http(s) and pass the
 SSRF guard: its literal rules when the agent compiles, the full check with
 DNS before each call; `ALLOW_PRIVATE_OPENAPI=true` permits private hosts for
@@ -825,9 +831,14 @@ nested delegate syndicate's gates anywhere in it, a nested dispatch
 syndicate's on its classifier (its routes never run when it is nested, so a
 gate on one is a load error), and a nested workflow's gated agent nodes and
 `ask_user` nodes when the workflow is a delegated subagent; the path then
-ends at the node, e.g. `["Desk", "Writer", "Send"]`. A gate or `ask_user`
-node in a workflow run as a dispatch route or as another workflow's node is
-still a load error, as are skill scripts on a delegated subagent. Only function tools from the registry can be gated, not MCP tools
+ends at the node, e.g. `["Desk", "Writer", "Send"]`. A workflow run as a
+dispatch route or as another workflow's node pauses the turn the same way
+([ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)),
+the path running from the route or node down, e.g. `["Writer", "Send"]`.
+Skill scripts (`skills.scripts: local`) on a delegated
+subagent pause the same way, with `run_skill_script` as the tool
+([ADR 0118](./wiki/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md));
+an agent a map node runs still may not carry them. Only function tools from the registry can be gated, not MCP tools
 or native-search sentinels. In code, `runSyndicateTurn` returns
 `status: 'input-required'` with `approval`, and the next turn's part
 `approvalResponsePart(approval.id, approved)` answers it.
@@ -902,6 +913,13 @@ await createA2AApp({ /* … */ toolCredentials: { store, consent } });
    call again. A message sent before the grant gets the same request back,
    without a model call.
 
+The call may sit in a delegated subagent, at any depth (the systems_operator
+template's Systems, say): the request then carries `path`, the agents from
+the turn's own down to the one that asked (in the data part and in
+`consent.path`), the grant is stored under the conversation's app, and the
+next message resumes that subagent's call before its caller continues
+([ADR 0118](./wiki/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md)).
+
 The callback refuses these, and stores nothing:
 
 - a state that is replayed, tampered with or older than ten minutes;
@@ -925,6 +943,7 @@ name a provider they declare, never define one):
 | `OAUTH_REDIRECT_URI` | `https://agents.example.com/oauth/callback` (no query) | The callback, as registered at every provider. Mounts it and lets a run ask a user to connect. Needs the key |
 | `OAUTH_CALLBACK_IDENTITY` | `required` (default) or `state` | `required`: the browser that completes a grant carries the flow's user's identity, which only `A2A_AUTH=header` behind a gateway gives it. `state`: the single-use state alone binds the flow (a forwarded link can connect the wrong account) |
 | `MELCHIZEDEK_OAUTH_HOSTS` | `provider=host,host;provider=host` | Which hosts each provider's tokens and client secret may be sent to. A host is a hostname, `*.domain` (subdomains only), IPv4 or `[IPv6]` |
+| `MELCHIZEDEK_CREDENTIAL_HOSTS` | `VARIABLE=host,host;VARIABLE=host` | Which hosts each static credential variable a YAML sends (`bearer_env`, `api_key.env`, `client_secret_env`) may be sent to. Unset: as the YAML says, each named as unbound. Set: the whole list ([ADR 0122](./wiki/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md)) |
 
 **The host allowlist** ([ADR 0114](./wiki/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md))
 is the operator's binding, never the YAML's: `MELCHIZEDEK_OAUTH_HOSTS`, or
@@ -939,6 +958,21 @@ again when its tools compile, and every call checks the host it sends a
 token to. The server refuses to start on a malformed key, allowlist or
 redirect URI, or on a redirect URI without a key; `npm run doctor` reports
 each of these, and a declared grant with no key or redirect URI, by name.
+
+**The credential host allowlist** ([ADR 0122](./wiki/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md))
+does the same for the static credentials a YAML sends: `bearer_env` and
+`api_key.env` to an OpenAPI server, and `client_secret_env` to a token
+endpoint. `MELCHIZEDEK_CREDENTIAL_HOSTS`, or
+`createA2AApp({ credentialHosts: { TRACKER_TOKEN: ['api.tracker.example.com'] } })`,
+which wins. Unset, nothing changes: each credential goes to the host the
+YAML names, and the server's boot and `npm run doctor` name every variable a
+served YAML sends that no binding holds (names only). Set, it is the whole
+list: a variable not on it is sent nowhere, and one on it only to its own
+hosts. A syndicate that breaks the rule is refused when it loads, when it
+compiles, and each call (an OpenAPI call, a client-credentials token
+request, a consent code exchange, a refresh) checks again and sends nothing
+when refused. `MCP_BEARER_TOKENS` is not covered: it already maps each token
+to its host.
 
 #### Limits
 
@@ -1313,12 +1347,13 @@ graph, under the entry's name and description, wherever it appears: as a
 DELEGATE subagent its last output is the tool's answer; as a plan-dispatch
 route it is the turn's answer, and the conversation keeps the message and
 that answer; as a node of another workflow it is the node's output. The
-graph's events are kept in the entry's own session, as for any subagent.
-As a DELEGATE subagent, an `ask_user` node or a gated agent node inside it
-pauses the whole turn, and the answer resumes the graph
-([ADR 0111](./wiki/decisions/0111-pauses-inside-nested-syndicates.md)). As a
-route or a node, a pause inside it cannot reach the turn yet, so an
-`ask_user` node or a gate there is refused by name, as is a `map` over one.
+graph's events are kept in the entry's own session, filed under the agent
+path (`<app>/<route>`, `<app>/<node>`), as for any subagent. Wherever it
+runs, an `ask_user` node or a gated agent node inside it pauses the whole
+turn with the path down to that node, and the answer resumes the graph
+([ADR 0111](./wiki/decisions/0111-pauses-inside-nested-syndicates.md),
+[ADR 0119](./wiki/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md)).
+A `map` over one is refused by name.
 
 **Not yet.** Remote `a2a_agent_url` subagents are refused inside a
 workflow by the schema. An `ask_user` tool on a node agent is refused

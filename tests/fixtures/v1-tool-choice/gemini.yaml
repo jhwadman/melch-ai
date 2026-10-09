@@ -1,0 +1,28 @@
+syndicate_name: "Gemini tool choice"
+orchestrator:
+  name: "Desk"
+  model: "gemini-3.8-flash"
+  instruction: |
+    Look the answer up before you reply.
+  generateContentConfig:
+    maxOutputTokens: 4096
+    # Always look it up first.
+    toolConfig:
+      functionCallingConfig:
+        mode: ANY
+        allowedFunctionNames: [lookup]
+    thinkingConfig:
+      thinkingLevel: HIGH
+      includeThoughts: true  # show the trace
+
+subagents:
+  - name: "Summary"
+    description: "Summarises what Desk found."
+    model: "gemini-2.5-flash"
+    instruction: |
+      Summarise in three lines.
+    generateContentConfig:
+      toolConfig: { functionCallingConfig: { mode: NONE } }
+      thinkingConfig:
+        thinkingBudget: 16384
+        includeThoughts: true

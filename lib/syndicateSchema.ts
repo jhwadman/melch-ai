@@ -55,7 +55,7 @@ const thinkingConfig = z
   })
   .describe('Older spelling of `reasoning` for Gemini and Claude (thinkingLevel or thinkingBudget). Cannot be combined with `reasoning`.');
 
-export const REASONING_LEVELS = ['none', 'low', 'medium', 'high'] as const;
+export const REASONING_LEVELS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 
 /**
  * The provider-neutral reasoning key (ADR 0047): a level, or a token budget.
@@ -76,7 +76,9 @@ const reasoningSchema = z
       },
     },
   )
-  .describe('How hard this agent reasons, on any provider: none | low | medium | high, or { budget_tokens: <int> }. Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047).');
+  .describe(
+    'How hard this agent reasons, on any provider: none | low | medium | high | xhigh | max, or { budget_tokens: <int> }. xhigh and max reach the models that take them; elsewhere they go as the model\'s highest setting (ADR 0117). Replaces generateContentConfig.thinkingConfig and reasoningEffort (ADR 0047).',
+  );
 
 /**
  * Loose on purpose: provider-specific fields (e.g. `toolConfig`) pass through
@@ -104,7 +106,7 @@ const generateContentConfig = z
       .optional()
       .describe('Older spelling of `reasoning` for the chat-completions and Responses providers. Cannot be combined with `reasoning`.'),
   })
-  .describe('Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType) and `reasoning` (thinkingConfig, reasoningEffort) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.')
+  .describe('Deprecated v1 spelling (ADR 0115): write `sampling` (temperature, top_p, max_output_tokens, stop), `output.mime` (responseMimeType), `reasoning` (thinkingConfig, reasoningEffort) and `tool_choice` (toolConfig.functionCallingConfig) instead; npx melchizedek-codemod rewrites a file. Still read: the Gemini GenerateContentConfig shape the engine takes. Do not set tools here.')
   .meta({ deprecated: true });
 
 // ── YAML v2 agent keys (ADR 0115) ────────────────────────────────────────────
@@ -136,6 +138,27 @@ const outputSchemaV2 = z
   })
   .refine(nonEmpty, { message: 'must set schema or mime', when: quiet })
   .describe('What this agent\'s final reply is (ADR 0115). Replaces outputSchema and generateContentConfig.responseMimeType; cannot be combined with them.');
+
+export const TOOL_CHOICE_MODES = ['auto', 'none', 'required'] as const;
+
+const toolChoiceSchema = z
+  .union(
+    [
+      z.enum(TOOL_CHOICE_MODES),
+      z.strictObject({
+        name: z.string().min(1).describe('The one tool the model must call: a name from this agent\'s tools, subagents or MCP tools.'),
+      }),
+    ],
+    {
+      error: (iss) => {
+        const hint = typeof iss.input === 'string' ? suggest(iss.input, TOOL_CHOICE_MODES) : undefined;
+        return `must be one of ${TOOL_CHOICE_MODES.join(' | ')}, or { name: <tool> } (got ${describeValue(iss.input)}${hint ? ` — did you mean "${hint}"?` : ''})`;
+      },
+    },
+  )
+  .describe(
+    'Which tools the model may call, on any provider (ADR 0117): auto (the default), none, required (some tool), or { name: <tool> } (that tool). A provider that rejects forcing sends a weaker choice and marks the span llm.tool_choice.weakened. Replaces generateContentConfig.toolConfig.functionCallingConfig; cannot be combined with it.',
+  );
 
 const modelOverrideEntry = z
   .strictObject({
@@ -331,6 +354,7 @@ const agentFields = {
   reasoning: reasoningSchema.optional(),
   sampling: samplingSchema.optional(),
   output: outputSchemaV2.optional(),
+  tool_choice: toolChoiceSchema.optional(),
   model_overrides: modelOverridesSchema.optional(),
   outputSchema: z
     .record(z.string(), z.unknown())
@@ -406,7 +430,7 @@ export const subagentSchema = z
       .min(1)
       .optional()
       .describe(
-        'A whole nested syndicate (filename under the agents dir) used as this subagent. An approval request or ask_user question raised inside it pauses the turn with the agent path (ADR 0110, ADR 0111): a delegate syndicate\'s gates anywhere, a dispatch syndicate\'s on its classifier (its routes never run nested), and a workflow\'s ask_user nodes and gates when it is delegated to as a subagent.',
+        'A whole nested syndicate (filename under the agents dir) used as this subagent. An approval request or ask_user question raised inside it pauses the turn with the agent path (ADR 0110, ADR 0111): a delegate syndicate\'s gates anywhere, a dispatch syndicate\'s on its classifier (its routes never run nested), and a workflow\'s ask_user nodes and gates wherever it runs: delegated to as a subagent, as a dispatch route or as a workflow node (ADR 0119).',
       ),
     a2a_agent_url: z
       .string()
@@ -772,16 +796,10 @@ function crossFieldProblems(raw: unknown): Problem[] {
     });
   };
   // A skill script run pauses for approval the same way, so it is allowed in
-  // the same places; `skills.tools` may only unlock tools the agent does not
-  // already carry outright.
-  const skillProblems = (agent: Record<string, unknown>, path: (string | number)[], allowed: boolean) => {
+  // the same places, a delegated subagent included (ADR 0118); `skills.tools`
+  // may only unlock tools the agent does not already carry outright.
+  const skillProblems = (agent: Record<string, unknown>, path: (string | number)[]) => {
     if (!isObj(agent.skills)) return;
-    if (agent.skills.scripts === 'local' && !allowed) {
-      out.push({
-        path: [...path, 'skills', 'scripts'],
-        message: 'skill scripts on a delegated subagent are not supported yet; run them on the orchestrator or a plan-dispatch route (ADR 0110)',
-      });
-    }
     const tools = Array.isArray(agent.tools) ? agent.tools : [];
     (Array.isArray(agent.skills.tools) ? agent.skills.tools : []).forEach((name, j) => {
       if (typeof name === 'string' && tools.includes(name)) {
@@ -875,19 +893,17 @@ function crossFieldProblems(raw: unknown): Problem[] {
 
   if (isObj(raw.orchestrator)) {
     gateProblems(raw.orchestrator, ['orchestrator'], true);
-    skillProblems(raw.orchestrator, ['orchestrator'], true);
+    skillProblems(raw.orchestrator, ['orchestrator']);
     questionProblems(raw.orchestrator, ['orchestrator'], true);
   }
-  const dispatching = isObj(raw.dispatch);
   // A workflow's subagents are its nodes, not delegated tools: a gated call pauses its node, and
   // the walk resumes it (ADR 0098); a skill script run pauses on the same approval (ADR 0106). A map item cannot (workflowProblems).
-  const pausing = dispatching || isObj(raw.workflow);
 
   subs.forEach((sub, i) => {
     if (!isObj(sub)) return;
-    // A delegated subagent's gate and question pause the turn through the open call (ADR 0110); its skill scripts stay refused.
+    // A delegated subagent's gate, question and skill script run pause the turn through the open call (ADR 0110, ADR 0118).
     gateProblems(sub, ['subagents', i], true);
-    skillProblems(sub, ['subagents', i], pausing);
+    skillProblems(sub, ['subagents', i]);
     questionProblems(sub, ['subagents', i], true);
     const hasRef = typeof sub.yaml_reference === 'string';
     const hasRemote = typeof sub.a2a_agent_url === 'string';

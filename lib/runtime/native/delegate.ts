@@ -57,6 +57,10 @@
  * agent reads it (an approval runs or refuses its pinned call, a question's
  * answer is the call's response), finishes, and its answer is the open
  * call's response. A child that pauses again leaves the call open again.
+ * A skill script's approval is the same pause, and so is an OAuth consent
+ * request (ADR 0118): the child gets the caller's consent step, its flows
+ * bound to the caller's app (consentPinnedTo), and a grant's answer travels
+ * down the open call as a decision does.
  *
  * CALLS TO SUBAGENTS IN ONE STEP RUN CONCURRENTLY (ADR 0116), under the
  * caller's `max_concurrency` (the syndicate's root key, default
@@ -350,7 +354,19 @@ function answerOf(agent: Pick<NativeAgent, 'outputSchema'>, last: TurnEvent | un
  * never hold a `/`.
  */
 export function childAppName(parent: { appName: string; delegated?: boolean }, caller: string, name: string): string {
-  return parent.delegated ? `${parent.appName}/${name}` : `${parent.appName}/${caller}/${name}`;
+  return parent.delegated ? entryAppName(parent.appName, name) : `${parent.appName}/${caller}/${name}`;
+}
+
+/**
+ * The app name a nested workflow run as a dispatch route or a workflow node
+ * walks under (ADR 0119): the session that runs it, and the entry's name
+ * (`<app>/<route>`, `<walk's app>/<node>`). A route answers in the
+ * conversation itself and a node's walk is one session, so the entry's name
+ * is unique below either; ADR 0106 filed it under the entry's name alone,
+ * which legacyChild still reads.
+ */
+export function entryAppName(parentAppName: string, name: string): string {
+  return `${parentAppName}/${name}`;
 }
 
 /**
@@ -368,6 +384,27 @@ export async function legacyChild(
 ): Promise<Session | undefined> {
   if (!continues) return undefined;
   return sessions.get({ appName: name, userId: key.userId, sessionId: key.sessionId });
+}
+
+/**
+ * The child session a nested workflow run as a dispatch route or a workflow
+ * node walks on (ADR 0119): the one filed under entryAppName, else, when
+ * the entry ran in `parent` before (an event it authored there) or a pause
+ * was found waiting below it (`resuming`), the one ADR 0106 filed under its
+ * name alone (legacyChild), else a new one from `state`.
+ */
+export async function entrySession(
+  sessions: Pick<SessionService, 'get' | 'create'>,
+  parent: { appName: string; userId: string; sessionId: string; events: readonly TurnEvent[] },
+  name: string,
+  state: Record<string, unknown>,
+  resuming = false,
+): Promise<Session> {
+  const key = { appName: entryAppName(parent.appName, name), userId: parent.userId, sessionId: parent.sessionId };
+  const own = await sessions.get(key);
+  if (own) return own;
+  const legacy = await legacyChild(sessions, key, name, resuming || parent.events.some((e) => e.author === name));
+  return legacy ?? (await sessions.create({ ...key, state }));
 }
 
 /** Whether `caller` called `name` in `events` in a call other than `callId`: the subagent ran for it before. */
@@ -390,6 +427,20 @@ async function childSession(name: string, context: ToolContext, scope: Delegatio
   if (own) return own;
   const legacy = await legacyChild(sessions, key, name, resuming || calledBefore(parent.events, scope.caller, name, context.functionCallId));
   return legacy ?? (await sessions.create({ ...key, state: { ...scope.stateBase, ...context.stateDelta } }));
+}
+
+/**
+ * The consent step as a child run reaches it (ADR 0118): a flow it begins
+ * is bound to `appName`, the caller's app, so the callback stores the grant
+ * under the app the run's pinned credentials read (the root's), never under
+ * the child session's agent path. A grandchild pins its caller's pinned
+ * step again; the first pin is applied last, so the root's app wins.
+ */
+function consentPinnedTo(consent: NonNullable<AgentLoopContext['consent']>, appName: string): NonNullable<AgentLoopContext['consent']> {
+  return {
+    has: (provider) => consent.has(provider),
+    begin: (binding) => consent.begin({ ...binding, appName }),
+  };
 }
 
 /** Step 5: an event's state writes, `temp:` keys aside, into the call's state delta. */
@@ -443,9 +494,10 @@ async function runChild(agent: NativeAgent, content: TurnContent, context: ToolC
     // plugins, so a subagent's own errors are not retried (ADR 0075).
     selfCorrection: new SelfCorrection({ model_errors: 0, tool_errors: 0 }),
     ...(ctx.memory ? { memory: ctx.memory } : {}),
-    // The parent's grants, pinned to the root's app (ADR 0072). Not its consent step: an OAuth
-    // consent inside a subagent is not carried to the caller (ADR 0085, ADR 0110).
+    // The parent's grants, pinned to the root's app (ADR 0072), and its consent step: a call that
+    // needs a grant pauses the child, and the pause reaches the turn through the open call (ADR 0118).
     ...(ctx.credentials ? { credentials: ctx.credentials } : {}),
+    ...(ctx.consent ? { consent: consentPinnedTo(ctx.consent, ctx.session.appName) } : {}),
     ...(ctx.signal ? { signal: ctx.signal } : {}),
     ...(ctx.adapterFor ? { adapterFor: ctx.adapterFor } : {}),
     ...(ctx.log ? { log: ctx.log } : {}),

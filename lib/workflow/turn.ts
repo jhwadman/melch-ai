@@ -65,8 +65,11 @@
 import { randomUUID } from 'node:crypto';
 
 import type { ModelAdapter } from '../models/contract.ts';
-import { createTurnEvent } from '../runtime/events.ts';
-import type { TurnContent, TurnEvent } from '../runtime/events.ts';
+import { APPROVAL_REQUEST } from '../runtime/approvals.ts';
+import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
+import type { TurnContent, TurnEvent, TurnFunctionCall, TurnPart } from '../runtime/events.ts';
+import { entrySession } from '../runtime/native/delegate.ts';
+import { INPUT_REQUEST } from '../workflowConfig.ts';
 import type { MemoryService } from '../runtime/memoryService.ts';
 import type { NativeAgent } from '../runtime/native/request.ts';
 import type { SelfCorrection } from '../runtime/native/selfCorrection.ts';
@@ -126,15 +129,104 @@ function lastText(event: TurnEvent | undefined): string {
     .join('\n');
 }
 
+/** The requests a walk's interrupts are, as a node raises them: an approval request or an input request. */
+const RAISED = new Set([APPROVAL_REQUEST, INPUT_REQUEST]);
+
+/** The latest request call, by id, among `ids` that `events` hold (an agent's or a node's, never the user's). */
+function requestCalls(events: readonly TurnEvent[], ids: readonly string[], author?: string): Map<string, TurnFunctionCall> {
+  const wanted = new Set(ids);
+  const calls = new Map<string, TurnFunctionCall>();
+  for (let i = events.length - 1; i >= 0 && calls.size < wanted.size; i--) {
+    const event = events[i]!;
+    if (!event.author || event.author === 'user' || (author !== undefined && event.author !== author)) continue;
+    for (const call of getFunctionCalls(event)) {
+      if (call.id && call.name && RAISED.has(call.name) && wanted.has(call.id) && !calls.has(call.id)) calls.set(call.id, call);
+    }
+  }
+  return calls;
+}
+
+/**
+ * Whether a resumed walk's answer to `call` answers it: a decision for an
+ * approval request (a ToolConfirmation, or ADK's `{ response: <json> }`
+ * form, as lib/workflow/agentNode.ts reads one), any answer for an input
+ * request.
+ */
+function answers(call: TurnFunctionCall | undefined, value: unknown): boolean {
+  if (value === undefined || !call) return false;
+  if (call.name !== APPROVAL_REQUEST) return true;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const answer = value as Record<string, unknown>;
+  return typeof answer.confirmed === 'boolean' || typeof answer.response === 'string';
+}
+
+/** The part that carries `value` down to the nested walk, as the answer to `call`: its explicit reply, under the request's name. */
+function answerPart(call: TurnFunctionCall, value: unknown): TurnPart {
+  const response = call.name === APPROVAL_REQUEST ? (value as Record<string, unknown>) : { result: value };
+  return { functionResponse: { id: call.id, name: call.name, response } };
+}
+
+/**
+ * A node whose answered interrupts an earlier resume already carried down
+ * (another node's answer was the one since): the output it stored after
+ * the last event that raised them, else undefined.
+ */
+function outputAfterRaise(events: readonly TurnEvent[], path: string, ids: readonly string[]): unknown {
+  const open = new Set(ids);
+  let start = -1;
+  events.forEach((event, i) => {
+    if (event.nodeInfo?.path === path && (event.longRunningToolIds ?? []).some((id) => open.has(id))) start = i;
+  });
+  if (start === -1) return undefined;
+  for (let i = events.length - 1; i > start; i--) {
+    const event = events[i]!;
+    if (event.nodeInfo?.path === path && event.output !== undefined && !event.partial) return event.output;
+  }
+  return undefined;
+}
+
+/**
+ * The node's pause on its caller's walk (ADR 0119): every request its own
+ * walk waits on, raised again as one event of the node's (a copy of each
+ * call, stamped with the node's path, the ids in `longRunningToolIds`, the
+ * node's input recorded for the resume), so the caller's walk pauses on
+ * the same ids, its resume reruns the node with their answers, and the
+ * turn finds the request (lib/runtime/native/interrupts.ts follows it down
+ * by id to the node that asked). Carries the walk's state writes so far.
+ */
+function raiseAgain(name: string, run: NodeRun, invocationId: string, calls: TurnFunctionCall[], stateDelta: Record<string, unknown>): TurnEvent {
+  const event = createTurnEvent({
+    author: name,
+    invocationId,
+    content: { role: 'model', parts: calls.map((call) => ({ functionCall: structuredClone(call) })) },
+    ...(Object.keys(stateDelta).length ? { actions: { stateDelta } } : {}),
+  });
+  event.longRunningToolIds = calls.map((call) => call.id as string);
+  enrichNodeEvent(event, run, { invocationId });
+  event.actions = { ...event.actions, agentState: { ...(event.actions?.agentState ?? {}), input: run.input } };
+  return event;
+}
+
 /**
  * Runs `workflow` as the node `run` names (ADR 0106), as a delegated nested
  * workflow runs (ADR 0098): the whole graph walked on the child session
- * under the node's name (created from the caller's state the first time,
- * `temp:` keys dropped, and kept), the node's input as its message, its last
- * yielded event's text the node's output. The caller stores one event for
- * the node, carrying that output and the walk's state writes, so a resumed
- * walk completes the node from it. A walk that ends paused is refused by
- * name: a pause cannot reach the caller's walk yet (WS6-2).
+ * filed under the walk's app name and the node's (entryAppName, ADR 0119;
+ * the one under the node's name alone is continued when it ran there
+ * before), created from the caller's state the first time, `temp:` keys
+ * dropped, and kept; the node's input as its message, its last yielded
+ * event's text the node's output. The caller stores one event for the
+ * node, carrying that output and the walk's state writes, so a resumed
+ * walk completes the node from it.
+ *
+ * A walk that ends paused (an ask_user node, a gated agent node, a node of
+ * its own that is a nested workflow) pauses the node on the same ids
+ * (raiseAgain), and the caller's walk with it. Rerun on the resume, the
+ * node walks its graph again on the answers among its ids, each as its
+ * explicit reply (an approval decision as it came, an input request's
+ * answer as `{ result }`), which the nested walk's resume reads as a
+ * top-level one's; with none of them answered it waits again without
+ * walking; once an earlier resume finished it, its stored output is the
+ * node's.
  */
 async function runWorkflowNode(
   name: string,
@@ -143,21 +235,35 @@ async function runWorkflowNode(
   params: NativeWorkflowParams,
   parent: { session: Session; invocationId: string; userContent: TurnContent; store: (event: TurnEvent) => void },
 ): Promise<NodeResult> {
-  const { sessions, userId, sessionId } = params;
-  const key = { appName: name, userId, sessionId };
+  const { sessions } = params;
+  const resumed = run.resumedInterruptIds ?? [];
+  let userParts: unknown[];
+  if (resumed.length > 0) {
+    const raised = requestCalls(parent.session.events, resumed, name);
+    const answered = resumed.filter((id) => answers(raised.get(id), run.resumeInputs?.[id]));
+    if (answered.length === 0) {
+      parent.store(raiseAgain(name, run, parent.invocationId, resumed.map((id) => raised.get(id)).filter((c): c is TurnFunctionCall => !!c), {}));
+      return { interruptIds: [...resumed] };
+    }
+    const finished = answered.length === resumed.length ? outputAfterRaise(parent.session.events, run.path, resumed) : undefined;
+    if (finished !== undefined) return { output: finished };
+    userParts = answered.map((id) => answerPart(raised.get(id)!, run.resumeInputs![id]));
+  } else {
+    const input = run.input === undefined || run.input === null ? parent.userContent : nodeInputContent(run.input);
+    userParts = input.parts ?? [];
+  }
   const state = Object.fromEntries(Object.entries(parent.session.state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
-  if (!(await sessions.get(key))) await sessions.create({ ...key, state });
-  const input = run.input === undefined || run.input === null ? parent.userContent : nodeInputContent(run.input);
+  const child = await entrySession(sessions, { appName: parent.session.appName, userId: parent.session.userId, sessionId: parent.session.id, events: parent.session.events }, name, state, resumed.length > 0);
   const walk = runNativeWorkflow({
     graph: workflow.graph,
     agents: workflow.agents,
     resolveTool: workflow.resolveTool,
     ...(workflow.workflows ? { workflows: workflow.workflows } : {}),
     sessions,
-    appName: name,
-    userId,
-    sessionId,
-    userParts: input.parts ?? [],
+    appName: child.appName,
+    userId: child.userId,
+    sessionId: child.id,
+    userParts,
     adapterFor: params.adapterFor,
     signal: run.signal,
     stream: false,
@@ -182,7 +288,12 @@ async function runWorkflowNode(
   if (!end || end.stopped) throw new NodeStoppedError(name, undefined);
   const paused = end.run?.interruptIds ?? [];
   if (paused.length > 0) {
-    throw new Error(`Node '${name}': the workflow it runs paused on ${paused.join(', ')}; a pause inside a workflow run as a node cannot reach the walk yet.`);
+    const walked = (await sessions.get({ appName: child.appName, userId: child.userId, sessionId: child.id }))?.events ?? [];
+    const raised = requestCalls(walked, paused);
+    const missing = paused.filter((id) => !raised.has(id));
+    if (missing.length > 0) throw new Error(`Node '${name}': the workflow it runs paused on ${missing.join(', ')}, which is not an approval request or a question.`);
+    parent.store(raiseAgain(name, run, parent.invocationId, paused.map((id) => raised.get(id)!), stateDelta));
+    return { interruptIds: [...paused] };
   }
   const output = lastText(last);
   const event = createTurnEvent({
