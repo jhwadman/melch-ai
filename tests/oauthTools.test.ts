@@ -42,6 +42,7 @@ import { credentialStore, memoryCredentialRows } from '../lib/tools/credentialSt
 import { closeMcpConnections, createMcpTools } from '../lib/tools/mcpToolFactory.ts';
 import { oauthConsent } from '../lib/tools/oauthConsent.ts';
 import { clientCredentialsGrant, oauthClientsFor, oauthRefreshProviders, oauthTokenSource, tokenTransportProblem } from '../lib/tools/oauthTools.ts';
+import { setOAuthHosts } from '../lib/tools/oauthHosts.ts';
 import type { OAuth2AuthConfig } from '../lib/tools/oauthTools.ts';
 import { buildOpenApiOwnTools, credentialEnvProblem } from '../lib/tools/openapiTools.ts';
 import { ScriptedLlm, call, scriptedResolver, text } from './helpers/scriptedLlm.ts';
@@ -152,6 +153,8 @@ before(async () => {
   base = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
   process.env.ALLOW_PRIVATE_MCP = 'true';
   process.env.ALLOW_PRIVATE_OPENAPI = 'true';
+  // The operator binds each provider to its hosts (ADR 0114); tests/oauthHosts.test.ts covers the refusals.
+  setOAuthHosts({ tracker: ['127.0.0.1'], 'tracker-server': ['127.0.0.1', '*.example.com', '10.0.0.5'] });
 });
 
 after(async () => {
@@ -161,6 +164,7 @@ after(async () => {
   http?.close();
   delete process.env.ALLOW_PRIVATE_MCP;
   delete process.env.ALLOW_PRIVATE_OPENAPI;
+  setOAuthHosts(undefined);
   delete process.env[SECRET_ENV];
 });
 
