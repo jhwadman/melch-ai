@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 974,
-    "edges": 4078,
+    "edges": 4079,
     "byKind": {
       "doc": 193,
       "provider": 6,
@@ -39,14 +39,14 @@
       "derives_from": 1095,
       "constrains": 245,
       "supersedes": 21,
-      "depends_on": 144,
+      "depends_on": 145,
       "explains": 53,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
       "extracted": 3610,
-      "inferred": 468
+      "inferred": 469
     },
     "isolated": 4
   },
@@ -1884,7 +1884,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1796
+        "words": 1930
       }
     },
     {
@@ -2268,7 +2268,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1470
+        "words": 1564
       }
     },
     {
@@ -2340,7 +2340,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3357
+        "words": 3386
       }
     },
     {
@@ -6734,7 +6734,7 @@
       "label": "lib/tools/oauthDiscovery.ts",
       "source": "lib/tools/oauthDiscovery.ts",
       "attrs": {
-        "lines": 500
+        "lines": 699
       }
     },
     {

@@ -6,7 +6,10 @@
  * server in this process. Offline.
  *
  * Covers: discovery from the MCP server's metadata, and from its origin when
- * it has none; a discovered host outside the operator's allowlist refused by
+ * it has none; the 401's WWW-Authenticate header (RFC 9728 5.1) read first,
+ * its parser (quoted strings, several challenges, linear on hostile input),
+ * a malformed or oversized header ignored, a header naming a host off the
+ * allowlist refused before any request, the challenge's scopes; a discovered host outside the operator's allowlist refused by
  * name before any request reaches it (the issuer, the token endpoint); an
  * authorization server without S256 or without a registration endpoint
  * refused; the consent flow with a registered client end to end; the
@@ -29,6 +32,7 @@ import { aesGcmCipher } from '../lib/tools/credentialCipher.ts';
 import { credentialStore, memoryCredentialRows } from '../lib/tools/credentialStore.ts';
 import { oauthConsent } from '../lib/tools/oauthConsent.ts';
 import {
+  MAX_CHALLENGE_HEADER,
   OAuthDiscoveryError,
   REGISTERED_CLIENTS_APP,
   authorizationServerMetadataUrls,
@@ -36,6 +40,7 @@ import {
   discoverAuthorization,
   dynamicOAuthClient,
   oauthClientRegistry,
+  parseBearerChallenge,
   protectedResourceMetadataUrls,
 } from '../lib/tools/oauthDiscovery.ts';
 import { dynamicOAuthGrantsFor, oauthClientsFor, oauthRefreshProviders } from '../lib/tools/oauthTools.ts';
@@ -88,6 +93,21 @@ before(async () => {
     const { registration_endpoint: _drop, ...rest } = asMetadata('-noreg');
     res.json(rest);
   });
+  // MCP servers that publish their metadata only through the 401's WWW-Authenticate header (RFC 9728 5.1).
+  const challenge = (path: string, header: () => string) =>
+    app.post(path, (_req, res) => {
+      res.set('WWW-Authenticate', header());
+      res.status(401).json({ error: 'unauthorized' });
+    });
+  challenge('/hdr/mcp', () => `Bearer realm="mcp", resource_metadata="${base}/meta/hdr", scope="issues:read issues:write"`);
+  challenge('/hdr-multi/mcp', () => `Basic realm="legacy", Negotiate YII/abc==, BEARER error="invalid_token", Resource_Metadata="${base}/meta/hdr-multi"`);
+  challenge('/hdr-foreign/mcp', () => `Bearer resource_metadata="${foreign}/meta/hdr"`);
+  challenge('/hdr-http/mcp', () => 'Bearer resource_metadata="http://metadata.example.com/meta"');
+  challenge('/hdr-malformed/mcp', () => `Bearer resource_metadata="${base}/meta/hdr`);
+  challenge('/hdr-oversized/mcp', () => `Bearer realm="${'x'.repeat(9000)}", resource_metadata="${base}/meta/hdr"`);
+  challenge('/hdr-notaurl/mcp', () => 'Bearer resource_metadata="not a url"');
+  app.get('/meta/hdr', (_req, res) => void res.json({ resource: `${base}/hdr/mcp`, authorization_servers: [`${base}/as`] }));
+  app.get('/meta/hdr-multi', (_req, res) => void res.json({ resource: `${base}/hdr-multi/mcp`, authorization_servers: [`${base}/as`] }));
   // An MCP server with no protected-resource metadata: its origin is its authorization server (MCP 2025-03-26).
   app.get('/.well-known/oauth-authorization-server', (_req, res) => void res.json({ ...asMetadata(''), issuer: base }));
 
@@ -175,7 +195,7 @@ test('a discovered host outside the allowlist is refused by name, and no request
   await assert.rejects(discover('/foreign-token/mcp'), /localhost \(token_url\) is not one of them/);
   assert.ok(!seen.some((s) => s.includes('/as/register')), 'nothing was registered');
   // The MCP server itself must be allowlisted too, and with no allowlist an authorization_code grant is refused outright.
-  await assert.rejects(discoverAuthorization(`${foreign}/mcp`, { provider: 'tracker', allowPrivate: true, allowlist: ALLOW }), /localhost \(protected-resource metadata\) is not one of them/);
+  await assert.rejects(discoverAuthorization(`${foreign}/mcp`, { provider: 'tracker', allowPrivate: true, allowlist: ALLOW }), /localhost \(MCP server\) is not one of them/);
   await assert.rejects(discover('/mcp', null), /binds the provider to its hosts first/);
   await assert.rejects(discover('/mcp', { github: ['127.0.0.1'] }), /provider "tracker" is not on the operator's OAuth host allowlist/);
 });
@@ -187,7 +207,94 @@ test('an authorization server without PKCE S256 or without registration is refus
 });
 
 test('the SSRF guard applies unless private hosts are allowed', async () => {
-  await assert.rejects(discoverAuthorization(`${base}/mcp`, { provider: 'tracker', allowlist: ALLOW }), /refusing the protected-resource metadata 127\.0\.0\.1/);
+  await assert.rejects(discoverAuthorization(`${base}/mcp`, { provider: 'tracker', allowlist: ALLOW }), /refusing the MCP server 127\.0\.0\.1/);
+});
+
+// ── The 401's WWW-Authenticate header (RFC 9728 5.1) ─────────────────────────
+
+test('the Bearer challenge parser: parameters, quoted strings, several challenges, token68', () => {
+  assert.deepEqual(parseBearerChallenge('Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource", scope="a b"'), {
+    resourceMetadata: 'https://mcp.example.com/.well-known/oauth-protected-resource',
+    scopes: ['a', 'b'],
+  });
+  // A token value, case-insensitive names, escapes inside a quoted string.
+  assert.deepEqual(parseBearerChallenge('bearer Scope=read , RESOURCE_METADATA="https://m.example.com/meta"'), { resourceMetadata: 'https://m.example.com/meta', scopes: ['read'] });
+  // A URL is not a token (`:` is no tchar): unquoted, the header is malformed.
+  assert.equal(parseBearerChallenge('Bearer resource_metadata=https://m.example.com/meta'), undefined);
+  assert.deepEqual(parseBearerChallenge('Bearer realm="a \\"quoted\\" realm, with a comma", resource_metadata="https://m.example.com/m"'), { resourceMetadata: 'https://m.example.com/m' });
+  // Several challenges: the Bearer one is found after others, and parameters of a later challenge are not its own.
+  assert.deepEqual(parseBearerChallenge('Basic realm="x", Negotiate YII/abc==, Bearer error="invalid_token", resource_metadata="https://m.example.com/m", DPoP algs="ES256", scope="dpop-only"'), { resourceMetadata: 'https://m.example.com/m' });
+  assert.deepEqual(parseBearerChallenge('Negotiate abc=, Bearer scope="x  y x \\"bad"'), { scopes: ['x', 'y'] });
+  assert.deepEqual(parseBearerChallenge('Bearer'), {});
+  // No Bearer challenge, or malformed, oversized or ambiguous: ignored whole.
+  for (const bad of [
+    null,
+    '',
+    'Basic realm="x"',
+    'Bearer resource_metadata="https://m.example.com/m',
+    'Bearer resource_metadata="https://m.example.com/m" trailing',
+    'Bearer resource_metadata=',
+    'Bearer =x',
+    'Bearer resource_metadata="https://a.example.com/", resource_metadata="https://b.example.com/"',
+    `Bearer realm="${'x'.repeat(9000)}", resource_metadata="https://m.example.com/m"`,
+    'Bearer {resource_metadata}="x"',
+  ]) {
+    const parsed = parseBearerChallenge(bad);
+    assert.ok(parsed === undefined || !parsed.resourceMetadata, `ignored: ${String(bad).slice(0, 60)}`);
+  }
+  assert.equal(parseBearerChallenge(`Bearer resource_metadata="https://m.example.com/${'a'.repeat(3000)}"`)?.resourceMetadata, undefined, 'an oversized value is ignored');
+  // Linear: hostile shapes at the length bound parse at once.
+  for (const hostile of ['"'.repeat(MAX_CHALLENGE_HEADER), 'a='.repeat(MAX_CHALLENGE_HEADER / 2), `Bearer x="${'\\'.repeat(MAX_CHALLENGE_HEADER - 12)}`, 'Bearer a, '.repeat(MAX_CHALLENGE_HEADER / 10)]) {
+    const started = performance.now();
+    parseBearerChallenge(hostile.slice(0, MAX_CHALLENGE_HEADER));
+    assert.ok(performance.now() - started < 50, 'parsed in linear time');
+  }
+});
+
+test("a server that publishes its metadata only in the 401's header is discovered, with the challenge's scopes", async () => {
+  seen.length = 0;
+  const found = await discover('/hdr/mcp');
+  assert.deepEqual(found, {
+    resource: `${base}/hdr/mcp`,
+    issuer: `${base}/as`,
+    authorizationEndpoint: `${base}/as/authorize`,
+    tokenEndpoint: `${base}/as/token`,
+    registrationEndpoint: `${base}/as/register`,
+    challengeScopes: ['issues:read', 'issues:write'],
+  });
+  assert.deepEqual(seen.slice(0, 2), ['127.0.0.1 POST /hdr/mcp', '127.0.0.1 GET /meta/hdr'], 'the header URL is read before the well-known URLs');
+  assert.ok(!seen.some((s) => s.includes('/.well-known/oauth-protected-resource')), 'no well-known request was needed');
+  // Several challenges, the Bearer one last and spelled in capitals.
+  assert.equal((await discover('/hdr-multi/mcp')).issuer, `${base}/as`);
+  // A grant that names no scopes registers with the challenge's.
+  registrations.length = 0;
+  const source = dynamicOAuthClient({ provider: 'tracker', server: `${base}/hdr/mcp`, scopes: [] }, { redirectUri: REDIRECT, allowPrivate: true, allowlist: ALLOW });
+  assert.deepEqual((await source()).scopes, ['issues:read', 'issues:write']);
+  assert.equal(registrations.at(-1)?.scope, 'issues:read issues:write');
+  // The YAML's scopes win over the challenge's.
+  const named = dynamicOAuthClient({ provider: 'tracker', server: `${base}/hdr/mcp`, scopes: ['issues:read'] }, { redirectUri: REDIRECT, allowPrivate: true, allowlist: ALLOW });
+  assert.deepEqual((await named()).scopes, ['issues:read']);
+});
+
+test('a malformed, oversized or non-URL header is ignored, and the well-known URLs are used', async () => {
+  for (const path of ['/hdr-malformed/mcp', '/hdr-oversized/mcp', '/hdr-notaurl/mcp']) {
+    seen.length = 0;
+    const found = await discover(path);
+    assert.equal(found.issuer, base, `${path}: the origin is the authorization server`);
+    assert.equal(found.challengeScopes, undefined);
+    assert.ok(!seen.some((s) => s.includes('/meta/')), `${path}: the header's URL was not read`);
+    assert.ok(seen.some((s) => s.includes('/.well-known/oauth-protected-resource')), `${path}: the well-known URLs were`);
+  }
+});
+
+test('a header naming a host off the allowlist, or a non-https URL, is refused before any request reaches it', async () => {
+  seen.length = 0;
+  await assert.rejects(discover('/hdr-foreign/mcp'), (e: unknown) => e instanceof OAuthDiscoveryError && /localhost \(protected-resource metadata named by the 401\) is not one of them/.test(e.message) && /never widens/.test(e.message));
+  assert.ok(!seen.some((s) => s.startsWith('localhost ')), `no request to the foreign host: ${seen.join(', ')}`);
+  assert.ok(!seen.some((s) => s.includes('/.well-known/')), 'refused, not skipped');
+  await assert.rejects(discover('/hdr-http/mcp'), /metadata\.example\.com\) is not https/);
+  // The error names the host and the role, never the header.
+  await assert.rejects(discover('/hdr-foreign/mcp'), (e: unknown) => e instanceof Error && !/resource_metadata|Bearer/.test(e.message));
 });
 
 // ── Registration and consent ─────────────────────────────────────────────────

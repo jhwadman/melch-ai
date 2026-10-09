@@ -102,6 +102,23 @@ the starter pack and the templates), not the repo's full history.
   Codex CLI's login) and routes OpenAI to level 9. `ONBOARDING.md` and the
   onboarding skills follow.
 
+### Fixed
+
+- **Dynamic client registration finds an MCP server that publishes its
+  protected-resource metadata only in its 401** (ADR 0124). Discovery now
+  sends the MCP server an unauthenticated initialize first and, on a 401,
+  reads the Bearer challenge's `resource_metadata` in `WWW-Authenticate`
+  (RFC 9728 5.1) before the well-known URLs, which stay the fallback. The URL
+  the header names passes the operator's OAuth host allowlist and the SSRF
+  guard before any request, as every discovered host does, and is refused by
+  name when it does not. A grant that names no `scopes` registers and asks
+  with the challenge's `scope`. The header is read by a bounded, linear
+  tokenizer; a malformed or oversized one is ignored. Additive in
+  `melchizedek-agents/tools/oauthDiscovery`: `parseBearerChallenge`,
+  `BearerChallenge`, `MAX_CHALLENGE_HEADER`, and
+  `DiscoveredAuthorization.challengeScopes`. An allowlist or SSRF refusal of
+  the MCP server itself now names the role `MCP server`.
+
 ## 1.2.0 — 2026-10-09
 
 Release 1.2.0 carries pauses and consent further down a turn and gives the
