@@ -145,6 +145,8 @@ interface RawSubagent {
   model?: string;
   tools?: string[];
   mcp_server_url?: string;
+  /** Several MCP servers (ADR 0124). */
+  mcp_servers?: Array<{ name?: string; url?: string }>;
   skills?: { dir?: string; scripts?: string; tools?: string[] };
   openapi?: Array<{ spec?: string; operations?: string[] }>;
   /** A subagent that IS another syndicate, resolved from its file at load time. */
@@ -275,7 +277,7 @@ function syndicateSpecs(): DocSpec[] {
           s.name ?? '?',
           s.yaml_reference ? nestedSyndicate(s.yaml_reference, pageOf) : `\`${s.model ?? 'default'}\``,
           ((s.tools ?? []).map((t) => `\`${t}\``).join(', ') + skillsNote(s.skills) + openapiNote(s.openapi)) || '—',
-          s.mcp_server_url ? '`mcp_server_url`' : '—',
+          s.mcp_server_url ? '`mcp_server_url`' : s.mcp_servers?.length ? s.mcp_servers.map((m) => `\`${m.name ?? '?'}\``).join(', ') : '—',
         ]),
       ),
     );
@@ -972,15 +974,16 @@ function entityLayer(
         }
         link(agent, 'uses_tool', entityId('tool', toolName), yamlPath);
       }
-      if (raw.mcp_server_url) {
+      const mcpUrls = [raw.mcp_server_url, ...(raw.mcp_servers ?? []).map((m) => m?.url)].filter((u): u is string => typeof u === 'string' && u !== '');
+      for (const mcpUrl of mcpUrls) {
         add({
-          id: entityId('mcp-server', raw.mcp_server_url),
+          id: entityId('mcp-server', mcpUrl),
           kind: 'mcp-server',
-          label: raw.mcp_server_url,
+          label: mcpUrl,
           source: yamlPath,
           ...(isPrivate ? { private: true } : {}),
         });
-        link(agent, 'connects_mcp', entityId('mcp-server', raw.mcp_server_url), yamlPath);
+        link(agent, 'connects_mcp', entityId('mcp-server', mcpUrl), yamlPath);
       }
     }
   }

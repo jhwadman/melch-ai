@@ -5,48 +5,48 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 934,
-    "edges": 3868,
+    "nodes": 943,
+    "edges": 3919,
     "byKind": {
-      "doc": 187,
+      "doc": 189,
       "provider": 6,
       "env": 106,
       "model": 10,
       "tool": 34,
-      "file": 205,
-      "syndicate": 33,
-      "agent": 91,
+      "file": 208,
+      "syndicate": 34,
+      "agent": 92,
       "mcp-server": 4,
       "table": 18,
-      "module": 189,
+      "module": 191,
       "script": 49,
       "external": 2
     },
     "byRelation": {
-      "links_to": 908,
+      "links_to": 916,
       "requires_env": 174,
       "routes_to": 10,
-      "defined_in": 78,
-      "documents": 57,
-      "contains": 91,
-      "uses_model": 91,
+      "defined_in": 79,
+      "documents": 58,
+      "contains": 92,
+      "uses_model": 92,
       "uses_tool": 62,
-      "connects_mcp": 3,
+      "connects_mcp": 5,
       "delegates_to": 1,
-      "imports": 808,
+      "imports": 820,
       "reads_table": 28,
       "runs": 71,
-      "derives_from": 1040,
-      "constrains": 229,
+      "derives_from": 1058,
+      "constrains": 234,
       "supersedes": 20,
-      "depends_on": 140,
+      "depends_on": 142,
       "explains": 52,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3422,
-      "inferred": 446
+      "extracted": 3466,
+      "inferred": 453
     },
     "isolated": 4
   },
@@ -133,6 +133,18 @@
         "status": "stable",
         "trust": "unverified",
         "words": 123
+      }
+    },
+    {
+      "id": "/agents/connectors.md",
+      "kind": "doc",
+      "label": "Connectors",
+      "source": "/agents/connectors.md",
+      "attrs": {
+        "type": "syndicate",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 218
       }
     },
     {
@@ -1864,6 +1876,18 @@
       }
     },
     {
+      "id": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "kind": "doc",
+      "label": "ADR 0124: The MCP client speaks Streamable HTTP, reaches several servers per agent, and registers itself where no client is issued",
+      "source": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 1796
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2196,7 +2220,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 937
+        "words": 1435
       }
     },
     {
@@ -2268,7 +2292,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3169
+        "words": 3309
       }
     },
     {
@@ -2474,6 +2498,16 @@
       "attrs": {
         "role": "orchestrator",
         "syndicate": "claude"
+      }
+    },
+    {
+      "id": "agent:connectors/Desk",
+      "kind": "agent",
+      "label": "Desk",
+      "source": "config/agents/examples/connectors.yaml",
+      "attrs": {
+        "role": "orchestrator",
+        "syndicate": "connectors"
       }
     },
     {
@@ -4029,6 +4063,13 @@
       "attrs": {}
     },
     {
+      "id": "file:config/agents/examples/connectors.yaml",
+      "kind": "file",
+      "label": "connectors.yaml",
+      "source": "config/agents/examples/connectors.yaml",
+      "attrs": {}
+    },
+    {
       "id": "file:config/agents/examples/council.yaml",
       "kind": "file",
       "label": "council.yaml",
@@ -4827,6 +4868,13 @@
       "source": "tests/llmRequestBoundary.test.ts"
     },
     {
+      "id": "file:tests/mcpStreamable.test.ts",
+      "kind": "file",
+      "label": "mcpStreamable.test.ts",
+      "source": "tests/mcpStreamable.test.ts",
+      "attrs": {}
+    },
+    {
       "id": "file:tests/mcpTools.test.ts",
       "kind": "file",
       "label": "mcpTools.test.ts",
@@ -4939,6 +4987,13 @@
       "kind": "file",
       "label": "oauthConsent.test.ts",
       "source": "tests/oauthConsent.test.ts",
+      "attrs": {}
+    },
+    {
+      "id": "file:tests/oauthDiscovery.test.ts",
+      "kind": "file",
+      "label": "oauthDiscovery.test.ts",
+      "source": "tests/oauthDiscovery.test.ts",
       "attrs": {}
     },
     {
@@ -5321,7 +5376,8 @@
       "id": "mcp-server:http://localhost:8933/sse",
       "kind": "mcp-server",
       "label": "http://localhost:8933/sse",
-      "source": "scripts/wiki/mcp_server.ts"
+      "source": "scripts/wiki/mcp_server.ts",
+      "attrs": {}
     },
     {
       "id": "mcp-server:http://localhost:8934/sse",
@@ -5422,7 +5478,7 @@
       "label": "lib/a2a/oauthSetup.ts",
       "source": "lib/a2a/oauthSetup.ts",
       "attrs": {
-        "lines": 280
+        "lines": 297
       }
     },
     {
@@ -5476,7 +5532,7 @@
       "label": "lib/compile.ts",
       "source": "lib/compile.ts",
       "attrs": {
-        "lines": 694
+        "lines": 704
       }
     },
     {
@@ -5566,7 +5622,7 @@
       "label": "lib/loadSyndicate.ts",
       "source": "lib/loadSyndicate.ts",
       "attrs": {
-        "lines": 783
+        "lines": 789
       }
     },
     {
@@ -6304,7 +6360,7 @@
       "label": "lib/syndicateSchema.ts",
       "source": "lib/syndicateSchema.ts",
       "attrs": {
-        "lines": 1196
+        "lines": 1300
       }
     },
     {
@@ -6367,7 +6423,7 @@
       "label": "lib/tools/credentialUses.ts",
       "source": "lib/tools/credentialUses.ts",
       "attrs": {
-        "lines": 158
+        "lines": 167
       }
     },
     {
@@ -6412,7 +6468,16 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 383
+        "lines": 457
+      }
+    },
+    {
+      "id": "module:lib/tools/mcpTransports.ts",
+      "kind": "module",
+      "label": "lib/tools/mcpTransports.ts",
+      "source": "lib/tools/mcpTransports.ts",
+      "attrs": {
+        "lines": 13
       }
     },
     {
@@ -6439,7 +6504,16 @@
       "label": "lib/tools/oauthConsent.ts",
       "source": "lib/tools/oauthConsent.ts",
       "attrs": {
-        "lines": 465
+        "lines": 510
+      }
+    },
+    {
+      "id": "module:lib/tools/oauthDiscovery.ts",
+      "kind": "module",
+      "label": "lib/tools/oauthDiscovery.ts",
+      "source": "lib/tools/oauthDiscovery.ts",
+      "attrs": {
+        "lines": 500
       }
     },
     {
@@ -6457,7 +6531,7 @@
       "label": "lib/tools/oauthTools.ts",
       "source": "lib/tools/oauthTools.ts",
       "attrs": {
-        "lines": 521
+        "lines": 584
       }
     },
     {
@@ -7051,7 +7125,7 @@
       "label": "scripts/wiki/build.ts",
       "source": "scripts/wiki/build.ts",
       "attrs": {
-        "lines": 1342
+        "lines": 1345
       }
     },
     {
@@ -7640,6 +7714,17 @@
       "source": "config/agents/examples/claude.yaml",
       "attrs": {
         "memory": "session-only",
+        "agents": 1,
+        "mode": "delegate"
+      }
+    },
+    {
+      "id": "syndicate:connectors",
+      "kind": "syndicate",
+      "label": "Connectors",
+      "source": "config/agents/examples/connectors.yaml",
+      "attrs": {
+        "memory": "internal-only",
         "agents": 1,
         "mode": "delegate"
       }
@@ -8473,6 +8558,34 @@
       "rel": "documents",
       "tier": "extracted",
       "evidence": "/agents/claude.md"
+    },
+    {
+      "from": "/agents/connectors.md",
+      "to": "file:config/agents/examples/connectors.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/agents/connectors.md frontmatter"
+    },
+    {
+      "from": "/agents/connectors.md",
+      "to": "syndicate:connectors",
+      "rel": "documents",
+      "tier": "extracted",
+      "evidence": "/agents/connectors.md"
+    },
+    {
+      "from": "/agents/connectors.md",
+      "to": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/connectors.md:17"
+    },
+    {
+      "from": "/agents/connectors.md",
+      "to": "/protocols/mcp.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/agents/connectors.md:17"
     },
     {
       "from": "/agents/conversational.md",
@@ -16980,6 +17093,118 @@
       "evidence": "/decisions/0123-onboarding-levels-from-one-generator.md:29"
     },
     {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "file:config/agents/examples/connectors.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "file:tests/mcpStreamable.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "file:tests/oauthDiscovery.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/compile.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/credentialUses.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/mcpTransports.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/oauthDiscovery.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md frontmatter"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md:35"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md:35"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md:33"
+    },
+    {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md:35"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -21209,6 +21434,27 @@
     },
     {
       "from": "/protocols/mcp.md",
+      "to": "file:config/agents/examples/connectors.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "file:tests/mcpStreamable.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "file:tests/oauthDiscovery.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
       "to": "file:tests/oauthTools.test.ts",
       "rel": "derives_from",
       "tier": "extracted",
@@ -21224,6 +21470,20 @@
     {
       "from": "/protocols/mcp.md",
       "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "module:lib/tools/mcpTransports.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md frontmatter"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "module:lib/tools/oauthDiscovery.ts",
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/protocols/mcp.md frontmatter"
@@ -21261,63 +21521,70 @@
       "to": "/agents/librarian.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:31"
+      "evidence": "/protocols/mcp.md:40"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0036-redirects-under-the-ssrf-guard.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:33"
+      "evidence": "/protocols/mcp.md:42"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0041-tool-vendors-get-least-privilege.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:33"
+      "evidence": "/protocols/mcp.md:42"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:37"
+      "evidence": "/protocols/mcp.md:46"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:41"
+      "evidence": "/protocols/mcp.md:51"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:40"
+      "evidence": "/protocols/mcp.md:49"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/protocols/mcp.md:34"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:49"
+      "evidence": "/protocols/mcp.md:59"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/tool-contracts.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:27"
+      "evidence": "/protocols/mcp.md:32"
     },
     {
       "from": "/protocols/mcp.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/protocols/mcp.md:48"
+      "evidence": "/protocols/mcp.md:58"
     },
     {
       "from": "/tools/ask-user.md",
@@ -22059,7 +22326,7 @@
       "to": "/decisions/0062-server-side-tools-as-markers.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:102"
+      "evidence": "/tools/tool-contracts.md:103"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -22129,14 +22396,21 @@
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:94"
+      "evidence": "/tools/tool-contracts.md:95"
+    },
+    {
+      "from": "/tools/tool-contracts.md",
+      "to": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/tools/tool-contracts.md:89"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:124"
+      "evidence": "/tools/tool-contracts.md:125"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -22157,14 +22431,14 @@
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:110"
+      "evidence": "/tools/tool-contracts.md:111"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:89"
+      "evidence": "/tools/tool-contracts.md:90"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -22185,7 +22459,7 @@
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:116"
+      "evidence": "/tools/tool-contracts.md:117"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -22206,21 +22480,21 @@
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:116"
+      "evidence": "/tools/tool-contracts.md:117"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:116"
+      "evidence": "/tools/tool-contracts.md:117"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:116"
+      "evidence": "/tools/tool-contracts.md:117"
     },
     {
       "from": "/tools/web-tools.md",
@@ -22697,6 +22971,27 @@
       "rel": "uses_model",
       "tier": "extracted",
       "evidence": "config/agents/examples/claude.yaml"
+    },
+    {
+      "from": "agent:connectors/Desk",
+      "to": "mcp-server:http://localhost:8931/sse",
+      "rel": "connects_mcp",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/connectors.yaml"
+    },
+    {
+      "from": "agent:connectors/Desk",
+      "to": "mcp-server:http://localhost:8933/sse",
+      "rel": "connects_mcp",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/connectors.yaml"
+    },
+    {
+      "from": "agent:connectors/Desk",
+      "to": "model:gemini-3.8-flash",
+      "rel": "uses_model",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/connectors.yaml"
     },
     {
       "from": "agent:conversational/Conversational",
@@ -23925,6 +24220,13 @@
     },
     {
       "from": "module:lib/a2a/oauthSetup.ts",
+      "to": "module:lib/tools/oauthDiscovery.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/a2a/oauthSetup.ts"
+    },
+    {
+      "from": "module:lib/a2a/oauthSetup.ts",
       "to": "module:lib/tools/oauthHosts.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -24584,6 +24886,20 @@
     {
       "from": "module:lib/loadSyndicate.ts",
       "to": "module:lib/syndicateSchema.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/loadSyndicate.ts"
+    },
+    {
+      "from": "module:lib/loadSyndicate.ts",
+      "to": "module:lib/tools/mcpTransports.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/loadSyndicate.ts"
@@ -27579,6 +27895,13 @@
     },
     {
       "from": "module:lib/syndicateSchema.ts",
+      "to": "module:lib/tools/mcpTransports.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/syndicateSchema.ts"
+    },
+    {
+      "from": "module:lib/syndicateSchema.ts",
       "to": "module:lib/tools/skills/env.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27838,6 +28161,13 @@
     },
     {
       "from": "module:lib/tools/mcpToolFactory.ts",
+      "to": "module:lib/tools/mcpTransports.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/mcpToolFactory.ts"
+    },
+    {
+      "from": "module:lib/tools/mcpToolFactory.ts",
       "to": "module:lib/tools/oauthTools.ts",
       "rel": "imports",
       "tier": "extracted",
@@ -27921,6 +28251,48 @@
       "evidence": "lib/tools/oauthConsent.ts"
     },
     {
+      "from": "module:lib/tools/oauthDiscovery.ts",
+      "to": "module:lib/net/addressGuard.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthDiscovery.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthDiscovery.ts",
+      "to": "module:lib/tools/auth.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthDiscovery.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthDiscovery.ts",
+      "to": "module:lib/tools/credentialCipher.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthDiscovery.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthDiscovery.ts",
+      "to": "module:lib/tools/credentialStore.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthDiscovery.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthDiscovery.ts",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthDiscovery.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthDiscovery.ts",
+      "to": "module:lib/tools/oauthHosts.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthDiscovery.ts"
+    },
+    {
       "from": "module:lib/tools/oauthHosts.ts",
       "to": "module:lib/tools/auth.ts",
       "rel": "imports",
@@ -27958,6 +28330,13 @@
     {
       "from": "module:lib/tools/oauthTools.ts",
       "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/tools/oauthTools.ts"
+    },
+    {
+      "from": "module:lib/tools/oauthTools.ts",
+      "to": "module:lib/tools/oauthDiscovery.ts",
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/tools/oauthTools.ts"
@@ -31307,6 +31686,20 @@
       "rel": "defined_in",
       "tier": "extracted",
       "evidence": "config/agents/examples/claude.yaml"
+    },
+    {
+      "from": "syndicate:connectors",
+      "to": "agent:connectors/Desk",
+      "rel": "contains",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/connectors.yaml"
+    },
+    {
+      "from": "syndicate:connectors",
+      "to": "file:config/agents/examples/connectors.yaml",
+      "rel": "defined_in",
+      "tier": "extracted",
+      "evidence": "config/agents/examples/connectors.yaml"
     },
     {
       "from": "syndicate:conversational",

@@ -44,7 +44,7 @@ export interface CredentialUse {
 
 /** The parts of an `oauth2` block read here. */
 interface OAuth2Like {
-  token_url: string;
+  token_url?: string;
   client_secret_env?: string;
 }
 /** The parts of an `openapi:` entry read here. */
@@ -58,6 +58,7 @@ interface AgentLike {
   openapi?: OpenApiEntryLike[];
   mcp_server_url?: string;
   mcp_auth?: { oauth2?: OAuth2Like };
+  mcp_servers?: Array<{ url?: string; auth?: { oauth2?: OAuth2Like } }>;
   yaml_reference?: string;
 }
 /** The parts of a syndicate config read here. */
@@ -65,6 +66,9 @@ export interface SyndicateLike {
   orchestrator?: AgentLike;
   subagents?: AgentLike[];
 }
+
+/** The token endpoint a client secret goes to; none named yet for a grant whose endpoints are discovered (ADR 0124). */
+const tokenUrlOf = (o: OAuth2Like): string[] => (o.token_url ? [o.token_url] : []);
 
 /** The credential variables one agent's tools send. */
 export function agentCredentialUses(agent: AgentLike, prefix = ''): CredentialUse[] {
@@ -77,10 +81,15 @@ export function agentCredentialUses(agent: AgentLike, prefix = ''): CredentialUs
     const servers = entry.base_url ? { destinations: [entry.base_url] } : {};
     if (auth.bearer_env) out.push({ agent: name, tools, env: auth.bearer_env, role: 'bearer_env', ...servers, openapi: entry });
     if (auth.api_key?.env) out.push({ agent: name, tools, env: auth.api_key.env, role: 'api_key', ...servers, openapi: entry });
-    if (auth.oauth2?.client_secret_env) out.push({ agent: name, tools, env: auth.oauth2.client_secret_env, role: 'client_secret_env', destinations: [auth.oauth2.token_url] });
+    if (auth.oauth2?.client_secret_env) out.push({ agent: name, tools, env: auth.oauth2.client_secret_env, role: 'client_secret_env', destinations: tokenUrlOf(auth.oauth2) });
   }
   const mcp = agent.mcp_auth?.oauth2;
-  if (mcp?.client_secret_env) out.push({ agent: name, tools: `mcp ${agent.mcp_server_url ?? ''}`, env: mcp.client_secret_env, role: 'client_secret_env', destinations: [mcp.token_url] });
+  if (mcp?.client_secret_env) out.push({ agent: name, tools: `mcp ${agent.mcp_server_url ?? ''}`, env: mcp.client_secret_env, role: 'client_secret_env', destinations: tokenUrlOf(mcp) });
+  // Each mcp_servers entry's grant (ADR 0124), as the single server's.
+  for (const server of agent.mcp_servers ?? []) {
+    const o = server?.auth?.oauth2;
+    if (o?.client_secret_env) out.push({ agent: name, tools: `mcp ${server.url ?? ''}`, env: o.client_secret_env, role: 'client_secret_env', destinations: tokenUrlOf(o) });
+  }
   return out;
 }
 

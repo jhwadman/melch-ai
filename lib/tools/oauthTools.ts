@@ -67,7 +67,8 @@ import { readCredentialEnv } from './credentialEnv.ts';
 import { CLIENT_SECRET_ENV, clientSecretEnvOf, credentialCallProblem, credentialHostProblem } from './credentialHosts.ts';
 import { oauthHostProblem, oauthHosts } from './oauthHosts.ts';
 import type { OAuthHostAllowlist } from './oauthHosts.ts';
-import type { OAuthClientConfig } from './oauthConsent.ts';
+import type { OAuthClientConfig, OAuthClientSource } from './oauthConsent.ts';
+import type { DynamicOAuthGrant } from './oauthDiscovery.ts';
 import type { ToolContext } from './tool.ts';
 
 /** The `oauth2` block of an `auth` (OpenAPI) or an `mcp_auth` (MCP). */
@@ -77,8 +78,14 @@ export interface OAuth2AuthConfig {
   grant: 'authorization_code' | 'client_credentials';
   /** The provider's authorization endpoint (authorization_code only). */
   authorization_url?: string;
-  /** The provider's token endpoint. */
-  token_url: string;
+  /** The provider's token endpoint. Absent only with `client_registration: 'dynamic'`, which discovers it. */
+  token_url?: string;
+  /**
+   * `'dynamic'` (MCP servers, authorization_code only, ADR 0124): no
+   * pre-issued client. The authorization server is discovered from the MCP
+   * server and the deployment registers itself (lib/tools/oauthDiscovery.ts).
+   */
+  client_registration?: 'dynamic';
   /** The client id, written out (it is not a secret) … */
   client_id?: string;
   /** … or the environment variable holding it. */
@@ -104,12 +111,13 @@ export interface OAuthGrantUse {
   oauth2: OAuth2AuthConfig;
 }
 
-/** An agent's declared OAuth grants, OpenAPI entries first, then its MCP server. */
+/** An agent's declared OAuth grants, OpenAPI entries first, then its MCP server, then each of its `mcp_servers` (ADR 0124). */
 export function agentOAuthGrants(agent: {
   name?: string;
   openapi?: Array<{ spec?: string; auth?: { oauth2?: OAuth2AuthConfig } }>;
   mcp_server_url?: string;
   mcp_auth?: { oauth2?: OAuth2AuthConfig };
+  mcp_servers?: Array<{ url?: string; auth?: { oauth2?: OAuth2AuthConfig } }>;
 }, prefix = ''): OAuthGrantUse[] {
   const name = `${prefix}${agent.name ?? ''}`;
   const out: OAuthGrantUse[] = [];
@@ -117,6 +125,9 @@ export function agentOAuthGrants(agent: {
     if (entry?.auth?.oauth2) out.push({ agent: name, tools: `openapi ${entry.spec ?? ''}`, oauth2: entry.auth.oauth2 });
   }
   if (agent.mcp_auth?.oauth2) out.push({ agent: name, tools: `mcp ${agent.mcp_server_url ?? ''}`, oauth2: agent.mcp_auth.oauth2 });
+  for (const server of agent.mcp_servers ?? []) {
+    if (server?.auth?.oauth2) out.push({ agent: name, tools: `mcp ${server.url ?? ''}`, oauth2: server.auth.oauth2 });
+  }
   return out;
 }
 
@@ -154,7 +165,8 @@ export function tokenTransportProblem(raw: string): string | null {
 export function oauthGrantHostProblems(oauth2: OAuth2AuthConfig, servers: readonly string[], allowlist?: OAuthHostAllowlist | null): string[] {
   const list = allowlist === undefined ? oauthHosts() ?? null : allowlist;
   const urls: Array<[string, string]> = servers.map((s): [string, string] => ['server', s]);
-  urls.push(['token_url', oauth2.token_url]);
+  // A dynamic grant names no endpoint: discovery checks each one it finds (lib/tools/oauthDiscovery.ts).
+  if (oauth2.token_url) urls.push(['token_url', oauth2.token_url]);
   if (oauth2.authorization_url) urls.push(['authorization_url', oauth2.authorization_url]);
   const out = new Set<string>();
   for (const [role, url] of urls) {
@@ -348,19 +360,21 @@ export function oauthTokenSource(oauth2: OAuth2AuthConfig, where: string, server
   }
   const env = options.env ?? process.env;
   if (!oauth2.client_secret_env) throw new Error(`${where}: a client_credentials grant needs client_secret_env`);
-  const transport = tokenTransportProblem(oauth2.token_url);
+  const tokenUrl = oauth2.token_url;
+  if (!tokenUrl) throw new Error(`${where}: a client_credentials grant needs token_url`);
+  const transport = tokenTransportProblem(tokenUrl);
   if (transport) throw new Error(`${where}: token_url: ${transport}`);
   if (options.allowPrivate !== true) {
-    const blocked = blockedHostReason(new URL(oauth2.token_url).hostname);
-    if (blocked) throw new Error(`${where}: refusing token endpoint ${new URL(oauth2.token_url).hostname}: ${blocked}`);
+    const blocked = blockedHostReason(new URL(tokenUrl).hostname);
+    if (blocked) throw new Error(`${where}: refusing token endpoint ${new URL(tokenUrl).hostname}: ${blocked}`);
   }
   // The client secret goes only to a host the operator binds its variable to (ADR 0122).
   const secretEnv = oauth2.client_secret_env;
-  const unbound = credentialHostProblem(secretEnv, oauth2.token_url, 'token_url');
+  const unbound = credentialHostProblem(secretEnv, tokenUrl, 'token_url');
   if (unbound) throw new Error(`${where}: ${unbound}`);
   const grant = clientCredentialsGrant({
     provider,
-    tokenUrl: oauth2.token_url,
+    tokenUrl,
     clientId: oauth2.client_id ?? readCredentialEnv(oauth2.client_id_env ?? '', where, env),
     clientSecret: readCredentialEnv(oauth2.client_secret_env, where, env),
     ...(oauth2.scopes?.length ? { scopes: [...oauth2.scopes] } : {}),
@@ -371,8 +385,8 @@ export function oauthTokenSource(oauth2: OAuth2AuthConfig, where: string, server
     refuse(destination);
     // The client secret goes to the token endpoint: held to the same rule,
     // and to the credential host allowlist (ADR 0122).
-    refuse(oauth2.token_url);
-    if (credentialCallProblem(secretEnv, oauth2.token_url)) throw new ToolCredentialError('host_refused', provider);
+    refuse(tokenUrl);
+    if (credentialCallProblem(secretEnv, tokenUrl)) throw new ToolCredentialError('host_refused', provider);
     return grant.token(ctx?.signal);
   };
 }
@@ -385,6 +399,7 @@ interface AgentLike {
   openapi?: Array<{ spec?: string; auth?: { oauth2?: OAuth2AuthConfig } }>;
   mcp_server_url?: string;
   mcp_auth?: { oauth2?: OAuth2AuthConfig };
+  mcp_servers?: Array<{ url?: string; auth?: { oauth2?: OAuth2AuthConfig } }>;
   yaml_reference?: string;
 }
 interface SyndicateLike {
@@ -392,28 +407,42 @@ interface SyndicateLike {
   subagents?: AgentLike[];
 }
 
-/**
- * The OAuth clients the consent step needs for these syndicates' declared
- * authorization-code grants, by provider: pass them as
- * `oauthConsent({ providers })` (lib/tools/oauthConsent.ts). Client ids and
- * secrets are read from the variables the YAML names. Two declarations of
- * one provider must agree on its endpoints, client and scopes, or this
- * throws: a provider's grant is one grant, whichever tool asks for it.
- * `load` reads a nested `yaml_reference:` file, when given.
- */
-export function oauthClientsFor(
-  configs: readonly SyndicateLike[],
-  options: { env?: NodeJS.ProcessEnv; load?: (ref: string) => SyndicateLike; allowlist?: OAuthHostAllowlist | null } = {},
-): Record<string, OAuthClientConfig> {
+/** The options oauthClientsFor and dynamicOAuthGrantsFor share. */
+interface ClientsForOptions {
+  env?: NodeJS.ProcessEnv;
+  load?: (ref: string) => SyndicateLike;
+  allowlist?: OAuthHostAllowlist | null;
+}
+
+/** Every declared authorization-code grant, by provider: configured clients and dynamic grants, one grant per provider. */
+function collectOAuthClients(configs: readonly SyndicateLike[], options: ClientsForOptions): { clients: Record<string, OAuthClientConfig>; dynamic: Record<string, DynamicOAuthGrant> } {
   const env = options.env ?? process.env;
   const allowlist = options.allowlist === undefined ? oauthHosts(env) ?? null : options.allowlist;
   const clients: Record<string, OAuthClientConfig> = {};
+  const dynamic: Record<string, DynamicOAuthGrant> = {};
   const signature = new Map<string, string>();
   for (const use of syndicateOAuthGrants(configs, options.load)) {
     const o = use.oauth2;
     if (o.grant !== 'authorization_code') continue;
     const where = `${use.agent} · ${use.tools} · oauth2`;
+    if (o.client_registration === 'dynamic') {
+      // Discovered and registered when first needed (ADR 0124): the MCP server is all the YAML names.
+      const server = use.tools.startsWith('mcp ') && use.tools.length > 4 ? use.tools.slice(4) : '';
+      if (!server) throw new Error(`${where}: client_registration: dynamic is for an MCP server's grant`);
+      const hostProblems = oauthGrantHostProblems(o, [server], allowlist);
+      if (hostProblems.length) throw new Error(`${where}: ${hostProblems.join('; ')}`);
+      const sig = JSON.stringify(['dynamic', server, [...(o.scopes ?? [])].sort(), o.authorization_params ?? {}]);
+      const before = signature.get(o.provider);
+      if (before !== undefined) {
+        if (before !== sig) throw new Error(`${where}: provider "${o.provider}" is declared twice with different endpoints, client or scopes`);
+        continue;
+      }
+      signature.set(o.provider, sig);
+      dynamic[o.provider] = { provider: o.provider, server, scopes: [...(o.scopes ?? [])], ...(o.authorization_params ? { authorizationParams: { ...o.authorization_params } } : {}) };
+      continue;
+    }
     if (!o.authorization_url) throw new Error(`${where}: an authorization_code grant needs authorization_url`);
+    if (!o.token_url) throw new Error(`${where}: an authorization_code grant needs token_url`);
     // The consent step sends the client secret, the code and later the refresh token to these endpoints (ADR 0114).
     const hostProblems = oauthGrantHostProblems(o, [], allowlist);
     if (hostProblems.length) throw new Error(`${where}: ${hostProblems.join('; ')}`);
@@ -438,7 +467,33 @@ export function oauthClientsFor(
       ...(o.client_secret_env ? { [CLIENT_SECRET_ENV]: o.client_secret_env } : {}),
     };
   }
-  return clients;
+  return { clients, dynamic };
+}
+
+/**
+ * The OAuth clients the consent step needs for these syndicates' declared
+ * authorization-code grants, by provider: pass them as
+ * `oauthConsent({ providers })` (lib/tools/oauthConsent.ts). Client ids and
+ * secrets are read from the variables the YAML names. Two declarations of
+ * one provider must agree on its endpoints, client and scopes, or this
+ * throws: a provider's grant is one grant, whichever tool asks for it.
+ * `load` reads a nested `yaml_reference:` file, when given. A grant with
+ * `client_registration: dynamic` has no client until it is registered: it
+ * is in `dynamicOAuthGrantsFor`, not here.
+ */
+export function oauthClientsFor(configs: readonly SyndicateLike[], options: ClientsForOptions = {}): Record<string, OAuthClientConfig> {
+  return collectOAuthClients(configs, options).clients;
+}
+
+/**
+ * The dynamic grants these syndicates declare (`client_registration:
+ * dynamic`, ADR 0124), by provider, checked as oauthClientsFor checks the
+ * others (one grant per provider, the MCP server on the allowlist): each
+ * becomes a consent client through `dynamicOAuthClient`
+ * (lib/tools/oauthDiscovery.ts).
+ */
+export function dynamicOAuthGrantsFor(configs: readonly SyndicateLike[], options: ClientsForOptions = {}): Record<string, DynamicOAuthGrant> {
+  return collectOAuthClients(configs, options).dynamic;
 }
 
 /**
@@ -488,17 +543,24 @@ export function syndicateOAuthHostProblems(configs: readonly SyndicateLike[], op
  * (`credentialStore({ providers })`, lib/tools/credentialStore.ts): an
  * expired user token is renewed at the provider's token endpoint with its
  * refresh token (RFC 6749 6) instead of asking the person again. Built from
- * `oauthClientsFor`'s clients; `allowPrivate` lets a private or loopback
+ * `oauthClientsFor`'s clients, and from `dynamicOAuthClient`'s sources (a
+ * discovered client, ADR 0124); `allowPrivate` lets a private or loopback
  * token endpoint through the guard (development).
  */
 export function oauthRefreshProviders(
-  clients: Record<string, OAuthClientConfig>,
+  clients: Record<string, OAuthClientConfig | OAuthClientSource>,
   options: { allowPrivate?: boolean; fetch?: typeof fetch; timeoutMs?: number; now?: () => number } = {},
 ): Record<string, OAuthProvider> {
   const providers: Record<string, OAuthProvider> = {};
-  for (const [name, client] of Object.entries(clients)) {
+  for (const [name, entry] of Object.entries(clients)) {
     providers[name] = {
       refresh: async (refreshToken, context) => {
+        let client: OAuthClientConfig;
+        try {
+          client = typeof entry === 'function' ? await entry() : entry;
+        } catch {
+          throw new ToolCredentialError('refresh_failed', name);
+        }
         // A refresh token goes only to a token endpoint the allowlist binds to its provider (ADR 0114).
         if (oauthCallProblem({ provider: name, grant: 'authorization_code' }, client.tokenUrl)) throw new ToolCredentialError('host_refused', name);
         // The client secret too: only to a host the operator binds its variable to (ADR 0122).
@@ -506,6 +568,7 @@ export function oauthRefreshProviders(
         if (client.clientSecret && secretEnv && credentialCallProblem(secretEnv, client.tokenUrl)) throw new ToolCredentialError('host_refused', name);
         const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: client.clientId });
         if (client.clientSecret) body.set('client_secret', client.clientSecret);
+        if (client.resource) body.set('resource', client.resource);
         return tokenRequest(client.tokenUrl, body, name, {
           allowPrivate: options.allowPrivate === true,
           doFetch: options.fetch ?? fetch,

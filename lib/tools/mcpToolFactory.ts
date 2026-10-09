@@ -2,8 +2,11 @@
  * lib/tools/mcpToolFactory.ts — a remote MCP server's tools, as the
  * engine's own Tools (lib/tools/tool.ts, ADR 0062).
  *
- * An agent's `mcp_server_url:` connects here over SSE; every tool the
- * server lists becomes an own Tool whose declaration is the server's
+ * An agent's `mcp_server_url:` (or each entry of `mcp_servers:`, ADR 0124)
+ * connects here over Streamable HTTP, falling back to the legacy SSE
+ * transport when the server answers the initialize POST with the spec's
+ * fallback signal (a 4xx other than 401/403), or over the transport the YAML
+ * names. Every tool the server lists becomes an own Tool whose declaration is the server's
  * description (bounded) and input schema, and whose execute calls the
  * server and returns its text (bounded). loadMcpTools returns them;
  * createMcpTools is the name the compiler calls.
@@ -20,6 +23,8 @@
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport, StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { ToolDeclaration } from '../models/contract.ts';
 import { toContractJsonSchema } from '../models/schemaNormalize.ts';
 import { checkHost } from '../net/addressGuard.ts';
@@ -28,6 +33,8 @@ import type { RedirectPolicy } from '../net/redirects.ts';
 import { ToolCredentialError } from './auth.ts';
 import { oauthCallProblem, oauthTokenSource } from './oauthTools.ts';
 import type { OAuth2AuthConfig } from './oauthTools.ts';
+import { MCP_TRANSPORTS } from './mcpTransports.ts';
+import type { McpTransportKind } from './mcpTransports.ts';
 import { MAX_RESULT_CHARS } from './tool.ts';
 import type { Tool, ToolContext } from './tool.ts';
 import { toGeminiSchema } from './toolContract.ts';
@@ -119,7 +126,68 @@ const bounded = (text: string, max: number, what: string): string =>
   text.length <= max ? text : `${text.slice(0, max)}… [${what} cut at ${max} characters]`;
 
 /** Every MCP connection opened and still in use, so a shutdown can close them. */
-const openTransports = new Set<SSEClientTransport>();
+const openTransports = new Set<Transport>();
+
+export { MCP_TRANSPORTS };
+export type { McpTransportKind };
+
+
+/**
+ * True when a failed Streamable HTTP connect is the spec's signal that the
+ * server speaks only the older HTTP+SSE transport: the initialize POST
+ * answered with a 4xx (404, 405, 400 …). A 401 or 403 is the server refusing
+ * the credential, which another transport would not change.
+ */
+export function isSseFallbackSignal(error: unknown): boolean {
+  if (!(error instanceof StreamableHTTPError)) return false;
+  const code = error.code;
+  return typeof code === 'number' && code >= 400 && code < 500 && code !== 401 && code !== 403;
+}
+
+/** One connected client and the transport under it. */
+interface McpConnection {
+  client: Client;
+  transport: Transport;
+  /** The transport the connection settled on. */
+  kind: 'streamable_http' | 'sse';
+}
+
+/**
+ * A client connected to `url` over `kind`, every request through `fetchFn`
+ * (the redirect rule, and the credential when there is one). A transport
+ * that fails to connect is closed before the error leaves, so nothing keeps
+ * reconnecting; with `auto`, a failed Streamable HTTP attempt carrying the
+ * fallback signal is closed and the SSE transport tried once.
+ */
+async function connectMcp(
+  url: URL,
+  kind: McpTransportKind,
+  fetchFn: (input: string | URL | Request, init?: RequestInit) => Promise<Response>,
+  headers: Record<string, string> = {},
+): Promise<McpConnection> {
+  const attempt = async (which: 'streamable_http' | 'sse'): Promise<McpConnection> => {
+    const requestInit = Object.keys(headers).length ? { requestInit: { headers } } : {};
+    const transport: Transport =
+      which === 'sse' ? new SSEClientTransport(url, { ...requestInit, fetch: fetchFn }) : new StreamableHTTPClientTransport(url, { ...requestInit, fetch: fetchFn });
+    const client = new Client({ name: 'melchizedek-a2a-client', version: '1.0.0' }, { capabilities: {} });
+    try {
+      await client.connect(transport);
+    } catch (error) {
+      await transport.close().catch(() => {});
+      throw error;
+    }
+    openTransports.add(transport);
+    return { client, transport, kind: which };
+  };
+  if (kind === 'sse') return attempt('sse');
+  if (kind === 'streamable_http') return attempt('streamable_http');
+  try {
+    return await attempt('streamable_http');
+  } catch (error) {
+    if (!isSseFallbackSignal(error)) throw error;
+    return attempt('sse');
+  }
+}
 
 /**
  * Close every open MCP connection. A connection otherwise lives as long as
@@ -191,10 +259,26 @@ function bearerFetch(oauth2: OAuth2AuthConfig, token: (destination: string) => P
 
 /** How an agent reaches its MCP server: which tools it may use, and the OAuth grant the server takes. */
 export interface McpToolOptions {
-  /** `mcp_tools`: the names this agent may use. Required with an authorization_code grant. */
+  /** `mcp_tools` (or an `mcp_servers` entry's `tools`): the names this agent may use. Required with an authorization_code grant. */
   tools?: string[];
   /** `mcp_auth.oauth2` (ADR 0112). Without it, MCP_BEARER_TOKENS applies. */
   oauth2?: OAuth2AuthConfig;
+  /** `mcp_transport` (or an entry's `transport`): default `auto` (ADR 0124). */
+  transport?: McpTransportKind;
+}
+
+/**
+ * One entry of an agent's `mcp_servers:` list (ADR 0124): a server, the
+ * tools of it the agent may use, the grant it takes and its transport.
+ */
+export interface McpServerConfig {
+  /** A short name for the server, unique on the agent: logs and errors name it. */
+  name: string;
+  url: string;
+  /** The server's tools this agent may use, by name. Required: names across servers are refused on collision at load. */
+  tools: string[];
+  auth?: { oauth2: OAuth2AuthConfig };
+  transport?: McpTransportKind;
 }
 
 /** Per-user connections at most per authorization-code server; the least recently used is closed first. */
@@ -223,26 +307,16 @@ const userPools = new Set<Map<string, unknown>>();
  */
 export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions = {}): Promise<Tool[]> {
   const oauth2 = options.oauth2;
-  if (oauth2?.grant === 'authorization_code') return userGrantMcpTools(mcpServerUrl, oauth2, options.tools);
+  const kind = options.transport ?? 'auto';
+  if (oauth2?.grant === 'authorization_code') return userGrantMcpTools(mcpServerUrl, oauth2, options.tools, kind);
   const tokenSource = oauth2 ? oauthTokenSource(oauth2, `mcp ${mcpServerUrl}`, mcpServerUrl, { allowPrivate: process.env.ALLOW_PRIVATE_MCP === 'true' }) : undefined;
-  let transport: SSEClientTransport | undefined;
+  let conn: McpConnection | undefined;
   try {
     const url = await assertSafeMcpUrl(mcpServerUrl);
-    transport = new SSEClientTransport(
-      url,
-      tokenSource
-        ? { fetch: bearerFetch(oauth2!, (destination) => tokenSource(undefined, destination)) }
-        : { requestInit: { headers: mcpAuthHeaders(url) }, fetch: mcpFetch },
-    );
-    const client = new Client({
-      name: 'melchizedek-a2a-client',
-      version: '1.0.0'
-    }, {
-      capabilities: {}
-    });
-
-    await client.connect(transport);
-    openTransports.add(transport);
+    conn = tokenSource
+      ? await connectMcp(url, kind, bearerFetch(oauth2!, (destination) => tokenSource(undefined, destination)))
+      : await connectMcp(url, kind, mcpFetch, mcpAuthHeaders(url));
+    const client = conn.client;
 
     // Fetch available tools from the MCP server
     const toolsResponse = await client.listTools();
@@ -266,10 +340,13 @@ export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions
   } catch (error) {
     // A token that cannot be had is reported by kind; the rest as before.
     console.warn(`[MCP] Failed to connect or load tools from ${mcpServerUrl}`, error instanceof ToolCredentialError ? error.message : error);
-    // A failed connect leaves the SSE stream's reconnect timer running; close
-    // it, or every unreachable server keeps retrying for the process's life.
-    if (transport) openTransports.delete(transport);
-    await transport?.close().catch(() => {});
+    // A failed connect closed its own transport (connectMcp); a failed
+    // listing closes this one, or its stream keeps reconnecting for the
+    // process's life.
+    if (conn) {
+      openTransports.delete(conn.transport);
+      await conn.transport.close().catch(() => {});
+    }
     return [];
   }
 }
@@ -277,13 +354,13 @@ export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions
 /** One user's connection to an authorization-code server, and the token its requests carry now. */
 interface UserConnection {
   holder: { token: string };
-  /** Set once the URL has passed the guard. */
-  transport?: SSEClientTransport;
+  /** Set once the connection is open. */
+  transport?: Transport;
   ready: Promise<Client>;
 }
 
 /** The tools of a server whose calls carry each user's own OAuth token (authorization_code). */
-function userGrantMcpTools(mcpServerUrl: string, oauth2: OAuth2AuthConfig, names: string[] | undefined): Tool[] {
+function userGrantMcpTools(mcpServerUrl: string, oauth2: OAuth2AuthConfig, names: string[] | undefined, kind: McpTransportKind): Tool[] {
   const where = `mcp ${mcpServerUrl}`;
   if (!names?.length) throw new Error(`${where}: an authorization_code mcp_auth needs mcp_tools, the names this agent may use (no user's grant exists to list them at startup)`);
   const source = oauthTokenSource(oauth2, where, mcpServerUrl);
@@ -315,11 +392,8 @@ function userGrantMcpTools(mcpServerUrl: string, oauth2: OAuth2AuthConfig, names
     conn.holder = holder;
     conn.ready = (async () => {
       const url = await assertSafeMcpUrl(mcpServerUrl);
-      const transport = new SSEClientTransport(url, { fetch: bearerFetch(oauth2, async () => holder.token) });
+      const { client, transport } = await connectMcp(url, kind, bearerFetch(oauth2, async () => holder.token));
       conn.transport = transport;
-      const client = new Client({ name: 'melchizedek-a2a-client', version: '1.0.0' }, { capabilities: {} });
-      await client.connect(transport);
-      openTransports.add(transport);
       if (!listed) {
         const offered = await client.listTools();
         for (const tool of offered.tools) if (names.includes(tool.name)) known.set(tool.name, declarationOf(tool));

@@ -29,9 +29,10 @@ import { CREDENTIAL_KEY_ENV, credentialCipherFromEnv } from '../tools/credential
 import { credentialStore, memoryCredentialRows } from '../tools/credentialStore.ts';
 import type { CredentialRows } from '../tools/credentialStore.ts';
 import { oauthConsent } from '../tools/oauthConsent.ts';
-import type { ToolCredentials } from '../tools/oauthConsent.ts';
+import type { OAuthClientSource, ToolCredentials } from '../tools/oauthConsent.ts';
+import { dynamicOAuthClient, oauthClientRegistry } from '../tools/oauthDiscovery.ts';
 import { OAUTH_HOSTS_ENV, oauthHosts } from '../tools/oauthHosts.ts';
-import { oauthClientsFor, oauthGrantHostProblems, oauthRefreshProviders, syndicateOAuthGrants, syndicateOAuthHostProblems } from '../tools/oauthTools.ts';
+import { dynamicOAuthGrantsFor, oauthClientsFor, oauthGrantHostProblems, oauthRefreshProviders, syndicateOAuthGrants, syndicateOAuthHostProblems } from '../tools/oauthTools.ts';
 import type { OAuthGrantUse } from '../tools/oauthTools.ts';
 import { CREDENTIAL_HOSTS_ENV, credentialHosts } from '../tools/credentialHosts.ts';
 import { syndicateCredentialHostProblems, syndicateCredentialUses, unboundCredentialEnvs } from '../tools/credentialUses.ts';
@@ -246,11 +247,27 @@ export function oauthServerSetup(options: OAuthServerSetupOptions): OAuthServerS
     return { summary: `off (${CREDENTIAL_KEY_ENV} unset) · ${hostsLabel}`, credentialSummary, warnings };
   }
   const clients = oauthClientsFor(options.configs, { env, ...(options.load ? { load: options.load } : {}), allowlist: allowlist ?? null });
-  const providers = Object.keys(clients);
+  const rows = options.rows ?? memoryCredentialRows();
+  // A grant with client_registration: dynamic (ADR 0124): its client is
+  // discovered and registered when first needed, for the configured redirect
+  // URI, and kept sealed beside the users' tokens. Without a redirect URI it
+  // cannot register, and is named in the warning below.
+  const dynamicGrants = dynamicOAuthGrantsFor(options.configs, { env, ...(options.load ? { load: options.load } : {}), allowlist: allowlist ?? null });
+  const registry = oauthClientRegistry({ rows, cipher });
+  const dynamicClients: Record<string, OAuthClientSource> = redirect
+    ? Object.fromEntries(
+        Object.entries(dynamicGrants).map(([name, grant]) => [
+          name,
+          dynamicOAuthClient(grant, { redirectUri: redirect, registry, ...(options.allowPrivate ? { allowPrivate: true } : {}), ...(options.fetch ? { fetch: options.fetch } : {}) }),
+        ]),
+      )
+    : {};
+  const allClients = { ...clients, ...dynamicClients };
+  const providers = [...Object.keys(clients), ...Object.keys(dynamicGrants)];
   const store = credentialStore({
-    rows: options.rows ?? memoryCredentialRows(),
+    rows,
     cipher,
-    providers: oauthRefreshProviders(clients, { ...(options.allowPrivate ? { allowPrivate: true } : {}), ...(options.fetch ? { fetch: options.fetch } : {}) }),
+    providers: oauthRefreshProviders(allClients, { ...(options.allowPrivate ? { allowPrivate: true } : {}), ...(options.fetch ? { fetch: options.fetch } : {}) }),
     ...(options.audit ? { audit: options.audit } : {}),
   });
   if (!options.rows) warnings.push(`Tool credentials are held in process memory: lost on restart, one instance only. Set DATABASE_URL to keep them sealed in Postgres.`);
@@ -264,7 +281,7 @@ export function oauthServerSetup(options: OAuthServerSetupOptions): OAuthServerS
     return { toolCredentials: { store }, summary: `sealed (key ${cipher.keyId}) in ${where}; no consent step · ${hostsLabel}`, credentialSummary, warnings };
   }
   const consent = oauthConsent({
-    providers: clients,
+    providers: allClients,
     redirectUri: redirect,
     credentials: store,
     ...(options.audit ? { audit: options.audit } : {}),
