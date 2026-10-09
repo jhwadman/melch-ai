@@ -32,7 +32,7 @@ import type { SessionService } from '../runtime/sessions.ts';
 import { approvalResponsePart, describeApproval, pendingApproval } from '../runtime/approvals.ts';
 import type { PendingApproval } from '../runtime/approvals.ts';
 import { declaresApprovals } from '../compile.ts';
-import { delegatedPauses } from '../runtime/native/interrupts.ts';
+import { deepestPause, delegatedPauses, routePause } from '../runtime/native/interrupts.ts';
 import { isWorkflowSyndicate } from '../workflow.ts';
 import type { MessagePart, PendingInput, SyndicateTurnResult, TurnUsage } from '../runtime/syndicateTurn.ts';
 import { describeInput } from '../runtime/syndicateTurn.ts';
@@ -725,14 +725,19 @@ export class SyndicateExecutor implements AgentExecutor {
       // A call gated inside a delegated subagent waits below an open call
       // (ADR 0110), wherever the gate is declared, so a syndicate that
       // delegates is read too.
-      const delegates = !isWorkflowSyndicate(config) && !!config.subagents?.length;
-      if (declaresApprovals(config) || delegates) {
+      // A workflow's node that is a nested workflow, and a dispatch route that is one, pause on their walk's gates
+      // wherever those are declared (ADR 0119), so every workflow, and every syndicate that delegates or routes, is read.
+      const workflow = isWorkflowSyndicate(config);
+      const delegates = !workflow && !!config.subagents?.length;
+      if (declaresApprovals(config) || delegates || workflow) {
         const session = await this.sessions.get({ appName, userId, sessionId: contextId });
         // The stored Event JSON (ADR 0052), read as TurnEvents.
         const events = session?.events ?? [];
+        const key = { sessions: this.sessions, userId, sessionId: contextId, appName };
+        const own = declaresApprovals(config) || workflow ? pendingApproval(events) : undefined;
         const pending =
-          (declaresApprovals(config) ? pendingApproval(events) : undefined) ??
-          (delegates ? (await delegatedPauses({ sessions: this.sessions, userId, sessionId: contextId, appName }, events))[0]?.approval : undefined);
+          (own && workflow ? await deepestPause(key, own) : own) ??
+          (delegates ? ((await routePause(key, events))?.approval ?? (await delegatedPauses(key, events))[0]?.approval) : undefined);
         if (pending) {
           const answer = approvalAnswer(rawParts, pending);
           if (!answer) {

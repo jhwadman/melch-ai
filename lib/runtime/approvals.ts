@@ -52,7 +52,8 @@ function workflowPauseIds(e: Event): string[] | undefined {
   return e.longRunningToolIds?.length ? [...e.longRunningToolIds] : undefined;
 }
 
-const requestOf = (e: Event, call: Record<string, any>): PendingApproval => {
+/** The approval request an `adk_request_confirmation` call in `e` makes, as pendingApproval reports it. */
+export const approvalRequestOf = (e: Event, call: Record<string, any>): PendingApproval => {
   const original = call.args?.originalFunctionCall ?? {};
   return {
     id: call.id,
@@ -82,7 +83,7 @@ export function pendingApproval(events: readonly Event[]): PendingApproval | und
       const open = new Set(paused.filter((id) => !answered.has(id)));
       for (let j = i - 1; j >= 0 && open.size > 0; j--) {
         const request = partsOf(events[j]!).find((p) => p.functionCall?.name === APPROVAL_REQUEST && open.has(p.functionCall.id));
-        if (request) return requestOf(events[j]!, request.functionCall);
+        if (request) return approvalRequestOf(events[j]!, request.functionCall);
       }
       return undefined;
     }
@@ -93,7 +94,7 @@ export function pendingApproval(events: readonly Event[]): PendingApproval | und
     for (const p of partsOf(e)) {
       const call = p.functionCall;
       if (call?.name !== APPROVAL_REQUEST || !call.id || answered.has(call.id)) continue;
-      return requestOf(e, call);
+      return approvalRequestOf(e, call);
     }
   }
   return undefined;
