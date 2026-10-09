@@ -48,7 +48,7 @@ While this process knows an approval waits on a session, the syndicate's own too
 
 ## Transports
 
-- **stdio** (default). The bin redirects `console.log`, `info` and `debug` to stderr before anything loads; stdout carries only the protocol. The caller is `local`, scoped `MCP_USER_ID` (default `default`). No OAuth consent callback is served.
+- **stdio** (default). The bin redirects `console.log`, `info` and `debug` to stderr before anything loads; stdout carries only the protocol. The stderr lines are the turn runner's: tool names, agents, argument key names and sizes, never an argument value, a result or a question's text (see [A2A](/protocols/a2a.md)). The caller is `local`, scoped `MCP_USER_ID` (default `default`). No OAuth consent callback is served.
 - **Streamable HTTP** (`--http`): `POST`, `GET` and `DELETE /mcp`, stateful (`Mcp-Session-Id`), at `127.0.0.1:4100` unless `--host`/`MCP_HOST` and `--port`/`MCP_PORT` say otherwise. In order: a Host-header check (loopback names on a loopback bind; `MCP_ALLOWED_HOSTS` otherwise), `/healthz`, a per-IP rate limit (`MCP_RATE_LIMIT_PER_MINUTE`, 240), the OAuth consent callback when `OAUTH_REDIRECT_URI` is set, a failed-auth limiter (30 per 15 minutes), the constant-time bearer check against `MCP_SERVER_SECRET`, the JSON body (1 MB). `X-User-Id` (`[A-Za-z0-9._-]{1,64}`) scopes the caller as on A2A; an MCP session is bound to the scope that opened it. At most 256 sessions are open; one idle 30 minutes is closed.
 
 **The bind rule** (`mcpBindProblem`): beyond loopback the server refuses to start without `MCP_SERVER_SECRET`, and with one shorter than 32 characters. There is no opt-out. The bin checks it before loading any syndicate; `mcpHttpApp` throws on it too.

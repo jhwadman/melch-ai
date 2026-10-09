@@ -150,7 +150,7 @@ test('the pause case: the same stored events, interrupts, progress and input req
   assert.deepEqual(side.interrupts, ['<interrupt 1>']);
   assert.deepEqual(side.completions, ['Graph.Triage = "the draft" @-'], 'Publisher did not run');
   assert.deepEqual(side.inputs, [{ id: '<an interrupt of the run>', node: 'Confirm', message: 'Publish?', payload: 'the draft' }]);
-  assert.deepEqual(side.logs, ['⇢ Node: Triage', '⇢ Node: Confirm', '⏸ Confirm asks: Publish?']);
+  assert.deepEqual(side.logs, ['⇢ Node: Triage', '⇢ Node: Confirm', '⏸ Confirm asks a question']);
   assert.deepEqual(JSON.parse(side.events[1]), {
     content: {
       role: 'model',
@@ -216,7 +216,7 @@ test('no input: payload null, and the node input recorded as nothing', async () 
 test('an object input is the payload as it is', async () => {
   const side = await bothAgree('object-input', chain(), { ...STUBS, Triage: () => ({ title: 'T', options: ['yes', 'no'] }) });
   assert.deepEqual(side.inputs[0].payload, { title: 'T', options: ['yes', 'no'] });
-  assert.deepEqual(side.logs.at(-1), '⏸ Confirm asks: Publish? (yes / no)');
+  assert.deepEqual(side.logs.at(-1), '⏸ Confirm asks a question');
 });
 
 // ── The walk around a pause ──────────────────────────────────────────────────

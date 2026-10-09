@@ -52,7 +52,7 @@ export const inspectImageContract = defineTool({
     image_path: z.string().describe('Path to the saved image, e.g. "outputs/image_1234.png".'),
   }),
   execute: async ({ image_path }): Promise<string> => {
-    console.log(`[InspectTool] Blind inventory requested for: ${image_path}`);
+    console.log(`[InspectTool] Blind inventory requested (path ${image_path.length} chars).`);
 
     // Confine reads to the outputs/ directory — this tool inventories
     // generated artifacts, not the filesystem. OUTPUTS_DIR env overrides

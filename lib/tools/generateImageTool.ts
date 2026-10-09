@@ -45,7 +45,8 @@ export const generateImageContract = defineTool({
       throw err;
     }
 
-    console.log(`[ImageTool] Parameters - Prompt: "${prompt}", Style: "${style ?? 'none'}", Aspect Ratio: "${aspect_ratio ?? 'none'}", Color Palette: "${color_palette ?? 'none'}"`);
+    // Sizes and which options are set, never their values: the prompt carries the person's words.
+    console.log(`[ImageTool] Parameters - prompt ${prompt.length} chars; set: ${[style && 'style', aspect_ratio && 'aspect_ratio', color_palette && 'color_palette'].filter(Boolean).join(', ') || 'none'}`);
 
     const ai = new GoogleGenAI({ apiKey });
 

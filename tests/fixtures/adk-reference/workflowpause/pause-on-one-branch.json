@@ -20,7 +20,7 @@
     "logs": [
       "⇢ Node: Triage",
       "⇢ Node: Confirm",
-      "⏸ Confirm asks: Publish?",
+      "⏸ Confirm asks a question",
       "⇢ Node: Reader"
     ],
     "progress": [

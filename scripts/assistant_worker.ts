@@ -207,7 +207,8 @@ async function drain(): Promise<number> {
     ran += 1;
     const started = Date.now();
     const label = job.owner ? `${job.id} (${job.owner})` : job.id;
-    log(`${label} started: ${job.title}`);
+    // The title is the person's words: the log names the job, never its text.
+    log(`${label} started (${(job.instruction ?? job.title).length.toLocaleString()} chars)`);
     // Renew the lease while the job runs, so no other worker takes it back;
     // a renewal that finds the claim gone (the job was cancelled) stops the run.
     const held: OwnedTask = job;

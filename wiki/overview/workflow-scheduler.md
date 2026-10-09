@@ -140,7 +140,7 @@ The scheduler then holds the node **waiting**, as ADK's `handleCompletion` did. 
 
 `workflowPauseEvent({ name, invocationId, input, interruptIds })` is the event ADK stored after the last node's when a workflow ends paused: authored by the workflow, at its path, with the open ids in `longRunningToolIds` and the workflow's input in `agentState`. The caller stores it after the walk, as it stores `nodeErrorEvent`'s.
 
-The turn runner's reader reads the question from the request event (`inputRequestFrom` in `drainAgentStream`), so `result.input` is `{ id, node, message, payload, schema? }`, and the log prints `⏸ Confirm asks: Publish?`.
+The turn runner's reader reads the question from the request event (`inputRequestFrom` in `drainAgentStream`), so `result.input` is `{ id, node, message, payload, schema? }`, and the log prints `⏸ Confirm asks a question`: who asks, never the question, which reaches the person through the result.
 
 `tests/workflowPause.test.ts` runs the pause case of `tests/workflow.test.ts` on the scheduler and holds it to ADK's recorded run, with three schemas, no input, an object payload, a pause on one branch of a fan-out, and a waiting node triggered twice. Each case compares every event as stored (event id, time and invocation id aside, interrupt ids by order of appearance), every node's output, path and branch, the open interrupts, and the drained log lines, progress and input requests. It also runs the case through `runSyndicateTurn` and compares `result.input` with ADK's.
 

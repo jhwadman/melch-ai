@@ -24,7 +24,7 @@
       "⇢ Node: Writer",
       "⇢ Node: Checker",
       "⇢ Node: Confirm",
-      "⏸ Confirm asks: Publish?"
+      "⏸ Confirm asks a question"
     ],
     "progress": [
       "Running node: Triage",
