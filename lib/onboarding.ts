@@ -27,7 +27,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, fchmodSync, openSync, readFileSync, readdirSync, writeSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -616,7 +616,20 @@ export function writeEnvForLevel(
   const block = added.length
     ? `\n# ── Chosen with melchizedek-setup: ${level.title} ──\n# Names only; fill in the values yourself (shapes: ONBOARDING.md, level ${LEVELS.indexOf(level) + 1}).\n${added.map((n) => `${n}=`).join('\n')}\n`
     : '';
-  writeFileSync(target, template.endsWith('\n') ? template + block : `${template}\n${block}`, { mode: 0o600, flag: 'wx' });
-  chmodSync(target, 0o600);
+  // One handle: created exclusively (an existing file or a symlink planted at the
+  // path fails with EEXIST), written and narrowed to 0600 through the descriptor.
+  let fd: number;
+  try {
+    fd = openSync(target, 'wx', 0o600);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') return { status: 'exists', path: target };
+    throw err;
+  }
+  try {
+    fchmodSync(fd, 0o600);
+    writeSync(fd, template.endsWith('\n') ? template + block : `${template}\n${block}`);
+  } finally {
+    closeSync(fd);
+  }
   return { status: 'written', path: target, added };
 }
