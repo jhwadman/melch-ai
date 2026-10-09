@@ -3588,6 +3588,71 @@
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09",
       "note": "In part: only the consequence that a dispatch run is not resumed from inside an agent route; the cap is an addition. The checkpointing design of ADR 0113 stands."
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0126 Decision 5: \"refuseChatGptSignInOnServedSurface runs in createA2AApp, in melchizedek-serve before anything else, and in melchizedek-worker: each refuses to start while the sign-in is the OpenAI path\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:scripts/assistant_worker.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0126 Decision 5: the worker calls refuseChatGptSignInOnServedSurface and refuses to start while the sign-in is the OpenAI path.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:scripts/a2a_server.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0126 Decision 5: \"in melchizedek-serve before anything else\" the served-surface refusal runs.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/models/gateway.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0126 Decision 4: \"planTransport counts OpenAI as funded directly\" with a stored sign-in and no key, so the sign-in ranks above the gateway.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/models/adapterResolver.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0126 Decision 4: \"resolveAdapter returns ChatGptSignInAdapter\" for OpenAI ids with no key, no caller key or endpoint, and OpenAI on its own API.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/chatgpt/adapter.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0126 Decision 4: the adapter streams every request with store: false, drops the sampling fields, sends no organization or project, makes no SDK retries, and fixes the base URL at https://api.openai.com/v1.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "/decisions/0123-onboarding-levels-from-one-generator.md",
+      "rel": "supersedes",
+      "evidence": "ADR 0126 Context: ADR 0123 \"left OpenAI's documented plan-usage flow as an open question. The owner decided on 2026-10-09 to implement OpenAI's official flow\"; Decision 6 adds level 9 and moves the unsupported entry to level 10.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "In part: only ADR 0123 Decision 7 for OpenAI (the plan-usage flow is now implemented, local only) and the nine-level count. Claude.ai, Gemini CLI and the Codex CLI login stay unsupported, and the generator design of ADR 0123 stands."
+    },
+    {
+      "from": "/models/chatgpt-signin.md",
+      "to": "module:lib/chatgpt/oauth.ts",
+      "rel": "explains",
+      "evidence": "wiki/models/chatgpt-signin.md \"Signing in\" and \"Refresh\" describe signIn, freshAccessToken and signOut in lib/chatgpt/oauth.ts step by step.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
     }
   ]
 }

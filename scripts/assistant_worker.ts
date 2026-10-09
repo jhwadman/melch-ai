@@ -52,6 +52,7 @@ import type { SyndicateYamlConfig } from '../lib/loadSyndicate.ts';
 import { runDurableTurn } from '../lib/runtime/native/checkpoint.ts';
 import type { RunCheckpoint } from '../lib/runtime/native/checkpoint.ts';
 import { runtimeSetting } from '../lib/runtime/runtimeFlag.ts';
+import { refuseChatGptSignInOnServedSurface } from '../lib/chatgpt/state.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
 import {
   PROVIDERS,
@@ -76,6 +77,13 @@ loadEnv(import.meta.url);
 setLogLevel('warn');
 // MELCHIZEDEK_RUNTIME=adk (removed in 1.0.0) stops the worker here, naming the release.
 runtimeSetting();
+// Sign in with ChatGPT is local only (ADR 0126): the worker runs jobs unattended, so it never runs on it.
+try {
+  refuseChatGptSignInOnServedSurface('melchizedek-worker');
+} catch (err: unknown) {
+  console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+  process.exit(1);
+}
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2).filter((a) => a !== '--');

@@ -13,7 +13,9 @@
  * server's own client credentials and whether their variables are set
  * (names only). When any A2A identity or billing variable is set, a
  * `serving` line names the A2A_AUTH mode and A2A_KEY_MODE and what the
- * server would refuse to start on. Closes with the env vars that would
+ * server would refuse to start on. A `chatgpt` line reports a stored Sign in
+ * with ChatGPT (ADR 0126), and `--check` fails while a served configuration
+ * would run OpenAI ids on it. Closes with the env vars that would
  * unlock the most, where to get each, and the first command to try.
  *
  * Read-only: never edits .env, never sends a request, never prints a key
@@ -32,7 +34,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { loadEnv } from '../lib/loadEnv.ts';
-import { renderDoctor, runDoctor } from '../lib/doctor.ts';
+import { doctorCheckFails, renderDoctor, runDoctor } from '../lib/doctor.ts';
 import { renderCapabilityMatrix } from '../lib/models/capabilities.ts';
 import { assignMemoryNamespace, LEGACY_MEMORY_APP_NAME } from '../lib/memory/namespace.ts';
 
@@ -105,4 +107,4 @@ if (json) {
   console.log(renderDoctor(result, { color: !noColor }));
 }
 
-if (check && (result.counts.blocked > 0 || result.runtime.problem || result.oauth?.problems.length || result.credentials?.problems.length)) process.exit(1);
+if (check && doctorCheckFails(result)) process.exit(1);

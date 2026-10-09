@@ -20,7 +20,7 @@ sources:
 
 # Responses adapters
 
-`GptAdapter` in `lib/models/gptAdapter.ts` is GPT as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)) on OpenAI's Responses API, through the `openai` SDK. `GrokAdapter` in `lib/models/grokAdapter.ts` extends it for xAI, whose Agent Tools API speaks the same wire at `https://api.x.ai/v1`. The native runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls them directly, and `resolveAdapter` returns them for `gpt-*`, `o<digit>*` and `grok-*`. `GrokAdapter` reads its tool configuration from `lib/tools/xaiSearchParams.ts`.
+`GptAdapter` in `lib/models/gptAdapter.ts` is GPT as a contract `ModelAdapter` ([ADR 0048](/decisions/0048-engine-owned-model-contract.md)) on OpenAI's Responses API, through the `openai` SDK. `GrokAdapter` in `lib/models/grokAdapter.ts` extends it for xAI, whose Agent Tools API speaks the same wire at `https://api.x.ai/v1`. The native runtime ([ADR 0045](/decisions/0045-own-runtime-behind-the-seam.md)) calls them directly, and `resolveAdapter` returns them for `gpt-*`, `o<digit>*` and `grok-*`. `GrokAdapter` reads its tool configuration from `lib/tools/xaiSearchParams.ts`. `ChatGptSignInAdapter` (`lib/chatgpt/adapter.ts`) is `GptAdapter` on a person's ChatGPT plan, local only: its own page is [Sign in with ChatGPT](/models/chatgpt-signin.md).
 
 The field-by-field mapping is the OpenAI Responses and xAI tables of the [model contract](/models/model-contract.md). This page records the choices made inside them.
 

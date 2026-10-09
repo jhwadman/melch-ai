@@ -15,6 +15,8 @@
  * an error naming the release.
  */
 
+import { ChatGptSignInAdapter } from '../chatgpt/adapter.ts';
+import { chatGptSignInRoutesOpenAi } from '../chatgpt/state.ts';
 import type { ModelAdapter } from './contract.ts';
 import { ClaudeAdapter } from './claudeAdapter.ts';
 import { mergeEndpoint } from './endpoints.ts';
@@ -134,7 +136,11 @@ export interface AdapterResolver {
 const CONTRACT_ADAPTER: Record<Exclude<ProviderId, 'gemini'>, (r: Route) => ModelAdapter> = {
   ollama: (r) => new OllamaAdapter({ model: r.model }),
   anthropic: (r) => new ClaudeAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint }),
-  openai: (r) => new GptAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint }),
+  // No key and no caller endpoint: a stored Sign in with ChatGPT carries the id, on this machine only (ADR 0126).
+  openai: (r) =>
+    !r.apiKey && !r.endpoint && chatGptSignInRoutesOpenAi()
+      ? new ChatGptSignInAdapter({ model: r.model })
+      : new GptAdapter({ model: r.model, apiKey: r.apiKey, endpoint: r.endpoint }),
   xai: (r) => new GrokAdapter({ model: r.model, apiKey: r.apiKey }),
   moonshot: (r) => new KimiAdapter({ model: r.model, apiKey: r.apiKey, baseUrl: r.endpoint?.baseURL }),
 };

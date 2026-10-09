@@ -3,6 +3,38 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-09] relate | /models/chatgpt-signin.md —explains→ module:lib/chatgpt/oauth.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0126-sign-in-with-chatgpt-local-only.md —supersedes→ /decisions/0123-onboarding-levels-from-one-generator.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0126-sign-in-with-chatgpt-local-only.md —constrains→ module:lib/chatgpt/adapter.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0126-sign-in-with-chatgpt-local-only.md —constrains→ module:lib/models/adapterResolver.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0126-sign-in-with-chatgpt-local-only.md —constrains→ module:lib/models/gateway.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0126-sign-in-with-chatgpt-local-only.md —constrains→ module:scripts/a2a_server.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0126-sign-in-with-chatgpt-local-only.md —constrains→ module:scripts/assistant_worker.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-09] relate | /decisions/0126-sign-in-with-chatgpt-local-only.md —constrains→ module:lib/a2a/app.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-09] relate | /decisions/0121-checkpoint-cap-and-dispatch-route-resume.md —supersedes→ /decisions/0113-durable-runs-checkpoint-the-sessions-beside-the-job.md
 
 by claude-code/claude-opus-5-5

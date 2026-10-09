@@ -24,7 +24,7 @@ sources:
 
 # A2A
 
-`npm run start:a2a -- <syndicate>.yaml` (package: `npx melchizedek-serve`) serves a [syndicate](/agents/) over A2A on `$PORT` (default 4000). The server is `createA2AApp(options)` in `lib/a2a/app.ts`, mountable in any Express app; the bin (`scripts/a2a_server.ts`) reads the environment, listens and drains on SIGTERM. Every task runs through the one turn runtime, `runSyndicateTurn` ([ADR 0024](/decisions/0024-adk-behind-the-runtime-seam.md)), on the [native loop](/overview/native-loop.md). `createA2AApp` refuses to start when `MELCHIZEDEK_RUNTIME=adk` is set, with `RuntimeRemovedError` naming 1.0.0 ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)).
+`npm run start:a2a -- <syndicate>.yaml` (package: `npx melchizedek-serve`) serves a [syndicate](/agents/) over A2A on `$PORT` (default 4000). The server is `createA2AApp(options)` in `lib/a2a/app.ts`, mountable in any Express app; the bin (`scripts/a2a_server.ts`) reads the environment, listens and drains on SIGTERM. Every task runs through the one turn runtime, `runSyndicateTurn` ([ADR 0024](/decisions/0024-adk-behind-the-runtime-seam.md)), on the [native loop](/overview/native-loop.md). `createA2AApp` refuses to start when `MELCHIZEDEK_RUNTIME=adk` is set, with `RuntimeRemovedError` naming 1.0.0 ([ADR 0107](/decisions/0107-release-1-0-0-removes-adk.md)), and while a stored [Sign in with ChatGPT](/models/chatgpt-signin.md) would carry OpenAI ids (no `OPENAI_API_KEY`): a person's ChatGPT plan pays only for their own use on their own machine. It also marks the process served, so the sign-in adapter refuses every call there ([ADR 0126](/decisions/0126-sign-in-with-chatgpt-local-only.md)).
 
 ## Protocol
 

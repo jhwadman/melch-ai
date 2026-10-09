@@ -113,6 +113,7 @@ import type { Store } from 'express-rate-limit';
 import { dbSchema } from '../lib/storage/schema.ts';
 import { postgresStorage } from '../lib/storage/postgres/index.ts';
 import { isPlaceholderValue, loadEnv } from '../lib/loadEnv.ts';
+import { refuseChatGptSignInOnServedSurface } from '../lib/chatgpt/state.ts';
 import { flushTracing } from '../lib/observability/tracer.ts';
 import { setLogLevel } from '../lib/runtime/logging.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
@@ -282,6 +283,12 @@ export async function startServer(syndicateName: string = 'syndicate.yaml', exte
   if (process.env.OTEL_CONSOLE_SPANS === undefined) process.env.OTEL_CONSOLE_SPANS = 'false';
   // The engine's level: INFO/DEBUG lines carry raw event JSON, so keep them quiet.
   setLogLevel('warn');
+  // Sign in with ChatGPT is local only (ADR 0126): stop before anything else starts.
+  try {
+    refuseChatGptSignInOnServedSurface('melchizedek-serve');
+  } catch (err: unknown) {
+    fatal(err instanceof Error ? err.message : String(err));
+  }
 
   const publicUrl = process.env.PUBLIC_URL?.trim() || undefined;
   const port = envInt('PORT', 4000);

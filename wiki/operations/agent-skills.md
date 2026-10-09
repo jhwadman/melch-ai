@@ -30,9 +30,9 @@ sources:
 | `melchizedek-memory` | [long-term memory](/memory/architecture.md): modes, the [schema](/memory/schema.md), tools, extraction rules, inspection, erasure |
 | `melchizedek-models` | [provider routing](/models/provider-routing.md), keys, keyless Ollama, the gateway fallback, per-agent settings (what `reasoning:` becomes on each provider and each Claude model generation, `sampling:`, `tool_choice:` and `model_overrides:`, and `generateContentConfig` as their deprecated spelling; [ADR 0047](/decisions/0047-provider-neutral-reasoning-key.md), [ADR 0049](/decisions/0049-claude-requests-by-model-generation.md), [ADR 0115](/decisions/0115-yaml-schema-v2-provider-neutral-keys.md), [ADR 0117](/decisions/0117-tool-choice-and-effort-above-high-in-v2.md)), the errors |
 | `melchizedek-scribe` | writing documents from a brief with [the Scribe](/agents/scribe.md); ships `assets/brief.md` |
-| `melchizedek-onboard` | onboarding triage: asks what the person has, routes to one of the nine [authentication levels](/operations/setup.md) and the skill below that owns it, and sets the rules (no key in chat, no value printed, the person types `.env`) |
+| `melchizedek-onboard` | onboarding triage: asks what the person has, routes to one of the ten [authentication levels](/operations/setup.md) and the skill below that owns it, and sets the rules (no key in chat, no value printed, the person types `.env`) |
 | `melchizedek-onboard-local` | level 1: Ollama, the keyless files, the context-length and reachability errors |
-| `melchizedek-onboard-keys` | levels 2–4 and 9: one provider's key, several, a gateway key, and the honest answer for a ChatGPT / Codex, Claude.ai or Gemini CLI sign-in |
+| `melchizedek-onboard-keys` | levels 2–4, 9 and 10: one provider's key, several, a gateway key, Sign in with ChatGPT on the person's own machine (local only), and the honest answer for a Codex, Claude.ai or Gemini CLI sign-in |
 | `melchizedek-onboard-cloud` | level 5: Gemini and Claude on Vertex AI, Claude on Bedrock, GPT on Azure OpenAI, the model maps |
 | `melchizedek-onboard-serve` | levels 6–8: BYOK, `A2A_AUTH` caller identities and minting a caller token into a file, OAuth tool grants |
 

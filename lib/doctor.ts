@@ -47,6 +47,7 @@ import {
 import { PROVIDERS } from './models/providerMap.ts';
 import type { ProviderId } from './models/providerMap.ts';
 import { describeRuntime } from './runtime/runtimeFlag.ts';
+import { CHATGPT_SIGNIN_ENV, CHATGPT_SIGNIN_FILE_ENV, chatGptSignInRoutesOpenAi, chatGptSignInStatus } from './chatgpt/state.ts';
 import { agentOAuthGrants, oauthEnvNames } from './tools/oauthTools.ts';
 import { grantHostProblems, OAUTH_REDIRECT_URI_ENV, oauthEnvProblems } from './a2a/oauthSetup.ts';
 import { CREDENTIAL_KEY_ENV } from './tools/credentialCipher.ts';
@@ -192,6 +193,26 @@ export interface DoctorResult {
   providers: ProviderPath[];
   /** How the A2A server would authenticate and bill, when any of its variables is set. */
   serving?: DoctorServing;
+  /** A stored Sign in with ChatGPT credential (ADR 0126), when one is present or its variables are set. */
+  chatgpt?: DoctorChatGpt;
+}
+
+/**
+ * A Sign in with ChatGPT credential (ADR 0126): where it is, whether it is
+ * signed in and carries OpenAI ids here, and what stops it. Never a token.
+ */
+export interface DoctorChatGpt {
+  file: string;
+  /** False when MELCHIZEDEK_CHATGPT_SIGNIN=off. */
+  enabled: boolean;
+  present: boolean;
+  signedIn: boolean;
+  /** OpenAI ids run on it here (no OPENAI_API_KEY, OpenAI on its own API). */
+  routesOpenAi: boolean;
+  /** Epoch milliseconds the stored access token expires (it refreshes on use). */
+  expiresAt?: number;
+  /** A served configuration on it, or a file that cannot be used. `--check` fails on any. */
+  problems: string[];
 }
 
 /**
@@ -209,6 +230,8 @@ export interface ProviderPath {
   /** `local` for Ollama; a cloud platform (vertex, bedrock, azure) or `direct` otherwise. */
   platform: Platform | 'local';
   keyEnv: string | null;
+  /** `chatgpt-signin` when a stored Sign in with ChatGPT funds the provider instead of its key (ADR 0126). */
+  credential?: 'chatgpt-signin';
 }
 
 /**
@@ -315,6 +338,7 @@ export function providerPaths(): ProviderPath[] {
       ...(r.gateway ? { gateway: r.gateway } : {}),
       platform: p === 'ollama' ? 'local' : (r.platform ?? 'direct'),
       keyEnv: r.keyEnv,
+      ...(p === 'openai' && r.funded && r.transport === 'direct' && chatGptSignInRoutesOpenAi() ? { credential: 'chatgpt-signin' as const } : {}),
     };
   });
 }
@@ -744,6 +768,7 @@ export function runDoctor(options: {
   }
 
   const serving = servingReport();
+  const chatgpt = chatGptReport(!!serving);
   return {
     agentsDir,
     runtime: runtimeReport(),
@@ -756,6 +781,46 @@ export function runDoctor(options: {
     ...(credentials ? { credentials } : {}),
     providers: providerPaths(),
     ...(serving ? { serving } : {}),
+    ...(chatgpt ? { chatgpt } : {}),
+  };
+}
+
+/** What `melchizedek-doctor --check` exits 1 on: a blocked syndicate, or any problem line. */
+export function doctorCheckFails(result: DoctorResult): boolean {
+  return (
+    result.counts.blocked > 0 ||
+    !!result.runtime.problem ||
+    !!result.oauth?.problems.length ||
+    !!result.credentials?.problems.length ||
+    !!result.chatgpt?.problems.length
+  );
+}
+
+/**
+ * The Sign in with ChatGPT line (ADR 0126), when a credential file is present
+ * or one of its variables is set. `served`: a serving variable is set, so
+ * this configuration is meant for melchizedek-serve, which refuses to start
+ * while the sign-in is the OpenAI path.
+ */
+export function chatGptReport(served: boolean, env: NodeJS.ProcessEnv = process.env): DoctorChatGpt | undefined {
+  const status = chatGptSignInStatus(env);
+  if (!status.present && !env[CHATGPT_SIGNIN_FILE_ENV]?.trim() && !env[CHATGPT_SIGNIN_ENV]?.trim()) return undefined;
+  const routesOpenAi = chatGptSignInRoutesOpenAi(env);
+  const problems: string[] = [];
+  if (status.problem) problems.push(status.problem);
+  if (served && routesOpenAi) {
+    problems.push(
+      `Sign in with ChatGPT is local only, and it is the OpenAI path in this served configuration: melchizedek-serve and melchizedek-worker refuse to start. Set OPENAI_API_KEY (or Azure OpenAI), or ${CHATGPT_SIGNIN_ENV}=off for the served process.`,
+    );
+  }
+  return {
+    file: status.file,
+    enabled: status.enabled,
+    present: status.present,
+    signedIn: status.signedIn,
+    routesOpenAi,
+    ...(status.expiresAt ? { expiresAt: status.expiresAt } : {}),
+    problems,
   };
 }
 
@@ -816,7 +881,7 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
   // xAI's key beside Moonshot).
   const providerBits = (result.providers ?? providerPaths()).map((r) => {
     const mark = !r.funded ? `${c.red}✗${c.reset}` : r.transport === 'gateway' ? `${c.yellow}◇${c.reset}` : `${c.green}✓${c.reset}`;
-    const how = !r.funded ? `${c.dim}${r.keyEnv} not set${c.reset}` : r.transport === 'gateway' ? `${c.dim}via gateway:${r.gateway}${c.reset}` : r.platform === 'local' ? `${c.dim}local${c.reset}` : `${c.dim}${r.platform}${c.reset}`;
+    const how = !r.funded ? `${c.dim}${r.keyEnv} not set${c.reset}` : r.transport === 'gateway' ? `${c.dim}via gateway:${r.gateway}${c.reset}` : r.platform === 'local' ? `${c.dim}local${c.reset}` : r.credential === 'chatgpt-signin' ? `${c.dim}ChatGPT sign-in, local only${c.reset}` : `${c.dim}${r.platform}${c.reset}`;
     return `${mark} ${r.label} ${how}`;
   });
   lines.push('providers   ' + providerBits.join('   '));
@@ -841,6 +906,22 @@ export function renderDoctor(result: DoctorResult, opts: { color?: boolean } = {
     const set = Object.entries(sv.set).filter(([, on]) => on).map(([name]) => name).join(', ');
     lines.push(`serving     ${mark} A2A_AUTH=${sv.auth}${sv.authDeclared ? '' : ' (default)'} · A2A_KEY_MODE=${sv.keyMode} ${c.dim}· set: ${set || 'none'}${c.reset}`);
     for (const p of sv.problems) lines.push(`            ${c.red}✗ ${p}${c.reset}`);
+  }
+  if (result.chatgpt) {
+    // Presence and the file's path, never a token (ADR 0126).
+    const g = result.chatgpt;
+    const mark = g.problems.length ? `${c.red}✗${c.reset}` : g.routesOpenAi ? `${c.green}✓${c.reset}` : `${c.dim}·${c.reset}`;
+    const state = !g.enabled
+      ? `${CHATGPT_SIGNIN_ENV}=off, ignored`
+      : !g.present
+        ? 'not signed in'
+        : !g.signedIn
+          ? 'signed out (run melchizedek-setup --chatgpt-signin)'
+          : g.routesOpenAi
+            ? 'signed in · carries OpenAI ids · local only'
+            : 'signed in · not used (OPENAI_API_KEY or another OpenAI endpoint wins)';
+    lines.push(`chatgpt     ${mark} ${state} ${c.dim}· ${g.file}${c.reset}`);
+    for (const p of g.problems) lines.push(`            ${c.red}✗ ${p}${c.reset}`);
   }
   if (result.oauth) {
     // Names only: which variables are set, never their values (ADR 0114).

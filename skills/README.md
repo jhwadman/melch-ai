@@ -15,9 +15,9 @@ This directory contains a suite of eleven Agent Skills built to the open SKILL.m
 
 Five onboarding skills route a person by what they have and walk the startup guide for it (`npx melchizedek-setup --level <id>` prints each guide):
 
-- `melchizedek-onboard`: The triage. Asks what the person has and routes to one of nine authentication levels and the skill below that owns it.
+- `melchizedek-onboard`: The triage. Asks what the person has and routes to one of ten authentication levels and the skill below that owns it.
 - `melchizedek-onboard-local`: No key: Ollama and the keyless syndicates.
-- `melchizedek-onboard-keys`: One provider's key, several, a gateway key, and the honest answer for a ChatGPT / Codex, Claude.ai or Gemini CLI sign-in.
+- `melchizedek-onboard-keys`: One provider's key, several, a gateway key, Sign in with ChatGPT on the person's own machine, and the honest answer for a Codex, Claude.ai or Gemini CLI sign-in.
 - `melchizedek-onboard-cloud`: Vertex AI, Amazon Bedrock and Azure OpenAI credentials.
 - `melchizedek-onboard-serve`: Serving to others: per-caller keys (BYOK), caller identities (`A2A_AUTH`), and OAuth tool grants.
 
