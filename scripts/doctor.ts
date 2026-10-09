@@ -22,7 +22,7 @@
  * Usage:
  *   npm run doctor
  *   npm run doctor -- --json          # machine-readable
- *   npm run doctor -- --check         # exit 1 when any syndicate is blocked
+ *   npm run doctor -- --check         # exit 1 on a blocked syndicate, a runtime problem, or an OAuth or credential host problem
  *   npm run doctor -- --matrix        # the provider × capability matrix
  *   npm run doctor -- --fix-namespaces [file…]   # give long-term syndicates a memory_namespace
  *   MELCHIZEDEK_AGENTS_DIR=/path npm run doctor
@@ -32,7 +32,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { loadEnv } from '../lib/loadEnv.ts';
-import { renderDoctor, runDoctor } from '../lib/doctor.ts';
+import { checkProblems, renderDoctor, runDoctor } from '../lib/doctor.ts';
 import { renderCapabilityMatrix } from '../lib/models/capabilities.ts';
 import { assignMemoryNamespace, LEGACY_MEMORY_APP_NAME } from '../lib/memory/namespace.ts';
 
@@ -105,4 +105,4 @@ if (json) {
   console.log(renderDoctor(result, { color: !noColor }));
 }
 
-if (check && (result.counts.blocked > 0 || result.runtime.problem || result.oauth?.problems.length || result.credentials?.problems.length)) process.exit(1);
+if (check && checkProblems(result).length) process.exit(1);

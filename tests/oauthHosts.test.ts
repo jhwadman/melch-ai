@@ -22,12 +22,13 @@ for (const name of ['MELCHIZEDEK_OAUTH_HOSTS', 'MELCHIZEDEK_CREDENTIAL_KEY', 'OA
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { Server as HttpServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import express from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -36,7 +37,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 
 import { createA2AApp } from '../lib/a2a/app.ts';
 import { oauthEnvProblems, oauthServerSetup, redirectUriProblem } from '../lib/a2a/oauthSetup.ts';
-import { renderDoctor, runDoctor } from '../lib/doctor.ts';
+import { checkProblems, renderDoctor, runDoctor } from '../lib/doctor.ts';
 import { loadSyndicate } from '../lib/loadSyndicate.ts';
 import { InProcessSessionService } from '../lib/runtime/sessions.ts';
 import { ToolCredentialError } from '../lib/tools/auth.ts';
@@ -323,17 +324,17 @@ test('at call time: tools compiled under the allowlist refuse to send a token on
   const sent = received.length;
   const tokens = tokenRequests.length;
   await underHosts('tracker=api.example.com; tracker-server=api.example.com', async () => {
-    const refusal = /may not be sent to this host: the operator's OAuth host allowlist does not include it/;
+    const refusal = /may not be sent to this host: the operator's OAuth host allowlist \(MELCHIZEDEK_OAUTH_HOSTS\) does not include it/;
     assert.match(String(((await openapiUser.execute({}, ctx)) as { error: string }).error), refusal);
     assert.match(String(((await openapiServer.execute({}, ctx)) as { error: string }).error), refusal);
     assert.match(String(await mcpUser.execute({ id: 'T-3' }, ctx)), refusal);
     assert.match(String(await mcpServer.execute({ id: 'T-3' }, ctx)), /\[MCP ERROR\] Tool lookup failed/);
     // A refresh token goes nowhere either.
     const refresh = oauthRefreshProviders({ tracker: { authorizationUrl: `${base}/authorize`, tokenUrl: `${base}/token`, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET } }, { allowPrivate: true }).tracker!;
-    await assert.rejects(refresh.refresh!('fake-refresh', { scopes: [] }), (e: unknown) => e instanceof ToolCredentialError && e.code === 'host_refused');
+    await assert.rejects(refresh.refresh!('fake-refresh', { scopes: [] }), (e: unknown) => e instanceof ToolCredentialError && e.code === 'host_refused' && e.allowlist === 'oauth' && /OAuth host allowlist \(MELCHIZEDEK_OAUTH_HOSTS\)/.test(e.message) && !e.message.includes('MELCHIZEDEK_CREDENTIAL_HOSTS'));
     // The token source refuses a destination off the list, whatever its compile allowed.
     const source = await underHosts(HOSTS, () => oauthTokenSource(authCode(), 'x', `${base}/sse`));
-    await assert.rejects(source(ctx, `${base}/sse`), (e: unknown) => e instanceof ToolCredentialError && e.code === 'host_refused' && !e.message.includes(userToken));
+    await assert.rejects(source(ctx, `${base}/sse`), (e: unknown) => e instanceof ToolCredentialError && e.code === 'host_refused' && e.allowlist === 'oauth' && !e.message.includes(userToken));
   });
   assert.deepEqual(received.slice(sent).filter((r) => r.token), [], 'no request carried a token');
   assert.equal(tokenRequests.length, tokens, 'no token or refresh request');
@@ -493,6 +494,11 @@ test('the doctor reports a missing key, a missing redirect URI, a missing allowl
     const evil = configured.syndicates.find((s) => s.file === 'evil.yaml')!.grants![0]!;
     assert.match(evil.hostProblems.join('\n'), /localhost \(server\) is not one of them/);
     assert.deepEqual(configured.syndicates.find((s) => s.file === 'desk.yaml')!.grants![0]!.hostProblems, []);
+    // A grant whose hosts the allowlist refuses is a problem --check exits non-zero on; the permitted one is not.
+    const failing = checkProblems(configured);
+    assert.ok(failing.some((p) => p.startsWith('evil.yaml: Ops · tracker: ') && /localhost \(server\) is not one of them/.test(p)), failing.join('\n'));
+    assert.ok(!failing.some((p) => p.startsWith('desk.yaml')), failing.join('\n'));
+    assert.deepEqual(checkProblems({ ...configured, syndicates: configured.syndicates.filter((s) => s.file !== 'evil.yaml') }).filter((p) => /tracker: /.test(p)), []);
     const rendered = renderDoctor(configured);
     assert.match(rendered, /oauth       ✓ MELCHIZEDEK_CREDENTIAL_KEY set · OAUTH_REDIRECT_URI set · MELCHIZEDEK_OAUTH_HOSTS set/);
     assert.ok(!rendered.includes(key) && !JSON.stringify(configured).includes(key), 'the key never appears');
@@ -511,4 +517,29 @@ test('the doctor reports a missing key, a missing redirect URI, a missing allowl
       else process.env[name] = saved[name];
     }
   }
+});
+
+test('melchizedek-doctor --check exits non-zero on a grant whose hosts the OAuth allowlist refuses, and zero once it is gone', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'melch-oauth-hosts-check-'));
+  // Local models, so no syndicate is blocked: only the grant's hosts decide.
+  const local = (yaml: string) => yaml.replaceAll('scripted/', 'ollama/');
+  writeFileSync(join(dir, 'desk.yaml'), local(deskYaml('Desk', base)));
+  const doctor = resolve('scripts/doctor.ts');
+  const env: NodeJS.ProcessEnv = {
+    PATH: process.env.PATH,
+    HOME: dir,
+    MELCHIZEDEK_AGENTS_DIR: dir,
+    MELCHIZEDEK_CREDENTIAL_KEY: randomBytes(32).toString('base64'),
+    OAUTH_REDIRECT_URI: 'https://agents.example.com/oauth/callback',
+    MELCHIZEDEK_OAUTH_HOSTS: HOSTS,
+    A2A_AUTH: 'header',
+  };
+  const run = () => spawnSync(process.execPath, ['--disable-warning=DEP0040', '--experimental-strip-types', doctor, '--check', '--no-color'], { cwd: dir, env, encoding: 'utf8' });
+  const clean = run();
+  assert.equal(clean.status, 0, clean.stdout + clean.stderr);
+  writeFileSync(join(dir, 'evil.yaml'), local(deskYaml('Evil', foreign, authCode(base))));
+  const refused = run();
+  assert.equal(refused.status, 1, refused.stdout + refused.stderr);
+  assert.match(refused.stdout, /localhost \(server\) is not one of them/);
+  assert.ok(!refused.stdout.includes(env.MELCHIZEDEK_CREDENTIAL_KEY!), 'the key never appears');
 });
