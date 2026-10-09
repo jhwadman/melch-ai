@@ -182,7 +182,7 @@ function bearerFetch(oauth2: OAuth2AuthConfig, token: (destination: string) => P
     // Every request is checked where it actually goes (the stream, and the
     // message endpoint the server names), before a token is attached (ADR 0114).
     const destination = input instanceof Request ? input.url : String(input);
-    if (oauthCallProblem(oauth2, destination)) throw new ToolCredentialError('host_refused', oauth2.provider);
+    if (oauthCallProblem(oauth2, destination)) throw new ToolCredentialError('host_refused', oauth2.provider, 'oauth');
     const headers = new Headers(init?.headers);
     headers.set('Authorization', `Bearer ${await token(destination)}`);
     return mcpFetch(input, { ...init, headers });

@@ -313,7 +313,9 @@ export function clientCredentialsGrant(options: ClientCredentialsOptions): { tok
 /**
  * What a tool calls for the token of one call, naming where that call goes.
  * Throws ToolCredentialError, whose message names no value: `host_refused`
- * when the destination is not one of the provider's hosts.
+ * when the destination is not one of the provider's hosts (`allowlist`
+ * `'oauth'`), or when a client secret's token endpoint is not bound to its
+ * variable (`allowlist` `'credential'`).
  */
 export type OAuthTokenSource = (ctx: ToolContext | undefined, destination: string) => Promise<string>;
 
@@ -337,7 +339,7 @@ export function oauthTokenSource(oauth2: OAuth2AuthConfig, where: string, server
   const provider = oauth2.provider;
   /** The call-time check (ADR 0114): before any token is read or fetched. */
   const refuse = (destination: string) => {
-    if (oauthCallProblem(oauth2, destination)) throw new ToolCredentialError('host_refused', provider);
+    if (oauthCallProblem(oauth2, destination)) throw new ToolCredentialError('host_refused', provider, 'oauth');
   };
   if (oauth2.grant === 'authorization_code') {
     return async (ctx, destination) => {
@@ -372,7 +374,7 @@ export function oauthTokenSource(oauth2: OAuth2AuthConfig, where: string, server
     // The client secret goes to the token endpoint: held to the same rule,
     // and to the credential host allowlist (ADR 0122).
     refuse(oauth2.token_url);
-    if (credentialCallProblem(secretEnv, oauth2.token_url)) throw new ToolCredentialError('host_refused', provider);
+    if (credentialCallProblem(secretEnv, oauth2.token_url)) throw new ToolCredentialError('host_refused', provider, 'credential');
     return grant.token(ctx?.signal);
   };
 }
@@ -500,10 +502,10 @@ export function oauthRefreshProviders(
     providers[name] = {
       refresh: async (refreshToken, context) => {
         // A refresh token goes only to a token endpoint the allowlist binds to its provider (ADR 0114).
-        if (oauthCallProblem({ provider: name, grant: 'authorization_code' }, client.tokenUrl)) throw new ToolCredentialError('host_refused', name);
+        if (oauthCallProblem({ provider: name, grant: 'authorization_code' }, client.tokenUrl)) throw new ToolCredentialError('host_refused', name, 'oauth');
         // The client secret too: only to a host the operator binds its variable to (ADR 0122).
         const secretEnv = clientSecretEnvOf(client);
-        if (client.clientSecret && secretEnv && credentialCallProblem(secretEnv, client.tokenUrl)) throw new ToolCredentialError('host_refused', name);
+        if (client.clientSecret && secretEnv && credentialCallProblem(secretEnv, client.tokenUrl)) throw new ToolCredentialError('host_refused', name, 'credential');
         const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: client.clientId });
         if (client.clientSecret) body.set('client_secret', client.clientSecret);
         return tokenRequest(client.tokenUrl, body, name, {
