@@ -617,7 +617,7 @@ export function mcpHttpApp(mcp: MelchMcpServer, opts: McpHttpOptions = {}): Expr
       const header = req.headers.authorization;
       const token = header?.startsWith('Bearer ') ? Buffer.from(header.substring(7)) : undefined;
       if (!token || token.length !== expected.length || !timingSafeEqual(token, expected)) {
-        warn(`401 ${req.method} ${req.path} from ${req.ip}`);
+        warn(`401 ${req.method} ${req.path.replace(/[\r\n]/g, '')} from ${String(req.ip).replace(/[\r\n]/g, '')}`);
         res.status(401).json({ error: 'Unauthorized: missing or invalid Authorization Bearer token' });
         return;
       }
