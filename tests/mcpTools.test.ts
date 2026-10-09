@@ -1,8 +1,9 @@
 /**
  * tests/mcpTools.test.ts — what an agent may do with an MCP server's tools
  * (ADR 0041): `mcp_tools` exposes only the named ones, `require_approval` can
- * gate them on a dispatch route, and a server's descriptions and results are
- * bounded. Offline: an MCP SSE server in this process, scripted models.
+ * gate them on a dispatch route or the orchestrator, an orchestrator (a
+ * one-agent syndicate) reaches its MCP server as a subagent does, and a
+ * server's descriptions and results are bounded. Offline: an MCP SSE server in this process, scripted models.
  */
 process.env.OTEL_CONSOLE_SPANS = 'false';
 
@@ -114,6 +115,56 @@ test('a route sees only its mcp_tools, and a gated MCP tool waits for a person',
   const first = await turn([{ text: 'clean up' }]);
   assert.ok(offered.includes('lookup') && offered.includes('delete_all'), `offered: ${offered.join(', ')}`);
   assert.ok(!offered.includes('verbose'), 'a tool the server lists but mcp_tools does not name is not exposed');
+  assert.equal(first.status, 'input-required', first.error?.message);
+  assert.deepEqual(calls, [], 'the gated tool has not run');
+  const second = await turn([approvalResponsePart(first.approval!.id, true)]);
+  assert.equal(second.status, 'completed', second.error?.message);
+  assert.deepEqual(calls, ['delete_all']);
+});
+
+test("a one-agent syndicate's orchestrator reaches its MCP server, narrowed by mcp_tools", async () => {
+  calls.length = 0;
+  const raw = {
+    syndicate_name: 'Solo',
+    orchestrator: { name: 'Solo', model: 'scripted/solo', instruction: 'Look things up.', mcp_server_url: url, mcp_tools: ['lookup'] },
+    subagents: [],
+  };
+  validateSyndicateConfig(raw, 't');
+  let offered: string[] = [];
+  const solo = new ScriptedLlm('scripted/solo', (req, n) => {
+    if (n === 1) offered = ((req as any).config?.tools ?? []).flatMap((t: any) => t.functionDeclarations ?? []).map((d: any) => d.name);
+    return n === 1 ? call('lookup', {}) : text('looked up');
+  });
+  const result = await runSyndicateTurn({
+    config: raw as unknown as SyndicateYamlConfig,
+    parts: [{ text: 'look it up' }],
+    appName: 'app',
+    userId: 'u',
+    sessionId: 'solo',
+    sessionService: new InProcessSessionService(),
+    compile: { resolveModel: scriptedResolver({ solo }) },
+    trace: false,
+  });
+  assert.equal(result.status, 'completed', result.error?.message);
+  assert.ok(offered.includes('lookup'), `offered: ${offered.join(', ')}`);
+  assert.ok(!offered.includes('delete_all') && !offered.includes('verbose'), 'a tool the server lists but mcp_tools does not name is not exposed');
+  assert.deepEqual(calls, ['lookup'], 'the call reached the MCP server');
+  assert.equal(result.text, 'looked up');
+});
+
+test("an orchestrator's require_approval may gate one of its MCP tools", async () => {
+  calls.length = 0;
+  const raw = {
+    syndicate_name: 'Solo',
+    orchestrator: { name: 'Solo', model: 'scripted/solo', instruction: 'Operate.', mcp_server_url: url, mcp_tools: ['delete_all'], require_approval: ['delete_all'] },
+    subagents: [],
+  };
+  validateSyndicateConfig(raw, 't');
+  const solo = new ScriptedLlm('scripted/solo', (_req, n) => (n === 1 ? call('delete_all', {}) : text('done')));
+  const sessionService = new InProcessSessionService();
+  const turn = (parts: any[]) =>
+    runSyndicateTurn({ config: raw as unknown as SyndicateYamlConfig, parts, appName: 'app', userId: 'u', sessionId: 'solo-gate', sessionService, compile: { resolveModel: scriptedResolver({ solo }) }, trace: false });
+  const first = await turn([{ text: 'clean up' }]);
   assert.equal(first.status, 'input-required', first.error?.message);
   assert.deepEqual(calls, [], 'the gated tool has not run');
   const second = await turn([approvalResponsePart(first.approval!.id, true)]);

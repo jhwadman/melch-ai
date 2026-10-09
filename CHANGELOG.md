@@ -26,6 +26,33 @@ the starter pack and the templates), not the repo's full history.
   `outputSchemaBesideTools(model)` says whether a model's path takes both.
   `CAPABILITIES`, `Capability` and `CAPABILITY_MATRIX` gain the member, so
   code that builds a `Record<Capability, …>` must add it.
+- **`turnUntraced()`** (`melchizedek-agents/runtime/turnControl`) says
+  whether the running code belongs to a turn that opted out of tracing;
+  `createTurnControl` takes `untraced`, and `TurnControl` carries it.
+  **`startEngineSpan(tracerName, name, options?)`**
+  (`melchizedek-agents/observability/tracer`) starts a span the way the
+  engine does: a non-recording one, without starting the tracer, inside an
+  untraced turn.
+
+### Fixed
+
+- **`runSyndicateTurn({ trace: false })` records nothing.** It used to drop
+  only the turn's root span: the agent, model-step, `llm.request` and tool
+  spans still started the global tracer, so with `TELEMETRY_SUPABASE=true`
+  an untraced turn still wrote `adk_telemetry` rows (and could write
+  `adk_payloads` rows), and with `OTEL_EXPORTER_OTLP_ENDPOINT` set it still
+  exported. Now a turn with `trace: false` opens no span of any kind, sends
+  nothing to the ledger, the console exporter, `onSpanEnd` listeners or an
+  OTLP endpoint, and does not start the tracer. Its step budget and its
+  `usage` are unchanged. The default (traced) is unchanged, and the A2A
+  server and the chat bin trace as before.
+- **`mcp_server_url` and `mcp_tools` on the orchestrator are honoured.**
+  The schema accepted them there, but only subagents read them, so a
+  one-agent syndicate with an MCP server on its orchestrator got no MCP
+  tools and no warning. The orchestrator now resolves them as a subagent
+  does (narrowed by `mcp_tools`, gateable by its `require_approval`). On a
+  plan-dispatch syndicate the orchestrator is the classifier, and an MCP
+  server declared there is now dialled at compile time.
 
 ## 1.0.3 — 2026-10-09
 

@@ -28,6 +28,8 @@ sources:
   - resource: tests/nativeDelegate.test.ts
   - resource: lib/runtime/native/telemetry.ts
   - resource: tests/nativeLedger.test.ts
+  - resource: tests/traceOff.test.ts
+  - resource: lib/runtime/turnControl.ts
   - resource: tests/helpers/adkReference.ts
   - resource: lib/runtime/native/taskMode.ts
   - resource: tests/execution.test.ts
@@ -344,3 +346,7 @@ What they carry:
 - **How the run ended** on the agent span: `agent.end_reason`, `agent.steps`, and `agent.stop_code` for a stopped run.
 
 The rows differ from the ones ADK wrote in two places. A step's own payload row holds the engine's request and response shapes, and its `provider` column names the provider where ADK's said `gcp.vertex.agent`. And a step's calls run side by side, so `tool_ms` sums their durations where ADK's sum was wall time. The root span is the turn runner's: `runSyndicateTurn` wraps the stream in `traceAgentRun` with the metadata ADK's run had ([the runtime flag](#the-runtime-flag)).
+
+### A turn without spans
+
+`runSyndicateTurn({ trace: false })` records nothing. The turn's control (`lib/runtime/turnControl.ts`) carries `untraced`, and every span the engine opens inside the turn reads it through `turnUntraced()` first: the root span (`traceAgentRun`), the loop's `agent.invoke`, `model.call` and `tool.execute`, a workflow's `workflow.invoke` and `node.execute`, every `llm.request` (`traceLlmGeneration`, the compaction summary's included), a memory search's embedding span and `credential.refresh`. Each gets a non-recording span instead (`startEngineSpan` in `lib/observability/tracer.ts`), and none of them starts the tracer. So no row reaches `adk_telemetry`, `adk_turns` or `adk_payloads`, nothing reaches the console exporter, the in-process listeners (`onSpanEnd`) or an OTLP endpoint, whether or not another turn in the process started the tracer. The turn runs under OpenTelemetry's `suppressTracing` context as well, so a library span opened through the OpenTelemetry API records nothing while a tracer is registered. The step budget and the token charge are unaffected: `traceLlmGeneration` still charges every call, and the result's `usage` counts it. The default is traced; the A2A server and the chat bin always pass trace metadata, and the consumer smoke test (`scripts/ci/consumer_turn.mjs`) and `scripts/gemini_engine_check.ts` pass `false`. Work a surface runs after the turn, such as memory ingestion, is not the turn's and traces as usual. `tests/traceOff.test.ts` runs turns against a loopback ledger and OTLP collector.

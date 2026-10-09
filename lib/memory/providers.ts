@@ -32,7 +32,7 @@
 import { endpointFromEnv } from '../models/endpoints.ts';
 import type { ProviderEndpoint } from '../models/endpoints.ts';
 import { GoogleGenAI } from '@google/genai';
-import { trace, SpanStatusCode } from '@opentelemetry/api';
+import { SpanStatusCode } from '@opentelemetry/api';
 import type { ModelAdapter } from '../models/contract.ts';
 import { llmRequestToModelRequest, modelResponseToLlmResponse } from '../models/genaiMapping.ts';
 import type { LlmRequest, LlmResponse } from '../models/genaiMapping.ts';
@@ -40,7 +40,7 @@ import type { LlmRequest, LlmResponse } from '../models/genaiMapping.ts';
 import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, MEMORY_EXTRACTION_MODEL } from '../config.ts';
 import { providerForModel } from '../models/providerMap.ts';
 import { resolveModel } from '../models/registry.ts';
-import { initializeTracing, traceLlmGeneration } from '../observability/tracer.ts';
+import { startEngineSpan, traceLlmGeneration } from '../observability/tracer.ts';
 import { trimTrailingSlashes } from '../models/urls.ts';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
@@ -123,8 +123,7 @@ export function modelExtractor(opts: ModelExtractorOptions = {}): MemoryExtracto
  * a reasoning step.
  */
 async function traced<T>(provider: string, model: string, count: number, fn: () => Promise<T>): Promise<T> {
-  initializeTracing();
-  const span = trace.getTracer('melchizedek-tracer').startSpan('llm.request');
+  const span = startEngineSpan('melchizedek-tracer', 'llm.request');
   span.setAttribute('llm.provider', provider);
   span.setAttribute('llm.model', model);
   span.setAttribute('llm.purpose', 'memory_embedding');
