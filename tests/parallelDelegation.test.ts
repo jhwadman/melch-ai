@@ -3,7 +3,8 @@
  * under the syndicate's `max_concurrency` (WS6-6, ADR 0116,
  * lib/runtime/native/delegate.ts DelegationGate).
  *
- * The council example's two subagents run on a virtual clock
+ * The shipped council Moderator asks for both subagents in one step; its
+ * two subagents run on a virtual clock
  * (tests/helpers/virtualClock.ts), so "at once" is a time the test reads,
  * never a race between real timers. Then: the cap, two calls to one
  * subagent, the stored order, a pause in one of several running children,
@@ -149,6 +150,33 @@ test('council: the Advocate and the Skeptic run at once, and their responses are
   const second = c.models.moderator!.requests[1]!;
   const results = second.messages.filter((m) => m.role === 'tool').flatMap((m) => m.parts) as Array<{ name?: string; result?: unknown }>;
   assert.deepEqual(results.map((p) => p.name), ['Advocate', 'Skeptic']);
+});
+
+test('council: the shipped Moderator asks for both subagents in one step, and its first request still declares both', async () => {
+  const config = council();
+  const instruction = config.orchestrator.instruction ?? '';
+  assert.match(instruction, /in a single step/);
+  assert.match(instruction, /both function calls in the same response/);
+  assert.match(instruction, /full claim verbatim/);
+  assert.doesNotMatch(instruction, /first the 'Advocate'.*then the 'Skeptic'/s, 'no ordering across steps');
+  const c = converse(config, {
+    moderator: (req) => (toolResults(req) === 0 ? calling(['Advocate', 'call-advocate', CLAIM], ['Skeptic', 'call-skeptic', CLAIM]) : answer('THE VERDICT: unclear.')),
+    advocate: () => answer('1. Rested people.'),
+    skeptic: () => answer('1. Coverage gaps.'),
+  });
+  const r = await c.turn([{ text: CLAIM }]);
+  assert.equal(r.status, 'completed', r.error?.message);
+  const first = c.models.moderator!.requests[0]!;
+  assert.ok(first.system?.includes(instruction), 'the first request carries the shipped instruction');
+  const declared = (first.tools ?? []).map((t) => t.name);
+  assert.ok(declared.includes('Advocate') && declared.includes('Skeptic'), `both subagent tools declared: ${declared.join(', ')}`);
+  assert.equal(c.models.moderator!.calls, 2, 'one step for both delegations, one for the verdict');
+  const stored = await c.events('app');
+  assert.deepEqual(
+    stored.map(getFunctionCalls).filter((calls) => calls.length > 0).map((calls) => calls.map((call) => [call.name, call.args])),
+    [[['Advocate', { request: CLAIM }], ['Skeptic', { request: CLAIM }]]],
+    'both calls in one event, each with the full claim',
+  );
 });
 
 test('council: max_concurrency: 1 runs them one after another, and stores the same events', async () => {
