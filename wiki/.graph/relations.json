@@ -3126,6 +3126,144 @@
       "at": "2026-10-09"
     },
     {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0110: ADR 0118 lifts item 8's refusal of skill scripts on a delegated subagent and carries an OAuth consent request inside one through the open call.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "item 8's skill-script refusal only"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0118 Decision 1 and 5: the script approval and the grant's answer use ADR 0110's walk (delegatedPauses) and resume (resumedDelegations, resumeSubagent).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
+      "rel": "supersedes",
+      "evidence": "Dated note on ADR 0085: a delegated subagent's loop gets the consent step too; the Consequences line on delegated subagents no longer holds.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09",
+      "note": "the delegated-subagent consequence only"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0118 Decision 6: ADR 0114's host checks stay at load, compile and each call; a resumed child call is a call like any other.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/native/delegate.ts",
+      "rel": "explains",
+      "evidence": "ADR 0118 Decision 2: runChild passes the caller's consent step with begin pinned to the caller's app (consentPinnedTo).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0118 Decisions 4 and 5: delegatedPauses reports a child's own open consent request with the path, and resumedDelegations carries adk_request_credential answers down by interrupt id.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0118 Decision 1: skills.scripts: local is allowed on a delegated subagent; an agent a map node runs still may not carry scripts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "to": "syndicate:systems_operator",
+      "rel": "explains",
+      "evidence": "config/agents/templates/systems_operator.yaml header: authorization_code \"works on Systems too: the first call for a person who has not connected pauses the turn with an authorization link ... (ADR 0118)\".",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/credentialHosts.ts",
+      "rel": "explains",
+      "evidence": "ADR 0122 Decision 1-4: the credential host allowlist, its format, what it covers and the rule (unset: as before; set: the whole list) live in lib/tools/credentialHosts.ts.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/credentialUses.ts",
+      "rel": "explains",
+      "evidence": "ADR 0122 Decision 3 and 5: syndicateCredentialUses lists every variable a served YAML sends, and syndicateCredentialHostProblems refuses one the allowlist does not bind at load.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/openapiTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: buildOpenApiOwnTools refuses a bearer_env or api_key aimed at a host its variable is not bound to, and each call checks again and sends nothing when refused.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthTools.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: oauthTokenSource and oauthClientsFor refuse a client_secret_env whose token_url is off its binding, and the token request and refresh hook check again before sending.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/tools/oauthConsent.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: the consent step's code exchange checks the client secret's variable against the allowlist before sending it, failing as exchange_failed.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/app.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 5: createA2AApp takes credentialHosts and refuses a syndicate that sends a credential the allowlist does not permit when it loads one to serve.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/a2a/oauthSetup.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 3 and 5: oauthServerSetup refuses a served file the credential allowlist refuses, throws on a malformed one, and warns naming each unbound variable.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "module:lib/doctor.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0122 Decision 3: the doctor shows a credentials line naming each unbound variable as a warning, and each refusal as a --check failure.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
+      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0122 Context and Decision 1: it extends ADR 0114's operator binding, in the same host format, from OAuth providers to static credential variables.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-09"
+    },
+    {
       "from": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
       "to": "/decisions/0111-pauses-inside-nested-syndicates.md",
       "rel": "supersedes",
@@ -3204,72 +3342,6 @@
       "to": "module:lib/a2a/executor.ts",
       "rel": "constrains",
       "evidence": "ADR 0119 Decision 6: \"The A2A executor reads a paused route and a raised request the same way, so approve and reject work and the repeated request carries the path.\"",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-09"
-    },
-    {
-      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
-      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
-      "rel": "supersedes",
-      "evidence": "Dated note on ADR 0110: ADR 0118 lifts item 8's refusal of skill scripts on a delegated subagent and carries an OAuth consent request inside one through the open call.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-09",
-      "note": "item 8's skill-script refusal only"
-    },
-    {
-      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
-      "to": "/decisions/0110-pauses-inside-delegated-subagents-reach-the-turn.md",
-      "rel": "depends_on",
-      "evidence": "ADR 0118 Decision 1 and 5: the script approval and the grant's answer use ADR 0110's walk (delegatedPauses) and resume (resumedDelegations, resumeSubagent).",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-09"
-    },
-    {
-      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
-      "to": "/decisions/0085-oauth-consent-pauses-on-adks-credential-request.md",
-      "rel": "supersedes",
-      "evidence": "Dated note on ADR 0085: a delegated subagent's loop gets the consent step too; the Consequences line on delegated subagents no longer holds.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-09",
-      "note": "the delegated-subagent consequence only"
-    },
-    {
-      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
-      "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
-      "rel": "depends_on",
-      "evidence": "ADR 0118 Decision 6: ADR 0114's host checks stay at load, compile and each call; a resumed child call is a call like any other.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-09"
-    },
-    {
-      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
-      "to": "module:lib/runtime/native/delegate.ts",
-      "rel": "explains",
-      "evidence": "ADR 0118 Decision 2: runChild passes the caller's consent step with begin pinned to the caller's app (consentPinnedTo).",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-09"
-    },
-    {
-      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
-      "to": "module:lib/runtime/native/interrupts.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0118 Decisions 4 and 5: delegatedPauses reports a child's own open consent request with the path, and resumedDelegations carries adk_request_credential answers down by interrupt id.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-09"
-    },
-    {
-      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
-      "to": "module:lib/syndicateSchema.ts",
-      "rel": "constrains",
-      "evidence": "ADR 0118 Decision 1: skills.scripts: local is allowed on a delegated subagent; an agent a map node runs still may not carry scripts.",
-      "by": "claude-code/claude-opus-5-5",
-      "at": "2026-10-09"
-    },
-    {
-      "from": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
-      "to": "syndicate:systems_operator",
-      "rel": "explains",
-      "evidence": "config/agents/templates/systems_operator.yaml header: authorization_code \"works on Systems too: the first call for a person who has not connected pauses the turn with an authorization link ... (ADR 0118)\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
     }
