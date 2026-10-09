@@ -267,7 +267,7 @@ const agentFields = {
   outputSchema: z
     .record(z.string(), z.unknown())
     .optional()
-    .describe('JSON Schema for structured output: the agent answers with one JSON object matching it. Hold it on a leaf; an agent that delegates and holds one ends its turn on that JSON.'),
+    .describe('JSON Schema for structured output: the agent answers with one JSON object matching it. An agent that also calls tools or delegates to subagents does that first, then ends its turn on that JSON: the schema travels beside the tools where the model takes both in one request, as a set_model_response tool elsewhere (the capability matrix\'s structured_output_with_tools, ADR 0109).'),
   mcp_server_url: z
     .string()
     .optional()

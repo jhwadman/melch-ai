@@ -5,15 +5,15 @@
     "at": "2026-10-09"
   },
   "stats": {
-    "nodes": 880,
-    "edges": 3368,
+    "nodes": 883,
+    "edges": 3388,
     "byKind": {
-      "doc": 172,
+      "doc": 173,
       "provider": 6,
       "env": 106,
       "model": 8,
       "tool": 34,
-      "file": 183,
+      "file": 185,
       "syndicate": 32,
       "agent": 89,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 2
     },
     "byRelation": {
-      "links_to": 756,
+      "links_to": 764,
       "requires_env": 168,
       "routes_to": 8,
       "defined_in": 77,
@@ -33,20 +33,20 @@
       "uses_tool": 62,
       "connects_mcp": 3,
       "delegates_to": 1,
-      "imports": 737,
+      "imports": 738,
       "reads_table": 28,
       "runs": 67,
-      "derives_from": 882,
-      "constrains": 177,
+      "derives_from": 889,
+      "constrains": 180,
       "supersedes": 9,
-      "depends_on": 116,
+      "depends_on": 117,
       "explains": 39,
       "mitigates": 3,
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3023,
-      "inferred": 345
+      "extracted": 3039,
+      "inferred": 349
     },
     "isolated": 4
   },
@@ -1672,6 +1672,18 @@
       }
     },
     {
+      "id": "/decisions/0109-structured-output-beside-tools.md",
+      "kind": "doc",
+      "label": "ADR 0109: An output schema beside tools travels in the provider's own field where the path takes both, as set_model_response elsewhere",
+      "source": "/decisions/0109-structured-output-beside-tools.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 986
+      }
+    },
+    {
       "id": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "kind": "doc",
       "label": "ADR 0112: OAuth grants are declared beside the tool they protect, and an authorization-code MCP server is reached on each user's own connection",
@@ -1812,7 +1824,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1485
+        "words": 1525
       }
     },
     {
@@ -1824,7 +1836,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 3383
+        "words": 3437
       }
     },
     {
@@ -1848,7 +1860,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 4396
+        "words": 4912
       }
     },
     {
@@ -1956,7 +1968,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 6690
+        "words": 6779
       }
     },
     {
@@ -4435,6 +4447,12 @@
       "source": "tests/fixtures/sessions/scenarios.ts"
     },
     {
+      "id": "file:tests/fixtures/structured-critic.yaml",
+      "kind": "file",
+      "label": "structured-critic.yaml",
+      "source": "tests/fixtures/structured-critic.yaml"
+    },
+    {
       "id": "file:tests/geminiAdapter.test.ts",
       "kind": "file",
       "label": "geminiAdapter.test.ts",
@@ -4816,6 +4834,12 @@
       "attrs": {}
     },
     {
+      "id": "file:tests/structuredOrchestrator.test.ts",
+      "kind": "file",
+      "label": "structuredOrchestrator.test.ts",
+      "source": "tests/structuredOrchestrator.test.ts"
+    },
+    {
       "id": "file:tests/surfacesOffAdk.test.ts",
       "kind": "file",
       "label": "surfacesOffAdk.test.ts",
@@ -5123,7 +5147,7 @@
       "label": "lib/dispatch.ts",
       "source": "lib/dispatch.ts",
       "attrs": {
-        "lines": 257
+        "lines": 262
       }
     },
     {
@@ -5258,7 +5282,7 @@
       "label": "lib/models/capabilities.ts",
       "source": "lib/models/capabilities.ts",
       "attrs": {
-        "lines": 403
+        "lines": 461
       }
     },
     {
@@ -5681,7 +5705,7 @@
       "label": "lib/runtime/native/request.ts",
       "source": "lib/runtime/native/request.ts",
       "attrs": {
-        "lines": 711
+        "lines": 736
       }
     },
     {
@@ -14889,6 +14913,83 @@
       "evidence": "/decisions/0108-adk-reference-recorded-by-the-parity-suites.md:39"
     },
     {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/capabilityMatrix.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/fixtures/structured-critic.yaml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "file:tests/structuredOrchestrator.test.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/dispatch.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/runtime/native/request.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md frontmatter"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0019-multi-model-parity-matrix.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:50"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0045-own-runtime-behind-the-seam.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:30"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0049-claude-requests-by-model-generation.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:32"
+    },
+    {
+      "from": "/decisions/0109-structured-output-beside-tools.md",
+      "to": "/decisions/0066-native-step-sends-the-adk-request.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0109-structured-output-beside-tools.md:30"
+    },
+    {
       "from": "/decisions/0112-oauth-grants-declared-beside-the-tool.md",
       "to": "file:config/agents/templates/systems_operator.yaml",
       "rel": "derives_from",
@@ -16024,6 +16125,13 @@
     },
     {
       "from": "/models/claude-adapter.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/claude-adapter.md:49"
+    },
+    {
+      "from": "/models/claude-adapter.md",
       "to": "/models/model-contract.md",
       "rel": "links_to",
       "tier": "extracted",
@@ -16224,6 +16332,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/gemini-adapter.md:132"
+    },
+    {
+      "from": "/models/gemini-adapter.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/gemini-adapter.md:151"
     },
     {
       "from": "/models/gemini-adapter.md",
@@ -16594,7 +16709,7 @@
       "to": "/decisions/0044-fallback-model-and-circuit-breaker.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:135"
+      "evidence": "/models/provider-routing.md:143"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16608,7 +16723,7 @@
       "to": "/decisions/0046-provider-reasoning-state-on-the-part.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:115"
+      "evidence": "/models/provider-routing.md:123"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16629,14 +16744,14 @@
       "to": "/decisions/0050-responses-reasoning-replay-without-storage.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:131"
+      "evidence": "/models/provider-routing.md:139"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0053-adapter-caller-charges-and-traces.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:156"
+      "evidence": "/models/provider-routing.md:164"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16650,14 +16765,14 @@
       "to": "/decisions/0068-model-entry-without-adk.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:161"
+      "evidence": "/models/provider-routing.md:169"
     },
     {
       "from": "/models/provider-routing.md",
       "to": "/decisions/0100-gemini-row-asserted-on-the-engine-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:155"
+      "evidence": "/models/provider-routing.md:163"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16665,6 +16780,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/models/provider-routing.md:20"
+    },
+    {
+      "from": "/models/provider-routing.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/models/provider-routing.md:53"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16685,7 +16807,7 @@
       "to": "/models/gemini-adapter.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:111"
+      "evidence": "/models/provider-routing.md:119"
     },
     {
       "from": "/models/provider-routing.md",
@@ -16699,7 +16821,7 @@
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/provider-routing.md:131"
+      "evidence": "/models/provider-routing.md:139"
     },
     {
       "from": "/models/provider-routing.md",
@@ -18065,6 +18187,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/overview/native-loop.md:314"
+    },
+    {
+      "from": "/overview/native-loop.md",
+      "to": "/decisions/0109-structured-output-beside-tools.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/overview/native-loop.md:78"
     },
     {
       "from": "/overview/native-loop.md",
@@ -23637,6 +23766,13 @@
       "rel": "imports",
       "tier": "extracted",
       "evidence": "lib/runtime/native/interrupts.ts"
+    },
+    {
+      "from": "module:lib/runtime/native/request.ts",
+      "to": "module:lib/models/capabilities.ts",
+      "rel": "imports",
+      "tier": "extracted",
+      "evidence": "lib/runtime/native/request.ts"
     },
     {
       "from": "module:lib/runtime/native/request.ts",
