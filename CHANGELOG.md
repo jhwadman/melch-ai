@@ -8,6 +8,12 @@ the starter pack and the templates), not the repo's full history.
 
 ### Changed
 
+- **Releases are staged on npm for a maintainer's approval** (ADR 0127).
+  The tag-triggered `release.yml` now runs `npm stage publish --provenance`
+  through trusted publishing instead of `npm publish`; a maintainer releases
+  the staged version with `npx npm@11 stage approve <stage-id>` (2FA). No
+  change to the package itself.
+
 - **`melchizedek-doctor --check` fails on an unrecognised `MODEL_GATEWAY`.**
   The doctor already reported a `MODEL_GATEWAY` that names no gateway; `--check`
   now exits 1 on it too (`checkProblems` adds a `gateway:` line naming the
