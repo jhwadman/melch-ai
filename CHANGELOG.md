@@ -6,34 +6,33 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
-### Changed
+## 1.3.0 — 2026-10-10
 
-- **Releases are staged on npm for a maintainer's approval** (ADR 0127).
-  The tag-triggered `release.yml` now runs `npm stage publish --provenance`
-  through trusted publishing instead of `npm publish`; a maintainer releases
-  the staged version with `npx npm@11 stage approve <stage-id>` (2FA). No
-  change to the package itself.
+Release 1.3.0 connects syndicates to the MCP ecosystem in both directions
+and adds a local sign-in for OpenAI models (ADRs 0124–0127).
+`melchizedek-mcp` serves each syndicate as an MCP tool to Claude Code, Codex
+and any MCP client; an agent reaches official remote MCP servers over
+Streamable HTTP, several at once, registering itself with an OAuth server
+that has no pre-issued client; and Sign in with ChatGPT runs OpenAI models on
+a person's own ChatGPT plan, on their own machine only. Server logs no longer
+carry tool arguments or a person's words.
 
-- **`melchizedek-doctor --check` fails on an unrecognised `MODEL_GATEWAY`.**
-  The doctor already reported a `MODEL_GATEWAY` that names no gateway; `--check`
-  now exits 1 on it too (`checkProblems` adds a `gateway:` line naming the
-  accepted values, `vercel` and `openrouter`). The value is never echoed, in
-  text, `--json` or the check line, since it may be a key pasted into the wrong
-  variable. A recognised gateway without `MODEL_GATEWAY_API_KEY`, and unset
-  per-grant variables, stay a report, not a failure.
-- **Server-side logs name tools, never their arguments.** The turn runner's
-  `log` line for a tool call (what `melchizedek-serve`, `melchizedek-mcp` and
-  `melchizedek-worker` print) is `→ Tool: <tool> by <agent> — args: <key
-  names> (<n> bytes)` instead of the arguments cut to 60 characters. A
-  question logs `⏸ <node> asks a question` without its text, a dispatch
-  route logs without the classifier's reason (the caller's progress line
-  keeps it), and a router fallback reason measures the router's text instead
-  of quoting it. The worker logs a job's size, not its title; the image,
-  inspect-image and X API tools and the memory service log sizes and ids
-  instead of prompts, paths, queries and facts. A consumer that parsed the
-  old `→ Tool: name(args)` line reads the tool name before ` by `. Results,
-  the ledger, the A2A status updates and `melchizedek-chat`'s own rendering
-  are unchanged.
+### Upgrade first
+
+- **Log lines changed.** A tool call logs `→ Tool: <tool> by <agent> — args:
+  <key names> (<n> bytes)` instead of `→ Tool: name(args)`; questions, routes
+  and router fallbacks no longer quote text. Anything that parses the server
+  log should read the tool name before ` by `.
+- **A stored ChatGPT sign-in stops served surfaces.** If you sign in with
+  `--chatgpt-signin` on a machine that also runs `melchizedek-serve`,
+  `melchizedek-worker`, `createA2AApp` or `melchizedek-mcp --http`, they refuse
+  to start while the sign-in would carry OpenAI ids. Set `OPENAI_API_KEY`, or
+  `MELCHIZEDEK_CHATGPT_SIGNIN=off`, or sign out. Nothing changes without a
+  sign-in.
+- **`melchizedek-doctor --check` exits 1 on an unrecognised `MODEL_GATEWAY`.**
+- **MCP servers are reached over Streamable HTTP first.** An existing
+  `mcp_server_url` that only speaks SSE still works, after one extra request
+  that the server refuses; pin `mcp_transport: sse` to skip it.
 
 ### Added
 
@@ -52,7 +51,6 @@ the starter pack and the templates), not the repo's full history.
   explicit `approve`. Surface addition: the `melchizedek-mcp` bin and the
   `melchizedek-agents/mcp` export path (`createMcpServer`, `serveMcpStdio`,
   `mcpHttpApp`, `mcpBindProblem`, `toolNameFor`, `RESUME_TOOL`).
-
 - **MCP over Streamable HTTP, several MCP servers per agent, and dynamic
   client registration** (ADR 0124). The MCP client posts the initialize
   request over Streamable HTTP, the spec's current transport, and falls back
@@ -78,23 +76,6 @@ the starter pack and the templates), not the repo's full history.
   `registration_failed` consent error. `OAuth2AuthConfig.token_url` is
   optional in its type (the schema still requires it unless the grant is
   dynamic). New example: `config/agents/examples/connectors.yaml`.
-
-- **`melchizedek-mcp`: syndicates as MCP tools** (ADR 0125). A new bin
-  serves each loaded syndicate as one MCP tool (`{ message, session_id? }`;
-  the answer, then its `session_id`; `structuredContent.output` for a
-  syndicate with an output schema) plus `melch_resume { session_id,
-  approve?, answer? }` for a turn that paused on an approval, an `ask_user`
-  question or an OAuth consent. stdio by default (`claude mcp add melch --
-  npx melchizedek-mcp`, or a Codex `[mcp_servers]` table); `--http` serves
-  Streamable HTTP at `/mcp` on 127.0.0.1:4100 and refuses a bind beyond
-  loopback without `MCP_SERVER_SECRET` (32+ characters). Every call is one
-  task through the A2A executor, so budgets, caps, the turn lock, deadlines,
-  cancel (`notifications/cancelled`), guards and the ledger match
-  `melchizedek-serve`; an approval is answered only by `melch_resume`'s
-  explicit `approve`. Surface addition: the `melchizedek-mcp` bin and the
-  `melchizedek-agents/mcp` export path (`createMcpServer`, `serveMcpStdio`,
-  `mcpHttpApp`, `mcpBindProblem`, `toolNameFor`, `RESUME_TOOL`).
-
 - **Sign in with ChatGPT, on your own machine only** (ADR 0126). OpenAI's
   documented plan-usage flow for open-source apps that run locally:
   `melchizedek-setup --chatgpt-signin` (or `melchizedek-chat --chatgpt-signin`)
@@ -120,6 +101,34 @@ the starter pack and the templates), not the repo's full history.
   unsupported subscription entry is now level 10 (Claude.ai, Gemini CLI, the
   Codex CLI's login) and routes OpenAI to level 9. `ONBOARDING.md` and the
   onboarding skills follow.
+
+### Changed
+
+- **Releases are staged on npm for a maintainer's approval** (ADR 0127).
+  The tag-triggered `release.yml` now runs `npm stage publish --provenance`
+  through trusted publishing instead of `npm publish`; a maintainer releases
+  the staged version with `npx npm@11 stage approve <stage-id>` (2FA). No
+  change to the package itself.
+- **`melchizedek-doctor --check` fails on an unrecognised `MODEL_GATEWAY`.**
+  The doctor already reported a `MODEL_GATEWAY` that names no gateway; `--check`
+  now exits 1 on it too (`checkProblems` adds a `gateway:` line naming the
+  accepted values, `vercel` and `openrouter`). The value is never echoed, in
+  text, `--json` or the check line, since it may be a key pasted into the wrong
+  variable. A recognised gateway without `MODEL_GATEWAY_API_KEY`, and unset
+  per-grant variables, stay a report, not a failure.
+- **Server-side logs name tools, never their arguments.** The turn runner's
+  `log` line for a tool call (what `melchizedek-serve`, `melchizedek-mcp` and
+  `melchizedek-worker` print) is `→ Tool: <tool> by <agent> — args: <key
+  names> (<n> bytes)` instead of the arguments cut to 60 characters. A
+  question logs `⏸ <node> asks a question` without its text, a dispatch
+  route logs without the classifier's reason (the caller's progress line
+  keeps it), and a router fallback reason measures the router's text instead
+  of quoting it. The worker logs a job's size, not its title; the image,
+  inspect-image and X API tools and the memory service log sizes and ids
+  instead of prompts, paths, queries and facts. A consumer that parsed the
+  old `→ Tool: name(args)` line reads the tool name before ` by `. Results,
+  the ledger, the A2A status updates and `melchizedek-chat`'s own rendering
+  are unchanged.
 
 ### Fixed
 
