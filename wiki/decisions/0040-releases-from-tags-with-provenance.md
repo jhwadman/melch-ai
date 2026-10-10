@@ -64,3 +64,5 @@ container image, and measured no coverage (OPS-05, OPS-06, OPS-08).
   then the publish step fails and nothing is published.
 - Branch protection should require the new checks (`codeql`, the Postgres
   job, the audit job); that is a repository setting, not a file.
+
+*2026-10-10:* the publish step now stages the tarball and a maintainer approves it with 2FA ([ADR 0127](/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md)); the rest of this record stands.

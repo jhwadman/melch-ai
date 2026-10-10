@@ -67,9 +67,11 @@ and what changed in one line.
 A maintainer pushes a version tag (`git tag v0.18.0 && git push origin
 v0.18.0`) on the merged release commit. `.github/workflows/release.yml` then
 checks the tag against `package.json`, runs tsc and the tests, builds from an
-empty `dist/`, publishes with npm provenance through trusted publishing (no
-token stored), and creates the GitHub Release with the CHANGELOG section and
+empty `dist/`, stages the tarball on npm with provenance through trusted
+publishing (no token stored), and creates the GitHub Release with the CHANGELOG section and
 a CycloneDX SBOM. A laptop `npm publish` still works but carries no
 provenance; prefer the tag. A tag for a version already on npm skips the
 publish step and still creates the Release with its SBOM. The npm side needs a one-time trusted-publisher
-entry for `release.yml` in the package settings on npmjs.com.
+entry for `release.yml` (environment `npm`, permission "npm stage publish")
+in the package settings on npmjs.com. A staged version goes public only when a
+maintainer runs `npx npm@11 stage approve <stage-id>` with 2FA (ADR 0127).
