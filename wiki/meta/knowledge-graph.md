@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-10-09
+  at: 2026-10-10
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -28,9 +28,9 @@ Two tiers, never mixed ([ADR 0005](/decisions/0005-entity-graph-layer.md)):
 
 | Kind | Id form | Now | What it is |
 |---|---|---|---|
-| `file` | `file:<name>` | 210 | a repo file that is not a source module (DDL, config, prose) |
+| `file` | `file:<name>` | 211 | a repo file that is not a source module (DDL, config, prose) |
 | `module` | `module:<name>` | 198 | one source module |
-| `doc` | `/dir/doc.md` | 193 | a concept document in the bundle — identity is its bundle path |
+| `doc` | `/dir/doc.md` | 194 | a concept document in the bundle — identity is its bundle path |
 | `env` | `env:<name>` | 112 | an environment variable the code reads |
 | `agent` | `agent:<name>` | 92 | one orchestrator or subagent inside a syndicate |
 | `script` | `script:<name>` | 50 | an npm script entrypoint |
@@ -50,8 +50,8 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
-| `derives_from` | extracted | A derives from B | 1095 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 954 | a resolved markdown link between documents |
+| `derives_from` | extracted | A derives from B | 1097 | declared in the document’s `sources:` frontmatter |
+| `links_to` | extracted | A links to B | 957 | a resolved markdown link between documents |
 | `imports` | extracted | A imports B | 871 | a static import edge between source files |
 | `requires_env` | extracted | A requires B | 191 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 92 | the first is composed of the second |

@@ -3,13 +3,16 @@ name: release
 # Publishing is a maintainer's act: it starts only when a maintainer pushes
 # a version tag (git tag v0.18.0 && git push origin v0.18.0). The workflow
 # then proves the tag matches package.json, runs the gates, builds from an
-# empty dist/, publishes with npm provenance through trusted publishing
-# (OIDC: no npm token is stored anywhere), and attaches a CycloneDX SBOM to
-# the GitHub Release. A version already on npm (a laptop publish) is not
-# published again: the tag then only creates the Release and its SBOM.
-# One-time setup on npmjs.com: package settings →
-# Trusted publisher → GitHub Actions, repository jhwadman/melch-ai,
-# workflow release.yml, environment npm.
+# empty dist/, STAGES the tarball on npm with provenance through trusted
+# publishing (OIDC: no npm token is stored anywhere), and attaches a
+# CycloneDX SBOM to the GitHub Release. A staged version is not public: a
+# maintainer releases it with 2FA (npx npm@11 stage approve <stage-id>;
+# npx npm@11 stage list melchizedek-agents shows the id), so the publish
+# itself stays a human act (ADR 0127). A version already on npm (a laptop
+# publish) is not staged again: the tag then only creates the Release.
+# One-time setup on npmjs.com: package settings → Trusted publisher →
+# GitHub Actions, repository jhwadman/melch-ai, workflow release.yml,
+# environment npm, permission "npm stage publish".
 on:
   push:
     tags: ['v*.*.*']
@@ -31,8 +34,8 @@ jobs:
         with:
           node-version: '24'
           registry-url: https://registry.npmjs.org
-      - name: trusted publishing needs npm 11.5 or newer
-        run: npm install -g npm@^11.5.1
+      - name: staged publishing through trusted publishing needs a recent npm 11
+        run: npm install -g npm@^11.21.0
       - name: the tag names the version in package.json
         run: |
           set -euo pipefail
@@ -46,14 +49,15 @@ jobs:
         run: rm -rf dist && npm run build
       - name: SBOM (CycloneDX) of what the package depends on
         run: npm sbom --sbom-format cyclonedx --omit dev > "melchizedek-agents-${GITHUB_REF_NAME}.cdx.json"
-      - name: publish with provenance (skipped when this version is already on npm)
+      - name: stage with provenance for a maintainer's approval (skipped when this version is already on npm)
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
           if npm view "melchizedek-agents@${VERSION}" version >/dev/null 2>&1; then
             echo "melchizedek-agents@${VERSION} is already on npm (published by hand); creating the GitHub Release only."
           else
-            npm publish --provenance --access public --ignore-scripts
+            npm stage publish . --provenance --access public --ignore-scripts
+            echo "::notice::melchizedek-agents@${VERSION} is staged, not public. Release it with 2FA: npx npm@11 stage list melchizedek-agents, then npx npm@11 stage approve <stage-id>."
           fi
       - name: GitHub Release with the SBOM
         env:

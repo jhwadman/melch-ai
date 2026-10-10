@@ -5,15 +5,15 @@
     "at": "2026-10-10"
   },
   "stats": {
-    "nodes": 974,
-    "edges": 4081,
+    "nodes": 976,
+    "edges": 4086,
     "byKind": {
-      "doc": 193,
+      "doc": 194,
       "provider": 6,
       "env": 112,
       "model": 10,
       "tool": 34,
-      "file": 210,
+      "file": 211,
       "syndicate": 34,
       "agent": 92,
       "mcp-server": 4,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 954,
+      "links_to": 957,
       "requires_env": 191,
       "routes_to": 10,
       "defined_in": 79,
@@ -36,7 +36,7 @@
       "imports": 871,
       "reads_table": 28,
       "runs": 72,
-      "derives_from": 1095,
+      "derives_from": 1097,
       "constrains": 247,
       "supersedes": 21,
       "depends_on": 145,
@@ -45,7 +45,7 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3610,
+      "extracted": 3615,
       "inferred": 471
     },
     "isolated": 4
@@ -912,7 +912,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 379
+        "words": 402
       }
     },
     {
@@ -1912,6 +1912,18 @@
       }
     },
     {
+      "id": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
+      "kind": "doc",
+      "label": "ADR 0127: CI stages the release on npm; a maintainer approves it with 2FA",
+      "source": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
+      "attrs": {
+        "type": "decision",
+        "status": "stable",
+        "trust": "unverified",
+        "words": 380
+      }
+    },
+    {
       "id": "/memory/architecture.md",
       "kind": "doc",
       "label": "Memory architecture",
@@ -2160,7 +2172,7 @@
         "type": "runbook",
         "status": "stable",
         "trust": "unverified",
-        "words": 1773
+        "words": 1808
       }
     },
     {
@@ -4158,7 +4170,8 @@
       "id": "file:.github/workflows/release.yml",
       "kind": "file",
       "label": "release.yml",
-      "source": ".github/workflows/release.yml"
+      "source": ".github/workflows/release.yml",
+      "attrs": {}
     },
     {
       "id": "file:AGENTS.md",
@@ -5524,6 +5537,12 @@
       "kind": "file",
       "label": "tsconfig.build.json",
       "source": "tsconfig.build.json"
+    },
+    {
+      "id": "file:wiki/decisions/0040-releases-from-tags-with-provenance.md",
+      "kind": "file",
+      "label": "0040-releases-from-tags-with-provenance.md",
+      "source": "wiki/decisions/0040-releases-from-tags-with-provenance.md"
     },
     {
       "id": "mcp-server:{{systems_mcp_url}}",
@@ -11107,6 +11126,13 @@
       "rel": "derives_from",
       "tier": "extracted",
       "evidence": "/decisions/0040-releases-from-tags-with-provenance.md frontmatter"
+    },
+    {
+      "from": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "to": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0040-releases-from-tags-with-provenance.md:68"
     },
     {
       "from": "/decisions/0041-tool-vendors-get-least-privilege.md",
@@ -17738,6 +17764,27 @@
       "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md:44"
     },
     {
+      "from": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
+      "to": "file:.github/workflows/release.yml",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md frontmatter"
+    },
+    {
+      "from": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
+      "to": "file:wiki/decisions/0040-releases-from-tags-with-provenance.md",
+      "rel": "derives_from",
+      "tier": "extracted",
+      "evidence": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md frontmatter"
+    },
+    {
+      "from": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
+      "to": "/decisions/0040-releases-from-tags-with-provenance.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md:22"
+    },
+    {
       "from": "/memory/architecture.md",
       "to": "file:lib/memory/README.md",
       "rel": "derives_from",
@@ -20543,6 +20590,13 @@
       "rel": "links_to",
       "tier": "extracted",
       "evidence": "/operations/setup.md:29"
+    },
+    {
+      "from": "/operations/setup.md",
+      "to": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/operations/setup.md:63"
     },
     {
       "from": "/operations/setup.md",

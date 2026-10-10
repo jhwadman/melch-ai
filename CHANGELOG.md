@@ -9,7 +9,7 @@ the starter pack and the templates), not the repo's full history.
 ## 1.3.0 — 2026-10-10
 
 Release 1.3.0 connects syndicates to the MCP ecosystem in both directions
-and adds a local sign-in for OpenAI models (ADRs 0124–0126).
+and adds a local sign-in for OpenAI models (ADRs 0124–0127).
 `melchizedek-mcp` serves each syndicate as an MCP tool to Claude Code, Codex
 and any MCP client; an agent reaches official remote MCP servers over
 Streamable HTTP, several at once, registering itself with an OAuth server
@@ -104,6 +104,11 @@ carry tool arguments or a person's words.
 
 ### Changed
 
+- **Releases are staged on npm for a maintainer's approval** (ADR 0127).
+  The tag-triggered `release.yml` now runs `npm stage publish --provenance`
+  through trusted publishing instead of `npm publish`; a maintainer releases
+  the staged version with `npx npm@11 stage approve <stage-id>` (2FA). No
+  change to the package itself.
 - **`melchizedek-doctor --check` fails on an unrecognised `MODEL_GATEWAY`.**
   The doctor already reported a `MODEL_GATEWAY` that names no gateway; `--check`
   now exits 1 on it too (`checkProblems` adds a `gateway:` line naming the
