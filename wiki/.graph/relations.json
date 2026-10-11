@@ -3799,6 +3799,22 @@
       "at": "2026-10-11"
     },
     {
+      "from": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
+      "to": "module:lib/tools/mcpTransports.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0124 note (2026-10-11): `auto` falls back to SSE on the spec's signal, or on a Streamable HTTP 401 only where the connection carries no OAuth grant; the transport that connected is remembered per server URL (bounded at 256).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/protocols/mcp.md",
+      "to": "module:lib/tools/mcpToolFactory.ts",
+      "rel": "explains",
+      "evidence": "wiki/protocols/mcp.md Transport: \"A 401 falls back only when the connection carries no OAuth grant ... Under an OAuth grant a 401 keeps its meaning ... The transport that connected under auto is remembered per server URL\" (connectMcp).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
       "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
       "to": "module:lib/workflow/agentNode.ts",
       "rel": "constrains",

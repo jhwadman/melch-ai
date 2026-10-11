@@ -15,7 +15,10 @@
 #
 # TRANSPORT: each server is reached over Streamable HTTP (the
 # MCP spec's current transport) and falls back to the legacy
-# SSE transport when the server answers with the spec's signal.
+# SSE transport when the server answers with the spec's signal,
+# or with a 401 when the entry has no `auth:` grant (an SSE-only
+# server behind an MCP_BEARER_TOKENS bearer); the transport that
+# worked is remembered per URL while the process runs.
 # `transport: sse` or `transport: streamable_http` pins one.
 # The two local servers below are SSE servers; `auto` finds that.
 #

@@ -65,9 +65,9 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `connects_mcp` | extracted | A dials B | 5 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
-| `constrains` | inferred | A constrains B | 254 | a decision or doctrine limits what the target may do |
+| `constrains` | inferred | A constrains B | 255 | a decision or doctrine limits what the target may do |
 | `depends_on` | inferred | A depends on B | 148 | the first cannot do its job unless the second holds |
-| `explains` | inferred | A explains B | 53 | the document is where the target’s rationale is written down |
+| `explains` | inferred | A explains B | 54 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 21 | replaces an earlier decision or document |
 | `mitigates` | inferred | A mitigates B | 4 | the mechanism exists to contain the named failure |
 | `contradicts` | inferred | A contradicts B | 1 | two sources state incompatible things — a rot signal |

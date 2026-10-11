@@ -39,6 +39,14 @@ by claude-code/claude-opus-5-5
 
 by claude-code/claude-opus-5-5
 
+## [2026-10-11] relate | /protocols/mcp.md —explains→ module:lib/tools/mcpToolFactory.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md —constrains→ module:lib/tools/mcpTransports.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-11] relate | /decisions/0126-sign-in-with-chatgpt-local-only.md —constrains→ module:lib/chatgpt/oauth.ts
 
 by claude-code/claude-opus-5-5

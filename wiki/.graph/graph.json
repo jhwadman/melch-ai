@@ -6,7 +6,7 @@
   },
   "stats": {
     "nodes": 978,
-    "edges": 4131,
+    "edges": 4133,
     "byKind": {
       "doc": 195,
       "provider": 6,
@@ -37,16 +37,16 @@
       "reads_table": 28,
       "runs": 72,
       "derives_from": 1112,
-      "constrains": 254,
+      "constrains": 255,
       "supersedes": 21,
       "depends_on": 148,
-      "explains": 53,
+      "explains": 54,
       "mitigates": 4,
       "contradicts": 1
     },
     "byTier": {
       "extracted": 3650,
-      "inferred": 481
+      "inferred": 483
     },
     "isolated": 4
   },
@@ -1884,7 +1884,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1930
+        "words": 2169
       }
     },
     {
@@ -2292,7 +2292,7 @@
         "type": "protocol",
         "status": "stable",
         "trust": "unverified",
-        "words": 1564
+        "words": 1708
       }
     },
     {
@@ -2364,7 +2364,7 @@
         "type": "subsystem",
         "status": "stable",
         "trust": "unverified",
-        "words": 3447
+        "words": 3509
       }
     },
     {
@@ -6385,7 +6385,7 @@
       "label": "lib/runtime/native/interrupts.ts",
       "source": "lib/runtime/native/interrupts.ts",
       "attrs": {
-        "lines": 869
+        "lines": 870
       }
     },
     {
@@ -6484,7 +6484,7 @@
       "label": "lib/runtime/syndicateTurn.ts",
       "source": "lib/runtime/syndicateTurn.ts",
       "attrs": {
-        "lines": 1569
+        "lines": 1563
       }
     },
     {
@@ -6727,7 +6727,7 @@
       "label": "lib/tools/mcpToolFactory.ts",
       "source": "lib/tools/mcpToolFactory.ts",
       "attrs": {
-        "lines": 457
+        "lines": 542
       }
     },
     {
@@ -6736,7 +6736,7 @@
       "label": "lib/tools/mcpTransports.ts",
       "source": "lib/tools/mcpTransports.ts",
       "attrs": {
-        "lines": 13
+        "lines": 15
       }
     },
     {
@@ -7195,7 +7195,7 @@
       "label": "lib/workflow/turn.ts",
       "source": "lib/workflow/turn.ts",
       "attrs": {
-        "lines": 514
+        "lines": 516
       }
     },
     {
@@ -23366,7 +23366,7 @@
       "to": "/decisions/0062-server-side-tools-as-markers.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:103"
+      "evidence": "/tools/tool-contracts.md:104"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -23422,7 +23422,7 @@
       "to": "/decisions/0114-oauth-tokens-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:87"
+      "evidence": "/tools/tool-contracts.md:88"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -23436,14 +23436,14 @@
       "to": "/decisions/0122-static-credentials-go-only-to-hosts-the-operator-binds.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:95"
+      "evidence": "/tools/tool-contracts.md:96"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/decisions/0124-mcp-client-streamable-http-several-servers-and-dynamic-registration.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:89"
+      "evidence": "/tools/tool-contracts.md:86"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -23457,7 +23457,7 @@
       "to": "/memory/architecture.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:125"
+      "evidence": "/tools/tool-contracts.md:126"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -23478,14 +23478,14 @@
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:111"
+      "evidence": "/tools/tool-contracts.md:112"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/protocols/a2a.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:90"
+      "evidence": "/tools/tool-contracts.md:91"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -23506,7 +23506,7 @@
       "to": "/tools/evidence-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:117"
+      "evidence": "/tools/tool-contracts.md:118"
     },
     {
       "from": "/tools/tool-contracts.md",
@@ -23527,21 +23527,21 @@
       "to": "/tools/task-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:117"
+      "evidence": "/tools/tool-contracts.md:118"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/web-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:117"
+      "evidence": "/tools/tool-contracts.md:118"
     },
     {
       "from": "/tools/tool-contracts.md",
       "to": "/tools/wiki-tools.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/tools/tool-contracts.md:117"
+      "evidence": "/tools/tool-contracts.md:118"
     },
     {
       "from": "/tools/web-tools.md",
