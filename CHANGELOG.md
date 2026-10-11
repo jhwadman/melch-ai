@@ -6,6 +6,18 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Fixed
+
+- **Sign in with ChatGPT answers again: a stream whose `response.completed`
+  carries an empty `output` builds its final from `response.output_item.done`.**
+  The plan-usage route (`store: false`) sends every finished item only as
+  `output_item.done` and closes with an empty `output`, so on 1.3.0 a turn on
+  the sign-in completed with no text and no tool calls. The Responses stream
+  now keeps each finished item by `output_index` and uses them when the
+  completed reply has none; a populated `output` (every keyed call) still
+  wins. Found in the first live run on a ChatGPT plan (`gpt-5.5`,
+  `gpt-6.1-sol`).
+
 ## 1.3.0 — 2026-10-10
 
 Release 1.3.0 connects syndicates to the MCP ecosystem in both directions
