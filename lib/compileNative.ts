@@ -226,6 +226,7 @@ export function workflowSubagentOf(workflow: NativeWorkflow): WorkflowSubagent {
         ...(run.memory ? { memory: run.memory } : {}),
         ...(run.log ? { log: run.log } : {}),
         ...(run.credentials ? { credentials: run.credentials } : {}),
+        ...(run.consent ? { consent: run.consent } : {}),
       }),
   };
 }

@@ -58,7 +58,9 @@
  * grantedCalls is that preprocessor, check for check, with one difference
  * in what the answer carries:
  *   1. The answers: the function responses named `adk_request_credential`
- *      in the last event with content, which must be the user's. None:
+ *      in the latest user event, provided this agent has stored nothing
+ *      with content since (at the top that is the last event with content;
+ *      in a walk another node's events may come between, ADR 0128). None:
  *      nothing happens.
  *   2. The requests they answer: `adk_request_credential` calls this agent
  *      made, by id. An answer naming no such request is ignored, as ADK
@@ -102,7 +104,8 @@
  * workflow under the call's name) makes an approval request an agent node
  * raised, or an ask_user node's question, the pause, with the node that
  * asked at the end of the path. The walk stops there: a pause inside a
- * workflow node's own delegation does not run (lib/workflow/agentNode.ts).
+ * workflow node's own delegation does not run (lib/workflow/agentNode.ts),
+ * except an OAuth consent request, which does (ADR 0128, below).
  *
  * NESTED WORKFLOWS AS A ROUTE OR A NODE (ADR 0119). A workflow node that is
  * a nested workflow raises its walk's open requests again on its caller's
@@ -125,6 +128,19 @@
  * when the child session is not a walk. The answer goes down the open
  * call, the route's pause record or the node's raised request, and the
  * nested turn reads it as a message at the top.
+ *
+ * CONSENT INSIDE A WALK (ADR 0128). An agent node's own consent request
+ * is an interrupt of the walk like its approval request: the walk's pause
+ * record names it, and walkConsents finds it there for the turn. A node
+ * whose request waits below it (in a call its agent left open, in a nested
+ * walk, in a nested dispatch syndicate's conversation) raises a copy of it
+ * on the walk under the same id (lib/workflow/agentNode.ts,
+ * lib/workflow/turn.ts), and consentBelow follows the copy down to the
+ * agent that asked; workflowPause reads a credential request as it reads
+ * an approval or a question, so a walk nested below a route, a node or a
+ * delegated call is followed the same way. grantedCalls reads the latest
+ * user event unless the agent has written since, so another node's events
+ * between the grant's answer and the node's resume do not hide it.
  *
  * CONSENT AND SKILL SCRIPTS INSIDE DELEGATED SUBAGENTS (ADR 0118). A skill
  * script run asks for approval through the same `adk_request_confirmation`
@@ -149,7 +165,7 @@ import { inputRequestFrom } from '../../workflowConfig.ts';
 import type { PendingInput } from '../../workflowConfig.ts';
 import { approvalRequestOf, pendingApproval } from '../approvals.ts';
 import type { PendingApproval } from '../approvals.ts';
-import { pendingConsent } from '../credentials.ts';
+import { consentFrom, pendingConsent } from '../credentials.ts';
 import type { PendingConsent } from '../credentials.ts';
 import { getFunctionCalls, getFunctionResponses } from '../events.ts';
 import type { TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
@@ -337,9 +353,15 @@ function bindsGrant(config: Record<string, unknown>, response: unknown): boolean
 export async function grantedCalls(agent: NativeAgent, scope: Scope): Promise<GrantedCalls | undefined> {
   const events = scope.session.events;
   if (events.length === 0) return undefined;
+  // The latest user event, unless this agent has written since (ADR 0128): in a walk, another node's events may
+  // follow the person's answer before this node reads it; at the top only this agent writes after the message.
   let last: TurnEvent | undefined;
-  for (let i = events.length - 1; i >= 0 && !last; i--) if (events[i]?.content !== undefined) last = events[i];
-  if (!last || last.author !== 'user') return undefined;
+  for (let i = events.length - 1; i >= 0 && !last; i--) {
+    const event = events[i]!;
+    if (event.author === agent.name && event.content !== undefined) return undefined;
+    if (event.author === 'user' && event.content !== undefined) last = event;
+  }
+  if (!last) return undefined;
   const answers = new Map<string, unknown>();
   for (const r of getFunctionResponses(last)) if (r.name === REQUEST_CREDENTIAL_CALL && r.id) answers.set(r.id, r.response);
   if (answers.size === 0) return undefined;
@@ -475,6 +497,7 @@ async function pauseBelow(key: DelegationKey, caller: string, call: TurnFunction
       callIds: [id],
       ...(walked.approval ? { approval: { ...walked.approval, path } } : {}),
       ...(walked.question ? { question: { ...walked.question, path } } : {}),
+      ...(walked.consent ? { consent: { ...walked.consent, path } } : {}),
     };
   }
   const approval = pendingApproval(child.events);
@@ -587,25 +610,86 @@ const isWalk = (session: Session): boolean => session.events.some((e) => typeof 
  * requests again on its own event (lib/workflow/turn.ts, ADR 0119), so it
  * is the asker here, and workflowPauseIn goes on down.
  */
-function workflowPause(events: readonly TurnEvent[], name: string, id?: string): { asker: string; approval?: PendingApproval; question?: PendingInput } | undefined {
+function workflowPause(
+  events: readonly TurnEvent[],
+  name: string,
+  id?: string,
+): { asker: string; approval?: PendingApproval; question?: PendingInput; consent?: PendingConsent } | undefined {
   const record = events[events.length - 1];
   if (!record || record.author !== name || (record.content?.parts ?? []).length > 0 || record.nodeInfo?.path !== name) return undefined;
   const open = new Set((record.longRunningToolIds ?? []).filter((x) => id === undefined || x === id));
   if (open.size === 0) return undefined;
-  // The latest open request the record names, an approval first: the walk stores node inputs as user turns, so a later one may follow it.
-  for (const kind of [REQUEST_CONFIRMATION_CALL, REQUEST_INPUT_CALL]) {
+  // The latest open request the record names, an approval first, then a question, then a consent request (ADR 0128):
+  // the walk stores node inputs as user turns, so a later one may follow it.
+  for (const kind of [REQUEST_CONFIRMATION_CALL, REQUEST_INPUT_CALL, REQUEST_CREDENTIAL_CALL]) {
     for (let i = events.length - 2; i >= 0; i--) {
       const event = events[i] as TurnEvent;
       if (!event.author || event.author === 'user') continue;
       for (const call of getFunctionCalls(event)) {
         if (call.name !== kind || !call.id || !open.has(call.id)) continue;
         if (kind === REQUEST_CONFIRMATION_CALL) return { asker: event.author, approval: approvalRequestOf(event, call) };
+        if (kind === REQUEST_CREDENTIAL_CALL) {
+          const consent = consentFrom(event.author, call);
+          if (consent) return { asker: event.author, consent };
+          continue;
+        }
         const question = inputRequestFrom(event.author, call);
         if (question && question.id === call.id) return { asker: event.author, question };
       }
     }
   }
   return undefined;
+}
+
+/** Whether `asker` made the call `functionCallId` itself in `events`: its consent request is its own, not one it raised again. */
+function madeCall(events: readonly TurnEvent[], asker: string, functionCallId: string): boolean {
+  return events.some((event) => event.author === asker && getFunctionCalls(event).some((call) => call.id === functionCallId && call.name !== REQUEST_CREDENTIAL_CALL));
+}
+
+/**
+ * The consent request `id` waiting below the node `asker` of a walk whose
+ * session holds `events` (filed under `key.appName`), when the node raised
+ * it again on the walk (ADR 0128): inside the node's own child session (a
+ * nested workflow, or a nested dispatch syndicate's conversation,
+ * nestedWorkflowPause), else inside a call the node left open (a delegated
+ * subagent, delegatedPauses). Its `path` runs from `asker` down to the
+ * agent that asked. Undefined when nothing below holds it.
+ */
+async function consentBelow(key: DelegationKey & { appName: string }, events: readonly TurnEvent[], asker: string, id: string, depth: number): Promise<PendingConsent | undefined> {
+  if (depth >= MAX_DELEGATION_DEPTH) return undefined;
+  const nested = await nestedWorkflowPause(key, asker, 'node', id, depth + 1);
+  if (nested?.consent?.id === id) return nested.consent;
+  const below = await delegatedPauses({ ...key, delegated: false }, events, asker, depth + 1);
+  return below.find((pause) => pause.consent?.id === id)?.consent;
+}
+
+/**
+ * The OAuth consent requests a walk waits on (ADR 0128): the credential
+ * requests among the open interrupts its pause record names (the session's
+ * last event, authored by the workflow at its own path, no content), each
+ * followed down to the agent that asked. A node's own request comes back as
+ * it is, `agent` the node and no `path`, as a node's own approval request
+ * does; one a node raised again on the walk (a delegated subagent's, a
+ * nested walk's, a nested dispatch syndicate's) carries the `path` from the
+ * node down. `key.appName` is the walk session's app. Empty when the walk is
+ * not paused, or waits on no grant.
+ */
+export async function walkConsents(key: DelegationKey & { appName: string }, events: readonly TurnEvent[], depth = 0): Promise<PendingConsent[]> {
+  const record = events[events.length - 1];
+  const name = record?.author;
+  if (!record || !name || name === 'user' || (record.content?.parts ?? []).length > 0 || record.nodeInfo?.path !== name) return [];
+  const out: PendingConsent[] = [];
+  for (const id of record.longRunningToolIds ?? []) {
+    const walked = workflowPause(events, name, id);
+    const consent = walked?.consent;
+    if (!walked || !consent) continue;
+    if (madeCall(events, walked.asker, consent.functionCallId)) {
+      out.push(consent);
+      continue;
+    }
+    out.push((await consentBelow(key, events, walked.asker, id, depth)) ?? consent);
+  }
+  return out;
 }
 
 /** A pause a nested workflow's walk holds: the path from the workflow down to the node that asked, and what it asks. */
@@ -616,7 +700,7 @@ export interface NestedWorkflowPause {
   approval?: PendingApproval;
   /** The question, its `node` the node that asked and its `path` set. */
   question?: PendingInput;
-  /** The OAuth consent request, inside a nested dispatch syndicate's route (ADR 0120); its `path` set. */
+  /** The OAuth consent request, inside a nested dispatch syndicate's route (ADR 0120) or a node of the walk (ADR 0128); its `path` set. */
   consent?: PendingConsent;
 }
 
@@ -629,6 +713,14 @@ export interface NestedWorkflowPause {
 async function workflowPauseIn(key: DelegationKey, child: Session, name: string, id?: string, depth = 0): Promise<NestedWorkflowPause | undefined> {
   const walked = workflowPause(child.events, name, id);
   if (!walked) return undefined;
+  if (walked.consent) {
+    // A node's own consent request, else one it raised again: followed down to the agent that asked (ADR 0128).
+    const below = madeCall(child.events, walked.asker, walked.consent.functionCallId)
+      ? undefined
+      : await consentBelow({ ...key, appName: child.appName }, child.events, walked.asker, walked.consent.id, depth + 1);
+    const path = [name, ...(below?.path ?? [walked.asker])];
+    return { path, consent: { ...(below ?? walked.consent), path } };
+  }
   const found = (walked.approval?.id ?? walked.question?.id) as string;
   const deeper = await nestedWorkflowPause({ ...key, appName: child.appName }, walked.asker, 'node', found, depth + 1);
   const path = deeper ? [name, ...deeper.path] : [name, walked.asker];

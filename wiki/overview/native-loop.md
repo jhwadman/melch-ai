@@ -8,7 +8,7 @@ tags:
   - overview
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-08
+  at: 2026-10-11
 sources:
   - resource: lib/runtime/native/request.ts
   - resource: lib/runtime/native/history.ts
@@ -23,6 +23,7 @@ sources:
   - resource: tests/delegatedPauses.test.ts
   - resource: tests/nestedPauses.test.ts
   - resource: tests/delegatedScriptsConsent.test.ts
+  - resource: tests/workflowNodeConsent.test.ts
   - resource: lib/runtime/native/selfCorrection.ts
   - resource: lib/runtime/credentials.ts
   - resource: tests/oauthConsent.test.ts
@@ -264,11 +265,11 @@ With `credentials` (the run's credential store, pinned to its app) each call's `
 
 Once the server's callback has stored the grant, `runSyndicateTurn` stores the person's next message as the request's answer, `{ credentialKey, granted: true }` (`credentialResponsePart`, `lib/runtime/credentials.ts`). `grantedCalls` in `lib/runtime/native/interrupts.ts` reads it before every step, ahead of the approval resume, as ADK's auth preprocessor ran ahead of request-confirmation:
 
-1. **The answers** are the `adk_request_credential` responses in the last event with content, which must be the user's.
+1. **The answers** are the `adk_request_credential` responses in the latest user event, provided the agent has stored nothing with content since. At the top that is the last event with content; in a workflow walk another node's events may come between the answer and the node's resume ([ADR 0128](/decisions/0128-oauth-consent-inside-workflow-nodes.md)).
 2. **The requests** are this agent's `adk_request_credential` calls with those ids. An answer naming none, or not granting the request's `credentialKey`, is ignored, as ADK ignored an answer that did not bind. A request an earlier grant already bound is closed, so a replayed grant runs nothing, as a replayed approval runs nothing; ADK ran the call again ([ADR 0101](/decisions/0101-native-loop-security-gate.md)).
 3. **The run.** The calls the requests name (`function_call_id`) run again, from the latest event this agent authored that made them, through the loop's own call path, and their response is stored before the step builds its request. The history keeps the call and its latest answer side by side, as ADK's content processor did, so the model reads the result and not the pending notice. A later step finds the agent's own events last, so the call runs once. A call that asks again pauses the run on its new request.
 
-ADK's preprocessor differed in two places. It re-ran the call from the latest event of any author, so a call forged into a user event under the paused call's id would have run with the forged arguments; the loop reads only the agent's own events ([ADR 0101](/decisions/0101-native-loop-security-gate.md)). And its answer carried the authorization response, which it exchanged in-process with the client secret its request event stored. Here the callback route exchanged the code before the message arrived, so the answer carries no credential. A delegated subagent's loop gets the parent's credentials and its consent step, with every flow bound to the caller's app (`consentPinnedTo` in `delegate.ts`), so the callback stores the grant where the run's pinned credentials read it ([ADR 0118](/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md)).
+ADK's preprocessor differed in two places. It re-ran the call from the latest event of any author, so a call forged into a user event under the paused call's id would have run with the forged arguments; the loop reads only the agent's own events ([ADR 0101](/decisions/0101-native-loop-security-gate.md)). And its answer carried the authorization response, which it exchanged in-process with the client secret its request event stored. Here the callback route exchanged the code before the message arrived, so the answer carries no credential. A delegated subagent's loop gets the parent's credentials and its consent step, with every flow bound to the caller's app (`consentPinnedTo` in `delegate.ts`), so the callback stores the grant where the run's pinned credentials read it ([ADR 0118](/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md)). A workflow node's loop, and a nested walk's, get the consent step pinned the same way, and a node's consent pause reaches the turn through the walk ([ADR 0128](/decisions/0128-oauth-consent-inside-workflow-nodes.md), [Workflow scheduler](/overview/workflow-scheduler.md#oauth-consent-in-a-node)).
 
 ## Questions
 
@@ -328,7 +329,7 @@ The answer event in the caller's session answers no call of the caller's, so its
 
 A nested workflow or a nested dispatch syndicate run as a dispatch route or a workflow node pauses the turn too, without an open call: through the route's pause record in the conversation, or the node's own pause on its caller's walk ([ADR 0119](/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md), [ADR 0120](/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md), [Workflow scheduler](/overview/workflow-scheduler.md#as-a-route-or-a-node)). A nested dispatch syndicate as a route (`runDispatchRoute`, `lib/runtime/syndicateTurn.ts`) runs on `<app>/route:<route>`; the conversation stores the message and either the route's answer or, when its turn pauses, the route's pause record naming the one interrupt. The turn reports the request with the path from the route down (`['Team', 'Ops']`), and the next message resumes the route without classifying: a decision (`decidedBy: approval`), a plain-text answer (`answer`), or, once the grant is stored, any message (`consent`). A message before the grant repeats the consent request, and a non-decision while an approval waits repeats it; neither stores anything.
 
-Not done by the loop: transfer (`transfer_to_agent`), a pause inside a workflow node's own delegation, and an OAuth consent inside a workflow node or a nested workflow (a workflow node that is a nested dispatch syndicate fails on one). A remote (`a2a_agent_url`) route inside a nested dispatch syndicate derives its remote conversation id from the session id and the route's name, which it shares with a same-named remote route at the top.
+Not done by the loop: transfer (`transfer_to_agent`), and an approval or a question inside a workflow node's own delegation (an OAuth consent there reaches the turn, [ADR 0128](/decisions/0128-oauth-consent-inside-workflow-nodes.md)). A remote (`a2a_agent_url`) route inside a nested dispatch syndicate derives its remote conversation id from the session id and the route's name, which it shares with a same-named remote route at the top.
 
 A `temp:` key a tool writes is visible to the rest of the run, as ADK's live session state made it: the next step's instruction placeholders, its toolsets, and the next step's calls read it. The loop reads each event's `temp:` keys just before the store drops them, and lays them over the session's state when it builds a request or a call's context (`lib/runtime/native/tempState.ts`). They are never written into the session object, since a store that saves the whole session would keep them.
 

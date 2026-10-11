@@ -9,7 +9,7 @@ tags:
 status: stable
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-08
+  at: 2026-10-11
 sources:
   - resource: lib/runtime/native/agentLoop.ts
   - resource: lib/runtime/native/step.ts
@@ -106,9 +106,9 @@ What does not stop it: a result can still persuade the model to call an ungated 
 
 **What can go wrong.** A grant forged for a request that does not exist or for another provider; a credential request the person wrote; a call forged into the person's message under the paused call's id, with other arguments; the same grant replayed after the call ran.
 
-**What stops it.** `pendingConsent` reads only a request an agent authored. `grantedCalls` binds a grant to this agent's own request by id and `credentialKey`, re-runs the paused call from the latest event this agent authored that made it, and treats a request an earlier grant bound as closed. The last three are deliberate departures from ADK's auth preprocessor, which read any author's call and resumed a replayed grant ([ADR 0101](/decisions/0101-native-loop-security-gate.md)); the engine never resumed a consent on ADK, so no ADK-written session depends on them. The flow's secrets never enter an event, and the callback route refuses a tampered, expired, replayed or cross-user state.
+**What stops it.** `pendingConsent` reads only a request an agent authored, and `walkConsents` only a request a node authored and the walk's pause record names. A walk resumes a node's credential request only on a grant's answer the turn sent after reading the store (`isGrantAnswer`): a plain-text message never stands for a grant ([ADR 0128](/decisions/0128-oauth-consent-inside-workflow-nodes.md)). `grantedCalls` binds a grant to this agent's own request by id and `credentialKey`, re-runs the paused call from the latest event this agent authored that made it, and treats a request an earlier grant bound as closed. The last three are deliberate departures from ADK's auth preprocessor, which read any author's call and resumed a replayed grant ([ADR 0101](/decisions/0101-native-loop-security-gate.md)); the engine never resumed a consent on ADK, so no ADK-written session depends on them. The flow's secrets never enter an event, and the callback route refuses a tampered, expired, replayed or cross-user state.
 
-**Tests.** `tests/nativeFuzz.test.ts` (consent cases); `tests/oauthConsent.test.ts` (the callback's refusals).
+**Tests.** `tests/nativeFuzz.test.ts` (consent cases); `tests/oauthConsent.test.ts` (the callback's refusals); `tests/workflowNodeConsent.test.ts` (a node's pause, no value in a session or a log line).
 
 ### Workflow pauses
 

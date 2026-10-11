@@ -53,8 +53,10 @@
  * WHAT IT REFUSES before any model call: refuseUnrunnableNodes throws, for
  * a tool node, ADK's compile-time refusals (an unregistered tool, a
  * long-running one), and an ADK tool (anything with runAsync), which 1.0.0
- * no longer runs. A pause raised inside an agent node is refused by
- * runAgentNode by name.
+ * no longer runs. A pause raised inside an agent node other than an
+ * approval or an OAuth consent request is refused by runAgentNode by name.
+ * The consent step (`consent`) reaches every agent node's loop but a map
+ * item's, so a node's tool that needs a grant pauses the walk (ADR 0128).
  *
  * It imports nothing from ADK: the caller passes the tool lookup (the
  * registry's own Tools) and the store as the engine's interface.
@@ -66,12 +68,14 @@ import { randomUUID } from 'node:crypto';
 
 import type { ModelAdapter } from '../models/contract.ts';
 import { APPROVAL_REQUEST } from '../runtime/approvals.ts';
+import { CREDENTIAL_REQUEST, isGrantAnswer } from '../runtime/credentials.ts';
 import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
 import type { TurnContent, TurnEvent, TurnFunctionCall, TurnPart } from '../runtime/events.ts';
-import { entrySession } from '../runtime/native/delegate.ts';
+import { consentPinnedTo, entrySession } from '../runtime/native/delegate.ts';
 import type { WorkflowSubagentEnd } from '../runtime/native/delegate.ts';
 import { INPUT_REQUEST } from '../workflowConfig.ts';
 import type { MemoryService } from '../runtime/memoryService.ts';
+import type { AgentLoopContext } from '../runtime/native/agentLoop.ts';
 import type { NativeAgent } from '../runtime/native/request.ts';
 import type { SelfCorrection } from '../runtime/native/selfCorrection.ts';
 import { traceNodeExecution, traceToolNodeCall, traceWorkflowInvocation } from '../runtime/native/telemetry.ts';
@@ -109,6 +113,13 @@ export interface NativeWorkflowParams {
   selfCorrection?: SelfCorrection;
   /** The run's tool credentials, pinned to its app (ADR 0072). */
   credentials?: Pick<CredentialStore, 'get'>;
+  /**
+   * The consent step for the agent nodes' tools (ADR 0085, ADR 0128), its
+   * flows bound to the turn's app (consentPinnedTo): a call whose grant is
+   * missing pauses its node, and the walk with it. A nested walk gets it
+   * pinned to the app of the walk that runs it. Map items never get it.
+   */
+  consent?: AgentLoopContext['consent'];
   /** The agent nodes that are a nested workflow syndicate (ADR 0106) or a nested dispatch syndicate (ADR 0120), by YAML name. */
   workflows?: ReadonlyMap<string, NestedWorkflow | NestedRun>;
 }
@@ -150,8 +161,8 @@ function lastText(event: TurnEvent | undefined): string {
     .join('\n');
 }
 
-/** The requests a walk's interrupts are, as a node raises them: an approval request or an input request. */
-const RAISED = new Set([APPROVAL_REQUEST, INPUT_REQUEST]);
+/** The requests a walk's interrupts are, as a node raises them: an approval request, an input request, or an OAuth consent request (ADR 0128). */
+const RAISED = new Set([APPROVAL_REQUEST, INPUT_REQUEST, CREDENTIAL_REQUEST]);
 
 /** The latest request call, by id, among `ids` that `events` hold (an agent's or a node's, never the user's). */
 function requestCalls(events: readonly TurnEvent[], ids: readonly string[], author?: string): Map<string, TurnFunctionCall> {
@@ -170,11 +181,13 @@ function requestCalls(events: readonly TurnEvent[], ids: readonly string[], auth
 /**
  * Whether a resumed walk's answer to `call` answers it: a decision for an
  * approval request (a ToolConfirmation, or ADK's `{ response: <json> }`
- * form, as lib/workflow/agentNode.ts reads one), any answer for an input
- * request.
+ * form, as lib/workflow/agentNode.ts reads one), a grant's answer for a
+ * credential request, any answer for an input request.
  */
 function answers(call: TurnFunctionCall | undefined, value: unknown): boolean {
   if (value === undefined || !call) return false;
+  // A credential request is answered by the grant's answer only (ADR 0128): the turn sends it once the grant is stored.
+  if (call.name === CREDENTIAL_REQUEST) return isGrantAnswer(value);
   if (call.name !== APPROVAL_REQUEST) return true;
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const answer = value as Record<string, unknown>;
@@ -183,7 +196,7 @@ function answers(call: TurnFunctionCall | undefined, value: unknown): boolean {
 
 /** The part that carries `value` down to the nested walk, as the answer to `call`: its explicit reply, under the request's name. */
 function answerPart(call: TurnFunctionCall, value: unknown): TurnPart {
-  const response = call.name === APPROVAL_REQUEST ? (value as Record<string, unknown>) : { result: value };
+  const response = call.name === APPROVAL_REQUEST || call.name === CREDENTIAL_REQUEST ? (value as Record<string, unknown>) : { result: value };
   return { functionResponse: { id: call.id, name: call.name, response } };
 }
 
@@ -239,12 +252,13 @@ function raiseAgain(name: string, run: NodeRun, invocationId: string, calls: Tur
  * node, carrying that output and the walk's state writes, so a resumed
  * walk completes the node from it.
  *
- * A walk that ends paused (an ask_user node, a gated agent node, a node of
- * its own that is a nested workflow) pauses the node on the same ids
+ * A walk that ends paused (an ask_user node, a gated agent node, a node
+ * waiting for an OAuth grant (ADR 0128), a node of its own that is a nested
+ * workflow) pauses the node on the same ids
  * (raiseAgain), and the caller's walk with it. Rerun on the resume, the
  * node walks its graph again on the answers among its ids, each as its
  * explicit reply (an approval decision as it came, an input request's
- * answer as `{ result }`), which the nested walk's resume reads as a
+ * answer as `{ result }`, a grant's answer as it came), which the nested walk's resume reads as a
  * top-level one's; with none of them answered it waits again without
  * walking; once an earlier resume finished it, its stored output is the
  * node's.
@@ -295,6 +309,8 @@ async function runWorkflowNode(
     ...(params.log ? { log: params.log } : {}),
     ...(params.selfCorrection ? { selfCorrection: params.selfCorrection } : {}),
     ...(params.credentials ? { credentials: params.credentials } : {}),
+    // Its flows bound to the walk's app (already the turn's): the callback stores the grant where the pinned credentials read it (ADR 0128).
+    ...(params.consent ? { consent: consentPinnedTo(params.consent, parent.session.appName) } : {}),
   });
   let last: TurnEvent | undefined;
   const stateDelta: Record<string, unknown> = {};
@@ -317,7 +333,7 @@ async function runWorkflowNode(
     const named = 'requests' in end && end.requests ? new Map(end.requests.map((call) => [call.id as string, call])) : undefined;
     const raised = named ?? requestCalls(walked, paused);
     const missing = paused.filter((id) => !raised.has(id));
-    if (missing.length > 0) throw new Error(`Node '${name}': the ${'walk' in workflow ? 'syndicate' : 'workflow'} it runs paused on ${missing.join(', ')}, which is not an approval request or a question.`);
+    if (missing.length > 0) throw new Error(`Node '${name}': the ${'walk' in workflow ? 'syndicate' : 'workflow'} it runs paused on ${missing.join(', ')}, which is not an approval request, a question or a consent request.`);
     parent.store(raiseAgain(name, run, parent.invocationId, paused.map((id) => raised.get(id)!), stateDelta));
     return { interruptIds: [...paused] };
   }
@@ -394,6 +410,7 @@ export async function* runNativeWorkflow(params: NativeWorkflowParams): AsyncGen
       ...(params.log ? { log: params.log } : {}),
       ...(params.selfCorrection ? { selfCorrection: params.selfCorrection } : {}),
       ...(params.credentials ? { credentials: params.credentials } : {}),
+      ...(params.consent ? { consent: params.consent } : {}),
     },
     onEvent: (event) => {
       // A node's input turn is appended straight to the session, as ADK's runLlmAgentAsNode appends it: stored, never yielded.

@@ -1195,10 +1195,26 @@ function workflowProblems(raw: Record<string, unknown>, subs: unknown[]): Proble
     if (typeof agent.name === 'string' && mapped.has(agent.name) && isObj(agent.skills) && agent.skills.scripts === 'local') {
       out.push({ path: [...path, 'skills', 'scripts'], message: 'skill scripts (an approval pause) are not supported on an agent a map node runs: a map item cannot pause the walk' });
     }
+    // An authorization_code grant pauses for consent (ADR 0128): allowed on a node, not on a map item.
+    if (typeof agent.name === 'string' && mapped.has(agent.name)) {
+      for (const where of authorizationCodeGrants(agent)) {
+        out.push({ path: [...path, ...where], message: 'an authorization_code grant (a consent pause) is not supported on an agent a map node runs: a map item cannot pause the walk' });
+      }
+    }
     if (typeof agent.a2a_agent_url === 'string') {
       out.push({ path: [...path, 'a2a_agent_url'], message: 'a remote agent cannot be a workflow node yet' });
     }
   }
+  return out;
+}
+
+/** Where an agent declares an authorization_code grant (mcp_auth, mcp_servers[].auth, openapi[].auth), by its path below the agent. */
+function authorizationCodeGrants(agent: Record<string, unknown>): Path[] {
+  const out: Path[] = [];
+  const isCode = (auth: unknown): boolean => isObj(auth) && isObj(auth.oauth2) && auth.oauth2.grant === 'authorization_code';
+  if (isCode(agent.mcp_auth)) out.push(['mcp_auth', 'oauth2', 'grant']);
+  if (Array.isArray(agent.mcp_servers)) agent.mcp_servers.forEach((e, i) => isObj(e) && isCode(e.auth) && out.push(['mcp_servers', i, 'auth', 'oauth2', 'grant']));
+  if (Array.isArray(agent.openapi)) agent.openapi.forEach((e, i) => isObj(e) && isCode(e.auth) && out.push(['openapi', i, 'auth', 'oauth2', 'grant']));
   return out;
 }
 

@@ -3,6 +3,42 @@
 Chronological record of changes to this bundle, newest first. Entries are
 machine-parseable: `## [YYYY-MM-DD] <op> | <summary>`.
 
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —depends_on→ /decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —depends_on→ /decisions/0119-workflow-routes-and-nodes-pause-the-turn.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —depends_on→ /decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —constrains→ module:lib/syndicateSchema.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —constrains→ module:lib/workflow/resume.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —constrains→ module:lib/runtime/syndicateTurn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —constrains→ module:lib/runtime/native/interrupts.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —constrains→ module:lib/workflow/turn.ts
+
+by claude-code/claude-opus-5-5
+
+## [2026-10-11] relate | /decisions/0128-oauth-consent-inside-workflow-nodes.md —constrains→ module:lib/workflow/agentNode.ts
+
+by claude-code/claude-opus-5-5
+
 ## [2026-10-11] relate | /protocols/mcp.md —explains→ module:lib/tools/mcpToolFactory.ts
 
 by claude-code/claude-opus-5-5

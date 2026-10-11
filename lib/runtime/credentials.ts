@@ -97,6 +97,40 @@ export function pendingConsent(events: readonly Event[]): PendingConsent | undef
 }
 
 /**
+ * The `adk_request_credential` call a pending request stands for, rebuilt
+ * from what the request carries (ADR 0128): the shape consentFrom reads,
+ * with the request's id, the paused call's id, the provider, the
+ * authorization URL, the state and the scopes. A workflow node raises it
+ * again on its caller's walk when the request itself waits below it (in a
+ * delegated call, or in a nested dispatch syndicate's conversation). It
+ * carries what the stored request carries and nothing more: no client
+ * secret, no code verifier.
+ */
+export function credentialRequestCall(consent: PendingConsent): { id: string; name: string; args: Record<string, unknown> } {
+  return {
+    id: consent.id,
+    name: CREDENTIAL_REQUEST,
+    args: {
+      function_call_id: consent.functionCallId,
+      auth_config: {
+        credentialKey: consent.provider,
+        authScheme: { type: 'oauth2', flows: { authorizationCode: { scopes: Object.fromEntries(consent.scopes.map((s) => [s, ''])) } } },
+        exchangedAuthCredential: { authType: 'oauth2', oauth2: { authUri: consent.authUri, state: consent.state } },
+      },
+    },
+  };
+}
+
+/**
+ * Whether `value`, a walk's answer to a credential request, is a grant's
+ * answer (credentialResponsePart's response): `{ credentialKey, granted: true }`.
+ * A plain-text message the walk read as the answer is not one.
+ */
+export function isGrantAnswer(value: unknown): boolean {
+  return isRecord(value) && value.granted === true && typeof value.credentialKey === 'string' && value.credentialKey !== '';
+}
+
+/**
  * The message part that answers request `id` once the grant is stored. It
  * names the provider and carries no credential: the grant is in the
  * credential store, and the resumed call reads it from there.

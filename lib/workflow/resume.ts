@@ -45,7 +45,7 @@ import { z } from 'zod';
 
 import type { TurnContent, TurnEvent, TurnPart } from '../runtime/events.ts';
 import { APPROVAL_REQUEST } from '../runtime/approvals.ts';
-import { CREDENTIAL_REQUEST } from '../runtime/credentials.ts';
+import { CREDENTIAL_REQUEST, consentFrom } from '../runtime/credentials.ts';
 import { INPUT_REQUEST } from '../workflowConfig.ts';
 import type { GraphNode } from './graph.ts';
 import { RESPONSE_SCHEMA_ARG } from './pause.ts';
@@ -400,18 +400,18 @@ export function resumeInputsFromPlainText(content: TurnContent | undefined, even
 
 /**
  * A pause the native walk cannot resume: one raised inside an agent node
- * other than an approval (an `ask_user` tool call, a credential request) or
- * inside a map item. ADK resumes those inside the node (the agent's own
- * history, the ParallelWorker's item); the native agent node pauses only on
- * an approval (lib/workflow/agentNode.ts, ADR 0098), so it cannot pick the
- * others up. Resuming the walk anyway would run the node again from its
+ * other than an approval or an OAuth consent request (an `ask_user` tool
+ * call) or inside a map item. ADK resumes those inside the node (the
+ * agent's own history, the ParallelWorker's item); the native agent node
+ * pauses only on an approval (lib/workflow/agentNode.ts, ADR 0098) or a
+ * consent request (ADR 0128), so it cannot pick the others up. Resuming the walk anyway would run the node again from its
  * input and ask again, so the resume refuses by name instead.
  */
 export class UnsupportedWorkflowResumeError extends Error {
   /** The node path the pause was raised at. */
   readonly nodePath: string;
   constructor(nodePath: string, why: string) {
-    super(`Cannot resume the workflow on the native runtime: the pause at '${nodePath}' was raised ${why}, which only an ask_user node's pause or an agent node's approval supports here.`);
+    super(`Cannot resume the workflow on the native runtime: the pause at '${nodePath}' was raised ${why}, which only an ask_user node's pause or an agent node's approval or consent request supports here.`);
     this.name = 'UnsupportedWorkflowResumeError';
     this.nodePath = nodePath;
   }
@@ -420,8 +420,9 @@ export class UnsupportedWorkflowResumeError extends Error {
 /**
  * Throws UnsupportedWorkflowResumeError for the first interrupt in the run's
  * events that is neither an ask_user node's input request nor an agent
- * node's approval request at a direct child of the workflow (the workflow's
- * own record aside).
+ * node's approval or credential request at a direct child of the workflow
+ * (the workflow's own record aside). A credential request it cannot read
+ * (no paused call's id, no auth config) does not resume.
  */
 export function assertResumable(runEvents: readonly StoredEvent[], workflowPath: string): void {
   for (const event of runEvents) {
@@ -429,7 +430,12 @@ export function assertResumable(runEvents: readonly StoredEvent[], workflowPath:
     const path = event.nodeInfo?.path ?? '';
     if (path === workflowPath) continue;
     if (directChildName(path, workflowPath) === undefined) throw new UnsupportedWorkflowResumeError(path || String(event.author ?? ''), 'inside a nested node (a map item)');
-    const resumable = partsOf(event).some((p) => p.functionCall?.name === INPUT_REQUEST || p.functionCall?.name === APPROVAL_REQUEST);
+    // A credential request resumes when this engine can read it (consentFrom: the paused call's id and the auth config, ADR 0128).
+    const resumable = partsOf(event).some((p) => {
+      const call = p.functionCall;
+      if (call?.name === INPUT_REQUEST || call?.name === APPROVAL_REQUEST) return true;
+      return call?.name === CREDENTIAL_REQUEST && consentFrom(event.author, call) !== undefined;
+    });
     if (!resumable) throw new UnsupportedWorkflowResumeError(path, 'inside an agent node');
   }
 }
