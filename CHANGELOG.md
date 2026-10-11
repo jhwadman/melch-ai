@@ -6,6 +6,20 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Fixed
+
+- **An SSE-only MCP server behind a bearer connects under `mcp_transport: auto`.**
+  Such a server can answer the Streamable HTTP initialize POST to its stream
+  URL with 401, which `auto` read as a refused credential and gave up, so an
+  agent had to pin `mcp_transport: sse`. Now a 401 is followed by one SSE
+  attempt with the same fetch, SSRF guard, redirect rule and bearer, when the
+  server has no OAuth grant (no credential, or `MCP_BEARER_TOKENS`). If SSE
+  fails too, the original 401 is reported, naming both attempts and no
+  token. Under `mcp_auth` (or an `mcp_servers` entry's `auth`) a 401 keeps its
+  meaning and never falls back; a 403 never falls back. The transport that
+  worked is remembered per server URL for the life of the process (at most
+  256), so later connections skip the probe.
+
 ## 1.3.1 — 2026-10-11
 
 A patch for Sign in with ChatGPT, from its first live run on a ChatGPT plan:

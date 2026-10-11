@@ -5,8 +5,10 @@
  *
  * `auto` (the default) posts the initialize request over Streamable HTTP, the
  * spec's current transport, and falls back to the legacy HTTP+SSE transport
- * on the spec's signal (lib/tools/mcpToolFactory.ts isSseFallbackSignal);
- * `streamable_http` and `sse` use that one transport only.
+ * on the spec's signal (lib/tools/mcpToolFactory.ts isSseFallbackSignal), or
+ * on a 401 when the connection carries no OAuth grant, remembering per URL
+ * the transport that worked; `streamable_http` and `sse` use that one
+ * transport only.
  */
 export const MCP_TRANSPORTS = ['auto', 'streamable_http', 'sse'] as const;
 export type McpTransportKind = (typeof MCP_TRANSPORTS)[number];
