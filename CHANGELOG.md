@@ -6,6 +6,13 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+## 1.3.1 — 2026-10-11
+
+A patch for Sign in with ChatGPT, from its first live run on a ChatGPT plan:
+turns on the sign-in now answer, a first sign-in keeps one host id, and a
+plan without plan usage for apps is named as the reason a sign-in is
+refused. Bin paths are written as npm stores them.
+
 ### Fixed
 
 - **Sign in with ChatGPT answers again: a stream whose `response.completed`
