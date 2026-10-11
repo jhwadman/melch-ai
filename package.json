@@ -48,17 +48,17 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "melchizedek-serve": "./dist/scripts/a2a_server.js",
-    "melchizedek-mcp": "./dist/scripts/mcp_server.js",
-    "melchizedek-chat": "./dist/scripts/syndicate_chat.js",
-    "melchizedek-doctor": "./dist/scripts/doctor.js",
-    "melchizedek-skills": "./dist/scripts/skills_install.js",
-    "melchizedek-worker": "./dist/scripts/assistant_worker.js",
-    "melchizedek-db": "./dist/scripts/db.js",
-    "melchizedek-init": "./dist/scripts/init.js",
-    "melchizedek-setup": "./dist/scripts/setup.js",
-    "melchizedek-registry": "./dist/scripts/registry.js",
-    "melchizedek-codemod": "./dist/scripts/yaml_codemod.js"
+    "melchizedek-serve": "dist/scripts/a2a_server.js",
+    "melchizedek-mcp": "dist/scripts/mcp_server.js",
+    "melchizedek-chat": "dist/scripts/syndicate_chat.js",
+    "melchizedek-doctor": "dist/scripts/doctor.js",
+    "melchizedek-skills": "dist/scripts/skills_install.js",
+    "melchizedek-worker": "dist/scripts/assistant_worker.js",
+    "melchizedek-db": "dist/scripts/db.js",
+    "melchizedek-init": "dist/scripts/init.js",
+    "melchizedek-setup": "dist/scripts/setup.js",
+    "melchizedek-registry": "dist/scripts/registry.js",
+    "melchizedek-codemod": "dist/scripts/yaml_codemod.js"
   },
   "files": [
     "dist",

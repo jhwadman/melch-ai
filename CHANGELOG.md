@@ -17,6 +17,20 @@ the starter pack and the templates), not the repo's full history.
   completed reply has none; a populated `output` (every keyed call) still
   wins. Found in the first live run on a ChatGPT plan (`gpt-5.5`,
   `gpt-6.1-sol`).
+- **Bin paths are written as npm stores them** (`dist/scripts/<bin>.js`, no
+  leading `./`). Same bin names and targets; npm 11 no longer warns at publish
+  that each bin "was invalid and removed".
+- **Sign in with ChatGPT keeps one host id from the first attempt.** The
+  installation's `ext_agent_host_id` is written to the credential file (mode
+  600) before the browser opens, as OpenAI's docs ask, so a first sign-in that
+  times out or is cancelled no longer sends a new host id on the retry. A
+  stored registration is never overwritten.
+- **A refused ChatGPT sign-in says why.** `invalid_grant` on the
+  authorization-code exchange, and `access_denied` (or another refusal) at
+  the consent page, now print one line: the sign-in was refused, the most
+  common cause is a ChatGPT plan or workspace that does not include plan
+  usage for apps, and how to retry. The error codes are unchanged; a
+  refresh's `invalid_grant` still means sign in again.
 
 ## 1.3.0 — 2026-10-10
 

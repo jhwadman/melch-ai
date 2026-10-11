@@ -57,6 +57,17 @@ const UNUSABLE_REFRESH = new Set([
   'refresh_token_reused',
 ]);
 
+/**
+ * Callback error codes that mean the consent page refused or the person
+ * stopped there: OpenAI's page for a plan or workspace without plan usage for
+ * apps offers no way on, so leaving it is the usual way these arrive.
+ */
+const REFUSED_AT_CONSENT = new Set(['access_denied', 'unauthorized_client', 'consent_required', 'interaction_required']);
+
+/** One line for a sign-in OpenAI refused at the consent page or the code exchange. */
+const signInRefused = (code: string) =>
+  `ChatGPT refused the sign-in (${code}); the most common cause is a ChatGPT plan or workspace that does not include plan usage for apps. Retry with \`npm run setup -- --chatgpt-signin\` (\`npx melchizedek-setup --chatgpt-signin\` from an installed package).`;
+
 /** A sign-in failure: a code for the program, a message for the person, never a token. */
 export class SignInError extends Error {
   readonly code: string;
@@ -265,7 +276,7 @@ async function listen(port: number, state: string, savedClientId: string | undef
       res.writeHead(200, PAGE_HEADERS).end(page('Sign-in cancelled', 'You can close this tab and return to the terminal.'));
       const raw = url.searchParams.get('error') ?? '';
       const code = /^[a-z0-9_.-]{1,64}$/i.test(raw) ? raw : 'authorization_failed';
-      settle(new SignInError(code, `ChatGPT did not authorize the sign-in (${code}).`));
+      settle(new SignInError(code, REFUSED_AT_CONSENT.has(code) ? signInRefused(code) : `ChatGPT did not authorize the sign-in (${code}).`));
       return;
     }
     const codes = url.searchParams.getAll('code');
@@ -341,9 +352,10 @@ export interface SignInResult {
 }
 
 /**
- * The browser sign-in. Stores the registration (host id, issued client id)
- * before the code exchange, and the tokens after the ID token verifies and
- * the plan scope is confirmed.
+ * The browser sign-in. Stores the host id before the browser opens when no
+ * file exists yet, the registration (host id, issued client id) before the
+ * code exchange, and the tokens after the ID token verifies and the plan
+ * scope is confirmed.
  */
 export async function signIn(opts: SignInOptions): Promise<SignInResult> {
   const issuer = issuerOf(opts);
@@ -352,6 +364,10 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
   const sameIssuer = previous?.issuer === issuer;
   const hostId = previous?.hostId ?? `urn:uuid:${randomUUID()}`;
   const savedClientId = sameIssuer ? previous?.clientId : undefined;
+  // OpenAI asks for the host id to be chosen and persisted before the first
+  // sign-in, so a timed-out or cancelled attempt does not send a new one next
+  // time. Only written when nothing is stored: a stored registration is kept.
+  if (!previous) writeStoredSignIn(opts.file, { version: 1, issuer, hostId });
 
   const state = randomValue();
   const nonce = randomValue();
@@ -385,14 +401,22 @@ export async function signIn(opts: SignInOptions): Promise<SignInResult> {
       : { version: 1, issuer, hostId, clientId: cb.clientId };
     writeStoredSignIn(opts.file, registration);
 
-    const data = await tokenRequest(d.token_endpoint, {
-      grant_type: 'authorization_code',
-      client_id: cb.clientId,
-      code: cb.code,
-      code_verifier: verifier,
-      redirect_uri: listener.redirectUri,
-      resource: OPENAI_API_RESOURCE,
-    });
+    let data: Record<string, unknown>;
+    try {
+      data = await tokenRequest(d.token_endpoint, {
+        grant_type: 'authorization_code',
+        client_id: cb.clientId,
+        code: cb.code,
+        code_verifier: verifier,
+        redirect_uri: listener.redirectUri,
+        resource: OPENAI_API_RESOURCE,
+      });
+    } catch (err) {
+      // OpenAI's consent page refuses a plan or workspace without plan usage
+      // for apps, and the exchange then answers invalid_grant.
+      if (err instanceof SignInError && err.code === 'invalid_grant') throw new SignInError('invalid_grant', signInRefused('invalid_grant'));
+      throw err;
+    }
     const subject = await verifyIdToken(data.id_token, d, cb.clientId, nonce);
     const fields = tokenFields(data);
     const planUsage = fields.scopes!.includes(PLAN_SCOPE);

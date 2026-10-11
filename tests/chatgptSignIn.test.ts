@@ -12,6 +12,12 @@
  *     state and nonce, the plan scope, the resource, the host id, the
  *     loopback redirect; the code exchange checks the verifier;
  *   - a callback with the wrong state is refused and never exchanged;
+ *   - the host id is persisted before the first attempt, so a timed-out
+ *     attempt and the next send the same one, and a stored registration is
+ *     never clobbered;
+ *   - a refused exchange (invalid_grant) and a refusal at the consent page
+ *     (access_denied) say, in one line, that the plan or workspace is the
+ *     likely cause and how to retry, never printing the code;
  *   - the credential file is mode 600 in a mode-700 directory, refused when
  *     readable by others, and never written inside a git work tree;
  *   - refresh: near expiry, rotated, serialized across concurrent callers;
@@ -38,6 +44,7 @@ import { join } from 'node:path';
 import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 
 import { ChatGptSignInAdapter } from '../lib/chatgpt/adapter.ts';
+import { runChatGptSignIn } from '../lib/chatgpt/cli.ts';
 import { DYNAMIC_CLIENT_ID, OPENAI_API_RESOURCE, SignInError, freshAccessToken, signIn, signOut } from '../lib/chatgpt/oauth.ts';
 import {
   PLAN_SCOPE,
@@ -307,6 +314,97 @@ test('sign-in: a callback with the wrong state is refused and never exchanged', 
     assert.equal(refused, 400);
     assert.equal(fake.tokenForms.length, 0, 'the forged code never reached the token endpoint');
     assert.equal(readStoredSignIn(file)?.accessToken, undefined);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-in: the host id is persisted before the first attempt, so a timed-out attempt and the next one send the same id', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const file = credentialFile();
+    // The first attempt: the browser opens, the person never completes it.
+    const seen: URL[] = [];
+    const nowhere = async (href: string) => {
+      seen.push(new URL(href));
+      // Persisted before the browser opened.
+      assert.equal(readStoredSignIn(file)?.hostId, seen[0].searchParams.get('ext_agent_host_id'));
+    };
+    await assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: nowhere, timeoutMs: 300 }), (e: unknown) => e instanceof SignInError && e.code === 'timeout');
+    const first = seen[0].searchParams.get('ext_agent_host_id')!;
+    assert.match(first, /^urn:uuid:[0-9a-f-]{36}$/);
+    const stored = readStoredSignIn(file)!;
+    assert.deepEqual(Object.keys(stored).sort(), ['hostId', 'issuer', 'version']);
+    assert.equal(statSync(file).mode & 0o777, 0o600);
+
+    // The second attempt completes with the same host id.
+    await signIn({ file, issuer: fake.issuer, openBrowser: fake.browser(), timeoutMs: 10_000 });
+    assert.equal(fake.authorizations[0].searchParams.get('ext_agent_host_id'), first);
+    assert.equal(fake.authorizations[0].searchParams.get('client_id'), DYNAMIC_CLIENT_ID);
+    assert.equal(readStoredSignIn(file)!.hostId, first);
+
+    // A stored registration is never clobbered by a later attempt that fails.
+    const before = readFileSync(file, 'utf-8');
+    await assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: async () => undefined, timeoutMs: 300 }), (e: unknown) => e instanceof SignInError && e.code === 'timeout');
+    assert.equal(readFileSync(file, 'utf-8'), before);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('sign-in: a refused exchange (invalid_grant) and a refusal at the consent page (access_denied) name the plan and the retry', async () => {
+  const fake = await fakeAuthServer();
+  try {
+    const refusal = (code: string) => (e: unknown) => {
+      assert.ok(e instanceof SignInError);
+      assert.equal(e.code, code);
+      assert.match(e.message, /refused the sign-in/);
+      assert.match(e.message, /plan or workspace that does not include plan usage for apps/);
+      assert.match(e.message, /npm run setup -- --chatgpt-signin/);
+      assert.ok(!e.message.includes('\n'), 'one line');
+      assert.ok(!/fake-code|fake-access|fake-refresh/.test(e.message), 'no code or token in the message');
+      return true;
+    };
+
+    // The exchange: registration succeeded, the code is refused (as for a plan without the permission).
+    const file = credentialFile();
+    const unknownCode = async (href: string) => {
+      const q = new URL(href).searchParams;
+      const back = new URL(q.get('redirect_uri')!);
+      back.search = new URLSearchParams({ code: 'fake-code-refused', state: q.get('state')!, client_id: fake.issuedClientId }).toString();
+      void fetch(back).then((r) => r.text()).catch(() => undefined);
+    };
+    await assert.rejects(signIn({ file, issuer: fake.issuer, openBrowser: unknownCode, timeoutMs: 10_000 }), refusal('invalid_grant'));
+    assert.equal(fake.tokenForms.at(-1)!.grant_type, 'authorization_code');
+    assert.equal(readStoredSignIn(file)!.clientId, fake.issuedClientId, 'the issued registration is kept');
+    assert.equal(readStoredSignIn(file)!.accessToken, undefined);
+
+    // Through the CLI: one line, the code never printed.
+    const lines: string[] = [];
+    const code = await runChatGptSignIn({
+      issuer: fake.issuer,
+      openBrowser: unknownCode,
+      timeoutMs: 10_000,
+      env: { ...process.env, MELCHIZEDEK_CHATGPT_SIGNIN_FILE: credentialFile() },
+      log: (l) => lines.push(l),
+    });
+    assert.equal(code, 1);
+    const last = lines.at(-1)!;
+    assert.match(last, /^✗ ChatGPT refused the sign-in \(invalid_grant\);/);
+    assert.ok(!lines.some((l) => l.includes('fake-code-refused')));
+
+    // The consent page: the person leaves the "permission unavailable" screen.
+    const tokenCalls = fake.tokenForms.length;
+    const denied = async (href: string) => {
+      const q = new URL(href).searchParams;
+      const back = new URL(q.get('redirect_uri')!);
+      back.search = new URLSearchParams({ error: 'access_denied', state: q.get('state')! }).toString();
+      void fetch(back).then((r) => r.text()).catch(() => undefined);
+    };
+    await assert.rejects(signIn({ file: credentialFile(), issuer: fake.issuer, openBrowser: denied, timeoutMs: 10_000 }), refusal('access_denied'));
+    assert.equal(fake.tokenForms.length, tokenCalls, 'nothing was exchanged');
+
+    // A refresh's invalid_grant keeps its own meaning (sign in again), tested below.
   } finally {
     await fake.close();
   }

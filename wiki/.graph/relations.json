@@ -3789,6 +3789,14 @@
       "evidence": "a2a.md, Limits and lifecycle: \"a router fallback measures the router's text instead of quoting it (resolveRoute in lib/dispatch.ts)\".",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-09"
+    },
+    {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "module:lib/chatgpt/oauth.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0126 Decision 1 and its Note (2026-10-11): signIn persists { version, issuer, hostId } before the browser opens when no file is stored and never overwrites a stored registration; invalid_grant on the code exchange and access_denied on the callback print one line naming the plan or workspace and the retry.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
     }
   ]
 }
