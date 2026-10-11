@@ -6,7 +6,12 @@
  *
  * Covers: `auto` connects over Streamable HTTP; `auto` against an SSE-only
  * server falls back on the spec's signal (the initialize POST answered 404);
- * an explicit transport uses that one only; a 401 is not the fallback signal;
+ * an explicit transport uses that one only; a 401 is not the spec's signal,
+ * but without an OAuth grant it gets one SSE attempt (an SSE-only server
+ * behind MCP_BEARER_TOKENS lists its tools; a wrong bearer reports the 401,
+ * naming no token), while a 401 under an OAuth grant and a 403 never fall
+ * back; the transport that worked is remembered per URL, so a second
+ * connection skips the probe;
  * the OAuth fetch wrapper carries the token on Streamable HTTP requests too;
  * `mcp_servers` merges each server's named tools, `require_approval` may
  * name any server's tool, and a name on two servers, or shared with the
@@ -50,6 +55,44 @@ let http: HttpServer;
 let base = '';
 const sseTransports = new Map<string, SSEServerTransport>();
 const opened: SSEServerTransport[] = [];
+
+/** The host MCP_BEARER_TOKENS names (a bearer goes only over https, so the test reaches the local server through viaBearerHost). */
+const BEARER_HOST = 'bearer-mcp.test';
+const GOOD_BEARER = `fake-bearer-${randomBytes(8).toString('hex')}`; // gitleaks:allow (test fixture)
+const WRONG_BEARER = `fake-wrong-bearer-${randomBytes(8).toString('hex')}`; // gitleaks:allow (test fixture)
+
+/**
+ * Runs `fn` with MCP_BEARER_TOKENS naming `token` for BEARER_HOST and every
+ * request to https://BEARER_HOST sent to the local server instead, so the
+ * client's https-only bearer rule is exercised offline.
+ */
+async function viaBearerHost<T>(token: string, fn: () => Promise<T>): Promise<T> {
+  const original = globalThis.fetch;
+  process.env.MCP_BEARER_TOKENS = JSON.stringify({ [BEARER_HOST]: token });
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    const target = new URL(input instanceof Request ? input.url : String(input));
+    if (target.hostname !== BEARER_HOST) return original(input, init);
+    return original(new URL(`${target.pathname}${target.search}`, base), init);
+  }) as typeof fetch;
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = original;
+    delete process.env.MCP_BEARER_TOKENS;
+  }
+}
+
+/** Runs `fn`, collecting what it passes to console.warn. */
+async function warnings<T>(fn: () => Promise<T>): Promise<{ result: T; warned: unknown[][] }> {
+  const original = console.warn;
+  const warned: unknown[][] = [];
+  console.warn = (...args: unknown[]) => void warned.push(args);
+  try {
+    return { result: await fn(), warned };
+  } finally {
+    console.warn = original;
+  }
+}
 
 const bearer = (req: express.Request) => (req.headers.authorization ?? '').replace(/^Bearer /, '');
 
@@ -112,6 +155,44 @@ before(async () => {
     hits.push('POST /sse');
     res.status(404).end();
   });
+  // An SSE-only server behind a bearer (reached as https://BEARER_HOST, see
+  // viaBearerHost): a POST to its stream URL is refused 401 whatever it
+  // carries, its 401 body echoing the Authorization header (so a test can
+  // see that no error repeats it); the stream and its messages need GOOD_BEARER.
+  app.post('/bsse', (req, res) => {
+    hits.push('POST /bsse');
+    res.status(401).set('WWW-Authenticate', 'Bearer').send(`unauthorized: ${req.headers.authorization ?? 'none'}`);
+  });
+  app.get('/bsse', async (req, res) => {
+    hits.push('GET /bsse');
+    if (req.headers.authorization !== `Bearer ${GOOD_BEARER}`) return void res.status(401).end();
+    const transport = new SSEServerTransport('/bmessages', res);
+    sseTransports.set(transport.sessionId, transport);
+    opened.push(transport);
+    await mcpServer('guarded', ['guarded_lookup']).connect(transport);
+  });
+  app.post('/bmessages', express.json(), async (req, res) => {
+    if (req.headers.authorization !== `Bearer ${GOOD_BEARER}`) return void res.status(401).end();
+    const t = sseTransports.get(String(req.query.sessionId));
+    if (!t) return void res.status(404).end();
+    await t.handlePostMessage(req, res, req.body);
+  });
+  // SSE-only servers whose POST answers 401 (`/osse`) or 403 (`/fsse`) while
+  // their stream would open for anyone: a fallback would succeed, so a test
+  // that sees no GET knows none was tried.
+  for (const [path, status] of [['/osse', 401], ['/fsse', 403]] as const) {
+    app.post(path, (_req, res) => {
+      hits.push(`POST ${path}`);
+      res.status(status).end();
+    });
+    app.get(path, async (_req, res) => {
+      hits.push(`GET ${path}`);
+      const transport = new SSEServerTransport('/messages', res);
+      sseTransports.set(transport.sessionId, transport);
+      opened.push(transport);
+      await mcpServer('open-legacy', ['open_lookup']).connect(transport);
+    });
+  }
   app.post('/token', express.urlencoded({ extended: false }), (req, res) => {
     const form = new URLSearchParams(req.body as Record<string, string>);
     if (form.get('grant_type') !== 'client_credentials' || form.get('client_secret') !== CLIENT_SECRET) return void res.status(401).json({ error: 'invalid_client' });
@@ -179,10 +260,78 @@ test('the fallback signal is a 4xx other than 401 and 403', () => {
   assert.equal(isSseFallbackSignal(new Error('network')), false);
 });
 
-test('a server that refuses the credential (401) gets no SSE attempt and no tools', async () => {
+test('a Streamable HTTP server that refuses the credential (401) gets one SSE attempt, and its 401 is reported', async () => {
   hits.length = 0;
-  assert.deepEqual(await createMcpTools(`${base}/secure/mcp`), []);
-  assert.deepEqual(hits, ['POST /secure/mcp']);
+  const { result, warned } = await warnings(() => createMcpTools(`${base}/secure/mcp`));
+  assert.deepEqual(result, []);
+  assert.deepEqual(hits, ['POST /secure/mcp', 'GET /secure/mcp'], 'no OAuth grant: SSE is tried once, and answered 405');
+  const error = warned[0]?.[1];
+  assert.ok(error instanceof StreamableHTTPError && error.code === 401, `the 401 is what is reported: ${String(error)}`);
+});
+
+test('an SSE-only server behind a bearer that 401s the POST: auto falls back to SSE and lists its tools', async () => {
+  hits.length = 0;
+  calls.length = 0;
+  await viaBearerHost(GOOD_BEARER, async () => {
+    const tools = await createMcpTools(`https://${BEARER_HOST}/bsse`);
+    assert.deepEqual(tools.map((t) => t.name), ['guarded_lookup']);
+    assert.deepEqual(hits.slice(0, 2), ['POST /bsse', 'GET /bsse'], 'the Streamable HTTP POST first, answered 401, then the SSE stream');
+    assert.equal(await tools[0]!.execute({}, {} as any), 'guarded ran guarded_lookup');
+  });
+});
+
+test('the transport that worked is remembered per URL: a second connection skips the probe', async () => {
+  hits.length = 0;
+  await viaBearerHost(GOOD_BEARER, async () => {
+    const tools = await createMcpTools(`https://${BEARER_HOST}/bsse`);
+    assert.deepEqual(tools.map((t) => t.name), ['guarded_lookup']);
+  });
+  assert.deepEqual(hits, ['GET /bsse'], 'no Streamable HTTP POST the second time');
+  hits.length = 0;
+  await createMcpTools(`${base}/sse`);
+  assert.deepEqual(hits, ['GET /sse'], 'the 404 fallback is remembered too');
+});
+
+test('the same server with a wrong bearer: the Streamable 401 is reported, naming both attempts and no token', async () => {
+  await closeMcpConnections(); // forget the remembered transport: probe from the start
+  hits.length = 0;
+  const { result, warned } = await viaBearerHost(WRONG_BEARER, () => warnings(() => createMcpTools(`https://${BEARER_HOST}/bsse`)));
+  assert.deepEqual(result, []);
+  assert.deepEqual(hits, ['POST /bsse', 'GET /bsse']);
+  assert.equal(warned.length, 1);
+  const error = warned[0]![1];
+  assert.ok(error instanceof StreamableHTTPError, `not an SSE error: ${String(error)}`);
+  assert.equal(error.code, 401);
+  assert.match(error.message, /^Streamable HTTP error: Error POSTing to endpoint/);
+  assert.match(error.message, /the SSE transport was tried once after it and failed too/);
+  assert.ok(!error.message.includes(WRONG_BEARER), 'the token the 401 body echoed is cut out');
+  assert.match(error.message, /\[redacted\]/);
+  assert.ok(!JSON.stringify(warned.map((w) => w.map(String))).includes(WRONG_BEARER));
+});
+
+test('a 401 under an OAuth grant does not fall back: the consent and discovery path keeps it', async () => {
+  hits.length = 0;
+  const oauth2 = { provider: 'secure', grant: 'client_credentials' as const, token_url: `${base}/token`, client_id: 'melch', client_secret_env: SECRET_ENV };
+  assert.deepEqual(await createMcpTools(`${base}/osse`, { oauth2 }), []);
+  assert.deepEqual(hits, ['POST /osse'], 'client_credentials: no SSE attempt');
+
+  hits.length = 0;
+  const userGrant = { provider: 'secure', grant: 'authorization_code' as const, authorization_url: `${base}/authorize`, token_url: `${base}/token`, client_id: 'melch', client_secret_env: SECRET_ENV };
+  process.env.MELCHIZEDEK_OAUTH_HOSTS = 'secure=127.0.0.1';
+  try {
+    const [tool] = await createMcpTools(`${base}/osse`, { oauth2: userGrant, tools: ['open_lookup'] });
+    const ctx = { appName: 'app', userId: 'u', accessToken: async () => 'fake-user-token' } as any;
+    assert.match(String(await tool!.execute({}, ctx)), /could not be reached with this person's authorization/);
+  } finally {
+    delete process.env.MELCHIZEDEK_OAUTH_HOSTS;
+  }
+  assert.deepEqual(hits, ['POST /osse'], 'authorization_code: no SSE attempt either');
+});
+
+test('a 403 never falls back', async () => {
+  hits.length = 0;
+  assert.deepEqual(await createMcpTools(`${base}/fsse`), []);
+  assert.deepEqual(hits, ['POST /fsse']);
 });
 
 test('an OAuth grant carries its token on every Streamable HTTP request', async () => {

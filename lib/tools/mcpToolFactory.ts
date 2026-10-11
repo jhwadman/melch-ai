@@ -5,8 +5,9 @@
  * An agent's `mcp_server_url:` (or each entry of `mcp_servers:`, ADR 0124)
  * connects here over Streamable HTTP, falling back to the legacy SSE
  * transport when the server answers the initialize POST with the spec's
- * fallback signal (a 4xx other than 401/403), or over the transport the YAML
- * names. Every tool the server lists becomes an own Tool whose declaration is the server's
+ * fallback signal (a 4xx other than 401/403), or with a 401 when no OAuth
+ * grant is configured for the connection, or over the transport the YAML
+ * names; the transport that worked is remembered per URL. Every tool the server lists becomes an own Tool whose declaration is the server's
  * description (bounded) and input schema, and whose execute calls the
  * server and returns its text (bounded). loadMcpTools returns them;
  * createMcpTools is the name the compiler calls.
@@ -144,6 +145,15 @@ export function isSseFallbackSignal(error: unknown): boolean {
   return typeof code === 'number' && code >= 400 && code < 500 && code !== 401 && code !== 403;
 }
 
+/**
+ * True when a Streamable HTTP connect failed with a 401: the server refused
+ * the request's credential (or its absence). Where the connection carries no
+ * OAuth grant, an SSE-only server behind a bearer can answer the initialize
+ * POST to its stream URL that way, so connectMcp tries SSE once (ADR 0124's
+ * note of 2026-10-11).
+ */
+const isUnauthorized = (error: unknown): error is StreamableHTTPError => error instanceof StreamableHTTPError && error.code === 401;
+
 /** One connected client and the transport under it. */
 interface McpConnection {
   client: Client;
@@ -152,18 +162,62 @@ interface McpConnection {
   kind: 'streamable_http' | 'sse';
 }
 
+/** Server URLs whose transport `auto` has learned, at most; the least recently used is forgotten first. */
+const MAX_REMEMBERED_MCP_TRANSPORTS = 256;
+
+/**
+ * The transport that last connected to each server URL under `auto`, for the
+ * life of the process, so a later connection skips the probe. It holds a URL
+ * and a transport name, never a credential.
+ */
+const rememberedTransports = new Map<string, 'streamable_http' | 'sse'>();
+
+function rememberTransport(href: string, kind: 'streamable_http' | 'sse'): void {
+  rememberedTransports.delete(href);
+  rememberedTransports.set(href, kind);
+  while (rememberedTransports.size > MAX_REMEMBERED_MCP_TRANSPORTS) {
+    const oldest = rememberedTransports.keys().next().value as string;
+    rememberedTransports.delete(oldest);
+  }
+}
+
+/** How connectMcp may treat a refusal: `oauth` when the connection carries an OAuth grant (ADR 0112). */
+interface ConnectOptions {
+  oauth?: boolean;
+}
+
+const STREAMABLE_PREFIX = 'Streamable HTTP error: ';
+
+/** `message` with the credential header's value, and its token, cut out. */
+function withoutCredential(message: string, headers: Record<string, string>): string {
+  const auth = headers.Authorization;
+  if (!auth) return message;
+  const token = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length) : undefined;
+  return redact(redact(message, auth), token);
+}
+
 /**
  * A client connected to `url` over `kind`, every request through `fetchFn`
  * (the redirect rule, and the credential when there is one). A transport
  * that fails to connect is closed before the error leaves, so nothing keeps
- * reconnecting; with `auto`, a failed Streamable HTTP attempt carrying the
- * fallback signal is closed and the SSE transport tried once.
+ * reconnecting. With `auto`:
+ *   - a transport remembered for this URL is tried first; if it fails, it is
+ *     forgotten and the probe runs;
+ *   - the probe posts over Streamable HTTP. On the spec's fallback signal, or
+ *     on a 401 when the connection has no OAuth grant (`MCP_BEARER_TOKENS`
+ *     or no credential), it closes that attempt and tries SSE once with the
+ *     same fetch and headers. When SSE fails after a 401, the 401 is what is
+ *     thrown, naming both attempts and no credential. A 401 under an OAuth
+ *     grant (its consent and discovery path, ADR 0112 and 0124), a 403, a 5xx
+ *     and a network failure do not fall back;
+ *   - the transport that connected is remembered for this URL.
  */
 async function connectMcp(
   url: URL,
   kind: McpTransportKind,
   fetchFn: (input: string | URL | Request, init?: RequestInit) => Promise<Response>,
   headers: Record<string, string> = {},
+  options: ConnectOptions = {},
 ): Promise<McpConnection> {
   const attempt = async (which: 'streamable_http' | 'sse'): Promise<McpConnection> => {
     const requestInit = Object.keys(headers).length ? { requestInit: { headers } } : {};
@@ -181,12 +235,42 @@ async function connectMcp(
   };
   if (kind === 'sse') return attempt('sse');
   if (kind === 'streamable_http') return attempt('streamable_http');
-  try {
-    return await attempt('streamable_http');
-  } catch (error) {
-    if (!isSseFallbackSignal(error)) throw error;
-    return attempt('sse');
+
+  const href = url.href;
+  const known = rememberedTransports.get(href);
+  if (known) {
+    try {
+      const conn = await attempt(known);
+      rememberTransport(href, known);
+      return conn;
+    } catch {
+      // The server may have changed: forget it and probe as if new.
+      rememberedTransports.delete(href);
+    }
   }
+  let conn: McpConnection;
+  try {
+    conn = await attempt('streamable_http');
+  } catch (error) {
+    if (isSseFallbackSignal(error)) {
+      conn = await attempt('sse');
+    } else if (isUnauthorized(error) && !options.oauth) {
+      try {
+        conn = await attempt('sse');
+      } catch (sseError) {
+        const original = error.message.startsWith(STREAMABLE_PREFIX) ? error.message.slice(STREAMABLE_PREFIX.length) : error.message;
+        const sseMessage = sseError instanceof Error ? sseError.message : String(sseError);
+        throw new StreamableHTTPError(
+          401,
+          withoutCredential(`${original} (Streamable HTTP answered 401; the SSE transport was tried once after it and failed too: ${sseMessage})`, headers),
+        );
+      }
+    } else {
+      throw error;
+    }
+  }
+  rememberTransport(href, conn.kind);
+  return conn;
 }
 
 /**
@@ -199,6 +283,7 @@ export async function closeMcpConnections(): Promise<void> {
   const all = [...openTransports];
   openTransports.clear();
   for (const pool of userPools) pool.clear();
+  rememberedTransports.clear();
   await Promise.all(all.map((t) => t.close().catch(() => {})));
 }
 
@@ -314,7 +399,7 @@ export async function loadMcpTools(mcpServerUrl: string, options: McpToolOptions
   try {
     const url = await assertSafeMcpUrl(mcpServerUrl);
     conn = tokenSource
-      ? await connectMcp(url, kind, bearerFetch(oauth2!, (destination) => tokenSource(undefined, destination)))
+      ? await connectMcp(url, kind, bearerFetch(oauth2!, (destination) => tokenSource(undefined, destination)), {}, { oauth: true })
       : await connectMcp(url, kind, mcpFetch, mcpAuthHeaders(url));
     const client = conn.client;
 
@@ -392,7 +477,7 @@ function userGrantMcpTools(mcpServerUrl: string, oauth2: OAuth2AuthConfig, names
     conn.holder = holder;
     conn.ready = (async () => {
       const url = await assertSafeMcpUrl(mcpServerUrl);
-      const { client, transport } = await connectMcp(url, kind, bearerFetch(oauth2, async () => holder.token));
+      const { client, transport } = await connectMcp(url, kind, bearerFetch(oauth2, async () => holder.token), {}, { oauth: true });
       conn.transport = transport;
       if (!listed) {
         const offered = await client.listTools();
