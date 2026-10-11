@@ -360,10 +360,12 @@ test('the AGENTS.md pointer: created, appended beside the owner\'s text, rewritt
 test('every bin, melchizedek-setup among them, is compiled by the package build and ONBOARDING.md ships', () => {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
   const build = JSON.parse(readFileSync(join(ROOT, 'tsconfig.build.json'), 'utf-8'));
-  assert.strictEqual(pkg.bin['melchizedek-setup'], './dist/scripts/setup.js');
+  assert.strictEqual(pkg.bin['melchizedek-setup'], 'dist/scripts/setup.js');
   assert.ok(pkg.scripts.setup.includes('scripts/setup.ts'));
   for (const [bin, target] of Object.entries(pkg.bin as Record<string, string>)) {
-    const source = target.replace(/^\.\/dist\//, '').replace(/\.js$/, '.ts');
+    // npm normalises a leading "./" away and warns that the bin was "invalid and removed"; spell it as npm stores it.
+    assert.ok(target.startsWith('dist/scripts/'), `${bin}: ${target} is a dist/scripts/ path with no leading "./"`);
+    const source = target.replace(/^dist\//, '').replace(/\.js$/, '.ts');
     assert.ok(build.include.includes(source), `${bin}: ${source} is in tsconfig.build.json include`);
   }
   assert.ok(pkg.files.includes('ONBOARDING.md'));

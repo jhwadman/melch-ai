@@ -7,7 +7,7 @@ tags:
   - graph
 generated:
   by: process:wiki-build
-  at: 2026-10-10
+  at: 2026-10-11
 sources:
   - resource: lib/wiki/entities.ts
   - resource: lib/wiki/extract.ts
@@ -51,7 +51,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | Relation | Tier | Reads as | Now | Meaning |
 |---|---|---|---|---|
 | `derives_from` | extracted | A derives from B | 1097 | declared in the document’s `sources:` frontmatter |
-| `links_to` | extracted | A links to B | 957 | a resolved markdown link between documents |
+| `links_to` | extracted | A links to B | 958 | a resolved markdown link between documents |
 | `imports` | extracted | A imports B | 871 | a static import edge between source files |
 | `requires_env` | extracted | A requires B | 191 | this environment variable must be set for the node to work |
 | `contains` | extracted | A contains B | 92 | the first is composed of the second |
@@ -65,7 +65,7 @@ A document keeps its OKF identity — the bundle path — so the two namespaces 
 | `connects_mcp` | extracted | A dials B | 5 | the agent discovers tools from this MCP server at runtime |
 | `delegates_to` | extracted | A delegates to B | 1 | the agent is a reference to another syndicate, resolved at load time |
 | `references` | extracted | A points readers at B | 0 | the source names this resource for the reader to open |
-| `constrains` | inferred | A constrains B | 247 | a decision or doctrine limits what the target may do |
+| `constrains` | inferred | A constrains B | 248 | a decision or doctrine limits what the target may do |
 | `depends_on` | inferred | A depends on B | 145 | the first cannot do its job unless the second holds |
 | `explains` | inferred | A explains B | 53 | the document is where the target’s rationale is written down |
 | `supersedes` | inferred | A supersedes B | 21 | replaces an earlier decision or document |

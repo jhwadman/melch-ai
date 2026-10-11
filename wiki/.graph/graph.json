@@ -2,11 +2,11 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-10"
+    "at": "2026-10-11"
   },
   "stats": {
     "nodes": 976,
-    "edges": 4086,
+    "edges": 4088,
     "byKind": {
       "doc": 194,
       "provider": 6,
@@ -23,7 +23,7 @@
       "external": 13
     },
     "byRelation": {
-      "links_to": 957,
+      "links_to": 958,
       "requires_env": 191,
       "routes_to": 10,
       "defined_in": 79,
@@ -37,7 +37,7 @@
       "reads_table": 28,
       "runs": 72,
       "derives_from": 1097,
-      "constrains": 247,
+      "constrains": 248,
       "supersedes": 21,
       "depends_on": 145,
       "explains": 53,
@@ -45,8 +45,8 @@
       "contradicts": 1
     },
     "byTier": {
-      "extracted": 3615,
-      "inferred": 471
+      "extracted": 3616,
+      "inferred": 472
     },
     "isolated": 4
   },
@@ -1908,7 +1908,7 @@
         "type": "decision",
         "status": "stable",
         "trust": "unverified",
-        "words": 1282
+        "words": 1422
       }
     },
     {
@@ -2052,7 +2052,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1254
+        "words": 1476
       }
     },
     {
@@ -5736,7 +5736,7 @@
       "label": "lib/chatgpt/oauth.ts",
       "source": "lib/chatgpt/oauth.ts",
       "attrs": {
-        "lines": 503
+        "lines": 527
       }
     },
     {
@@ -17764,6 +17764,13 @@
       "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md:44"
     },
     {
+      "from": "/decisions/0126-sign-in-with-chatgpt-local-only.md",
+      "to": "/models/chatgpt-signin.md",
+      "rel": "links_to",
+      "tier": "extracted",
+      "evidence": "/decisions/0126-sign-in-with-chatgpt-local-only.md:59"
+    },
+    {
       "from": "/decisions/0127-ci-stages-the-release-a-maintainer-approves-it.md",
       "to": "file:.github/workflows/release.yml",
       "rel": "derives_from",
@@ -18825,14 +18832,14 @@
       "to": "/models/provider-routing.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chatgpt-signin.md:48"
+      "evidence": "/models/chatgpt-signin.md:51"
     },
     {
       "from": "/models/chatgpt-signin.md",
       "to": "/models/responses-adapters.md",
       "rel": "links_to",
       "tier": "extracted",
-      "evidence": "/models/chatgpt-signin.md:52"
+      "evidence": "/models/chatgpt-signin.md:55"
     },
     {
       "from": "/models/chatgpt-signin.md",

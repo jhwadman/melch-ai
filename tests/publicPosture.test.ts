@@ -27,6 +27,8 @@ async function run(extra: Record<string, string>): Promise<{ result: number | 'l
   const env: NodeJS.ProcessEnv = {
     PATH: process.env.PATH,
     HOME: process.env.HOME,
+    // The suite's non-existent sign-in path (tests/helpers/isolateLocalState.ts), so a developer's own ChatGPT sign-in never stops the bin.
+    MELCHIZEDEK_CHATGPT_SIGNIN_FILE: process.env.MELCHIZEDEK_CHATGPT_SIGNIN_FILE,
     MELCHIZEDEK_DOTENV: 'off',
     OTEL_CONSOLE_SPANS: 'false',
     PORT: String(port),

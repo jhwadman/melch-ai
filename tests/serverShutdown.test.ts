@@ -27,6 +27,8 @@ test('SIGTERM fails readiness first, keeps serving through the delay, then exits
   const env: NodeJS.ProcessEnv = {
     PATH: process.env.PATH,
     HOME: process.env.HOME,
+    // The suite's non-existent sign-in path (tests/helpers/isolateLocalState.ts), so a developer's own ChatGPT sign-in never stops the bin.
+    MELCHIZEDEK_CHATGPT_SIGNIN_FILE: process.env.MELCHIZEDEK_CHATGPT_SIGNIN_FILE,
     MELCHIZEDEK_DOTENV: 'off',
     PORT: String(port),
     A2A_SHUTDOWN_DELAY_MS: '3000',
