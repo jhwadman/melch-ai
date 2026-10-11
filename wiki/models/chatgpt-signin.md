@@ -53,7 +53,7 @@ OpenAI documents a [Sign in with ChatGPT](https://developers.openai.com/siwc/tok
 
 - **Credential.** The SDK's key is a function that calls `freshAccessToken` on every request. The base URL is fixed at `https://api.openai.com/v1`; `organization` and `project` are null, so `OPENAI_ORG_ID` and `OPENAI_PROJECT_ID` are never sent; redirects are errors.
 - **Request.** `store: false` always; `max_output_tokens`, `temperature` and `top_p` are never sent, as the preview refuses them.
-- **Streaming.** Every request streams. A call that did not ask to stream is folded back into what a non-streamed call yields: one thinking partial (the summaries joined), then the final.
+- **Streaming.** Every request streams. A call that did not ask to stream is folded back into what a non-streamed call yields: one thinking partial (the summaries joined), then the final. The route closes each stream with a `response.completed` whose `output` is empty; `GptAdapter` builds the final from the `response.output_item.done` items, in `output_index` order, whenever the completed reply carries none.
 - **Retries.** The SDK retries nothing (`maxRetries: 0`), so a plan's usage limit (429, `subscription_sharing_usage_limit_exceeded`) is reported once. The final's retry verdict is `GptAdapter`'s.
 - **Before the call.** No sign-in is a `MISSING_API_KEY` final naming `melchizedek-setup --chatgpt-signin`; a refresh failure is `CHATGPT_SIGNIN_ERROR`; on a served surface every call is `CHATGPT_SIGNIN_LOCAL_ONLY`, before any token is read. None is retryable.
 
@@ -89,3 +89,7 @@ A live sign-in confirms what the fake server plays:
 - the issued client id arriving on the callback, and the ID token's `aud` being it;
 - the unit of `earliest_refresh_at` (read as seconds, milliseconds or an ISO date);
 - which `gpt-*` ids a ChatGPT plan answers (`GET /v1/models` lists them; the engine does not call it), and whether `include: ['reasoning.encrypted_content']` and a strict `text.format` are accepted on this route.
+
+## Confirmed live (2026-10-11)
+
+The first live sign-in, on a ChatGPT plan, confirmed: the discovery document's endpoints on `auth.openai.com`; registration as `dynamic_agent_client` with the app name on OpenAI's consent screen and an issued `oaiapp_…` client id on the callback; a plan without plan usage for apps refusing the grant (the consent page says the permission is unavailable for the workspace and plan; the exchange then fails `invalid_grant`). After an upgrade the sign-in completes. `GET /v1/models` on this route answers `{ models: [{ slug }] }` (not `data[].id`) and lists the plan's ids (that day: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, `gpt-reserve`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `codex-auto-review`); an id off the list is refused 400 ("not supported when using Codex with a ChatGPT account"). The route needs `input` as a list, and sends `response.completed` with an empty `output` (handled above). `gpt-5.5` and `gpt-6.1-sol` answer, and the structured critic delegates and answers in its schema on `gpt-5.5`.

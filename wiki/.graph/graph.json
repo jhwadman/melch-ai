@@ -2,7 +2,7 @@
   "version": 1,
   "generated": {
     "by": "process:wiki-build",
-    "at": "2026-10-10"
+    "at": "2026-10-11"
   },
   "stats": {
     "nodes": 976,
@@ -2052,7 +2052,7 @@
         "type": "model-provider",
         "status": "stable",
         "trust": "unverified",
-        "words": 1254
+        "words": 1436
       }
     },
     {
@@ -6060,7 +6060,7 @@
       "label": "lib/models/gptAdapter.ts",
       "source": "lib/models/gptAdapter.ts",
       "attrs": {
-        "lines": 922
+        "lines": 931
       }
     },
     {

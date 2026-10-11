@@ -867,6 +867,10 @@ export class GptAdapter implements ModelAdapter {
     let completed: any;
     let streamedThoughts = false;
     const text: string[] = [];
+    // Each finished output item, by its index. The plan-usage route (Sign in
+    // with ChatGPT, store: false) sends response.completed with an empty
+    // output: the items arrive only here, so the final is built from them.
+    const doneItems: { index: number; item: any }[] = [];
 
     for await (const ev of untilAborted(events, signal)) {
       const delta = streamEventDelta(ev);
@@ -876,7 +880,9 @@ export class GptAdapter implements ModelAdapter {
         yield { partial: true, parts: [delta.thought ? { type: 'thinking', text: delta.text } : { type: 'text', text: delta.text }] };
         continue;
       }
-      if (ev?.type === 'response.completed' && ev.response) {
+      if (ev?.type === 'response.output_item.done' && ev.item && typeof ev.item === 'object') {
+        doneItems.push({ index: typeof ev.output_index === 'number' ? ev.output_index : doneItems.length, item: ev.item });
+      } else if (ev?.type === 'response.completed' && ev.response) {
         completed = ev.response;
       } else if (ev?.type === 'response.failed' || ev?.type === 'error') {
         const message = ev?.response?.error?.message ?? ev?.message ?? 'response stream failed';
@@ -886,6 +892,9 @@ export class GptAdapter implements ModelAdapter {
     }
 
     if (completed) {
+      if ((!Array.isArray(completed.output) || completed.output.length === 0) && doneItems.length > 0) {
+        completed = { ...completed, output: doneItems.sort((x, y) => x.index - y.index).map((d) => d.item) };
+      }
       const { thinking, final } = this.finalOf(completed, model, { skipThoughts: streamedThoughts });
       if (thinking) yield thinking;
       yield final;
