@@ -6,6 +6,24 @@ the starter pack and the templates), not the repo's full history.
 
 ## Unreleased
 
+### Added
+
+- **OAuth consent pauses inside workflow nodes reach the turn and resume
+  (ADR 0128).** A workflow node whose tool needs the person's
+  `authorization_code` grant now pauses the walk instead of failing: an agent
+  node's own call, a delegated subagent under a node, and a node that is a
+  nested workflow or a nested dispatch syndicate (and a workflow run as a
+  dispatch route or delegated to). The turn ends `input-required` with
+  `result.consent`, its `path` naming the agents from the node down when the
+  request waits below it (the A2A `consent_request` part carries it as
+  before). A message before the grant repeats the request and stores
+  nothing; after the callback stores the grant, the next message resumes the
+  waiting node with the user's own token, and no completed node runs again.
+  Parallel branches each pause, and one message after the grant resumes
+  them all. The schema now refuses an `authorization_code` grant on an agent
+  a `map` node runs: a map item cannot pause the walk. The stored events,
+  the interrupt names and the `runSyndicateTurn` signature are unchanged.
+
 ## 1.3.1 — 2026-10-11
 
 A patch for Sign in with ChatGPT, from its first live run on a ChatGPT plan:

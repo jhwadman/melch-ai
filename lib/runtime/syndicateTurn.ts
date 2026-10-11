@@ -95,7 +95,7 @@ import { traceAgentRun } from '../observability/tracer.ts';
 import { ProjectedSessionService, renderTranscriptDigest } from '../session/transcript.ts';
 import { approvalDecisionIn, describeApproval, interruptedTurnStart, pendingApproval } from './approvals.ts';
 import { pendingQuestion, questionAnswerPart, questionFrom, turnStartOfCall } from './questions.ts';
-import { deepestPause, delegatedPauses, nestedWorkflowPause, routePause } from './native/interrupts.ts';
+import { deepestPause, delegatedPauses, nestedWorkflowPause, routePause, walkConsents } from './native/interrupts.ts';
 import type { DelegatedPause, NestedWorkflowPause } from './native/interrupts.ts';
 import { consentPinnedTo, entrySession } from './native/delegate.ts';
 import { workflowPauseEvent } from '../workflow/pause.ts';
@@ -766,6 +766,14 @@ async function runTurnInner(
     ev.log?.(`⏸ Authorization needed: ${(pending.path ?? [pending.agent]).join(' → ')} → ${pending.provider}`);
     return finish();
   };
+  /** Whether the grant a consent request waits for is stored (an expired or unreadable one is not). */
+  const grantStored = async (open: PendingConsent): Promise<boolean> => {
+    try {
+      return !!open.provider && !!(await credentialStore?.get({ appName: credentialApp, userId, provider: open.provider }));
+    } catch {
+      return false;
+    }
+  };
   let granting: PendingConsent | undefined;
   // A call waiting for a grant inside a delegated subagent (ADR 0118): the grant's answer is stored here, and the open call carries it down.
   let grantingBelow: DelegatedPause | undefined;
@@ -788,13 +796,7 @@ async function runTurnInner(
         result.error = { code: 'CONSENT_UNAVAILABLE', message: `A call waits for a ${open.provider} authorization, but this turn has no credential store.` };
         return finish();
       }
-      let granted = false;
-      try {
-        granted = !!open.provider && !!(await credentialStore.get({ appName: credentialApp, userId, provider: open.provider }));
-      } catch {
-        // Expired or unreadable: not granted. The request stands.
-      }
-      if (!granted) return consentPause(open);
+      if (!(await grantStored(open))) return consentPause(open);
       // The route's own turn carries the grant's answer down to its call; the message goes to it as it came.
       if (routeWaits) consentRoute = routePaused;
       else {
@@ -804,6 +806,25 @@ async function runTurnInner(
       ev.log?.(`✓ Authorization granted: ${(open.path ?? [open.agent]).join(' → ')} → ${open.provider}`);
     }
   }
+  // A walk waiting for grants (ADR 0128): a node's own consent request, or one a node raised again from below it. Once every
+  // grant is stored, the message becomes their answers and the walk resumes those nodes; until then it repeats the first
+  // request still missing and stores nothing, as at the top.
+  if (!decision && isWorkflowSyndicate(config)) {
+    const waiting = await walkConsents(pauseKey, existing?.events ?? []);
+    if (waiting.length > 0) {
+      if (!credentialStore) {
+        result.status = 'failed';
+        result.error = { code: 'CONSENT_UNAVAILABLE', message: `A call waits for a ${waiting[0]!.provider} authorization, but this turn has no credential store.` };
+        return finish();
+      }
+      for (const open of waiting) if (!(await grantStored(open))) return consentPause(open);
+      granting = waiting[0];
+      parts = waiting.map((open) => credentialResponsePart(open.id, open.provider));
+      for (const open of waiting) ev.log?.(`✓ Authorization granted: ${(open.path ?? [open.agent]).join(' → ')} → ${open.provider}`);
+    }
+  }
+  /** The parts a paused workflow route's walk resumes on once its grant is stored (ADR 0128): the grant's answer to its credential request. */
+  const routeGrant = consentRoute?.consent ? [credentialResponsePart(consentRoute.consent.id, consentRoute.consent.provider)] : undefined;
 
   // ── Questions (lib/runtime/questions.ts) ───────────────────────────────────
   // While an agent's `ask_user` call is open, a plain-text message is its
@@ -940,6 +961,8 @@ async function runTurnInner(
         memory: nativeMemory(opts.memoryService),
         ...(selfCorrection ? { selfCorrection } : {}),
         ...(credentialStore ? { credentials: credentialStore } : {}),
+        // The consent step, its flows bound to the app the grants are read under, wherever the walk's session is filed (ADR 0128).
+        ...(consentStep ? { consent: consentPinnedTo(consentStep, credentialApp) } : {}),
         ...(compileOpts.log ? { log: compileOpts.log } : {}),
       });
     } else {
@@ -1039,7 +1062,7 @@ async function runTurnInner(
     const kept = (state: Record<string, unknown> | undefined): Record<string, unknown> =>
       Object.fromEntries(Object.entries(state ?? {}).filter(([k]) => !k.startsWith(TEMP_STATE_PREFIX)));
     // Filed under the agent path (ADR 0119), else continued under the route's name alone where ADR 0106 filed it.
-    const resumingWalk = resumingRoute !== undefined || routeAnswer !== undefined;
+    const resumingWalk = resumingRoute !== undefined || routeAnswer !== undefined || consentRoute !== undefined;
     const child = await entrySession(store, { appName, userId, sessionId, events: shared.events }, route, 'route', kept(shared.state), resumingWalk);
     const childKey = { appName: child.appName, userId, sessionId };
     const before = new Map(Object.entries(kept(child.state)).map(([k, v]) => [k, JSON.stringify(v)]));
@@ -1052,7 +1075,7 @@ async function runTurnInner(
     };
     let walked: DrainedRun;
     try {
-      walked = await runAgent({ agent, sid: sessionId, appName: child.appName, userParts: routeAnswer ?? parts, sessions: sessionService, stage: 'dispatch', route: resolution, publishToolStatus: true, errorPolicy: 'collect' });
+      walked = await runAgent({ agent, sid: sessionId, appName: child.appName, userParts: routeAnswer ?? routeGrant ?? parts, sessions: sessionService, stage: 'dispatch', route: resolution, publishToolStatus: true, errorPolicy: 'collect' });
     } catch (err) {
       const last = control.stopReason ? undefined : (err as Error);
       if (!last) throw err;
@@ -1363,6 +1386,9 @@ async function runTurnInner(
     const after = await sessionService.get({ appName, userId, sessionId });
     const pending = pendingApproval(after?.events ?? []);
     if (pending) return pause(await deepen(pending));
+    // A node waiting for a grant (ADR 0128): its own request, or one from below it, with the path from the node down.
+    const [consent] = await walkConsents(pauseKey, after?.events ?? []);
+    if (consent) return consentPause(consent);
     if (answer.inputRequests.length) return question(await deepen(answer.inputRequests[answer.inputRequests.length - 1]!));
     result.text = answer.text;
     if (!result.text) {

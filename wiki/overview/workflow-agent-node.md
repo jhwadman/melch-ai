@@ -8,7 +8,7 @@ tags:
   - overview
 generated:
   by: claude-code/claude-opus-5-5
-  at: 2026-10-08
+  at: 2026-10-11
 sources:
   - resource: lib/workflow/agentNode.ts
   - resource: lib/workflow/route.ts
@@ -17,6 +17,7 @@ sources:
   - resource: lib/runtime/native/request.ts
   - resource: tests/workflowAgentNode.test.ts
   - resource: tests/workflowParity.test.ts
+  - resource: tests/workflowNodeConsent.test.ts
 ---
 
 # Workflow agent node
@@ -25,7 +26,7 @@ sources:
 
 ## One node
 
-`runAgentNode(agent, run, context)` runs one node run and resolves with `{ output }`, `{ error }` when it ended on a reported error with no output, or `{ interruptIds }` when it waits on approvals:
+`runAgentNode(agent, run, context)` runs one node run and resolves with `{ output }`, `{ error }` when it ended on a reported error with no output, or `{ interruptIds }` when it waits on approvals or OAuth grants:
 
 | rule | what happens |
 |---|---|
@@ -37,6 +38,7 @@ sources:
 | the instruction | the run carries the workflow instruction scope (`workflowScope`, after ADK's): the node's input, and `predecessorOutputs`, the output each event of the invocation stored before the node ran, by node name (after ADK's `collectPredecessorOutputs`). See [The instruction](#the-instruction). |
 | failure | an event with an error code is the node's reported error. A run that ends with one and no output returns it as `{ error: { code, message } }`; the scheduler fails the attempt with `NodeReportedError`, with ADK's message, retries it as the node's `retry` allows, and, because the node's own event reported it, writes no node-error event of the workflow's, as ADK wrote none. A run the turn stopped throws `NodeStoppedError`. A run that pauses on an `ask_user` tool call throws. An `ask_user` node is another runner's ([the pause](/overview/workflow-scheduler.md#ask_user-nodes-the-pause)). |
 | approvals | a run that pauses on approval requests (a tool in the agent's `require_approval`) resolves with their ids as `interruptIds`: the node waits and the walk ends paused. The stamp records the node's input in `actions.agentState` on the request, as ADK's node runner did. See [Approvals](#approvals). |
+| OAuth consent | a run that pauses for a grant resolves with the credential request's id, its own or one raised again from its delegation (`pausedOn`). See [OAuth consent](#oauth-consent). |
 
 The node's path is `<workflow>.<node>`, or `<workflow>.<map>.<agent>@<index>` for a map item, as the scheduler computes it.
 
@@ -94,11 +96,19 @@ This is the engine's own: ADK's `runLlmAgentAsNode` stored the input again on a 
 
 A skill script is the same pause: `run_skill_script` on a node agent with `skills.scripts: local` raises its `adk_request_confirmation` request, the node waits, and the decision runs the script once or refuses it, with ADR 0086's minimal environment ([ADR 0106](/decisions/0106-nested-workflow-routes-nodes-and-node-skill-scripts.md)). The schema refuses it on an agent a map runs. `tests/workflowSkillScripts.test.ts` runs a real script on a node.
 
+## OAuth consent
+
+A node's loop gets the turn's consent step, its flows bound to the turn's app ([ADR 0128](/decisions/0128-oauth-consent-inside-workflow-nodes.md)). A tool whose grant the person has not given stores its `adk_request_credential` call as the node's event (stamped, the id in `longRunningToolIds`, the input recorded) and the run ends paused, so the id is the node's interrupt. When the node's agent delegated and the subagent waits for a grant ([ADR 0118](/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md)), the agent leaves its call open; `pausedOn` finds the request below the open call (`delegatedPauses`) and raises a copy of it (`credentialRequestCall`) on one event of the node's, under the same id. An approval or a question below the open call is refused by name.
+
+The resumed walk reruns the node with the grant's answer, `{ credentialKey, granted: true }` (`isGrantAnswer`; never plain text), which the turn sends once the grant is stored. The run continues without an input turn: the loop's auth preprocessor (`grantedCalls`) runs the paused call again, now reading the grant, or the delegation resume carries the answer down the open call, where the child's own preprocessor runs its call. `grantedCalls` reads the latest user event unless the agent has written since, so another node's events stored after the answer do not hide it. Without a grant's answer the node waits again, its request raised again (`waitAgain`). An earlier resume that finished the node makes its stored output the node's (`outputAfter`).
+
+A map item runs without the consent step (`agentNodeRuntime` drops it): a missing grant is its tool's error, never a pause, and the schema refuses an `authorization_code` grant on an agent a map runs.
+
 An agent node that names a nested workflow syndicate is not an agent run: `agentNodeRuntime` hands it to `runWorkflowNode` ([Workflow scheduler](/overview/workflow-scheduler.md#as-a-route-or-a-node)).
 
 ## Not here yet
 
-- An `ask_user` tool call inside a node, and a pause inside a map item.
+- An `ask_user` tool call inside a node, an approval or a question inside a node's own delegation, and a pause inside a map item.
 
 ## Parity with ADK
 

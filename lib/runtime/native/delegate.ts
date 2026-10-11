@@ -108,6 +108,8 @@ import { randomUUID } from 'node:crypto';
 import type { ModelAdapter, ToolDeclaration } from '../../models/contract.ts';
 import { resolveAdapter } from '../../models/registry.ts';
 import type { Tool, ToolContext } from '../../tools/tool.ts';
+import { credentialRequestCall } from '../credentials.ts';
+import type { PendingConsent } from '../credentials.ts';
 import type { TurnContent, TurnEvent, TurnFunctionCall, TurnPart } from '../events.ts';
 import { createTurnEvent } from '../events.ts';
 import { TEMP_STATE_PREFIX } from '../sessions.ts';
@@ -166,6 +168,8 @@ export interface WorkflowSubagentRun {
   log?: (message: string) => void;
   selfCorrection: SelfCorrection;
   credentials?: AgentLoopContext['credentials'];
+  /** The caller's consent step, pinned to the caller's app (consentPinnedTo, ADR 0128): a node of the walk pauses for a missing grant. */
+  consent?: AgentLoopContext['consent'];
 }
 
 /** How a nested workflow's walk ended, as far as a delegated call reads it (lib/workflow/turn.ts NativeWorkflowEnd). */
@@ -606,6 +610,8 @@ async function walkChild(workflow: WorkflowSubagent, userParts: unknown[], conte
     ...(ctx.memory ? { memory: ctx.memory } : {}),
     ...(ctx.log ? { log: ctx.log } : {}),
     ...(ctx.credentials ? { credentials: ctx.credentials } : {}),
+    // A node that needs a grant pauses the walk, and the pause reaches the turn through the open call (ADR 0128).
+    ...(ctx.consent ? { consent: consentPinnedTo(ctx.consent, ctx.session.appName) } : {}),
   });
   let last: TurnEvent | undefined;
   for (;;) {
@@ -659,8 +665,9 @@ function dispatchParts(parts: readonly unknown[]): unknown[] {
 /**
  * The request call a paused nested dispatch syndicate's turn waits on, as a
  * workflow node raises it again on its caller's walk: an approval request
- * pinned to the gated call, or an input request carrying the question.
- * Undefined for a consent request, which a walk cannot raise (ADR 0119).
+ * pinned to the gated call, an input request carrying the question, or a
+ * credential request rebuilt from the consent request (credentialRequestCall,
+ * ADR 0128), under the nested request's id.
  */
 function requestCallOf(end: NestedDispatchEnd): TurnFunctionCall | undefined {
   const id = end.interruptId;
@@ -686,6 +693,8 @@ function requestCallOf(end: NestedDispatchEnd): TurnFunctionCall | undefined {
       },
     };
   }
+  const consent = end.consent as PendingConsent | undefined;
+  if (consent && consent.id === id) return credentialRequestCall(consent);
   return undefined;
 }
 

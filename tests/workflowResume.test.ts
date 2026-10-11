@@ -684,10 +684,25 @@ test('the plain-text answer goes to the one open interrupt, and to none when sev
   assert.equal(workflowNodeInput(undefined), undefined);
 });
 
+test('an agent node\'s readable OAuth consent request resumes (ADR 0128): the node reruns with the grant\'s answer; one inside a map item is still refused', () => {
+  const grant = { author: 'user', invocationId: 'e-2', content: { role: 'user', parts: [{ functionResponse: { id: 'q', name: 'adk_request_credential', response: { credentialKey: 'tracker', granted: true } } }] } };
+  const record = { author: 'G', invocationId: 'e-1', longRunningToolIds: ['q'], nodeInfo: { path: 'G' } };
+  const args = { function_call_id: 'call-1', auth_config: { credentialKey: 'tracker' } };
+  const consent = (path: string) => ({ author: 'Agent', invocationId: 'e-1', content: { role: 'model', parts: [{ functionCall: { name: 'adk_request_credential', id: 'q', args } }] }, longRunningToolIds: ['q'], nodeInfo: { path }, actions: { agentState: { input: 'go' } } });
+  const resume = (events: StoredEvent[]) => workflowResume({ events, invocationId: 'e-2', userContent: grant.content as TurnContent, workflowPath: 'G' });
+  const start = resume([consent('G.Agent'), record, grant] as StoredEvent[]);
+  assert.deepEqual(start.resume.resumeInputs, { q: { credentialKey: 'tracker', granted: true } });
+  const [run] = start.resume.priorRuns.get('Agent') ?? [];
+  assert.deepEqual([...(run?.interruptIds ?? [])], ['q']);
+  assert.equal(run?.input, 'go');
+  assert.throws(() => resume([consent('G.Fan.Agent@0'), record, grant] as StoredEvent[]), (e: Error) => e instanceof UnsupportedWorkflowResumeError && /inside a nested node \(a map item\)/.test(e.message));
+});
+
 test('a pause ADK raised inside a map item or an agent node is refused by name, not rerun: only ADK resumes those', () => {
   const user = { author: 'user', invocationId: 'e-2', content: { role: 'user', parts: [{ text: 'yes' }] } };
   const record = { author: 'G', invocationId: 'e-1', longRunningToolIds: ['q'], nodeInfo: { path: 'G' } };
-  // An OAuth consent (ADR 0085) inside an agent: ADK's adk_request_credential, which its rehydration treats as a pause.
+  // An OAuth consent (ADR 0085) inside an agent: ADK's adk_request_credential, which its rehydration treats as a pause;
+  // one this engine cannot read (no paused call's id, no auth config) is refused even at an agent node (ADR 0128).
   const consent = (path: string) => ({ author: 'Agent', invocationId: 'e-1', content: { role: 'model', parts: [{ functionCall: { name: 'adk_request_credential', id: 'q', args: {} } }] }, longRunningToolIds: ['q'], nodeInfo: { path } });
   const resume = (events: StoredEvent[]) => workflowResume({ events, invocationId: 'e-2', userContent: user.content, workflowPath: 'G' });
   assert.throws(() => resume([consent('G.Fan.Agent@0'), record, user]), (e: Error) => e instanceof UnsupportedWorkflowResumeError && /'G\.Fan\.Agent@0' was raised inside a nested node \(a map item\)/.test(e.message));

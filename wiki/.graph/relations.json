@@ -3797,6 +3797,78 @@
       "evidence": "ADR 0126 Decision 1 and its Note (2026-10-11): signIn persists { version, issuer, hostId } before the browser opens when no file is stored and never overwrites a stored registration; invalid_grant on the code exchange and access_denied on the callback print one line naming the plan or workspace and the retry.",
       "by": "claude-code/claude-opus-5-5",
       "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "module:lib/workflow/agentNode.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0128 Decisions 2, 3 and 6: runAgentNode returns an agent node's own adk_request_credential id as its interrupt, raises a copy of a delegated child's request under the same id (pausedOn), and continues only on a grant's answer (isGrantAnswer), else waits again.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "module:lib/workflow/turn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0128 Decisions 1 and 3: NativeWorkflowParams.consent reaches every agent node's loop, a nested walk gets it pinned to its caller's app, and runWorkflowNode raises a nested walk's credential request again (RAISED holds it).",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "module:lib/runtime/native/interrupts.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0128 Decisions 4 and 7: walkConsents reads the credential requests among the walk's pause record ids and follows each down (consentBelow); grantedCalls reads the latest user event unless the agent has written since.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "module:lib/runtime/syndicateTurn.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0128 Decision 5: while a walk waits, the turn checks every open request's grant before anything runs; it repeats the first missing one and stores nothing, else turns the message into the grants' answers.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "module:lib/workflow/resume.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0128 Decision 6: workflowResume accepts a credential request at an agent node when the engine can read it (a paused call's id and an auth config); one inside a map item is still refused.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "module:lib/syndicateSchema.ts",
+      "rel": "constrains",
+      "evidence": "ADR 0128 Decision 8: the schema refuses an authorization_code grant (mcp_auth, mcp_servers[].auth, openapi[].auth) on an agent a map node runs, by name.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0128 Decision 3 carries a delegated subagent's consent pause (ADR 0118: the child pauses, the caller leaves the call open, consentPinnedTo) up through a workflow node, and resolves ADR 0118's open item 'consent inside a workflow node or a nested workflow'.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "/decisions/0119-workflow-routes-and-nodes-pause-the-turn.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0128 Context and Decision 3: a request from below is raised again on the walk under its own id, the shape ADR 0119 stores for approvals and questions (raiseAgain), and resolves ADR 0119's open item 'an OAuth consent inside a nested walk'.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
+    },
+    {
+      "from": "/decisions/0128-oauth-consent-inside-workflow-nodes.md",
+      "to": "/decisions/0120-nested-dispatch-syndicates-route-as-at-the-top.md",
+      "rel": "depends_on",
+      "evidence": "ADR 0128 Decision 3 extends ADR 0120's nested dispatch node: where ADR 0120 decision 3 failed the node on a consent request, the node now raises a credential request rebuilt from its turn's consent (requestCallOf); ADR 0128 resolves ADR 0120's open item 'a consent pause inside a nested walk'.",
+      "by": "claude-code/claude-opus-5-5",
+      "at": "2026-10-11"
     }
   ]
 }

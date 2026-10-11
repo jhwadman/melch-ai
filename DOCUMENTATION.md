@@ -934,6 +934,17 @@ the turn's own down to the one that asked (in the data part and in
 next message resumes that subagent's call before its caller continues
 ([ADR 0118](./wiki/decisions/0118-skill-scripts-and-oauth-consent-inside-delegated-subagents.md)).
 
+The call may also sit in a workflow node: an agent node's own tool, a
+subagent under a node, or a node that is a nested workflow or a nested
+dispatch syndicate
+([ADR 0128](./wiki/decisions/0128-oauth-consent-inside-workflow-nodes.md)).
+The walk pauses on the request (other branches run on), the turn ends
+`input-required` with `consent` (its `path` from the node down when the
+request waits below the node), and the next message after the grant
+resumes that node; no node that completed runs again. An agent a `map`
+node runs cannot pause the walk, so it may not declare an
+`authorization_code` grant.
+
 The callback refuses these, and stores nothing:
 
 - a state that is replayed, tampered with or older than ten minutes;
@@ -1383,8 +1394,8 @@ top; its OAuth grants are stored under the root's app. An approval, an
 `ask_user` question or an OAuth consent on one of its routes, or inside a
 route's own delegation, pauses the whole turn with the path (e.g.
 `["Boss", "Team", "Ops"]` delegated, `["Team", "Ops"]` as a route), and
-the answer resumes that route without classifying again. As a workflow
-node it cannot pause on a consent request: the node fails. Its
+the answer resumes that route without classifying again, as a workflow
+node too. Its
 conversation is filed at `<app>/<caller>/<entry>` when delegated, at
 `<app>/route:<route>` as a route and at `<app>/node:<node>` as a node. A
 route that carries the entry's own name, a `map` over one, and a reference

@@ -44,7 +44,8 @@
  *      run's `error`, and the scheduler fails the attempt with
  *      NodeReportedError, ADK's message, retried or stopping the walk as
  *      ADK's does, and reported once (by the node's own event). A run the turn stopped throws. A run that pauses on
- *      an ask_user tool call is refused by name.
+ *      an ask_user tool call, or on an approval or a question inside its
+ *      delegation, is refused by name.
  *   8. APPROVALS (ADR 0098). A run that pauses on approval requests (a tool
  *      in the agent's `require_approval`) resolves with their ids as the
  *      node's interrupts: the node waits and the walk ends paused, as an
@@ -62,6 +63,20 @@
  *      from its input on. ADK's runLlmAgentAsNode stores the input again and
  *      starts the agent afresh, so the pinned call never runs there; ADK
  *      turns refuse gates on workflow nodes instead.
+ *   9. OAUTH CONSENT (ADR 0128). The node's loop gets the turn's consent
+ *      step, its flows bound to the turn's app. A tool whose grant is
+ *      missing stores its `adk_request_credential` call as the node's event
+ *      (stamped, its id in longRunningToolIds) and the run ends paused: that
+ *      id is the node's interrupt, as an approval request's is. A delegated
+ *      call whose child waits for a grant (ADR 0118) leaves the call open;
+ *      the node raises a copy of the child's request on one event of its own
+ *      (`pausedOn`), under the same id. On the resume, a grant's answer
+ *      (`{ credentialKey, granted: true }`, never plain text) lets the run
+ *      continue as rule 8 lets an approval's: the loop's auth preprocessor
+ *      (interrupts.ts grantedCalls) runs the paused call again, or its
+ *      delegation resume carries the answer down the open call. Without one
+ *      the node waits again, its request raised again (`waitAgain`). A map
+ *      item runs without the consent step: it cannot pause the walk.
  *
  * `agentNodeRuntime` puts it together for the scheduler: a `runNode` for
  * agent nodes and map items, and an `onEvent` that stores the event ADK
@@ -69,16 +84,19 @@
  * (lib/workflow/nodeEvents.ts), so a session the native walk writes holds
  * what ADK's holds, in the same order.
  *
- * NOT HERE: an ask_user tool call inside a node, a pause inside a map item,
+ * NOT HERE: an ask_user tool call inside a node, an approval or a question
+ * inside a node's own delegation, a pause inside a map item,
  * tool nodes (lib/workflow/toolNode.ts) and ask_user nodes
  * (lib/workflow/pause.ts). It imports nothing from ADK.
  */
 
 import { APPROVAL_REQUEST } from '../runtime/approvals.ts';
+import { CREDENTIAL_REQUEST, credentialRequestCall, isGrantAnswer } from '../runtime/credentials.ts';
 import { createTurnEvent, getFunctionCalls } from '../runtime/events.ts';
-import type { TurnContent, TurnEvent } from '../runtime/events.ts';
+import type { TurnContent, TurnEvent, TurnPart } from '../runtime/events.ts';
 import { runAgentLoop } from '../runtime/native/agentLoop.ts';
 import type { AgentLoopContext, AgentLoopEnd } from '../runtime/native/agentLoop.ts';
+import { delegatedPauses } from '../runtime/native/interrupts.ts';
 import { predecessorOutputs } from '../runtime/native/request.ts';
 import type { NativeAgent, WorkflowInstructionScope } from '../runtime/native/request.ts';
 import type { Session, SessionService } from '../runtime/sessions.ts';
@@ -174,6 +192,29 @@ function isApprovalRequest(event: TurnEvent | undefined, id: string): boolean {
   return !!event && getFunctionCalls(event).some((call) => call.id === id && call.name === APPROVAL_REQUEST);
 }
 
+/** The requests a node waits on and raises again: an approval request, or an OAuth consent request (ADR 0128). */
+const NODE_REQUESTS = new Set([APPROVAL_REQUEST, CREDENTIAL_REQUEST]);
+
+/** The name of the request call `id` the node's agent (`author`) stored, the latest first: an approval or a credential request, else undefined. */
+function requestNamed(events: readonly TurnEvent[], author: string, id: string): string | undefined {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i]!;
+    if (event.author !== author) continue;
+    const call = getFunctionCalls(event).find((c) => c.id === id && c.name !== undefined && NODE_REQUESTS.has(c.name));
+    if (call) return call.name;
+  }
+  return undefined;
+}
+
+/**
+ * Whether a resumed walk's answer to the node's request `id` answers it: a
+ * decision for an approval request (isApprovalAnswer), a grant's answer for
+ * a credential request (isGrantAnswer, ADR 0128).
+ */
+function answersRequest(events: readonly TurnEvent[], author: string, id: string, value: unknown): boolean {
+  return requestNamed(events, author, id) === CREDENTIAL_REQUEST ? isGrantAnswer(value) : isApprovalAnswer(value);
+}
+
 /**
  * Whether a resumed walk's answer to an approval request is a decision: a
  * ToolConfirmation (`{ confirmed }`), or ADK's `{ response: <json> }` form.
@@ -196,7 +237,7 @@ function outputAfter(events: readonly TurnEvent[], path: string, ids: readonly s
   const open = new Set(ids);
   let start = -1;
   events.forEach((event, i) => {
-    if (getFunctionCalls(event).some((call) => call.name === APPROVAL_REQUEST && call.id !== undefined && open.has(call.id))) start = i;
+    if (getFunctionCalls(event).some((call) => call.name !== undefined && NODE_REQUESTS.has(call.name) && call.id !== undefined && open.has(call.id))) start = i;
   });
   if (start === -1) return undefined;
   for (let i = events.length - 1; i > start; i--) {
@@ -214,15 +255,67 @@ function outputAfter(events: readonly TurnEvent[], path: string, ids: readonly s
  */
 async function waitAgain(agent: NativeAgent, run: Pick<NodeRun, 'input' | 'path' | 'branch'>, ctx: AgentNodeContext, waiting: string[]): Promise<NodeResult> {
   const open = new Set(waiting);
-  const calls = ctx.session.events.flatMap((event) => getFunctionCalls(event).filter((call) => call.name === APPROVAL_REQUEST && call.id !== undefined && open.has(call.id)));
+  const calls = ctx.session.events
+    .filter((event) => event.author === agent.name)
+    .flatMap((event) => getFunctionCalls(event).filter((call) => call.name !== undefined && NODE_REQUESTS.has(call.name) && call.id !== undefined && open.has(call.id)));
   const seen = new Set<string>();
   const parts = calls.filter((call) => !seen.has(call.id!) && seen.add(call.id!)).map((call) => ({ functionCall: structuredClone(call) }));
+  return raise(agent, run, ctx, parts);
+}
+
+/**
+ * Stores `parts` (request calls) as one event of the node's run, stamped as
+ * the node's, their ids in `longRunningToolIds` (the walk's interrupts), and
+ * resolves with those ids: the node waits on them.
+ */
+async function raise(agent: NativeAgent, run: Pick<NodeRun, 'input' | 'path' | 'branch'>, ctx: AgentNodeContext, parts: TurnPart[]): Promise<NodeResult> {
+  const seen = new Set(parts.map((p) => p.functionCall?.id as string));
   const event = createTurnEvent({ author: agent.name, invocationId: ctx.invocationId, content: { role: 'model', parts } });
   event.longRunningToolIds = [...seen];
   nodeStamp(agent, run, ctx.invocationId, { output: undefined })(event);
   const stored = await (ctx.appendInput ?? ((e: TurnEvent) => ctx.sessions.append(ctx.session, e)))(event);
   ctx.onEvent?.(stored);
   return { interruptIds: [...seen] };
+}
+
+/**
+ * Rules 8 and 9, a run that ended paused: the ids the node waits on. An
+ * approval request and the node's own OAuth consent request (its
+ * `adk_request_credential` call, already stored as the node's event) are
+ * the walk's interrupts as they are. A delegated call the agent left open
+ * whose child waits for a grant (ADR 0118) is raised again on the walk as a
+ * copy of the child's credential request, under its id (ADR 0128), so the
+ * walk pauses on what the turn asks the person for and its resume reruns
+ * the node with the grant's answer, which the loop's delegation resume
+ * carries down the open call. Any other pause (an ask_user call, an
+ * approval or a question inside the node's delegation) is refused by name.
+ */
+async function pausedOn(agent: NativeAgent, run: Pick<NodeRun, 'input' | 'path' | 'branch'> & Partial<Pick<NodeRun, 'target'>>, ctx: AgentNodeContext, end: AgentLoopEnd): Promise<NodeResult> {
+  const pending = end.pending ?? [];
+  const refuse = (): never => {
+    throw new Error(`Node '${agent.name}' paused on ${pending.join(', ')}: a pause inside an agent node other than an approval or an OAuth consent does not run on the native runtime yet.`);
+  };
+  if (pending.length === 0) refuse();
+  if (pending.every((id) => isApprovalRequest(end.lastEvent, id))) return { interruptIds: [...pending] };
+  // A map item never pauses: it runs without the consent step (agentNodeRuntime), so it has no request to wait on.
+  if (run.target?.kind === 'map_item') refuse();
+  const { session, sessions } = ctx;
+  const ids: string[] = [];
+  const raised: TurnPart[] = [];
+  let below: Awaited<ReturnType<typeof delegatedPauses>> | undefined;
+  for (const id of pending) {
+    if (isApprovalRequest(end.lastEvent, id) || requestNamed(session.events, agent.name, id) === CREDENTIAL_REQUEST) {
+      ids.push(id);
+      continue;
+    }
+    below ??= await delegatedPauses({ sessions, userId: session.userId, sessionId: session.id, appName: session.appName }, session.events, agent.name);
+    const consent = below.find((pause) => pause.callIds[0] === id)?.consent;
+    if (!consent) refuse();
+    ids.push(consent!.id);
+    raised.push({ functionCall: credentialRequestCall(consent!) });
+  }
+  if (raised.length > 0) await raise(agent, run, ctx, raised);
+  return { interruptIds: ids };
 }
 
 // ── One node ─────────────────────────────────────────────────────────────────
@@ -255,7 +348,7 @@ export interface AgentNodeContext {
  */
 export async function runAgentNode(
   agent: NativeAgent,
-  run: Pick<NodeRun, 'input' | 'path' | 'branch' | 'signal' | 'resumeInputs' | 'resumedInterruptIds'>,
+  run: Pick<NodeRun, 'input' | 'path' | 'branch' | 'signal' | 'resumeInputs' | 'resumedInterruptIds'> & Partial<Pick<NodeRun, 'target'>>,
   ctx: AgentNodeContext,
 ): Promise<NodeResult> {
   const taskMode = agent.mode === 'task';
@@ -264,7 +357,7 @@ export async function runAgentNode(
   // Rule 8: a node that waited on an approval resumes its own run once every request it raised is answered.
   const resumed = run.resumedInterruptIds ?? [];
   if (resumed.length > 0) {
-    const waiting = resumed.filter((id) => !isApprovalAnswer(run.resumeInputs?.[id]));
+    const waiting = resumed.filter((id) => !answersRequest(ctx.session.events, agent.name, id, run.resumeInputs?.[id]));
     if (waiting.length > 0) return waitAgain(agent, run, ctx, waiting);
     const finished = outputAfter(ctx.session.events, run.path, resumed);
     if (finished !== undefined) return { output: finished };
@@ -299,12 +392,7 @@ export async function runAgentNode(
     if (next.value.partial) ctx.onPartial?.(next.value);
     else ctx.onEvent?.(next.value);
   }
-  if (end.reason === 'paused') {
-    // Rule 8: an approval request pauses the node, and the walk with it; any other pause (an ask_user call) is refused.
-    const pending = end.pending ?? [];
-    if (pending.length > 0 && pending.every((id) => isApprovalRequest(end.lastEvent, id))) return { interruptIds: [...pending] };
-    throw new Error(`Node '${agent.name}' paused on ${pending.join(', ')}: a pause inside an agent node other than an approval does not run on the native runtime yet.`);
-  }
+  if (end.reason === 'paused') return pausedOn(agent, run, ctx, end);
   if (end.reason === 'stopped') throw new NodeStoppedError(agent.name, end.stop);
   // ADK's failIfNodeReportedError: an error with an output is not the node's failure. Without one the error is
   // returned, not thrown: the scheduler fails the attempt with its own NodeReportedError (this class's message), which
@@ -389,6 +477,8 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
       return stored;
     },
   };
+  const { consent: _consent, ...mapLoop } = ctx.loop ?? {};
+  const mapCtx: AgentNodeContext = { ...ctx, loop: mapLoop };
   const agentNamed = (name: string): NativeAgent => {
     const agent = agents.get(name);
     if (!agent) throw new Error(`workflow: '${name}' is not a compiled agent of this syndicate`);
@@ -402,7 +492,8 @@ export function agentNodeRuntime(options: AgentNodeRuntimeOptions): AgentNodeRun
     const target = run.target;
     if (target.kind === 'agent' && options.workflowNodes?.has(target.name)) return options.workflowNodes.run(target.name, run);
     if (target.kind === 'agent') return runAgentNode(agentNamed(target.name), run, ctx);
-    if (target.kind === 'map_item') return runAgentNode(agentNamed(target.agent), run, ctx);
+    // A map item cannot pause the walk (ADR 0094): it runs without the consent step, so a missing grant is its tool's error (ADR 0128).
+    if (target.kind === 'map_item') return runAgentNode(agentNamed(target.agent), run, mapCtx);
     if (options.next) return options.next(run);
     throw new Error(`agentNodeRunner runs agent nodes and map items only; ${target.name} is a ${target.kind} run`);
   };
