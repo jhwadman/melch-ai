@@ -8,6 +8,15 @@ the starter pack and the templates), not the repo's full history.
 
 ### Fixed
 
+- **Sign in with ChatGPT answers again: a stream whose `response.completed`
+  carries an empty `output` builds its final from `response.output_item.done`.**
+  The plan-usage route (`store: false`) sends every finished item only as
+  `output_item.done` and closes with an empty `output`, so on 1.3.0 a turn on
+  the sign-in completed with no text and no tool calls. The Responses stream
+  now keeps each finished item by `output_index` and uses them when the
+  completed reply has none; a populated `output` (every keyed call) still
+  wins. Found in the first live run on a ChatGPT plan (`gpt-5.5`,
+  `gpt-6.1-sol`).
 - **Bin paths are written as npm stores them** (`dist/scripts/<bin>.js`, no
   leading `./`). Same bin names and targets; npm 11 no longer warns at publish
   that each bin "was invalid and removed".

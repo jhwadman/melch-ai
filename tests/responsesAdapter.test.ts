@@ -663,3 +663,41 @@ test('a Grok final, mapped, carries groundingMetadata for the web sources', asyn
     });
   }
 });
+
+test('a stream whose response.completed carries an empty output (the plan-usage route) builds the final from output_item.done', async () => {
+  const message = { type: 'message', id: 'msg_1', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'Hi there, friend.', annotations: [] }] };
+  const call = { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'lookup', arguments: '{"q":"sky"}', status: 'completed' };
+  const sse = sseOf([
+    { type: 'response.created', response: responseOf([], 'gpt-5.5', { status: 'in_progress' }) },
+    { type: 'response.output_text.delta', output_index: 0, delta: 'Hi there, ' },
+    { type: 'response.output_text.delta', output_index: 0, delta: 'friend.' },
+    // Out of order on purpose: the final follows output_index, not arrival.
+    { type: 'response.output_item.done', output_index: 1, item: call },
+    { type: 'response.output_item.done', output_index: 0, item: message },
+    { type: 'response.completed', response: responseOf([], 'gpt-5.5') },
+  ]);
+  await withFetch([{ sse }], async () => {
+    const out = await collect(gpt('gpt-5.5').generate(request('gpt-5.5', { stream: true })));
+    const final = finalOf(out);
+    assert.equal(final.error, undefined);
+    const text = final.parts.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('');
+    assert.equal(text, 'Hi there, friend.', 'the text comes from the finished message item');
+    const calls = final.parts.filter((p: any) => p.type === 'toolCall');
+    assert.equal(calls.length, 1, 'the function call is not lost');
+    assert.equal((calls[0] as any).name, 'lookup');
+    assert.ok(final.parts.indexOf(calls[0]!) > final.parts.findIndex((p: any) => p.type === 'text'), 'items keep their output order');
+  });
+});
+
+test('a populated response.completed output wins over output_item.done (keyed calls are unchanged)', async () => {
+  const completedMessage = { type: 'message', id: 'msg_2', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'From completed.', annotations: [] }] };
+  const doneMessage = { ...completedMessage, content: [{ type: 'output_text', text: 'From item done.', annotations: [] }] };
+  const sse = sseOf([
+    { type: 'response.output_item.done', output_index: 0, item: doneMessage },
+    { type: 'response.completed', response: responseOf([completedMessage]) },
+  ]);
+  await withFetch([{ sse }], async () => {
+    const final = finalOf(await collect(gpt().generate(request('gpt-5-mini', { stream: true }))));
+    assert.equal(final.parts.filter((p: any) => p.type === 'text').map((p: any) => p.text).join(''), 'From completed.');
+  });
+});
