@@ -409,7 +409,7 @@ if (invokedAsMain) {
       console.log(`Capstone starter on http://${opts.host}:${port}  (mode: ${opts.mode})`);
       if (opts.mode === 'a2a') {
         console.log(`  agent service: ${opts.agent.url}`);
-        console.log(`  A2A_SERVER_SECRET: ${opts.agent.secret ? `set (${opts.agent.secret.length} chars)` : 'not set (the local server must run without one)'}`);
+        console.log(`  A2A_SERVER_SECRET: ${opts.agent.secret ? 'set' : 'not set (the local server must run without one)'}`);
         console.log(`  A2A_API_KEY: ${opts.agent.apiKey ? 'set (sent as X-API-Key)' : 'not set (the server pays with its own keys)'}`);
       }
       console.log(`  updates tool (MCP): http://${opts.host}:${port}/mcp${opts.toolDown ? '  (DOWN: every call returns an error)' : ''}`);
