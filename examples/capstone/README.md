@@ -93,13 +93,21 @@ chmod 600 .env
 Terminal 1, the agent service:
 
 ```bash
-HOST=127.0.0.1 ALLOW_PRIVATE_MCP=true npm run start:a2a -- event_assistant.yaml
+npm run capstone:agent
 ```
+
+That is `npm run start:a2a -- event_assistant.yaml` with three settings
+the capstone needs on your machine (`examples/capstone/serve-agent.ts`;
+a value you set yourself wins):
 
 - `HOST=127.0.0.1` keeps the server on your machine (with a secret set it
   would otherwise listen on every interface).
 - `ALLOW_PRIVATE_MCP=true` lets it reach the tool on a loopback address.
   Local development only: a deployed server must never set it.
+- `MELCHIZEDEK_CHATGPT_SIGNIN=off` ignores a ChatGPT sign-in stored on
+  this machine. A served process refuses to start while one would route
+  OpenAI models, because a ChatGPT plan covers only its owner's own use
+  (ADR 0126); the Event Assistant runs on Ollama and never needs it.
 
 Expected, among the boot lines:
 
@@ -109,8 +117,6 @@ Expected, among the boot lines:
 [A2A]   storage  in-memory (lost on restart; one replica)
 ```
 
-If it refuses to start because a ChatGPT sign-in is stored on your machine,
-add `MELCHIZEDEK_CHATGPT_SIGNIN=off` to that command.
 
 ## Step 3: replace the mock with the agent service
 

@@ -16,6 +16,10 @@ the starter pack and the templates), not the repo's full history.
   the repository at `examples/capstone/` (not in the package): a page, a
   dependency-free backend that sends `X-User-Id` from its own session, the
   tool's MCP endpoint, failure states and a seven-case evaluation pack.
+  `npm run capstone:agent` serves it on the learner's machine with
+  `HOST=127.0.0.1`, `ALLOW_PRIVATE_MCP=true` and `MELCHIZEDEK_CHATGPT_SIGNIN=off`
+  as defaults, so a ChatGPT sign-in stored on the same machine no longer
+  stops the local run (the agent runs on Ollama; ADR 0126 is unchanged).
   Nothing in the exports map, the barrel or the schema changes.
 
 - **OAuth consent pauses inside workflow nodes reach the turn and resume
